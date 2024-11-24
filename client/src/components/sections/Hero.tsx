@@ -18,7 +18,7 @@ export default function Hero() {
               Enter the Spatial Era with Blueprint
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-              Revolutionize how customers interact with your business through AI-driven AR blueprints. Blueprint provides a powerful, all-in-one platform—streamlining customer engagement and enhancing your in-person experiences without the need for your own app.
+              Blueprint provides a powerful, all-in-one platform—streamlining customer engagement and enhancing your in-person experiences without the need for your own app.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/create-blueprint">
