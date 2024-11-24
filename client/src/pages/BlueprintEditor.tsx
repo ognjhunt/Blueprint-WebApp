@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Ruler, Move, Plus, Settings, Save, Grid, Minus, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react'
 import { Button } from "@/components/ui/button"
@@ -145,13 +145,41 @@ export default function BlueprintEditor() {
   }
 
   const saveLayout = () => {
-    // Here you would typically save to your backend
-    console.log('Saving layout:', elements)
-    toast({
-      title: "Layout Saved",
-      description: "Your AR element layout has been saved successfully."
-    })
+    // Store layout in localStorage for persistence
+    try {
+      localStorage.setItem('blueprint-layout', JSON.stringify({
+        elements,
+        layout: editorState.layout
+      }));
+      toast({
+        title: "Layout Saved",
+        description: "Your AR element layout has been saved locally."
+      });
+    } catch (error) {
+      toast({
+        title: "Save Failed",
+        description: "Failed to save layout. Please try again.",
+        variant: "destructive"
+      });
+    }
   }
+
+  // Load saved layout from localStorage on mount
+  useEffect(() => {
+    const savedLayout = localStorage.getItem('blueprint-layout');
+    if (savedLayout) {
+      try {
+        const { elements: savedElements, layout } = JSON.parse(savedLayout);
+        setElements(savedElements);
+        setEditorState(prev => ({
+          ...prev,
+          layout
+        }));
+      } catch (error) {
+        console.error('Error loading saved layout:', error);
+      }
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -251,8 +279,9 @@ export default function BlueprintEditor() {
                 }}
                 drag
                 dragMomentum={false}
-                onDragEnd={(event, info) => {
-                  const container = event.target.closest('.editor-container')
+                onDragEnd={(event: any, info) => {
+                  const target = event.target as HTMLElement;
+                  const container = target.closest('.editor-container');
                   if (container) {
                     const bounds = container.getBoundingClientRect()
                     const x = ((info.point.x - bounds.left) / bounds.width) * 100

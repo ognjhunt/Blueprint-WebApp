@@ -3,11 +3,15 @@
 import { useState, ChangeEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
+interface FeatureDetail<T extends Record<string, string>> extends T {
+  enabled: boolean;
+}
+
 type FeatureDetails = {
-  personalizedRecommendations: { enabled: boolean; crm: string };
-  virtualTours: { enabled: boolean; tourUrl: string };
-  loyaltyProgram: { enabled: boolean; programDetails: string };
-  arVisualizations: { enabled: boolean; arModelUrls: string };
+  personalizedRecommendations: FeatureDetail<{ crm: string }>;
+  virtualTours: FeatureDetail<{ tourUrl: string }>;
+  loyaltyProgram: FeatureDetail<{ programDetails: string }>;
+  arVisualizations: FeatureDetail<{ arModelUrls: string }>;
 }
 
 type FormData = {
@@ -121,9 +125,17 @@ export default function CreateBlueprint() {
     e.preventDefault()
     setIsLoading(true)
     try {
-      // Here you would typically make an API call to create the blueprint
-      console.log('Form submitted:', formData)
-      const blueprintId = Date.now() // This would come from your API response
+      const blueprintId = Date.now().toString();
+      const blueprintData = {
+        id: blueprintId,
+        ...formData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      // Store blueprint data in localStorage
+      const existingBlueprints = JSON.parse(localStorage.getItem('blueprints') || '[]');
+      localStorage.setItem('blueprints', JSON.stringify([...existingBlueprints, blueprintData]));
       
       toast({
         title: "Blueprint Created Successfully!",
@@ -138,6 +150,7 @@ export default function CreateBlueprint() {
         description: "Failed to create Blueprint. Please try again.",
         variant: "destructive",
       })
+      console.error('Error creating blueprint:', error);
     } finally {
       setIsLoading(false)
     }
