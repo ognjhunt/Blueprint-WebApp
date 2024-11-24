@@ -6,11 +6,13 @@ import { Mail, Lock } from 'lucide-react'
 import { Link, useLocation } from "wouter"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google'
 import * as z from "zod"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Separator } from "@/components/ui/separator"
 import {
   Form,
   FormControl,
@@ -127,6 +129,53 @@ export default function SignIn() {
                     </Button>
                   </form>
                 </Form>
+                
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <Separator className="w-full" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                      Or continue with
+                    </span>
+                  </div>
+                </div>
+
+                <GoogleOAuthProvider clientId={process.env.GOOGLE_CLIENT_ID || ''}>
+                  <GoogleLogin
+                    onSuccess={async (credentialResponse) => {
+                      setIsLoading(true);
+                      try {
+                        // Here you would verify the token with your backend
+                        console.log(credentialResponse);
+                        toast({
+                          title: "Success",
+                          description: "Signed in with Google successfully.",
+                        });
+                        setLocation("/dashboard");
+                      } catch (error) {
+                        toast({
+                          title: "Error",
+                          description: "Failed to sign in with Google.",
+                          variant: "destructive",
+                        });
+                      } finally {
+                        setIsLoading(false);
+                      }
+                    }}
+                    onError={() => {
+                      toast({
+                        title: "Error",
+                        description: "Failed to sign in with Google.",
+                        variant: "destructive",
+                      });
+                    }}
+                    theme="outline"
+                    shape="rectangular"
+                    width="100%"
+                  />
+                </GoogleOAuthProvider>
+
                 <div className="mt-4 text-center text-sm">
                   <span className="text-gray-500">Don't have an account?</span>{" "}
                   <Link href="/create-account" className="text-primary hover:underline">
