@@ -9,6 +9,7 @@ import Home from "./pages/Home";
 import CreateBlueprint from "./pages/CreateBlueprint";
 import ClaimBlueprint from "./pages/ClaimBlueprint";
 import Dashboard from "./pages/Dashboard";
+import PricingPage from "./pages/Pricing";
 
 function Router() {
   return (
@@ -17,6 +18,7 @@ function Router() {
       <Route path="/create-blueprint" component={CreateBlueprint} />
       <Route path="/claim-blueprint" component={ClaimBlueprint} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/pricing" component={PricingPage} />
       <Route>404 Page Not Found</Route>
     </Switch>
   );

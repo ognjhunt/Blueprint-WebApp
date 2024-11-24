@@ -30,7 +30,7 @@ export default function Nav() {
           <div className="hidden md:flex items-center space-x-8">
             <a href="#benefits" className="text-sm font-medium hover:text-primary transition-colors">Benefits</a>
             <a href="#use-cases" className="text-sm font-medium hover:text-primary transition-colors">Use Cases</a>
-            <a href="#roi" className="text-sm font-medium hover:text-primary transition-colors">ROI Calculator</a>
+            <Link href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">Pricing</Link>
             <a href="#case-studies" className="text-sm font-medium hover:text-primary transition-colors">Case Studies</a>
             <div className="flex items-center space-x-2">
               <Link href="/dashboard"><Button variant="outline">Dashboard</Button></Link>
@@ -52,7 +52,7 @@ export default function Nav() {
             <div className="flex flex-col space-y-4">
               <a href="#benefits" className="text-sm font-medium hover:text-primary transition-colors">Benefits</a>
               <a href="#use-cases" className="text-sm font-medium hover:text-primary transition-colors">Use Cases</a>
-              <a href="#roi" className="text-sm font-medium hover:text-primary transition-colors">ROI Calculator</a>
+              <Link href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">Pricing</Link>
               <a href="#case-studies" className="text-sm font-medium hover:text-primary transition-colors">Case Studies</a>
               <Link href="/dashboard" className="w-full"><Button variant="outline" className="w-full mb-2">Dashboard</Button></Link>
               <Link href="/create-blueprint" className="w-full"><Button className="w-full mb-2">Create Blueprint</Button></Link>
