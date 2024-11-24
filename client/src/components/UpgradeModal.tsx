@@ -25,30 +25,8 @@ export function UpgradeModal({ isOpen, onClose, usageDetails }: UpgradeModalProp
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Upgrade to Plus">
+    <Modal isOpen={isOpen} onClose={onClose} title="Enter Payment Information">
       <div className="space-y-6">
-        <div className="bg-blue-50 p-4 rounded-lg">
-          <h3 className="font-semibold mb-2">Usage Summary</h3>
-          <div className="space-y-2 text-sm">
-            <p className="flex justify-between">
-              <span>Monthly Customers:</span>
-              <span>{usageDetails.numberOfCustomers}</span>
-            </p>
-            <p className="flex justify-between">
-              <span>Average Visit Time:</span>
-              <span>{usageDetails.averageVisitTime} hours</span>
-            </p>
-            <p className="flex justify-between">
-              <span>Total Hours:</span>
-              <span>{usageDetails.totalHours} hours</span>
-            </p>
-            <p className="flex justify-between font-semibold">
-              <span>Monthly Total:</span>
-              <span>${usageDetails.monthlyTotal.toFixed(2)}</span>
-            </p>
-          </div>
-        </div>
-
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="card-name">Cardholder Name</Label>
@@ -76,7 +54,7 @@ export function UpgradeModal({ isOpen, onClose, usageDetails }: UpgradeModalProp
             whileTap={{ scale: 0.98 }}
           >
             <Button type="submit" className="w-full">
-              Upgrade Now - ${usageDetails.monthlyTotal.toFixed(2)}/month
+              Save Billing Information
             </Button>
           </motion.div>
         </form>
