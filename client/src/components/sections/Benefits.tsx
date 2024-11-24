@@ -36,10 +36,10 @@ export default function Benefits() {
           className="text-center mb-16"
         >
           <h2 className="text-4xl font-bold mb-4">
-            Transform Your Business with AR
+            Technological Evolution Starts Here
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Unlock new possibilities and drive growth with Blueprint's cutting-edge AR technology.
+            Embrace the future with Blueprint's revolutionary AR technology platform. Be at the forefront of digital transformation.
           </p>
         </motion.div>
 
