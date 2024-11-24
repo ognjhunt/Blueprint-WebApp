@@ -124,7 +124,7 @@ export default function CustomerExperienceDesigner() {
         if (node.id === nodeId) {
           return {
             ...node,
-            data: { ...node.data, ...newData },
+            data: { ...newData },
           };
         }
         return node;
@@ -255,14 +255,13 @@ export default function CustomerExperienceDesigner() {
                 <Textarea
                   value={selectedNode.data.content || ''}
                   onChange={(e) => {
-                    setNodes((nds) =>
-                      nds.map((n) =>
-                        n.id === selectedNode.id
-                          ? { ...n, data: { ...n.data, content: e.target.value } }
-                          : n
-                      )
-                    );
+                    updateNodeData(selectedNode.id, {
+                      ...selectedNode.data,
+                      content: e.target.value
+                    });
                   }}
+                  placeholder={`Enter ${selectedNode.type} content...`}
+                  className="min-h-[100px]"
                 />
               </div>
               {selectedNode.type === 'question' && (
