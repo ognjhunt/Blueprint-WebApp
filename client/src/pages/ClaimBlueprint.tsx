@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import CustomerExperienceDesigner from '@/components/CustomerExperienceDesigner';
 import { Check, ChevronRight, MapPin, Store, User, Mail, Phone, Globe, Shield } from 'lucide-react';
+import { CodeEntryModal } from '@/components/CodeEntryModal';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +34,8 @@ const steps = [
 
 export default function ClaimBlueprint() {
   const [currentStep, setCurrentStep] = useState(0);
+  const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
+  const [showOtherMethods, setShowOtherMethods] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     businessName: 'Roots & Vines Restaurant',
     address: '123 Main St, Anytown, USA',
@@ -85,27 +88,61 @@ export default function ClaimBlueprint() {
     switch (currentStep) {
       case 0:
         return (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <h2 className="text-2xl font-bold">Verify Your Business</h2>
-            <p className="text-muted-foreground">Choose a verification method to prove you're the owner or manager of this business.</p>
-            <RadioGroup
-              name="verificationMethod"
-              value={formData.verificationMethod}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, verificationMethod: value }))}
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="phone" id="phone" />
-                <Label htmlFor="phone">Phone call verification</Label>
+            <p className="text-muted-foreground">Please verify ownership of your business to claim your Blueprint.</p>
+            
+            <div className="space-y-4">
+              <Button
+                size="lg"
+                className="w-full py-6 text-lg"
+                onClick={() => setIsCodeModalOpen(true)}
+              >
+                I have a verification code
+              </Button>
+              
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-muted-foreground">
+                    or
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="email" id="email" />
-                <Label htmlFor="email">Email verification</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="postcard" id="postcard" />
-                <Label htmlFor="postcard">Postcard by mail</Label>
-              </div>
-            </RadioGroup>
+
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setShowOtherMethods(!showOtherMethods)}
+              >
+                Verify another way
+              </Button>
+
+              {showOtherMethods && (
+                <div className="mt-4 space-y-4 border rounded-lg p-4 bg-gray-50">
+                  <RadioGroup
+                    name="verificationMethod"
+                    value={formData.verificationMethod}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, verificationMethod: value }))}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="phone" id="phone" />
+                      <Label htmlFor="phone">Phone call verification</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="email" id="email" />
+                      <Label htmlFor="email">Email verification</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="postcard" id="postcard" />
+                      <Label htmlFor="postcard">Postcard by mail</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+              )}
+            </div>
           </div>
         );
       case 1:
@@ -266,6 +303,14 @@ export default function ClaimBlueprint() {
                       <step.icon className="w-6 h-6" />
                     )}
                   </div>
+  <CodeEntryModal 
+    isOpen={isCodeModalOpen}
+    onClose={() => setIsCodeModalOpen(false)}
+    onSubmit={(code) => {
+      setFormData(prev => ({ ...prev, verificationCode: code, verificationMethod: 'code' }));
+      handleNext();
+    }}
+  />
                   <span className="text-xs mt-2">{step.title}</span>
                 </div>
               ))}
