@@ -24,23 +24,29 @@ export default function BusinessSearch() {
   const [predictions, setPredictions] = useState<PlacePrediction[]>([])
   const [autocomplete, setAutocomplete] = useState<google.maps.places.AutocompleteService | null>(null)
   const [loading, setLoading] = useState(false)
+  const [initializing, setInitializing] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const initGooglePlaces = async () => {
+      setInitializing(true)
       try {
         const loader = new Loader({
-          apiKey: import.meta.env.VITE_GOOGLE_PLACES_API_KEY!,
+          apiKey: process.env.GOOGLE_PLACES_API_KEY!,
           version: "weekly",
           libraries: ["places"]
         })
 
         await loader.load()
-        setAutocomplete(new google.maps.places.AutocompleteService())
+        const autocompleteService = new google.maps.places.AutocompleteService()
+        setAutocomplete(autocompleteService)
         setError(null)
       } catch (err) {
-        setError('Failed to initialize Google Places API. Please try again later.')
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+        setError(`Failed to initialize Google Places API: ${errorMessage}`)
         console.error('Error initializing Google Places:', err)
+      } finally {
+        setInitializing(false)
       }
     }
 
@@ -48,7 +54,12 @@ export default function BusinessSearch() {
   }, [])
 
   const handleSearch = useCallback(async (input: string) => {
-    if (!autocomplete || input.length < 3) {
+    if (!autocomplete) {
+      setError('Places service not initialized')
+      return
+    }
+    
+    if (input.length < 3) {
       setPredictions([])
       return
     }
@@ -57,15 +68,30 @@ export default function BusinessSearch() {
     setError(null)
 
     try {
-      const response = await autocomplete.getPlacePredictions({
+      const request: google.maps.places.AutocompletionRequest = {
         input,
         types: ['establishment'],
         componentRestrictions: { country: 'us' }
-      })
-      setPredictions(response?.predictions || [])
+      }
+
+      const response = await autocomplete.getPlacePredictions(request)
+      
+      if (!response) {
+        throw new Error('No response from Places API')
+      }
+
+      setPredictions(response.predictions.map(prediction => ({
+        place_id: prediction.place_id,
+        description: prediction.description,
+        structured_formatting: {
+          main_text: prediction.structured_formatting?.main_text || '',
+          secondary_text: prediction.structured_formatting?.secondary_text || ''
+        }
+      })))
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       console.error('Error fetching predictions:', error)
-      setError('Failed to fetch business suggestions. Please try again.')
+      setError(`Failed to fetch business suggestions: ${errorMessage}`)
       setPredictions([])
     } finally {
       setLoading(false)
@@ -117,18 +143,20 @@ export default function BusinessSearch() {
                 
                 <div className="relative">
                   <div className="flex items-center space-x-2">
-                    {loading ? (
+                    {initializing ? (
+                      <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                    ) : loading ? (
                       <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
                     ) : (
                       <Search className="w-5 h-5 text-gray-400" />
                     )}
                     <Input
                       type="text"
-                      placeholder="Search for your business..."
+                      placeholder={initializing ? "Initializing Places API..." : "Search for your business..."}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="flex-1"
-                      disabled={loading}
+                      disabled={initializing || loading}
                     />
                   </div>
 
