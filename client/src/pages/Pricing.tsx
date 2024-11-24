@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Check, X, Calculator } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,10 +10,12 @@ import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
 import Nav from "@/components/Nav"
 import Footer from "@/components/Footer"
+import { UpgradeModal } from "@/components/UpgradeModal"
 
 export default function PricingPage() {
   const [numberOfCustomers, setNumberOfCustomers] = useState(5000)
   const [averageVisitTime, setAverageVisitTime] = useState(0.5)
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false)
   const hourlyRate = 1
   const totalHours = numberOfCustomers * averageVisitTime
 
@@ -103,7 +105,11 @@ export default function PricingPage() {
                   </ul>
                 </CardContent>
                 <CardFooter>
-                  <Button className="w-full" variant={tier.name === 'Plus' ? 'default' : 'outline'}>
+                  <Button 
+                    className="w-full" 
+                    variant={tier.name === 'Plus' ? 'default' : 'outline'}
+                    onClick={() => tier.name === 'Plus' && setIsUpgradeModalOpen(true)}
+                  >
                     {tier.name === 'Free' ? 'Get Started' : 'Upgrade to Plus'}
                   </Button>
                 </CardFooter>
@@ -200,6 +206,16 @@ export default function PricingPage() {
         </div>
       </div>
       <Footer />
+      <UpgradeModal 
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        usageDetails={{
+          numberOfCustomers,
+          averageVisitTime,
+          totalHours,
+          monthlyTotal: totalHours * hourlyRate,
+        }}
+      />
     </div>
   )
 }
