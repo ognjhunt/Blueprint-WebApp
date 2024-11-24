@@ -38,7 +38,7 @@ export default function Nav() {
             <div className="flex items-center space-x-2">
               <Link href="/dashboard"><Button variant="outline">Dashboard</Button></Link>
               <Link href="/create-blueprint"><Button>Create Blueprint</Button></Link>
-              <Link href="/search"><Button variant="outline">Claim Blueprint</Button></Link>
+              <Link href="/claim-blueprint"><Button variant="outline">Claim Blueprint</Button></Link>
             </div>
           </div>
 
