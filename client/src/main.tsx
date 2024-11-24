@@ -7,12 +7,14 @@ import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import Home from "./pages/Home";
 import CreateBlueprint from "./pages/CreateBlueprint";
+import ClaimBlueprint from "./pages/ClaimBlueprint";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/create-blueprint" component={CreateBlueprint} />
+      <Route path="/claim-blueprint" component={ClaimBlueprint} />
       <Route>404 Page Not Found</Route>
     </Switch>
   );
