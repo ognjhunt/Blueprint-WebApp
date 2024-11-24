@@ -202,9 +202,11 @@ export default function Dashboard() {
                                 <DropdownMenuItem>
                                   View Details
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  Edit Blueprint
-                                </DropdownMenuItem>
+                                <Link href={`/blueprint-editor/${blueprint.id}`}>
+                                  <DropdownMenuItem>
+                                    Edit Blueprint
+                                  </DropdownMenuItem>
+                                </Link>
                                 <DropdownMenuItem>
                                   View Analytics
                                 </DropdownMenuItem>

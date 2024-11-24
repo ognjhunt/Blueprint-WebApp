@@ -15,6 +15,7 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import SignIn from "./pages/SignIn";
 import CreateAccount from "./pages/CreateAccount";
+import BlueprintEditor from "./pages/BlueprintEditor";
 
 function Router() {
   return (
@@ -29,6 +30,7 @@ function Router() {
       <Route path="/settings" component={Settings} />
       <Route path="/sign-in" component={SignIn} />
       <Route path="/create-account" component={CreateAccount} />
+      <Route path="/blueprint-editor/:id?" component={BlueprintEditor} />
       <Route>404 Page Not Found</Route>
     </Switch>
   );
