@@ -3,6 +3,7 @@ import Hero from "@/components/sections/Hero";
 import Benefits from "@/components/sections/Benefits";
 import UseCases from "@/components/sections/UseCases";
 import ROICalculator from "@/components/sections/ROICalculator";
+import BusinessDashboard from "@/components/sections/BusinessDashboard";
 import CaseStudies from "@/components/sections/CaseStudies";
 import ContactForm from "@/components/sections/ContactForm";
 import Footer from "@/components/Footer";
@@ -35,6 +36,7 @@ export default function Home() {
         <Hero />
         <Benefits />
         <UseCases />
+        <BusinessDashboard />
         <ROICalculator />
         <CaseStudies />
         <ContactForm />
