@@ -3,13 +3,17 @@ import * as THREE from 'three';
 export class ThreeScene {
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
-  private renderer: THREE.WebGLRenderer;
-  private particles: THREE.Points;
+  private renderer: THREE.WebGLRenderer | null = null;
+  private particles: THREE.Points | null = null;
   private animationFrameId: number = 0;
+  private isInitialized: boolean = false;
 
   constructor(container: HTMLElement) {
+    console.log("Initializing ThreeScene...");
+    
     // Scene setup
     this.scene = new THREE.Scene();
+    console.log("Scene created successfully");
     
     // Camera setup
     this.camera = new THREE.PerspectiveCamera(
@@ -19,54 +23,74 @@ export class ThreeScene {
       1000
     );
     this.camera.position.z = 5;
+    console.log("Camera initialized with aspect ratio:", container.clientWidth / container.clientHeight);
 
-    // Renderer setup
-    this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    this.renderer.setSize(container.clientWidth, container.clientHeight);
-    this.renderer.setPixelRatio(window.devicePixelRatio);
-    container.appendChild(this.renderer.domElement);
+    if (typeof window === 'undefined') return;
+
+    try {
+      // Renderer setup
+      this.renderer = new THREE.WebGLRenderer({ 
+        alpha: true, 
+        antialias: true,
+        powerPreference: "high-performance"
+      });
+      
+      // Set size with proper checks
+      const width = container.clientWidth || window.innerWidth;
+      const height = container.clientHeight || window.innerHeight;
+      this.renderer.setSize(width, height);
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      container.appendChild(this.renderer.domElement);
+      console.log("Renderer initialized successfully with dimensions:", width, "x", height);
 
     // Create particle system
-    const particleGeometry = new THREE.BufferGeometry();
-    const particleCount = 1000;
-    const positions = new Float32Array(particleCount * 3);
-    const colors = new Float32Array(particleCount * 3);
+      const particleGeometry = new THREE.BufferGeometry();
+      const particleCount = 1000;
+      const positions = new Float32Array(particleCount * 3);
+      const colors = new Float32Array(particleCount * 3);
 
-    for (let i = 0; i < particleCount * 3; i += 3) {
-      // Position
-      positions[i] = (Math.random() - 0.5) * 10;
-      positions[i + 1] = (Math.random() - 0.5) * 10;
-      positions[i + 2] = (Math.random() - 0.5) * 10;
+      for (let i = 0; i < particleCount * 3; i += 3) {
+        // Position
+        positions[i] = (Math.random() - 0.5) * 10;
+        positions[i + 1] = (Math.random() - 0.5) * 10;
+        positions[i + 2] = (Math.random() - 0.5) * 10;
 
-      // Color
-      colors[i] = 0.5 + Math.random() * 0.5; // R
-      colors[i + 1] = 0.5 + Math.random() * 0.5; // G
-      colors[i + 2] = 1.0; // B (more blue tint)
+        // Color
+        colors[i] = 0.5 + Math.random() * 0.5; // R
+        colors[i + 1] = 0.5 + Math.random() * 0.5; // G
+        colors[i + 2] = 1.0; // B (more blue tint)
+      }
+
+      particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+      const particleMaterial = new THREE.PointsMaterial({
+        size: 0.05,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending
+      });
+
+      this.particles = new THREE.Points(particleGeometry, particleMaterial);
+      this.scene.add(this.particles);
+
+      // Start animation
+      this.animate();
+
+      // Handle window resize
+      window.addEventListener('resize', this.handleResize);
+      this.isInitialized = true;
+    } catch (error) {
+      console.error("Failed to initialize ThreeScene:", error);
+      throw error;
     }
-
-    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-    const particleMaterial = new THREE.PointsMaterial({
-      size: 0.05,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.8,
-      blending: THREE.AdditiveBlending
-    });
-
-    this.particles = new THREE.Points(particleGeometry, particleMaterial);
-    this.scene.add(this.particles);
-
-    // Start animation
-    this.animate();
-
-    // Handle window resize
-    window.addEventListener('resize', this.handleResize);
   }
 
-  private animate = () => {
-    this.animationFrameId = requestAnimationFrame(this.animate);
+  private animate(): void {
+    if (!this.isInitialized || !this.renderer || !this.particles) return;
+    
+    this.animationFrameId = requestAnimationFrame(() => this.animate());
 
     // Rotate particles
     this.particles.rotation.x += 0.0003;
@@ -80,9 +104,11 @@ export class ThreeScene {
     this.particles.geometry.attributes.position.needsUpdate = true;
 
     this.renderer.render(this.scene, this.camera);
-  };
+  }
 
-  private handleResize = () => {
+  private handleResize = (): void => {
+    if (!this.isInitialized || !this.renderer) return;
+
     const container = this.renderer.domElement.parentElement;
     if (!container) return;
 
@@ -94,26 +120,40 @@ export class ThreeScene {
     this.renderer.setSize(width, height);
   };
 
-  public addMouseInteraction(element: HTMLElement) {
+  public addMouseInteraction(element: HTMLElement): void {
+    if (!this.isInitialized || !this.particles) return;
+
     let mouseX = 0;
     let mouseY = 0;
 
-    element.addEventListener('mousemove', (event) => {
+    const handleMouseMove = (event: MouseEvent): void => {
       mouseX = (event.clientX / window.innerWidth) * 2 - 1;
       mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
 
-      this.particles.rotation.x += mouseY * 0.0001;
-      this.particles.rotation.y += mouseX * 0.0001;
-    });
+      this.particles!.rotation.x += mouseY * 0.0001;
+      this.particles!.rotation.y += mouseX * 0.0001;
+    };
+
+    element.addEventListener('mousemove', handleMouseMove);
   }
 
-  public dispose() {
-    cancelAnimationFrame(this.animationFrameId);
+  public dispose(): void {
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+    }
+    
     window.removeEventListener('resize', this.handleResize);
     
-    this.scene.remove(this.particles);
-    this.particles.geometry.dispose();
-    (this.particles.material as THREE.Material).dispose();
-    this.renderer.dispose();
+    if (this.particles) {
+      this.scene.remove(this.particles);
+      this.particles.geometry.dispose();
+      (this.particles.material as THREE.Material).dispose();
+    }
+
+    if (this.renderer) {
+      this.renderer.dispose();
+    }
+
+    this.isInitialized = false;
   }
 }

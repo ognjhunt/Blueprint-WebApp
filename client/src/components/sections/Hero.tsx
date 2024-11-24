@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
 import ARDemoViewer from "@/components/ARDemoViewer";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export default function Hero() {
   return (
@@ -39,7 +40,9 @@ export default function Hero() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="relative"
           >
-            <ARDemoViewer />
+            <ErrorBoundary>
+              <ARDemoViewer />
+            </ErrorBoundary>
             <div className="absolute -bottom-4 -right-4 bg-white p-4 rounded-lg shadow-lg">
               <p className="text-2xl font-bold text-primary">+45%</p>
               <p className="text-sm text-gray-600">Average Revenue Increase</p>
