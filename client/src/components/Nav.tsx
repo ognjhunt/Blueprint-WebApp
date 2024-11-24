@@ -1,0 +1,59 @@
+import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import { Menu, X } from "lucide-react";
+
+export default function Nav() {
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  return (
+    <nav
+      className={`fixed w-full z-50 transition-all duration-300 ${
+        isScrolled ? "bg-white/90 backdrop-blur-sm shadow-sm" : "bg-transparent"
+      }`}
+    >
+      <div className="container mx-auto px-4">
+        <div className="flex items-center justify-between h-16">
+          <div className="flex items-center">
+            <span className="text-2xl font-bold text-primary">Blueprint</span>
+          </div>
+
+          <div className="hidden md:flex items-center space-x-8">
+            <a href="#benefits" className="text-sm font-medium hover:text-primary transition-colors">Benefits</a>
+            <a href="#use-cases" className="text-sm font-medium hover:text-primary transition-colors">Use Cases</a>
+            <a href="#roi" className="text-sm font-medium hover:text-primary transition-colors">ROI Calculator</a>
+            <a href="#case-studies" className="text-sm font-medium hover:text-primary transition-colors">Case Studies</a>
+            <Button>Request Demo</Button>
+          </div>
+
+          <button
+            className="md:hidden"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          >
+            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
+
+        {isMobileMenuOpen && (
+          <div className="md:hidden py-4">
+            <div className="flex flex-col space-y-4">
+              <a href="#benefits" className="text-sm font-medium hover:text-primary transition-colors">Benefits</a>
+              <a href="#use-cases" className="text-sm font-medium hover:text-primary transition-colors">Use Cases</a>
+              <a href="#roi" className="text-sm font-medium hover:text-primary transition-colors">ROI Calculator</a>
+              <a href="#case-studies" className="text-sm font-medium hover:text-primary transition-colors">Case Studies</a>
+              <Button className="w-full">Request Demo</Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </nav>
+  );
+}
