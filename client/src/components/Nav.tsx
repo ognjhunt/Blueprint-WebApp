@@ -64,9 +64,11 @@ export default function Nav() {
             <Link href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">
               Pricing
             </Link>
-            <Button onClick={() => {/* Add auth flow later */}} variant="outline" className="mr-4">
-              Sign In / Create Account
-            </Button>
+            <Link href="/sign-in">
+              <Button variant="outline" className="mr-4">
+                Sign In / Create Account
+              </Button>
+            </Link>
             {isAuthenticated && (
               <>
                 <Link href="/dashboard">

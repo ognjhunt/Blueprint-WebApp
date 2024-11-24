@@ -13,6 +13,8 @@ import PricingPage from "./pages/Pricing";
 import BusinessSearch from "./pages/BusinessSearch";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
+import SignIn from "./pages/SignIn";
+import CreateAccount from "./pages/CreateAccount";
 
 function Router() {
   return (
@@ -25,6 +27,8 @@ function Router() {
       <Route path="/search" component={BusinessSearch} />
       <Route path="/profile" component={Profile} />
       <Route path="/settings" component={Settings} />
+      <Route path="/sign-in" component={SignIn} />
+      <Route path="/create-account" component={CreateAccount} />
       <Route>404 Page Not Found</Route>
     </Switch>
   );
