@@ -6,76 +6,38 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export default function Hero() {
   return (
-    <section className="hero-gradient min-h-screen flex items-center relative overflow-hidden pt-16">
+    <section className="min-h-[80vh] flex items-center justify-center bg-gradient-to-b from-blue-50 to-white pt-16">
       <div className="container mx-auto px-4">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+        <div className="max-w-3xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="text-center lg:text-left"
+            transition={{ duration: 0.5 }}
           >
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6">
-              Transform Your Space with
-              <span className="gradient-text block">Blueprint AR</span>
+            <h1 className="text-4xl md:text-5xl font-bold mb-6">
+              Create AR Experiences for Your Business
             </h1>
-            <p className="text-xl text-gray-600 mb-8">
-              Revolutionize customer engagement with augmented reality experiences that drive revenue and operational efficiency.
+            <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+              Build interactive AR blueprints that guide customers through your business space, boost engagement, and drive growth.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/create-blueprint">
-                <Button size="lg" className="text-lg">
+                <Button size="lg" className="text-lg px-8">
                   Create Blueprint
                 </Button>
               </Link>
               <Link href="/claim-blueprint">
-                <Button size="lg" variant="outline" className="text-lg">
-                  Claim Blueprint
+                <Button size="lg" variant="outline" className="text-lg px-8">
+                  Claim Existing Blueprint
                 </Button>
               </Link>
             </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="relative"
-          >
-            <ErrorBoundary>
-              <ARDemoViewer />
-            </ErrorBoundary>
-            <div className="absolute -bottom-4 -right-4 bg-white p-4 rounded-lg shadow-lg">
-              <p className="text-2xl font-bold text-primary">+45%</p>
-              <p className="text-sm text-gray-600">Average Revenue Increase</p>
-            </div>
+            <p className="mt-6 text-sm text-gray-500">
+              Join 1,000+ businesses already using Blueprint AR
+            </p>
           </motion.div>
         </div>
       </div>
-
-      {/* Floating Elements */}
-      <motion.div
-        animate={{
-          y: [0, -20, 0],
-        }}
-        transition={{
-          duration: 4,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-        className="absolute top-1/4 right-10 w-16 h-16 bg-blue-500/10 rounded-full"
-      />
-      <motion.div
-        animate={{
-          y: [0, 20, 0],
-        }}
-        transition={{
-          duration: 3,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-        className="absolute bottom-1/4 left-10 w-24 h-24 bg-indigo-500/10 rounded-full"
-      />
     </section>
   );
 }
