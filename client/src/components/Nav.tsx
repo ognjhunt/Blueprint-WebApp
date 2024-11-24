@@ -19,13 +19,16 @@ export default function Nav() {
   const [isAuthenticated, setIsAuthenticated] = useState(false); // Default to false
   const { toast } = useToast();
 
-  const handleSignOut = async () => {
+  const handleSignOut = () => {
     setIsAuthenticated(false);
+    
+    // Show toast notification
     toast({
       title: "Signed Out",
-      description: "You have been successfully signed out.",
+      description: "You have been successfully signed out."
     });
-    // Add small delay before redirect
+
+    // Add delay before redirect
     setTimeout(() => {
       window.location.href = "/";
     }, 1500);
