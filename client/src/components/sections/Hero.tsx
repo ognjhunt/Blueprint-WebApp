@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
+import ARDemoViewer from "@/components/ARDemoViewer";
 
 export default function Hero() {
   return (
@@ -38,11 +39,7 @@ export default function Hero() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="relative"
           >
-            <img
-              src="https://images.unsplash.com/photo-1580983219883-8463619d50e5"
-              alt="AR Business Implementation"
-              className="rounded-lg shadow-2xl w-full"
-            />
+            <ARDemoViewer />
             <div className="absolute -bottom-4 -right-4 bg-white p-4 rounded-lg shadow-lg">
               <p className="text-2xl font-bold text-primary">+45%</p>
               <p className="text-sm text-gray-600">Average Revenue Increase</p>
