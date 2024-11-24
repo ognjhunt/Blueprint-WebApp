@@ -1,7 +1,31 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, ChangeEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+
+type FeatureDetails = {
+  personalizedRecommendations: { enabled: boolean; crm: string };
+  virtualTours: { enabled: boolean; tourUrl: string };
+  loyaltyProgram: { enabled: boolean; programDetails: string };
+  arVisualizations: { enabled: boolean; arModelUrls: string };
+}
+
+type FormData = {
+  businessName: string;
+  businessType: string;
+  locationName: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+  phone: string;
+  email: string;
+  website: string;
+  aiProvider: string;
+  apiKey: string;
+  features: FeatureDetails;
+}
 import { ChevronRight, ChevronLeft, Check, Building2, MapPin, Phone, Mail, Globe, Users, Palette, Cog } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,7 +54,7 @@ const aiProviders = [
 
 export default function CreateBlueprint() {
   const [currentStep, setCurrentStep] = useState(0)
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     businessName: '',
     businessType: '',
     locationName: '',
@@ -52,12 +76,12 @@ export default function CreateBlueprint() {
     },
   })
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement> | { target: { name: string; value: string } }) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleFeatureToggle = (feature) => {
+  const handleFeatureToggle = (feature: keyof FeatureDetails) => {
     setFormData((prev) => ({
       ...prev,
       features: {
@@ -67,7 +91,11 @@ export default function CreateBlueprint() {
     }))
   }
 
-  const handleFeatureDetailChange = (feature, field, value) => {
+  const handleFeatureDetailChange = (
+    feature: keyof FeatureDetails,
+    field: string,
+    value: string
+  ) => {
     setFormData((prev) => ({
       ...prev,
       features: {
@@ -268,7 +296,7 @@ export default function CreateBlueprint() {
           <div className="space-y-4">
             <Label>Select Blueprint Features</Label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Object.entries(formData.features).map(([feature, { enabled, ...details }]) => (
+              {(Object.entries(formData.features) as [keyof FeatureDetails, { enabled: boolean } & Record<string, string>][]).map(([feature, { enabled, ...details }]) => (
                 <div key={feature} className="space-y-2">
                   <div className="flex items-center space-x-2">
                     <input
