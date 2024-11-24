@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Search } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Nav() {
@@ -31,10 +31,14 @@ export default function Nav() {
 
           <div className="hidden md:flex items-center space-x-8">
             <Link href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">Pricing</Link>
+            <Link href="/search" className="text-sm font-medium hover:text-primary transition-colors flex items-center">
+              <Search className="w-4 h-4 mr-1" />
+              Search
+            </Link>
             <div className="flex items-center space-x-2">
               <Link href="/dashboard"><Button variant="outline">Dashboard</Button></Link>
               <Link href="/create-blueprint"><Button>Create Blueprint</Button></Link>
-              <Link href="/claim-blueprint"><Button variant="outline">Claim Blueprint</Button></Link>
+              <Link href="/search"><Button variant="outline">Claim Blueprint</Button></Link>
             </div>
           </div>
 

@@ -26,7 +26,7 @@ export default function Hero() {
                   Create Blueprint
                 </Button>
               </Link>
-              <Link href="/claim-blueprint">
+              <Link href="/search">
                 <Button size="lg" variant="outline" className="text-lg px-8">
                   Claim Existing Blueprint
                 </Button>
