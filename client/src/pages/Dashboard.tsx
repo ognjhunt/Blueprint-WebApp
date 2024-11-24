@@ -180,7 +180,11 @@ export default function Dashboard() {
                     </TableHeader>
                     <TableBody>
                       {blueprints.map((blueprint) => (
-                        <TableRow key={blueprint.id}>
+                        <TableRow 
+                          key={blueprint.id} 
+                          className="cursor-pointer hover:bg-gray-50"
+                          onClick={() => window.location.href = `/blueprint-editor/${blueprint.id}`}
+                        >
                           <TableCell className="font-medium">{blueprint.name}</TableCell>
                           <TableCell>{blueprint.type}</TableCell>
                           <TableCell>
@@ -191,9 +195,19 @@ export default function Dashboard() {
                             </span>
                           </TableCell>
                           <TableCell>{blueprint.lastUpdated}</TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.location.href = `/blueprint-editor/${blueprint.id}`;
+                              }}
+                            >
+                              Edit
+                            </Button>
                             <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
+                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                                 <Button variant="ghost" size="sm">
                                   Actions
                                 </Button>
@@ -202,11 +216,6 @@ export default function Dashboard() {
                                 <DropdownMenuItem>
                                   View Details
                                 </DropdownMenuItem>
-                                <Link href={`/blueprint-editor/${blueprint.id}`}>
-                                  <DropdownMenuItem>
-                                    Edit Blueprint
-                                  </DropdownMenuItem>
-                                </Link>
                                 <DropdownMenuItem>
                                   View Analytics
                                 </DropdownMenuItem>

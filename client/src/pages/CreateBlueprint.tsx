@@ -117,10 +117,30 @@ export default function CreateBlueprint() {
     }
   }
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    console.log('Form submitted:', formData)
-    alert('Blueprint created successfully! Check the console for details.')
+    setIsLoading(true)
+    try {
+      // Here you would typically make an API call to create the blueprint
+      console.log('Form submitted:', formData)
+      const blueprintId = Date.now() // This would come from your API response
+      
+      toast({
+        title: "Blueprint Created Successfully!",
+        description: "You can now customize your Blueprint in the editor.",
+      })
+      
+      // Redirect to the editor
+      window.location.href = `/blueprint-editor/${blueprintId}`
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create Blueprint. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const renderStep = () => {
