@@ -13,8 +13,10 @@ import Footer from "@/components/Footer"
 
 export default function PricingPage() {
   const [isAnnual, setIsAnnual] = useState(false)
-  const [estimatedHours, setEstimatedHours] = useState(100)
+  const [numberOfCustomers, setNumberOfCustomers] = useState(50)
+  const [averageVisitTime, setAverageVisitTime] = useState(2)
   const hourlyRate = isAnnual ? 0.75 : 1 // 25% discount for annual billing
+  const totalHours = numberOfCustomers * averageVisitTime
 
   const tiers = [
     {
@@ -133,37 +135,79 @@ export default function PricingPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <Label>Estimated Hours of Usage per Month</Label>
-                  <div className="flex items-center space-x-4">
-                    <Slider
-                      value={[estimatedHours]}
-                      onValueChange={([value]) => setEstimatedHours(value)}
-                      max={500}
-                      step={10}
-                      className="flex-1"
-                    />
-                    <Input
-                      type="number"
-                      value={estimatedHours}
-                      onChange={(e) => setEstimatedHours(Number(e.target.value))}
-                      className="w-24"
-                    />
+                <div className="space-y-6">
+                  <div className="space-y-4">
+                    <Label>Number of Monthly Customers</Label>
+                    <div className="flex items-center space-x-4">
+                      <Slider
+                        value={[numberOfCustomers]}
+                        onValueChange={([value]) => setNumberOfCustomers(value)}
+                        max={200}
+                        step={5}
+                        className="flex-1"
+                      />
+                      <Input
+                        type="number"
+                        value={numberOfCustomers}
+                        onChange={(e) => setNumberOfCustomers(Number(e.target.value))}
+                        className="w-24"
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-medium">Estimated Monthly Cost:</span>
-                    <span className="text-2xl font-bold">
-                      ${(estimatedHours * hourlyRate).toFixed(2)}
-                    </span>
+                  <div className="space-y-4">
+                    <Label>Average Visit Time (hours)</Label>
+                    <div className="flex items-center space-x-4">
+                      <Slider
+                        value={[averageVisitTime]}
+                        onValueChange={([value]) => setAverageVisitTime(value)}
+                        max={10}
+                        step={0.5}
+                        className="flex-1"
+                      />
+                      <Input
+                        type="number"
+                        value={averageVisitTime}
+                        onChange={(e) => setAverageVisitTime(Number(e.target.value))}
+                        className="w-24"
+                      />
+                    </div>
                   </div>
-                  {isAnnual && (
-                    <p className="text-sm text-green-600 mt-2">
-                      You save ${(estimatedHours * 0.25).toFixed(2)} per month with annual billing!
-                    </p>
-                  )}
+
+                  <div className="bg-gray-50 p-6 rounded-lg space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-500">Number of Customers</p>
+                        <p className="text-lg font-medium">{numberOfCustomers}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Average Time per Visit</p>
+                        <p className="text-lg font-medium">{averageVisitTime} hours</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Total Hours per Month</p>
+                        <p className="text-lg font-medium">{totalHours} hours</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Rate per Hour</p>
+                        <p className="text-lg font-medium">${hourlyRate.toFixed(2)}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="border-t pt-4 mt-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-lg font-medium">Total Monthly Cost:</span>
+                        <span className="text-2xl font-bold">
+                          ${(totalHours * hourlyRate).toFixed(2)}
+                        </span>
+                      </div>
+                      {isAnnual && (
+                        <p className="text-sm text-green-600 mt-2">
+                          You save ${(totalHours * 0.25).toFixed(2)} per month with annual billing!
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
