@@ -48,6 +48,7 @@ export default function BusinessSearch() {
       if (!apiKey) {
         throw new Error('Google Places API key is not configured')
       }
+      console.log('API Key loaded successfully')
 
       const loader = new Loader({
         apiKey,
@@ -56,6 +57,10 @@ export default function BusinessSearch() {
       })
 
       await loader.load()
+      
+      if (typeof google === 'undefined') {
+        throw new Error('Google Maps JavaScript API not loaded')
+      }
       
       const autocompleteService = new google.maps.places.AutocompleteService()
       if (!autocompleteService) {
@@ -76,13 +81,13 @@ export default function BusinessSearch() {
       const errorMessage = err instanceof Error 
         ? err.message
         : 'An unexpected error occurred'
+      console.error('Error details:', err)
       setError(`Failed to initialize Google Places API: ${errorMessage}`)
-      console.error('Error initializing Google Places:', err)
       setLoaderStatus('error')
       
       toast({
         title: "Error",
-        description: "Failed to initialize Google Places API. Please try again.",
+        description: `Failed to initialize Google Places API: ${errorMessage}. Please try again.`,
         variant: "destructive"
       })
     }
