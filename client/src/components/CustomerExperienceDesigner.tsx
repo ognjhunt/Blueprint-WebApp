@@ -118,6 +118,20 @@ export default function CustomerExperienceDesigner() {
     [setEdges]
   );
 
+  const updateNodeData = useCallback((nodeId: string, newData: any) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: { ...node.data, ...newData },
+          };
+        }
+        return node;
+      })
+    );
+  }, [setNodes]);
+
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
     setSelectedNode(node);
   }, []);
