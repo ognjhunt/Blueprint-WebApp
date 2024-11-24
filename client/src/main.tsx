@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/toaster";
 import Home from "./pages/Home";
 import CreateBlueprint from "./pages/CreateBlueprint";
 import ClaimBlueprint from "./pages/ClaimBlueprint";
+import Dashboard from "./pages/Dashboard";
 
 function Router() {
   return (
@@ -15,6 +16,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/create-blueprint" component={CreateBlueprint} />
       <Route path="/claim-blueprint" component={ClaimBlueprint} />
+      <Route path="/dashboard" component={Dashboard} />
       <Route>404 Page Not Found</Route>
     </Switch>
   );
