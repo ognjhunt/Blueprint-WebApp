@@ -226,13 +226,14 @@ export default function BlueprintEditor() {
             ) : (
               <div className={`absolute inset-0 flex items-center justify-center ${isDraggingFile ? 'bg-blue-50' : ''}`}>
                 <div className="text-center p-6 border-2 border-dashed border-gray-300 rounded-lg">
-                  <p className="text-gray-500">Drag and drop your store layout here</p>
-                  <p className="text-sm text-gray-400">or</p>
+                  <p className="text-gray-500">Drag and drop your store layout or floor plan (PNG, JPG)</p>
+                  <p className="text-sm text-gray-400 mt-1">Required for placing AR elements accurately</p>
+                  <p className="text-sm text-gray-400 mt-1">or</p>
                   <input
                     type="file"
                     accept="image/*"
                     onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
-                    className="mt-2"
+                    className="mt-2 text-sm text-gray-500"
                   />
                 </div>
               </div>
