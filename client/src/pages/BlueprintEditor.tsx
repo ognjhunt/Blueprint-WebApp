@@ -62,11 +62,12 @@ export default function BlueprintEditor() {
 
     const reader = new FileReader()
     reader.onload = (e) => {
-      if (typeof e.target?.result === 'string') {
+      const result = e.target?.result
+      if (result && typeof result === 'string') {
         setEditorState(prev => ({
           ...prev,
           layout: {
-            url: e.target.result,
+            url: result,
             name: file.name
           }
         }))
@@ -208,7 +209,7 @@ export default function BlueprintEditor() {
           onDrop={handleDrop}
         >
           <div 
-            className={`w-full h-full relative ${showGrid ? 'bg-grid-pattern' : 'bg-white'}`}
+            className={`w-full h-full relative editor-container ${showGrid ? 'bg-grid-pattern' : 'bg-white'}`}
             style={{
               transform: `scale(${editorState.scale}) translate(${editorState.position.x}px, ${editorState.position.y}px)`,
               transformOrigin: 'center'
@@ -239,7 +240,7 @@ export default function BlueprintEditor() {
             {elements.map((element) => (
               <motion.div
                 key={element.id}
-                className={`absolute cursor-move p-4 rounded-lg ${
+                className={`absolute cursor-move p-4 rounded-lg z-10 ${
                   selectedElement?.id === element.id ? 'ring-2 ring-blue-500' : ''
                 }`}
                 style={{
@@ -249,9 +250,10 @@ export default function BlueprintEditor() {
                 }}
                 drag
                 dragMomentum={false}
-                onDragEnd={(_, info) => {
-                  const bounds = info.target.parentElement?.getBoundingClientRect()
-                  if (bounds) {
+                onDragEnd={(event, info) => {
+                  const container = event.target.closest('.editor-container')
+                  if (container) {
+                    const bounds = container.getBoundingClientRect()
                     const x = ((info.point.x - bounds.left) / bounds.width) * 100
                     const y = ((info.point.y - bounds.top) / bounds.height) * 100
                     updateElementPosition(element.id, {
