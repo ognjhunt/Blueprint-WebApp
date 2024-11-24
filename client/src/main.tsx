@@ -10,6 +10,7 @@ import CreateBlueprint from "./pages/CreateBlueprint";
 import ClaimBlueprint from "./pages/ClaimBlueprint";
 import Dashboard from "./pages/Dashboard";
 import PricingPage from "./pages/Pricing";
+import BusinessSearch from "./pages/BusinessSearch";
 
 function Router() {
   return (
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/claim-blueprint" component={ClaimBlueprint} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/pricing" component={PricingPage} />
+      <Route path="/search" component={BusinessSearch} />
       <Route>404 Page Not Found</Route>
     </Switch>
   );
