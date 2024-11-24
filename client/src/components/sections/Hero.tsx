@@ -28,9 +28,11 @@ export default function Hero() {
                   Create Blueprint
                 </Button>
               </Link>
-              <Button size="lg" variant="outline" className="text-lg">
-                View Case Studies
-              </Button>
+              <Link href="/claim-blueprint">
+                <Button size="lg" variant="outline" className="text-lg">
+                  Claim Blueprint
+                </Button>
+              </Link>
             </div>
           </motion.div>
 

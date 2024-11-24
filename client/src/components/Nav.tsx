@@ -32,7 +32,10 @@ export default function Nav() {
             <a href="#use-cases" className="text-sm font-medium hover:text-primary transition-colors">Use Cases</a>
             <a href="#roi" className="text-sm font-medium hover:text-primary transition-colors">ROI Calculator</a>
             <a href="#case-studies" className="text-sm font-medium hover:text-primary transition-colors">Case Studies</a>
-            <Link href="/create-blueprint"><Button>Create Blueprint</Button></Link>
+            <div className="flex items-center space-x-2">
+              <Link href="/create-blueprint"><Button>Create Blueprint</Button></Link>
+              <Link href="/claim-blueprint"><Button variant="outline">Claim Blueprint</Button></Link>
+            </div>
           </div>
 
           <button
