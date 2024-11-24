@@ -2,28 +2,49 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Loader } from '@googlemaps/js-api-loader'
-import { Building2, Search, MapPin } from 'lucide-react'
+import { Building2, Search, MapPin, AlertCircle, Loader2 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import Nav from "@/components/Nav"
 import Footer from "@/components/Footer"
 
+interface PlacePrediction {
+  place_id: string;
+  description: string;
+  structured_formatting: {
+    main_text: string;
+    secondary_text: string;
+  };
+}
+
 export default function BusinessSearch() {
   const [searchQuery, setSearchQuery] = useState('')
-  const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([])
+  const [predictions, setPredictions] = useState<PlacePrediction[]>([])
   const [autocomplete, setAutocomplete] = useState<google.maps.places.AutocompleteService | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const loader = new Loader({
-      apiKey: import.meta.env.VITE_GOOGLE_PLACES_API_KEY!,
-      version: "weekly",
-      libraries: ["places"]
-    })
+    const initGooglePlaces = async () => {
+      try {
+        const loader = new Loader({
+          apiKey: import.meta.env.VITE_GOOGLE_PLACES_API_KEY!,
+          version: "weekly",
+          libraries: ["places"]
+        })
 
-    loader.load().then(() => {
-      setAutocomplete(new google.maps.places.AutocompleteService())
-    })
+        await loader.load()
+        setAutocomplete(new google.maps.places.AutocompleteService())
+        setError(null)
+      } catch (err) {
+        setError('Failed to initialize Google Places API. Please try again later.')
+        console.error('Error initializing Google Places:', err)
+      }
+    }
+
+    initGooglePlaces()
   }, [])
 
   const handleSearch = useCallback(async (input: string) => {
@@ -31,6 +52,9 @@ export default function BusinessSearch() {
       setPredictions([])
       return
     }
+
+    setLoading(true)
+    setError(null)
 
     try {
       const response = await autocomplete.getPlacePredictions({
@@ -41,7 +65,10 @@ export default function BusinessSearch() {
       setPredictions(response?.predictions || [])
     } catch (error) {
       console.error('Error fetching predictions:', error)
+      setError('Failed to fetch business suggestions. Please try again.')
       setPredictions([])
+    } finally {
+      setLoading(false)
     }
   }, [autocomplete])
 
@@ -80,40 +107,54 @@ export default function BusinessSearch() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="relative">
-                <div className="flex items-center space-x-2">
-                  <Search className="w-5 h-5 text-gray-400" />
-                  <Input
-                    type="text"
-                    placeholder="Search for your business..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1"
-                  />
-                </div>
-
-                {predictions.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
-                    <ul className="py-1">
-                      {predictions.map((prediction) => (
-                        <li
-                          key={prediction.place_id}
-                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-start"
-                          onClick={() => {
-                            setSearchQuery(prediction.description)
-                            setPredictions([])
-                          }}
-                        >
-                          <MapPin className="w-5 h-5 mr-2 mt-1 flex-shrink-0 text-gray-400" />
-                          <div>
-                            <div className="font-medium">{prediction.structured_formatting.main_text}</div>
-                            <div className="text-sm text-gray-500">{prediction.structured_formatting.secondary_text}</div>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+              <div className="space-y-4">
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
                 )}
+                
+                <div className="relative">
+                  <div className="flex items-center space-x-2">
+                    {loading ? (
+                      <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                    ) : (
+                      <Search className="w-5 h-5 text-gray-400" />
+                    )}
+                    <Input
+                      type="text"
+                      placeholder="Search for your business..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="flex-1"
+                      disabled={loading}
+                    />
+                  </div>
+
+                  {predictions.length > 0 && !loading && (
+                    <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
+                      <ul className="py-1">
+                        {predictions.map((prediction) => (
+                          <li
+                            key={prediction.place_id}
+                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-start"
+                            onClick={() => {
+                              setSearchQuery(prediction.description)
+                              setPredictions([])
+                            }}
+                          >
+                            <MapPin className="w-5 h-5 mr-2 mt-1 flex-shrink-0 text-gray-400" />
+                            <div>
+                              <div className="font-medium">{prediction.structured_formatting.main_text}</div>
+                              <div className="text-sm text-gray-500">{prediction.structured_formatting.secondary_text}</div>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
