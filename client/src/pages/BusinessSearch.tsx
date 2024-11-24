@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Loader } from '@googlemaps/js-api-loader'
-import { Building2, Search, MapPin, AlertCircle, Loader2 } from 'lucide-react'
+import { Building2, Search, MapPin, AlertCircle, Loader2, RefreshCcw } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useToast } from "@/hooks/use-toast"
 import Nav from "@/components/Nav"
 import Footer from "@/components/Footer"
 
@@ -19,52 +20,77 @@ interface PlacePrediction {
   };
 }
 
+interface BusinessDetails {
+  hasBlueprint: boolean;
+  name: string;
+  address: string;
+}
+
+type LoaderStatus = 'idle' | 'loading' | 'error' | 'success';
+
 export default function BusinessSearch() {
   const [searchQuery, setSearchQuery] = useState('')
   const [predictions, setPredictions] = useState<PlacePrediction[]>([])
   const [autocomplete, setAutocomplete] = useState<google.maps.places.AutocompleteService | null>(null)
+  const [placesService, setPlacesService] = useState<google.maps.places.PlacesService | null>(null)
   const [loading, setLoading] = useState(false)
-  const [initializing, setInitializing] = useState(true)
+  const [loaderStatus, setLoaderStatus] = useState<LoaderStatus>('idle')
   const [error, setError] = useState<string | null>(null)
+  const [selectedBusiness, setSelectedBusiness] = useState<BusinessDetails | null>(null)
+  const { toast } = useToast()
+
+  const initGooglePlaces = useCallback(async () => {
+    setLoaderStatus('loading')
+    setError(null)
+    
+    try {
+      const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY
+      if (!apiKey) {
+        throw new Error('Google Places API key is not configured')
+      }
+
+      const loader = new Loader({
+        apiKey,
+        version: "weekly",
+        libraries: ["places"]
+      })
+
+      await loader.load()
+      
+      const autocompleteService = new google.maps.places.AutocompleteService()
+      if (!autocompleteService) {
+        throw new Error('Failed to initialize Places Autocomplete service')
+      }
+      
+      // Initialize PlacesService with a dummy div (required by Google Maps)
+      const placesDiv = document.createElement('div')
+      const placesService = new google.maps.places.PlacesService(placesDiv)
+      if (!placesService) {
+        throw new Error('Failed to initialize Places service')
+      }
+
+      setAutocomplete(autocompleteService)
+      setPlacesService(placesService)
+      setLoaderStatus('success')
+    } catch (err) {
+      const errorMessage = err instanceof Error 
+        ? err.message
+        : 'An unexpected error occurred'
+      setError(`Failed to initialize Google Places API: ${errorMessage}`)
+      console.error('Error initializing Google Places:', err)
+      setLoaderStatus('error')
+      
+      toast({
+        title: "Error",
+        description: "Failed to initialize Google Places API. Please try again.",
+        variant: "destructive"
+      })
+    }
+  }, [toast])
 
   useEffect(() => {
-    const initGooglePlaces = async () => {
-      setInitializing(true)
-      setError(null)
-      
-      try {
-        const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY
-        if (!apiKey) {
-          throw new Error('Google Places API key is not configured')
-        }
-
-        const loader = new Loader({
-          apiKey,
-          version: "weekly",
-          libraries: ["places"]
-        })
-
-        await loader.load()
-        const autocompleteService = new google.maps.places.AutocompleteService()
-        
-        if (!autocompleteService) {
-          throw new Error('Failed to initialize Places Autocomplete service')
-        }
-
-        setAutocomplete(autocompleteService)
-      } catch (err) {
-        const errorMessage = err instanceof Error 
-          ? err.message
-          : 'An unexpected error occurred'
-        setError(`Failed to initialize Google Places API: ${errorMessage}`)
-        console.error('Error initializing Google Places:', err)
-      } finally {
-        setInitializing(false)
-      }
-    }
-
     initGooglePlaces()
-  }, [])
+  }, [initGooglePlaces])
 
   const handleSearch = useCallback(async (input: string) => {
     if (!autocomplete) {
@@ -79,6 +105,7 @@ export default function BusinessSearch() {
 
     setLoading(true)
     setError(null)
+    setSelectedBusiness(null)
 
     try {
       const request: google.maps.places.AutocompletionRequest = {
@@ -87,13 +114,20 @@ export default function BusinessSearch() {
         componentRestrictions: { country: 'us' }
       }
 
-      const response = await autocomplete.getPlacePredictions(request)
-      
-      if (!response) {
-        throw new Error('No response from Places API')
-      }
+      const response = await new Promise<google.maps.places.AutocompletePrediction[]>((resolve, reject) => {
+        autocomplete.getPlacePredictions(
+          request,
+          (predictions, status) => {
+            if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) {
+              reject(new Error(`Places API error: ${status}`))
+              return
+            }
+            resolve(predictions)
+          }
+        )
+      })
 
-      setPredictions(response.predictions.map(prediction => ({
+      setPredictions(response.map(prediction => ({
         place_id: prediction.place_id,
         description: prediction.description,
         structured_formatting: {
@@ -106,10 +140,16 @@ export default function BusinessSearch() {
       console.error('Error fetching predictions:', error)
       setError(`Failed to fetch business suggestions: ${errorMessage}`)
       setPredictions([])
+      
+      toast({
+        title: "Error",
+        description: "Failed to fetch business suggestions. Please try again.",
+        variant: "destructive"
+      })
     } finally {
       setLoading(false)
     }
-  }, [autocomplete])
+  }, [autocomplete, toast])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -120,6 +160,56 @@ export default function BusinessSearch() {
 
     return () => clearTimeout(timer)
   }, [searchQuery, handleSearch])
+
+  const handleSelectBusiness = useCallback(async (prediction: PlacePrediction) => {
+    if (!placesService) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await new Promise<google.maps.places.PlaceResult>((resolve, reject) => {
+        placesService.getDetails(
+          {
+            placeId: prediction.place_id,
+            fields: ['name', 'formatted_address']
+          },
+          (place, status) => {
+            if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {
+              reject(new Error(`Places API error: ${status}`));
+              return;
+            }
+            resolve(place);
+          }
+        );
+      });
+
+      // Here you would typically check your backend if a Blueprint exists
+      // For now, we'll simulate it
+      const hasBlueprint = Math.random() > 0.5;
+
+      setSelectedBusiness({
+        name: result.name || '',
+        address: result.formatted_address || '',
+        hasBlueprint
+      });
+      
+      setSearchQuery(prediction.description);
+      setPredictions([]);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Error fetching business details:', error);
+      setError(`Failed to fetch business details: ${errorMessage}`);
+      
+      toast({
+        title: "Error",
+        description: "Failed to fetch business details. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [placesService, toast]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-100 to-white">
@@ -137,9 +227,22 @@ export default function BusinessSearch() {
 
           <Card className="w-full">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Building2 className="w-6 h-6 mr-2" />
-                Business Search
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Building2 className="w-6 h-6 mr-2" />
+                  Business Search
+                </div>
+                {loaderStatus === 'error' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => initGooglePlaces()}
+                    className="flex items-center space-x-2"
+                  >
+                    <RefreshCcw className="w-4 h-4 mr-1" />
+                    Retry
+                  </Button>
+                )}
               </CardTitle>
               <CardDescription>
                 Enter your business name or address to get started
@@ -156,7 +259,7 @@ export default function BusinessSearch() {
                 
                 <div className="relative">
                   <div className="flex items-center space-x-2">
-                    {initializing ? (
+                    {loaderStatus === 'loading' ? (
                       <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
                     ) : loading ? (
                       <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
@@ -165,11 +268,11 @@ export default function BusinessSearch() {
                     )}
                     <Input
                       type="text"
-                      placeholder={initializing ? "Initializing Places API..." : "Search for your business..."}
+                      placeholder={loaderStatus === 'loading' ? "Initializing Places API..." : "Search for your business..."}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="flex-1"
-                      disabled={initializing || loading}
+                      disabled={loaderStatus !== 'success' || loading}
                     />
                   </div>
 
@@ -180,10 +283,7 @@ export default function BusinessSearch() {
                           <li
                             key={prediction.place_id}
                             className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-start"
-                            onClick={() => {
-                              setSearchQuery(prediction.description)
-                              setPredictions([])
-                            }}
+                            onClick={() => handleSelectBusiness(prediction)}
                           >
                             <MapPin className="w-5 h-5 mr-2 mt-1 flex-shrink-0 text-gray-400" />
                             <div>
@@ -196,6 +296,38 @@ export default function BusinessSearch() {
                     </div>
                   )}
                 </div>
+
+                {selectedBusiness && (
+                  <Card className="mt-4">
+                    <CardContent className="pt-6">
+                      <h3 className="text-lg font-semibold mb-2">{selectedBusiness.name}</h3>
+                      <p className="text-sm text-gray-500 mb-4">{selectedBusiness.address}</p>
+                      {selectedBusiness.hasBlueprint ? (
+                        <div className="flex flex-col space-y-4">
+                          <Alert>
+                            <AlertDescription className="flex items-center">
+                              <span className="text-green-600 font-medium">Blueprint Found!</span>
+                            </AlertDescription>
+                          </Alert>
+                          <Button>
+                            Claim Existing Blueprint
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col space-y-4">
+                          <Alert>
+                            <AlertDescription>
+                              No Blueprint found for this business.
+                            </AlertDescription>
+                          </Alert>
+                          <Button>
+                            Create New Blueprint
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </CardContent>
           </Card>
