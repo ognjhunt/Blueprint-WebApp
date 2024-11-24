@@ -12,10 +12,9 @@ import Nav from "@/components/Nav"
 import Footer from "@/components/Footer"
 
 export default function PricingPage() {
-  const [isAnnual, setIsAnnual] = useState(false)
-  const [numberOfCustomers, setNumberOfCustomers] = useState(50)
-  const [averageVisitTime, setAverageVisitTime] = useState(2)
-  const hourlyRate = isAnnual ? 0.75 : 1 // 25% discount for annual billing
+  const [numberOfCustomers, setNumberOfCustomers] = useState(5000)
+  const [averageVisitTime, setAverageVisitTime] = useState(0.5)
+  const hourlyRate = 1
   const totalHours = numberOfCustomers * averageVisitTime
 
   const tiers = [
@@ -68,17 +67,7 @@ export default function PricingPage() {
             </p>
           </div>
 
-          <div className="mt-12 flex justify-center items-center space-x-4">
-            <span className="text-sm font-medium text-gray-500">Monthly</span>
-            <Switch
-              checked={isAnnual}
-              onCheckedChange={setIsAnnual}
-              id="billing-toggle"
-            />
-            <span className="text-sm font-medium text-gray-900">
-              Annually <span className="text-green-500 font-bold">(Save 25%)</span>
-            </span>
-          </div>
+          <div className="mt-12"></div>
 
           <div className="mt-12 space-y-4 sm:mt-16 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-6 lg:max-w-4xl lg:mx-auto xl:max-w-none xl:mx-0 xl:grid-cols-2">
             {tiers.map((tier) => (
@@ -201,11 +190,7 @@ export default function PricingPage() {
                           ${(totalHours * hourlyRate).toFixed(2)}
                         </span>
                       </div>
-                      {isAnnual && (
-                        <p className="text-sm text-green-600 mt-2">
-                          You save ${(totalHours * 0.25).toFixed(2)} per month with annual billing!
-                        </p>
-                      )}
+                      
                     </div>
                   </div>
                 </div>
