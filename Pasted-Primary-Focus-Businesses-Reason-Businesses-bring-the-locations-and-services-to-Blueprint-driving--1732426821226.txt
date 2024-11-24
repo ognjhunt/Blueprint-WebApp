@@ -1,0 +1,25 @@
+Primary Focus: Businesses Reason: Businesses bring the locations and services to Blueprint, driving adoption by integrating their offerings. Users are attracted to connect with Blueprint only if there are locations available with interactive experiences. Business Benefits: Customization of experiences. Increased engagement and revenue. Insights into customer behavior. Reduced operational friction (e.g., self-check-ins, AR-guided navigation). Ideal Approach: Start by onboarding businesses (even with automated workflows) to ensure there’s value for users when they connect.
+Secondary Focus: Users Reason: Users provide engagement and feedback, which enhances the value proposition for businesses. As more businesses adopt Blueprint, users will naturally benefit from the platform’s growing coverage. User Benefits: Convenience (e.g., personalized menus, product locators). Enrichment (e.g., AR-enhanced exhibits, exclusive content). Savings and rewards (e.g., targeted offers, loyalty programs). Ideal Approach: Once there are enough locations on Blueprint, heavily market to users to highlight the convenience and novelty of the experiences. Landing Page Focus The landing page should cater primarily to businesses while subtly addressing user benefits. This creates a clear call-to-action for businesses to sign up and for users to see the potential advantages of using Blueprint.
+Landing Page Structure for Businesses: Hero Section:
+
+Visual: Showcase AR-enhanced experiences (e.g., a restaurant menu overlay or product locator). Tagline: "Transform Your Space with Blueprint – Engage Customers Like Never Before." Call-to-Action: "Get Started Today – Create Your Blueprint." How It Works (Business POV):
+
+Describe the onboarding process (automated or manual). Highlight how Blueprint simplifies setup using AI and AR. Include a demo video or interactive feature. Benefits to Businesses:
+
+Increased revenue through upsells. Enhanced customer engagement. Operational efficiencies and data insights. Use Cases:
+
+Restaurants: Highlight menu overlays and loyalty programs. Retail: Showcase product locators and targeted promotions. Museums: Demonstrate interactive tours and exhibit guides. Testimonials and Case Studies:
+
+Showcase successful businesses already using Blueprint. Call-to-Action:
+
+"Sign Up to Create Your Blueprint." Landing Page Structure for Users (Secondary Audience): Why Connect to Blueprint?:
+
+Highlight ease of use (e.g., instant connection via QR code). Mention features like personalized recommendations, loyalty programs, and AR tours. Show the Experience:
+
+Use GIFs, videos, or animations to show how a user interacts with a Blueprint location. Call-to-Action:
+
+Encourage app downloads or sign-ups: "Experience the World Through Blueprint." Refining User and Business Pages To address both users and businesses:
+
+Use dynamic content that adjusts based on the visitor type (e.g., "For Businesses" vs. "For Users"). Separate detailed pages for each audience: For Businesses: Detailed setup guide, pricing, case studies. For Users: How-to guides, benefits, and rewards. This approach ensures a strong focus on onboarding businesses while building awareness and excitement among users, creating a virtuous cycle that fuels growth for both sides.
+
+I want to market the Bluepritn website towards businesses - most likely users wont have a need to visit our website but businesses will in order to create/claim/learn about our platform. Please recreate the insane animated landing page w/ a focus on Businesses
