@@ -16,6 +16,7 @@ interface FormData {
   website: string;
   email: string;
   verificationMethod: string;
+  verificationCode: string;
   customizations: {
     loyaltyProgram: boolean;
     specialPromotions: boolean;
@@ -39,6 +40,7 @@ export default function ClaimBlueprint() {
     website: 'www.rootsandvines.com',
     email: '',
     verificationMethod: '',
+    verificationCode: '',
     customizations: {
       loyaltyProgram: false,
       specialPromotions: false,
