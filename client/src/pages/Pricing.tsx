@@ -137,8 +137,8 @@ export default function PricingPage() {
                       <Slider
                         value={[numberOfCustomers]}
                         onValueChange={([value]) => setNumberOfCustomers(value)}
-                        max={200}
-                        step={5}
+                        max={10000}
+                        step={100}
                         className="flex-1"
                       />
                       <Input
@@ -156,8 +156,8 @@ export default function PricingPage() {
                       <Slider
                         value={[averageVisitTime]}
                         onValueChange={([value]) => setAverageVisitTime(value)}
-                        max={10}
-                        step={0.25}
+                        max={4}
+                        step={0.5}
                         className="flex-1"
                       />
                       <Input
