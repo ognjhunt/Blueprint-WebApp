@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { Link } from "wouter";
 
 export default function Hero() {
   return (
@@ -20,9 +21,11 @@ export default function Hero() {
               Revolutionize customer engagement with augmented reality experiences that drive revenue and operational efficiency.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-              <Button size="lg" className="text-lg">
-                Request Demo
-              </Button>
+              <Link href="/create-blueprint">
+                <Button size="lg" className="text-lg">
+                  Create Blueprint
+                </Button>
+              </Link>
               <Button size="lg" variant="outline" className="text-lg">
                 View Case Studies
               </Button>

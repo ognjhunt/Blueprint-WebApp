@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
+import { Link } from "wouter";
 
 export default function Nav() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -31,7 +32,7 @@ export default function Nav() {
             <a href="#use-cases" className="text-sm font-medium hover:text-primary transition-colors">Use Cases</a>
             <a href="#roi" className="text-sm font-medium hover:text-primary transition-colors">ROI Calculator</a>
             <a href="#case-studies" className="text-sm font-medium hover:text-primary transition-colors">Case Studies</a>
-            <Button>Request Demo</Button>
+            <Link href="/create-blueprint"><Button>Create Blueprint</Button></Link>
           </div>
 
           <button
@@ -49,7 +50,7 @@ export default function Nav() {
               <a href="#use-cases" className="text-sm font-medium hover:text-primary transition-colors">Use Cases</a>
               <a href="#roi" className="text-sm font-medium hover:text-primary transition-colors">ROI Calculator</a>
               <a href="#case-studies" className="text-sm font-medium hover:text-primary transition-colors">Case Studies</a>
-              <Button className="w-full">Request Demo</Button>
+              <Link href="/create-blueprint" className="w-full"><Button className="w-full">Create Blueprint</Button></Link>
             </div>
           </div>
         )}
