@@ -11,6 +11,8 @@ import ClaimBlueprint from "./pages/ClaimBlueprint";
 import Dashboard from "./pages/Dashboard";
 import PricingPage from "./pages/Pricing";
 import BusinessSearch from "./pages/BusinessSearch";
+import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
 
 function Router() {
   return (
@@ -21,6 +23,8 @@ function Router() {
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/pricing" component={PricingPage} />
       <Route path="/search" component={BusinessSearch} />
+      <Route path="/profile" component={Profile} />
+      <Route path="/settings" component={Settings} />
       <Route>404 Page Not Found</Route>
     </Switch>
   );

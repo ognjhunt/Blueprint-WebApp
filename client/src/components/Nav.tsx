@@ -69,10 +69,24 @@ export default function Nav() {
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Profile</DropdownMenuItem>
-                <DropdownMenuItem>Settings</DropdownMenuItem>
+                <Link href="/profile">
+                  <DropdownMenuItem>Profile</DropdownMenuItem>
+                </Link>
+                <Link href="/settings">
+                  <DropdownMenuItem>Settings</DropdownMenuItem>
+                </Link>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Sign out</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  // Here you would typically clear auth tokens/session
+                  toast({
+                    title: "Signed Out",
+                    description: "You have been successfully signed out.",
+                  })
+                  // Redirect to home page
+                  window.location.href = "/"
+                }}>
+                  Sign out
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -104,8 +118,26 @@ export default function Nav() {
               <Link href="/claim-blueprint" className="w-full">
                 <Button variant="outline" className="w-full">Claim Blueprint</Button>
               </Link>
-              <Button variant="outline" className="w-full">
-                Profile
+              <Link href="/profile" className="w-full">
+                <Button variant="outline" className="w-full mb-2">Profile</Button>
+              </Link>
+              <Link href="/settings" className="w-full">
+                <Button variant="outline" className="w-full mb-2">Settings</Button>
+              </Link>
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => {
+                  // Here you would typically clear auth tokens/session
+                  toast({
+                    title: "Signed Out",
+                    description: "You have been successfully signed out.",
+                  })
+                  // Redirect to home page
+                  window.location.href = "/"
+                }}
+              >
+                Sign Out
               </Button>
             </div>
           </div>
