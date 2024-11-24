@@ -30,30 +30,33 @@ export default function BusinessSearch() {
   useEffect(() => {
     const initGooglePlaces = async () => {
       setInitializing(true)
+      setError(null)
+      
       try {
-        if (!import.meta.env.VITE_GOOGLE_PLACES_API_KEY) {
-          setError('Google Places API key is not configured');
-          return;
+        const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY
+        if (!apiKey) {
+          throw new Error('Google Places API key is not configured')
         }
 
         const loader = new Loader({
-          apiKey: import.meta.env.VITE_GOOGLE_PLACES_API_KEY,
+          apiKey,
           version: "weekly",
           libraries: ["places"]
         })
 
         await loader.load()
         const autocompleteService = new google.maps.places.AutocompleteService()
+        
         if (!autocompleteService) {
           throw new Error('Failed to initialize Places Autocomplete service')
         }
+
         setAutocomplete(autocompleteService)
-        setError(null)
       } catch (err) {
         const errorMessage = err instanceof Error 
-          ? `Failed to initialize Google Places API: ${err.message}`
-          : 'An unexpected error occurred while initializing Google Places API'
-        setError(errorMessage)
+          ? err.message
+          : 'An unexpected error occurred'
+        setError(`Failed to initialize Google Places API: ${errorMessage}`)
         console.error('Error initializing Google Places:', err)
       } finally {
         setInitializing(false)
