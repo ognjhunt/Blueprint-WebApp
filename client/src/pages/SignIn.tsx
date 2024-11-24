@@ -141,7 +141,7 @@ export default function SignIn() {
                   </div>
                 </div>
 
-                <GoogleOAuthProvider clientId={process.env.GOOGLE_CLIENT_ID || ''}>
+                <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
                   <GoogleLogin
                     onSuccess={async (credentialResponse) => {
                       setIsLoading(true);
