@@ -37,39 +37,36 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-100">
       <Nav />
-      <div className="flex">
+      <div className="flex pt-16">
         {/* Sidebar */}
-        <aside className="w-64 bg-white border-r min-h-[calc(100vh-4rem)] sticky top-16">
+        <aside className="w-64 bg-white border-r h-[calc(100vh-4rem)] sticky top-16">
           <nav className="p-4 space-y-2">
-            <a 
-              href="#" 
-              className={`flex items-center px-4 py-2 rounded-lg transition-colors ${activeTab === 'overview' ? 'bg-primary text-white' : 'hover:bg-gray-100'}`}
+            <button 
+              className={`flex w-full items-center px-4 py-2 rounded-lg transition-colors ${activeTab === 'overview' ? 'bg-primary text-white' : 'hover:bg-gray-100'}`}
               onClick={() => setActiveTab('overview')}
             >
               <BarChart className="mr-3 h-5 w-5" />
               Overview
-            </a>
-            <a 
-              href="#" 
-              className={`flex items-center px-4 py-2 rounded-lg transition-colors ${activeTab === 'blueprints' ? 'bg-primary text-white' : 'hover:bg-gray-100'}`}
+            </button>
+            <button 
+              className={`flex w-full items-center px-4 py-2 rounded-lg transition-colors ${activeTab === 'blueprints' ? 'bg-primary text-white' : 'hover:bg-gray-100'}`}
               onClick={() => setActiveTab('blueprints')}
             >
               <Building2 className="mr-3 h-5 w-5" />
               My Blueprints
-            </a>
-            <a 
-              href="#" 
-              className={`flex items-center px-4 py-2 rounded-lg transition-colors ${activeTab === 'customers' ? 'bg-primary text-white' : 'hover:bg-gray-100'}`}
+            </button>
+            <button 
+              className={`flex w-full items-center px-4 py-2 rounded-lg transition-colors ${activeTab === 'customers' ? 'bg-primary text-white' : 'hover:bg-gray-100'}`}
               onClick={() => setActiveTab('customers')}
             >
               <Users className="mr-3 h-5 w-5" />
               Customers
-            </a>
+            </button>
           </nav>
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 p-8">
+        <main className="flex-1 p-6 overflow-auto">
           <div className="max-w-6xl mx-auto">
             <div className="flex justify-between items-center mb-8">
               <h1 className="text-2xl font-bold">Dashboard</h1>
