@@ -15,10 +15,10 @@ export default function Hero() {
             transition={{ duration: 0.5 }}
           >
             <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              Transform Customer Experience with Spatial Innovation
+              Enter the Spatial Era with Blueprint
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-              Elevate your business with Blueprint's enterprise-grade AR platform. Launch immersive experiences in days, not months - no custom development needed. Join industry leaders already achieving 3x customer engagement.
+              Revolutionize how customers interact with your business through AI-driven AR blueprints. Blueprint provides a powerful, all-in-one platform—streamlining customer engagement and enhancing your in-person experiences without the need for your own app.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/create-blueprint">
