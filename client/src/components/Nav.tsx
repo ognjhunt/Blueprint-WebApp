@@ -39,12 +39,12 @@ export default function Nav() {
           </div>
 
           <div className="hidden md:flex items-center space-x-4">
-            <Link href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">
-              Pricing
-            </Link>
             <Link href="/search" className="text-sm font-medium hover:text-primary transition-colors flex items-center">
               <Search className="w-4 h-4 mr-1" />
               Search
+            </Link>
+            <Link href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">
+              Pricing
             </Link>
             <Link href="/dashboard">
               <Button variant="outline">Dashboard</Button>
@@ -88,12 +88,12 @@ export default function Nav() {
         {isMobileMenuOpen && (
           <div className="md:hidden py-4">
             <div className="flex flex-col space-y-4">
-              <Link href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">
-                Pricing
-              </Link>
               <Link href="/search" className="text-sm font-medium hover:text-primary transition-colors flex items-center">
                 <Search className="w-4 h-4 mr-1" />
                 Search
+              </Link>
+              <Link href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">
+                Pricing
               </Link>
               <Link href="/dashboard" className="w-full">
                 <Button variant="outline" className="w-full mb-2">Dashboard</Button>
