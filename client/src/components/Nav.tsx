@@ -16,7 +16,20 @@ import { useToast } from "@/hooks/use-toast";
 export default function Nav() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(true); // Default to true for now
   const { toast } = useToast();
+
+  const handleSignOut = async () => {
+    setIsAuthenticated(false);
+    toast({
+      title: "Signed Out",
+      description: "You have been successfully signed out.",
+    });
+    // Add small delay before redirect
+    setTimeout(() => {
+      window.location.href = "/";
+    }, 1500);
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -48,49 +61,49 @@ export default function Nav() {
             <Link href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">
               Pricing
             </Link>
-            <Link href="/dashboard">
-              <Button variant="outline">Dashboard</Button>
-            </Link>
-            <Link href="/create-blueprint">
-              <Button>Create Blueprint</Button>
-            </Link>
-            <Link href="/claim-blueprint">
-              <Button variant="outline">Claim Blueprint</Button>
-            </Link>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="/avatars/01.png" alt="Profile" />
-                    <AvatarFallback>
-                      <User className="h-4 w-4" />
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <Link href="/profile">
-                  <DropdownMenuItem>Profile</DropdownMenuItem>
+            {isAuthenticated ? (
+              <>
+                <Link href="/dashboard">
+                  <Button variant="outline">Dashboard</Button>
                 </Link>
-                <Link href="/settings">
-                  <DropdownMenuItem>Settings</DropdownMenuItem>
+                <Link href="/create-blueprint">
+                  <Button>Create Blueprint</Button>
                 </Link>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => {
-                  // Here you would typically clear auth tokens/session
-                  toast({
-                    title: "Signed Out",
-                    description: "You have been successfully signed out.",
-                  })
-                  // Redirect to home page
-                  window.location.href = "/"
-                }}>
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                <Link href="/claim-blueprint">
+                  <Button variant="outline">Claim Blueprint</Button>
+                </Link>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src="/avatars/01.png" alt="Profile" />
+                        <AvatarFallback>
+                          <User className="h-4 w-4" />
+                        </AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <Link href="/profile">
+                      <DropdownMenuItem>Profile</DropdownMenuItem>
+                    </Link>
+                    <Link href="/settings">
+                      <DropdownMenuItem>Settings</DropdownMenuItem>
+                    </Link>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSignOut}>
+                      Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            ) : (
+              <Button onClick={() => {/* Add auth flow later */}} variant="outline">
+                Sign In / Create Account
+              </Button>
+            )}
           </div>
 
           <button
@@ -111,36 +124,40 @@ export default function Nav() {
               <Link href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">
                 Pricing
               </Link>
-              <Link href="/dashboard" className="w-full">
-                <Button variant="outline" className="w-full mb-2">Dashboard</Button>
-              </Link>
-              <Link href="/create-blueprint" className="w-full">
-                <Button className="w-full mb-2">Create Blueprint</Button>
-              </Link>
-              <Link href="/claim-blueprint" className="w-full">
-                <Button variant="outline" className="w-full">Claim Blueprint</Button>
-              </Link>
-              <Link href="/profile" className="w-full">
-                <Button variant="outline" className="w-full mb-2">Profile</Button>
-              </Link>
-              <Link href="/settings" className="w-full">
-                <Button variant="outline" className="w-full mb-2">Settings</Button>
-              </Link>
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={() => {
-                  // Here you would typically clear auth tokens/session
-                  toast({
-                    title: "Signed Out",
-                    description: "You have been successfully signed out.",
-                  })
-                  // Redirect to home page
-                  window.location.href = "/"
-                }}
-              >
-                Sign Out
-              </Button>
+              {isAuthenticated ? (
+                <>
+                  <Link href="/dashboard" className="w-full">
+                    <Button variant="outline" className="w-full mb-2">Dashboard</Button>
+                  </Link>
+                  <Link href="/create-blueprint" className="w-full">
+                    <Button className="w-full mb-2">Create Blueprint</Button>
+                  </Link>
+                  <Link href="/claim-blueprint" className="w-full">
+                    <Button variant="outline" className="w-full">Claim Blueprint</Button>
+                  </Link>
+                  <Link href="/profile" className="w-full">
+                    <Button variant="outline" className="w-full mb-2">Profile</Button>
+                  </Link>
+                  <Link href="/settings" className="w-full">
+                    <Button variant="outline" className="w-full mb-2">Settings</Button>
+                  </Link>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={handleSignOut}
+                  >
+                    Sign Out
+                  </Button>
+                </>
+              ) : (
+                <Button 
+                  onClick={() => {/* Add auth flow later */}} 
+                  variant="outline"
+                  className="w-full"
+                >
+                  Sign In / Create Account
+                </Button>
+              )}
             </div>
           </div>
         )}
