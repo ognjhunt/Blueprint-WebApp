@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import CustomerExperienceDesigner from '@/components/CustomerExperienceDesigner';
 import { Check, ChevronRight, MapPin, Store, User, Mail, Phone, Globe, Shield } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -163,9 +164,16 @@ export default function ClaimBlueprint() {
         return (
           <div className="space-y-4">
             <h2 className="text-2xl font-bold">Customize Your Blueprint</h2>
-            <p className="text-muted-foreground">Enhance your Blueprint with additional features to improve customer experience.</p>
-            <div className="space-y-2">
-              <Label className="text-base font-semibold">Enable Features</Label>
+            <p className="text-muted-foreground">Design your customer experience flow and enhance your Blueprint with additional features.</p>
+            
+            {/* Customer Experience Designer */}
+            <div className="bg-white rounded-lg shadow-sm border">
+              <CustomerExperienceDesigner />
+            </div>
+            
+            {/* Additional Features */}
+            <div className="mt-8">
+              <h3 className="text-lg font-semibold mb-4">Additional Features</h3>
               <div className="space-y-2">
                 {Object.entries(formData.customizations).map(([feature, enabled]) => (
                   <div key={feature} className="flex items-center space-x-2">
@@ -182,14 +190,6 @@ export default function ClaimBlueprint() {
                   </div>
                 ))}
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="additionalInfo">Additional Information</Label>
-              <Textarea
-                id="additionalInfo"
-                placeholder="Any other details you'd like to add to your Blueprint?"
-                rows={4}
-              />
             </div>
           </div>
         );
