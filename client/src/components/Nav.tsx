@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function Nav() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(true); // Default to true for now
+  const [isAuthenticated, setIsAuthenticated] = useState(false); // Default to false
   const { toast } = useToast();
 
   const handleSignOut = async () => {
@@ -61,7 +61,10 @@ export default function Nav() {
             <Link href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">
               Pricing
             </Link>
-            {isAuthenticated ? (
+            <Button onClick={() => {/* Add auth flow later */}} variant="outline" className="mr-4">
+              Sign In / Create Account
+            </Button>
+            {isAuthenticated && (
               <>
                 <Link href="/dashboard">
                   <Button variant="outline">Dashboard</Button>
@@ -99,10 +102,6 @@ export default function Nav() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>
-            ) : (
-              <Button onClick={() => {/* Add auth flow later */}} variant="outline">
-                Sign In / Create Account
-              </Button>
             )}
           </div>
 
@@ -124,7 +123,14 @@ export default function Nav() {
               <Link href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">
                 Pricing
               </Link>
-              {isAuthenticated ? (
+              <Button 
+                onClick={() => {/* Add auth flow later */}} 
+                variant="outline"
+                className="w-full mb-4"
+              >
+                Sign In / Create Account
+              </Button>
+              {isAuthenticated && (
                 <>
                   <Link href="/dashboard" className="w-full">
                     <Button variant="outline" className="w-full mb-2">Dashboard</Button>
@@ -133,7 +139,7 @@ export default function Nav() {
                     <Button className="w-full mb-2">Create Blueprint</Button>
                   </Link>
                   <Link href="/claim-blueprint" className="w-full">
-                    <Button variant="outline" className="w-full">Claim Blueprint</Button>
+                    <Button variant="outline" className="w-full mb-2">Claim Blueprint</Button>
                   </Link>
                   <Link href="/profile" className="w-full">
                     <Button variant="outline" className="w-full mb-2">Profile</Button>
@@ -149,14 +155,6 @@ export default function Nav() {
                     Sign Out
                   </Button>
                 </>
-              ) : (
-                <Button 
-                  onClick={() => {/* Add auth flow later */}} 
-                  variant="outline"
-                  className="w-full"
-                >
-                  Sign In / Create Account
-                </Button>
               )}
             </div>
           </div>
