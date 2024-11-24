@@ -15,10 +15,10 @@ export default function Hero() {
             transition={{ duration: 0.5 }}
           >
             <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              Create AR Experiences for Your Business
+              Transform Your Business with Next-Gen AR Technology
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-              Build interactive AR blueprints that guide customers through your business space, boost engagement, and drive growth.
+              Revolutionize customer experiences with AI-powered AR blueprints. Join the future of business interaction and unlock unprecedented growth potential.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/create-blueprint">

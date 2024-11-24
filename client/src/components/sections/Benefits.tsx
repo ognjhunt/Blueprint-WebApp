@@ -4,23 +4,23 @@ import { BarChart3Icon, ShoppingBagIcon, UsersIcon, TrendingUpIcon } from "lucid
 const benefits = [
   {
     icon: BarChart3Icon,
-    title: "Data-Driven Insights",
-    description: "Gain valuable customer behavior analytics and optimize your operations with real-time data.",
+    title: "AI-Powered Analytics",
+    description: "Harness advanced machine learning algorithms to derive actionable insights from customer interactions in real-time.",
   },
   {
     icon: ShoppingBagIcon,
-    title: "Increased Revenue",
-    description: "Boost sales through personalized recommendations and targeted promotions.",
+    title: "Smart Revenue Growth",
+    description: "Leverage predictive analytics and AR-driven recommendations to maximize sales opportunities.",
   },
   {
     icon: UsersIcon,
-    title: "Enhanced Engagement",
-    description: "Create memorable experiences that keep customers coming back for more.",
+    title: "Immersive Experiences",
+    description: "Pioneer next-generation customer engagement with interactive AR environments and personalized journeys.",
   },
   {
     icon: TrendingUpIcon,
-    title: "Operational Efficiency",
-    description: "Streamline processes and reduce costs with AR-powered assistance.",
+    title: "Digital Transformation",
+    description: "Lead your industry's evolution with cutting-edge AR technology and data-driven optimization.",
   },
 ];
 

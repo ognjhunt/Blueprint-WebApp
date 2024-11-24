@@ -6,20 +6,20 @@ const caseStudies = [
   {
     company: "Fine Dining Co.",
     result: "+35% Order Value",
-    quote: "Blueprint transformed our dining experience, leading to significantly higher customer satisfaction and increased order values.",
+    quote: "Blueprint's AI-powered AR system transformed our traditional dining venue into a tech-forward destination, revolutionizing how customers experience our menu and service.",
     image: "https://images.unsplash.com/photo-1493857671505-72967e2e2760",
     avatar: "https://i.pravatar.cc/150?u=1",
     name: "Sarah Chen",
-    role: "Operations Director",
+    role: "Digital Innovation Director",
   },
   {
     company: "Tech Retail",
     result: "+45% Engagement",
-    quote: "The AR product visualization has revolutionized how our customers interact with our products.",
+    quote: "By implementing Blueprint's advanced AR technology, we've pioneered a new era of retail interaction, setting new industry standards for digital customer engagement.",
     image: "https://images.unsplash.com/photo-1520333789090-1afc82db536a",
     avatar: "https://i.pravatar.cc/150?u=2",
     name: "Michael Roberts",
-    role: "Head of Innovation",
+    role: "Chief Technology Officer",
   },
 ];
 
