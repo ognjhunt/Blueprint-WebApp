@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Ruler, Move, Plus, Settings, Save, Grid } from 'lucide-react'
+import { Ruler, Move, Plus, Settings, Save, Grid, Minus, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -29,11 +29,92 @@ interface ARElement {
   };
 }
 
+interface EditorState {
+  scale: number;
+  position: { x: number; y: number };
+  layout: {
+    url: string | null;
+    name: string | null;
+  };
+}
+
 export default function BlueprintEditor() {
   const [elements, setElements] = useState<ARElement[]>([])
   const [selectedElement, setSelectedElement] = useState<ARElement | null>(null)
   const [showGrid, setShowGrid] = useState(true)
+  const [editorState, setEditorState] = useState<EditorState>({
+    scale: 1,
+    position: { x: 0, y: 0 },
+    layout: { url: null, name: null }
+  })
+  const [isDraggingFile, setIsDraggingFile] = useState(false)
   const { toast } = useToast()
+
+  const handleFileUpload = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload an image file (PNG, JPG)",
+        variant: "destructive"
+      })
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      if (typeof e.target?.result === 'string') {
+        setEditorState(prev => ({
+          ...prev,
+          layout: {
+            url: e.target.result,
+            name: file.name
+          }
+        }))
+        toast({
+          title: "Layout uploaded",
+          description: "Your store layout has been uploaded successfully."
+        })
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDraggingFile(true)
+  }
+
+  const handleDragLeave = () => {
+    setIsDraggingFile(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDraggingFile(false)
+    
+    const file = e.dataTransfer.files[0]
+    if (file) {
+      handleFileUpload(file)
+    }
+  }
+
+  const handleZoom = (delta: number) => {
+    setEditorState(prev => ({
+      ...prev,
+      scale: Math.max(0.1, Math.min(4, prev.scale + delta))
+    }))
+  }
+
+  const handlePan = (direction: 'up' | 'down' | 'left' | 'right') => {
+    const delta = 50
+    setEditorState(prev => ({
+      ...prev,
+      position: {
+        x: prev.position.x + (direction === 'left' ? delta : direction === 'right' ? -delta : 0),
+        y: prev.position.y + (direction === 'up' ? delta : direction === 'down' ? -delta : 0)
+      }
+    }))
+  }
 
   const addElement = (type: ARElement['type']) => {
     const newElement: ARElement = {
@@ -121,8 +202,40 @@ export default function BlueprintEditor() {
         </div>
 
         {/* Main Editor Area */}
-        <div className="flex-1 relative overflow-hidden">
-          <div className={`w-full h-full ${showGrid ? 'bg-grid-pattern' : 'bg-white'}`}>
+        <div className="flex-1 relative overflow-hidden"
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <div 
+            className={`w-full h-full relative ${showGrid ? 'bg-grid-pattern' : 'bg-white'}`}
+            style={{
+              transform: `scale(${editorState.scale}) translate(${editorState.position.x}px, ${editorState.position.y}px)`,
+              transformOrigin: 'center'
+            }}
+          >
+            {editorState.layout.url ? (
+              <div className="absolute inset-0">
+                <img 
+                  src={editorState.layout.url} 
+                  alt="Store Layout"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            ) : (
+              <div className={`absolute inset-0 flex items-center justify-center ${isDraggingFile ? 'bg-blue-50' : ''}`}>
+                <div className="text-center p-6 border-2 border-dashed border-gray-300 rounded-lg">
+                  <p className="text-gray-500">Drag and drop your store layout here</p>
+                  <p className="text-sm text-gray-400">or</p>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
+                    className="mt-2"
+                  />
+                </div>
+              </div>
+            )}
             {elements.map((element) => (
               <motion.div
                 key={element.id}
@@ -243,9 +356,33 @@ export default function BlueprintEditor() {
         )}
       </div>
 
-      {/* Save Button */}
-      <div className="fixed bottom-4 right-4">
-        <Button onClick={saveLayout} size="lg">
+      {/* Controls */}
+      <div className="fixed bottom-4 right-4 space-y-2">
+        <div className="flex space-x-2 mb-2">
+          <Button onClick={() => handleZoom(0.1)} size="sm">
+            <Plus className="w-4 h-4" />
+          </Button>
+          <Button onClick={() => handleZoom(-0.1)} size="sm">
+            <Minus className="w-4 h-4" />
+          </Button>
+        </div>
+        <div className="grid grid-cols-3 gap-1">
+          <Button onClick={() => handlePan('left')} size="sm">
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <div className="grid grid-cols-1 gap-1">
+            <Button onClick={() => handlePan('up')} size="sm">
+              <ChevronUp className="w-4 h-4" />
+            </Button>
+            <Button onClick={() => handlePan('down')} size="sm">
+              <ChevronDown className="w-4 h-4" />
+            </Button>
+          </div>
+          <Button onClick={() => handlePan('right')} size="sm">
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+        <Button onClick={saveLayout} size="lg" className="w-full">
           <Save className="w-4 h-4 mr-2" />
           Save Layout
         </Button>
