@@ -16,7 +16,7 @@ export default function Footer() {
   return (
     <footer className="bg-gray-900 text-gray-300">
       <div className="container mx-auto px-4 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
           {/* Company Info */}
           <div>
             <h3 className="text-2xl font-bold text-white mb-4">Blueprint</h3>
@@ -39,35 +39,10 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Quick Links */}
-          <div>
-            <h4 className="text-lg font-semibold text-white mb-4">Quick Links</h4>
-            <ul className="space-y-2">
-              <li>
-                <a href="#benefits" className="hover:text-primary transition-colors">Benefits</a>
-              </li>
-              <li>
-                <a href="#use-cases" className="hover:text-primary transition-colors">Use Cases</a>
-              </li>
-              <li>
-                <a href="#roi" className="hover:text-primary transition-colors">ROI Calculator</a>
-              </li>
-              <li>
-                <a href="#case-studies" className="hover:text-primary transition-colors">Case Studies</a>
-              </li>
-            </ul>
-          </div>
-
           {/* Resources */}
           <div>
             <h4 className="text-lg font-semibold text-white mb-4">Resources</h4>
             <ul className="space-y-2">
-              <li>
-                <a href="#" className="hover:text-primary transition-colors">Documentation</a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-primary transition-colors">API Reference</a>
-              </li>
               <li>
                 <a href="#" className="hover:text-primary transition-colors">Support Center</a>
               </li>

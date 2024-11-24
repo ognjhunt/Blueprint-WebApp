@@ -28,7 +28,6 @@ export default function Nav() {
           </div>
 
           <div className="hidden md:flex items-center space-x-8">
-            <a href="#benefits" className="text-sm font-medium hover:text-primary transition-colors">Benefits</a>
             <Link href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">Pricing</Link>
             <div className="flex items-center space-x-2">
               <Link href="/dashboard"><Button variant="outline">Dashboard</Button></Link>
@@ -48,7 +47,6 @@ export default function Nav() {
         {isMobileMenuOpen && (
           <div className="md:hidden py-4">
             <div className="flex flex-col space-y-4">
-              <a href="#benefits" className="text-sm font-medium hover:text-primary transition-colors">Benefits</a>
               <Link href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">Pricing</Link>
               <Link href="/dashboard" className="w-full"><Button variant="outline" className="w-full mb-2">Dashboard</Button></Link>
               <Link href="/create-blueprint" className="w-full"><Button className="w-full mb-2">Create Blueprint</Button></Link>
