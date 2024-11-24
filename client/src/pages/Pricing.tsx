@@ -162,7 +162,7 @@ export default function PricingPage() {
                         value={[averageVisitTime]}
                         onValueChange={([value]) => setAverageVisitTime(value)}
                         max={10}
-                        step={0.5}
+                        step={0.25}
                         className="flex-1"
                       />
                       <Input
