@@ -15,10 +15,10 @@ export default function Hero() {
             transition={{ duration: 0.5 }}
           >
             <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              Bring your company into the spatial era
+              Transform Customer Experience with Spatial Innovation
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-              Transform your business with our all-in-one AR service platform. Just like DoorDash revolutionized food delivery, Blueprint brings your business into the AR age without the need for custom app development.
+              Elevate your business with Blueprint's enterprise-grade AR platform. Launch immersive experiences in days, not months - no custom development needed. Join industry leaders already achieving 3x customer engagement.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/create-blueprint">
