@@ -36,7 +36,8 @@ type FormData = {
   apiKey: string;
   features: FeatureDetails;
 }
-import { ChevronRight, ChevronLeft, Check, Building2, MapPin, Phone, Mail, Globe, Users, Palette, Cog, QrCode } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Building2, MapPin, Phone, Mail, Globe, Users, Palette, Cog, QrCode, Check } from 'lucide-react'
+import { QRCodeSetup } from "@/components/QRCodeSetup"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -215,7 +216,7 @@ export default function CreateBlueprint() {
               </Select>
             </div>
           </div>
-        )
+        );
       case 1:
         return (
           <div className="space-y-4">
@@ -445,18 +446,97 @@ export default function CreateBlueprint() {
                 <QrCode className="w-12 h-12 mx-auto mb-4 text-primary" />
                 <h4 className="text-xl font-semibold mb-2">Your Blueprint QR Code</h4>
                 <p className="text-gray-600">
-                  After submitting, a unique QR code will be generated for your Blueprint. You can:
+                  Complete the following steps to set up your Blueprint AR experience
                 </p>
               </div>
-              <ul className="space-y-3 mb-6">
-                <li className="flex items-start">
-                  <Check className="w-5 h-5 text-green-500 mr-2 mt-0.5" />
-                  <span>Print and display it at your business location</span>
-                </li>
-                <li className="flex items-start">
-                  <Check className="w-5 h-5 text-green-500 mr-2 mt-0.5" />
-                  <span>Include it in your marketing materials</span>
-                </li>
+              <QRCodeSetup 
+                businessName={formData.businessName} 
+                blueprintId={formData.blueprintId || ''}
+              />
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto py-8 px-4">
+      <div className="space-y-8">
+        {/* Progress Steps */}
+        <div className="flex items-center justify-between">
+          {steps.map((step, index) => {
+            const StepIcon = step.icon
+            return (
+              <div key={step.id} className="flex items-center">
+                <div
+                  className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
+                    index <= currentStep
+                      ? 'border-primary bg-primary text-white'
+                      : 'border-gray-300 text-gray-300'
+                  }`}
+                >
+                  <StepIcon className="w-5 h-5" />
+                </div>
+                {index < steps.length - 1 && (
+                  <div
+                    className={`w-full h-1 mx-2 ${
+                      index < currentStep ? 'bg-primary' : 'bg-gray-300'
+                    }`}
+                  />
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Form Content */}
+        <div className="bg-white shadow-sm rounded-lg border p-6">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentStep}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              {renderStep()}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Navigation */}
+        <div className="flex justify-between">
+          <Button
+            type="button"
+            onClick={handlePrevious}
+            disabled={currentStep === 0}
+            variant="outline"
+          >
+            <ChevronLeft className="w-4 h-4 mr-2" />
+            Previous
+          </Button>
+          <Button
+            type="submit"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>Loading...</>
+            ) : currentStep === steps.length - 1 ? (
+              'Complete Setup'
+            ) : (
+              <>
+                Next
+                <ChevronRight className="w-4 h-4 ml-2" />
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    </form>
+  )
+}
                 <li className="flex items-start">
                   <Check className="w-5 h-5 text-green-500 mr-2 mt-0.5" />
                   <span>Share it on social media to promote your AR experience</span>
@@ -469,9 +549,9 @@ export default function CreateBlueprint() {
               </div>
             </div>
           </div>
-        )
+        );
       default:
-        return null
+        return null;
     }
   }
 
