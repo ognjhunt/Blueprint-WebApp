@@ -35,6 +35,30 @@ type FormData = {
   aiProvider: string;
   apiKey: string;
   features: FeatureDetails;
+  qrCode: {
+    placements: {
+      entrance: boolean;
+      checkout: boolean;
+      productDisplays: boolean;
+      custom: string;
+    };
+    shipping: {
+      useBusinessAddress: boolean;
+      address: string;
+      city: string;
+      state: string;
+      zipCode: string;
+      country: string;
+      speed: 'standard' | 'express' | 'overnight';
+      specialInstructions: string;
+    };
+    setup: {
+      needsAssistance: boolean;
+      preferredDate: string;
+      preferredTimeSlot: string;
+      requirements: string;
+    };
+  };
 }
 import { ChevronRight, ChevronLeft, Check, Building2, MapPin, Phone, Mail, Globe, Users, Palette, Cog, QrCode } from 'lucide-react'
 import { Button } from "@/components/ui/button"
@@ -88,6 +112,30 @@ export default function CreateBlueprint() {
       virtualTours: { enabled: false, details: { tourUrl: '' } },
       loyaltyProgram: { enabled: false, details: { programDetails: '' } },
       arVisualizations: { enabled: false, details: { arModelUrls: '' } },
+    },
+    qrCode: {
+      placements: {
+        entrance: false,
+        checkout: false,
+        productDisplays: false,
+        custom: '',
+      },
+      shipping: {
+        useBusinessAddress: true,
+        address: '',
+        city: '',
+        state: '',
+        zipCode: '',
+        country: '',
+        speed: 'standard',
+        specialInstructions: '',
+      },
+      setup: {
+        needsAssistance: false,
+        preferredDate: '',
+        preferredTimeSlot: '',
+        requirements: '',
+      },
     },
   })
 
@@ -145,17 +193,67 @@ export default function CreateBlueprint() {
     }
   }
 
+  const validateQRCodeSection = () => {
+    // Check if at least one placement location is selected
+    const hasPlacement = Object.values(formData.qrCode.placements).some(value => {
+      if (typeof value === 'boolean') return value;
+      return value.length > 0; // For custom placement
+    });
+
+    if (!hasPlacement) {
+      toast({
+        title: "Validation Error",
+        description: "Please select at least one QR code placement location.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    // Validate shipping information
+    if (!formData.qrCode.shipping.useBusinessAddress) {
+      const { address, city, state, zipCode, country } = formData.qrCode.shipping;
+      if (!address || !city || !state || !zipCode || !country) {
+        toast({
+          title: "Validation Error",
+          description: "Please complete all shipping address fields.",
+          variant: "destructive",
+        });
+        return false;
+      }
+    }
+
+    // Validate setup assistance if needed
+    if (formData.qrCode.setup.needsAssistance) {
+      const { preferredDate, preferredTimeSlot } = formData.qrCode.setup;
+      if (!preferredDate || !preferredTimeSlot) {
+        toast({
+          title: "Validation Error",
+          description: "Please select preferred date and time slot for setup assistance.",
+          variant: "destructive",
+        });
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
+    e.preventDefault();
+    
     if (currentStep === steps.length - 1) {
-      setIsLoading(true)
+      if (!validateQRCodeSection()) {
+        return;
+      }
+
+      setIsLoading(true);
       try {
         const blueprintId = Date.now().toString();
         const blueprintData = {
           id: blueprintId,
           ...formData,
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
         };
 
         // Store blueprint data in localStorage
@@ -164,25 +262,30 @@ export default function CreateBlueprint() {
         
         toast({
           title: "Blueprint Created Successfully!",
-          description: "You can now customize your Blueprint in the editor.",
-        })
+          description: "Your Blueprint has been created with QR code specifications. Redirecting to editor...",
+        });
         
         // Store blueprintId in state for navigation
         setFormData(prev => ({ ...prev, blueprintId }));
+
+        // Redirect to blueprint editor after short delay
+        setTimeout(() => {
+          window.location.href = `/blueprint-editor/${blueprintId}`;
+        }, 2000);
       } catch (error) {
         toast({
           title: "Error",
           description: "Failed to create Blueprint. Please try again.",
           variant: "destructive",
-        })
+        });
         console.error('Error creating blueprint:', error);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
     } else {
       handleNext();
     }
-  }
+  };
 
   const renderStep = () => {
     switch (currentStep) {
@@ -398,6 +501,705 @@ export default function CreateBlueprint() {
                       {feature === 'loyaltyProgram' && (
                         <div>
                           <Label htmlFor={`${feature}-programDetails`}>Loyalty Program Details</Label>
+                          <Input
+                            id={`${feature}-programDetails`}
+                            value={formData.features[feature].details.programDetails || ''}
+                            onChange={(e) => handleFeatureDetailChange(feature, 'programDetails', e.target.value)}
+                            placeholder="Describe your loyalty program"
+                          />
+                        </div>
+                      )}
+                      {feature === 'arVisualizations' && (
+                        <div>
+                          <Label htmlFor={`${feature}-arModelUrls`}>AR Model URLs</Label>
+                          <Input
+                            id={`${feature}-arModelUrls`}
+                            value={formData.features[feature].details.arModelUrls || ''}
+                            onChange={(e) => handleFeatureDetailChange(feature, 'arModelUrls', e.target.value)}
+                            placeholder="Enter AR model URLs (comma-separated)"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      case 6:
+        return (
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-lg border shadow-sm">
+              <div className="text-center mb-6">
+                <QrCode className="w-12 h-12 mx-auto mb-4 text-primary" />
+                <h4 className="text-xl font-semibold mb-2">Your Blueprint QR Code</h4>
+                <p className="text-gray-600">Choose where you'd like to place your QR codes and how you'd like them delivered.</p>
+              </div>
+
+              {/* QR Code Placement Section */}
+              <div className="space-y-4 mb-8">
+                <h5 className="font-semibold">QR Code Placement</h5>
+                <div className="space-y-2">
+                  {['entrance', 'checkout', 'productDisplays'].map((location) => (
+                    <div key={location} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id={`placement-${location}`}
+                        checked={formData.qrCode.placements[location as keyof typeof formData.qrCode.placements]}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            placements: {
+                              ...prev.qrCode.placements,
+                              [location]: e.target.checked
+                            }
+                          }
+                        }))}
+                        className="w-4 h-4 mr-2"
+                      />
+                      <Label htmlFor={`placement-${location}`}>
+                        {location.replace(/([A-Z])/g, ' $1').charAt(0).toUpperCase() + location.replace(/([A-Z])/g, ' $1').slice(1)}
+                      </Label>
+                    </div>
+                  ))}
+                  <div>
+                    <Label htmlFor="custom-placement">Custom Location</Label>
+                    <Input
+                      id="custom-placement"
+                      value={formData.qrCode.placements.custom}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        qrCode: {
+                          ...prev.qrCode,
+                          placements: {
+                            ...prev.qrCode.placements,
+                            custom: e.target.value
+                          }
+                        }
+                      }))}
+                      placeholder="Specify other placement locations"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Shipping Information Section */}
+              <div className="space-y-4 mb-8">
+                <h5 className="font-semibold">Shipping Information</h5>
+                <div className="flex items-center mb-4">
+                  <input
+                    type="checkbox"
+                    id="use-business-address"
+                    checked={formData.qrCode.shipping.useBusinessAddress}
+                    onChange={(e) => {
+                      const useBusinessAddress = e.target.checked;
+                      setFormData(prev => ({
+                        ...prev,
+                        qrCode: {
+                          ...prev.qrCode,
+                          shipping: {
+                            ...prev.qrCode.shipping,
+                            useBusinessAddress,
+                            address: useBusinessAddress ? prev.address : '',
+                            city: useBusinessAddress ? prev.city : '',
+                            state: useBusinessAddress ? prev.state : '',
+                            zipCode: useBusinessAddress ? prev.zipCode : '',
+                            country: useBusinessAddress ? prev.country : ''
+                          }
+                        }
+                      }));
+                    }}
+                    className="w-4 h-4 mr-2"
+                  />
+                  <Label htmlFor="use-business-address">Use business address</Label>
+                </div>
+
+                {!formData.qrCode.shipping.useBusinessAddress && (
+                  <div className="space-y-4">
+                    <Input
+                      placeholder="Address"
+                      value={formData.qrCode.shipping.address}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        qrCode: {
+                          ...prev.qrCode,
+                          shipping: {
+                            ...prev.qrCode.shipping,
+                            address: e.target.value
+                          }
+                        }
+                      }))}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input
+                        placeholder="City"
+                        value={formData.qrCode.shipping.city}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            shipping: {
+                              ...prev.qrCode.shipping,
+                              city: e.target.value
+                            }
+                          }
+                        }))}
+                      />
+                      <Input
+                        placeholder="State"
+                        value={formData.qrCode.shipping.state}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            shipping: {
+                              ...prev.qrCode.shipping,
+                              state: e.target.value
+                            }
+                          }
+                        }))}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input
+                        placeholder="ZIP Code"
+                        value={formData.qrCode.shipping.zipCode}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            shipping: {
+                              ...prev.qrCode.shipping,
+                              zipCode: e.target.value
+                            }
+                          }
+                        }))}
+                      />
+                      <Input
+                        placeholder="Country"
+                        value={formData.qrCode.shipping.country}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            shipping: {
+                              ...prev.qrCode.shipping,
+                              country: e.target.value
+                            }
+                          }
+                        }))}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <Label>Shipping Speed</Label>
+                  <Select
+                    value={formData.qrCode.shipping.speed}
+                    onValueChange={(value: 'standard' | 'express' | 'overnight') => setFormData(prev => ({
+                      ...prev,
+                      qrCode: {
+                        ...prev.qrCode,
+                        shipping: {
+                          ...prev.qrCode.shipping,
+                          speed: value
+                        }
+                      }
+                    }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select shipping speed" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="standard">Standard (5-7 business days)</SelectItem>
+                      <SelectItem value="express">Express (2-3 business days)</SelectItem>
+                      <SelectItem value="overnight">Overnight</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="special-instructions">Special Handling Instructions</Label>
+                  <Textarea
+                    id="special-instructions"
+                    value={formData.qrCode.shipping.specialInstructions}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      qrCode: {
+                        ...prev.qrCode,
+                        shipping: {
+                          ...prev.qrCode.shipping,
+                          specialInstructions: e.target.value
+                        }
+                      }
+                    }))}
+                    placeholder="Any special handling instructions..."
+                  />
+                </div>
+              </div>
+
+              {/* Setup Assistance Section */}
+              <div className="space-y-4">
+                <h5 className="font-semibold">Setup Assistance</h5>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="needs-assistance"
+                    checked={formData.qrCode.setup.needsAssistance}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      qrCode: {
+                        ...prev.qrCode,
+                        setup: {
+                          ...prev.qrCode.setup,
+                          needsAssistance: e.target.checked
+                        }
+                      }
+                    }))}
+                    className="w-4 h-4 mr-2"
+                  />
+                  <Label htmlFor="needs-assistance">I need help with installation</Label>
+                </div>
+
+                {formData.qrCode.setup.needsAssistance && (
+                  <div className="space-y-4 mt-4">
+                    <div>
+                      <Label htmlFor="preferred-date">Preferred Date</Label>
+                      <Input
+                        type="date"
+                        id="preferred-date"
+                        value={formData.qrCode.setup.preferredDate}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            setup: {
+                              ...prev.qrCode.setup,
+                              preferredDate: e.target.value
+                            }
+                          }
+                        }))}
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Preferred Time Slot</Label>
+                      <Select
+                        value={formData.qrCode.setup.preferredTimeSlot}
+                        onValueChange={(value) => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            setup: {
+                              ...prev.qrCode.setup,
+                              preferredTimeSlot: value
+                            }
+                          }
+                        }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select time slot" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="morning">Morning (9 AM - 12 PM)</SelectItem>
+                          <SelectItem value="afternoon">Afternoon (12 PM - 4 PM)</SelectItem>
+                          <SelectItem value="evening">Evening (4 PM - 7 PM)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="setup-requirements">Specific Requirements</Label>
+                      <Textarea
+                        id="setup-requirements"
+                        value={formData.qrCode.setup.requirements}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            setup: {
+                              ...prev.qrCode.setup,
+                              requirements: e.target.value
+                            }
+                          }
+                        }))}
+                        placeholder="Any specific requirements or concerns..."
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      case 5:
+        return (
+          <div className="space-y-4">
+            <h2 className="text-2xl font-bold">Review Your Blueprint</h2>
+            <p className="text-muted-foreground">Please review your information before proceeding to QR code setup.</p>
+            
+            <div className="space-y-6">
+              <div className="border rounded-lg p-4">
+                <h3 className="font-semibold mb-2">Business Information</h3>
+                <p>Name: {formData.businessName}</p>
+                <p>Type: {formData.businessType}</p>
+              </div>
+              
+              <div className="border rounded-lg p-4">
+                <h3 className="font-semibold mb-2">Location Details</h3>
+                <p>{formData.address}</p>
+                <p>{formData.city}, {formData.state} {formData.zipCode}</p>
+                <p>{formData.country}</p>
+              </div>
+
+              <div className="border rounded-lg p-4">
+                <h3 className="font-semibold mb-2">Contact Information</h3>
+                <p>Phone: {formData.phone}</p>
+                <p>Email: {formData.email}</p>
+                <p>Website: {formData.website}</p>
+              </div>
+
+              <div className="border rounded-lg p-4">
+                <h3 className="font-semibold mb-2">Selected Features</h3>
+                <ul className="list-disc list-inside">
+                  {Object.entries(formData.features)
+                    .filter(([, { enabled }]) => enabled)
+                    .map(([feature]) => (
+                      <li key={feature}>{feature.split(/(?=[A-Z])/).join(' ')}</li>
+                    ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )
+      case 6:
+        return (
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-lg border shadow-sm">
+              <div className="text-center mb-6">
+                <QrCode className="w-12 h-12 mx-auto mb-4 text-primary" />
+                <h4 className="text-xl font-semibold mb-2">Your Blueprint QR Code</h4>
+                <p className="text-gray-600">Choose where you'd like to place your QR codes and how you'd like them delivered.</p>
+              </div>
+
+              {/* QR Code Placement Section */}
+              <div className="space-y-4 mb-8">
+                <h5 className="font-semibold">QR Code Placement</h5>
+                <div className="space-y-2">
+                  {['entrance', 'checkout', 'productDisplays'].map((location) => (
+                    <div key={location} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id={`placement-${location}`}
+                        checked={formData.qrCode.placements[location as keyof typeof formData.qrCode.placements]}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            placements: {
+                              ...prev.qrCode.placements,
+                              [location]: e.target.checked
+                            }
+                          }
+                        }))}
+                        className="w-4 h-4 mr-2"
+                      />
+                      <Label htmlFor={`placement-${location}`}>
+                        {location.replace(/([A-Z])/g, ' $1').charAt(0).toUpperCase() + location.replace(/([A-Z])/g, ' $1').slice(1)}
+                      </Label>
+                    </div>
+                  ))}
+                  <div>
+                    <Label htmlFor="custom-placement">Custom Location</Label>
+                    <Input
+                      id="custom-placement"
+                      value={formData.qrCode.placements.custom}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        qrCode: {
+                          ...prev.qrCode,
+                          placements: {
+                            ...prev.qrCode.placements,
+                            custom: e.target.value
+                          }
+                        }
+                      }))}
+                      placeholder="Specify other placement locations"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Shipping Information Section */}
+              <div className="space-y-4 mb-8">
+                <h5 className="font-semibold">Shipping Information</h5>
+                <div className="flex items-center mb-4">
+                  <input
+                    type="checkbox"
+                    id="use-business-address"
+                    checked={formData.qrCode.shipping.useBusinessAddress}
+                    onChange={(e) => {
+                      const useBusinessAddress = e.target.checked;
+                      setFormData(prev => ({
+                        ...prev,
+                        qrCode: {
+                          ...prev.qrCode,
+                          shipping: {
+                            ...prev.qrCode.shipping,
+                            useBusinessAddress,
+                            address: useBusinessAddress ? prev.address : '',
+                            city: useBusinessAddress ? prev.city : '',
+                            state: useBusinessAddress ? prev.state : '',
+                            zipCode: useBusinessAddress ? prev.zipCode : '',
+                            country: useBusinessAddress ? prev.country : ''
+                          }
+                        }
+                      }));
+                    }}
+                    className="w-4 h-4 mr-2"
+                  />
+                  <Label htmlFor="use-business-address">Use business address</Label>
+                </div>
+
+                {!formData.qrCode.shipping.useBusinessAddress && (
+                  <div className="space-y-4">
+                    <Input
+                      placeholder="Address"
+                      value={formData.qrCode.shipping.address}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        qrCode: {
+                          ...prev.qrCode,
+                          shipping: {
+                            ...prev.qrCode.shipping,
+                            address: e.target.value
+                          }
+                        }
+                      }))}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input
+                        placeholder="City"
+                        value={formData.qrCode.shipping.city}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            shipping: {
+                              ...prev.qrCode.shipping,
+                              city: e.target.value
+                            }
+                          }
+                        }))}
+                      />
+                      <Input
+                        placeholder="State"
+                        value={formData.qrCode.shipping.state}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            shipping: {
+                              ...prev.qrCode.shipping,
+                              state: e.target.value
+                            }
+                          }
+                        }))}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input
+                        placeholder="ZIP Code"
+                        value={formData.qrCode.shipping.zipCode}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            shipping: {
+                              ...prev.qrCode.shipping,
+                              zipCode: e.target.value
+                            }
+                          }
+                        }))}
+                      />
+                      <Input
+                        placeholder="Country"
+                        value={formData.qrCode.shipping.country}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            shipping: {
+                              ...prev.qrCode.shipping,
+                              country: e.target.value
+                            }
+                          }
+                        }))}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <Label>Shipping Speed</Label>
+                  <Select
+                    value={formData.qrCode.shipping.speed}
+                    onValueChange={(value: 'standard' | 'express' | 'overnight') => setFormData(prev => ({
+                      ...prev,
+                      qrCode: {
+                        ...prev.qrCode,
+                        shipping: {
+                          ...prev.qrCode.shipping,
+                          speed: value
+                        }
+                      }
+                    }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select shipping speed" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="standard">Standard (5-7 business days)</SelectItem>
+                      <SelectItem value="express">Express (2-3 business days)</SelectItem>
+                      <SelectItem value="overnight">Overnight</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="special-instructions">Special Handling Instructions</Label>
+                  <Textarea
+                    id="special-instructions"
+                    value={formData.qrCode.shipping.specialInstructions}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      qrCode: {
+                        ...prev.qrCode,
+                        shipping: {
+                          ...prev.qrCode.shipping,
+                          specialInstructions: e.target.value
+                        }
+                      }
+                    }))}
+                    placeholder="Any special handling instructions..."
+                  />
+                </div>
+              </div>
+
+              {/* Setup Assistance Section */}
+              <div className="space-y-4">
+                <h5 className="font-semibold">Setup Assistance</h5>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="needs-assistance"
+                    checked={formData.qrCode.setup.needsAssistance}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      qrCode: {
+                        ...prev.qrCode,
+                        setup: {
+                          ...prev.qrCode.setup,
+                          needsAssistance: e.target.checked
+                        }
+                      }
+                    }))}
+                    className="w-4 h-4 mr-2"
+                  />
+                  <Label htmlFor="needs-assistance">I need help with installation</Label>
+                </div>
+
+                {formData.qrCode.setup.needsAssistance && (
+                  <div className="space-y-4 mt-4">
+                    <div>
+                      <Label htmlFor="preferred-date">Preferred Date</Label>
+                      <Input
+                        type="date"
+                        id="preferred-date"
+                        value={formData.qrCode.setup.preferredDate}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            setup: {
+                              ...prev.qrCode.setup,
+                              preferredDate: e.target.value
+                            }
+                          }
+                        }))}
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Preferred Time Slot</Label>
+                      <Select
+                        value={formData.qrCode.setup.preferredTimeSlot}
+                        onValueChange={(value) => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            setup: {
+                              ...prev.qrCode.setup,
+                              preferredTimeSlot: value
+                            }
+                          }
+                        }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select time slot" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="morning">Morning (9 AM - 12 PM)</SelectItem>
+                          <SelectItem value="afternoon">Afternoon (12 PM - 4 PM)</SelectItem>
+                          <SelectItem value="evening">Evening (4 PM - 7 PM)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="setup-requirements">Specific Requirements</Label>
+                      <Textarea
+                        id="setup-requirements"
+                        value={formData.qrCode.setup.requirements}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            setup: {
+                              ...prev.qrCode.setup,
+                              requirements: e.target.value
+                            }
+                          }
+                        }))}
+                        placeholder="Any specific requirements or concerns..."
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      default:
+        return null
+    }
+  }
+                      {feature === 'loyaltyProgram' && (
+                        <div>
+                          <Label htmlFor={`${feature}-programDetails`}>Loyalty Program Details</Label>
                           <Textarea
                             id={`${feature}-programDetails`}
                             value={formData.features[feature].details.programDetails || ''}
@@ -438,19 +1240,949 @@ export default function CreateBlueprint() {
         )
       case 6:
         return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Blueprint QR Code</h3>
+          <div className="space-y-6">
             <div className="bg-white p-6 rounded-lg border shadow-sm">
-              <div className="text-center mb-6">
-                <QrCode className="w-12 h-12 mx-auto mb-4 text-primary" />
-                <h4 className="text-xl font-semibold mb-2">Your Blueprint QR Code</h4>
-                <p className="text-gray-600">
-                  After submitting, a unique QR code will be generated for your Blueprint. You can:
+              <div className="space-y-8">
+                {/* QR Code Placement Section */}
+                <div>
+                  <h4 className="text-xl font-semibold mb-4">QR Code Placement</h4>
+                  <p className="text-gray-600 mb-4">Select where you plan to display your Blueprint QR codes:</p>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      {['entrance', 'checkout', 'productDisplays'].map((location) => (
+                        <div key={location} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id={`placement-${location}`}
+                            checked={formData.qrCode.placements[location as keyof typeof formData.qrCode.placements]}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              qrCode: {
+                                ...prev.qrCode,
+                                placements: {
+                                  ...prev.qrCode.placements,
+                                  [location]: e.target.checked
+                                }
+                              }
+                            }))}
+                            className="w-4 h-4 mr-2"
+                          />
+                          <Label htmlFor={`placement-${location}`}>
+                            {location.replace(/([A-Z])/g, ' $1').charAt(0).toUpperCase() + location.replace(/([A-Z])/g, ' $1').slice(1)}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                    <div>
+                      <Label htmlFor="custom-placement">Custom Location</Label>
+                      <Input
+                        id="custom-placement"
+                        value={formData.qrCode.placements.custom}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            placements: {
+                              ...prev.qrCode.placements,
+                              custom: e.target.value
+                            }
+                          }
+                        }))}
+                        placeholder="Specify other placement locations"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Shipping Information Section */}
+                <div>
+                  <h4 className="text-xl font-semibold mb-4">Shipping Information</h4>
+                  <div className="space-y-4">
+                    <div className="flex items-center mb-4">
+                      <input
+                        type="checkbox"
+                        id="use-business-address"
+                        checked={formData.qrCode.shipping.useBusinessAddress}
+                        onChange={(e) => {
+                          const useBusinessAddress = e.target.checked;
+                          setFormData(prev => ({
+                            ...prev,
+                            qrCode: {
+                              ...prev.qrCode,
+                              shipping: {
+                                ...prev.qrCode.shipping,
+                                useBusinessAddress,
+                                address: useBusinessAddress ? prev.address : '',
+                                city: useBusinessAddress ? prev.city : '',
+                                state: useBusinessAddress ? prev.state : '',
+                                zipCode: useBusinessAddress ? prev.zipCode : '',
+                                country: useBusinessAddress ? prev.country : ''
+                              }
+                            }
+                          }));
+                        }}
+                        className="w-4 h-4 mr-2"
+                      />
+                      <Label htmlFor="use-business-address">Use business address</Label>
+                    </div>
+
+                    {!formData.qrCode.shipping.useBusinessAddress && (
+                      <div className="space-y-4">
+                        <Input
+                          placeholder="Address"
+                          value={formData.qrCode.shipping.address}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            qrCode: {
+                              ...prev.qrCode,
+                              shipping: {
+                                ...prev.qrCode.shipping,
+                                address: e.target.value
+                              }
+                            }
+                          }))}
+                        />
+                        <div className="grid grid-cols-2 gap-4">
+                          <Input
+                            placeholder="City"
+                            value={formData.qrCode.shipping.city}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              qrCode: {
+                                ...prev.qrCode,
+                                shipping: {
+                                  ...prev.qrCode.shipping,
+                                  city: e.target.value
+                                }
+                              }
+                            }))}
+                          />
+                          <Input
+                            placeholder="State"
+                            value={formData.qrCode.shipping.state}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              qrCode: {
+                                ...prev.qrCode,
+                                shipping: {
+                                  ...prev.qrCode.shipping,
+                                  state: e.target.value
+                                }
+                              }
+                            }))}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <Input
+                            placeholder="ZIP Code"
+                            value={formData.qrCode.shipping.zipCode}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              qrCode: {
+                                ...prev.qrCode,
+                                shipping: {
+                                  ...prev.qrCode.shipping,
+                                  zipCode: e.target.value
+                                }
+                              }
+                            }))}
+                          />
+                          <Input
+                            placeholder="Country"
+                            value={formData.qrCode.shipping.country}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              qrCode: {
+                                ...prev.qrCode,
+                                shipping: {
+                                  ...prev.qrCode.shipping,
+                                  country: e.target.value
+                                }
+                              }
+                            }))}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <Label>Shipping Speed</Label>
+                      <Select
+                        value={formData.qrCode.shipping.speed}
+                        onValueChange={(value: 'standard' | 'express' | 'overnight') => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            shipping: {
+                              ...prev.qrCode.shipping,
+                              speed: value
+                            }
+                          }
+                        }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select shipping speed" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="standard">Standard (5-7 business days)</SelectItem>
+                          <SelectItem value="express">Express (2-3 business days)</SelectItem>
+                          <SelectItem value="overnight">Overnight</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="special-instructions">Special Handling Instructions</Label>
+                      <Textarea
+                        id="special-instructions"
+                        value={formData.qrCode.shipping.specialInstructions}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            shipping: {
+                              ...prev.qrCode.shipping,
+                              specialInstructions: e.target.value
+                            }
+                          }
+                        }))}
+                        placeholder="Any special handling instructions..."
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Setup Assistance Section */}
+                <div>
+                  <h4 className="text-xl font-semibold mb-4">Setup Assistance</h4>
+                  <div className="space-y-4">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="needs-assistance"
+                        checked={formData.qrCode.setup.needsAssistance}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            setup: {
+                              ...prev.qrCode.setup,
+                              needsAssistance: e.target.checked
+                            }
+                          }
+                        }))}
+                        className="w-4 h-4 mr-2"
+                      />
+                      <Label htmlFor="needs-assistance">I need help with installation</Label>
+                    </div>
+
+                    {formData.qrCode.setup.needsAssistance && (
+                      <>
+                        <div>
+                          <Label htmlFor="preferred-date">Preferred Date</Label>
+                          <Input
+                            type="date"
+                            id="preferred-date"
+                            value={formData.qrCode.setup.preferredDate}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              qrCode: {
+                                ...prev.qrCode,
+                                setup: {
+                                  ...prev.qrCode.setup,
+                                  preferredDate: e.target.value
+                                }
+                              }
+                            }))}
+                          />
+                        </div>
+
+                        <div>
+                          <Label>Preferred Time Slot</Label>
+                          <Select
+                            value={formData.qrCode.setup.preferredTimeSlot}
+                            onValueChange={(value) => setFormData(prev => ({
+                              ...prev,
+                              qrCode: {
+                                ...prev.qrCode,
+                                setup: {
+                                  ...prev.qrCode.setup,
+                                  preferredTimeSlot: value
+                                }
+                              }
+                            }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select time slot" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="morning">Morning (9 AM - 12 PM)</SelectItem>
+                              <SelectItem value="afternoon">Afternoon (12 PM - 4 PM)</SelectItem>
+                              <SelectItem value="evening">Evening (4 PM - 7 PM)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label htmlFor="setup-requirements">Specific Requirements</Label>
+                          <Textarea
+                            id="setup-requirements"
+                            value={formData.qrCode.setup.requirements}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              qrCode: {
+                                ...prev.qrCode,
+                                setup: {
+                                  ...prev.qrCode.setup,
+                                  requirements: e.target.value
+                                }
+                              }
+                            }))}
+                            placeholder="Any specific requirements or concerns..."
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+                    <div className="space-y-2">
+                      {['entrance', 'checkout', 'productDisplays'].map((location) => (
+                        <div key={location} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id={`placement-${location}`}
+                            checked={formData.qrCode.placements[location as keyof typeof formData.qrCode.placements]}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              qrCode: {
+                                ...prev.qrCode,
+                                placements: {
+                                  ...prev.qrCode.placements,
+                                  [location]: e.target.checked
+                                }
+                              }
+                            }))}
+                            className="w-4 h-4 mr-2"
+                          />
+                          <Label htmlFor={`placement-${location}`}>
+                            {location.replace(/([A-Z])/g, ' $1').trim()}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                    <div>
+                      <Label htmlFor="custom-placement">Custom Location</Label>
+                      <Input
+                        id="custom-placement"
+                        value={formData.qrCode.placements.custom}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            placements: {
+                              ...prev.qrCode.placements,
+                              custom: e.target.value
+                            }
+                          }
+                        }))}
+                        placeholder="Specify other placement locations"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Shipping Information Section */}
+                <div>
+                  <h4 className="text-xl font-semibold mb-4">Shipping Information</h4>
+                  <div className="space-y-4">
+                    <div className="flex items-center mb-4">
+                      <input
+                        type="checkbox"
+                        id="use-business-address"
+                        checked={formData.qrCode.shipping.useBusinessAddress}
+                        onChange={(e) => {
+                          const useBusinessAddress = e.target.checked;
+                          setFormData(prev => ({
+                            ...prev,
+                            qrCode: {
+                              ...prev.qrCode,
+                              shipping: {
+                                ...prev.qrCode.shipping,
+                                useBusinessAddress,
+                                address: useBusinessAddress ? prev.address : '',
+                                city: useBusinessAddress ? prev.city : '',
+                                state: useBusinessAddress ? prev.state : '',
+                                zipCode: useBusinessAddress ? prev.zipCode : '',
+                                country: useBusinessAddress ? prev.country : '',
+                              }
+                            }
+                          }))
+                        }}
+                        className="w-4 h-4 mr-2"
+                      />
+                      <Label htmlFor="use-business-address">Use business address</Label>
+                    </div>
+
+                    {!formData.qrCode.shipping.useBusinessAddress && (
+                      <div className="space-y-4">
+                        <Input
+                          placeholder="Address"
+                          value={formData.qrCode.shipping.address}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            qrCode: {
+                              ...prev.qrCode,
+                              shipping: {
+                                ...prev.qrCode.shipping,
+                                address: e.target.value
+                              }
+                            }
+                          }))}
+                        />
+                        <div className="grid grid-cols-2 gap-4">
+                          <Input
+                            placeholder="City"
+                            value={formData.qrCode.shipping.city}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              qrCode: {
+                                ...prev.qrCode,
+                                shipping: {
+                                  ...prev.qrCode.shipping,
+                                  city: e.target.value
+                                }
+                              }
+                            }))}
+                          />
+                          <Input
+                            placeholder="State"
+                            value={formData.qrCode.shipping.state}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              qrCode: {
+                                ...prev.qrCode,
+                                shipping: {
+                                  ...prev.qrCode.shipping,
+                                  state: e.target.value
+                                }
+                              }
+                            }))}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <Input
+                            placeholder="ZIP Code"
+                            value={formData.qrCode.shipping.zipCode}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              qrCode: {
+                                ...prev.qrCode,
+                                shipping: {
+                                  ...prev.qrCode.shipping,
+                                  zipCode: e.target.value
+                                }
+                              }
+                            }))}
+                          />
+                          <Input
+                            placeholder="Country"
+                            value={formData.qrCode.shipping.country}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              qrCode: {
+                                ...prev.qrCode,
+                                shipping: {
+                                  ...prev.qrCode.shipping,
+                                  country: e.target.value
+                                }
+                              }
+                            }))}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <Label>Shipping Speed</Label>
+                      <Select
+                        value={formData.qrCode.shipping.speed}
+                        onValueChange={(value: 'standard' | 'express' | 'overnight') => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            shipping: {
+                              ...prev.qrCode.shipping,
+                              speed: value
+                            }
+                          }
+                        }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select shipping speed" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="standard">Standard (5-7 business days)</SelectItem>
+                          <SelectItem value="express">Express (2-3 business days)</SelectItem>
+                          <SelectItem value="overnight">Overnight</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="special-instructions">Special Handling Instructions</Label>
+                      <Textarea
+                        id="special-instructions"
+                        value={formData.qrCode.shipping.specialInstructions}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            shipping: {
+                              ...prev.qrCode.shipping,
+                              specialInstructions: e.target.value
+                            }
+                          }
+                        }))}
+                        placeholder="Any special handling instructions..."
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Setup Assistance Section */}
+                <div>
+                  <h4 className="text-xl font-semibold mb-4">Setup Assistance</h4>
+                  <div className="space-y-4">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="needs-assistance"
+                        checked={formData.qrCode.setup.needsAssistance}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          qrCode: {
+                            ...prev.qrCode,
+                            setup: {
+                              ...prev.qrCode.setup,
+                              needsAssistance: e.target.checked
+                            }
+                          }
+                        }))}
+                        className="w-4 h-4 mr-2"
+                      />
+                      <Label htmlFor="needs-assistance">I need help with installation</Label>
+                    </div>
+
+                    {formData.qrCode.setup.needsAssistance && (
+                      <>
+                        <div>
+                          <Label htmlFor="preferred-date">Preferred Date</Label>
+                          <Input
+                            type="date"
+                            id="preferred-date"
+                            value={formData.qrCode.setup.preferredDate}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              qrCode: {
+                                ...prev.qrCode,
+                                setup: {
+                                  ...prev.qrCode.setup,
+                                  preferredDate: e.target.value
+                                }
+                              }
+                            }))}
+                          />
+                        </div>
+
+                        <div>
+                          <Label>Preferred Time Slot</Label>
+                          <Select
+                            value={formData.qrCode.setup.preferredTimeSlot}
+                            onValueChange={(value) => setFormData(prev => ({
+                              ...prev,
+                              qrCode: {
+                                ...prev.qrCode,
+                                setup: {
+                                  ...prev.qrCode.setup,
+                                  preferredTimeSlot: value
+                                }
+                              }
+                            }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select time slot" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="morning">Morning (9 AM - 12 PM)</SelectItem>
+                              <SelectItem value="afternoon">Afternoon (12 PM - 4 PM)</SelectItem>
+                              <SelectItem value="evening">Evening (4 PM - 7 PM)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label htmlFor="setup-requirements">Specific Requirements</Label>
+                          <Textarea
+                            id="setup-requirements"
+                            value={formData.qrCode.setup.requirements}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              qrCode: {
+                                ...prev.qrCode,
+                                setup: {
+                                  ...prev.qrCode.setup,
+                                  requirements: e.target.value
+                                }
+                              }
+                            }))}
+                            placeholder="Any specific requirements or concerns..."
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+              </ul>
+
+              <div className="bg-blue-50 p-4 rounded-lg mt-6">
+                <p className="text-sm text-blue-600">
+                  Note: The QR code will be generated automatically once you submit your Blueprint. You'll be
+                  able to download it in various formats and sizes.
                 </p>
               </div>
-              <ul className="space-y-3 mb-6">
+            </div>
+          </div>
+        )
+                  <Check className="w-5 h-5 text-green-500 mr-2 mt-0.5" />
+                  <span>Include it in your marketing materials</span>
+                </li>
                 <li className="flex items-start">
                   <Check className="w-5 h-5 text-green-500 mr-2 mt-0.5" />
+                  <span>Share it on social media to promote your AR experience</span>
+                </li>
+              </ul>
+
+              <div className="bg-blue-50 p-4 rounded-lg mt-6">
+                <p className="text-sm text-blue-600">
+                  Note: The QR code will be generated automatically once you submit your Blueprint. You'll be
+                  able to download it in various formats and sizes.
+                </p>
+              </div>
+            </div>
+          </div>
+                    <span>Print and display it at your business location</span>
+                  </li>
+                  <li className="flex items-start">
+                    <Check className="w-5 h-5 text-green-500 mr-2 mt-0.5" />
+                    <span>Include it in your marketing materials</span>
+                  </li>
+                  <li className="flex items-start">
+                    <Check className="w-5 h-5 text-green-500 mr-2 mt-0.5" />
+                    <span>Share it on social media to promote your AR experience</span>
+                  </li>
+                </ul>
+
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <p className="text-sm text-blue-600">
+                    Note: The QR code will be generated automatically once you submit your Blueprint. You'll be
+                    able to download it in various formats and sizes.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+                    <span>Print and display it at your business location</span>
+                  </li>
+                  <li className="flex items-start">
+                    <Check className="w-5 h-5 text-green-500 mr-2 mt-0.5" />
+                    <span>Include it in your marketing materials</span>
+                  </li>
+                  <li className="flex items-start">
+                    <Check className="w-5 h-5 text-green-500 mr-2 mt-0.5" />
+                    <span>Share it on social media to promote your AR experience</span>
+                  </li>
+                </ul>
+
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <p className="text-sm text-blue-600">
+                    Note: The QR code will be generated automatically once you submit your Blueprint. You'll be
+                    able to download it in various formats and sizes.
+                  </p>
+                </div>
+              </div>
+            </div>
+                    <div className="space-y-2">
+                      {['Entrance', 'Checkout Counter', 'Product Displays', 'Window Display'].map((location) => (
+                        <div key={location} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={`location-${location}`}
+                            className="w-4 h-4 text-primary rounded border-gray-300"
+                            required
+                          />
+                          <Label htmlFor={`location-${location}`}>{location}</Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label>Floor Plan Upload</Label>
+                    <Input 
+                      type="file" 
+                      accept=".png,.jpg,.jpeg,.pdf"
+                      className="w-full"
+                      required
+                    />
+                    <p className="text-sm text-gray-500">Upload your floor plan to mark QR code locations</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Shipping Information Section */}
+              <div className="mb-8">
+                <h5 className="text-lg font-semibold mb-4">Shipping Information</h5>
+                <div className="space-y-4">
+                  <div>
+                    <Label>Shipping Address</Label>
+                    <Input 
+                      defaultValue={`${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`}
+                      className="w-full"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label>Shipping Options</Label>
+                    <Select defaultValue="standard">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select shipping option" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="standard">Standard Shipping (5-7 days)</SelectItem>
+                        <SelectItem value="express">Express Shipping (2-3 days)</SelectItem>
+                        <SelectItem value="rush">Rush Shipping (Next day)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label>Special Handling Instructions</Label>
+                    <Textarea 
+                      placeholder="Enter any special handling instructions"
+                      className="min-h-[100px]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Setup Assistance Section */}
+              <div className="mb-8">
+                <h5 className="text-lg font-semibold mb-4">Setup Assistance</h5>
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <input
+                      type="checkbox"
+                      id="need-installation"
+                      className="w-4 h-4 text-primary rounded border-gray-300"
+                    />
+                    <Label htmlFor="need-installation">I need help with installation</Label>
+                  </div>
+                  
+                  <div>
+                    <Label>Preferred Installation Date</Label>
+                    <Input 
+                      type="date"
+                      className="w-full"
+                      min={new Date().toISOString().split('T')[0]}
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label>Preferred Time Slot</Label>
+                    <Select defaultValue="morning">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select preferred time" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="morning">Morning (9 AM - 12 PM)</SelectItem>
+                        <SelectItem value="afternoon">Afternoon (12 PM - 4 PM)</SelectItem>
+                        <SelectItem value="evening">Evening (4 PM - 7 PM)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label>Setup Requirements</Label>
+                    <Textarea 
+                      placeholder="Describe any specific setup requirements or concerns"
+                      className="min-h-[100px]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-6">
+                <p className="text-sm text-gray-500 mb-4">
+                  Note: After submitting, your QR codes will be generated and shipped according to your specifications.
+                  You'll receive an email confirmation with tracking information.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+                <li className="flex items-start">
+                  <Check className="w-5 h-5 text-green-500 mr-2 mt-0.5" />
+                  <span>Include it in your marketing materials</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="w-5 h-5 text-green-500 mr-2 mt-0.5" />
+                  <span>Share it on social media to promote your AR experience</span>
+                </li>
+              </ul>
+
+              <div className="text-sm text-gray-500 bg-blue-50 p-4 rounded-lg">
+                <p>
+                  Note: The QR code will be generated automatically once you submit your Blueprint. You'll be
+                  able to download it in various formats and sizes.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+                    <Label>Common Placement Locations</Label>
+                    <div className="space-y-2">
+                      {['Entrance', 'Checkout Counter', 'Product Displays', 'Window Display'].map((location) => (
+                        <div key={location} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={`location-${location}`}
+                            className="w-4 h-4 text-primary rounded border-gray-300"
+                            required
+                          />
+                          <Label htmlFor={`location-${location}`}>{location}</Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Upload Floor Plan</Label>
+                    <Input 
+                      type="file" 
+                      accept=".png,.jpg,.jpeg,.pdf"
+                      className="w-full"
+                      required
+                    />
+                    <p className="text-sm text-gray-500">Upload your floor plan to mark QR code locations</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Shipping Information Section */}
+              <div className="mb-8">
+                <h5 className="text-lg font-semibold mb-4">Shipping Information</h5>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Shipping Address</Label>
+                    <Input 
+                      defaultValue={`${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`}
+                      className="w-full"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Shipping Options</Label>
+                    <Select defaultValue="standard">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select shipping option" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="standard">Standard Shipping (5-7 days)</SelectItem>
+                        <SelectItem value="express">Express Shipping (2-3 days)</SelectItem>
+                        <SelectItem value="rush">Rush Shipping (Next day)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Special Handling Instructions</Label>
+                    <Textarea 
+                      placeholder="Enter any special handling instructions"
+                      className="min-h-[100px]"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Setup Assistance Section */}
+              <div className="mb-8">
+                <h5 className="text-lg font-semibold mb-4">Setup Assistance</h5>
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <input
+                      type="checkbox"
+                      id="need-installation"
+                      className="w-4 h-4 text-primary rounded border-gray-300"
+                    />
+                    <Label htmlFor="need-installation">I need help with installation</Label>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Preferred Installation Date</Label>
+                    <Input 
+                      type="date"
+                      className="w-full"
+                      min={new Date().toISOString().split('T')[0]}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Preferred Time Slot</Label>
+                    <Select defaultValue="morning">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select preferred time" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="morning">Morning (9 AM - 12 PM)</SelectItem>
+                        <SelectItem value="afternoon">Afternoon (12 PM - 4 PM)</SelectItem>
+                        <SelectItem value="evening">Evening (4 PM - 7 PM)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Setup Requirements</Label>
+                    <Textarea 
+                      placeholder="Describe any specific setup requirements or concerns"
+                      className="min-h-[100px]"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-6">
+                <p className="text-sm text-gray-500 mb-4">
+                  Note: After submitting, your QR codes will be generated and shipped according to your specifications.
+                  You'll receive an email confirmation with tracking information.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
                   <span>Print and display it at your business location</span>
                 </li>
                 <li className="flex items-start">
