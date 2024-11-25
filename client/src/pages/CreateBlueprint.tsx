@@ -67,7 +67,9 @@ export default function CreateBlueprint() {
   const [currentStep, setCurrentStep] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
-  const [formData, setFormData] = useState<FormData>({
+  type FormDataWithId = FormData & { blueprintId?: string };
+  
+  const [formData, setFormData] = useState<FormDataWithId>({
     businessName: '',
     businessType: '',
     locationName: '',
@@ -165,10 +167,8 @@ export default function CreateBlueprint() {
           description: "You can now customize your Blueprint in the editor.",
         })
         
-        // Redirect to the editor after a short delay to show QR code info
-        setTimeout(() => {
-          window.location.href = `/blueprint-editor/${blueprintId}`;
-        }, 3000);
+        // Store blueprintId in state for navigation
+        setFormData(prev => ({ ...prev, blueprintId }));
       } catch (error) {
         toast({
           title: "Error",
