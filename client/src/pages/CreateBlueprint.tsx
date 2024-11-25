@@ -3,15 +3,31 @@
 import { useState, ChangeEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
-interface FeatureDetail<T extends Record<string, string>> extends T {
+interface BaseFeatureDetail {
   enabled: boolean;
 }
 
+interface PersonalizedRecommendationsDetail extends BaseFeatureDetail {
+  crm: string;
+}
+
+interface VirtualToursDetail extends BaseFeatureDetail {
+  tourUrl: string;
+}
+
+interface LoyaltyProgramDetail extends BaseFeatureDetail {
+  programDetails: string;
+}
+
+interface ARVisualizationsDetail extends BaseFeatureDetail {
+  arModelUrls: string;
+}
+
 type FeatureDetails = {
-  personalizedRecommendations: FeatureDetail<{ crm: string }>;
-  virtualTours: FeatureDetail<{ tourUrl: string }>;
-  loyaltyProgram: FeatureDetail<{ programDetails: string }>;
-  arVisualizations: FeatureDetail<{ arModelUrls: string }>;
+  personalizedRecommendations: PersonalizedRecommendationsDetail;
+  virtualTours: VirtualToursDetail;
+  loyaltyProgram: LoyaltyProgramDetail;
+  arVisualizations: ARVisualizationsDetail;
 }
 
 type FormData = {
@@ -30,7 +46,7 @@ type FormData = {
   apiKey: string;
   features: FeatureDetails;
 }
-import { ChevronRight, ChevronLeft, Check, Building2, MapPin, Phone, Mail, Globe, Users, Palette, Cog } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Check, Building2, MapPin, Phone, Mail, Globe, Users, Palette, Cog, QrCode } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -45,6 +61,7 @@ const steps = [
   { id: 'customization', title: 'AI Assistant', icon: Palette },
   { id: 'features', title: 'Blueprint Features', icon: Cog },
   { id: 'review', title: 'Review & Submit', icon: Check },
+  { id: 'qr-code', title: 'QR Code Info', icon: QrCode },
 ]
 
 const aiProviders = [
@@ -404,8 +421,42 @@ export default function CreateBlueprint() {
               <pre className="whitespace-pre-wrap">{JSON.stringify(formData, null, 2)}</pre>
             </div>
             <p className="text-sm text-gray-600">
-              Please review your Blueprint details above. If everything looks correct, click 'Submit' to create your Blueprint.
+              Please review your Blueprint details above. If everything looks correct, click 'Next' to proceed to QR code generation.
             </p>
+          </div>
+        )
+      case 6:
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Blueprint QR Code</h3>
+            <div className="bg-white p-6 rounded-lg border shadow-sm">
+              <div className="text-center mb-6">
+                <QrCode className="w-12 h-12 mx-auto mb-4 text-primary" />
+                <h4 className="text-xl font-semibold mb-2">Your Blueprint QR Code</h4>
+                <p className="text-gray-600">
+                  After submitting, a unique QR code will be generated for your Blueprint. You can:
+                </p>
+              </div>
+              <ul className="space-y-3 mb-6">
+                <li className="flex items-start">
+                  <Check className="w-5 h-5 text-green-500 mr-2 mt-0.5" />
+                  <span>Print and display it at your business location</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="w-5 h-5 text-green-500 mr-2 mt-0.5" />
+                  <span>Include it in your marketing materials</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="w-5 h-5 text-green-500 mr-2 mt-0.5" />
+                  <span>Share it on social media to promote your AR experience</span>
+                </li>
+              </ul>
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <p className="text-sm text-blue-700">
+                  <strong>Note:</strong> The QR code will be generated automatically once you submit your Blueprint. You'll be able to download it in various formats and sizes.
+                </p>
+              </div>
+            </div>
           </div>
         )
       default:
