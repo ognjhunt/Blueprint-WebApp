@@ -1,11 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Calendar, Truck, HeadphonesIcon, CheckCircle, ChevronRight } from 'lucide-react'
+import { CheckCircle, Download } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -20,80 +18,67 @@ interface QRCodeSetupProps {
 }
 
 export function QRCodeSetup({ businessName, blueprintId }: QRCodeSetupProps) {
-  const [currentSection, setCurrentSection] = useState<'setup' | 'shipping' | 'support'>('setup')
-  const [setupProgress, setSetupProgress] = useState({
-    locationVerified: false,
-    deviceRegistered: false,
-    layoutUploaded: false,
-    arElementsPlaced: false,
-    staffTrained: false
-  })
-  const [shippingInfo, setShippingInfo] = useState({
-    recipientName: '',
-    address: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    preferredDate: '',
-    shippingMethod: 'standard',
-    signType: 'standard',
-    quantity: 1,
-    specialInstructions: '',
-    notifyEmail: true,
-    notifySMS: false
-  })
-  const [supportSlot, setSupportSlot] = useState({
-    date: '',
-    timeSlot: '',
-    supportType: 'remote',
-    preferredLanguage: 'english',
-    meetingType: 'setup',
-    priority: 'normal',
-    additionalNotes: ''
-  })
-
-  const supportLanguages = ['english', 'spanish', 'french', 'german', 'chinese']
-  const priorityLevels = ['normal', 'high', 'urgent']
-  const technicalLevels = ['beginner', 'intermediate', 'advanced']
-
-  const availableTimeSlots = [
-    '09:00 AM - 10:00 AM',
-    '10:00 AM - 11:00 AM',
-    '11:00 AM - 12:00 PM',
-    '02:00 PM - 03:00 PM',
-    '03:00 PM - 04:00 PM',
-    '04:00 PM - 05:00 PM',
-  ]
+  const [downloadFormat, setDownloadFormat] = useState<'png' | 'svg' | 'pdf'>('png')
 
   return (
     <div className="space-y-8">
-      {/* Setup Assistance */}
-      <Card className={currentSection === 'setup' ? '' : 'opacity-50'}>
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <CheckCircle className="w-5 h-5 mr-2 text-primary" />
-            Setup Assistance
-          </CardTitle>
+          <CardTitle className="text-2xl font-bold text-center">Your Blueprint QR Code</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={setupProgress.locationVerified}
-                  onChange={(e) => setSetupProgress(prev => ({
-                    ...prev,
-                    locationVerified: e.target.checked
-                  }))}
-                  className="w-4 h-4"
-                />
-                <Label>Verify Location Settings</Label>
+            <p className="text-center text-gray-600 mb-8">
+              After submitting, a unique QR code will be generated for your Blueprint. You can:
+            </p>
+
+            <div className="space-y-4">
+              <div className="flex items-center space-x-3">
+                <CheckCircle className="w-5 h-5 text-green-500" />
+                <span>Print and display it at your business location</span>
               </div>
-              <p className="text-sm text-gray-600 ml-6">
-                Ensure your business location is accurately mapped for AR placement
+              
+              <div className="flex items-center space-x-3">
+                <CheckCircle className="w-5 h-5 text-green-500" />
+                <span>Include it in your marketing materials</span>
+              </div>
+              
+              <div className="flex items-center space-x-3">
+                <CheckCircle className="w-5 h-5 text-green-500" />
+                <span>Share it on social media to promote your AR experience</span>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 p-4 rounded-lg mt-6">
+              <p className="text-blue-700">
+                <strong>Note:</strong> The QR code will be generated automatically once you submit your Blueprint. You'll be able to download it in various formats and sizes.
               </p>
             </div>
+
+            <div className="mt-6">
+              <div className="flex items-center space-x-4">
+                <Select value={downloadFormat} onValueChange={(value: 'png' | 'svg' | 'pdf') => setDownloadFormat(value)}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select format" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="png">PNG Image</SelectItem>
+                    <SelectItem value="svg">SVG Vector</SelectItem>
+                    <SelectItem value="pdf">PDF Document</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button className="flex-1" disabled={!blueprintId}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Download QR Code
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
 
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
