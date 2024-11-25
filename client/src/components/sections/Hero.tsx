@@ -41,17 +41,38 @@ export default function Hero() {
         <div className="max-w-3xl mx-auto text-center">
           <motion.div
             key={currentHeadline}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.5 }}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            variants={{
+              hidden: { opacity: 0, x: -20 },
+              visible: { opacity: 1, x: 0 },
+              exit: { opacity: 0, x: 20 }
+            }}
+            transition={{ duration: 0.7, ease: "easeOut" }}
           >
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
+            <motion.h1 
+              className="text-4xl md:text-5xl font-bold mb-6"
+              variants={{
+                hidden: { opacity: 0, y: 20 },
+                visible: { opacity: 1, y: 0 },
+                exit: { opacity: 0, y: -20 }
+              }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
               {headlines[currentHeadline].title}
-            </h1>
-            <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            </motion.h1>
+            <motion.p 
+              className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto"
+              variants={{
+                hidden: { opacity: 0, y: 20 },
+                visible: { opacity: 1, y: 0 },
+                exit: { opacity: 0, y: -20 }
+              }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+            >
               {headlines[currentHeadline].subtitle}
-            </p>
+            </motion.p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/create-blueprint">
                 <Button size="lg" className="text-lg px-8">
