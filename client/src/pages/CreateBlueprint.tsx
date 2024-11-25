@@ -4,31 +4,20 @@ import { useState, useEffect, ChangeEvent } from 'react'
 import { useToast } from "@/hooks/use-toast"
 import { motion, AnimatePresence } from 'framer-motion'
 
+type FeatureDetail = {
+  crm?: string;
+  tourUrl?: string;
+  programDetails?: string;
+  arModelUrls?: string;
+}
+
 interface BaseFeatureDetail {
   enabled: boolean;
-}
-
-interface PersonalizedRecommendationsDetail extends BaseFeatureDetail {
-  crm: string;
-}
-
-interface VirtualToursDetail extends BaseFeatureDetail {
-  tourUrl: string;
-}
-
-interface LoyaltyProgramDetail extends BaseFeatureDetail {
-  programDetails: string;
-}
-
-interface ARVisualizationsDetail extends BaseFeatureDetail {
-  arModelUrls: string;
+  details: FeatureDetail;
 }
 
 type FeatureDetails = {
-  personalizedRecommendations: PersonalizedRecommendationsDetail;
-  virtualTours: VirtualToursDetail;
-  loyaltyProgram: LoyaltyProgramDetail;
-  arVisualizations: ARVisualizationsDetail;
+  [key: string]: BaseFeatureDetail;
 }
 
 type FormData = {
@@ -93,10 +82,10 @@ export default function CreateBlueprint() {
     aiProvider: '',
     apiKey: '',
     features: {
-      personalizedRecommendations: { enabled: false, crm: '' },
-      virtualTours: { enabled: false, tourUrl: '' },
-      loyaltyProgram: { enabled: false, programDetails: '' },
-      arVisualizations: { enabled: false, arModelUrls: '' },
+      personalizedRecommendations: { enabled: false, details: { crm: '' } },
+      virtualTours: { enabled: false, details: { tourUrl: '' } },
+      loyaltyProgram: { enabled: false, details: { programDetails: '' } },
+      arVisualizations: { enabled: false, details: { arModelUrls: '' } },
     },
   })
 
@@ -123,15 +112,21 @@ export default function CreateBlueprint() {
   }
 
   const handleFeatureDetailChange = (
-    feature: keyof FeatureDetails,
-    field: keyof FeatureDetailType,
+    feature: string,
+    field: keyof FeatureDetail,
     value: string
   ) => {
     setFormData((prev) => ({
       ...prev,
       features: {
         ...prev.features,
-        [feature]: { ...prev.features[feature], [field]: value },
+        [feature]: {
+          ...prev.features[feature],
+          details: {
+            ...prev.features[feature].details,
+            [field]: value
+          }
+        },
       },
     }))
   }
@@ -150,36 +145,42 @@ export default function CreateBlueprint() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setIsLoading(true)
-    try {
-      const blueprintId = Date.now().toString();
-      const blueprintData = {
-        id: blueprintId,
-        ...formData,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+    if (currentStep === steps.length - 1) {
+      setIsLoading(true)
+      try {
+        const blueprintId = Date.now().toString();
+        const blueprintData = {
+          id: blueprintId,
+          ...formData,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
 
-      // Store blueprint data in localStorage
-      const existingBlueprints = JSON.parse(localStorage.getItem('blueprints') || '[]');
-      localStorage.setItem('blueprints', JSON.stringify([...existingBlueprints, blueprintData]));
-      
-      toast({
-        title: "Blueprint Created Successfully!",
-        description: "You can now customize your Blueprint in the editor.",
-      })
-      
-      // Redirect to the editor
-      window.location.href = `/blueprint-editor/${blueprintId}`
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create Blueprint. Please try again.",
-        variant: "destructive",
-      })
-      console.error('Error creating blueprint:', error);
-    } finally {
-      setIsLoading(false)
+        // Store blueprint data in localStorage
+        const existingBlueprints = JSON.parse(localStorage.getItem('blueprints') || '[]');
+        localStorage.setItem('blueprints', JSON.stringify([...existingBlueprints, blueprintData]));
+        
+        toast({
+          title: "Blueprint Created Successfully!",
+          description: "You can now customize your Blueprint in the editor.",
+        })
+        
+        // Redirect to the editor after a short delay to show QR code info
+        setTimeout(() => {
+          window.location.href = `/blueprint-editor/${blueprintId}`;
+        }, 3000);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to create Blueprint. Please try again.",
+          variant: "destructive",
+        })
+        console.error('Error creating blueprint:', error);
+      } finally {
+        setIsLoading(false)
+      }
+    } else {
+      handleNext();
     }
   }
 
@@ -377,7 +378,7 @@ export default function CreateBlueprint() {
                           <Label htmlFor={`${feature}-crm`}>Provide Blueprint / Floor Plan OR Scan</Label>
                           <Input
                             id={`${feature}-crm`}
-                            value={details.crm}
+                            value={formData.features[feature].details.crm || ''}
                             onChange={(e) => handleFeatureDetailChange(feature, 'crm', e.target.value)}
                             placeholder="Upload Blueprint / Floor Plan OR Scan Your Location"
                           />
@@ -388,7 +389,7 @@ export default function CreateBlueprint() {
                           <Label htmlFor={`${feature}-tourUrl`}>Virtual Tour URL</Label>
                           <Input
                             id={`${feature}-tourUrl`}
-                            value={details.tourUrl}
+                            value={formData.features[feature].details.tourUrl || ''}
                             onChange={(e) => handleFeatureDetailChange(feature, 'tourUrl', e.target.value)}
                             placeholder="Please provide all relevant up-to-date information on your product catalog"
                           />
@@ -399,7 +400,7 @@ export default function CreateBlueprint() {
                           <Label htmlFor={`${feature}-programDetails`}>Loyalty Program Details</Label>
                           <Textarea
                             id={`${feature}-programDetails`}
-                            value={details.programDetails}
+                            value={formData.features[feature].details.programDetails || ''}
                             onChange={(e) => handleFeatureDetailChange(feature, 'programDetails', e.target.value)}
                             placeholder="Enter loyalty program details"
                           />
@@ -410,7 +411,7 @@ export default function CreateBlueprint() {
                           <Label htmlFor={`${feature}-arModelUrls`}>AR Model URLs</Label>
                           <Textarea
                             id={`${feature}-arModelUrls`}
-                            value={details.arModelUrls}
+                            value={formData.features[feature].details.arModelUrls || ''}
                             onChange={(e) => handleFeatureDetailChange(feature, 'arModelUrls', e.target.value)}
                             placeholder="Enter AR model URLs (one per line)"
                           />
