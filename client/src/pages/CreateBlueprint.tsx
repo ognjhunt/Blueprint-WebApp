@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, ChangeEvent } from 'react'
+import { useState, useEffect, ChangeEvent } from 'react'
+import { useToast } from "@/hooks/use-toast"
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface BaseFeatureDetail {
@@ -75,6 +76,8 @@ const aiProviders = [
 
 export default function CreateBlueprint() {
   const [currentStep, setCurrentStep] = useState(0)
+  const [isLoading, setIsLoading] = useState(false)
+  const { toast } = useToast()
   const [formData, setFormData] = useState<FormData>({
     businessName: '',
     businessType: '',
@@ -112,9 +115,16 @@ export default function CreateBlueprint() {
     }))
   }
 
+  type FeatureDetailType = {
+    crm: string;
+    tourUrl: string;
+    programDetails: string;
+    arModelUrls: string;
+  }
+
   const handleFeatureDetailChange = (
     feature: keyof FeatureDetails,
-    field: string,
+    field: keyof FeatureDetailType,
     value: string
   ) => {
     setFormData((prev) => ({
