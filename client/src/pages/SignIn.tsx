@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Mail, Lock } from 'lucide-react'
-import { Link, useLocation } from "wouter"
+import { Link } from "wouter"
+import { useAuth } from "@/contexts/AuthContext"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google'
@@ -38,7 +39,7 @@ const formSchema = z.object({
 export default function SignIn() {
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
-  const [_, setLocation] = useLocation()
+  const { signIn } = useAuth()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -51,20 +52,16 @@ export default function SignIn() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
     try {
-      // Here you would typically make an API call to authenticate
-      console.log(values)
-      
+      await signIn(values.email, values.password)
+      // Will be handled by AuthContext navigation
       toast({
         title: "Success",
         description: "Signed in successfully.",
       })
-      
-      // Redirect to dashboard after successful sign in
-      setLocation("/dashboard")
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Invalid email or password.",
+        description: error.message,
         variant: "destructive",
       })
     } finally {
