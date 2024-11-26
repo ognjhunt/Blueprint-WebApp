@@ -329,13 +329,83 @@ export default function CreateBlueprint() {
   };
 
   // Handle selecting a business from predictions
-  const handleBusinessSelect = (prediction: PlacePrediction) => {
-    setFormData((prev) => ({
-      ...prev,
-      businessName: prediction.structured_formatting.main_text,
-      address: prediction.structured_formatting.secondary_text,
-    }));
+  const handleBusinessSelect = async (prediction: PlacePrediction) => {
     setPredictions([]);
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Create a dummy div for PlacesService (required by Google Maps)
+      const placesDiv = document.createElement("div");
+      const placesService = new google.maps.places.PlacesService(placesDiv);
+
+      const result = await new Promise<google.maps.places.PlaceResult>((resolve, reject) => {
+        placesService.getDetails(
+          {
+            placeId: prediction.place_id,
+            fields: [
+              'name',
+              'formatted_address',
+              'formatted_phone_number',
+              'website',
+              'type',
+              'address_components'
+            ],
+          },
+          (place, status) => {
+            if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {
+              reject(new Error(`Places API error: ${status}`));
+              return;
+            }
+            resolve(place);
+          },
+        );
+      });
+
+      // Determine business type from place types
+      let businessType = 'other';
+      if (result.types) {
+        if (result.types.includes('restaurant')) businessType = 'restaurant';
+        else if (result.types.includes('store')) businessType = 'retail';
+        else if (result.types.includes('school')) businessType = 'education';
+        else if (result.types.includes('hospital')) businessType = 'healthcare';
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        businessName: result.name || prediction.structured_formatting.main_text,
+        businessType,
+        locationName: result.name || prediction.structured_formatting.main_text,
+        address: result.formatted_address || prediction.structured_formatting.secondary_text,
+        phone: result.formatted_phone_number || '',
+        website: result.website || '',
+      }));
+
+      // Extract and set address components
+      result.address_components?.forEach((component) => {
+        const types = component.types;
+        if (types.includes('locality')) {
+          setFormData(prev => ({ ...prev, city: component.long_name }));
+        } else if (types.includes('administrative_area_level_1')) {
+          setFormData(prev => ({ ...prev, state: component.short_name }));
+        } else if (types.includes('postal_code')) {
+          setFormData(prev => ({ ...prev, zipCode: component.long_name }));
+        } else if (types.includes('country')) {
+          setFormData(prev => ({ ...prev, country: component.short_name }));
+        }
+      });
+
+    } catch (error) {
+      console.error('Error fetching business details:', error);
+      setError('Failed to fetch business details. Please try entering information manually.');
+      toast({
+        title: "Error",
+        description: "Failed to fetch business details. Please try entering information manually.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleFeatureToggle = (feature: keyof FeatureDetails) => {
