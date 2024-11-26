@@ -75,6 +75,91 @@ const businessTypes = [
   { value: "other", label: "Other" }
 ];
 
+const countries = [
+  { value: "US", label: "United States" },
+  { value: "CA", label: "Canada" },
+  { value: "MX", label: "Mexico" }
+];
+
+const states = {
+  US: [
+    { value: "AL", label: "Alabama" },
+    { value: "AK", label: "Alaska" },
+    { value: "AZ", label: "Arizona" },
+    { value: "AR", label: "Arkansas" },
+    { value: "CA", label: "California" },
+    { value: "CO", label: "Colorado" },
+    { value: "CT", label: "Connecticut" },
+    { value: "DE", label: "Delaware" },
+    { value: "FL", label: "Florida" },
+    { value: "GA", label: "Georgia" },
+    { value: "HI", label: "Hawaii" },
+    { value: "ID", label: "Idaho" },
+    { value: "IL", label: "Illinois" },
+    { value: "IN", label: "Indiana" },
+    { value: "IA", label: "Iowa" },
+    { value: "KS", label: "Kansas" },
+    { value: "KY", label: "Kentucky" },
+    { value: "LA", label: "Louisiana" },
+    { value: "ME", label: "Maine" },
+    { value: "MD", label: "Maryland" },
+    { value: "MA", label: "Massachusetts" },
+    { value: "MI", label: "Michigan" },
+    { value: "MN", label: "Minnesota" },
+    { value: "MS", label: "Mississippi" },
+    { value: "MO", label: "Missouri" },
+    { value: "MT", label: "Montana" },
+    { value: "NE", label: "Nebraska" },
+    { value: "NV", label: "Nevada" },
+    { value: "NH", label: "New Hampshire" },
+    { value: "NJ", label: "New Jersey" },
+    { value: "NM", label: "New Mexico" },
+    { value: "NY", label: "New York" },
+    { value: "NC", label: "North Carolina" },
+    { value: "ND", label: "North Dakota" },
+    { value: "OH", label: "Ohio" },
+    { value: "OK", label: "Oklahoma" },
+    { value: "OR", label: "Oregon" },
+    { value: "PA", label: "Pennsylvania" },
+    { value: "RI", label: "Rhode Island" },
+    { value: "SC", label: "South Carolina" },
+    { value: "SD", label: "South Dakota" },
+    { value: "TN", label: "Tennessee" },
+    { value: "TX", label: "Texas" },
+    { value: "UT", label: "Utah" },
+    { value: "VT", label: "Vermont" },
+    { value: "VA", label: "Virginia" },
+    { value: "WA", label: "Washington" },
+    { value: "WV", label: "West Virginia" },
+    { value: "WI", label: "Wisconsin" },
+    { value: "WY", label: "Wyoming" }
+  ],
+  CA: [
+    { value: "AB", label: "Alberta" },
+    { value: "BC", label: "British Columbia" },
+    { value: "MB", label: "Manitoba" },
+    { value: "NB", label: "New Brunswick" },
+    { value: "NL", label: "Newfoundland and Labrador" },
+    { value: "NS", label: "Nova Scotia" },
+    { value: "ON", label: "Ontario" },
+    { value: "PE", label: "Prince Edward Island" },
+    { value: "QC", label: "Quebec" },
+    { value: "SK", label: "Saskatchewan" }
+  ],
+  MX: [
+    { value: "AGU", label: "Aguascalientes" },
+    { value: "BCN", label: "Baja California" },
+    { value: "BCS", label: "Baja California Sur" },
+    { value: "CAM", label: "Campeche" },
+    { value: "CHP", label: "Chiapas" },
+    { value: "CHH", label: "Chihuahua" },
+    { value: "CMX", label: "Ciudad de México" },
+    { value: "COA", label: "Coahuila" },
+    { value: "COL", label: "Colima" },
+    { value: "DUR", label: "Durango" }
+  ]
+};
+
 const steps = [
   { id: "business-info", title: "Business Information", icon: Building2 },
   { id: "location-details", title: "Location Details", icon: MapPin },
@@ -518,8 +603,73 @@ export default function CreateBlueprint() {
       case 1:
         return (
           <div className="space-y-4">
-            {renderInputField("locationName", "Location Name")}
-            {renderInputField("address", "Address")}
+            {renderInputField("locationName", "Location Name", "text", "Enter location name")}
+            {renderInputField("address", "Address", "text", "Enter street address")}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="country">Country</Label>
+                <Select
+                  name="country"
+                  value={formData.country}
+                  onValueChange={(value) => {
+                    handleInputChange({ target: { name: "country", value } });
+                    // Reset state when country changes
+                    handleInputChange({ target: { name: "state", value: "" } });
+                  }}
+                >
+                  <SelectTrigger 
+                    className={cn(
+                      fieldErrors.country && "border-red-500 focus-visible:ring-red-500"
+                    )}
+                  >
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countries.map((country) => (
+                      <SelectItem key={country.value} value={country.value}>
+                        {country.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {fieldErrors.country && (
+                  <p className="text-sm text-red-500 mt-1">{fieldErrors.country}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="state">State/Province</Label>
+                <Select
+                  name="state"
+                  value={formData.state}
+                  onValueChange={(value) =>
+                    handleInputChange({ target: { name: "state", value } })
+                  }
+                  disabled={!formData.country}
+                >
+                  <SelectTrigger 
+                    className={cn(
+                      fieldErrors.state && "border-red-500 focus-visible:ring-red-500"
+                    )}
+                  >
+                    <SelectValue placeholder="Select state" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {formData.country && states[formData.country as keyof typeof states]?.map((state) => (
+                      <SelectItem key={state.value} value={state.value}>
+                        {state.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {fieldErrors.state && (
+                  <p className="text-sm text-red-500 mt-1">{fieldErrors.state}</p>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {renderInputField("city", "City", "text", "Enter city")}
+              {renderInputField("zipCode", "ZIP/Postal Code", "text", "Enter ZIP/postal code")}
+            </div>
             <div className="grid grid-cols-2 gap-4">
               {renderInputField("city", "City")}
               {renderInputField("state", "State/Province")}
