@@ -117,24 +117,40 @@ export default function BlueprintEditor() {
       
       reader.onload = (e) => {
         const result = e.target?.result;
-        if (result && typeof result === "string") {
+        if (result && typeof result === "string" && containerRef.current) {
           // Create an image element to get dimensions
           const img = new Image();
           img.onload = () => {
-            const aspectRatio = img.width / img.height;
+            const containerWidth = containerRef.current?.clientWidth || 800;
+            const containerHeight = containerRef.current?.clientHeight || 600;
+            const imageAspectRatio = img.width / img.height;
+            const containerAspectRatio = containerWidth / containerHeight;
+            
+            // Calculate optimal scale to fit the image in the container
+            let scale = 1;
+            if (imageAspectRatio > containerAspectRatio) {
+              // Image is wider than container
+              scale = (containerWidth * 0.9) / img.width;
+            } else {
+              // Image is taller than container
+              scale = (containerHeight * 0.9) / img.height;
+            }
+            
+            // Calculate center position
+            const centerX = (containerWidth - (img.width * scale)) / 2;
+            const centerY = (containerHeight - (img.height * scale)) / 2;
             
             setEditorState((prev) => ({
               ...prev,
               layout: {
                 url: result,
                 name: file.name,
-                aspectRatio,
+                aspectRatio: imageAspectRatio,
                 originalWidth: img.width,
                 originalHeight: img.height,
               },
-              // Reset position and scale
-              position: { x: 0, y: 0 },
-              scale: 1,
+              position: { x: centerX, y: centerY },
+              scale,
             }));
 
             setIsLoading(false);
@@ -368,10 +384,11 @@ export default function BlueprintEditor() {
           <div
             className={`w-full h-full relative editor-container ${
               showGrid ? "bg-grid-pattern" : "bg-white"
-            }`}
+            } p-4`}
             style={{
-              transform: `scale(${editorState.scale}) translate(${editorState.position.x}px, ${editorState.position.y}px)`,
+              transform: `translate(${editorState.position.x}px, ${editorState.position.y}px)`,
               transformOrigin: "center",
+              overflow: "hidden",
             }}
           >
             {isLoading ? (
@@ -384,10 +401,12 @@ export default function BlueprintEditor() {
                 <img
                   src={editorState.layout.url}
                   alt="Store Layout"
-                  className="w-full h-full object-contain"
+                  className="w-auto h-auto"
                   style={{
-                    maxWidth: editorState.layout.originalWidth,
-                    maxHeight: editorState.layout.originalHeight,
+                    transform: `scale(${editorState.scale})`,
+                    transformOrigin: "top left",
+                    maxWidth: "none",
+                    maxHeight: "none",
                   }}
                 />
               </div>
