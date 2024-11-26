@@ -6,14 +6,17 @@ import {
   signInWithGoogle as firebaseSignInWithGoogle,
   logOut,
   onAuthStateChanged,
+  getUserData,
+  UserData,
   FirebaseUser
 } from '@/lib/firebase';
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
+  userData: UserData | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, name?: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -30,11 +33,22 @@ export function useAuth() {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
+      if (user) {
+        try {
+          const userData = await getUserData(user.uid);
+          setUserData(userData);
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        }
+      } else {
+        setUserData(null);
+      }
       setLoading(false);
     });
 
@@ -45,16 +59,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const user = await loginWithEmailAndPassword(email, password);
       console.log("User signed in successfully:", user.uid);
+      const userData = await getUserData(user.uid);
+      setUserData(userData);
     } catch (error: any) {
       console.error("Sign in error:", { code: error.code, message: error.message });
       throw new Error(getAuthErrorMessage(error.code) || error.message);
     }
   }
 
-  async function signUp(email: string, password: string) {
+  async function signUp(email: string, password: string, name?: string) {
     try {
-      const user = await registerWithEmailAndPassword(email, password);
+      const user = await registerWithEmailAndPassword(email, password, name);
       console.log("User registered successfully:", user.uid);
+      const userData = await getUserData(user.uid);
+      setUserData(userData);
     } catch (error: any) {
       console.error("Sign up error:", { code: error.code, message: error.message });
       throw new Error(getAuthErrorMessage(error.code) || error.message);
@@ -65,6 +83,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const user = await firebaseSignInWithGoogle();
       console.log("User signed in with Google successfully:", user.uid);
+      const userData = await getUserData(user.uid);
+      setUserData(userData);
     } catch (error: any) {
       console.error("Google sign in error:", { code: error.code, message: error.message });
       throw new Error(getAuthErrorMessage(error.code) || error.message);
@@ -74,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function logout() {
     try {
       await logOut();
+      setUserData(null);
       console.log("User logged out successfully");
     } catch (error: any) {
       console.error("Logout error:", { code: error.code, message: error.message });
@@ -108,6 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = {
     currentUser,
+    userData,
     loading,
     signIn,
     signUp,

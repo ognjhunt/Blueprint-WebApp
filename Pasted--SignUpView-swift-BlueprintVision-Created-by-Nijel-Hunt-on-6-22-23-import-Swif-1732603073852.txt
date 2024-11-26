@@ -1,0 +1,945 @@
+//
+//  SignUpView.swift
+//  BlueprintVision
+//
+//  Created by Nijel Hunt on 6/22/23.
+//
+
+import SwiftUI
+import UIKit
+import FirebaseFirestore
+import AuthenticationServices
+import Mixpanel
+import FirebaseAuth
+//import GoogleSignIn
+
+// Represents an alert with a unique identifier based on its message content.
+struct IdentifiableAlert: Identifiable {
+    var id: String { message }
+    let message: String
+}
+
+// SignUpView is the UI representation of the sign-up form for users to enter their account information.
+struct SignUpView: View {
+    
+    // Variables to hold user input and control UI state.
+    
+    @State private var showAlert = false
+    
+    // State to store entered email
+    @State private var email: String = ""
+    
+    // State to store whether the email is valid or not
+    @State private var isValidEmail: Bool = true
+    
+    // State to store entered password
+    @State private var password: String = ""
+    
+    // State to enable/disable sign up button
+    @State private var signUpEnabled: Bool = false
+    
+    @Environment(\.dismissWindow) private var dismissWindow
+    
+    // State to enable/disable sign up button
+    @State private var userCreated: Bool = false
+    
+    @State private var firstName: String = ""
+    @State private var lastName: String = ""
+    
+    @State private var name: String = ""
+    
+    @State private var showingSignUpPopover = OnboardingManager.shared.showSignUpPopover
+    
+    
+    @FocusState private var isFocused: Bool
+    
+    // Reference to presentationMode
+    @Environment(\.presentationMode) private var presentationMode
+    
+    @Environment(\.openWindow) private var openWindow
+    @State private var showingSheet = false
+    @State private var showingTermsSheet = false
+    
+    // Define individual focus states for each text field
+    @FocusState private var isNameFieldFocused: Bool
+    @FocusState private var isEmailFieldFocused: Bool
+    @FocusState private var isPasswordFieldFocused: Bool
+    
+    @State private var isProcessing = false
+    
+    // The view body contains the layout and logic for user input fields and sign-up button.
+    var body: some View {
+        
+        NavigationStack {
+            
+            VStack {
+                VStack(alignment: .leading) {
+                    Text("Create your account")
+                        .font(.extraLargeTitle2)
+                        .fontWeight(.bold)
+                        .padding(.horizontal)
+                }
+                .padding(.leading, -282)
+                .padding(.bottom, 50)
+                
+                // First Name Text Field
+                VStack(alignment: .leading, spacing: -5) {
+                    Text("Full Name")
+                        .font(.headline)
+                        .fontWeight(.medium)
+                        .padding(.horizontal)
+                    
+                    TextField("Full Name", text: $name)
+                        .focused($isNameFieldFocused)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .padding()
+                        .textInputAutocapitalization(.words)
+                        .tag(0)
+                        .onChange(of: name) { _ in // Added this line
+                           // validateFields()       // And this line
+                            validateFields { isValid in
+                                if isValid {
+                                    // Proceed with updating the document
+                                } else {
+                                    // Handle the error, show an alert, etc.
+                                }
+                            }
+                        }
+                        .onSubmit {
+                            isEmailFieldFocused = true // Move to Email TextField when Return is pressed
+                        }
+                }
+                
+                VStack(alignment: .leading, spacing: -5) {
+                    Text("Email")
+                        .font(.headline)
+                        .fontWeight(.medium)
+                        .padding(.horizontal)
+                    
+                    TextField("Email", text: $email)
+                    // Styling
+                        .keyboardType(.emailAddress) // Set the keyboard type to email
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .padding()
+                        .textInputAutocapitalization(.never)
+                        .tag(1)
+                        .focused($isEmailFieldFocused)
+                        .onSubmit {
+                            isPasswordFieldFocused = true // Move to Password TextField when Return is pressed
+                        }
+                    // Validate email on each text change
+                        .onChange(of: email) { _ in // Added this line
+                         //   validateFields()       // And this line
+                            validateFields { isValid in
+                                if isValid {
+                                    // Proceed with updating the document
+                                } else {
+                                    // Handle the error, show an alert, etc.
+                                }
+                            }
+                        }
+                        .onChange(of: email) { newEmail in
+                            validateEmail()
+                        }
+                    // Show error indication if email is invalid
+                        .overlay(
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.red)
+                                .opacity(isValidEmail ? 0 : 1)
+                                .padding(.trailing, 8)
+                        )
+                }
+                
+                VStack(alignment: .leading, spacing: -5) {
+                    Text("Password")
+                        .font(.headline)
+                        .fontWeight(.medium)
+                        .padding(.horizontal)
+                    // Password text field
+                    SecureField("Password (at least 6 characters)", text: $password, onCommit: {
+                        // Handle commit
+                    })
+                    
+                    // Styling
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .padding()
+                    .textInputAutocapitalization(.never)
+                    .tag(2)
+                    .padding(.bottom, 5)
+                    .focused($isPasswordFieldFocused)
+                    .onSubmit {
+                        // Dismiss keyboard when Return is pressed on the last TextField
+                        isPasswordFieldFocused = false
+                    }
+                    .onChange(of: password) { _ in // Added this line
+                      //  validateFields()       // And this line
+                        validateFields { isValid in
+                            if isValid {
+                                // Proceed with updating the document
+                            } else {
+                                // Handle the error, show an alert, etc.
+                            }
+                        }
+                    }
+                    // Show error indication if password is invalid
+                    .overlay(
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.red)
+                            .opacity((password.isEmpty || isValidPassword(password)) ? 0 : 1) // Check if password is empty or invalid
+                            .padding(.trailing, 8)
+                    )
+                }
+                // Login link
+                NavigationLink(destination: LogInView()) {
+                    Text("Already have an account? Log in")
+                }
+                .padding(.bottom, 20)
+                
+                // Sign up button
+                Button(action: {
+                    Mixpanel.mainInstance().track(event: "sign_up_view_user_clicked_sign_up", properties: ["blueprint_id": UserDefaults.standard.string(forKey: "SelectedBlueprintID"), "session_id": UserDefaults.standard.string(forKey: "SessionID"), "sign_up_variant": "\(UserDefaults.standard.value(forKey: "sign_up_variant") as! String)", "user_id": Auth.auth().currentUser?.uid ?? UserDefaults.standard.string(forKey: "temporaryUserID") ?? "", "date": Date()])
+
+                    // Sign up logic
+                    if signUpEnabled {
+                        // Sign up logic
+                        signUpEnabled = false
+                      //  validateFields()
+                        validateFields { isValid in
+                            if isValid {
+                                // Proceed with updating the document
+                                createProfile()
+                            } else {
+                                // Handle the error, show an alert, etc.
+                            }
+                        }
+                    } else {
+                        self.showAlertWith(title: "Oops!", message: "Please complete the registration before signing up.")
+                    }
+                }) {
+                    Text("Sign Up")
+                        .font(.title3)
+                    // Styling
+                        .frame(maxWidth: 300)
+                        .frame(height: 60)
+                        .foregroundColor(.white) // Added to ensure text visibility
+                }
+                .disabled(!signUpEnabled)
+                .tint(signUpEnabled ? Color.blue : Color.gray)
+                .padding(.bottom, 15)
+                
+                
+                VStack(alignment: .leading, spacing: 0) { // VStack to align the content vertically
+                    HStack {
+                        Text("By creating an account, you agree to the ")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        
+                        // Terms of Service link
+                        Button(action: {
+                              showingTermsSheet = true
+                        }) {
+                            Text("Terms of Service").underline()
+                        }
+                        .buttonStyle(PlainButtonStyle()) // This makes the button look like regular text
+                        .foregroundColor(Color.white)
+                        .padding(.leading, -7)
+                        
+                        Text("and consent to the")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .padding(.leading, -5)
+                    }
+                    // Second line
+                    HStack {
+                        Text("storing and processing of your personal data as described in our ")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        //  .multilineTextAlignment(.center)
+                        
+                        Button(action: {
+                            showingSheet = true
+                        }) {
+                            Text("Privacy Policy").underline()
+                        }
+                        .buttonStyle(PlainButtonStyle()) // This makes the button look like regular text
+                        .foregroundColor(Color.white)
+                        .padding(.leading, -7)
+                        
+                        Text(".")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .padding(.leading, -7)
+                    }
+                }
+                .padding(.horizontal)
+                .multilineTextAlignment(.center)
+                
+                Spacer()
+                
+            }
+            .padding(.top, -48)
+            // View padding
+            .padding()
+            
+            //                // Hide back button
+            .navigationBarBackButtonHidden(true)
+            
+            .navigationBarTitle(showingSignUpPopover ?? false ? "" : "Sign Up", displayMode: .inline)
+            
+            // Custom back button
+            .navigationBarItems(leading: backButton)
+            
+        }
+        .popover(isPresented: $showingSheet, attachmentAnchor: .point(UnitPoint(x: 0.5, y: 1.0))) {
+            PrivacyPolicyView()
+                .frame(width: 500, height: 600)
+                .glassBackgroundEffect(
+                    in: RoundedRectangle(
+                        cornerRadius: 32,
+                        style: .continuous
+                    )
+                )
+        }
+        .popover(isPresented: $showingTermsSheet, attachmentAnchor: .point(UnitPoint(x: 0.5, y: 1.0))) {
+            NavigationStack {
+                TermsView()
+            }
+                .frame(width: 500, height: 600)
+                .glassBackgroundEffect(
+                    in: RoundedRectangle(
+                        cornerRadius: 32,
+                        style: .continuous
+                    )
+                )
+        }
+        
+        .alert(isPresented: $showAlert) {
+            Alert(
+                title: Text(alertTitle),
+                message: Text(alertMessage),
+                dismissButton: .default(Text("OK"))
+            )
+        }
+        //            // Fixed size
+        .frame(width: 700)
+        .frame(height: 600)
+        
+        .environment(\.sizeCategory, .large)
+
+        .onAppear {
+            // Update showSignUpPopover state when the view appears
+            showingSignUpPopover = OnboardingManager.shared.showSignUpPopover
+            
+            Mixpanel.mainInstance().track(event: "sign_up_view_entered", properties: ["blueprint_id": UserDefaults.standard.string(forKey: "SelectedBlueprintID"), "session_id": UserDefaults.standard.string(forKey: "SessionID"), "sign_up_variant": "\(UserDefaults.standard.value(forKey: "sign_up_variant") as! String)", "user_id": Auth.auth().currentUser?.uid ?? UserDefaults.standard.string(forKey: "temporaryUserID") ?? "", "date": Date()])
+        }
+        
+        .onDisappear {
+            // Update showSignUpPopover state when the view appears
+            Mixpanel.mainInstance().track(event: "sign_up_view_dismissed_without_signing_up", properties: ["blueprint_id": UserDefaults.standard.string(forKey: "SelectedBlueprintID"), "session_id": UserDefaults.standard.string(forKey: "SessionID"), "sign_up_variant": "\(UserDefaults.standard.value(forKey: "sign_up_variant") as! String)", "user_id": Auth.auth().currentUser?.uid ?? UserDefaults.standard.string(forKey: "temporaryUserID") ?? "", "date": Date()])
+        }
+        
+    }
+    
+    @State private var alertMessage: String = ""
+    @State private var alertTitle: String = ""
+    
+    // Function to present an alert with a title and a message.
+    func showAlertWith(title: String, message: String) {
+        alertTitle = title
+        alertMessage = message
+        showAlert = true
+    }
+    
+    func trackMixpanel(){
+        Mixpanel.mainInstance().track(event: "clicked_go_to_log_in_view", properties: ["blueprint_id": UserDefaults.standard.string(forKey: "SelectedBlueprintID"), "session_id": UserDefaults.standard.string(forKey: "SessionID"), "sign_up_variant": "\(UserDefaults.standard.value(forKey: "sign_up_variant") as! String)", "user_id": Auth.auth().currentUser?.uid ?? UserDefaults.standard.string(forKey: "temporaryUserID") ?? "", "date": Date()])
+    }
+    
+    // The backButton is a UI element that allows the user to return to the previous screen.
+    private var backButton: some View {
+        
+        // Dismiss action
+        Button(action: {
+            presentationMode.wrappedValue.dismiss()
+            Mixpanel.mainInstance().track(event: "sign_up_view_user_clicked_back_button", properties: ["blueprint_id": UserDefaults.standard.string(forKey: "SelectedBlueprintID"), "session_id": UserDefaults.standard.string(forKey: "SessionID"), "sign_up_variant": "\(UserDefaults.standard.value(forKey: "sign_up_variant") as! String)", "user_id": Auth.auth().currentUser?.uid ?? UserDefaults.standard.string(forKey: "temporaryUserID") ?? "", "date": Date()])
+
+        }) {
+            
+            // Button image
+            Image(systemName: "chevron.left")
+                .foregroundColor(.white)
+        }
+    }
+    
+    
+    /// Determines if the provided name string is valid, which in this case, is simply checking that the name is not empty.
+//    private func validateFields() {
+//        let isEmailValid = isValidEmail(email)
+//        let isPasswordValid = isValidPassword(password)
+//        let isNameValid = isValidName(name)
+//        
+//        signUpEnabled = isEmailValid && isPasswordValid && isNameValid
+//    }
+    
+    // Adjust validateFields to be asynchronous and use a completion handler
+    private func validateFields(completion: @escaping (Bool) -> Void) {
+        // Initial checks for email and password validity
+        let isEmailValid = isValidEmail(email)
+        let isPasswordValid = isValidPassword(password)
+
+        // If initial checks fail, no need to proceed further
+        guard isEmailValid && isPasswordValid else {
+            completion(false)
+            return
+        }
+
+        // Asynchronously check for profanity in the name
+        checkForProfanity(text: name) { containsProfanity in
+            DispatchQueue.main.async {
+                if containsProfanity {
+                    self.alertMessage = "Please avoid using profanity in the name field."
+                   // self.showAlert = true
+                    self.showAlertWith(title: "Error Creating Account", message: alertMessage)
+                    completion(false)
+                } else {
+                    // If no profanity, indicate success
+                    signUpEnabled = true
+                    completion(true)
+                }
+            }
+        }
+    }
+    
+    func checkForProfanity(text: String, completion: @escaping (Bool) -> Void) {
+        let urlString = "https://www.purgomalum.com/service/containsprofanity?text=\(text)"
+        guard let url = URL(string: urlString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)!) else {
+            completion(false)
+            return
+        }
+        
+        URLSession.shared.dataTask(with: url) { data, response, error in
+            if let error = error {
+                print("Error checking for profanity: \(error)")
+                completion(false)
+            } else if let data = data, let result = String(data: data, encoding: .utf8) {
+                print("does contain profanity")
+                completion(result == "true")
+            } else {
+                print("does not contain profanity")
+                completion(false)
+            }
+        }.resume()
+    }
+
+    
+    
+    /// Validates the email format against a regular expression pattern to ensure it meets the standard email format.
+    private func isValidName(_ name: String) -> Bool {
+        return !name.isEmpty
+    }
+    
+    /// Validates the email field and updates the relevant state to reflect whether the email is valid.
+    private func isValidEmail(_ email: String) -> Bool {
+        let emailRegex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
+        let emailPredicate = NSPredicate(format:"SELF MATCHES %@", emailRegex)
+        return emailPredicate.evaluate(with: email)
+    }
+    
+    /// Determines if the provided password string meets the minimum length requirement, which is 6 characters in this case.
+    private func validateEmail() {
+        isValidEmail = isValidEmail(email)
+    //    validateFields()
+        validateFields { isValid in
+            if isValid {
+                // Proceed with updating the document
+            } else {
+                // Handle the error, show an alert, etc.
+            }
+        }
+    }
+    
+    /// Validates the password field and updates the signUpEnabled flag based on the validity of both email and password.
+    private func isValidPassword(_ password: String) -> Bool {
+        return password.count >= 6
+    }
+    
+    /// Generates a random string of a specified length, consisting of alphanumeric characters.
+    private func validatePassword() {
+        signUpEnabled = isValidEmail(email) && isValidPassword(password)
+    }
+    
+    /// Registers a new user with the provided email and password using FirebaseAuthHelper.
+    /// Prints error message if registration fails.
+    private func generateRandomString(length: Int) -> String {
+        
+        // Character set
+        let letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        
+        // Generate random string
+        return String((0..<length).map { _ in
+            letters.randomElement()!
+        })
+    }
+    
+    /// Attempts to save the user information to Firestore, including conversion from a temporary user if applicable.
+    /// On successful save, it triggers the provided completion handler.
+    private func registerUser() {
+        
+        FirebaseAuthHelper.registerAuthUser(email: email, password: password) { err in
+            if let err = err {
+                print(err)
+            }
+            
+        }
+    }
+    
+    /// Transfers user data from a temporary user document to a new user document in Firestore.
+    /// Updates the user data with new information and deletes the old temporary user document.
+//    private func saveUser(completion: @escaping () -> Void) {
+//        
+//        guard let userUid = FirebaseAuthHelper.getCurrentUserUid() else {
+//            print("user not stored locally in Auth")
+//            return
+//        }
+//        
+//        guard let tempUid = UserDefaults.standard.string(forKey: "temporaryUserID") else {
+//            print("Temporary user ID not found.")
+//            return
+//        }
+//        
+//        let newUserDoc: [String: Any] = [
+//            "email": email,
+//            "authDate" : Date(),
+//            "name" : name,
+//            "tempUser" : false,
+//            "tempUid": tempUid
+//        ]
+//        
+//        FirestoreManager.saveUser(withID: userUid, withData: newUserDoc) { err in
+//            if let err = err {
+//                print("Error saving user: \(err)")
+//            } else {
+//                // Handle the logic to convert temp user data to new user
+//                convertTempUserData(tempUserID: tempUid, newUserID: userUid)
+//                completion()
+//            }
+//        }
+//    }
+    
+//    private func saveUser(completion: @escaping (Bool, String) -> Void) {
+//        guard let userUid = FirebaseAuthHelper.getCurrentUserUid() else {
+//            completion(false, "User not stored locally in Auth")
+//            return
+//        }
+//
+//        guard let tempUid = UserDefaults.standard.string(forKey: "temporaryUserID") else {
+//            completion(false, "Temporary user ID not found.")
+//            return
+//        }
+//
+//        let newUserDoc: [String: Any] = [
+//            "email": email,
+//            "authDate": Date(),
+//            "name": name,
+//            "tempUser": false,
+//            "tempUid": tempUid
+//        ]
+//
+//        FirestoreManager.saveUser(withID: userUid, withData: newUserDoc) { err in
+//            if let err = err {
+//                completion(false, "Error saving user: \(err.description)")
+//                return
+//            }
+//
+//            convertTempUserData(tempUserID: tempUid, newUserID: userUid) { success, errorMessage in
+//                completion(success, errorMessage)
+//            }
+//        }
+//    }
+
+    private func saveUser(completion: @escaping (Bool, String) -> Void) {
+        guard let userUid = FirebaseAuthHelper.getCurrentUserUid() else {
+            completion(false, "User not stored locally in Auth")
+            return
+        }
+
+        guard let tempUid = UserDefaults.standard.string(forKey: "temporaryUserID") else {
+            completion(false, "Temporary user ID not found.")
+            return
+        }
+
+        let newUserDoc: [String: Any] = [
+            "email": email,
+            "authDate": Date(),
+            "name": name,
+            "tempUser": false,
+            "tempUid": tempUid
+        ]
+
+        FirestoreManager.saveUser(withID: userUid, withData: newUserDoc) { err in
+            if let err = err {
+                completion(false, "Error saving user: \(err.description)")
+            } else {
+                completion(true, "User document saved successfully.")
+            }
+        }
+    }
+
+
+
+    
+    /// Handles the initiation of Google sign-in process using a custom GoogleSignInHandler instance.
+    /// Completion handlers will need to handle the success or failure callbacks.
+//    private func convertTempUserData(tempUserID: String, newUserID: String) {
+//        
+//        let firestore = Firestore.firestore()
+//        let temporaryUserDocRef = firestore.collection("users").document(tempUserID)
+//        let newUserDocRef = firestore.collection("users").document(newUserID)
+//        
+//        temporaryUserDocRef.getDocument { (snapshot, error) in
+//            if let data = snapshot?.data() {
+//                var updatedData = data
+//                updatedData["tempUser"] = false
+//                updatedData["email"] = email
+//                updatedData["name"] = name
+//                updatedData["authDate"] = Date()
+//                updatedData["uid"] = newUserDocRef.documentID  // set the uid here itself
+//                
+//                newUserDocRef.setData(updatedData) { (error) in
+//                    if let error = error {
+//                        print("Error updating new user data: \(error)")
+//                    } else {
+//                        print("Data transferred to the new user document successfully.")
+//                        updateContentReferencesForUser(tempUserID, withNewUserID: newUserID)
+//                        
+//                        // Delete the temporary user document if needed.
+//                        temporaryUserDocRef.delete { (error) in
+//                            if let error = error {
+//                                print("Error deleting temporary user document: \(error)")
+//                            } else {
+//                                print("Temporary user document deleted successfully.")
+//                            }
+//                        }
+//                    }
+//                }
+//            } else {
+//                print("Temporary user document does not exist or has no data.")
+//            }
+//        }
+//    }
+    
+    
+    private func convertTempUserData(tempUserID: String, newUserID: String, completion: @escaping (Bool, String) -> Void) {
+        let firestore = Firestore.firestore()
+        let newUserDocRef = firestore.collection("users").document(newUserID)
+
+        // Fetch temporary user data from UserDefaults
+        if let tempUserData = UserDefaults.standard.dictionary(forKey: "temporaryUser") {
+            var updatedData = tempUserData
+            updatedData["tempUser"] = false
+            updatedData["email"] = self.email
+            updatedData["name"] = self.name
+            updatedData["authDate"] = Date()
+            updatedData["uid"] = newUserID
+            updatedData["planType"] = tempUserData["planType"]
+            updatedData["hasEnteredNotes"] = tempUserData["hasEnteredNotes"]
+            updatedData["hasEnteredCameraRoll"] = tempUserData["hasEnteredCameraRoll"]
+            updatedData["hasEnteredInventory"] = tempUserData["hasEnteredInventory"]
+            updatedData["numPurchases"] = tempUserData["numPurchases"]
+            updatedData["purchases"] = tempUserData["purchases"]
+            updatedData["sumSpent"] = tempUserData["sumSpent"]
+            updatedData["tempID"] = tempUserID
+            updatedData["usageTime"] = tempUserData["usageTime"]
+            updatedData["numSessions"] = tempUserData["numSessions"]
+            updatedData["numBlueprintSessions"] = tempUserData["numBlueprintSessions"]
+            updatedData["cameraRollStatus"] = tempUserData["cameraRollStatus"]
+            updatedData["username"] = ""
+            updatedData["profileImageUrl"] = ""
+            updatedData["sessionsDates"] = tempUserData["sessionsDates"]
+            updatedData["lastSessionDate"] = tempUserData["lastSessionDate"]
+            updatedData["numSessions"] = tempUserData["numSessions"]
+            updatedData["createdDate"] = tempUserData["createdDate"]
+            updatedData["latitude"] = tempUserData["latitude"]
+            updatedData["longitude"] = tempUserData["longitude"]
+            updatedData["altitude"] = tempUserData["altitude"]
+            updatedData["geohash"] = tempUserData["geohash"]
+            updatedData["uploadedFileIDs"] = tempUserData["uploadedFileIDs"]
+            updatedData["connectedBlueprintIDs"] = tempUserData["connectedBlueprintIDs"]
+            updatedData["historyConnectedBlueprintIDs"] = tempUserData["historyConnectedBlueprintIDs"]
+            updatedData["createdNoteIDs"] = tempUserData["createdNoteIDs"]
+            updatedData["createdPhotoIDs"] = tempUserData["createdPhotoIDs"]
+            updatedData["createdReportIDs"] = tempUserData["createdReportIDs"]
+            updatedData["createdSuggestionIDs"] = tempUserData["createdSuggestionIDs"]
+            updatedData["createdBlueprintIDs"] = tempUserData["createdBlueprintIDs"]
+            updatedData["collectedObjectIDs"] = tempUserData["collectedObjectIDs"]
+            updatedData["collectedPortalIDs"] = tempUserData["collectedPortalIDs"]
+                            
+            
+
+            // Set the updated data to the new user's Firestore document
+            newUserDocRef.setData(updatedData) { error in
+                if let error = error {
+                    completion(false, "Error updating new user data: \(error.localizedDescription)")
+                    return
+                }
+                // Call updateContentReferencesForUser and wait for it to complete
+                self.updateContentReferencesForUser(tempUserID, withNewUserID: newUserID) {
+                    completion(true, "User data and content references transferred successfully.")
+                }
+            }
+        } else {
+            completion(false, "Temporary user data not found in UserDefaults.")
+        }
+    }
+
+
+    
+    // FirestoreManager's saveUser function remains unchanged
+    
+    
+    // Create an instance of GoogleSignInHandler
+    //   let googleSignInHandler = GoogleSignInHandler()
+    
+    // Handle Google sign-in when the Google button is tapped
+    func handleGoogleSignIn() {
+        //            googleSignInHandler.signInWithGoogle { success in
+        //                if success {
+        //                    // Handle successful Google sign-in here
+        //                } else {
+        //                    // Handle Google sign-in failure here
+        //                }
+        //            }
+    }
+    
+    let appleSignInDelegate = AppleSignInDelegate()
+    
+    /// Updates references for user-created content in Firestore from the old userID to the newUserID.
+    /// If successful, sets a flag indicating the user was created.
+    func signInWithApple() {
+        let request = ASAuthorizationAppleIDProvider().createRequest()
+        request.requestedScopes = [.fullName, .email]
+        
+        let controller = ASAuthorizationController(authorizationRequests: [request])
+        
+        // Set the delegate and presentation context provider
+        controller.delegate = appleSignInDelegate
+        controller.presentationContextProvider = appleSignInDelegate
+        
+        controller.performRequests()
+    }
+    
+   
+    private func updateContentReferencesForUser(_ tempUserID: String, withNewUserID newUserID: String, completion: @escaping () -> Void) {
+        let firestore = Firestore.firestore()
+        
+        // First, fetch the current user's createdBlueprintIDs
+        let userRef = firestore.collection("users").document(newUserID)
+        userRef.getDocument { (document, error) in
+            if let error = error {
+                print("Error fetching user document: \(error)")
+                return
+            }
+
+            if let document = document, let createdBlueprintIDs = document["createdBlueprintIDs"] as? [String],
+               let selectedBlueprintID = UserDefaults.standard.string(forKey: "SelectedBlueprintID"),
+               createdBlueprintIDs.contains(selectedBlueprintID) {
+                // If the selectedBlueprintID is in createdBlueprintIDs, update the blueprintHostID
+                BlueprintManager.shared.blueprintHostID = newUserID
+            }
+                
+        let contentTypesToReferenceCollections: [String: String] = [
+            "createdBlueprintIDs": "blueprints",
+            "createdNoteIDs": "notes",
+            "uploadedFileIDs" : "files",
+            "createdPhotoIDs": "photos",
+            "createdReportIDs": "reports",
+            "createdSuggestionIDs": "suggestions"
+        ]
+        
+        
+            for (_, referenceCollection) in contentTypesToReferenceCollections {
+                firestore.collection(referenceCollection).whereField("host", isEqualTo: tempUserID).getDocuments { (snapshot, error) in
+                    if let error = error {
+                        print("Error fetching documents from \(referenceCollection) for user \(tempUserID): \(error)")
+                        return
+                    }
+                    
+                    guard let documents = snapshot?.documents, !documents.isEmpty else {
+                        print("No documents found in \(referenceCollection) for user \(tempUserID) or documents are empty")
+                        return
+                    }
+                    
+                    let batch = firestore.batch()
+                    for document in documents {
+                        let documentRef = firestore.collection(referenceCollection).document(document.documentID)
+                        batch.updateData(["host": newUserID], forDocument: documentRef)
+                        print("Updating host for document ID \(document.documentID) in \(referenceCollection)")
+                    }
+                    
+                    batch.commit { error in
+                        if let error = error {
+                            print("Error updating \(referenceCollection) references: \(error)")
+                        } else {
+                            print("\(documents.count) \(referenceCollection) references updated successfully for user \(tempUserID) to \(newUserID)")
+                            completion() // Call the completion handler after all updates are committed
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    @State private var isUserCreationCompleted = false
+    
+    
+    private func createProfile() {
+        let trimmedEM = email.trimmingCharacters(in: .whitespaces)
+        let trimmedPW = password
+
+        FirebaseAuthHelper.registerAuthUser(email: trimmedEM, password: trimmedPW) { err in
+            if let err = err {
+                self.showErrorAlert(message: err)
+                return
+            }
+
+            saveUser { success, errorMessage in
+                if success {
+                    guard let tempUid = UserDefaults.standard.string(forKey: "temporaryUserID"),
+                          let newUserUid = Auth.auth().currentUser?.uid else {
+                        self.showErrorAlert(message: "Error retrieving user information.")
+                        return
+                    }
+
+                    convertTempUserData(tempUserID: tempUid, newUserID: newUserUid) { success, errorMessage in
+                        if success {
+                            guard !isProcessing else { return }
+                            self.isUserCreationCompleted = true
+                            handleUserCreationCompletion()
+                            #if RELEASE
+                            self.appendDataToGoogleSheet(email: trimmedEM, uuid: Auth.auth().currentUser?.uid ?? "")
+                            #endif
+                        } else {
+                            self.showErrorAlert(message: errorMessage)
+                        }
+                    }
+                } else {
+                    self.showErrorAlert(message: errorMessage)
+                }
+            }
+        }
+    }
+
+    private func handleUserCreationCompletion() {
+        if isUserCreationCompleted {
+            Mixpanel.mainInstance().track(event: "user_signed_up", properties: ["blueprint_id": UserDefaults.standard.string(forKey: "SelectedBlueprintID"), "session_id": UserDefaults.standard.string(forKey: "SessionID"), "sign_up_variant": "\(UserDefaults.standard.value(forKey: "sign_up_variant") as! String)", "user_id": Auth.auth().currentUser?.uid ?? UserDefaults.standard.string(forKey: "temporaryUserID") ?? "", "date": Date()])
+            UserDefaults.standard.set(1, forKey: "SelectedTab")
+            UserDefaults.standard.set(false, forKey: "inSharedSpace")
+            UserDefaults.standard.set(true, forKey: "isEditing")
+            // Place your window management logic here
+            dismissWindow(id: "tabBar")
+            dismissWindow(id: "launch")
+            UserDefaults.standard.set(true, forKey: "showShareBlueprintPopover")
+            openWindow(id: "tabBar")
+            dismissWindow(id: WindowGroupId.signUp.rawValue)
+            Mixpanel.mainInstance().track(event: "user_went_back_to_marketplace", properties: ["blueprint_id": UserDefaults.standard.string(forKey: "SelectedBlueprintID"), "session_id": UserDefaults.standard.string(forKey: "SessionID"), "sign_up_variant": "\(UserDefaults.standard.value(forKey: "sign_up_variant") as! String)", "user_id": Auth.auth().currentUser?.uid ?? UserDefaults.standard.string(forKey: "temporaryUserID") ?? "", "date": Date()])
+            OnboardingManager.shared.userHasSignedUp = true
+            OnboardingManager.shared.showSignUpPopover = false
+            // Reset the flag to prevent further execution
+            isUserCreationCompleted = false
+            isProcessing = true
+        }
+    }
+
+
+
+    
+    // web app url: https://script.google.com/macros/s/AKfycbxFJ9PexkVnpTc0sd3-5rtgLHmXoeuP9qhHZLuW7NeHsDDJpSSN3x66-uP00ttK2kzd/exec
+    private func appendDataToGoogleSheet(email: String, uuid: String) {
+        // The URL of the Google Apps Script Web App
+        guard let scriptURL = URL(string: "https://script.google.com/macros/s/AKfycbwhCIwgFKqjazVazpEGR3i2nPIvXB8CK-rCVdUYw5Q9n51BgDQPnoJg-Fbh8lNdGZow/exec") else {
+            print("Could not create URL")
+            return
+        }
+        
+        // Prepare the data to be appended
+        let postData: [String: Any] = ["name" : self.name, "email": email, "uuid": uuid, "date_joined": formatDate(Date())]
+        guard let postDataJSON = try? JSONSerialization.data(withJSONObject: postData) else {
+            print("Error creating JSON")
+            return
+        }
+        
+        // Create the request
+        var request = URLRequest(url: scriptURL)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = postDataJSON
+        
+        // Perform the request
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                print("Error sending data to Google Sheet: \(error)")
+                return
+            }
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+                print("HTTP Error: \(httpResponse.statusCode)")
+                return
+            }
+            print("Data appended to Google Sheet successfully")
+        }
+        
+        task.resume()
+    }
+    
+    /// This class provides the delegate and presentation context for Apple Sign In.
+    /// It handles the result of the Apple Sign In authorization process.
+    private func showErrorAlert(message: String) {
+        //  self.alertMessage = IdentifiableAlert(message: message)
+        self.showAlertWith(title: "Error", message: message)
+    }
+    
+    
+    
+    /// Formats a `Date` object into a string with a full date representation.
+    /// - Parameter date: The date to format.
+    /// - Returns: A string representing the formatted date.
+    func formatDate(_ date: Date) -> String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "EEEE, MMMM d, yyyy"
+        return dateFormatter.string(from: date)
+    }
+    
+}
+
+/// Provides the presentation anchor for showing the Apple Sign In authorization interface.
+class AppleSignInDelegate: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+    
+    /// Processes the successful authorization from Apple Sign In to extract and handle the user credential.
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+                // Return an appropriate presentation anchor, usually your window or view
+                if let window = UIApplication.shared.windows.first {
+                    return window
+                }
+                return ASPresentationAnchor()
+            }
+        
+    
+    // Implement the required methods from these protocols here
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        if let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
+            // Handle the Apple ID credential
+            let userIdentifier = appleIDCredential.user
+            // You can use `userIdentifier` for further authentication or account creation.
+        }
+    }
+
+    /// Handles errors that occur during the Apple Sign In process.
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        // Handle errors that occur during the Apple Sign In process.
+    }
+}
+
+//#Preview {
+//    SignUpView()
+//        .frame(width: 1400, height: 800)
+//        .padding()
+//        .glassBackgroundEffect()
+//}
