@@ -1,14 +1,29 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import CustomerExperienceDesigner from '@/components/CustomerExperienceDesigner';
-import { Check, ChevronRight, MapPin, Store, User, Mail, Phone, Globe, Shield } from 'lucide-react';
-import { CodeEntryModal } from '@/components/CodeEntryModal';
+import { useState } from "react";
+import { motion } from "framer-motion";
+import CustomerExperienceDesigner from "@/components/CustomerExperienceDesigner";
+import {
+  Check,
+  ChevronRight,
+  Store,
+  User,
+  Mail,
+  Phone,
+  Globe,
+  Shield,
+} from "lucide-react";
+import { CodeEntryModal } from "@/components/CodeEntryModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 interface FormData {
   businessName: string;
@@ -26,10 +41,10 @@ interface FormData {
 }
 
 const steps = [
-  { id: 'verify', title: 'Verify Business', icon: Shield },
-  { id: 'review', title: 'Review Information', icon: Store },
-  { id: 'customize', title: 'Customize Blueprint', icon: User },
-  { id: 'confirm', title: 'Confirm & Submit', icon: Check },
+  { id: "verify", title: "Verify Business", icon: Shield },
+  { id: "review", title: "Review Information", icon: Store },
+  { id: "customize", title: "Customize Blueprint", icon: User },
+  { id: "confirm", title: "Confirm & Submit", icon: Check },
 ];
 
 export default function ClaimBlueprint() {
@@ -37,13 +52,13 @@ export default function ClaimBlueprint() {
   const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
   const [showOtherMethods, setShowOtherMethods] = useState(false);
   const [formData, setFormData] = useState<FormData>({
-    businessName: 'Roots & Vines Restaurant',
-    address: '123 Main St, Anytown, USA',
-    phone: '(555) 123-4567',
-    website: 'www.rootsandvines.com',
-    email: '',
-    verificationMethod: '',
-    verificationCode: '',
+    businessName: "Roots & Vines Restaurant",
+    address: "123 Main St, Anytown, USA",
+    phone: "(555) 123-4567",
+    website: "www.rootsandvines.com",
+    email: "",
+    verificationMethod: "",
+    verificationCode: "",
     customizations: {
       loyaltyProgram: false,
       specialPromotions: false,
@@ -56,7 +71,9 @@ export default function ClaimBlueprint() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleCustomizationToggle = (feature: keyof FormData['customizations']) => {
+  const handleCustomizationToggle = (
+    feature: keyof FormData["customizations"],
+  ) => {
     setFormData((prev) => ({
       ...prev,
       customizations: {
@@ -80,8 +97,8 @@ export default function ClaimBlueprint() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Blueprint claimed:', formData);
-    alert('Your Blueprint has been successfully claimed and customized!');
+    console.log("Blueprint claimed:", formData);
+    alert("Your Blueprint has been successfully claimed and customized!");
   };
 
   const renderStep = () => {
@@ -90,8 +107,10 @@ export default function ClaimBlueprint() {
         return (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">Verify Your Business</h2>
-            <p className="text-muted-foreground">Please verify ownership of your business to claim your Blueprint.</p>
-            
+            <p className="text-muted-foreground">
+              Please verify ownership of your business to claim your Blueprint.
+            </p>
+
             <div className="space-y-4">
               <Button
                 size="lg"
@@ -100,7 +119,7 @@ export default function ClaimBlueprint() {
               >
                 I have a verification code
               </Button>
-              
+
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
                   <span className="w-full border-t" />
@@ -125,7 +144,12 @@ export default function ClaimBlueprint() {
                   <RadioGroup
                     name="verificationMethod"
                     value={formData.verificationMethod}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, verificationMethod: value }))}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        verificationMethod: value,
+                      }))
+                    }
                   >
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="phone" id="phone" />
@@ -148,8 +172,13 @@ export default function ClaimBlueprint() {
       case 1:
         return (
           <div className="space-y-4">
-            <h2 className="text-2xl font-bold">Review Your Business Information</h2>
-            <p className="text-muted-foreground">Please review the information we've gathered about your business. You can make changes if needed.</p>
+            <h2 className="text-2xl font-bold">
+              Review Your Business Information
+            </h2>
+            <p className="text-muted-foreground">
+              Please review the information we've gathered about your business.
+              You can make changes if needed.
+            </p>
             <div className="space-y-2">
               <Label htmlFor="businessName">Business Name</Label>
               <Input
@@ -203,31 +232,42 @@ export default function ClaimBlueprint() {
         return (
           <div className="space-y-4">
             <h2 className="text-2xl font-bold">Customize Your Blueprint</h2>
-            <p className="text-muted-foreground">Design your customer experience flow and enhance your Blueprint with additional features.</p>
-            
+            <p className="text-muted-foreground">
+              Design your customer experience flow and enhance your Blueprint
+              with additional features.
+            </p>
+
             {/* Customer Experience Designer */}
             <div className="bg-white rounded-lg shadow-sm border">
               <CustomerExperienceDesigner />
             </div>
-            
+
             {/* Additional Features */}
             <div className="mt-8">
-              <h3 className="text-lg font-semibold mb-4">Additional Features</h3>
+              <h3 className="text-lg font-semibold mb-4">
+                Additional Features
+              </h3>
               <div className="space-y-2">
-                {Object.entries(formData.customizations).map(([feature, enabled]) => (
-                  <div key={feature} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id={feature}
-                      checked={enabled}
-                      onChange={() => handleCustomizationToggle(feature as keyof FormData['customizations'])}
-                      className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
-                    />
-                    <Label htmlFor={feature} className="select-none">
-                      {feature.split(/(?=[A-Z])/).join(' ')}
-                    </Label>
-                  </div>
-                ))}
+                {Object.entries(formData.customizations).map(
+                  ([feature, enabled]) => (
+                    <div key={feature} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={feature}
+                        checked={enabled}
+                        onChange={() =>
+                          handleCustomizationToggle(
+                            feature as keyof FormData["customizations"],
+                          )
+                        }
+                        className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                      />
+                      <Label htmlFor={feature} className="select-none">
+                        {feature.split(/(?=[A-Z])/).join(" ")}
+                      </Label>
+                    </div>
+                  ),
+                )}
               </div>
             </div>
           </div>
@@ -236,7 +276,9 @@ export default function ClaimBlueprint() {
         return (
           <div className="space-y-4">
             <h2 className="text-2xl font-bold">Confirm Your Blueprint</h2>
-            <p className="text-muted-foreground">Please review your Blueprint details before submitting.</p>
+            <p className="text-muted-foreground">
+              Please review your Blueprint details before submitting.
+            </p>
             <Card>
               <CardHeader>
                 <CardTitle>{formData.businessName}</CardTitle>
@@ -265,7 +307,9 @@ export default function ClaimBlueprint() {
                     {Object.entries(formData.customizations)
                       .filter(([, enabled]) => enabled)
                       .map(([feature]) => (
-                        <li key={feature}>{feature.split(/(?=[A-Z])/).join(' ')}</li>
+                        <li key={feature}>
+                          {feature.split(/(?=[A-Z])/).join(" ")}
+                        </li>
                       ))}
                   </ul>
                 </div>
@@ -281,7 +325,9 @@ export default function ClaimBlueprint() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-100 to-white py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-4xl font-bold text-center text-blue-900 mb-8">Claim Your Blueprint</h1>
+        <h1 className="text-4xl font-bold text-center text-blue-900 mb-8">
+          Claim Your Blueprint
+        </h1>
         <div className="bg-white shadow-xl rounded-lg overflow-hidden">
           <div className="p-6">
             <div className="flex justify-between items-center mb-8">
@@ -289,12 +335,14 @@ export default function ClaimBlueprint() {
                 <div
                   key={step.id}
                   className={`flex flex-col items-center ${
-                    index <= currentStep ? 'text-blue-600' : 'text-gray-400'
+                    index <= currentStep ? "text-blue-600" : "text-gray-400"
                   }`}
                 >
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      index <= currentStep ? 'bg-blue-600 text-white' : 'bg-gray-200'
+                      index <= currentStep
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-200"
                     }`}
                   >
                     {index < currentStep ? (
@@ -303,14 +351,6 @@ export default function ClaimBlueprint() {
                       <step.icon className="w-6 h-6" />
                     )}
                   </div>
-  <CodeEntryModal 
-    isOpen={isCodeModalOpen}
-    onClose={() => setIsCodeModalOpen(false)}
-    onSubmit={(code) => {
-      setFormData(prev => ({ ...prev, verificationCode: code, verificationMethod: 'code' }));
-      handleNext();
-    }}
-  />
                   <span className="text-xs mt-2">{step.title}</span>
                 </div>
               ))}
@@ -346,6 +386,27 @@ export default function ClaimBlueprint() {
             </form>
           </div>
         </div>
+        {/* Code Entry Modal */}
+        <CodeEntryModal
+          isOpen={isCodeModalOpen}
+          onClose={() => setIsCodeModalOpen(false)}
+          onSubmit={(code) => {
+            if (code.length === 6 && /^[A-Za-z0-9]{6}$/.test(code)) {
+              setFormData((prev) => ({
+                ...prev,
+                verificationCode: code,
+                verificationMethod: "code",
+              }));
+              setIsCodeModalOpen(false);
+              handleNext();
+            } else {
+              alert(
+                "Please enter a valid 6-character code consisting of letters and numbers.",
+              );
+            }
+          }}
+          codeLength={6} // Pass the desired code length to the modal
+        />
       </div>
     </div>
   );

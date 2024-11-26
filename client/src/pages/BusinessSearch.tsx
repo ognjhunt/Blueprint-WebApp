@@ -1,15 +1,28 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useCallback } from 'react'
-import { Loader } from '@googlemaps/js-api-loader'
-import { Building2, Search, MapPin, AlertCircle, Loader2, RefreshCcw } from 'lucide-react'
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { useToast } from "@/hooks/use-toast"
-import Nav from "@/components/Nav"
-import Footer from "@/components/Footer"
+import { useState, useEffect, useCallback } from "react";
+import { Loader } from "@googlemaps/js-api-loader";
+import {
+  Building2,
+  Search,
+  MapPin,
+  AlertCircle,
+  Loader2,
+  RefreshCcw,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
+import Nav from "@/components/Nav";
+import Footer from "@/components/Footer";
 
 interface PlacePrediction {
   place_id: string;
@@ -26,195 +39,216 @@ interface BusinessDetails {
   address: string;
 }
 
-type LoaderStatus = 'idle' | 'loading' | 'error' | 'success';
+type LoaderStatus = "idle" | "loading" | "error" | "success";
 
 export default function BusinessSearch() {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [predictions, setPredictions] = useState<PlacePrediction[]>([])
-  const [autocomplete, setAutocomplete] = useState<google.maps.places.AutocompleteService | null>(null)
-  const [placesService, setPlacesService] = useState<google.maps.places.PlacesService | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [loaderStatus, setLoaderStatus] = useState<LoaderStatus>('idle')
-  const [error, setError] = useState<string | null>(null)
-  const [selectedBusiness, setSelectedBusiness] = useState<BusinessDetails | null>(null)
-  const { toast } = useToast()
+  const [searchQuery, setSearchQuery] = useState("");
+  const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
+  const [autocomplete, setAutocomplete] =
+    useState<google.maps.places.AutocompleteService | null>(null);
+  const [placesService, setPlacesService] =
+    useState<google.maps.places.PlacesService | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loaderStatus, setLoaderStatus] = useState<LoaderStatus>("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [selectedBusiness, setSelectedBusiness] =
+    useState<BusinessDetails | null>(null);
+  const { toast } = useToast();
 
   const initGooglePlaces = useCallback(async () => {
-    setLoaderStatus('loading')
-    setError(null)
-    
+    setLoaderStatus("loading");
+    setError(null);
+
     try {
-      const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY
+      // Replace 'YOUR_API_KEY_HERE' with your actual API key
+      const apiKey = "AIzaSyBgxzzgcT_9nyhz1D_JtfG7gevRUKQ5Vbs";
       if (!apiKey) {
-        throw new Error('Google Places API key is not configured')
+        throw new Error("Google Places API key is not configured");
       }
-      console.log('API Key loaded successfully')
+      console.log("API Key loaded successfully");
 
       const loader = new Loader({
         apiKey,
         version: "weekly",
-        libraries: ["places"]
-      })
+        libraries: ["places"],
+      });
 
-      await loader.load()
-      
-      if (typeof google === 'undefined') {
-        throw new Error('Google Maps JavaScript API not loaded')
+      await loader.load();
+
+      if (typeof google === "undefined") {
+        throw new Error("Google Maps JavaScript API not loaded");
       }
-      
-      const autocompleteService = new google.maps.places.AutocompleteService()
+
+      const autocompleteService = new google.maps.places.AutocompleteService();
       if (!autocompleteService) {
-        throw new Error('Failed to initialize Places Autocomplete service')
-      }
-      
-      // Initialize PlacesService with a dummy div (required by Google Maps)
-      const placesDiv = document.createElement('div')
-      const placesService = new google.maps.places.PlacesService(placesDiv)
-      if (!placesService) {
-        throw new Error('Failed to initialize Places service')
+        throw new Error("Failed to initialize Places Autocomplete service");
       }
 
-      setAutocomplete(autocompleteService)
-      setPlacesService(placesService)
-      setLoaderStatus('success')
+      // Initialize PlacesService with a dummy div (required by Google Maps)
+      const placesDiv = document.createElement("div");
+      const placesService = new google.maps.places.PlacesService(placesDiv);
+      if (!placesService) {
+        throw new Error("Failed to initialize Places service");
+      }
+
+      setAutocomplete(autocompleteService);
+      setPlacesService(placesService);
+      setLoaderStatus("success");
     } catch (err) {
-      const errorMessage = err instanceof Error 
-        ? err.message
-        : 'An unexpected error occurred'
-      console.error('Error details:', err)
-      setError(`Failed to initialize Google Places API: ${errorMessage}`)
-      setLoaderStatus('error')
-      
+      const errorMessage =
+        err instanceof Error ? err.message : "An unexpected error occurred";
+      console.error("Error details:", err);
+      setError(`Failed to initialize Google Places API: ${errorMessage}`);
+      setLoaderStatus("error");
+
       toast({
         title: "Error",
         description: `Failed to initialize Google Places API: ${errorMessage}. Please try again.`,
-        variant: "destructive"
-      })
+        variant: "destructive",
+      });
     }
-  }, [toast])
+  }, [toast]);
 
   useEffect(() => {
-    initGooglePlaces()
-  }, [initGooglePlaces])
+    initGooglePlaces();
+  }, [initGooglePlaces]);
 
-  const handleSearch = useCallback(async (input: string) => {
-    if (!autocomplete) {
-      setError('Places service not initialized')
-      return
-    }
-    
-    if (input.length < 3) {
-      setPredictions([])
-      return
-    }
-
-    setLoading(true)
-    setError(null)
-    setSelectedBusiness(null)
-
-    try {
-      const request: google.maps.places.AutocompletionRequest = {
-        input,
-        types: ['establishment'],
-        componentRestrictions: { country: 'us' }
+  const handleSearch = useCallback(
+    async (input: string) => {
+      if (!autocomplete) {
+        setError("Places service not initialized");
+        return;
       }
 
-      const response = await new Promise<google.maps.places.AutocompletePrediction[]>((resolve, reject) => {
-        autocomplete.getPlacePredictions(
-          request,
-          (predictions, status) => {
-            if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) {
-              reject(new Error(`Places API error: ${status}`))
-              return
-            }
-            resolve(predictions)
-          }
-        )
-      })
+      if (input.length < 3) {
+        setPredictions([]);
+        return;
+      }
 
-      setPredictions(response.map(prediction => ({
-        place_id: prediction.place_id,
-        description: prediction.description,
-        structured_formatting: {
-          main_text: prediction.structured_formatting?.main_text || '',
-          secondary_text: prediction.structured_formatting?.secondary_text || ''
-        }
-      })))
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-      console.error('Error fetching predictions:', error)
-      setError(`Failed to fetch business suggestions: ${errorMessage}`)
-      setPredictions([])
-      
-      toast({
-        title: "Error",
-        description: "Failed to fetch business suggestions. Please try again.",
-        variant: "destructive"
-      })
-    } finally {
-      setLoading(false)
-    }
-  }, [autocomplete, toast])
+      setLoading(true);
+      setError(null);
+      setSelectedBusiness(null);
+
+      try {
+        const request: google.maps.places.AutocompletionRequest = {
+          input,
+          types: ["establishment"],
+          componentRestrictions: { country: "us" },
+        };
+
+        const response = await new Promise<
+          google.maps.places.AutocompletePrediction[]
+        >((resolve, reject) => {
+          autocomplete.getPlacePredictions(request, (predictions, status) => {
+            if (
+              status !== google.maps.places.PlacesServiceStatus.OK ||
+              !predictions
+            ) {
+              reject(new Error(`Places API error: ${status}`));
+              return;
+            }
+            resolve(predictions);
+          });
+        });
+
+        setPredictions(
+          response.map((prediction) => ({
+            place_id: prediction.place_id,
+            description: prediction.description,
+            structured_formatting: {
+              main_text: prediction.structured_formatting?.main_text || "",
+              secondary_text:
+                prediction.structured_formatting?.secondary_text || "",
+            },
+          })),
+        );
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error occurred";
+        console.error("Error fetching predictions:", error);
+        setError(`Failed to fetch business suggestions: ${errorMessage}`);
+        setPredictions([]);
+
+        toast({
+          title: "Error",
+          description:
+            "Failed to fetch business suggestions. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [autocomplete, toast],
+  );
 
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchQuery) {
-        handleSearch(searchQuery)
+        handleSearch(searchQuery);
       }
-    }, 300)
+    }, 300);
 
-    return () => clearTimeout(timer)
-  }, [searchQuery, handleSearch])
+    return () => clearTimeout(timer);
+  }, [searchQuery, handleSearch]);
 
-  const handleSelectBusiness = useCallback(async (prediction: PlacePrediction) => {
-    if (!placesService) return;
+  const handleSelectBusiness = useCallback(
+    async (prediction: PlacePrediction) => {
+      if (!placesService) return;
 
-    setLoading(true);
-    setError(null);
+      setLoading(true);
+      setError(null);
 
-    try {
-      const result = await new Promise<google.maps.places.PlaceResult>((resolve, reject) => {
-        placesService.getDetails(
-          {
-            placeId: prediction.place_id,
-            fields: ['name', 'formatted_address']
+      try {
+        const result = await new Promise<google.maps.places.PlaceResult>(
+          (resolve, reject) => {
+            placesService.getDetails(
+              {
+                placeId: prediction.place_id,
+                fields: ["name", "formatted_address"],
+              },
+              (place, status) => {
+                if (
+                  status !== google.maps.places.PlacesServiceStatus.OK ||
+                  !place
+                ) {
+                  reject(new Error(`Places API error: ${status}`));
+                  return;
+                }
+                resolve(place);
+              },
+            );
           },
-          (place, status) => {
-            if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {
-              reject(new Error(`Places API error: ${status}`));
-              return;
-            }
-            resolve(place);
-          }
         );
-      });
 
-      // Here you would typically check your backend if a Blueprint exists
-      // For now, we'll simulate it
-      const hasBlueprint = Math.random() > 0.5;
+        // Simulate checking if a Blueprint exists
+        const hasBlueprint = Math.random() > 0.5;
 
-      setSelectedBusiness({
-        name: result.name || '',
-        address: result.formatted_address || '',
-        hasBlueprint
-      });
-      
-      setSearchQuery(prediction.description);
-      setPredictions([]);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      console.error('Error fetching business details:', error);
-      setError(`Failed to fetch business details: ${errorMessage}`);
-      
-      toast({
-        title: "Error",
-        description: "Failed to fetch business details. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [placesService, toast]);
+        setSelectedBusiness({
+          name: result.name || "",
+          address: result.formatted_address || "",
+          hasBlueprint,
+        });
+
+        setSearchQuery(prediction.description);
+        setPredictions([]);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error occurred";
+        console.error("Error fetching business details:", error);
+        setError(`Failed to fetch business details: ${errorMessage}`);
+
+        toast({
+          title: "Error",
+          description: "Failed to fetch business details. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [placesService, toast],
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-100 to-white">
@@ -237,7 +271,7 @@ export default function BusinessSearch() {
                   <Building2 className="w-6 h-6 mr-2" />
                   Business Search
                 </div>
-                {loaderStatus === 'error' && (
+                {loaderStatus === "error" && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -261,10 +295,10 @@ export default function BusinessSearch() {
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 )}
-                
+
                 <div className="relative">
                   <div className="flex items-center space-x-2">
-                    {loaderStatus === 'loading' ? (
+                    {loaderStatus === "loading" ? (
                       <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
                     ) : loading ? (
                       <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
@@ -273,11 +307,15 @@ export default function BusinessSearch() {
                     )}
                     <Input
                       type="text"
-                      placeholder={loaderStatus === 'loading' ? "Initializing Places API..." : "Search for your business..."}
+                      placeholder={
+                        loaderStatus === "loading"
+                          ? "Initializing Places API..."
+                          : "Search for your business..."
+                      }
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="flex-1"
-                      disabled={loaderStatus !== 'success' || loading}
+                      disabled={loaderStatus !== "success"} // Removed '|| loading' here
                     />
                   </div>
 
@@ -292,8 +330,15 @@ export default function BusinessSearch() {
                           >
                             <MapPin className="w-5 h-5 mr-2 mt-1 flex-shrink-0 text-gray-400" />
                             <div>
-                              <div className="font-medium">{prediction.structured_formatting.main_text}</div>
-                              <div className="text-sm text-gray-500">{prediction.structured_formatting.secondary_text}</div>
+                              <div className="font-medium">
+                                {prediction.structured_formatting.main_text}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {
+                                  prediction.structured_formatting
+                                    .secondary_text
+                                }
+                              </div>
                             </div>
                           </li>
                         ))}
@@ -305,18 +350,22 @@ export default function BusinessSearch() {
                 {selectedBusiness && (
                   <Card className="mt-4">
                     <CardContent className="pt-6">
-                      <h3 className="text-lg font-semibold mb-2">{selectedBusiness.name}</h3>
-                      <p className="text-sm text-gray-500 mb-4">{selectedBusiness.address}</p>
+                      <h3 className="text-lg font-semibold mb-2">
+                        {selectedBusiness.name}
+                      </h3>
+                      <p className="text-sm text-gray-500 mb-4">
+                        {selectedBusiness.address}
+                      </p>
                       {selectedBusiness.hasBlueprint ? (
                         <div className="flex flex-col space-y-4">
                           <Alert>
                             <AlertDescription className="flex items-center">
-                              <span className="text-green-600 font-medium">Blueprint Found!</span>
+                              <span className="text-green-600 font-medium">
+                                Blueprint Found!
+                              </span>
                             </AlertDescription>
                           </Alert>
-                          <Button>
-                            Claim Existing Blueprint
-                          </Button>
+                          <Button>Claim Existing Blueprint</Button>
                         </div>
                       ) : (
                         <div className="flex flex-col space-y-4">
@@ -325,9 +374,7 @@ export default function BusinessSearch() {
                               No Blueprint found for this business.
                             </AlertDescription>
                           </Alert>
-                          <Button>
-                            Create New Blueprint
-                          </Button>
+                          <Button>Create New Blueprint</Button>
                         </div>
                       )}
                     </CardContent>
@@ -340,5 +387,5 @@ export default function BusinessSearch() {
       </div>
       <Footer />
     </div>
-  )
+  );
 }

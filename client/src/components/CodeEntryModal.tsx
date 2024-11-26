@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import { useState } from 'react';
+import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,13 +12,17 @@ interface CodeEntryModalProps {
   onSubmit: (code: string) => void;
 }
 
-export function CodeEntryModal({ isOpen, onClose, onSubmit }: CodeEntryModalProps) {
-  const [code, setCode] = useState('');
+export function CodeEntryModal({
+  isOpen,
+  onClose,
+  onSubmit,
+}: CodeEntryModalProps) {
+  const [code, setCode] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(code);
-    setCode('');
+    setCode("");
     onClose();
   };
 
@@ -29,19 +33,22 @@ export function CodeEntryModal({ isOpen, onClose, onSubmit }: CodeEntryModalProp
           <Label htmlFor="verification-code">Verification Code</Label>
           <Input
             id="verification-code"
-            placeholder="Enter 4-6 digit code"
+            placeholder="Enter 6-character code"
             value={code}
             onChange={(e) => setCode(e.target.value)}
             maxLength={6}
-            pattern="[0-9]{4,6}"
+            pattern="[A-Za-z0-9]{6}"
             required
             className="text-center text-2xl tracking-widest"
           />
           <p className="text-sm text-gray-500">
-            Enter the verification code sent to your business contact.
+            Enter the 6-character alphanumeric verification code sent to your
+            business contact.
           </p>
         </div>
-        <Button type="submit" className="w-full">Verify Code</Button>
+        <Button type="submit" className="w-full">
+          Verify Code
+        </Button>
       </form>
     </Modal>
   );
