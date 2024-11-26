@@ -15,6 +15,7 @@ import {
   ChevronRight,
   ChevronUp,
   ChevronDown,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +49,9 @@ interface EditorState {
   layout: {
     url: string | null;
     name: string | null;
+    aspectRatio?: number;
+    originalWidth?: number;
+    originalHeight?: number;
   };
 }
 
@@ -55,6 +59,17 @@ export default function BlueprintEditor() {
   const [elements, setElements] = useState<ARElement[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const [drawTools, setDrawTools] = useState<DrawTools | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedElement, setSelectedElement] = useState<ARElement | null>(null);
+  const [showGrid, setShowGrid] = useState(true);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const { toast } = useToast();
+  
+  const [editorState, setEditorState] = useState<EditorState>({
+    scale: 1,
+    position: { x: 0, y: 0 },
+    layout: { url: null, name: null },
+  });
 
   useEffect(() => {
     if (containerRef.current) {
@@ -67,51 +82,91 @@ export default function BlueprintEditor() {
     }
   }, [containerRef.current]);
 
-  const [selectedElement, setSelectedElement] = useState<ARElement | null>(
-    null,
-  );
-  const [showGrid, setShowGrid] = useState(true);
-  const [editorState, setEditorState] = useState<EditorState>({
-    scale: 1,
-    position: { x: 0, y: 0 },
-    layout: { url: null, name: null },
-  });
   useEffect(() => {
     if (drawTools) {
       drawTools.updateScale(editorState.scale);
     }
   }, [editorState.scale]);
-  const [isDraggingFile, setIsDraggingFile] = useState(false);
-  const { toast } = useToast();
 
-  const handleFileUpload = (file: File) => {
-    if (!file.type.startsWith("image/")) {
+  const handleFileUpload = async (file: File) => {
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    if (!validTypes.includes(file.type)) {
       toast({
         title: "Invalid file type",
-        description: "Please upload an image file (PNG, JPG)",
+        description: "Please upload a PNG or JPG image file",
         variant: "destructive",
       });
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result;
-      if (result && typeof result === "string") {
-        setEditorState((prev) => ({
-          ...prev,
-          layout: {
-            url: result,
-            name: file.name,
-          },
-        }));
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+    if (file.size > maxSize) {
+      toast({
+        title: "File too large",
+        description: "Please upload an image smaller than 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        const result = e.target?.result;
+        if (result && typeof result === "string") {
+          // Create an image element to get dimensions
+          const img = new Image();
+          img.onload = () => {
+            const aspectRatio = img.width / img.height;
+            
+            setEditorState((prev) => ({
+              ...prev,
+              layout: {
+                url: result,
+                name: file.name,
+                aspectRatio,
+                originalWidth: img.width,
+                originalHeight: img.height,
+              },
+              // Reset position and scale
+              position: { x: 0, y: 0 },
+              scale: 1,
+            }));
+
+            setIsLoading(false);
+            toast({
+              title: "Layout uploaded",
+              description: "Your store layout has been uploaded successfully.",
+            });
+          };
+          
+          img.src = result;
+        }
+      };
+
+      reader.onerror = () => {
+        setIsLoading(false);
         toast({
-          title: "Layout uploaded",
-          description: "Your store layout has been uploaded successfully.",
+          title: "Upload failed",
+          description: "Failed to process the image. Please try again.",
+          variant: "destructive",
         });
-      }
-    };
-    reader.readAsDataURL(file);
+      };
+
+      reader.readAsDataURL(file);
+    } catch (error) {
+      setIsLoading(false);
+      console.error('Error uploading file:', error);
+      toast({
+        title: "Upload failed",
+        description: "An error occurred while uploading the file.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -191,7 +246,15 @@ export default function BlueprintEditor() {
   };
 
   const saveLayout = () => {
-    // Store layout in localStorage for persistence
+    if (!editorState.layout.url) {
+      toast({
+        title: "No layout",
+        description: "Please upload a floor plan before saving.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       localStorage.setItem(
         "blueprint-layout",
@@ -202,7 +265,7 @@ export default function BlueprintEditor() {
       );
       toast({
         title: "Layout Saved",
-        description: "Your AR element layout has been saved locally.",
+        description: "Your AR element layout has been saved successfully.",
       });
     } catch (error) {
       toast({
@@ -243,6 +306,7 @@ export default function BlueprintEditor() {
                 onClick={() => addElement("infoCard")}
                 className="w-full justify-start"
                 variant="outline"
+                disabled={!editorState.layout.url}
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Info Card
@@ -251,6 +315,7 @@ export default function BlueprintEditor() {
                 onClick={() => addElement("marker")}
                 className="w-full justify-start"
                 variant="outline"
+                disabled={!editorState.layout.url}
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Marker
@@ -259,6 +324,7 @@ export default function BlueprintEditor() {
                 onClick={() => addElement("interactive")}
                 className="w-full justify-start"
                 variant="outline"
+                disabled={!editorState.layout.url}
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Interactive Element
@@ -276,6 +342,18 @@ export default function BlueprintEditor() {
                 Show Grid
               </Button>
             </div>
+
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium">Actions</h3>
+              <Button
+                onClick={saveLayout}
+                className="w-full justify-start"
+                disabled={!editorState.layout.url}
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Save Layout
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -285,25 +363,39 @@ export default function BlueprintEditor() {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
+          ref={containerRef}
         >
           <div
-            className={`w-full h-full relative editor-container ${showGrid ? "bg-grid-pattern" : "bg-white"}`}
+            className={`w-full h-full relative editor-container ${
+              showGrid ? "bg-grid-pattern" : "bg-white"
+            }`}
             style={{
               transform: `scale(${editorState.scale}) translate(${editorState.position.x}px, ${editorState.position.y}px)`,
               transformOrigin: "center",
             }}
           >
-            {editorState.layout.url ? (
+            {isLoading ? (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                <Loader2 className="w-8 h-8 animate-spin" />
+                <span className="ml-2">Processing image...</span>
+              </div>
+            ) : editorState.layout.url ? (
               <div className="absolute inset-0">
                 <img
                   src={editorState.layout.url}
                   alt="Store Layout"
                   className="w-full h-full object-contain"
+                  style={{
+                    maxWidth: editorState.layout.originalWidth,
+                    maxHeight: editorState.layout.originalHeight,
+                  }}
                 />
               </div>
             ) : (
               <div
-                className={`absolute inset-0 flex items-center justify-center ${isDraggingFile ? "bg-blue-50" : ""}`}
+                className={`absolute inset-0 flex items-center justify-center ${
+                  isDraggingFile ? "bg-blue-50" : ""
+                }`}
               >
                 <div className="text-center p-6 border-2 border-dashed border-gray-300 rounded-lg">
                   <p className="text-gray-500">
@@ -313,17 +405,24 @@ export default function BlueprintEditor() {
                     Required for placing AR elements accurately
                   </p>
                   <p className="text-sm text-gray-400 mt-1">or</p>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) =>
-                      e.target.files?.[0] && handleFileUpload(e.target.files[0])
-                    }
-                    className="mt-2 text-sm text-gray-500"
-                  />
+                  <Label className="cursor-pointer mt-2 inline-block">
+                    <Input
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg"
+                      className="hidden"
+                      onChange={(e) =>
+                        e.target.files?.[0] && handleFileUpload(e.target.files[0])
+                      }
+                    />
+                    <span className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90">
+                      Choose File
+                    </span>
+                  </Label>
                 </div>
               </div>
             )}
+
+            {/* AR Elements */}
             {elements.map((element) => (
               <motion.div
                 key={element.id}
@@ -340,10 +439,8 @@ export default function BlueprintEditor() {
                 drag
                 dragMomentum={false}
                 onDragEnd={(event: any, info) => {
-                  const target = event.target as HTMLElement;
-                  const container = target.closest(".editor-container");
-                  if (container) {
-                    const bounds = container.getBoundingClientRect();
+                  if (containerRef.current) {
+                    const bounds = containerRef.current.getBoundingClientRect();
                     const x =
                       ((info.point.x - bounds.left) / bounds.width) * 100;
                     const y =
@@ -360,18 +457,28 @@ export default function BlueprintEditor() {
                   <div className="text-sm font-medium">
                     {element.content.title}
                   </div>
-                  {element.type === "infoCard" && (
-                    <div className="text-xs text-gray-500">Info Card</div>
-                  )}
-                  {element.type === "marker" && (
-                    <div className="text-xs text-gray-500">Marker</div>
-                  )}
-                  {element.type === "interactive" && (
-                    <div className="text-xs text-gray-500">Interactive</div>
-                  )}
+                  <div className="text-xs text-gray-500">{element.type}</div>
                 </div>
               </motion.div>
             ))}
+          </div>
+
+          {/* Controls */}
+          <div className="absolute bottom-4 right-4 space-x-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => handleZoom(-0.1)}
+            >
+              <Minus className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => handleZoom(0.1)}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 
@@ -468,38 +575,6 @@ export default function BlueprintEditor() {
             </Card>
           </div>
         )}
-      </div>
-
-      {/* Controls */}
-      <div className="fixed bottom-4 right-4 space-y-2">
-        <div className="flex space-x-2 mb-2">
-          <Button onClick={() => handleZoom(0.1)} size="sm">
-            <Plus className="w-4 h-4" />
-          </Button>
-          <Button onClick={() => handleZoom(-0.1)} size="sm">
-            <Minus className="w-4 h-4" />
-          </Button>
-        </div>
-        <div className="grid grid-cols-3 gap-1">
-          <Button onClick={() => handlePan("left")} size="sm">
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <div className="grid grid-cols-1 gap-1">
-            <Button onClick={() => handlePan("up")} size="sm">
-              <ChevronUp className="w-4 h-4" />
-            </Button>
-            <Button onClick={() => handlePan("down")} size="sm">
-              <ChevronDown className="w-4 h-4" />
-            </Button>
-          </div>
-          <Button onClick={() => handlePan("right")} size="sm">
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-        </div>
-        <Button onClick={saveLayout} size="lg" className="w-full">
-          <Save className="w-4 h-4 mr-2" />
-          Save Layout
-        </Button>
       </div>
     </div>
   );
