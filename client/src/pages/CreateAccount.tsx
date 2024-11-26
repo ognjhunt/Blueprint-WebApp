@@ -119,8 +119,12 @@ export default function CreateAccount() {
       await signInWithGoogle();
       setLocation("/dashboard");
     } catch (error: any) {
-      const errorMessage = error.message || "Failed to sign in with Google. Please try again.";
       console.error("Google sign in error:", error);
+      
+      // More specific error messages
+      const errorMessage = error.code === 'auth/redirect-uri-mismatch' 
+        ? "Invalid application configuration. Please contact support."
+        : error.message || "Failed to sign in with Google. Please try again.";
       
       toast({
         title: "Error",
@@ -262,6 +266,7 @@ export default function CreateAccount() {
                     theme="outline"
                     shape="rectangular"
                     width={320}
+                    useOneTap={false}
                   />
                 </GoogleOAuthProvider>
 
