@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "wouter";
 import CustomerExperienceDesigner from "@/components/CustomerExperienceDesigner";
 import {
   Check,
@@ -48,6 +50,8 @@ const steps = [
 ];
 
 export default function ClaimBlueprint() {
+  const { currentUser } = useAuth();
+  const [_, setLocation] = useLocation();
   const [currentStep, setCurrentStep] = useState(0);
   const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
   const [showOtherMethods, setShowOtherMethods] = useState(false);
@@ -95,11 +99,26 @@ export default function ClaimBlueprint() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser && currentStep === steps.length - 1) {
+      // Save form data to localStorage before redirecting
+      localStorage.setItem('pendingBlueprintClaim', JSON.stringify(formData));
+      setLocation('/sign-in?redirect=/claim-blueprint');
+      return;
+    }
     console.log("Blueprint claimed:", formData);
     alert("Your Blueprint has been successfully claimed and customized!");
   };
+
+  // Restore form data if returning from authentication
+  useEffect(() => {
+    const pendingClaim = localStorage.getItem('pendingBlueprintClaim');
+    if (pendingClaim && currentUser) {
+      setFormData(JSON.parse(pendingClaim));
+      localStorage.removeItem('pendingBlueprintClaim');
+    }
+  }, [currentUser]);
 
   const renderStep = () => {
     switch (currentStep) {

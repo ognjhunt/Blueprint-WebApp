@@ -35,11 +35,7 @@ function Router() {
           <CreateBlueprint />
         </ProtectedRoute>
       </Route>
-      <Route path="/claim-blueprint">
-        <ProtectedRoute>
-          <ClaimBlueprint />
-        </ProtectedRoute>
-      </Route>
+      <Route path="/claim-blueprint" component={ClaimBlueprint} />
       <Route path="/dashboard">
         <ProtectedRoute>
           <Dashboard />

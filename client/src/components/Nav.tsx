@@ -64,6 +64,11 @@ export default function Nav() {
             <Link href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">
               Pricing
             </Link>
+            <Link href="/claim-blueprint">
+              <Button variant="outline" className="mr-4">
+                Claim Blueprint
+              </Button>
+            </Link>
             <Link href="/sign-in">
               <Button variant="outline" className="mr-4">
                 Sign In / Create Account
@@ -76,9 +81,6 @@ export default function Nav() {
                 </Link>
                 <Link href="/create-blueprint">
                   <Button>Create Blueprint</Button>
-                </Link>
-                <Link href="/claim-blueprint">
-                  <Button variant="outline">Claim Blueprint</Button>
                 </Link>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -128,13 +130,14 @@ export default function Nav() {
               <Link href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">
                 Pricing
               </Link>
-              <Button 
-                onClick={() => {/* Add auth flow later */}} 
-                variant="outline"
-                className="w-full mb-4"
-              >
-                Sign In / Create Account
-              </Button>
+              <Link href="/claim-blueprint" className="w-full">
+                <Button variant="outline" className="w-full mb-2">Claim Blueprint</Button>
+              </Link>
+              <Link href="/sign-in" className="w-full">
+                <Button variant="outline" className="w-full mb-4">
+                  Sign In / Create Account
+                </Button>
+              </Link>
               {isAuthenticated && (
                 <>
                   <Link href="/dashboard" className="w-full">
@@ -142,9 +145,6 @@ export default function Nav() {
                   </Link>
                   <Link href="/create-blueprint" className="w-full">
                     <Button className="w-full mb-2">Create Blueprint</Button>
-                  </Link>
-                  <Link href="/claim-blueprint" className="w-full">
-                    <Button variant="outline" className="w-full mb-2">Claim Blueprint</Button>
                   </Link>
                   <Link href="/profile" className="w-full">
                     <Button variant="outline" className="w-full mb-2">Profile</Button>
