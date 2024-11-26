@@ -65,6 +65,16 @@ type FormData = {
   features: FeatureDetails;
 };
 
+const businessTypes = [
+  { value: "restaurant", label: "Restaurant" },
+  { value: "retail", label: "Retail Store" },
+  { value: "service", label: "Service Business" },
+  { value: "healthcare", label: "Healthcare" },
+  { value: "education", label: "Education" },
+  { value: "entertainment", label: "Entertainment" },
+  { value: "other", label: "Other" }
+];
+
 const steps = [
   { id: "business-info", title: "Business Information", icon: Building2 },
   { id: "location-details", title: "Location Details", icon: MapPin },
@@ -438,8 +448,71 @@ export default function CreateBlueprint() {
       case 0:
         return (
           <div className="space-y-4">
-            {renderInputField("businessName", "Business Name")}
-            {renderInputField("businessType", "Business Type", "select")}
+            <div className="space-y-2">
+              <Label htmlFor="businessName">Business Name</Label>
+              <div className="relative">
+                <Input
+                  id="businessName"
+                  name="businessName"
+                  value={formData.businessName}
+                  onChange={handleInputChange}
+                  placeholder="Enter your business name"
+                  className={cn(
+                    "w-full",
+                    fieldErrors.businessName && "border-red-500 focus-visible:ring-red-500"
+                  )}
+                />
+                {fieldErrors.businessName && (
+                  <p className="text-sm text-red-500 mt-1">{fieldErrors.businessName}</p>
+                )}
+                {predictions.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white rounded-md border shadow-lg max-h-60 overflow-auto">
+                    <ul className="py-1">
+                      {predictions.map((prediction) => (
+                        <li
+                          key={prediction.place_id}
+                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                          onClick={() => handleBusinessSelect(prediction)}
+                        >
+                          <div className="font-medium">
+                            {prediction.structured_formatting.main_text}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {prediction.structured_formatting.secondary_text}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="businessType">Business Type</Label>
+              <Select
+                name="businessType"
+                value={formData.businessType}
+                onValueChange={(value) =>
+                  handleInputChange({ target: { name: "businessType", value } })
+                }
+              >
+                <SelectTrigger className={cn(
+                  fieldErrors.businessType && "border-red-500 focus-visible:ring-red-500"
+                )}>
+                  <SelectValue placeholder="Select business type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {businessTypes.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {fieldErrors.businessType && (
+                <p className="text-sm text-red-500 mt-1">{fieldErrors.businessType}</p>
+              )}
+            </div>
           </div>
         );
       case 1:
