@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { motion } from 'framer-motion';
 import { Building2, MapPin, Phone, Bot, Cog, CheckCircle, Loader2 } from 'lucide-react';
+import { usePlacesWidget } from "react-google-autocomplete";
 import { auth, db } from '@/lib/firebase';
 import { doc, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,27 @@ export default function CreateBlueprint() {
     const [currentStep, setCurrentStep] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
     const [, setLocation] = useLocation();
+
+    const { ref: businessNameRef } = usePlacesWidget({
+        apiKey: import.meta.env.VITE_GOOGLE_PLACES_API_KEY,
+        onPlaceSelected: (place) => {
+            const placeDetails = {
+                businessName: place.name || '',
+                address: place.formatted_address || '',
+                phone: place.formatted_phone_number || '',
+                website: place.website || '',
+                locationName: place.name || '',
+            };
+            setFormData(prev => ({
+                ...prev,
+                ...placeDetails
+            }));
+        },
+        options: {
+            types: ['establishment'],
+            fields: ['name', 'formatted_address', 'formatted_phone_number', 'website']
+        }
+    });
 
     const [formData, setFormData] = useState({
         businessName: '',
@@ -262,9 +284,10 @@ export default function CreateBlueprint() {
                             <Input
                                 id="businessName"
                                 name="businessName"
+                                ref={businessNameRef}
                                 value={formData.businessName}
                                 onChange={handleInputChange}
-                                placeholder="Enter your business name"
+                                placeholder="Search for your business"
                                 className={cn(
                                     "w-full",
                                     fieldErrors.businessName && "border-red-500 focus-visible:ring-red-500"
