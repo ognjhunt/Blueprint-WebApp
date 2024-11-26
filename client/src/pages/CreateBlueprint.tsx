@@ -423,11 +423,7 @@ export default function CreateBlueprint() {
       case 1:
         return (
           !validateField("locationName", formData.locationName) &&
-          !validateField("address", formData.address) &&
-          !validateField("city", formData.city) &&
-          !validateField("state", formData.state) &&
-          !validateField("zipCode", formData.zipCode) &&
-          !validateField("country", formData.country)
+          !validateField("address", formData.address)
         );
       case 2:
         return (
@@ -613,7 +609,6 @@ export default function CreateBlueprint() {
                   value={formData.country}
                   onValueChange={(value) => {
                     handleInputChange({ target: { name: "country", value } });
-                    // Reset state when country changes
                     handleInputChange({ target: { name: "state", value: "" } });
                   }}
                 >
@@ -665,14 +660,6 @@ export default function CreateBlueprint() {
                   <p className="text-sm text-red-500 mt-1">{fieldErrors.state}</p>
                 )}
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              {renderInputField("city", "City", "text", "Enter city")}
-              {renderInputField("zipCode", "ZIP/Postal Code", "text", "Enter ZIP/postal code")}
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              {renderInputField("city", "City")}
-              {renderInputField("state", "State/Province")}
             </div>
             <div className="grid grid-cols-2 gap-4">
               {renderInputField("zipCode", "ZIP/Postal Code")}
