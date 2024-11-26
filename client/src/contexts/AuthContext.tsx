@@ -33,6 +33,17 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  // Set persistence to LOCAL
+  useEffect(() => {
+    const setPersistence = async () => {
+      try {
+        await setPersistence(auth, browserLocalPersistence);
+      } catch (error) {
+        console.error("Error setting persistence:", error);
+      }
+    };
+    setPersistence();
+  }, []);
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,7 +82,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Handle redirect
         try {
-          setLocation("/");
+          const redirectPath = sessionStorage.getItem('redirectAfterAuth');
+          if (redirectPath) {
+            sessionStorage.removeItem('redirectAfterAuth');
+            setLocation(redirectPath);
+          } else {
+            setLocation("/dashboard");
+          }
           console.log("Successfully redirected after sign in");
         } catch (redirectError: any) {
           console.error("Error during redirect after sign in:", redirectError);
