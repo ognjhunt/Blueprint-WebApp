@@ -69,9 +69,9 @@ export default function Dashboard() {
         <main className="flex-1 p-6 overflow-auto">
           <div className="max-w-6xl mx-auto">
             <div className="flex justify-between items-center mb-8">
-              <h1 className="text-2xl font-bold">Dashboard</h1>
+              <h1 className="text-2xl font-bold text-blue-900">Dashboard</h1>
               <Link href="/create-blueprint">
-                <Button>
+                <Button size="lg" className="hidden">
                   <Plus className="mr-2 h-4 w-4" /> Create New Blueprint
                 </Button>
               </Link>
