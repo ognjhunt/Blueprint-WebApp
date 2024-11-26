@@ -678,75 +678,120 @@ export default function CreateBlueprint() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto py-8 px-4">
-      <div className="space-y-8">
-        {/* Progress Steps */}
-        <div className="flex items-center justify-between">
-          {steps.map((step, index) => {
-            const StepIcon = step.icon;
-            return (
-              <div key={step.id} className="flex items-center">
+    <div className="min-h-screen bg-gradient-to-b from-blue-100 to-white py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto">
+        <h1 className="text-4xl font-bold text-center text-blue-900 mb-8">
+          Create Your Blueprint
+        </h1>
+        <div className="bg-white shadow-xl rounded-lg overflow-hidden">
+          <div className="p-6">
+            {/* Enhanced Progress Indicator */}
+            <div className="relative mb-12">
+              <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gray-200 -translate-y-1/2">
                 <div
-                  className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
-                    index <= currentStep
-                      ? "border-primary bg-primary text-white"
-                      : "border-gray-300 text-gray-300"
-                  }`}
+                  className="h-full bg-blue-600 transition-all duration-300 ease-in-out"
+                  style={{ width: `${(currentStep / (steps.length - 1)) * 100}%` }}
+                />
+              </div>
+              <div className="relative flex justify-between">
+                {steps.map((step, index) => (
+                  <motion.div
+                    key={step.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="flex flex-col items-center"
+                  >
+                    <motion.div
+                      className={`relative z-10 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
+                        index <= currentStep
+                          ? "bg-blue-600 shadow-lg shadow-blue-200"
+                          : "bg-gray-200"
+                      }`}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      {index < currentStep ? (
+                        <Check className="w-6 h-6 text-white" />
+                      ) : (
+                        <step.icon
+                          className={`w-6 h-6 ${
+                            index <= currentStep ? "text-white" : "text-gray-400"
+                          }`}
+                        />
+                      )}
+                      <AnimatePresence>
+                        {index === currentStep && (
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            exit={{ scale: 0 }}
+                            className="absolute -inset-1 rounded-full border-2 border-blue-600"
+                          />
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                    <span
+                      className={`mt-2 text-sm font-medium transition-colors duration-300 ${
+                        index <= currentStep ? "text-blue-600" : "text-gray-400"
+                      }`}
+                    >
+                      {step.title}
+                    </span>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit}>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentStep}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="min-h-[300px]"
                 >
-                  <StepIcon className="w-5 h-5" />
-                </div>
-                {index < steps.length - 1 && (
-                  <div
-                    className={`w-full h-1 mx-2 ${
-                      index < currentStep ? "bg-primary" : "bg-gray-300"
-                    }`}
-                  />
+                  {renderStep()}
+                </motion.div>
+              </AnimatePresence>
+
+              <div className="mt-8 flex justify-between">
+                <Button
+                  type="button"
+                  onClick={handlePrevious}
+                  disabled={currentStep === 0}
+                  variant="outline"
+                  className="flex items-center"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-2" />
+                  Previous
+                </Button>
+                {currentStep < steps.length - 1 ? (
+                  <Button
+                    type="button"
+                    onClick={handleNext}
+                    className="flex items-center"
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4 ml-2" />
+                  </Button>
+                ) : (
+                  <Button type="submit" className="flex items-center">
+                    {isLoading ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4 mr-2" />
+                    )}
+                    Create Blueprint
+                  </Button>
                 )}
               </div>
-            );
-          })}
-        </div>
-
-        {/* Form Content */}
-        <div className="bg-white shadow-sm rounded-lg border p-6">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentStep}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-            >
-              {renderStep()}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-
-        {/* Navigation */}
-        <div className="flex justify-between">
-          <Button
-            type="button"
-            onClick={handlePrevious}
-            disabled={currentStep === 0}
-            variant="outline"
-          >
-            <ChevronLeft className="w-4 h-4 mr-2" />
-            Previous
-          </Button>
-          <Button type="submit" disabled={isLoading}>
-            {isLoading ? (
-              <>Loading...</>
-            ) : currentStep === steps.length - 1 ? (
-              "Complete Setup"
-            ) : (
-              <>
-                Next
-                <ChevronRight className="w-4 h-4 ml-2" />
-              </>
-            )}
-          </Button>
+            </form>
+          </div>
         </div>
       </div>
-    </form>
+    </div>
   );
 }
