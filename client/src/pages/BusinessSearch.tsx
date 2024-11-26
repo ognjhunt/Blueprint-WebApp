@@ -365,7 +365,13 @@ export default function BusinessSearch() {
                               </span>
                             </AlertDescription>
                           </Alert>
-                          <Button>Claim Existing Blueprint</Button>
+                          <Link href={`/claim-blueprint?data=${encodeURIComponent(JSON.stringify({
+                              name: selectedBusiness.name,
+                              address: selectedBusiness.address,
+                              placeId: prediction.place_id
+                            }))}`}>
+                              <Button>Claim Existing Blueprint</Button>
+                           </Link>
                         </div>
                       ) : (
                         <div className="flex flex-col space-y-4">
@@ -374,7 +380,13 @@ export default function BusinessSearch() {
                               No Blueprint found for this business.
                             </AlertDescription>
                           </Alert>
-                          <Button>Create New Blueprint</Button>
+                          <Link href={`/create-blueprint?data=${encodeURIComponent(JSON.stringify({
+                              name: selectedBusiness.name,
+                              address: selectedBusiness.address,
+                              placeId: prediction.place_id
+                            }))}`}>
+                              <Button>Create New Blueprint</Button>
+                           </Link>
                         </div>
                       )}
                     </CardContent>

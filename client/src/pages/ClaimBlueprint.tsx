@@ -113,10 +113,24 @@ export default function ClaimBlueprint() {
 
   // Restore form data if returning from authentication
   useEffect(() => {
-    const pendingClaim = localStorage.getItem('pendingBlueprintClaim');
-    if (pendingClaim && currentUser) {
-      setFormData(JSON.parse(pendingClaim));
-      localStorage.removeItem('pendingBlueprintClaim');
+    // Handle data from URL params
+    const params = new URLSearchParams(window.location.search);
+    const businessData = params.get('data');
+    
+    if (businessData) {
+      const parsedData = JSON.parse(decodeURIComponent(businessData));
+      setFormData(prev => ({
+        ...prev,
+        businessName: parsedData.name,
+        address: parsedData.address,
+      }));
+    } else {
+      // Check for pending claim data if no URL params
+      const pendingClaim = localStorage.getItem('pendingBlueprintClaim');
+      if (pendingClaim && currentUser) {
+        setFormData(JSON.parse(pendingClaim));
+        localStorage.removeItem('pendingBlueprintClaim');
+      }
     }
   }, [currentUser]);
 
