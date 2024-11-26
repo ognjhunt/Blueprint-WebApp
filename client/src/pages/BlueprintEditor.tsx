@@ -16,6 +16,7 @@ import {
   ChevronUp,
   ChevronDown,
   Loader2,
+  Hand,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,6 +64,9 @@ export default function BlueprintEditor() {
   const [selectedElement, setSelectedElement] = useState<ARElement | null>(null);
   const [showGrid, setShowGrid] = useState(true);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [isPanMode, setIsPanMode] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const { toast } = useToast();
   
   const [editorState, setEditorState] = useState<EditorState>({
@@ -309,6 +313,31 @@ export default function BlueprintEditor() {
     }
   }, []);
 
+  const handlePanStart = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isPanMode) {
+      setIsDragging(true);
+      setDragStart({
+        x: e.clientX - editorState.position.x,
+        y: e.clientY - editorState.position.y,
+      });
+    }
+  };
+
+  const handlePanMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isPanMode && isDragging) {
+      const newX = e.clientX - dragStart.x;
+      const newY = e.clientY - dragStart.y;
+      setEditorState(prev => ({
+        ...prev,
+        position: { x: newX, y: newY },
+      }));
+    }
+  };
+
+  const handlePanEnd = () => {
+    setIsDragging(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <Nav />
@@ -357,6 +386,14 @@ export default function BlueprintEditor() {
                 <Grid className="w-4 h-4 mr-2" />
                 Show Grid
               </Button>
+              <Button
+                onClick={() => setIsPanMode(!isPanMode)}
+                className="w-full justify-start"
+                variant={isPanMode ? "default" : "outline"}
+              >
+                <Hand className="w-4 h-4 mr-2" />
+                Pan Tool
+              </Button>
             </div>
 
             <div className="space-y-2">
@@ -375,20 +412,24 @@ export default function BlueprintEditor() {
 
         {/* Main Editor Area */}
         <div
-          className="flex-1 relative overflow-hidden"
+          className={`flex-1 relative ${isPanMode ? 'cursor-grab' : ''} ${isDragging ? 'cursor-grabbing' : ''}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
+          onMouseDown={handlePanStart}
+          onMouseMove={handlePanMove}
+          onMouseUp={handlePanEnd}
+          onMouseLeave={handlePanEnd}
           ref={containerRef}
         >
           <div
-            className={`w-full h-full relative editor-container ${
+            className={`absolute top-0 left-0 w-[200vw] h-[200vh] editor-container ${
               showGrid ? "bg-grid-pattern" : "bg-white"
             } p-4`}
             style={{
-              transform: `translate(${editorState.position.x}px, ${editorState.position.y}px)`,
+              transform: `translate(${editorState.position.x}px, ${editorState.position.y}px) scale(${editorState.scale})`,
               transformOrigin: "center",
-              overflow: "hidden",
+              transition: isDragging ? 'none' : 'transform 0.1s ease-out',
             }}
           >
             {isLoading ? (
