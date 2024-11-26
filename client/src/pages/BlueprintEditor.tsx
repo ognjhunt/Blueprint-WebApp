@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createDrawTools, type DrawTools } from '@/lib/drawTools'
 import { motion } from 'framer-motion'
 import { Ruler, Move, Plus, Settings, Save, Grid, Minus, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react'
 import { Button } from "@/components/ui/button"
@@ -40,6 +41,25 @@ interface EditorState {
 
 export default function BlueprintEditor() {
   const [elements, setElements] = useState<ARElement[]>([])
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [drawTools, setDrawTools] = useState<DrawTools | null>(null);
+  
+  useEffect(() => {
+    if (containerRef.current) {
+      const tools = createDrawTools({
+        containerRef,
+        scale: editorState.scale,
+        gridSize: 20
+      });
+      setDrawTools(tools);
+    }
+  }, [containerRef.current]);
+
+  useEffect(() => {
+    if (drawTools) {
+      drawTools.updateScale(editorState.scale);
+    }
+  }, [editorState.scale]);
   const [selectedElement, setSelectedElement] = useState<ARElement | null>(null)
   const [showGrid, setShowGrid] = useState(true)
   const [editorState, setEditorState] = useState<EditorState>({
