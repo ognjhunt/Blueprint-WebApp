@@ -265,8 +265,9 @@ export default function CreateAccount() {
                     }}
                     theme="outline"
                     shape="rectangular"
-                    width={320}
+                    width="360"
                     useOneTap={false}
+                    style={{ width: '100%', maxWidth: '360px' }}
                   />
                 </GoogleOAuthProvider>
 

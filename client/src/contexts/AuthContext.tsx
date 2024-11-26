@@ -64,11 +64,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       try {
         const userData = await getUserData(user.uid);
+        if (!userData) {
+          throw new Error("User data not found");
+        }
         setUserData(userData);
-        setLocation("/");
+        
+        // Handle redirect
+        try {
+          setLocation("/");
+          console.log("Successfully redirected after sign in");
+        } catch (redirectError: any) {
+          console.error("Error during redirect after sign in:", redirectError);
+          throw new Error("Failed to navigate after sign in. Please try again.");
+        }
       } catch (userDataError: any) {
         console.error("Error fetching user data after sign in:", userDataError);
-        throw new Error("Failed to load user data. Please try again.");
+        throw new Error("Failed to load user data. Please try signing in again.");
       }
     } catch (error: any) {
       console.error("Sign in error:", { code: error.code, message: error.message });
