@@ -1,988 +1,522 @@
 "use client";
 
-import { useState, useEffect, useCallback, ChangeEvent } from "react";
-import { Loader } from "@googlemaps/js-api-loader";
-import {
-  ChevronRight,
-  ChevronLeft,
-  Building2,
-  MapPin,
-  Phone,
-  Palette,
-  Cog,
-  Check,
-  Search,
-  MapPin as MapPinIcon,
-  AlertCircle,
-  Loader2,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-
-type FeatureDetail = {
-  crm?: string;
-  tourUrl?: string;
-  programDetails?: string;
-  arModelUrls?: string;
-};
-
-interface BaseFeatureDetail {
-  enabled: boolean;
-  details: FeatureDetail;
-}
-
-type FeatureDetails = {
-  [key: string]: BaseFeatureDetail;
-};
-
-type FormData = {
-  businessName: string;
-  businessType: string;
-  locationName: string;
-  address: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
-  phone: string;
-  email: string;
-  website: string;
-  aiProvider: string;
-  apiKey: string;
-  features: FeatureDetails;
-};
-
-const businessTypes = [
-  { value: "restaurant", label: "Restaurant" },
-  { value: "retail", label: "Retail Store" },
-  { value: "service", label: "Service Business" },
-  { value: "healthcare", label: "Healthcare" },
-  { value: "education", label: "Education" },
-  { value: "entertainment", label: "Entertainment" },
-  { value: "other", label: "Other" }
-];
-
-const countries = [
-  { value: "US", label: "United States" },
-  { value: "CA", label: "Canada" },
-  { value: "MX", label: "Mexico" }
-];
-
-const states = {
-  US: [
-    { value: "AL", label: "Alabama" },
-    { value: "AK", label: "Alaska" },
-    { value: "AZ", label: "Arizona" },
-    { value: "AR", label: "Arkansas" },
-    { value: "CA", label: "California" },
-    { value: "CO", label: "Colorado" },
-    { value: "CT", label: "Connecticut" },
-    { value: "DE", label: "Delaware" },
-    { value: "FL", label: "Florida" },
-    { value: "GA", label: "Georgia" },
-    { value: "HI", label: "Hawaii" },
-    { value: "ID", label: "Idaho" },
-    { value: "IL", label: "Illinois" },
-    { value: "IN", label: "Indiana" },
-    { value: "IA", label: "Iowa" },
-    { value: "KS", label: "Kansas" },
-    { value: "KY", label: "Kentucky" },
-    { value: "LA", label: "Louisiana" },
-    { value: "ME", label: "Maine" },
-    { value: "MD", label: "Maryland" },
-    { value: "MA", label: "Massachusetts" },
-    { value: "MI", label: "Michigan" },
-    { value: "MN", label: "Minnesota" },
-    { value: "MS", label: "Mississippi" },
-    { value: "MO", label: "Missouri" },
-    { value: "MT", label: "Montana" },
-    { value: "NE", label: "Nebraska" },
-    { value: "NV", label: "Nevada" },
-    { value: "NH", label: "New Hampshire" },
-    { value: "NJ", label: "New Jersey" },
-    { value: "NM", label: "New Mexico" },
-    { value: "NY", label: "New York" },
-    { value: "NC", label: "North Carolina" },
-    { value: "ND", label: "North Dakota" },
-    { value: "OH", label: "Ohio" },
-    { value: "OK", label: "Oklahoma" },
-    { value: "OR", label: "Oregon" },
-    { value: "PA", label: "Pennsylvania" },
-    { value: "RI", label: "Rhode Island" },
-    { value: "SC", label: "South Carolina" },
-    { value: "SD", label: "South Dakota" },
-    { value: "TN", label: "Tennessee" },
-    { value: "TX", label: "Texas" },
-    { value: "UT", label: "Utah" },
-    { value: "VT", label: "Vermont" },
-    { value: "VA", label: "Virginia" },
-    { value: "WA", label: "Washington" },
-    { value: "WV", label: "West Virginia" },
-    { value: "WI", label: "Wisconsin" },
-    { value: "WY", label: "Wyoming" }
-  ],
-  CA: [
-    { value: "AB", label: "Alberta" },
-    { value: "BC", label: "British Columbia" },
-    { value: "MB", label: "Manitoba" },
-    { value: "NB", label: "New Brunswick" },
-    { value: "NL", label: "Newfoundland and Labrador" },
-    { value: "NS", label: "Nova Scotia" },
-    { value: "ON", label: "Ontario" },
-    { value: "PE", label: "Prince Edward Island" },
-    { value: "QC", label: "Quebec" },
-    { value: "SK", label: "Saskatchewan" }
-  ],
-  MX: [
-    { value: "AGU", label: "Aguascalientes" },
-    { value: "BCN", label: "Baja California" },
-    { value: "BCS", label: "Baja California Sur" },
-    { value: "CAM", label: "Campeche" },
-    { value: "CHP", label: "Chiapas" },
-    { value: "CHH", label: "Chihuahua" },
-    { value: "CMX", label: "Ciudad de México" },
-    { value: "COA", label: "Coahuila" },
-    { value: "COL", label: "Colima" },
-    { value: "DUR", label: "Durango" }
-  ]
-};
+import { useState } from 'react';
+import { useLocation } from 'wouter';
+import { motion } from 'framer-motion';
+import { Building2, MapPin, Phone, Bot, Cog, CheckCircle, Loader2 } from 'lucide-react';
+import { auth, db } from '@/lib/firebase';
+import { doc, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import { v4 as uuidv4 } from 'uuid';
 
 const steps = [
-  { id: "business-info", title: "Business Information", icon: Building2 },
-  { id: "location-details", title: "Location Details", icon: MapPin },
-  { id: "contact-info", title: "Contact Information", icon: Phone },
-  { id: "customization", title: "AI Assistant", icon: Palette },
-  { id: "features", title: "Blueprint Features", icon: Cog },
-  { id: "review", title: "Review & Submit", icon: Check },
+    { icon: Building2, label: 'Business Information' },
+    { icon: MapPin, label: 'Location Details' },
+    { icon: Phone, label: 'Contact Information' },
+    { icon: Bot, label: 'AI Assistant' },
+    { icon: Cog, label: 'Blueprint Features' },
+    { icon: CheckCircle, label: 'Review & Submit' }
 ];
-
-const aiProviders = [
-  { value: "openai", label: "OpenAI" },
-  { value: "anthropic", label: "Anthropic" },
-  { value: "google", label: "Google AI" },
-  { value: "microsoft", label: "Microsoft Azure AI" },
-  { value: "ibm", label: "IBM Watson" },
-  { value: "amazon", label: "Amazon Lex" },
-];
-
-interface PlacePrediction {
-  place_id: string;
-  description: string;
-  structured_formatting: {
-    main_text: string;
-    secondary_text: string;
-  };
-}
 
 export default function CreateBlueprint() {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
+    const [currentStep, setCurrentStep] = useState(0);
+    const [isLoading, setIsLoading] = useState(false);
+    const [, setLocation] = useLocation();
 
-  type FormDataWithId = FormData & { blueprintId?: string };
-
-  const [formData, setFormData] = useState<FormDataWithId>({
-    businessName: "",
-    businessType: "",
-    locationName: "",
-    address: "",
-    city: "",
-    state: "",
-    zipCode: "",
-    country: "",
-    phone: "",
-    email: "",
-    website: "",
-    aiProvider: "",
-    apiKey: "",
-    features: {
-      personalizedRecommendations: { enabled: false, details: { crm: "" } },
-      virtualTours: { enabled: false, details: { tourUrl: "" } },
-      loyaltyProgram: { enabled: false, details: { programDetails: "" } },
-      arVisualizations: { enabled: false, details: { arModelUrls: "" } },
-    },
-  });
-
-  // Business search state variables
-  const [autocomplete, setAutocomplete] =
-    useState<google.maps.places.AutocompleteService | null>(null);
-  const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loaderStatus, setLoaderStatus] = useState<LoaderStatus>("idle");
-  const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
-
-  type LoaderStatus = "idle" | "loading" | "error" | "success";
-
-  // Initialize Google Places API
-  const initGooglePlaces = useCallback(async () => {
-    setLoaderStatus("loading");
-    setError(null);
-
-    try {
-      const apiKey = "AIzaSyBgxzzgcT_9nyhz1D_JtfG7gevRUKQ5Vbs"; // Replace with your actual API key
-      if (!apiKey) {
-        throw new Error("Google Places API key is not configured");
-      }
-      console.log("API Key loaded successfully");
-
-      const loader = new Loader({
-        apiKey,
-        version: "weekly",
-        libraries: ["places"],
-      });
-
-      await loader.load();
-
-      if (typeof google === "undefined") {
-        throw new Error("Google Maps JavaScript API not loaded");
-      }
-
-      const autocompleteService = new google.maps.places.AutocompleteService();
-      if (!autocompleteService) {
-        throw new Error("Failed to initialize Places Autocomplete service");
-      }
-
-      setAutocomplete(autocompleteService);
-      setLoaderStatus("success");
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "An unexpected error occurred";
-      console.error("Error details:", err);
-      setError(`Failed to initialize Google Places API: ${errorMessage}`);
-      setLoaderStatus("error");
-
-      toast({
-        title: "Error",
-        description: `Failed to initialize Google Places API: ${errorMessage}. Please try again.`,
-        variant: "destructive",
-      });
-    }
-  }, [toast]);
-
-  useEffect(() => {
-    initGooglePlaces();
-  }, [initGooglePlaces]);
-
-  // Handle business name input change and autocomplete
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement> | { target: { name: string; value: string } },
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-
-    // Validate the field and update errors
-    const error = validateField(name, value);
-    setFieldErrors((prev) => ({ ...prev, [name]: error }));
-
-    if (name === "businessName" && autocomplete && value.length >= 3) {
-      setLoading(true);
-      autocomplete.getPlacePredictions(
-        {
-          input: value,
-          types: ["establishment"],
-          componentRestrictions: { country: "us" },
+    const [formData, setFormData] = useState({
+        businessName: '',
+        businessType: '',
+        locationName: '',
+        address: '',
+        city: '',
+        state: '',
+        zipCode: '',
+        country: '',
+        phone: '',
+        email: '',
+        website: '',
+        aiProvider: '',
+        apiKey: '',
+        blueprintId: '',
+        createdDate: new Date(),
+        features: {
+            virtualTours: { enabled: false, details: { tourUrl: '' } },
+            personalizedRecommendations: { enabled: false, details: { crm: '' } },
+            loyaltyProgram: { enabled: false, details: { programDetails: '' } },
+            arVisualizations: { enabled: false, details: { arModelUrls: '' } },
         },
-        (predictions, status) => {
-          setLoading(false);
-          if (
-            status === google.maps.places.PlacesServiceStatus.OK &&
-            predictions
-          ) {
-            setPredictions(
-              predictions.map((prediction) => ({
-                place_id: prediction.place_id,
-                description: prediction.description,
-                structured_formatting: {
-                  main_text: prediction.structured_formatting.main_text,
-                  secondary_text:
-                    prediction.structured_formatting.secondary_text,
-                },
-              })),
-            );
-          } else {
-            setPredictions([]);
-            if (
-              status !== google.maps.places.PlacesServiceStatus.ZERO_RESULTS
-            ) {
-              setError(`Error fetching predictions: ${status}`);
-            }
-          }
-        },
-      );
-    } else {
-      setPredictions([]);
-    }
-  };
+    });
 
-  // Handle selecting a business from predictions
-  const handleBusinessSelect = async (prediction: PlacePrediction) => {
-    setPredictions([]);
-    setLoading(true);
-    setError(null);
+    const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
 
-    try {
-      // Create a dummy div for PlacesService (required by Google Maps)
-      const placesDiv = document.createElement("div");
-      const placesService = new google.maps.places.PlacesService(placesDiv);
-
-      const result = await new Promise<google.maps.places.PlaceResult>((resolve, reject) => {
-        placesService.getDetails(
-          {
-            placeId: prediction.place_id,
-            fields: [
-              'name',
-              'formatted_address',
-              'formatted_phone_number',
-              'website',
-              'type',
-              'address_components'
-            ],
-          },
-          (place, status) => {
-            if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {
-              reject(new Error(`Places API error: ${status}`));
-              return;
-            }
-            resolve(place);
-          },
-        );
-      });
-
-      // Determine business type from place types
-      let businessType = 'other';
-      if (result.types) {
-        if (result.types.includes('restaurant')) businessType = 'restaurant';
-        else if (result.types.includes('store')) businessType = 'retail';
-        else if (result.types.includes('school')) businessType = 'education';
-        else if (result.types.includes('hospital')) businessType = 'healthcare';
-      }
-
-      setFormData((prev) => ({
-        ...prev,
-        businessName: result.name || prediction.structured_formatting.main_text,
-        businessType,
-        locationName: result.name || prediction.structured_formatting.main_text,
-        address: result.formatted_address || prediction.structured_formatting.secondary_text,
-        phone: result.formatted_phone_number || '',
-        website: result.website || '',
-      }));
-
-      // Extract and set address components
-      result.address_components?.forEach((component) => {
-        const types = component.types;
-        if (types.includes('locality')) {
-          setFormData(prev => ({ ...prev, city: component.long_name }));
-        } else if (types.includes('administrative_area_level_1')) {
-          setFormData(prev => ({ ...prev, state: component.short_name }));
-        } else if (types.includes('postal_code')) {
-          setFormData(prev => ({ ...prev, zipCode: component.long_name }));
-        } else if (types.includes('country')) {
-          setFormData(prev => ({ ...prev, country: component.short_name }));
+    const validateField = (name: string, value: string) => {
+        switch (name) {
+            case 'businessName':
+                return value.length < 2 ? 'Business name must be at least 2 characters' : '';
+            case 'businessType':
+                return !value ? 'Please select a business type' : '';
+            case 'email':
+                return !value.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/) ? 'Please enter a valid email' : '';
+            case 'phone':
+                return !value.match(/^\+?[\d\s-()]*$/) ? 'Please enter a valid phone number' : '';
+            case 'website':
+                return value && !value.match(/^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/)
+                    ? 'Please enter a valid URL' : '';
+            case 'apiKey':
+                return value.trim().length === 0 ? "API Key is required" : "";
+            default:
+                return !value ? `${name} is required` : '';
         }
-      });
+    };
 
-    } catch (error) {
-      console.error('Error fetching business details:', error);
-      setError('Failed to fetch business details. Please try entering information manually.');
-      toast({
-        title: "Error",
-        description: "Failed to fetch business details. Please try entering information manually.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+        const error = validateField(name, value);
+        setFieldErrors(prev => ({ ...prev, [name]: error }));
+    };
 
-  const handleFeatureToggle = (feature: keyof FeatureDetails) => {
-    setFormData((prev) => ({
-      ...prev,
-      features: {
-        ...prev.features,
-        [feature]: {
-          ...prev.features[feature],
-          enabled: !prev.features[feature].enabled,
-        },
-      },
-    }));
-  };
+    const handleSelectChange = (name: string, value: string) => {
+        setFormData(prev => ({ ...prev, [name]: value }));
+        const error = validateField(name, value);
+        setFieldErrors(prev => ({ ...prev, [name]: error }));
+    };
 
-  const handleFeatureDetailChange = (
-    feature: string,
-    field: keyof FeatureDetail,
-    value: string,
-  ) => {
-    setFormData((prev) => ({
-      ...prev,
-      features: {
-        ...prev.features,
-        [feature]: {
-          ...prev.features[feature],
-          details: {
-            ...prev.features[feature].details,
-            [field]: value,
-          },
-        },
-      },
-    }));
-  };
+    const handleFeatureToggle = (feature: string) => {
+        setFormData(prev => ({
+            ...prev,
+            features: {
+                ...prev.features,
+                [feature]: {
+                    ...prev.features[feature as keyof typeof prev.features],
+                    enabled: !prev.features[feature as keyof typeof prev.features].enabled
+                }
+            }
+        }));
+    };
 
-  const validateField = (name: string, value: string): string => {
-    switch (name) {
-      case "businessName":
-        return value.trim().length === 0 ? "Business name is required" : "";
-      case "businessType":
-        return value.trim().length === 0 ? "Business type is required" : "";
-      case "locationName":
-        return value.trim().length === 0 ? "Location name is required" : "";
-      case "address":
-        return value.trim().length === 0 ? "Address is required" : "";
-      case "city":
-        return value.trim().length === 0 ? "City is required" : "";
-      case "state":
-        return value.trim().length === 0 ? "State is required" : "";
-      case "zipCode":
-        return value.trim().length === 0 ? "ZIP code is required" : "";
-      case "country":
-        return value.trim().length === 0 ? "Country is required" : "";
-      case "phone":
-        const phoneRegex = /^\+?\d{10,}$/;
-        return !phoneRegex.test(value.replace(/\D/g, ""))
-          ? "Please enter a valid phone number"
-          : "";
-      case "email":
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return !emailRegex.test(value)
-          ? "Please enter a valid email address"
-          : "";
-      case "website":
-        if (!value) return "";
-        const websiteRegex =
-          /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/;
-        return !websiteRegex.test(value)
-          ? "Please enter a valid website URL"
-          : "";
-      case "aiProvider":
-        return value.trim().length === 0 ? "Please select an AI provider" : "";
-      default:
-        return "";
-    }
-  };
+    const handleFeatureDetailChange = (feature: string, field: string, value: string) => {
+        setFormData(prev => ({
+            ...prev,
+            features: {
+                ...prev.features,
+                [feature]: {
+                    ...prev.features[feature as keyof typeof prev.features],
+                    details: {
+                        ...prev.features[feature as keyof typeof prev.features].details,
+                        [field]: value
+                    }
+                }
+            }
+        }));
+    };
 
-  const isStepValid = () => {
-    switch (currentStep) {
-      case 0:
-        return (
-          !validateField("businessName", formData.businessName) &&
-          !validateField("businessType", formData.businessType)
-        );
-      case 1:
-        return (
-          !validateField("locationName", formData.locationName) &&
-          !validateField("address", formData.address)
-        );
-      case 2:
-        return (
-          !validateField("phone", formData.phone) &&
-          !validateField("email", formData.email) &&
-          !validateField("website", formData.website)
-        );
-      case 3:
-        return !validateField("aiProvider", formData.aiProvider);
-      case 4:
-        return true; // Features are optional
-      case 5:
-        return true; // Review step is always valid
-      default:
-        return false;
-    }
-  };
+    const isStepValid = () => {
+        switch (currentStep) {
+            case 0:
+                return !validateField("businessName", formData.businessName) &&
+                    !validateField("businessType", formData.businessType);
+            case 1:
+                return !validateField("locationName", formData.locationName) &&
+                    !validateField("address", formData.address) &&
+                    !validateField("city", formData.city) &&
+                    !validateField("state", formData.state) &&
+                    !validateField("zipCode", formData.zipCode) &&
+                    !validateField("country", formData.country);
+            case 2:
+                return !validateField("phone", formData.phone) &&
+                    !validateField("email", formData.email) &&
+                    !validateField("website", formData.website);
+            case 3:
+                return !validateField("aiProvider", formData.aiProvider) && 
+                       !validateField("apiKey", formData.apiKey);
+            case 4:
+                return true; // Features are optional
+            case 5:
+                return true; // Review step is always valid
+            default:
+                return false;
+        }
+    };
 
-  const handleNext = () => {
-    if (currentStep < steps.length - 1 && isStepValid()) {
-      setCurrentStep((prev) => prev + 1);
-    }
-  };
+    const { toast } = useToast();
+    const handleSubmit = async () => {
+        setIsLoading(true);
+        try {
+            const blueprintId = formData.blueprintId || uuidv4();
+            const blueprintData = {
+                id: blueprintId,
+                name: formData.businessName,
+                category: formData.businessType,
+                address: formData.address,
+                city: formData.city,
+                state: formData.state,
+                zipCode: formData.zipCode,
+                country: formData.country,
+                phoneNumber: formData.phone,
+                contactEmail: formData.email,
+                websiteURL: formData.website,
+                aiProvider: formData.aiProvider,
+                apiKey: formData.apiKey,
+                createdDate: new Date(),
+                features: formData.features,
+                host: auth.currentUser?.uid || '',
+                numSessions: 0,
+                storage: 0,
+                isPrivate: false,
+                userCount: 0,
+                connectedTime: 0,
+                locationName: formData.locationName,
+                anchorIDs: [],
+                objectIDs: [],
+                portalIDs: [],
+                photoIDs: [],
+                noteIDs: [],
+                fileIDs: [],
+                widgetIDs: [],
+                users: [],
+                goals: {},
+                frameImageURLs: [],
+                aiAnalysisData: {},
+                spatialGraph: {},
+                planeAnchorDescriptions: '',
+                descriptionText: '',
+                dimensions: {},
+                actions: [],
+                openingHours: [],
+            };
 
-  const handlePrevious = () => {
-    if (currentStep > 0) {
-      setCurrentStep((prev) => prev - 1);
-    }
-  };
+            // Save to Firestore
+            const blueprintRef = doc(db, 'blueprints', blueprintData.id);
+            await setDoc(blueprintRef, blueprintData);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (currentStep === steps.length - 1) {
-      setIsLoading(true);
-      try {
-        const blueprintId = Date.now().toString();
-        const blueprintData = {
-          id: blueprintId,
-          ...formData,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
+            // Update user's createdBlueprintIds
+            if (auth.currentUser) {
+                const userRef = doc(db, 'users', auth.currentUser.uid);
+                await updateDoc(userRef, {
+                    createdBlueprintIds: arrayUnion(blueprintData.id)
+                });
+            }
 
-        // Store blueprint data in localStorage
-        const existingBlueprints = JSON.parse(
-          localStorage.getItem("blueprints") || "[]",
-        );
-        localStorage.setItem(
-          "blueprints",
-          JSON.stringify([...existingBlueprints, blueprintData]),
-        );
+            toast({
+                title: "Success",
+                description: "Blueprint created successfully!",
+                variant: "default",
+            });
 
-        toast({
-          title: "Blueprint Created Successfully!",
-          description: "You can now customize your Blueprint in the editor.",
-        });
+            // Redirect to dashboard
+            setLocation('/dashboard');
+        } catch (error: any) {
+            console.error('Error creating blueprint:', error);
+            toast({
+                title: "Error",
+                description: "Failed to create blueprint. Please try again.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-        // Store blueprintId in state for navigation
-        setFormData((prev) => ({ ...prev, blueprintId }));
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to create Blueprint. Please try again.",
-          variant: "destructive",
-        });
-        console.error("Error creating blueprint:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    } else {
-      handleNext();
-    }
-  };
-
-  const renderInputField = (
-    name: string,
-    label: string,
-    type: string = "text",
-    placeholder: string = "",
-  ) => (
-    <div className="space-y-2">
-      <Label htmlFor={name}>{label}</Label>
-      <Input
-        id={name}
-        name={name}
-        type={type}
-        value={formData[name as keyof FormData]}
-        onChange={handleInputChange}
-        placeholder={placeholder}
-        className={cn(
-          "w-full",
-          fieldErrors[name] && "border-red-500 focus-visible:ring-red-500"
-        )}
-      />
-      {fieldErrors[name] && (
-        <p className="text-sm text-red-500 mt-1">{fieldErrors[name]}</p>
-      )}
-    </div>
-  );
-
-  const renderStep = () => {
-    switch (currentStep) {
-      case 0:
-        return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="businessName">Business Name</Label>
-              <div className="relative">
-                <Input
-                  id="businessName"
-                  name="businessName"
-                  value={formData.businessName}
-                  onChange={handleInputChange}
-                  placeholder="Enter your business name"
-                  className={cn(
-                    "w-full",
-                    fieldErrors.businessName && "border-red-500 focus-visible:ring-red-500"
-                  )}
-                />
-                {fieldErrors.businessName && (
-                  <p className="text-sm text-red-500 mt-1">{fieldErrors.businessName}</p>
-                )}
-                {predictions.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white rounded-md border shadow-lg max-h-60 overflow-auto">
-                    <ul className="py-1">
-                      {predictions.map((prediction) => (
-                        <li
-                          key={prediction.place_id}
-                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                          onClick={() => handleBusinessSelect(prediction)}
+    const renderStep = () => {
+        switch (currentStep) {
+            case 5:
+                return (
+                    <div className="space-y-6">
+                        <h2 className="text-2xl font-bold">Review Your Blueprint</h2>
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                            <pre className="whitespace-pre-wrap">
+                                {JSON.stringify(formData, null, 2)}
+                            </pre>
+                        </div>
+                        <p className="text-gray-600">
+                            Please review your Blueprint details above. If everything looks correct, click 'Create Blueprint' to submit.
+                        </p>
+                        <Button
+                            className="w-full"
+                            onClick={handleSubmit}
+                            disabled={isLoading}
                         >
-                          <div className="font-medium">
-                            {prediction.structured_formatting.main_text}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {prediction.structured_formatting.secondary_text}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="businessType">Business Type</Label>
-              <Select
-                name="businessType"
-                value={formData.businessType}
-                onValueChange={(value) =>
-                  handleInputChange({ target: { name: "businessType", value } })
-                }
-              >
-                <SelectTrigger className={cn(
-                  fieldErrors.businessType && "border-red-500 focus-visible:ring-red-500"
-                )}>
-                  <SelectValue placeholder="Select business type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {businessTypes.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {fieldErrors.businessType && (
-                <p className="text-sm text-red-500 mt-1">{fieldErrors.businessType}</p>
-              )}
-            </div>
-          </div>
-        );
-      case 1:
-        return (
-          <div className="space-y-4">
-            {renderInputField("locationName", "Location Name", "text", "Enter location name")}
-            {renderInputField("address", "Address", "text", "Enter street address")}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="country">Country</Label>
-                <Select
-                  name="country"
-                  value={formData.country}
-                  onValueChange={(value) => {
-                    handleInputChange({ target: { name: "country", value } });
-                    handleInputChange({ target: { name: "state", value: "" } });
-                  }}
-                >
-                  <SelectTrigger 
-                    className={cn(
-                      fieldErrors.country && "border-red-500 focus-visible:ring-red-500"
-                    )}
-                  >
-                    <SelectValue placeholder="Select country" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {countries.map((country) => (
-                      <SelectItem key={country.value} value={country.value}>
-                        {country.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {fieldErrors.country && (
-                  <p className="text-sm text-red-500 mt-1">{fieldErrors.country}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="state">State/Province</Label>
-                <Select
-                  name="state"
-                  value={formData.state}
-                  onValueChange={(value) =>
-                    handleInputChange({ target: { name: "state", value } })
-                  }
-                  disabled={!formData.country}
-                >
-                  <SelectTrigger 
-                    className={cn(
-                      fieldErrors.state && "border-red-500 focus-visible:ring-red-500"
-                    )}
-                  >
-                    <SelectValue placeholder="Select state" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {formData.country && states[formData.country as keyof typeof states]?.map((state) => (
-                      <SelectItem key={state.value} value={state.value}>
-                        {state.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {fieldErrors.state && (
-                  <p className="text-sm text-red-500 mt-1">{fieldErrors.state}</p>
-                )}
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              {renderInputField("zipCode", "ZIP/Postal Code")}
-              {renderInputField("country", "Country")}
-            </div>
-          </div>
-        );
-      case 2:
-        return (
-          <div className="space-y-4">
-            {renderInputField("phone", "Phone Number")}
-            {renderInputField("email", "Email Address", "email")}
-            {renderInputField("website", "Website", "url")}
-          </div>
-        );
-      case 3:
-        return (
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="aiProvider">AI Assistant Provider</Label>
-              <Select
-                name="aiProvider"
-                onValueChange={(value) =>
-                  handleInputChange({ target: { name: "aiProvider", value } })
-                }
-              >
-                <SelectTrigger className={cn(
-                  fieldErrors.aiProvider && "border-red-500 focus-visible:ring-red-500"
-                )}>
-                  <SelectValue placeholder="Select AI provider" />
-                </SelectTrigger>
-                <SelectContent>
-                  {aiProviders.map((provider) => (
-                    <SelectItem key={provider.value} value={provider.value}>
-                      {provider.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {fieldErrors.aiProvider && (
-                <p className="text-sm text-red-500 mt-1">{fieldErrors.aiProvider}</p>
-              )}
-            </div>
-            {renderInputField("apiKey", "API Key", "password", "Enter your AI provider API key OR Allow us to create one for you (takes ~1 min)")}
-          </div>
-        );
-      case 4:
-        return (
-          <div className="space-y-4">
-            <Label>Select Blueprint Features</Label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Object.entries(formData.features).map(
-                ([feature, { enabled }]) => (
-                  <div key={feature} className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id={feature}
-                        checked={enabled}
-                        onChange={() => handleFeatureToggle(feature)}
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                      />
-                      <Label htmlFor={feature} className="select-none">
-                        {feature.split(/(?=[A-Z])/).join(" ")}
-                      </Label>
+                            {isLoading ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Creating Blueprint...
+                                </>
+                            ) : (
+                                'Create Blueprint'
+                            )}
+                        </Button>
                     </div>
-                    {enabled && (
-                      <div className="ml-6 space-y-2">
-                        {feature === "personalizedRecommendations" && (
-                          <div>
-                            <Label htmlFor={`${feature}-crm`}>
-                              Provide Blueprint / Floor Plan OR Scan
-                            </Label>
+                );
+            case 0:
+                return (
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="businessName">Business Name</Label>
                             <Input
-                              id={`${feature}-crm`}
-                              value={
-                                formData.features[feature].details.crm || ""
-                              }
-                              onChange={(e) =>
-                                handleFeatureDetailChange(
-                                  feature,
-                                  "crm",
-                                  e.target.value,
-                                )
-                              }
-                              placeholder="Upload Blueprint / Floor Plan OR Scan Your Location"
+                                id="businessName"
+                                name="businessName"
+                                value={formData.businessName}
+                                onChange={handleInputChange}
+                                placeholder="Enter your business name"
+                                className={cn(
+                                    "w-full",
+                                    fieldErrors.businessName && "border-red-500 focus-visible:ring-red-500"
+                                )}
                             />
-                          </div>
-                        )}
-                        {feature === "virtualTours" && (
-                          <div>
-                            <Label htmlFor={`${feature}-tourUrl`}>
-                              Virtual Tour URL
-                            </Label>
+                            {fieldErrors.businessName && (
+                                <p className="text-sm text-red-500 mt-1">{fieldErrors.businessName}</p>
+                            )}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="businessType">Business Type</Label>
+                            <Select
+                                name="businessType"
+                                value={formData.businessType}
+                                onValueChange={(value) => handleSelectChange("businessType", value)}
+                            >
+                                <SelectTrigger className={cn(
+                                    fieldErrors.businessType && "border-red-500 focus-visible:ring-red-500"
+                                )}>
+                                    <SelectValue placeholder="Select business type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="restaurant">Restaurant</SelectItem>
+                                    <SelectItem value="retail">Retail</SelectItem>
+                                    <SelectItem value="service">Service</SelectItem>
+                                    <SelectItem value="hotel">Hotel</SelectItem>
+                                    <SelectItem value="other">Other</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            {fieldErrors.businessType && (
+                                <p className="text-sm text-red-500 mt-1">{fieldErrors.businessType}</p>
+                            )}
+                        </div>
+                    </div>
+                );
+            case 1:
+                return (
+                    <div className="space-y-4">
+                        <Input
+                            id="locationName"
+                            name="locationName"
+                            type="text"
+                            placeholder="Enter location name"
+                            value={formData.locationName}
+                            onChange={handleInputChange}
+                        />
+                        <Input
+                            id="address"
+                            name="address"
+                            type="text"
+                            placeholder="Enter street address"
+                            value={formData.address}
+                            onChange={handleInputChange}
+                        />
+                        <div className="grid grid-cols-2 gap-4">
                             <Input
-                              id={`${feature}-tourUrl`}
-                              value={
-                                formData.features[feature].details.tourUrl || ""
-                              }
-                              onChange={(e) =>
-                                handleFeatureDetailChange(
-                                  feature,
-                                  "tourUrl",
-                                  e.target.value,
-                                )
-                              }
-                              placeholder="Provide virtual tour URL"
+                                id="city"
+                                name="city"
+                                type="text"
+                                placeholder="City"
+                                value={formData.city}
+                                onChange={handleInputChange}
                             />
-                          </div>
-                        )}
-                        {feature === "loyaltyProgram" && (
-                          <div>
-                            <Label htmlFor={`${feature}-programDetails`}>
-                              Loyalty Program Details
-                            </Label>
-                            <Textarea
-                              id={`${feature}-programDetails`}
-                              value={
-                                formData.features[feature].details
-                                  .programDetails || ""
-                              }
-                              onChange={(e) =>
-                                handleFeatureDetailChange(
-                                  feature,
-                                  "programDetails",
-                                  e.target.value,
-                                )
-                              }
-                              placeholder="Enter loyalty program details"
+                            <Input
+                                id="state"
+                                name="state"
+                                type="text"
+                                placeholder="State/Province"
+                                value={formData.state}
+                                onChange={handleInputChange}
                             />
-                          </div>
-                        )}
-                        {feature === "arVisualizations" && (
-                          <div>
-                            <Label htmlFor={`${feature}-arModelUrls`}>
-                              AR Model URLs
-                            </Label>
-                            <Textarea
-                              id={`${feature}-arModelUrls`}
-                              value={
-                                formData.features[feature].details
-                                  .arModelUrls || ""
-                              }
-                              onChange={(e) =>
-                                handleFeatureDetailChange(
-                                  feature,
-                                  "arModelUrls",
-                                  e.target.value,
-                                )
-                              }
-                              placeholder="Enter AR model URLs (one per line)"
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <Input
+                                id="zipCode"
+                                name="zipCode"
+                                type="text"
+                                placeholder="ZIP/Postal Code"
+                                value={formData.zipCode}
+                                onChange={handleInputChange}
                             />
-                          </div>
+                            <Input
+                                id="country"
+                                name="country"
+                                type="text"
+                                placeholder="Country"
+                                value={formData.country}
+                                onChange={handleInputChange}
+                            />
+                        </div>
+                    </div>
+                );
+            case 2:
+                return (
+                    <div className="space-y-4">
+                        <Input
+                            id="phone"
+                            name="phone"
+                            type="text"
+                            placeholder="Phone Number"
+                            value={formData.phone}
+                            onChange={handleInputChange}
+                        />
+                        <Input
+                            id="email"
+                            name="email"
+                            type="email"
+                            placeholder="Email Address"
+                            value={formData.email}
+                            onChange={handleInputChange}
+                        />
+                        <Input
+                            id="website"
+                            name="website"
+                            type="url"
+                            placeholder="Website"
+                            value={formData.website}
+                            onChange={handleInputChange}
+                        />
+                    </div>
+                );
+            case 3:
+                return (
+                    <div className="space-y-4">
+                        <Select
+                            name="aiProvider"
+                            value={formData.aiProvider}
+                            onValueChange={(value) => handleSelectChange("aiProvider", value)}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select AI Provider" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="openai">OpenAI</SelectItem>
+                                <SelectItem value="anthropic">Anthropic</SelectItem>
+                                <SelectItem value="google">Google AI</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Input
+                            id="apiKey"
+                            name="apiKey"
+                            type="password"
+                            placeholder="Enter API Key"
+                            value={formData.apiKey}
+                            onChange={handleInputChange}
+                        />
+                        {fieldErrors.apiKey && (
+                            <p className="text-sm text-red-500">{fieldErrors.apiKey}</p>
                         )}
-                      </div>
-                    )}
-                  </div>
-                ),
-              )}
-            </div>
-          </div>
-        );
-      case 5:
-        return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Review Your Blueprint</h3>
-            <div className="bg-gray-100 p-4 rounded-lg">
-              <pre className="whitespace-pre-wrap">
-                {JSON.stringify(formData, null, 2)}
-              </pre>
-            </div>
-            <p className="text-sm text-gray-600">
-              Please review your Blueprint details above. If everything looks
-              correct, click 'Complete Setup' to submit.
-            </p>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
+                    </div>
+                );
+            case 4:
+                return (
+                    <div className="space-y-6">
+                        {Object.entries(formData.features).map(([feature, value]) => (
+                            <div key={feature} className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor={feature}>{feature.replace(/([A-Z])/g, ' $1').trim()}</Label>
+                                    <Button
+                                        type="button"
+                                        variant={value.enabled ? "default" : "outline"}
+                                        onClick={() => handleFeatureToggle(feature)}
+                                    >
+                                        {value.enabled ? 'Enabled' : 'Disabled'}
+                                    </Button>
+                                </div>
+                                {value.enabled && (
+                                    <Textarea
+                                        id={`${feature}-details`}
+                                        value={Object.values(value.details)[0]}
+                                        onChange={(e) => handleFeatureDetailChange(
+                                            feature,
+                                            Object.keys(value.details)[0],
+                                            e.target.value
+                                        )}
+                                        placeholder={`Enter ${feature} details...`}
+                                    />
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                );
+            default:
+                return null;
+        }
+    };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-100 to-white py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-4xl font-bold text-center text-blue-900 mb-8">
-          Create Your Blueprint
-        </h1>
-        <div className="bg-white shadow-xl rounded-lg overflow-hidden">
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-8">
-              {steps.map((step, index) => (
-                <div
-                  key={step.id}
-                  className={`flex flex-col items-center ${
-                    index <= currentStep ? "text-blue-600" : "text-gray-400"
-                  }`}
-                >
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      index <= currentStep
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-200"
-                    }`}
-                  >
-                    {index < currentStep ? (
-                      <Check className="w-6 h-6" />
-                    ) : (
-                      <step.icon className="w-6 h-6" />
-                    )}
-                  </div>
-                  <span className="text-xs mt-2">{step.title}</span>
+    return (
+        <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12">
+            <div className="container mx-auto px-4">
+                <h1 className="text-3xl font-bold text-center mb-8">Create Your Blueprint</h1>
+                <div className="flex justify-center mb-8">
+                    <div className="flex items-center">
+                        {steps.map((step, index) => {
+                            const StepIcon = step.icon;
+                            const isCompleted = index < currentStep;
+                            const isCurrent = index === currentStep;
+                            
+                            return (
+                                <div key={index} className="flex items-center">
+                                    <div
+                                        className={cn(
+                                            "rounded-full p-2",
+                                            isCompleted ? "bg-blue-500" :
+                                            isCurrent ? "bg-blue-500" : "bg-gray-200"
+                                        )}
+                                    >
+                                        <StepIcon className={cn(
+                                            "w-6 h-6",
+                                            isCompleted || isCurrent ? "text-white" : "text-gray-500"
+                                        )} />
+                                    </div>
+                                    {index < steps.length - 1 && (
+                                        <div className={cn(
+                                            "w-20 h-1 mx-2",
+                                            index < currentStep ? "bg-blue-500" : "bg-gray-200"
+                                        )} />
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
-              ))}
+                <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
+                    <motion.div
+                        key={currentStep}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        {renderStep()}
+                    </motion.div>
+                    <div className="flex justify-between mt-8">
+                        <Button
+                            variant="outline"
+                            onClick={() => setCurrentStep(prev => prev - 1)}
+                            disabled={currentStep === 0}
+                        >
+                            Previous
+                        </Button>
+                        {currentStep < steps.length - 1 ? (
+                            <Button
+                                onClick={() => setCurrentStep(prev => prev + 1)}
+                                disabled={!isStepValid()}
+                            >
+                                Next
+                            </Button>
+                        ) : null}
+                    </div>
+                </div>
             </div>
-            <form onSubmit={handleSubmit}>
-              <motion.div
-                key={currentStep}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-                {renderStep()}
-              </motion.div>
-              <div className="mt-8 flex justify-between">
-                <Button
-                  type="button"
-                  onClick={handlePrevious}
-                  disabled={currentStep === 0}
-                  variant="outline"
-                >
-                  Previous
-                </Button>
-                {currentStep < steps.length - 1 ? (
-                  <Button
-                    type="button"
-                    onClick={handleNext}
-                    disabled={!isStepValid()}
-                  >
-                    Next
-                    <ChevronRight className="w-4 h-4 ml-2" />
-                  </Button>
-                ) : (
-                  <Button type="submit" disabled={!isStepValid()}>
-                    Create Blueprint
-                  </Button>
-                )}
-              </div>
-            </form>
-          </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 }

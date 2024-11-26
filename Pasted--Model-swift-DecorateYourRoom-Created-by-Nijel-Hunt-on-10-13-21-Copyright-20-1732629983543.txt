@@ -1,0 +1,389 @@
+//
+//  Model.swift
+//  DecorateYourRoom
+//
+//  Created by Nijel Hunt on 10/13/21.
+//  Copyright © 2021 Placenote. All rights reserved.
+//
+import Foundation
+import UIKit
+import FirebaseFirestore
+
+public class Blueprint: Identifiable {
+    static let GEOHASH       = "geohash"
+    
+    var latitude          : Double?// = ""
+    var longitude          : Double?// = ""
+    var altitude          : Double?
+    public var id             : String = ""
+    var host      : String = ""
+    var name            : String = ""
+    var address: String = ""
+    var category: String = ""
+    var size            : Double = 0
+    var numSessions     : Int = 0
+    var password       : String = ""
+    var storage       : Double = 0
+    var thumbnail       : String? = nil
+    var isPrivate        : Bool?
+    var createdDate       = Date()
+    var websiteURL: String = ""
+    var phoneNumber: String = ""
+    var openingHours: [String] = []
+    var connectedTime: TimeInterval = 0
+    var photoLimit       : Double = 0
+    var noteLimit       : Double = 0
+    var objectLimit       : Double = 0
+    var widgetLimit       : Double = 0
+    var portalLimit       : Double = 0
+    var websiteLimit       : Double = 0
+    var fileLimit       : Double = 0
+    var userCount     : Int = 0
+    var photoCount      : Double = 0
+    var noteCount       : Double = 0
+    var widgetCount       : Double = 0
+    var objectCount       : Double = 0
+    var portalCount       : Double = 0
+    var fileCount       : Double = 0
+    var websiteCount       : Double = 0
+    var menuURL: String = ""
+    // Add properties for other features' URLs
+        var checkInURL: String = ""
+        var orderURL: String = ""
+        var specialsURL: String = ""
+        var reviewsURL: String = ""
+        var hotelRoomServiceURL: String = ""
+        var hotelCheckInOutURL: String = ""
+        var hotelRoomControlURL: String = ""
+    var contactEmail: String = ""
+
+    var lastSessionDate       = Date()
+
+    private(set) var goals    = [String: Bool]()
+    
+//    private(set) var roomIDs    = [String]()
+    private(set) var anchorIDs    = [String]()
+    private(set) var websiteURLs    = [URL]()
+    private(set) var objectIDs    = [String]()
+    private(set) var portalIDs    = [String]()
+    private(set) var noteIDs    = [String]()
+    private(set) var photoIDs    = [String]()
+    private(set) var fileIDs    = [String]()
+    private(set) var widgetIDs    = [String]()
+    private(set) var users    = [String]()
+  //  private(set) var currentUsers    = [String]()
+    //    var price          : String = ""
+    //   var timeStamp : Date()
+    
+    // Frames and Semantic Data
+       var frameImageURLs: [String] = []
+       var aiAnalysisData: [String: Any] = [:]
+       
+       // Spatial Graph
+       var spatialGraph: SpatialGraph = SpatialGraph()
+    
+    // Other Properties from Room
+        var planeAnchorDescriptions = ""
+        var descriptionText: String = ""
+        var dimensions: [String: Double] = [:]
+        var lastModifiedDate = Date()
+        var actions: [RoomAction] = []
+    
+    static let CREATOR         = "host"
+    
+    init() {
+        
+        if let latitude = ["latitude"] as? Double {
+            self.latitude = latitude
+        }
+        
+        if let longitude = ["longitude"] as? Double {
+            self.longitude = longitude
+        }
+    }
+    
+    init(_ userFirDoc: [String:Any]) {
+        
+        // uid
+        if let id = userFirDoc["id"] as? String {
+            self.id = id
+        }
+        
+        // name
+        if let name = userFirDoc["name"] as? String {
+            self.name = name
+        }
+        
+        if let password = userFirDoc["password"] as? String {
+            self.password = password
+        }
+        
+        if let category = userFirDoc["category"] as? String {
+            self.category = category
+        }
+        
+        // emailStr
+        if let host = userFirDoc["host"] as? String {
+            self.host = host
+        }
+        
+        if let portalLimit = userFirDoc["portalLimit"] as? Double {
+            self.portalLimit = portalLimit
+        }
+        
+        if let objectLimit = userFirDoc["objectLimit"] as? Double {
+            self.objectLimit = objectLimit
+        }
+        
+        if let fileLimit = userFirDoc["fileLimit"] as? Double {
+            self.fileLimit = fileLimit
+        }
+        
+        if let photoLimit = userFirDoc["photoLimit"] as? Double {
+            self.photoLimit = photoLimit
+        }
+        
+        if let noteLimit = userFirDoc["noteLimit"] as? Double {
+            self.noteLimit = noteLimit
+        }
+        
+        if let widgetLimit = userFirDoc["widgetLimit"] as? Double {
+            self.widgetLimit = widgetLimit
+        }
+        
+        if let websiteLimit = userFirDoc["websiteLimit"] as? Double {
+            self.websiteLimit = websiteLimit
+        }
+        
+        if let portalCount = userFirDoc["portalCount"] as? Double {
+            self.portalCount = portalCount
+        }
+        
+        if let fileCount = userFirDoc["fileCount"] as? Double {
+            self.fileCount = fileCount
+        }
+        
+        if let websiteCount = userFirDoc["websiteCount"] as? Double {
+            self.websiteCount = websiteCount
+        }
+        
+        if let widgetCount = userFirDoc["widgetCount"] as? Double {
+            self.widgetCount = widgetCount
+        }
+        
+        if let objectCount = userFirDoc["objectCount"] as? Double {
+            self.objectCount = objectCount
+        }
+        
+        if let photoCount = userFirDoc["photoCount"] as? Double {
+            self.photoCount = photoCount
+        }
+        
+        if let noteCount = userFirDoc["noteCount"] as? Double {
+            self.noteCount = noteCount
+        }
+        
+        if let storage = userFirDoc["storage"] as? Double {
+            self.storage = storage
+        }
+        
+//        if let date = userFirDoc["date"] as? Date {
+//            self.date = date
+//        }
+        
+        if let timestamp = userFirDoc["createdDate"] as? Timestamp {
+                self.createdDate = timestamp.dateValue()
+            }
+        
+        if let timestamp = userFirDoc["lastSessionDate"] as? Timestamp {
+                self.lastSessionDate = timestamp.dateValue()
+            }
+        
+        //usernameStr
+        if let size = userFirDoc["size"] as? Double {
+            self.size = size
+        }
+        
+        if let isPrivate = userFirDoc["isPrivate"] as? Bool {
+            self.isPrivate = isPrivate
+        }
+        
+        if let thumbnail = userFirDoc["thumbnail"] as? String {
+            self.thumbnail = thumbnail
+        }
+        
+        if let websiteURL = userFirDoc["websiteURL"] as? String {
+            self.websiteURL = websiteURL
+        }
+        
+        if let menuURL = userFirDoc["menuURL"] as? String {
+            self.menuURL = menuURL
+        }
+        
+        if let checkInURL = userFirDoc["checkInURL"] as? String {
+            self.checkInURL = checkInURL
+        }
+        
+        if let orderURL = userFirDoc["orderURL"] as? String {
+            self.orderURL = orderURL
+        }
+        
+        if let specialsURL = userFirDoc["specialsURL"] as? String {
+            self.specialsURL = specialsURL
+        }
+        
+        if let reviewsURL = userFirDoc["reviewsURL"] as? String {
+            self.reviewsURL = reviewsURL
+        }
+        
+        if let phoneNumber = userFirDoc["phoneNumber"] as? String {
+            self.phoneNumber = phoneNumber
+        }
+        
+        if let openingHours = userFirDoc["openingHours"] as? [String] {
+            self.openingHours = openingHours
+        }
+        
+        if let hotelCheckInOutURL = userFirDoc["hotelCheckInOutURL"] as? String {
+            self.hotelCheckInOutURL = hotelCheckInOutURL
+        }
+        
+        if let hotelRoomServiceURL = userFirDoc["hotelRoomServiceURL"] as? String {
+            self.hotelRoomServiceURL = hotelRoomServiceURL
+        }
+        
+        if let hotelRoomControlURL = userFirDoc["hotelRoomControlURL"] as? String {
+            self.hotelRoomControlURL = hotelRoomControlURL
+        }
+        
+        if let address = userFirDoc["address"] as? String {
+            self.address = address
+        }
+        
+        if let latitude = userFirDoc["latitude"] as? Double {
+            self.latitude = latitude
+        }
+        
+        if let longitude = userFirDoc["longitude"] as? Double {
+            self.longitude = longitude
+        }
+        
+        if let altitude = userFirDoc["altitude"] as? Double {
+            self.altitude = altitude
+        }
+        
+        if let connectedTime = userFirDoc["connectedTime"] as? TimeInterval {
+            self.connectedTime = connectedTime
+        }
+        
+        if let numSessions = userFirDoc["numSessions"] as? Int {
+            self.numSessions = numSessions
+        }
+        
+        if let userCount = userFirDoc["userCount"] as? Int {
+            self.userCount = userCount
+        }
+        
+        if let users = userFirDoc["users"] as? [String] {
+            self.users = users
+        }
+        
+        if let goals = userFirDoc["goals"] as? [String: Bool] {
+            self.goals = goals
+        }
+        
+        if let anchorIDs = userFirDoc["anchorIDs"] as? [String] {
+            self.anchorIDs = anchorIDs
+        }
+        
+        
+        if let objectIDs = userFirDoc["objectIDs"] as? [String] {
+            self.objectIDs = objectIDs
+        }
+        
+        if let portalIDs = userFirDoc["portalIDs"] as? [String] {
+            self.portalIDs = portalIDs
+        }
+        
+        if let photoIDs = userFirDoc["photoIDs"] as? [String] {
+            self.photoIDs = photoIDs
+        }
+        
+        if let noteIDs = userFirDoc["noteIDs"] as? [String] {
+            self.noteIDs = noteIDs
+        }
+        
+        if let fileIDs = userFirDoc["fileIDs"] as? [String] {
+            self.fileIDs = fileIDs
+        }
+        
+        if let widgetIDs = userFirDoc["widgetIDs"] as? [String] {
+            self.widgetIDs = widgetIDs
+        }
+        
+        if let websiteURLs = userFirDoc["websiteURLs"] as? [URL] {
+            self.websiteURLs = websiteURLs
+        }
+        
+        // Frames and Semantic Data
+        if let frameImageURLs = userFirDoc["frameImageURLs"] as? [String] {
+            self.frameImageURLs = frameImageURLs
+        }
+        if let aiAnalysisData = userFirDoc["aiAnalysisData"] as? [String: Any] {
+            self.aiAnalysisData = aiAnalysisData
+        }
+        
+        // Spatial Graph
+        if let spatialGraphData = userFirDoc["spatialGraph"] as? [String: Any] {
+            self.spatialGraph = SpatialGraph(data: spatialGraphData)
+        }
+        
+        // Other Properties
+        if let planeAnchorDescriptions = userFirDoc["planeAnchorDescriptions"] as? String {
+            self.planeAnchorDescriptions = planeAnchorDescriptions
+        }
+        if let descriptionText = userFirDoc["description"] as? String {
+            self.descriptionText = descriptionText
+        }
+        
+        if let contactEmail = userFirDoc["contactEmail"] as? String {
+            self.contactEmail = contactEmail
+        }
+        
+        if let dimensions = userFirDoc["dimensions"] as? [String: Double] {
+            self.dimensions = dimensions
+        }
+        if let lastModifiedDate = userFirDoc["lastModifiedDate"] as? Timestamp {
+            self.lastModifiedDate = lastModifiedDate.dateValue()
+        }
+        if let actionsData = userFirDoc["actions"] as? [[String: Any]] {
+            self.actions = actionsData.map { RoomAction($0) }
+        }
+    }
+    
+    func toDictionary() -> [String: Any] {
+        var dict: [String: Any] = [
+            "id": id,
+            "name": name,
+            "address": address,
+            "latitude": latitude ?? 0.0,
+            "longitude": longitude ?? 0.0,
+            "websiteURL": websiteURL,
+            "openingHours": openingHours,
+            "menuURL": menuURL,
+            "phoneNumber": phoneNumber,
+            "contactEmail": contactEmail,
+            "checkInURL": checkInURL,
+            "orderURL": orderURL,
+            "specialsURL": specialsURL,
+            "reviewsURL": reviewsURL,
+            "hotelRoomServiceURL": hotelRoomServiceURL,
+            "hotelCheckInOutURL": hotelCheckInOutURL,
+            "hotelRoomControlURL": hotelRoomControlURL,
+            "category": category,
+            "createdDate": Date()
+        ]
+        return dict
+    }
+}
+
