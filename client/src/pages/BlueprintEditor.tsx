@@ -127,34 +127,25 @@ export default function BlueprintEditor() {
           img.onload = () => {
             const containerWidth = containerRef.current?.clientWidth || 800;
             const containerHeight = containerRef.current?.clientHeight || 600;
-            const imageAspectRatio = img.width / img.height;
-            const containerAspectRatio = containerWidth / containerHeight;
-            
-            // Calculate optimal scale to fit the image in the container
-            let scale = 1;
-            if (imageAspectRatio > containerAspectRatio) {
-              // Image is wider than container
-              scale = (containerWidth * 0.9) / img.width;
-            } else {
-              // Image is taller than container
-              scale = (containerHeight * 0.9) / img.height;
-            }
-            
-            // Calculate center position
-            const centerX = (containerWidth - (img.width * scale)) / 2;
-            const centerY = (containerHeight - (img.height * scale)) / 2;
-            
+            const scale = Math.min(
+              containerWidth / img.width,
+              containerHeight / img.height
+            ) * 0.8; // 80% of container size
+
             setEditorState((prev) => ({
               ...prev,
               layout: {
                 url: result,
                 name: file.name,
-                aspectRatio: imageAspectRatio,
+                aspectRatio: img.width / img.height,
                 originalWidth: img.width,
                 originalHeight: img.height,
               },
-              position: { x: centerX, y: centerY },
-              scale,
+              scale: scale,
+              position: { 
+                x: (containerWidth - (img.width * scale)) / 2,
+                y: (containerHeight - (img.height * scale)) / 2
+              }
             }));
 
             setIsLoading(false);
@@ -442,12 +433,13 @@ export default function BlueprintEditor() {
                 <img
                   src={editorState.layout.url}
                   alt="Store Layout"
-                  className="w-auto h-auto"
+                  className="w-auto h-auto max-w-none max-h-none"
                   style={{
+                    position: 'absolute',
                     transform: `scale(${editorState.scale})`,
-                    transformOrigin: "top left",
-                    maxWidth: "none",
-                    maxHeight: "none",
+                    transformOrigin: '0 0',
+                    left: '0',
+                    top: '0'
                   }}
                 />
               </div>
