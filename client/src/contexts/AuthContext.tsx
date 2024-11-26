@@ -1,12 +1,16 @@
-import { createContext, useContext } from 'react';
-
-interface User {
-  id: string;
-  email: string;
-}
+import { createContext, useContext, useEffect, useState } from 'react';
+import { 
+  auth, 
+  loginWithEmailAndPassword, 
+  registerWithEmailAndPassword,
+  signInWithGoogle as firebaseSignInWithGoogle,
+  logOut,
+  onAuthStateChanged,
+  FirebaseUser
+} from '@/lib/firebase';
 
 interface AuthContextType {
-  currentUser: User | null;
+  currentUser: FirebaseUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
@@ -25,26 +29,53 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Mock authentication functions
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, []);
+
   async function signIn(email: string, password: string) {
-    console.log('Mock sign in:', email);
+    try {
+      await loginWithEmailAndPassword(email, password);
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
   }
 
   async function signUp(email: string, password: string) {
-    console.log('Mock sign up:', email);
+    try {
+      await registerWithEmailAndPassword(email, password);
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
   }
 
   async function signInWithGoogle() {
-    console.log('Mock Google sign in');
+    try {
+      await firebaseSignInWithGoogle();
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
   }
 
   async function logout() {
-    console.log('Mock logout');
+    try {
+      await logOut();
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
   }
 
   const value = {
-    currentUser: null,
-    loading: false,
+    currentUser,
+    loading,
     signIn,
     signUp,
     signInWithGoogle,
@@ -53,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
 }
