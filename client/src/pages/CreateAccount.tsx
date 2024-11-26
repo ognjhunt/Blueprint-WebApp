@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Mail, Lock, User, Building2 } from 'lucide-react'
 import { Link, useLocation } from "wouter"
+import { useAuth } from "@/contexts/AuthContext"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google'
