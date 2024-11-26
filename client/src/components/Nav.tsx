@@ -10,28 +10,32 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useState, useEffect } from "react";
 import { Menu, X, Search, User } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Nav() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false); // Default to false
+  const { currentUser, userData, logout } = useAuth();
   const { toast } = useToast();
+  const [_, setLocation] = useLocation();
 
-  const handleSignOut = () => {
-    setIsAuthenticated(false);
-    
-    // Show toast notification
-    toast({
-      title: "Signed Out",
-      description: "You have been successfully signed out."
-    });
-
-    // Add delay before redirect
-    setTimeout(() => {
-      window.location.href = "/";
-    }, 1500);
+  const handleSignOut = async () => {
+    try {
+      await logout();
+      toast({
+        title: "Signed Out",
+        description: "You have been successfully signed out."
+      });
+      setLocation("/");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   useEffect(() => {
@@ -69,12 +73,13 @@ export default function Nav() {
                 Claim Blueprint
               </Button>
             </Link>
-            <Link href="/sign-in">
-              <Button variant="outline" className="mr-4">
-                Sign In / Create Account
-              </Button>
-            </Link>
-            {isAuthenticated && (
+            {!currentUser ? (
+              <Link href="/sign-in">
+                <Button variant="outline" className="mr-4">
+                  Sign In / Create Account
+                </Button>
+              </Link>
+            ) : (
               <>
                 <Link href="/dashboard">
                   <Button variant="outline">Dashboard</Button>
@@ -88,13 +93,18 @@ export default function Nav() {
                       <Avatar className="h-8 w-8">
                         <AvatarImage src="/avatars/01.png" alt="Profile" />
                         <AvatarFallback>
-                          <User className="h-4 w-4" />
+                          {userData?.name?.charAt(0) || <User className="h-4 w-4" />}
                         </AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium">{userData?.name}</p>
+                        <p className="text-xs text-muted-foreground">{userData?.email}</p>
+                      </div>
+                    </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <Link href="/profile">
                       <DropdownMenuItem>Profile</DropdownMenuItem>
@@ -138,7 +148,7 @@ export default function Nav() {
                   Sign In / Create Account
                 </Button>
               </Link>
-              {isAuthenticated && (
+              {currentUser && (
                 <>
                   <Link href="/dashboard" className="w-full">
                     <Button variant="outline" className="w-full mb-2">Dashboard</Button>
