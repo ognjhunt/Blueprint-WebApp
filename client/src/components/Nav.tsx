@@ -95,7 +95,7 @@ export default function Nav() {
                       <Avatar className="h-8 w-8">
                         <AvatarImage src="/avatars/01.png" alt="Profile" />
                         <AvatarFallback>
-                          {userData?.name?.charAt(0) || <User className="h-4 w-4" />}
+                          <User className="h-4 w-4" />
                         </AvatarFallback>
                       </Avatar>
                     </Button>
