@@ -261,7 +261,7 @@ export default function CreateAccount() {
                     }}
                     theme="outline"
                     shape="rectangular"
-                    width="320px"
+                    width={320}
                   />
                 </GoogleOAuthProvider>
 
