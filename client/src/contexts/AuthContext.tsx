@@ -43,33 +43,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signIn(email: string, password: string) {
     try {
-      await loginWithEmailAndPassword(email, password);
+      const user = await loginWithEmailAndPassword(email, password);
+      console.log("User signed in successfully:", user.uid);
     } catch (error: any) {
-      throw new Error(error.message);
+      console.error("Sign in error:", { code: error.code, message: error.message });
+      throw new Error(getAuthErrorMessage(error.code) || error.message);
     }
   }
 
   async function signUp(email: string, password: string) {
     try {
-      await registerWithEmailAndPassword(email, password);
+      const user = await registerWithEmailAndPassword(email, password);
+      console.log("User registered successfully:", user.uid);
     } catch (error: any) {
-      throw new Error(error.message);
+      console.error("Sign up error:", { code: error.code, message: error.message });
+      throw new Error(getAuthErrorMessage(error.code) || error.message);
     }
   }
 
   async function signInWithGoogle() {
     try {
-      await firebaseSignInWithGoogle();
+      const user = await firebaseSignInWithGoogle();
+      console.log("User signed in with Google successfully:", user.uid);
     } catch (error: any) {
-      throw new Error(error.message);
+      console.error("Google sign in error:", { code: error.code, message: error.message });
+      throw new Error(getAuthErrorMessage(error.code) || error.message);
     }
   }
 
   async function logout() {
     try {
       await logOut();
+      console.log("User logged out successfully");
     } catch (error: any) {
-      throw new Error(error.message);
+      console.error("Logout error:", { code: error.code, message: error.message });
+      throw new Error("Failed to sign out. Please try again.");
+    }
+  }
+
+  function getAuthErrorMessage(code: string): string {
+    switch (code) {
+      case 'auth/email-already-in-use':
+        return 'An account with this email already exists';
+      case 'auth/invalid-email':
+        return 'Invalid email address';
+      case 'auth/operation-not-allowed':
+        return 'Operation not allowed';
+      case 'auth/weak-password':
+        return 'Password is too weak';
+      case 'auth/user-disabled':
+        return 'This account has been disabled';
+      case 'auth/user-not-found':
+        return 'No account found with this email';
+      case 'auth/wrong-password':
+        return 'Invalid password';
+      case 'auth/popup-closed-by-user':
+        return 'Google sign-in was cancelled';
+      case 'auth/network-request-failed':
+        return 'Network error occurred. Please check your connection';
+      default:
+        return '';
     }
   }
 

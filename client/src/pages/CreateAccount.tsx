@@ -83,27 +83,51 @@ export default function CreateAccount() {
     },
   })
 
+  const { signUp, signInWithGoogle } = useAuth();
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
     try {
-      // Here you would typically make an API call to create the account
-      console.log(values)
+      await signUp(values.email, values.password);
       
       toast({
         title: "Success",
         description: "Your account has been created successfully.",
       })
       
-      // Redirect to dashboard after successful account creation
       setLocation("/dashboard")
-    } catch (error) {
+    } catch (error: any) {
+      const errorMessage = error.message || "Failed to create account. Please try again.";
+      const errorCode = error.code || "unknown";
+      
+      console.error("Sign up error:", { code: errorCode, message: errorMessage });
+      
       toast({
         title: "Error",
-        description: "Failed to create account. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  async function handleGoogleSignIn(credentialResponse: any) {
+    setIsLoading(true);
+    try {
+      await signInWithGoogle();
+      setLocation("/dashboard");
+    } catch (error: any) {
+      const errorMessage = error.message || "Failed to sign in with Google. Please try again.";
+      console.error("Google sign in error:", error);
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -226,10 +250,7 @@ export default function CreateAccount() {
 
                 <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
                   <GoogleLogin
-                    onSuccess={async (credentialResponse) => {
-                      setGoogleCredentials(credentialResponse);
-                      setShowCompanyDialog(true);
-                    }}
+                    onSuccess={handleGoogleSignIn}
                     onError={() => {
                       toast({
                         title: "Error",
@@ -239,7 +260,7 @@ export default function CreateAccount() {
                     }}
                     theme="outline"
                     shape="rectangular"
-                    width="100%"
+                    width="320px"
                   />
                 </GoogleOAuthProvider>
 
