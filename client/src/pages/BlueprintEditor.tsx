@@ -131,7 +131,7 @@ export default function BlueprintEditor() {
             const scale = Math.min(
               containerWidth / img.width,
               containerHeight / img.height
-            ) * 0.8;
+            ) * 1.5; // Increased from 0.8 to 1.5
 
             setEditorState((prev) => ({
               ...prev,
@@ -410,14 +410,14 @@ export default function BlueprintEditor() {
             }}
           >
             {editorState.layout.url && (
-              <div className="absolute inset-0" style={{ zIndex: 1 }}>
+              <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 1 }}>
                 <img
                   src={editorState.layout.url}
                   alt="Store Layout"
                   className="w-auto h-auto max-w-none"
                   style={{
                     transform: `scale(${editorState.scale})`,
-                    transformOrigin: '0 0'
+                    transformOrigin: 'center center'
                   }}
                 />
               </div>
