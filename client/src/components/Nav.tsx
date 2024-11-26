@@ -19,7 +19,7 @@ export default function Nav() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { currentUser, userData, logout } = useAuth();
   const { toast } = useToast();
-  const [_, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
 
   const handleSignOut = async () => {
     try {
@@ -81,9 +81,11 @@ export default function Nav() {
               </Link>
             ) : (
               <>
-                <Link href="/dashboard">
-                  <Button variant="outline">Dashboard</Button>
-                </Link>
+                {location !== "/dashboard" && (
+                  <Link href="/dashboard">
+                    <Button variant="outline">Dashboard</Button>
+                  </Link>
+                )}
                 <Link href="/create-blueprint">
                   <Button>Create Blueprint</Button>
                 </Link>
@@ -143,16 +145,19 @@ export default function Nav() {
               <Link href="/claim-blueprint" className="w-full">
                 <Button variant="outline" className="w-full mb-2">Claim Blueprint</Button>
               </Link>
-              <Link href="/sign-in" className="w-full">
-                <Button variant="outline" className="w-full mb-4">
-                  Sign In / Create Account
-                </Button>
-              </Link>
-              {currentUser && (
+              {!currentUser ? (
+                <Link href="/sign-in" className="w-full">
+                  <Button variant="outline" className="w-full mb-4">
+                    Sign In / Create Account
+                  </Button>
+                </Link>
+              ) : (
                 <>
-                  <Link href="/dashboard" className="w-full">
-                    <Button variant="outline" className="w-full mb-2">Dashboard</Button>
-                  </Link>
+                  {location !== "/dashboard" && (
+                    <Link href="/dashboard" className="w-full">
+                      <Button variant="outline" className="w-full mb-2">Dashboard</Button>
+                    </Link>
+                  )}
                   <Link href="/create-blueprint" className="w-full">
                     <Button className="w-full mb-2">Create Blueprint</Button>
                   </Link>
