@@ -52,12 +52,54 @@ export interface UserData {
   uid: string;
   email: string;
   name: string;
-  createdAt: Date;
+  username: string;
+  deviceToken: string;
+  referralCode: string;
+  createdDate: Date;
   lastLoginAt: Date;
-  blueprintCount: number;
+  lastSessionDate: Date;
+  numSessions: number;
+  uploadedContentCount: number;
+  collectedContentCount: number;
   planType: string;
+  credits: number;
+  finishedOnboarding: boolean;
+  hasEnteredNotes: boolean;
+  hasEnteredInventory: boolean;
+  hasEnteredCameraRoll: boolean;
+  amountEarned: number;
+  latitude?: number;
+  longitude?: number;
+  altitude?: number;
   connectedBlueprintIds: string[];
   createdBlueprintIds: string[];
+  collectedObjectIds: string[];
+  collectedPortalIds: string[];
+  uploadedFileIds: string[];
+  createdPhotoIds: string[];
+  createdNoteIds: string[];
+  createdReportIds: string[];
+  createdSuggestionIds: string[];
+  createdContentIds: string[];
+  modelInteractions: { [key: string]: number };
+  blueprintInteractions: { [key: string]: number };
+  portalInteractions: { [key: string]: number };
+  categoryPreferences: { [key: string]: number };
+  averageSessionDuration: number;
+  peakUsageHours: number[];
+  featureUsageCount: { [key: string]: number };
+  mostUsedFeatures: string[];
+  collaborationScore: number;
+  sharedContentCount: number;
+  preferredModelScales: number[];
+  preferredRoomTypes: string[];
+  preferredColors: string[];
+  dailyActiveStreak: number;
+  weeklyEngagementScore: number;
+  completedTutorials: string[];
+  skillLevels: { [key: string]: number };
+  mostFrequentLocation: string;
+  deviceTypes: string[];
 }
 
 // Firestore functions
@@ -65,35 +107,84 @@ export const createUserDocument = async (
   user: FirebaseUser,
   additionalData?: { name?: string }
 ): Promise<void> => {
-  if (!user) return;
+  if (!user) {
+    console.error('No user provided to createUserDocument');
+    throw new Error('No user provided to createUserDocument');
+  }
 
-  const userRef = doc(db, 'users', user.uid);
-  const snapshot = await getDoc(userRef);
+  try {
+    const userRef = doc(db, 'users', user.uid);
+    const snapshot = await getDoc(userRef);
 
-  if (!snapshot.exists()) {
-    const { email } = user;
-    const name = additionalData?.name || email?.split('@')[0] || '';
+    if (!snapshot.exists()) {
+      const { email } = user;
+      const name = additionalData?.name || email?.split('@')[0] || '';
+      const username = name.toLowerCase().replace(/\s+/g, '_');
+      const timestamp = serverTimestamp();
 
-    try {
-      await setDoc(userRef, {
+      const newUserData = {
         uid: user.uid,
         email,
         name,
-        createdAt: serverTimestamp(),
-        lastLoginAt: serverTimestamp(),
-        blueprintCount: 0,
+        username,
+        deviceToken: '',
+        referralCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
+        createdDate: timestamp,
+        lastLoginAt: timestamp,
+        lastSessionDate: timestamp,
+        numSessions: 1,
+        uploadedContentCount: 0,
+        collectedContentCount: 0,
         planType: 'free',
+        credits: 0,
+        finishedOnboarding: false,
+        hasEnteredNotes: false,
+        hasEnteredInventory: false,
+        hasEnteredCameraRoll: false,
+        amountEarned: 0,
         connectedBlueprintIds: [],
-        createdBlueprintIds: []
+        createdBlueprintIds: [],
+        collectedObjectIds: [],
+        collectedPortalIds: [],
+        uploadedFileIds: [],
+        createdPhotoIds: [],
+        createdNoteIds: [],
+        createdReportIds: [],
+        createdSuggestionIds: [],
+        createdContentIds: [],
+        modelInteractions: {},
+        blueprintInteractions: {},
+        portalInteractions: {},
+        categoryPreferences: {},
+        averageSessionDuration: 0,
+        peakUsageHours: [],
+        featureUsageCount: {},
+        mostUsedFeatures: [],
+        collaborationScore: 0,
+        sharedContentCount: 0,
+        preferredModelScales: [],
+        preferredRoomTypes: [],
+        preferredColors: [],
+        dailyActiveStreak: 1,
+        weeklyEngagementScore: 0,
+        completedTutorials: [],
+        skillLevels: {},
+        mostFrequentLocation: '',
+        deviceTypes: []
+      };
+
+      await setDoc(userRef, newUserData);
+      console.log('User document created successfully:', user.uid);
+    } else {
+      await updateDoc(userRef, {
+        lastLoginAt: serverTimestamp(),
+        numSessions: snapshot.data().numSessions + 1
       });
-    } catch (error) {
-      console.error('Error creating user document:', error);
-      throw error;
+      console.log('User document updated successfully:', user.uid);
     }
-  } else {
-    await updateDoc(userRef, {
-      lastLoginAt: serverTimestamp()
-    });
+  } catch (error) {
+    console.error('Error in createUserDocument:', error);
+    throw new Error(`Failed to create/update user document: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
 

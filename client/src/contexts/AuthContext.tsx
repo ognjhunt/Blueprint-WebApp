@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import { useLocation } from 'wouter';
 import { 
   auth, 
   loginWithEmailAndPassword, 
@@ -35,6 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [, setLocation] = useLocation();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -59,8 +61,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const user = await loginWithEmailAndPassword(email, password);
       console.log("User signed in successfully:", user.uid);
-      const userData = await getUserData(user.uid);
-      setUserData(userData);
+      
+      try {
+        const userData = await getUserData(user.uid);
+        setUserData(userData);
+        setLocation("/");
+      } catch (userDataError: any) {
+        console.error("Error fetching user data after sign in:", userDataError);
+        throw new Error("Failed to load user data. Please try again.");
+      }
     } catch (error: any) {
       console.error("Sign in error:", { code: error.code, message: error.message });
       throw new Error(getAuthErrorMessage(error.code) || error.message);
@@ -71,8 +80,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const user = await registerWithEmailAndPassword(email, password, name);
       console.log("User registered successfully:", user.uid);
-      const userData = await getUserData(user.uid);
-      setUserData(userData);
+      
+      try {
+        const userData = await getUserData(user.uid);
+        if (!userData) {
+          throw new Error("User document not created properly");
+        }
+        setUserData(userData);
+        setLocation("/");
+      } catch (userDataError: any) {
+        console.error("Error creating/fetching user data after registration:", userDataError);
+        throw new Error("Account created but failed to set up user profile. Please try signing in again.");
+      }
     } catch (error: any) {
       console.error("Sign up error:", { code: error.code, message: error.message });
       throw new Error(getAuthErrorMessage(error.code) || error.message);
