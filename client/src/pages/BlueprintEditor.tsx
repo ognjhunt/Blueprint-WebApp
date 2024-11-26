@@ -122,15 +122,16 @@ export default function BlueprintEditor() {
       reader.onload = (e) => {
         const result = e.target?.result;
         if (result && typeof result === "string" && containerRef.current) {
-          // Create an image element to get dimensions
           const img = new Image();
           img.onload = () => {
             const containerWidth = containerRef.current?.clientWidth || 800;
             const containerHeight = containerRef.current?.clientHeight || 600;
+            
+            // Calculate scale to fit image while maintaining aspect ratio
             const scale = Math.min(
               containerWidth / img.width,
               containerHeight / img.height
-            ) * 0.8; // 80% of container size
+            ) * 0.8;
 
             setEditorState((prev) => ({
               ...prev,
@@ -154,7 +155,6 @@ export default function BlueprintEditor() {
               description: "Your store layout has been uploaded successfully.",
             });
           };
-          
           img.src = result;
         }
       };
@@ -206,19 +206,29 @@ export default function BlueprintEditor() {
     }));
   };
 
-  const handlePan = (direction: "up" | "down" | "left" | "right") => {
-    const delta = 50;
-    setEditorState((prev) => ({
-      ...prev,
-      position: {
-        x:
-          prev.position.x +
-          (direction === "left" ? delta : direction === "right" ? -delta : 0),
-        y:
-          prev.position.y +
-          (direction === "up" ? delta : direction === "down" ? -delta : 0),
-      },
-    }));
+  const handlePanStart = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isPanMode) {
+      setIsDragging(true);
+      setDragStart({
+        x: e.clientX - editorState.position.x,
+        y: e.clientY - editorState.position.y,
+      });
+    }
+  };
+
+  const handlePanMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isPanMode && isDragging) {
+      const newX = e.clientX - dragStart.x;
+      const newY = e.clientY - dragStart.y;
+      setEditorState(prev => ({
+        ...prev,
+        position: { x: newX, y: newY },
+      }));
+    }
+  };
+
+  const handlePanEnd = () => {
+    setIsDragging(false);
   };
 
   const addElement = (type: ARElement["type"]) => {
@@ -303,31 +313,6 @@ export default function BlueprintEditor() {
       }
     }
   }, []);
-
-  const handlePanStart = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isPanMode) {
-      setIsDragging(true);
-      setDragStart({
-        x: e.clientX - editorState.position.x,
-        y: e.clientY - editorState.position.y,
-      });
-    }
-  };
-
-  const handlePanMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isPanMode && isDragging) {
-      const newX = e.clientX - dragStart.x;
-      const newY = e.clientY - dragStart.y;
-      setEditorState(prev => ({
-        ...prev,
-        position: { x: newX, y: newY },
-      }));
-    }
-  };
-
-  const handlePanEnd = () => {
-    setIsDragging(false);
-  };
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -414,63 +399,27 @@ export default function BlueprintEditor() {
           ref={containerRef}
         >
           <div
-            className={`absolute top-0 left-0 w-[200vw] h-[200vh] editor-container ${
-              showGrid ? "bg-grid-pattern" : "bg-white"
-            } p-4`}
+            className={`absolute top-0 left-0 w-[200vw] h-[200vh] ${
+              showGrid ? "bg-grid-pattern" : ""
+            }`}
             style={{
-              transform: `translate(${editorState.position.x}px, ${editorState.position.y}px) scale(${editorState.scale})`,
+              transform: `translate(${editorState.position.x}px, ${editorState.position.y}px)`,
               transformOrigin: "center",
               transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+              zIndex: 0
             }}
           >
-            {isLoading ? (
-              <div className="absolute inset-0 flex items-center justify-center bg-white/80">
-                <Loader2 className="w-8 h-8 animate-spin" />
-                <span className="ml-2">Processing image...</span>
-              </div>
-            ) : editorState.layout.url ? (
-              <div className="absolute inset-0">
+            {editorState.layout.url && (
+              <div className="absolute inset-0" style={{ zIndex: 1 }}>
                 <img
                   src={editorState.layout.url}
                   alt="Store Layout"
-                  className="w-auto h-auto max-w-none max-h-none"
+                  className="w-auto h-auto max-w-none"
                   style={{
-                    position: 'absolute',
                     transform: `scale(${editorState.scale})`,
-                    transformOrigin: '0 0',
-                    left: '0',
-                    top: '0'
+                    transformOrigin: '0 0'
                   }}
                 />
-              </div>
-            ) : (
-              <div
-                className={`absolute inset-0 flex items-center justify-center ${
-                  isDraggingFile ? "bg-blue-50" : ""
-                }`}
-              >
-                <div className="text-center p-6 border-2 border-dashed border-gray-300 rounded-lg">
-                  <p className="text-gray-500">
-                    Drag and drop your store layout or floor plan (PNG, JPG)
-                  </p>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Required for placing AR elements accurately
-                  </p>
-                  <p className="text-sm text-gray-400 mt-1">or</p>
-                  <Label className="cursor-pointer mt-2 inline-block">
-                    <Input
-                      type="file"
-                      accept="image/png,image/jpeg,image/jpg"
-                      className="hidden"
-                      onChange={(e) =>
-                        e.target.files?.[0] && handleFileUpload(e.target.files[0])
-                      }
-                    />
-                    <span className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90">
-                      Choose File
-                    </span>
-                  </Label>
-                </div>
               </div>
             )}
 
@@ -478,7 +427,7 @@ export default function BlueprintEditor() {
             {elements.map((element) => (
               <motion.div
                 key={element.id}
-                className={`absolute cursor-move p-4 rounded-lg z-10 ${
+                className={`absolute cursor-move p-4 rounded-lg ${
                   selectedElement?.id === element.id
                     ? "ring-2 ring-blue-500"
                     : ""
@@ -487,6 +436,7 @@ export default function BlueprintEditor() {
                   left: `${element.position.x}%`,
                   top: `${element.position.y}%`,
                   transform: "translate(-50%, -50%)",
+                  zIndex: 2
                 }}
                 drag
                 dragMomentum={false}
@@ -513,10 +463,49 @@ export default function BlueprintEditor() {
                 </div>
               </motion.div>
             ))}
+
+            {!editorState.layout.url && !isLoading && (
+              <div
+                className={`absolute inset-0 flex items-center justify-center ${
+                  isDraggingFile ? "bg-blue-50" : ""
+                }`}
+                style={{ zIndex: 1 }}
+              >
+                <div className="text-center p-6 border-2 border-dashed border-gray-300 rounded-lg">
+                  <p className="text-gray-500">
+                    Drag and drop your store layout or floor plan (PNG, JPG)
+                  </p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Required for placing AR elements accurately
+                  </p>
+                  <p className="text-sm text-gray-400 mt-1">or</p>
+                  <Label className="cursor-pointer mt-2 inline-block">
+                    <Input
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg"
+                      className="hidden"
+                      onChange={(e) =>
+                        e.target.files?.[0] && handleFileUpload(e.target.files[0])
+                      }
+                    />
+                    <span className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90">
+                      Choose File
+                    </span>
+                  </Label>
+                </div>
+              </div>
+            )}
+
+            {isLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/80" style={{ zIndex: 3 }}>
+                <Loader2 className="w-8 h-8 animate-spin" />
+                <span className="ml-2">Processing image...</span>
+              </div>
+            )}
           </div>
 
           {/* Controls */}
-          <div className="absolute bottom-4 right-4 space-x-2">
+          <div className="absolute bottom-4 right-4 space-x-2 z-10">
             <Button
               variant="outline"
               size="icon"
