@@ -17,6 +17,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -127,6 +128,7 @@ export default function CreateBlueprint() {
   const [loading, setLoading] = useState(false);
   const [loaderStatus, setLoaderStatus] = useState<LoaderStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
 
   type LoaderStatus = "idle" | "loading" | "error" | "success";
 
@@ -182,12 +184,14 @@ export default function CreateBlueprint() {
 
   // Handle business name input change and autocomplete
   const handleInputChange = (
-    e:
-      | ChangeEvent<HTMLInputElement>
-      | { target: { name: string; value: string } },
+    e: React.ChangeEvent<HTMLInputElement> | { target: { name: string; value: string } },
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+
+    // Validate the field and update errors
+    const error = validateField(name, value);
+    setFieldErrors((prev) => ({ ...prev, [name]: error }));
 
     if (name === "businessName" && autocomplete && value.length >= 3) {
       setLoading(true);
@@ -272,8 +276,83 @@ export default function CreateBlueprint() {
     }));
   };
 
+  const validateField = (name: string, value: string): string => {
+    switch (name) {
+      case "businessName":
+        return value.trim().length === 0 ? "Business name is required" : "";
+      case "businessType":
+        return value.trim().length === 0 ? "Business type is required" : "";
+      case "locationName":
+        return value.trim().length === 0 ? "Location name is required" : "";
+      case "address":
+        return value.trim().length === 0 ? "Address is required" : "";
+      case "city":
+        return value.trim().length === 0 ? "City is required" : "";
+      case "state":
+        return value.trim().length === 0 ? "State is required" : "";
+      case "zipCode":
+        return value.trim().length === 0 ? "ZIP code is required" : "";
+      case "country":
+        return value.trim().length === 0 ? "Country is required" : "";
+      case "phone":
+        const phoneRegex = /^\+?\d{10,}$/;
+        return !phoneRegex.test(value.replace(/\D/g, ""))
+          ? "Please enter a valid phone number"
+          : "";
+      case "email":
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return !emailRegex.test(value)
+          ? "Please enter a valid email address"
+          : "";
+      case "website":
+        if (!value) return "";
+        const websiteRegex =
+          /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/;
+        return !websiteRegex.test(value)
+          ? "Please enter a valid website URL"
+          : "";
+      case "aiProvider":
+        return value.trim().length === 0 ? "Please select an AI provider" : "";
+      default:
+        return "";
+    }
+  };
+
+  const isStepValid = () => {
+    switch (currentStep) {
+      case 0:
+        return (
+          !validateField("businessName", formData.businessName) &&
+          !validateField("businessType", formData.businessType)
+        );
+      case 1:
+        return (
+          !validateField("locationName", formData.locationName) &&
+          !validateField("address", formData.address) &&
+          !validateField("city", formData.city) &&
+          !validateField("state", formData.state) &&
+          !validateField("zipCode", formData.zipCode) &&
+          !validateField("country", formData.country)
+        );
+      case 2:
+        return (
+          !validateField("phone", formData.phone) &&
+          !validateField("email", formData.email) &&
+          !validateField("website", formData.website)
+        );
+      case 3:
+        return !validateField("aiProvider", formData.aiProvider);
+      case 4:
+        return true; // Features are optional
+      case 5:
+        return true; // Review step is always valid
+      default:
+        return false;
+    }
+  };
+
   const handleNext = () => {
-    if (currentStep < steps.length - 1) {
+    if (currentStep < steps.length - 1 && isStepValid()) {
       setCurrentStep((prev) => prev + 1);
     }
   };
@@ -328,181 +407,62 @@ export default function CreateBlueprint() {
     }
   };
 
+  const renderInputField = (
+    name: string,
+    label: string,
+    type: string = "text",
+    placeholder: string = "",
+  ) => (
+    <div className="space-y-2">
+      <Label htmlFor={name}>{label}</Label>
+      <Input
+        id={name}
+        name={name}
+        type={type}
+        value={formData[name as keyof FormData]}
+        onChange={handleInputChange}
+        placeholder={placeholder}
+        className={cn(
+          "w-full",
+          fieldErrors[name] && "border-red-500 focus-visible:ring-red-500"
+        )}
+      />
+      {fieldErrors[name] && (
+        <p className="text-sm text-red-500 mt-1">{fieldErrors[name]}</p>
+      )}
+    </div>
+  );
+
   const renderStep = () => {
     switch (currentStep) {
       case 0:
         return (
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="businessName">Business Name</Label>
-              <div className="relative">
-                <Input
-                  id="businessName"
-                  name="businessName"
-                  value={formData.businessName}
-                  onChange={handleInputChange}
-                  placeholder="Enter your business name"
-                  disabled={loaderStatus !== "success"}
-                />
-                {loading && (
-                  <Loader2 className="absolute right-2 top-2 w-5 h-5 text-blue-500 animate-spin" />
-                )}
-                {predictions.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
-                    <ul className="py-1">
-                      {predictions.map((prediction) => (
-                        <li
-                          key={prediction.place_id}
-                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-start"
-                          onClick={() => handleBusinessSelect(prediction)}
-                        >
-                          <MapPinIcon className="w-5 h-5 mr-2 mt-1 flex-shrink-0 text-gray-400" />
-                          <div>
-                            <div className="font-medium">
-                              {prediction.structured_formatting.main_text}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {prediction.structured_formatting.secondary_text}
-                            </div>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-              {error && (
-                <Alert variant="destructive" className="mt-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="businessType">Business Type</Label>
-              <Select
-                name="businessType"
-                onValueChange={(value) =>
-                  handleInputChange({ target: { name: "businessType", value } })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select business type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="restaurant">Restaurant</SelectItem>
-                  <SelectItem value="retail">Retail Store</SelectItem>
-                  <SelectItem value="museum">Museum</SelectItem>
-                  <SelectItem value="hotel">Hotel</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {renderInputField("businessName", "Business Name")}
+            {renderInputField("businessType", "Business Type", "select")}
           </div>
         );
       case 1:
         return (
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="locationName">Location Name</Label>
-              <Input
-                id="locationName"
-                name="locationName"
-                value={formData.locationName}
-                onChange={handleInputChange}
-                placeholder="Enter location name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="address">Address</Label>
-              <Input
-                id="address"
-                name="address"
-                value={formData.address}
-                onChange={handleInputChange}
-                placeholder="Enter street address"
-              />
+            {renderInputField("locationName", "Location Name")}
+            {renderInputField("address", "Address")}
+            <div className="grid grid-cols-2 gap-4">
+              {renderInputField("city", "City")}
+              {renderInputField("state", "State/Province")}
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="city">City</Label>
-                <Input
-                  id="city"
-                  name="city"
-                  value={formData.city}
-                  onChange={handleInputChange}
-                  placeholder="Enter city"
-                />
-              </div>
-              <div>
-                <Label htmlFor="state">State/Province</Label>
-                <Input
-                  id="state"
-                  name="state"
-                  value={formData.state}
-                  onChange={handleInputChange}
-                  placeholder="Enter state/province"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="zipCode">ZIP/Postal Code</Label>
-                <Input
-                  id="zipCode"
-                  name="zipCode"
-                  value={formData.zipCode}
-                  onChange={handleInputChange}
-                  placeholder="Enter ZIP/postal code"
-                />
-              </div>
-              <div>
-                <Label htmlFor="country">Country</Label>
-                <Input
-                  id="country"
-                  name="country"
-                  value={formData.country}
-                  onChange={handleInputChange}
-                  placeholder="Enter country"
-                />
-              </div>
+              {renderInputField("zipCode", "ZIP/Postal Code")}
+              {renderInputField("country", "Country")}
             </div>
           </div>
         );
       case 2:
         return (
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                placeholder="Enter phone number"
-              />
-            </div>
-            <div>
-              <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                placeholder="Enter email address"
-              />
-            </div>
-            <div>
-              <Label htmlFor="website">Website</Label>
-              <Input
-                id="website"
-                name="website"
-                value={formData.website}
-                onChange={handleInputChange}
-                placeholder="Enter website URL"
-              />
-            </div>
+            {renderInputField("phone", "Phone Number")}
+            {renderInputField("email", "Email Address", "email")}
+            {renderInputField("website", "Website", "url")}
           </div>
         );
       case 3:
@@ -516,7 +476,9 @@ export default function CreateBlueprint() {
                   handleInputChange({ target: { name: "aiProvider", value } })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className={cn(
+                  fieldErrors.aiProvider && "border-red-500 focus-visible:ring-red-500"
+                )}>
                   <SelectValue placeholder="Select AI provider" />
                 </SelectTrigger>
                 <SelectContent>
@@ -527,18 +489,11 @@ export default function CreateBlueprint() {
                   ))}
                 </SelectContent>
               </Select>
+              {fieldErrors.aiProvider && (
+                <p className="text-sm text-red-500 mt-1">{fieldErrors.aiProvider}</p>
+              )}
             </div>
-            <div>
-              <Label htmlFor="apiKey">API Key</Label>
-              <Input
-                id="apiKey"
-                name="apiKey"
-                type="password"
-                value={formData.apiKey}
-                onChange={handleInputChange}
-                placeholder="Enter your AI provider API key OR Allow us to create one for you (takes ~1 min)"
-              />
-            </div>
+            {renderInputField("apiKey", "API Key", "password", "Enter your AI provider API key OR Allow us to create one for you (takes ~1 min)")}
           </div>
         );
       case 4:
@@ -685,105 +640,61 @@ export default function CreateBlueprint() {
         </h1>
         <div className="bg-white shadow-xl rounded-lg overflow-hidden">
           <div className="p-6">
-            {/* Enhanced Progress Indicator */}
-            <div className="relative mb-12">
-              <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gray-200 -translate-y-1/2">
+            <div className="flex justify-between items-center mb-8">
+              {steps.map((step, index) => (
                 <div
-                  className="h-full bg-blue-600 transition-all duration-300 ease-in-out"
-                  style={{ width: `${(currentStep / (steps.length - 1)) * 100}%` }}
-                />
-              </div>
-              <div className="relative flex justify-between">
-                {steps.map((step, index) => (
-                  <motion.div
-                    key={step.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="flex flex-col items-center"
-                  >
-                    <motion.div
-                      className={`relative z-10 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
-                        index <= currentStep
-                          ? "bg-blue-600 shadow-lg shadow-blue-200"
-                          : "bg-gray-200"
-                      }`}
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      {index < currentStep ? (
-                        <Check className="w-6 h-6 text-white" />
-                      ) : (
-                        <step.icon
-                          className={`w-6 h-6 ${
-                            index <= currentStep ? "text-white" : "text-gray-400"
-                          }`}
-                        />
-                      )}
-                      <AnimatePresence>
-                        {index === currentStep && (
-                          <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            exit={{ scale: 0 }}
-                            className="absolute -inset-1 rounded-full border-2 border-blue-600"
-                          />
-                        )}
-                      </AnimatePresence>
-                    </motion.div>
-                    <span
-                      className={`mt-2 text-sm font-medium transition-colors duration-300 ${
-                        index <= currentStep ? "text-blue-600" : "text-gray-400"
-                      }`}
-                    >
-                      {step.title}
-                    </span>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-
-            <form onSubmit={handleSubmit}>
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentStep}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.3 }}
-                  className="min-h-[300px]"
+                  key={step.id}
+                  className={`flex flex-col items-center ${
+                    index <= currentStep ? "text-blue-600" : "text-gray-400"
+                  }`}
                 >
-                  {renderStep()}
-                </motion.div>
-              </AnimatePresence>
-
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      index <= currentStep
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-200"
+                    }`}
+                  >
+                    {index < currentStep ? (
+                      <Check className="w-6 h-6" />
+                    ) : (
+                      <step.icon className="w-6 h-6" />
+                    )}
+                  </div>
+                  <span className="text-xs mt-2">{step.title}</span>
+                </div>
+              ))}
+            </div>
+            <form onSubmit={handleSubmit}>
+              <motion.div
+                key={currentStep}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                {renderStep()}
+              </motion.div>
               <div className="mt-8 flex justify-between">
                 <Button
                   type="button"
                   onClick={handlePrevious}
                   disabled={currentStep === 0}
                   variant="outline"
-                  className="flex items-center"
                 >
-                  <ChevronLeft className="w-4 h-4 mr-2" />
                   Previous
                 </Button>
                 {currentStep < steps.length - 1 ? (
                   <Button
                     type="button"
                     onClick={handleNext}
-                    className="flex items-center"
+                    disabled={!isStepValid()}
                   >
                     Next
                     <ChevronRight className="w-4 h-4 ml-2" />
                   </Button>
                 ) : (
-                  <Button type="submit" className="flex items-center">
-                    {isLoading ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Check className="w-4 h-4 mr-2" />
-                    )}
+                  <Button type="submit" disabled={!isStepValid()}>
                     Create Blueprint
                   </Button>
                 )}
