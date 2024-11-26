@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { Link, useLocation } from "wouter";
 import { Loader } from "@googlemaps/js-api-loader";
 import {
   Building2,
@@ -366,12 +367,11 @@ export default function BusinessSearch() {
                             </AlertDescription>
                           </Alert>
                           <Link href={`/claim-blueprint?data=${encodeURIComponent(JSON.stringify({
-                              name: selectedBusiness.name,
-                              address: selectedBusiness.address,
-                              placeId: prediction.place_id
-                            }))}`}>
-                              <Button>Claim Existing Blueprint</Button>
-                           </Link>
+                            name: selectedBusiness.name,
+                            address: selectedBusiness.address
+                          }))}`}>
+                            <Button className="w-full">Claim Existing Blueprint</Button>
+                          </Link>
                         </div>
                       ) : (
                         <div className="flex flex-col space-y-4">
@@ -381,12 +381,11 @@ export default function BusinessSearch() {
                             </AlertDescription>
                           </Alert>
                           <Link href={`/create-blueprint?data=${encodeURIComponent(JSON.stringify({
-                              name: selectedBusiness.name,
-                              address: selectedBusiness.address,
-                              placeId: prediction.place_id
-                            }))}`}>
-                              <Button>Create New Blueprint</Button>
-                           </Link>
+                            name: selectedBusiness.name,
+                            address: selectedBusiness.address
+                          }))}`}>
+                            <Button className="w-full">Create New Blueprint</Button>
+                          </Link>
                         </div>
                       )}
                     </CardContent>
