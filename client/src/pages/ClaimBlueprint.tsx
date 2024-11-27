@@ -264,7 +264,6 @@ export default function ClaimBlueprint() {
       title: "Success",
       description: "Your Blueprint has been successfully claimed and customized!",
     });
-    setLocation('/dashboard');
   };
 
   useEffect(() => {
