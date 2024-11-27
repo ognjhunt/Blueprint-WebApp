@@ -15,7 +15,9 @@ import {
   Search,
   Building2,
   AlertCircle,
-  Loader2
+  Loader2,
+  QrCode,
+  Download
 } from "lucide-react";
 import { CodeEntryModal } from "@/components/CodeEntryModal";
 import { Button } from "@/components/ui/button";
@@ -47,6 +49,11 @@ interface FormData {
     specialPromotions: boolean;
     virtualTour: boolean;
   };
+  qrCode: {
+    size: string;
+    logo: boolean;
+    color: string;
+  };
 }
 
 interface PlacePrediction {
@@ -63,6 +70,7 @@ const steps = [
   { id: "verify", title: "Verify Business", icon: Shield },
   { id: "review", title: "Review Information", icon: Store },
   { id: "customize", title: "Customize Blueprint", icon: User },
+  { id: "qr-setup", title: "QR Code Setup", icon: QrCode },
   { id: "confirm", title: "Confirm & Submit", icon: Check },
 ];
 
@@ -97,6 +105,11 @@ export default function ClaimBlueprint() {
       specialPromotions: false,
       virtualTour: false,
     },
+    qrCode: {
+      size: "medium",
+      logo: true,
+      color: "#4F46E5"
+    }
   });
 
   // Initialize Google Places API
@@ -224,6 +237,16 @@ export default function ClaimBlueprint() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleQRCodeChange = (field: keyof FormData['qrCode'], value: string | boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      qrCode: {
+        ...prev.qrCode,
+        [field]: value
+      }
+    }));
   };
 
   const handleCustomizationToggle = (feature: keyof FormData["customizations"]) => {
@@ -484,10 +507,12 @@ export default function ClaimBlueprint() {
                           feature as keyof FormData["customizations"]
                         )
                       }
-                      className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                      className="rounded border-gray-300"
                     />
-                    <Label htmlFor={feature} className="select-none">
-                      {feature.split(/(?=[A-Z])/).join(" ")}
+                    <Label htmlFor={feature}>
+                      {feature
+                        .replace(/([A-Z])/g, " $1")
+                        .replace(/^./, (str) => str.toUpperCase())}
                     </Label>
                   </div>
                 ))}
@@ -497,18 +522,119 @@ export default function ClaimBlueprint() {
         );
       case 4:
         return (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold">Confirm Your Blueprint</h2>
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold">Blueprint QR Code</h2>
+            <p className="text-muted-foreground">
+              After submitting, a unique QR code will be generated for your Blueprint. You can:
+            </p>
+            
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Check className="text-green-500" />
+                <span>Print and display it at your business location</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Check className="text-green-500" />
+                <span>Include it in your marketing materials</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Check className="text-green-500" />
+                <span>Share it on social media to promote your AR experience</span>
+              </div>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>QR Code Preview</CardTitle>
+                <CardDescription>
+                  Customize how your QR code will look
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="w-full aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
+                  <div className="text-center space-y-2">
+                    <QrCode className="w-32 h-32 mx-auto text-blue-600" />
+                    <p className="text-sm text-gray-500">QR Code will be generated after submission</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4 mt-4">
+                  <div>
+                    <Label>Size</Label>
+                    <RadioGroup
+                      value={formData.qrCode.size}
+                      onValueChange={(value) => handleQRCodeChange('size', value)}
+                      className="flex space-x-4 mt-2"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="small" id="small" />
+                        <Label htmlFor="small">Small</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="medium" id="medium" />
+                        <Label htmlFor="medium">Medium</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="large" id="large" />
+                        <Label htmlFor="large">Large</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="logo"
+                      checked={formData.qrCode.logo}
+                      onChange={(e) => handleQRCodeChange('logo', e.target.checked)}
+                      className="rounded border-gray-300"
+                    />
+                    <Label htmlFor="logo">Include Business Logo</Label>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="qr-color">QR Code Color</Label>
+                    <Input
+                      type="color"
+                      id="qr-color"
+                      value={formData.qrCode.color}
+                      onChange={(e) => handleQRCodeChange('color', e.target.value)}
+                      className="h-10 w-20 p-1"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Alert>
+              <AlertDescription className="text-blue-600">
+                Note: The QR code will be generated automatically once you submit your Blueprint. You'll be able to download it in various formats and sizes.
+              </AlertDescription>
+            </Alert>
+          </div>
+        );
+      case 5:
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold">Review & Submit</h2>
             <p className="text-muted-foreground">
               Please review your Blueprint details before submitting.
             </p>
+
             <Card>
               <CardHeader>
-                <CardTitle>{formData.businessName}</CardTitle>
-                <CardDescription>{formData.address}</CardDescription>
+                <CardTitle>Business Details</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Store className="w-4 h-4" />
+                    <span className="font-medium">{formData.businessName}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <MapPin className="w-4 h-4" />
+                    <span>{formData.address}</span>
+                  </div>
                   <div className="flex items-center space-x-2">
                     <Phone className="w-4 h-4" />
                     <span>{formData.phone}</span>
@@ -523,20 +649,37 @@ export default function ClaimBlueprint() {
                   </div>
                 </div>
               </CardContent>
-              <CardFooter>
-                <div className="space-y-2">
-                  <p className="font-semibold">Enabled Features:</p>
-                  <ul className="list-disc list-inside">
-                    {Object.entries(formData.customizations)
-                      .filter(([, enabled]) => enabled)
-                      .map(([feature]) => (
-                        <li key={feature}>
-                          {feature.split(/(?=[A-Z])/).join(" ")}
-                        </li>
-                      ))}
-                  </ul>
-                </div>
-              </CardFooter>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Customizations</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {Object.entries(formData.customizations).map(
+                    ([feature, enabled]) => (
+                      <li
+                        key={feature}
+                        className="flex items-center space-x-2"
+                      >
+                        {enabled ? (
+                          <Check className="w-4 h-4 text-green-500" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4 text-gray-300" />
+                        )}
+                        <span
+                          className={enabled ? "text-gray-900" : "text-gray-500"}
+                        >
+                          {feature
+                            .replace(/([A-Z])/g, " $1")
+                            .replace(/^./, (str) => str.toUpperCase())}
+                        </span>
+                      </li>
+                    ),
+                  )}
+                </ul>
+              </CardContent>
             </Card>
           </div>
         );
@@ -546,98 +689,81 @@ export default function ClaimBlueprint() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-100 to-white py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-4xl font-bold text-center text-blue-900 mb-8">
-          Claim Your Blueprint
-        </h1>
-        <div className="bg-white shadow-xl rounded-lg overflow-hidden">
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-8">
-              {steps.map((step, index) => (
-                <div
+        {/* Progress Indicator */}
+        <nav className="mb-8">
+          <ol className="flex items-center w-full">
+            {steps.map((step, index) => {
+              const StepIcon = step.icon;
+              return (
+                <li
                   key={step.id}
-                  className={`flex flex-col items-center ${
-                    index <= currentStep ? "text-blue-600" : "text-gray-400"
+                  className={`flex items-center ${
+                    index < steps.length - 1
+                      ? "w-full"
+                      : "flex-1"
                   }`}
                 >
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      index <= currentStep
+                    className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                      currentStep >= index
                         ? "bg-blue-600 text-white"
-                        : "bg-gray-200"
+                        : "bg-gray-200 text-gray-500"
                     }`}
                   >
-                    {index < currentStep ? (
-                      <Check className="w-6 h-6" />
-                    ) : (
-                      <step.icon className="w-6 h-6" />
-                    )}
+                    <StepIcon className="w-5 h-5" />
                   </div>
-                  <span className="text-xs mt-2">{step.title}</span>
-                </div>
-              ))}
-            </div>
-            <form onSubmit={handleSubmit}>
-              <motion.div
-                key={currentStep}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-                {renderStep()}
-              </motion.div>
-              <div className="mt-8 flex justify-between">
-                <Button
-                  type="button"
-                  onClick={handlePrevious}
-                  disabled={currentStep === 0}
-                  variant="outline"
-                >
-                  Previous
-                </Button>
-                {currentStep < steps.length - 1 ? (
-                  <Button
-                    type="button"
-                    onClick={handleNext}
-                    disabled={currentStep === 0 && !formData.businessName}
-                  >
-                    Next
-                    <ChevronRight className="w-4 h-4 ml-2" />
-                  </Button>
-                ) : (
-                  <Button type="submit">Claim Blueprint</Button>
-                )}
-              </div>
-            </form>
-          </div>
+                  {index < steps.length - 1 && (
+                    <>
+                      <div
+                        className={`flex-1 h-px mx-4 ${
+                          currentStep > index
+                            ? "bg-blue-600"
+                            : "bg-gray-200"
+                        }`}
+                      />
+                    </>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </nav>
+
+        {/* Main Content */}
+        <div className="bg-white shadow rounded-lg p-6 mb-6">
+          <form onSubmit={handleSubmit}>{renderStep()}</form>
         </div>
 
-        {/* Code Entry Modal */}
-        <CodeEntryModal
-          isOpen={isCodeModalOpen}
-          onClose={() => setIsCodeModalOpen(false)}
-          onSubmit={(code) => {
-            if (code.length === 6 && /^[A-Za-z0-9]{6}$/.test(code)) {
-              setFormData((prev) => ({
-                ...prev,
-                verificationCode: code,
-                verificationMethod: "code",
-              }));
-              setIsCodeModalOpen(false);
-              handleNext();
-            } else {
-              toast({
-                title: "Invalid Code",
-                description: "Please enter a valid 6-character code consisting of letters and numbers.",
-                variant: "destructive",
-              });
-            }
-          }}
-          codeLength={6}
-        />
+        {/* Navigation Buttons */}
+        <div className="flex justify-between">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handlePrevious}
+            disabled={currentStep === 0}
+          >
+            Previous
+          </Button>
+          <Button
+            type="button"
+            onClick={currentStep === steps.length - 1 ? handleSubmit : handleNext}
+          >
+            {currentStep === steps.length - 1 ? "Submit" : "Next"}
+          </Button>
+        </div>
       </div>
+
+      <CodeEntryModal
+        isOpen={isCodeModalOpen}
+        onClose={() => setIsCodeModalOpen(false)}
+        onSubmit={(code) => {
+          setFormData((prev) => ({ ...prev, verificationCode: code }));
+          setIsCodeModalOpen(false);
+          handleNext();
+        }}
+      />
     </div>
   );
 }
