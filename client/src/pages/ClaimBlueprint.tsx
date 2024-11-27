@@ -17,7 +17,8 @@ import {
   AlertCircle,
   Loader2,
   QrCode,
-  Download
+  Download,
+  MapPin
 } from "lucide-react";
 import { CodeEntryModal } from "@/components/CodeEntryModal";
 import { Button } from "@/components/ui/button";
@@ -259,7 +260,27 @@ export default function ClaimBlueprint() {
     }));
   };
 
+  const validateQRCodeStep = () => {
+    // Validate required QR code settings
+    const { size, color } = formData.qrCode;
+    if (!size || !color) {
+      toast({
+        title: "Required Fields Missing",
+        description: "Please complete all QR code settings before proceeding.",
+        variant: "destructive",
+      });
+      return false;
+    }
+    return true;
+  };
+
   const handleNext = () => {
+    if (currentStep === 4) { // QR Code setup step
+      if (!validateQRCodeStep()) {
+        return;
+      }
+    }
+    
     if (currentStep < steps.length - 1) {
       setCurrentStep((prev) => prev + 1);
     }
@@ -522,165 +543,120 @@ export default function ClaimBlueprint() {
         );
       case 4:
         return (
-          <div className="space-y-6">
+          <div className="space-y-4">
             <h2 className="text-2xl font-bold">Blueprint QR Code</h2>
             <p className="text-muted-foreground">
-              After submitting, a unique QR code will be generated for your Blueprint. You can:
+              Customize your Blueprint QR code that customers will scan.
             </p>
             
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Check className="text-green-500" />
-                <span>Print and display it at your business location</span>
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>QR Code Preview</CardTitle>
+                  <CardDescription>Your QR code will be generated after submission</CardDescription>
+                </CardHeader>
+                <CardContent className="flex justify-center">
+                  <div className="p-8 border-2 border-dashed rounded-lg">
+                    <QrCode className="w-32 h-32 text-muted-foreground" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Size</Label>
+                  <RadioGroup
+                    value={formData.qrCode.size}
+                    onValueChange={(value) => handleQRCodeChange('size', value)}
+                    className="flex space-x-4"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="small" id="size-small" />
+                      <Label htmlFor="size-small">Small</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="medium" id="size-medium" />
+                      <Label htmlFor="size-medium">Medium</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="large" id="size-large" />
+                      <Label htmlFor="size-large">Large</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="qr-color">Color</Label>
+                  <Input
+                    id="qr-color"
+                    type="color"
+                    value={formData.qrCode.color}
+                    onChange={(e) => handleQRCodeChange('color', e.target.value)}
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="include-logo"
+                    checked={formData.qrCode.logo}
+                    onChange={(e) => handleQRCodeChange('logo', e.target.checked)}
+                  />
+                  <Label htmlFor="include-logo">Include business logo</Label>
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <Check className="text-green-500" />
-                <span>Include it in your marketing materials</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Check className="text-green-500" />
-                <span>Share it on social media to promote your AR experience</span>
-              </div>
+
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  The QR code will be generated automatically once you submit your Blueprint.
+                  You'll be able to download it in various formats and sizes.
+                </AlertDescription>
+              </Alert>
             </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>QR Code Preview</CardTitle>
-                <CardDescription>
-                  Customize how your QR code will look
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="w-full aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
-                  <div className="text-center space-y-2">
-                    <QrCode className="w-32 h-32 mx-auto text-blue-600" />
-                    <p className="text-sm text-gray-500">QR Code will be generated after submission</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4 mt-4">
-                  <div>
-                    <Label>Size</Label>
-                    <RadioGroup
-                      value={formData.qrCode.size}
-                      onValueChange={(value) => handleQRCodeChange('size', value)}
-                      className="flex space-x-4 mt-2"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="small" id="small" />
-                        <Label htmlFor="small">Small</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="medium" id="medium" />
-                        <Label htmlFor="medium">Medium</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="large" id="large" />
-                        <Label htmlFor="large">Large</Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="logo"
-                      checked={formData.qrCode.logo}
-                      onChange={(e) => handleQRCodeChange('logo', e.target.checked)}
-                      className="rounded border-gray-300"
-                    />
-                    <Label htmlFor="logo">Include Business Logo</Label>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="qr-color">QR Code Color</Label>
-                    <Input
-                      type="color"
-                      id="qr-color"
-                      value={formData.qrCode.color}
-                      onChange={(e) => handleQRCodeChange('color', e.target.value)}
-                      className="h-10 w-20 p-1"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Alert>
-              <AlertDescription className="text-blue-600">
-                Note: The QR code will be generated automatically once you submit your Blueprint. You'll be able to download it in various formats and sizes.
-              </AlertDescription>
-            </Alert>
           </div>
         );
       case 5:
         return (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold">Review & Submit</h2>
+          <div className="space-y-4">
+            <h2 className="text-2xl font-bold">Review and Submit</h2>
             <p className="text-muted-foreground">
-              Please review your Blueprint details before submitting.
+              Please review your information before submitting.
             </p>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Business Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Store className="w-4 h-4" />
-                    <span className="font-medium">{formData.businessName}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <MapPin className="w-4 h-4" />
-                    <span>{formData.address}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Phone className="w-4 h-4" />
-                    <span>{formData.phone}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Globe className="w-4 h-4" />
-                    <span>{formData.website}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Mail className="w-4 h-4" />
-                    <span>{formData.email}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="space-y-6">
+              <div className="flex items-center space-x-2">
+                <MapPin className="w-4 h-4" />
+                <span>{formData.address}</span>
+              </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Customizations</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2">
-                  {Object.entries(formData.customizations).map(
-                    ([feature, enabled]) => (
-                      <li
-                        key={feature}
-                        className="flex items-center space-x-2"
-                      >
-                        {enabled ? (
-                          <Check className="w-4 h-4 text-green-500" />
-                        ) : (
-                          <AlertCircle className="w-4 h-4 text-gray-300" />
-                        )}
-                        <span
-                          className={enabled ? "text-gray-900" : "text-gray-500"}
-                        >
-                          {feature
-                            .replace(/([A-Z])/g, " $1")
-                            .replace(/^./, (str) => str.toUpperCase())}
-                        </span>
-                      </li>
-                    ),
-                  )}
-                </ul>
-              </CardContent>
-            </Card>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm text-muted-foreground">Business Name</Label>
+                  <p>{formData.businessName}</p>
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground">Phone</Label>
+                  <p>{formData.phone}</p>
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground">Website</Label>
+                  <p>{formData.website}</p>
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground">Email</Label>
+                  <p>{formData.email}</p>
+                </div>
+              </div>
+
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  After submission, you'll receive access to your Blueprint dashboard
+                  where you can manage your AR elements and analytics.
+                </AlertDescription>
+              </Alert>
+            </div>
           </div>
         );
       default:
@@ -689,69 +665,86 @@ export default function ClaimBlueprint() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-center">Claim Your Blueprint</h1>
+        </div>
+
         {/* Progress Indicator */}
-        <nav className="mb-8">
-          <ol className="flex items-center w-full">
+        <div className="mb-8">
+          <div className="flex justify-between items-center">
             {steps.map((step, index) => {
               const StepIcon = step.icon;
               return (
-                <li
+                <div
                   key={step.id}
                   className={`flex items-center ${
-                    index < steps.length - 1
-                      ? "w-full"
-                      : "flex-1"
+                    index < steps.length - 1 ? "flex-1" : ""
                   }`}
                 >
                   <div
-                    className={`flex items-center justify-center w-10 h-10 rounded-full ${
-                      currentStep >= index
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-200 text-gray-500"
+                    className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
+                      currentStep === index
+                        ? "border-primary bg-primary text-white"
+                        : currentStep > index
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-gray-300 text-gray-300"
                     }`}
                   >
                     <StepIcon className="w-5 h-5" />
                   </div>
                   {index < steps.length - 1 && (
-                    <>
-                      <div
-                        className={`flex-1 h-px mx-4 ${
-                          currentStep > index
-                            ? "bg-blue-600"
-                            : "bg-gray-200"
-                        }`}
-                      />
-                    </>
+                    <div
+                      className={`flex-1 h-0.5 mx-2 ${
+                        currentStep > index ? "bg-primary" : "bg-gray-300"
+                      }`}
+                    />
                   )}
-                </li>
+                </div>
               );
             })}
-          </ol>
-        </nav>
-
-        {/* Main Content */}
-        <div className="bg-white shadow rounded-lg p-6 mb-6">
-          <form onSubmit={handleSubmit}>{renderStep()}</form>
+          </div>
+          <div className="flex justify-between mt-2">
+            {steps.map((step, index) => (
+              <div
+                key={step.id}
+                className={`text-sm ${
+                  currentStep === index
+                    ? "text-primary font-medium"
+                    : "text-gray-500"
+                }`}
+                style={{ width: "100px", textAlign: "center" }}
+              >
+                {step.title}
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Navigation Buttons */}
-        <div className="flex justify-between">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handlePrevious}
-            disabled={currentStep === 0}
-          >
-            Previous
-          </Button>
-          <Button
-            type="button"
-            onClick={currentStep === steps.length - 1 ? handleSubmit : handleNext}
-          >
-            {currentStep === steps.length - 1 ? "Submit" : "Next"}
-          </Button>
+        {/* Main Content */}
+        <div className="bg-white rounded-lg shadow-sm border p-6">
+          <form onSubmit={handleSubmit}>
+            {renderStep()}
+
+            {/* Navigation Buttons */}
+            <div className="flex justify-between mt-8">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handlePrevious}
+                disabled={currentStep === 0}
+              >
+                Previous
+              </Button>
+              <Button
+                type={currentStep === steps.length - 1 ? "submit" : "button"}
+                onClick={currentStep === steps.length - 1 ? undefined : handleNext}
+              >
+                {currentStep === steps.length - 1 ? "Submit" : "Next"}
+              </Button>
+            </div>
+          </form>
         </div>
       </div>
 
@@ -760,7 +753,6 @@ export default function ClaimBlueprint() {
         onClose={() => setIsCodeModalOpen(false)}
         onSubmit={(code) => {
           setFormData((prev) => ({ ...prev, verificationCode: code }));
-          setIsCodeModalOpen(false);
           handleNext();
         }}
       />
