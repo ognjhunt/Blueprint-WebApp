@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
@@ -12,12 +12,17 @@ import {
   Phone,
   Globe,
   Shield,
+  Search,
+  Building2,
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 import { CodeEntryModal } from "@/components/CodeEntryModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Card,
   CardContent,
@@ -26,6 +31,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { Loader } from "@googlemaps/js-api-loader";
 
 interface FormData {
   businessName: string;
@@ -42,12 +49,24 @@ interface FormData {
   };
 }
 
+interface PlacePrediction {
+  place_id: string;
+  description: string;
+  structured_formatting: {
+    main_text: string;
+    secondary_text: string;
+  };
+}
+
 const steps = [
+  { id: "search", title: "Find Business", icon: Search },
   { id: "verify", title: "Verify Business", icon: Shield },
   { id: "review", title: "Review Information", icon: Store },
   { id: "customize", title: "Customize Blueprint", icon: User },
   { id: "confirm", title: "Confirm & Submit", icon: Check },
 ];
+
+type LoaderStatus = "idle" | "loading" | "error" | "success";
 
 export default function ClaimBlueprint() {
   const { currentUser } = useAuth();
@@ -55,11 +74,21 @@ export default function ClaimBlueprint() {
   const [currentStep, setCurrentStep] = useState(0);
   const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
   const [showOtherMethods, setShowOtherMethods] = useState(false);
+  const { toast } = useToast();
+
+  // Business search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
+  const [autocomplete, setAutocomplete] = useState<google.maps.places.AutocompleteService | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loaderStatus, setLoaderStatus] = useState<LoaderStatus>("idle");
+  const [error, setError] = useState<string | null>(null);
+
   const [formData, setFormData] = useState<FormData>({
-    businessName: "Roots & Vines Restaurant",
-    address: "123 Main St, Anytown, USA",
-    phone: "(555) 123-4567",
-    website: "www.rootsandvines.com",
+    businessName: "",
+    address: "",
+    phone: "",
+    website: "",
     email: "",
     verificationMethod: "",
     verificationCode: "",
@@ -70,14 +99,134 @@ export default function ClaimBlueprint() {
     },
   });
 
+  // Initialize Google Places API
+  const initGooglePlaces = useCallback(async () => {
+    setLoaderStatus("loading");
+    setError(null);
+
+    try {
+      const apiKey = "AIzaSyBgxzzgcT_9nyhz1D_JtfG7gevRUKQ5Vbs";
+      if (!apiKey) {
+        throw new Error("Google Places API key is not configured");
+      }
+
+      const loader = new Loader({
+        apiKey,
+        version: "weekly",
+        libraries: ["places"],
+      });
+
+      await loader.load();
+
+      if (typeof google === "undefined") {
+        throw new Error("Google Maps JavaScript API not loaded");
+      }
+
+      const autocompleteService = new google.maps.places.AutocompleteService();
+      setAutocomplete(autocompleteService);
+      setLoaderStatus("success");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred";
+      setError(`Failed to initialize Google Places API: ${errorMessage}`);
+      setLoaderStatus("error");
+      toast({
+        title: "Error",
+        description: `Failed to initialize Google Places API: ${errorMessage}. Please try again.`,
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    initGooglePlaces();
+  }, [initGooglePlaces]);
+
+  // Handle business search input
+  const handleSearchInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+
+    if (value.length >= 3 && autocomplete) {
+      setLoading(true);
+      autocomplete.getPlacePredictions(
+        {
+          input: value,
+          types: ["establishment"],
+          componentRestrictions: { country: "us" },
+        },
+        (predictions, status) => {
+          setLoading(false);
+          if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+            setPredictions(predictions.map(prediction => ({
+              place_id: prediction.place_id,
+              description: prediction.description,
+              structured_formatting: {
+                main_text: prediction.structured_formatting.main_text,
+                secondary_text: prediction.structured_formatting.secondary_text,
+              },
+            })));
+          } else {
+            setPredictions([]);
+          }
+        }
+      );
+    } else {
+      setPredictions([]);
+    }
+  };
+
+  // Handle selecting a business from predictions
+  const handleBusinessSelect = async (prediction: PlacePrediction) => {
+    setPredictions([]);
+    setLoading(true);
+
+    try {
+      const placesDiv = document.createElement("div");
+      const placesService = new google.maps.places.PlacesService(placesDiv);
+
+      const place = await new Promise<google.maps.places.PlaceResult>((resolve, reject) => {
+        placesService.getDetails(
+          {
+            placeId: prediction.place_id,
+            fields: ["name", "formatted_address", "formatted_phone_number", "website"],
+          },
+          (place, status) => {
+            if (status === google.maps.places.PlacesServiceStatus.OK && place) {
+              resolve(place);
+            } else {
+              reject(new Error(`Places API error: ${status}`));
+            }
+          }
+        );
+      });
+
+      setFormData(prev => ({
+        ...prev,
+        businessName: place.name || prediction.structured_formatting.main_text,
+        address: place.formatted_address || prediction.structured_formatting.secondary_text,
+        phone: place.formatted_phone_number || "",
+        website: place.website || "",
+      }));
+
+      setSearchQuery(prediction.description);
+      handleNext();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch business details. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleCustomizationToggle = (
-    feature: keyof FormData["customizations"],
-  ) => {
+  const handleCustomizationToggle = (feature: keyof FormData["customizations"]) => {
     setFormData((prev) => ({
       ...prev,
       customizations: {
@@ -102,18 +251,18 @@ export default function ClaimBlueprint() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser && currentStep === steps.length - 1) {
-      // Save form data to localStorage before redirecting
       localStorage.setItem('pendingBlueprintClaim', JSON.stringify(formData));
       setLocation('/sign-in?redirect=/claim-blueprint');
       return;
     }
     console.log("Blueprint claimed:", formData);
-    alert("Your Blueprint has been successfully claimed and customized!");
+    toast({
+      title: "Success",
+      description: "Your Blueprint has been successfully claimed and customized!",
+    });
   };
 
-  // Restore form data if returning from authentication
   useEffect(() => {
-    // Handle data from URL params
     const params = new URLSearchParams(window.location.search);
     const businessData = params.get('data');
     
@@ -124,8 +273,8 @@ export default function ClaimBlueprint() {
         businessName: parsedData.name,
         address: parsedData.address,
       }));
+      setCurrentStep(1); // Skip search step if data is provided
     } else {
-      // Check for pending claim data if no URL params
       const pendingClaim = localStorage.getItem('pendingBlueprintClaim');
       if (pendingClaim && currentUser) {
         setFormData(JSON.parse(pendingClaim));
@@ -137,6 +286,54 @@ export default function ClaimBlueprint() {
   const renderStep = () => {
     switch (currentStep) {
       case 0:
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold">Find Your Business</h2>
+            <p className="text-muted-foreground">
+              Search for your business to claim or create a Blueprint
+            </p>
+            <div className="space-y-4">
+              <div className="relative">
+                <div className="flex items-center space-x-2">
+                  {loading ? (
+                    <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                  ) : (
+                    <Search className="w-5 h-5 text-gray-400" />
+                  )}
+                  <Input
+                    value={searchQuery}
+                    onChange={handleSearchInput}
+                    placeholder="Search for your business..."
+                    className="flex-1"
+                    disabled={loaderStatus !== "success"}
+                  />
+                </div>
+
+                {predictions.length > 0 && !loading && (
+                  <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
+                    <ul className="py-1">
+                      {predictions.map((prediction) => (
+                        <li
+                          key={prediction.place_id}
+                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                          onClick={() => handleBusinessSelect(prediction)}
+                        >
+                          <div className="font-medium">
+                            {prediction.structured_formatting.main_text}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {prediction.structured_formatting.secondary_text}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      case 1:
         return (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">Verify Your Business</h2>
@@ -175,7 +372,6 @@ export default function ClaimBlueprint() {
               {showOtherMethods && (
                 <div className="mt-4 space-y-4 border rounded-lg p-4 bg-gray-50">
                   <RadioGroup
-                    name="verificationMethod"
                     value={formData.verificationMethod}
                     onValueChange={(value) =>
                       setFormData((prev) => ({
@@ -202,12 +398,10 @@ export default function ClaimBlueprint() {
             </div>
           </div>
         );
-      case 1:
+      case 2:
         return (
           <div className="space-y-4">
-            <h2 className="text-2xl font-bold">
-              Review Your Business Information
-            </h2>
+            <h2 className="text-2xl font-bold">Review Your Business Information</h2>
             <p className="text-muted-foreground">
               Please review the information we've gathered about your business.
               You can make changes if needed.
@@ -261,7 +455,7 @@ export default function ClaimBlueprint() {
             </div>
           </div>
         );
-      case 2:
+      case 3:
         return (
           <div className="space-y-4">
             <h2 className="text-2xl font-bold">Customize Your Blueprint</h2>
@@ -277,35 +471,31 @@ export default function ClaimBlueprint() {
 
             {/* Additional Features */}
             <div className="mt-8">
-              <h3 className="text-lg font-semibold mb-4">
-                Additional Features
-              </h3>
+              <h3 className="text-lg font-semibold mb-4">Additional Features</h3>
               <div className="space-y-2">
-                {Object.entries(formData.customizations).map(
-                  ([feature, enabled]) => (
-                    <div key={feature} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id={feature}
-                        checked={enabled}
-                        onChange={() =>
-                          handleCustomizationToggle(
-                            feature as keyof FormData["customizations"],
-                          )
-                        }
-                        className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
-                      />
-                      <Label htmlFor={feature} className="select-none">
-                        {feature.split(/(?=[A-Z])/).join(" ")}
-                      </Label>
-                    </div>
-                  ),
-                )}
+                {Object.entries(formData.customizations).map(([feature, enabled]) => (
+                  <div key={feature} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id={feature}
+                      checked={enabled}
+                      onChange={() =>
+                        handleCustomizationToggle(
+                          feature as keyof FormData["customizations"]
+                        )
+                      }
+                      className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                    />
+                    <Label htmlFor={feature} className="select-none">
+                      {feature.split(/(?=[A-Z])/).join(" ")}
+                    </Label>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         );
-      case 3:
+      case 4:
         return (
           <div className="space-y-4">
             <h2 className="text-2xl font-bold">Confirm Your Blueprint</h2>
@@ -408,7 +598,11 @@ export default function ClaimBlueprint() {
                   Previous
                 </Button>
                 {currentStep < steps.length - 1 ? (
-                  <Button type="button" onClick={handleNext}>
+                  <Button
+                    type="button"
+                    onClick={handleNext}
+                    disabled={currentStep === 0 && !formData.businessName}
+                  >
                     Next
                     <ChevronRight className="w-4 h-4 ml-2" />
                   </Button>
@@ -419,6 +613,7 @@ export default function ClaimBlueprint() {
             </form>
           </div>
         </div>
+
         {/* Code Entry Modal */}
         <CodeEntryModal
           isOpen={isCodeModalOpen}
@@ -433,12 +628,14 @@ export default function ClaimBlueprint() {
               setIsCodeModalOpen(false);
               handleNext();
             } else {
-              alert(
-                "Please enter a valid 6-character code consisting of letters and numbers.",
-              );
+              toast({
+                title: "Invalid Code",
+                description: "Please enter a valid 6-character code consisting of letters and numbers.",
+                variant: "destructive",
+              });
             }
           }}
-          codeLength={6} // Pass the desired code length to the modal
+          codeLength={6}
         />
       </div>
     </div>
