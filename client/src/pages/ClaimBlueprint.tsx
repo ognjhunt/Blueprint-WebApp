@@ -18,7 +18,7 @@ import {
   Loader2,
   QrCode,
   Download,
-  MapPin
+  MapPin,
 } from "lucide-react";
 import { CodeEntryModal } from "@/components/CodeEntryModal";
 import { Button } from "@/components/ui/button";
@@ -264,6 +264,7 @@ export default function ClaimBlueprint() {
       title: "Success",
       description: "Your Blueprint has been successfully claimed and customized!",
     });
+    setLocation('/dashboard');
   };
 
   useEffect(() => {
@@ -572,7 +573,7 @@ export default function ClaimBlueprint() {
                     <Input
                       id="shipping"
                       name="shippingAddress"
-                      value={formData.shippingAddress}
+                      value={formData.shippingAddress || formData.address}
                       onChange={handleInputChange}
                       className="mt-2"
                     />
@@ -591,56 +592,43 @@ export default function ClaimBlueprint() {
             </Card>
           </div>
         );
+
       case 5:
         return (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">Review & Submit</h2>
             <p className="text-muted-foreground">
-              Please review your Blueprint details before submitting.
+              Please review your Blueprint details before submitting
             </p>
 
             <div className="space-y-4">
-              <div className="border rounded-lg p-6 space-y-4">
+              <div className="flex items-start gap-2">
+                <Building2 className="w-5 h-5 mt-1" />
                 <div>
-                  <h3 className="font-semibold">Business Information</h3>
-                  <p>{formData.businessName}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {formData.address}
-                  </p>
-                </div>
-
-                <div>
-                  <h3 className="font-semibold">Contact Details</h3>
-                  <p>{formData.phone}</p>
-                  <p>{formData.email}</p>
-                  <p>{formData.website}</p>
-                </div>
-
-                <div>
-                  <h3 className="font-semibold">Shipping Address</h3>
-                  <p>{formData.shippingAddress}</p>
-                </div>
-
-                <div>
-                  <h3 className="font-semibold">Selected Features</h3>
-                  <ul className="list-disc list-inside">
-                    {formData.customizations.loyaltyProgram && (
-                      <li>Loyalty Program</li>
-                    )}
-                    {formData.customizations.specialPromotions && (
-                      <li>Special Promotions</li>
-                    )}
-                    {formData.customizations.virtualTour && <li>Virtual Tour</li>}
-                  </ul>
+                  <h3 className="font-medium">{formData.businessName}</h3>
+                  <p className="text-sm text-muted-foreground">{formData.address}</p>
                 </div>
               </div>
+              
+              <div className="flex items-center gap-2">
+                <Phone className="w-4 h-4" />
+                <span>{formData.phone}</span>
+              </div>
 
-              <Alert>
-                <AlertDescription>
-                  By submitting, you confirm that you are authorized to claim this
-                  business and agree to Blueprint's terms of service.
-                </AlertDescription>
-              </Alert>
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4" />
+                <span>{formData.website}</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Mail className="w-4 h-4" />
+                <span>{formData.email}</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                <span>{formData.shippingAddress}</span>
+              </div>
             </div>
           </div>
         );
