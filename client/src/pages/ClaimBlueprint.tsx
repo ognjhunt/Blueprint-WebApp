@@ -50,11 +50,7 @@ interface FormData {
     specialPromotions: boolean;
     virtualTour: boolean;
   };
-  qrCode: {
-    size: string;
-    logo: boolean;
-    color: string;
-  };
+  shippingAddress: string;
 }
 
 interface PlacePrediction {
@@ -85,7 +81,6 @@ export default function ClaimBlueprint() {
   const [showOtherMethods, setShowOtherMethods] = useState(false);
   const { toast } = useToast();
 
-  // Business search state
   const [searchQuery, setSearchQuery] = useState("");
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
   const [autocomplete, setAutocomplete] = useState<google.maps.places.AutocompleteService | null>(null);
@@ -106,11 +101,7 @@ export default function ClaimBlueprint() {
       specialPromotions: false,
       virtualTour: false,
     },
-    qrCode: {
-      size: "medium",
-      logo: true,
-      color: "#4F46E5"
-    }
+    shippingAddress: ""
   });
 
   // Initialize Google Places API
@@ -155,7 +146,6 @@ export default function ClaimBlueprint() {
     initGooglePlaces();
   }, [initGooglePlaces]);
 
-  // Handle business search input
   const handleSearchInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchQuery(value);
@@ -189,7 +179,6 @@ export default function ClaimBlueprint() {
     }
   };
 
-  // Handle selecting a business from predictions
   const handleBusinessSelect = async (prediction: PlacePrediction) => {
     setPredictions([]);
     setLoading(true);
@@ -218,6 +207,7 @@ export default function ClaimBlueprint() {
         ...prev,
         businessName: place.name || prediction.structured_formatting.main_text,
         address: place.formatted_address || prediction.structured_formatting.secondary_text,
+        shippingAddress: place.formatted_address || prediction.structured_formatting.secondary_text,
         phone: place.formatted_phone_number || "",
         website: place.website || "",
       }));
@@ -240,16 +230,6 @@ export default function ClaimBlueprint() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleQRCodeChange = (field: keyof FormData['qrCode'], value: string | boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      qrCode: {
-        ...prev.qrCode,
-        [field]: value
-      }
-    }));
-  };
-
   const handleCustomizationToggle = (feature: keyof FormData["customizations"]) => {
     setFormData((prev) => ({
       ...prev,
@@ -260,27 +240,7 @@ export default function ClaimBlueprint() {
     }));
   };
 
-  const validateQRCodeStep = () => {
-    // Validate required QR code settings
-    const { size, color } = formData.qrCode;
-    if (!size || !color) {
-      toast({
-        title: "Required Fields Missing",
-        description: "Please complete all QR code settings before proceeding.",
-        variant: "destructive",
-      });
-      return false;
-    }
-    return true;
-  };
-
   const handleNext = () => {
-    if (currentStep === 4) { // QR Code setup step
-      if (!validateQRCodeStep()) {
-        return;
-      }
-    }
-    
     if (currentStep < steps.length - 1) {
       setCurrentStep((prev) => prev + 1);
     }
@@ -316,6 +276,7 @@ export default function ClaimBlueprint() {
         ...prev,
         businessName: parsedData.name,
         address: parsedData.address,
+        shippingAddress: parsedData.address,
       }));
       setCurrentStep(1); // Skip search step if data is provided
     } else {
@@ -508,152 +469,176 @@ export default function ClaimBlueprint() {
               with additional features.
             </p>
 
-            {/* Customer Experience Designer */}
-            <div className="bg-white rounded-lg shadow-sm border">
-              <CustomerExperienceDesigner />
-            </div>
+            <CustomerExperienceDesigner />
 
-            {/* Additional Features */}
-            <div className="mt-8">
-              <h3 className="text-lg font-semibold mb-4">Additional Features</h3>
-              <div className="space-y-2">
-                {Object.entries(formData.customizations).map(([feature, enabled]) => (
-                  <div key={feature} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id={feature}
-                      checked={enabled}
-                      onChange={() =>
-                        handleCustomizationToggle(
-                          feature as keyof FormData["customizations"]
-                        )
-                      }
-                      className="rounded border-gray-300"
-                    />
-                    <Label htmlFor={feature}>
-                      {feature
-                        .replace(/([A-Z])/g, " $1")
-                        .replace(/^./, (str) => str.toUpperCase())}
-                    </Label>
+            <div className="space-y-4 mt-8">
+              <h3 className="text-lg font-semibold">Additional Features</h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Loyalty Program</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Reward returning customers
+                    </p>
                   </div>
-                ))}
+                  <Button
+                    variant={
+                      formData.customizations.loyaltyProgram
+                        ? "default"
+                        : "outline"
+                    }
+                    onClick={() => handleCustomizationToggle("loyaltyProgram")}
+                  >
+                    {formData.customizations.loyaltyProgram ? "Enabled" : "Add"}
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Special Promotions</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Highlight deals and offers
+                    </p>
+                  </div>
+                  <Button
+                    variant={
+                      formData.customizations.specialPromotions
+                        ? "default"
+                        : "outline"
+                    }
+                    onClick={() => handleCustomizationToggle("specialPromotions")}
+                  >
+                    {formData.customizations.specialPromotions
+                      ? "Enabled"
+                      : "Add"}
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Virtual Tour</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Show your space in 3D
+                    </p>
+                  </div>
+                  <Button
+                    variant={
+                      formData.customizations.virtualTour ? "default" : "outline"
+                    }
+                    onClick={() => handleCustomizationToggle("virtualTour")}
+                  >
+                    {formData.customizations.virtualTour ? "Enabled" : "Add"}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
         );
       case 4:
         return (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <h2 className="text-2xl font-bold">Blueprint QR Code</h2>
             <p className="text-muted-foreground">
-              Customize your Blueprint QR code that customers will scan.
+              We'll handle everything to get your location set up with Blueprint AR
             </p>
-            
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>QR Code Preview</CardTitle>
-                  <CardDescription>Your QR code will be generated after submission</CardDescription>
-                </CardHeader>
-                <CardContent className="flex justify-center">
-                  <div className="p-8 border-2 border-dashed rounded-lg">
-                    <QrCode className="w-32 h-32 text-muted-foreground" />
+
+            <Card className="w-full">
+              <CardContent className="space-y-6 pt-6">
+                <div className="flex justify-center">
+                  <QrCode className="w-24 h-24 text-blue-500" />
+                </div>
+                
+                <h3 className="text-xl font-semibold text-center">Your Blueprint QR Code</h3>
+                
+                <div className="space-y-4">
+                  <h4 className="font-medium">What happens next:</h4>
+                  <ul className="space-y-2">
+                    <li className="flex items-start">
+                      <Check className="w-5 h-5 mr-2 text-green-500 flex-shrink-0 mt-0.5" />
+                      <span>We'll generate your unique Blueprint QR code</span>
+                    </li>
+                    <li className="flex items-start">
+                      <Check className="w-5 h-5 mr-2 text-green-500 flex-shrink-0 mt-0.5" />
+                      <span>Professional signage will be created with your QR code</span>
+                    </li>
+                    <li className="flex items-start">
+                      <Check className="w-5 h-5 mr-2 text-green-500 flex-shrink-0 mt-0.5" />
+                      <span>We'll ship everything directly to your location</span>
+                    </li>
+                  </ul>
+
+                  <div className="pt-4">
+                    <Label htmlFor="shipping">Shipping Address</Label>
+                    <Input
+                      id="shipping"
+                      name="shippingAddress"
+                      value={formData.shippingAddress}
+                      onChange={handleInputChange}
+                      className="mt-2"
+                    />
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Where should we send your Blueprint materials?
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
 
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Size</Label>
-                  <RadioGroup
-                    value={formData.qrCode.size}
-                    onValueChange={(value) => handleQRCodeChange('size', value)}
-                    className="flex space-x-4"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="small" id="size-small" />
-                      <Label htmlFor="size-small">Small</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="medium" id="size-medium" />
-                      <Label htmlFor="size-medium">Medium</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="large" id="size-large" />
-                      <Label htmlFor="size-large">Large</Label>
-                    </div>
-                  </RadioGroup>
+                  <Alert className="mt-6">
+                    <AlertDescription>
+                      Once you submit, our team will process your Blueprint and prepare your materials. You'll receive tracking information when your package ships.
+                    </AlertDescription>
+                  </Alert>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="qr-color">Color</Label>
-                  <Input
-                    id="qr-color"
-                    type="color"
-                    value={formData.qrCode.color}
-                    onChange={(e) => handleQRCodeChange('color', e.target.value)}
-                  />
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="include-logo"
-                    checked={formData.qrCode.logo}
-                    onChange={(e) => handleQRCodeChange('logo', e.target.checked)}
-                  />
-                  <Label htmlFor="include-logo">Include business logo</Label>
-                </div>
-              </div>
-
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  The QR code will be generated automatically once you submit your Blueprint.
-                  You'll be able to download it in various formats and sizes.
-                </AlertDescription>
-              </Alert>
-            </div>
+              </CardContent>
+            </Card>
           </div>
         );
       case 5:
         return (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold">Review and Submit</h2>
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold">Review & Submit</h2>
             <p className="text-muted-foreground">
-              Please review your information before submitting.
+              Please review your Blueprint details before submitting.
             </p>
 
-            <div className="space-y-6">
-              <div className="flex items-center space-x-2">
-                <MapPin className="w-4 h-4" />
-                <span>{formData.address}</span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4">
+              <div className="border rounded-lg p-6 space-y-4">
                 <div>
-                  <Label className="text-sm text-muted-foreground">Business Name</Label>
+                  <h3 className="font-semibold">Business Information</h3>
                   <p>{formData.businessName}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {formData.address}
+                  </p>
                 </div>
+
                 <div>
-                  <Label className="text-sm text-muted-foreground">Phone</Label>
+                  <h3 className="font-semibold">Contact Details</h3>
                   <p>{formData.phone}</p>
-                </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">Website</Label>
+                  <p>{formData.email}</p>
                   <p>{formData.website}</p>
                 </div>
+
                 <div>
-                  <Label className="text-sm text-muted-foreground">Email</Label>
-                  <p>{formData.email}</p>
+                  <h3 className="font-semibold">Shipping Address</h3>
+                  <p>{formData.shippingAddress}</p>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold">Selected Features</h3>
+                  <ul className="list-disc list-inside">
+                    {formData.customizations.loyaltyProgram && (
+                      <li>Loyalty Program</li>
+                    )}
+                    {formData.customizations.specialPromotions && (
+                      <li>Special Promotions</li>
+                    )}
+                    {formData.customizations.virtualTour && <li>Virtual Tour</li>}
+                  </ul>
                 </div>
               </div>
 
               <Alert>
-                <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  After submission, you'll receive access to your Blueprint dashboard
-                  where you can manage your AR elements and analytics.
+                  By submitting, you confirm that you are authorized to claim this
+                  business and agree to Blueprint's terms of service.
                 </AlertDescription>
               </Alert>
             </div>
@@ -665,86 +650,85 @@ export default function ClaimBlueprint() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-center">Claim Your Blueprint</h1>
-        </div>
+    <div className="min-h-screen bg-gradient-to-b from-blue-100 to-white">
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-3xl mx-auto">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-center">
+              Claim Your Blueprint
+            </h1>
+          </div>
 
-        {/* Progress Indicator */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center">
-            {steps.map((step, index) => {
-              const StepIcon = step.icon;
-              return (
-                <div
-                  key={step.id}
-                  className={`flex items-center ${
-                    index < steps.length - 1 ? "flex-1" : ""
-                  }`}
-                >
-                  <div
-                    className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
-                      currentStep === index
-                        ? "border-primary bg-primary text-white"
-                        : currentStep > index
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-gray-300 text-gray-300"
+          <div className="mb-8">
+            <nav aria-label="Progress">
+              <ol className="flex items-center justify-center space-x-2">
+                {steps.map((step, index) => (
+                  <li
+                    key={step.id}
+                    className={`relative ${
+                      index !== steps.length - 1 ? "flex-1" : ""
                     }`}
                   >
-                    <StepIcon className="w-5 h-5" />
-                  </div>
-                  {index < steps.length - 1 && (
-                    <div
-                      className={`flex-1 h-0.5 mx-2 ${
-                        currentStep > index ? "bg-primary" : "bg-gray-300"
-                      }`}
-                    />
+                    <div className="flex items-center">
+                      <div
+                        className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                          currentStep === index
+                            ? "bg-blue-600 text-white"
+                            : index < currentStep
+                            ? "bg-green-500 text-white"
+                            : "bg-gray-200"
+                        }`}
+                      >
+                        <step.icon className="w-4 h-4" />
+                      </div>
+                      {index !== steps.length - 1 && (
+                        <div
+                          className={`h-0.5 flex-1 mx-2 ${
+                            index < currentStep ? "bg-green-500" : "bg-gray-200"
+                          }`}
+                        />
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          </div>
+
+          <Card>
+            <CardContent className="pt-6">
+              <form onSubmit={handleSubmit} className="space-y-8">
+                {renderStep()}
+
+                <div
+                  className={`flex ${
+                    currentStep === 0 ? "justify-end" : "justify-between"
+                  } pt-4`}
+                >
+                  {currentStep > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handlePrevious}
+                    >
+                      Previous
+                    </Button>
                   )}
+                  <Button
+                    type={currentStep === steps.length - 1 ? "submit" : "button"}
+                    onClick={
+                      currentStep === steps.length - 1 ? undefined : handleNext
+                    }
+                  >
+                    {currentStep === steps.length - 1 ? "Submit" : "Next"}
+                    {currentStep !== steps.length - 1 && (
+                      <ChevronRight className="w-4 h-4 ml-2" />
+                    )}
+                  </Button>
                 </div>
-              );
-            })}
-          </div>
-          <div className="flex justify-between mt-2">
-            {steps.map((step, index) => (
-              <div
-                key={step.id}
-                className={`text-sm ${
-                  currentStep === index
-                    ? "text-primary font-medium"
-                    : "text-gray-500"
-                }`}
-                style={{ width: "100px", textAlign: "center" }}
-              >
-                {step.title}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <form onSubmit={handleSubmit}>
-            {renderStep()}
-
-            {/* Navigation Buttons */}
-            <div className="flex justify-between mt-8">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handlePrevious}
-                disabled={currentStep === 0}
-              >
-                Previous
-              </Button>
-              <Button
-                type={currentStep === steps.length - 1 ? "submit" : "button"}
-                onClick={currentStep === steps.length - 1 ? undefined : handleNext}
-              >
-                {currentStep === steps.length - 1 ? "Submit" : "Next"}
-              </Button>
-            </div>
-          </form>
+              </form>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -753,6 +737,7 @@ export default function ClaimBlueprint() {
         onClose={() => setIsCodeModalOpen(false)}
         onSubmit={(code) => {
           setFormData((prev) => ({ ...prev, verificationCode: code }));
+          setIsCodeModalOpen(false);
           handleNext();
         }}
       />
