@@ -320,14 +320,19 @@ export default function BlueprintEditor() {
     );
   };
 
-  const updateElementContent = (
-    id: string,
-    content: Partial<ElementContent>,
-  ) => {
-    setElements((prev) =>
-      prev.map((el) =>
-        el.id === id ? { ...el, content: { ...el.content, ...content } } : el,
-      ),
+  const updateElementContent = (id: string, content: Partial<ElementContent>) => {
+    const updatedElement = elements.find(el => el.id === id);
+    if (!updatedElement) return;
+
+    const newContent = { ...updatedElement.content, ...content };
+    
+    // Update both states atomically
+    setElements(prev =>
+      prev.map(el => el.id === id ? { ...el, content: newContent } : el)
+    );
+    
+    setSelectedElement(prev =>
+      prev?.id === id ? { ...prev, content: newContent } : prev
     );
   };
 
@@ -794,15 +799,15 @@ export default function BlueprintEditor() {
                       <Input
                         value={selectedElement.content.title}
                         onChange={(e) => {
+                          e.preventDefault();
                           e.stopPropagation();
-                          const value = e.target.value;
                           updateElementContent(selectedElement.id, {
-                            title: value,
+                            title: e.target.value
                           });
                         }}
-                        onFocus={(e) => e.target.select()}
                         onClick={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => e.stopPropagation()}
+                        className="focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                     </div>
                     <div className="space-y-2">
@@ -810,15 +815,15 @@ export default function BlueprintEditor() {
                       <Input
                         value={selectedElement.content.description}
                         onChange={(e) => {
+                          e.preventDefault();
                           e.stopPropagation();
-                          const value = e.target.value;
                           updateElementContent(selectedElement.id, {
-                            description: value,
+                            description: e.target.value
                           });
                         }}
-                        onFocus={(e) => e.target.select()}
                         onClick={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => e.stopPropagation()}
+                        className="focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                     </div>
                     <div className="space-y-2">
