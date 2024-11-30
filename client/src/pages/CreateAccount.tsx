@@ -267,7 +267,7 @@ export default function CreateAccount() {
                     shape="rectangular"
                     width="360"
                     useOneTap={false}
-                    containerProps={{ style: { width: '100%', maxWidth: '360px' } }}
+                    style={{ width: '100%', maxWidth: '360px' }}
                   />
                 </GoogleOAuthProvider>
 

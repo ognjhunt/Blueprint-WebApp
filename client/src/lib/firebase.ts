@@ -7,12 +7,10 @@ import {
   GoogleAuthProvider,
   onAuthStateChanged,
   signOut,
-  User,
+  User as FirebaseUser,
   browserLocalPersistence,
   setPersistence
 } from 'firebase/auth';
-
-export type FirebaseUser = User;
 import {
   getFirestore,
   doc,

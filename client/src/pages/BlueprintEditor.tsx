@@ -352,7 +352,7 @@ export default function BlueprintEditor() {
         <Button
           variant="outline"
           size="icon"
-          className="fixed bottom-4 right-4 z-50 rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
+          className="fixed top-4 right-4 z-50 rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
           onClick={() => setIsChatOpen(true)}
         >
           <MessageCircle className="h-6 w-6" />
@@ -360,14 +360,14 @@ export default function BlueprintEditor() {
 
         {/* Chat Dialog */}
         <Dialog open={isChatOpen} onOpenChange={setIsChatOpen}>
-          <DialogContent className="sm:max-w-[50%] h-[600px] fixed bottom-20 right-4">
+          <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Blueprint Editor AI</DialogTitle>
               <DialogDescription>
                 How can I help you with your Blueprint today?
               </DialogDescription>
             </DialogHeader>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 border rounded-md">
+            <div className="h-[300px] overflow-y-auto p-4 space-y-4 border rounded-md">
               {messages.map((msg, i) => (
                 <div key={i} className={`flex ${msg.isAi ? 'justify-start' : 'justify-end'}`}>
                   <div 

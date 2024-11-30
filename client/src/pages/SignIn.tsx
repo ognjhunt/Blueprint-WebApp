@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Mail, Lock } from 'lucide-react'
-import { Link, useLocation } from "wouter"
+import { Link } from "wouter"
 import { useAuth } from "@/contexts/AuthContext"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
