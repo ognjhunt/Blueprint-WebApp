@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createDrawTools, type DrawTools } from "@/lib/drawTools";
 import { motion } from "framer-motion";
 import {
@@ -17,7 +17,16 @@ import {
   ChevronDown,
   Loader2,
   Hand,
+  MessageCircle,
+  Send,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,6 +66,7 @@ interface EditorState {
 }
 
 export default function BlueprintEditor() {
+  const [currentStep, setCurrentStep] = useState(0);
   const [elements, setElements] = useState<ARElement[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const [drawTools, setDrawTools] = useState<DrawTools | null>(null);
@@ -67,6 +77,11 @@ export default function BlueprintEditor() {
   const [isPanMode, setIsPanMode] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [input, setInput] = useState('');
+  const [messages, setMessages] = useState([
+    { content: 'Hello! I can help you edit your Blueprint. What would you like to do?', isAi: true }
+  ]);
   const { toast } = useToast();
   
   const [editorState, setEditorState] = useState<EditorState>({
@@ -297,6 +312,21 @@ export default function BlueprintEditor() {
     }
   };
 
+  const handleSendMessage = useCallback(() => {
+    if (!input.trim()) return;
+    
+    setMessages(prev => [...prev, { content: input, isAi: false }]);
+    setInput('');
+    
+    // Simulate AI response
+    setTimeout(() => {
+      setMessages(prev => [...prev, { 
+        content: "I understand you want to make changes to the Blueprint. Could you please provide more details about what you'd like to modify?", 
+        isAi: true 
+      }]);
+    }, 1000);
+  }, [input]);
+
   // Load saved layout from localStorage on mount
   useEffect(() => {
     const savedLayout = localStorage.getItem("blueprint-layout");
@@ -318,6 +348,54 @@ export default function BlueprintEditor() {
     <div className="min-h-screen bg-gray-100">
       <Nav />
       <div className="pt-16 flex h-[calc(100vh-4rem)]">
+        {/* Chat Button */}
+        <Button
+          variant="outline"
+          size="icon"
+          className="fixed top-4 right-4 z-50 rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
+          onClick={() => setIsChatOpen(true)}
+        >
+          <MessageCircle className="h-6 w-6" />
+        </Button>
+
+        {/* Chat Dialog */}
+        <Dialog open={isChatOpen} onOpenChange={setIsChatOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Blueprint Editor AI</DialogTitle>
+              <DialogDescription>
+                How can I help you with your Blueprint today?
+              </DialogDescription>
+            </DialogHeader>
+            <div className="h-[300px] overflow-y-auto p-4 space-y-4 border rounded-md">
+              {messages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.isAi ? 'justify-start' : 'justify-end'}`}>
+                  <div 
+                    className={`rounded-lg p-3 max-w-[80%] ${
+                      msg.isAi 
+                        ? 'bg-secondary text-secondary-foreground' 
+                        : 'bg-primary text-primary-foreground'
+                    }`}
+                  >
+                    {msg.content}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 mt-4">
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Type your message..."
+                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+              />
+              <Button size="icon" onClick={handleSendMessage}>
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Tools Sidebar */}
         <div className="w-64 bg-white border-r p-4">
           <div className="space-y-4">
