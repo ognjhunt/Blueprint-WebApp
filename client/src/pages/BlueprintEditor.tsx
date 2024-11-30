@@ -19,6 +19,14 @@ import {
   Hand,
   MessageCircle,
   Send,
+  RotateCw,
+  AlignStartHorizontal,
+  AlignStartVertical,
+  Layers,
+  Copy,
+  Trash2,
+  Square,
+  Eye,
 } from "lucide-react";
 import {
   Dialog,
@@ -53,8 +61,21 @@ interface ARElement {
   };
 }
 
+interface Zone {
+  id: string;
+  name: string;
+  color: string;
+  bounds: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+}
+
 interface EditorState {
   scale: number;
+  rotation: number;
   position: { x: number; y: number };
   layout: {
     url: string | null;
@@ -63,6 +84,9 @@ interface EditorState {
     originalWidth?: number;
     originalHeight?: number;
   };
+  snapToGrid: boolean;
+  isPlacementMode: boolean;
+  selectedZone: Zone | null;
 }
 
 export default function BlueprintEditor() {
@@ -86,9 +110,18 @@ export default function BlueprintEditor() {
   
   const [editorState, setEditorState] = useState<EditorState>({
     scale: 1,
+    rotation: 0,
     position: { x: 0, y: 0 },
     layout: { url: null, name: null },
+    snapToGrid: true,
+    isPlacementMode: false,
+    selectedZone: null,
   });
+  
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [isDefiningZone, setIsDefiningZone] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showPreviewMode, setShowPreviewMode] = useState(false);
 
   useEffect(() => {
     if (containerRef.current) {
@@ -280,6 +313,67 @@ export default function BlueprintEditor() {
       ),
     );
   };
+const handleRotation = (degrees: number) => {
+  setEditorState(prev => ({
+    ...prev,
+    rotation: (prev.rotation + degrees) % 360
+  }));
+};
+
+const handleAlign = (direction: 'horizontal' | 'vertical') => {
+  if (!containerRef.current || !editorState.layout.url) return;
+  
+  const container = containerRef.current.getBoundingClientRect();
+  const newPosition = { ...editorState.position };
+  
+  if (direction === 'horizontal') {
+    newPosition.x = (container.width - (editorState.layout.originalWidth || 0) * editorState.scale) / 2;
+  } else {
+    newPosition.y = (container.height - (editorState.layout.originalHeight || 0) * editorState.scale) / 2;
+  }
+  
+  setEditorState(prev => ({
+    ...prev,
+    position: newPosition
+  }));
+};
+
+const handleDuplicateElement = (element: ARElement) => {
+  const newElement = {
+    ...element,
+    id: `element-${Date.now()}`,
+    position: {
+      x: element.position.x + 5,
+      y: element.position.y + 5
+    }
+  };
+  setElements(prev => [...prev, newElement]);
+};
+
+const handleDeleteElement = (elementId: string) => {
+  setElements(prev => prev.filter(el => el.id !== elementId));
+  setSelectedElement(null);
+};
+
+const handleLayerOrder = (elementId: string, direction: 'forward' | 'backward') => {
+  setElements(prev => {
+    const index = prev.findIndex(el => el.id === elementId);
+    if (index === -1) return prev;
+    
+    const newElements = [...prev];
+    const element = newElements[index];
+    
+    if (direction === 'forward' && index < newElements.length - 1) {
+      newElements.splice(index, 1);
+      newElements.splice(index + 1, 0, element);
+    } else if (direction === 'backward' && index > 0) {
+      newElements.splice(index, 1);
+      newElements.splice(index - 1, 0, element);
+    }
+    
+    return newElements;
+  });
+};
 
   const saveLayout = () => {
     if (!editorState.layout.url) {
@@ -584,19 +678,84 @@ export default function BlueprintEditor() {
 
           {/* Controls */}
           <div className="absolute bottom-4 right-4 space-x-2 z-10">
+            <div className="flex items-center gap-2 bg-white/80 p-2 rounded-lg shadow-lg">
+              <div className="space-x-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleZoom(-0.1)}
+                  title="Zoom Out"
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleZoom(0.1)}
+                  title="Zoom In"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="space-x-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleRotation(-90)}
+                  title="Rotate Left"
+                >
+                  <RotateCw className="h-4 w-4 -scale-x-100" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleRotation(90)}
+                  title="Rotate Right"
+                >
+                  <RotateCw className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="space-x-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleAlign('horizontal')}
+                  title="Align Horizontally"
+                >
+                  <AlignStartHorizontal className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleAlign('vertical')}
+                  title="Align Vertically"
+                >
+                  <AlignStartVertical className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <Button
+                variant={editorState.snapToGrid ? "default" : "outline"}
+                size="sm"
+                onClick={() => setEditorState(prev => ({ ...prev, snapToGrid: !prev.snapToGrid }))}
+                className="ml-2"
+              >
+                <Grid className="h-4 w-4 mr-2" />
+                Snap to Grid
+              </Button>
+            </div>
+          </div>
+
+          {/* Placement Mode Button */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
             <Button
-              variant="outline"
-              size="icon"
-              onClick={() => handleZoom(-0.1)}
+              variant={editorState.isPlacementMode ? "default" : "outline"}
+              onClick={() => setEditorState(prev => ({ ...prev, isPlacementMode: !prev.isPlacementMode }))}
+              className="shadow-lg"
             >
-              <Minus className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => handleZoom(0.1)}
-            >
-              <Plus className="h-4 w-4" />
+              {editorState.isPlacementMode ? "Adjust Layout" : "Start Placing AR Elements"}
             </Button>
           </div>
         </div>
@@ -651,42 +810,92 @@ export default function BlueprintEditor() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label>Position</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <Label className="text-xs">
-                        X: {selectedElement.position.x.toFixed(1)}%
-                      </Label>
-                      <Input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={selectedElement.position.x}
-                        onChange={(e) =>
-                          updateElementPosition(selectedElement.id, {
-                            ...selectedElement.position,
-                            x: parseFloat(e.target.value),
-                          })
-                        }
-                      />
+                <div className="space-y-4">
+                  <div>
+                    <Label>Position</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">
+                          X: {selectedElement.position.x.toFixed(1)}%
+                        </Label>
+                        <Input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={selectedElement.position.x}
+                          onChange={(e) =>
+                            updateElementPosition(selectedElement.id, {
+                              ...selectedElement.position,
+                              x: parseFloat(e.target.value),
+                            })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">
+                          Y: {selectedElement.position.y.toFixed(1)}%
+                        </Label>
+                        <Input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={selectedElement.position.y}
+                          onChange={(e) =>
+                            updateElementPosition(selectedElement.id, {
+                              ...selectedElement.position,
+                              y: parseFloat(e.target.value),
+                            })
+                          }
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <Label className="text-xs">
-                        Y: {selectedElement.position.y.toFixed(1)}%
-                      </Label>
-                      <Input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={selectedElement.position.y}
-                        onChange={(e) =>
-                          updateElementPosition(selectedElement.id, {
-                            ...selectedElement.position,
-                            y: parseFloat(e.target.value),
-                          })
-                        }
-                      />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Layer Management</Label>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleLayerOrder(selectedElement.id, 'forward')}
+                        className="flex-1"
+                      >
+                        <Layers className="h-4 w-4 mr-2" />
+                        Bring Forward
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleLayerOrder(selectedElement.id, 'backward')}
+                        className="flex-1"
+                      >
+                        <Layers className="h-4 w-4 mr-2 rotate-180" />
+                        Send Backward
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Element Actions</Label>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDuplicateElement(selectedElement)}
+                        className="flex-1"
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        Duplicate
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteElement(selectedElement.id)}
+                        className="flex-1"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </Button>
                     </div>
                   </div>
                 </div>
