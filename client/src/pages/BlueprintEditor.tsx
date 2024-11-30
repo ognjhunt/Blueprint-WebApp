@@ -259,7 +259,20 @@ export default function BlueprintEditor() {
   const handleFileUpload = async (file: File) => {
     setLoading(true);
     try {
+      // File size check (10MB limit)
+      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
+      if (file.size > MAX_FILE_SIZE) {
+        throw new Error(`File size exceeds 10MB limit (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+      }
+
       const img = await createImageFromFile(file);
+
+      // Dimension checks
+      const MAX_DIMENSION = 5000;
+      if (img.width > MAX_DIMENSION || img.height > MAX_DIMENSION) {
+        throw new Error(`Image dimensions exceed ${MAX_DIMENSION}x${MAX_DIMENSION} limit (${img.width}x${img.height})`);
+      }
+
       const result = await createImageUrl(file);
 
       // Calculate scale to fit the container while maintaining aspect ratio
@@ -288,9 +301,10 @@ export default function BlueprintEditor() {
         isPlacementMode: true, // Automatically enter placement mode
       }));
     } catch (error) {
+      console.error("Image upload error:", error);
       toast({
-        title: "Error",
-        description: "Failed to load the image. Please try again.",
+        title: "Upload Failed",
+        description: error instanceof Error ? error.message : "Failed to load the image. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -873,8 +887,8 @@ export default function BlueprintEditor() {
           )}
 
           {/* Controls */}
-          <div className="absolute bottom-4 right-4 space-x-2 z-10">
-            <div className="flex items-center gap-2 bg-white/80 p-2 rounded-lg shadow-lg">
+          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 space-x-2 z-[100]">
+            <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm p-2 rounded-lg shadow-lg">
               <div className="space-x-1">
                 <Button
                   variant="outline"
