@@ -537,53 +537,86 @@ export default function ClaimBlueprint() {
       case 4:
         return (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold">Blueprint QR Code</h2>
+            <h2 className="text-2xl font-bold">Blueprint QR Code Setup</h2>
             <p className="text-muted-foreground">
-              We'll handle everything to get your location set up with Blueprint AR
+              Let's get your location set up with Blueprint AR's smart navigation system
             </p>
 
             <Card className="w-full">
-              <CardContent className="space-y-6 pt-6">
+              <CardContent className="space-y-8 pt-6">
                 <div className="flex justify-center">
-                  <QrCode className="w-24 h-24 text-blue-500" />
+                  <div className="relative group">
+                    <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg blur opacity-25 group-hover:opacity-50 transition duration-200"></div>
+                    <div className="relative bg-white p-6 rounded-lg">
+                      <QrCode className="w-32 h-32 text-blue-600" />
+                    </div>
+                  </div>
                 </div>
                 
-                <h3 className="text-xl font-semibold text-center">Your Blueprint QR Code</h3>
+                <div className="text-center space-y-2">
+                  <h3 className="text-xl font-semibold">Your Blueprint QR Code</h3>
+                  <p className="text-sm text-muted-foreground">
+                    This unique QR code will connect customers to your interactive AR experience
+                  </p>
+                </div>
                 
-                <div className="space-y-4">
-                  <h4 className="font-medium">What happens next:</h4>
-                  <ul className="space-y-2">
-                    <li className="flex items-start">
-                      <Check className="w-5 h-5 mr-2 text-green-500 flex-shrink-0 mt-0.5" />
-                      <span>We'll generate your unique Blueprint QR code</span>
-                    </li>
-                    <li className="flex items-start">
-                      <Check className="w-5 h-5 mr-2 text-green-500 flex-shrink-0 mt-0.5" />
-                      <span>Professional signage will be created with your QR code</span>
-                    </li>
-                    <li className="flex items-start">
-                      <Check className="w-5 h-5 mr-2 text-green-500 flex-shrink-0 mt-0.5" />
-                      <span>We'll ship everything directly to your location</span>
-                    </li>
-                  </ul>
-
-                  <div className="pt-4">
-                    <Label htmlFor="shipping">Shipping Address</Label>
-                    <Input
-                      id="shipping"
-                      name="shippingAddress"
-                      value={formData.shippingAddress}
-                      onChange={handleInputChange}
-                      className="mt-2"
-                    />
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Where should we send your Blueprint materials?
-                    </p>
+                <div className="space-y-6">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-blue-700">Setup Process:</h4>
+                    <ul className="space-y-3 mt-3">
+                      <li className="flex items-start">
+                        <Check className="w-5 h-5 mr-2 text-blue-500 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-medium">Generate QR Code</span>
+                          <p className="text-sm text-blue-600/80">A unique identifier for your business's AR experience</p>
+                        </div>
+                      </li>
+                      <li className="flex items-start">
+                        <Check className="w-5 h-5 mr-2 text-blue-500 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-medium">Create Professional Signage</span>
+                          <p className="text-sm text-blue-600/80">Eye-catching displays featuring your QR code</p>
+                        </div>
+                      </li>
+                      <li className="flex items-start">
+                        <Check className="w-5 h-5 mr-2 text-blue-500 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-medium">Ship Materials</span>
+                          <p className="text-sm text-blue-600/80">Complete setup kit delivered to your location</p>
+                        </div>
+                      </li>
+                    </ul>
                   </div>
 
-                  <Alert className="mt-6">
-                    <AlertDescription>
-                      Once you submit, our team will process your Blueprint and prepare your materials. You'll receive tracking information when your package ships.
+                  <div className="border rounded-lg p-4 space-y-4">
+                    <div>
+                      <Label htmlFor="shipping" className="text-base font-medium">Shipping Information</Label>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Where should we send your Blueprint setup materials?
+                      </p>
+                      <Input
+                        id="shipping"
+                        name="shippingAddress"
+                        value={formData.shippingAddress}
+                        onChange={handleInputChange}
+                        placeholder="Enter your shipping address"
+                        className="mt-2"
+                      />
+                    </div>
+                    
+                    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                      <MapPin className="w-4 h-4" />
+                      <span>US shipping addresses only</span>
+                    </div>
+                  </div>
+
+                  <Alert>
+                    <AlertDescription className="flex items-start space-x-2">
+                      <Building2 className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                      <span>
+                        After submission, our team will process your Blueprint and prepare your materials. 
+                        You'll receive tracking information and setup instructions when your package ships.
+                      </span>
                     </AlertDescription>
                   </Alert>
                 </div>
