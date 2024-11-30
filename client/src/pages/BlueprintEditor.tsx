@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createDrawTools, type DrawTools } from "@/lib/drawTools";
 import { motion, AnimatePresence } from "framer-motion";
@@ -28,8 +27,19 @@ import {
   Square,
   Eye,
   Pencil,
-  PlusCircle
+  PlusCircle,
 } from "lucide-react";
+
+import {
+  MapPin,
+  Touchpad,
+  Search,
+  Image,
+  Video,
+  Circle,
+  Square as SquareIcon,
+} from "lucide-react";
+
 import {
   Dialog,
   DialogContent,
@@ -110,6 +120,58 @@ const createImageFromFile = (file: File): Promise<HTMLImageElement> => {
   });
 };
 
+const availableElements = [
+  {
+    id: "infoCard",
+    type: "infoCard",
+    name: "Info Card",
+    category: "infoCard",
+    icon: <Card className="h-6 w-6" />,
+  },
+  {
+    id: "marker",
+    type: "marker",
+    name: "Marker",
+    category: "marker",
+    icon: <MapPin className="h-6 w-6" />,
+  },
+  {
+    id: "interactive",
+    type: "interactive",
+    name: "Interactive",
+    category: "interactive",
+    icon: <Touchpad className="h-6 w-6" />,
+  },
+  {
+    id: "circle",
+    type: "shape",
+    name: "Circle",
+    category: "shapes",
+    icon: <Circle className="h-6 w-6" />,
+  },
+  {
+    id: "square",
+    type: "shape",
+    name: "Square",
+    category: "shapes",
+    icon: <SquareIcon className="h-6 w-6" />,
+  },
+  {
+    id: "image",
+    type: "media",
+    name: "Image",
+    category: "media",
+    icon: <Image className="h-6 w-6" />,
+  },
+  {
+    id: "video",
+    type: "media",
+    name: "Video",
+    category: "media",
+    icon: <Video className="h-6 w-6" />,
+  },
+];
+
 const createImageUrl = async (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -125,19 +187,28 @@ export default function BlueprintEditor() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [drawTools, setDrawTools] = useState<DrawTools | null>(null);
   const [isLoading, setLoading] = useState(false);
-  const [selectedElement, setSelectedElement] = useState<ARElement | null>(null);
+  const [selectedElement, setSelectedElement] = useState<ARElement | null>(
+    null,
+  );
   const [showGrid, setShowGrid] = useState(true);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [isPanMode, setIsPanMode] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [messages, setMessages] = useState([
-    { content: 'Hello! I can help you edit your Blueprint. What would you like to do?', isAi: true }
+    {
+      content:
+        "Hello! I can help you edit your Blueprint. What would you like to do?",
+      isAi: true,
+    },
   ]);
   const { toast } = useToast();
-  
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+
   const [editorState, setEditorState] = useState<EditorState>({
     layout: {
       url: "",
@@ -153,7 +224,7 @@ export default function BlueprintEditor() {
     snapToGrid: false,
     isPlacementMode: false,
   });
-  
+
   const [zones, setZones] = useState<Zone[]>([]);
   const [isDefiningZone, setIsDefiningZone] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -167,8 +238,17 @@ export default function BlueprintEditor() {
         gridSize: 20,
       });
       setDrawTools(tools);
-    }
+  }
   }, [containerRef.current]);
+
+  const filteredElements = availableElements.filter((element) => {
+    const matchesSearch = element.name
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+    const matchesCategory =
+      selectedCategory === "all" || element.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   useEffect(() => {
     if (drawTools) {
@@ -190,7 +270,7 @@ export default function BlueprintEditor() {
         containerHeight / img.height,
       );
 
-      setEditorState(prev => ({
+      setEditorState((prev) => ({
         ...prev,
         layout: {
           url: result,
@@ -201,11 +281,11 @@ export default function BlueprintEditor() {
         },
         scale: scale,
         containerScale: scale,
-        position: { 
-          x: (containerWidth - (img.width * scale)) / 2,
-          y: (containerHeight - (img.height * scale)) / 2
+        position: {
+          x: (containerWidth - img.width * scale) / 2,
+          y: (containerHeight - img.height * scale) / 2,
         },
-        isPlacementMode: true  // Automatically enter placement mode
+        isPlacementMode: true, // Automatically enter placement mode
       }));
     } catch (error) {
       toast({
@@ -237,14 +317,13 @@ export default function BlueprintEditor() {
     }
   };
 
-
   const handleZoom = (delta: number) => {
-    setEditorState(prev => {
+    setEditorState((prev) => {
       const newScale = Math.max(0.1, Math.min(3, prev.scale + delta));
       return {
         ...prev,
         scale: newScale,
-        containerScale: newScale
+        containerScale: newScale,
       };
     });
   };
@@ -263,7 +342,7 @@ export default function BlueprintEditor() {
     if (isPanMode && isDragging) {
       const newX = e.clientX - dragStart.x;
       const newY = e.clientY - dragStart.y;
-      setEditorState(prev => ({
+      setEditorState((prev) => ({
         ...prev,
         position: { x: newX, y: newY },
       }));
@@ -275,31 +354,37 @@ export default function BlueprintEditor() {
   };
 
   const handleRotation = (degrees: number) => {
-    setEditorState(prev => ({
+    setEditorState((prev) => ({
       ...prev,
-      rotation: (prev.rotation + degrees) % 360
+      rotation: (prev.rotation + degrees) % 360,
     }));
   };
 
-  const handleAlign = (direction: 'horizontal' | 'vertical') => {
+  const handleAlign = (direction: "horizontal" | "vertical") => {
     if (!containerRef.current || !editorState.layout.url) return;
-    
+
     const container = containerRef.current.getBoundingClientRect();
     const newPosition = { ...editorState.position };
-    
-    if (direction === 'horizontal') {
-      newPosition.x = (container.width - (editorState.layout.originalWidth || 0) * editorState.scale) / 2;
+
+    if (direction === "horizontal") {
+      newPosition.x =
+        (container.width -
+          (editorState.layout.originalWidth || 0) * editorState.scale) /
+        2;
     } else {
-      newPosition.y = (container.height - (editorState.layout.originalHeight || 0) * editorState.scale) / 2;
+      newPosition.y =
+        (container.height -
+          (editorState.layout.originalHeight || 0) * editorState.scale) /
+        2;
     }
-    
-    setEditorState(prev => ({
+
+    setEditorState((prev) => ({
       ...prev,
-      position: newPosition
+      position: newPosition,
     }));
   };
 
-  const addElement = (type: ARElement["type"]) => {
+  const addElement = (type: ARElement["type"] | "shape" | "media") => {
     const newElement: ARElement = {
       id: `element-${Date.now()}`,
       type,
@@ -320,19 +405,22 @@ export default function BlueprintEditor() {
     );
   };
 
-  const updateElementContent = (id: string, content: Partial<ElementContent>) => {
-    const updatedElement = elements.find(el => el.id === id);
+  const updateElementContent = (
+    id: string,
+    content: Partial<ElementContent>,
+  ) => {
+    const updatedElement = elements.find((el) => el.id === id);
     if (!updatedElement) return;
 
     const newContent = { ...updatedElement.content, ...content };
-    
+
     // Update both states atomically
-    setElements(prev =>
-      prev.map(el => el.id === id ? { ...el, content: newContent } : el)
+    setElements((prev) =>
+      prev.map((el) => (el.id === id ? { ...el, content: newContent } : el)),
     );
-    
-    setSelectedElement(prev =>
-      prev?.id === id ? { ...prev, content: newContent } : prev
+
+    setSelectedElement((prev) =>
+      prev?.id === id ? { ...prev, content: newContent } : prev,
     );
   };
 
@@ -342,33 +430,36 @@ export default function BlueprintEditor() {
       id: `element-${Date.now()}`,
       position: {
         x: element.position.x + 5,
-        y: element.position.y + 5
-      }
+        y: element.position.y + 5,
+      },
     };
-    setElements(prev => [...prev, newElement]);
+    setElements((prev) => [...prev, newElement]);
   };
 
   const handleDeleteElement = (elementId: string) => {
-    setElements(prev => prev.filter(el => el.id !== elementId));
+    setElements((prev) => prev.filter((el) => el.id !== elementId));
     setSelectedElement(null);
   };
 
-  const handleLayerOrder = (elementId: string, direction: 'forward' | 'backward') => {
-    setElements(prev => {
-      const index = prev.findIndex(el => el.id === elementId);
+  const handleLayerOrder = (
+    elementId: string,
+    direction: "forward" | "backward",
+  ) => {
+    setElements((prev) => {
+      const index = prev.findIndex((el) => el.id === elementId);
       if (index === -1) return prev;
-      
+
       const newElements = [...prev];
       const element = newElements[index];
-      
-      if (direction === 'forward' && index < newElements.length - 1) {
+
+      if (direction === "forward" && index < newElements.length - 1) {
         newElements.splice(index, 1);
         newElements.splice(index + 1, 0, element);
-      } else if (direction === 'backward' && index > 0) {
+      } else if (direction === "backward" && index > 0) {
         newElements.splice(index, 1);
         newElements.splice(index - 1, 0, element);
       }
-      
+
       return newElements;
     });
   };
@@ -406,16 +497,20 @@ export default function BlueprintEditor() {
 
   const handleSendMessage = useCallback(() => {
     if (!input.trim()) return;
-    
-    setMessages(prev => [...prev, { content: input, isAi: false }]);
-    setInput('');
-    
+
+    setMessages((prev) => [...prev, { content: input, isAi: false }]);
+    setInput("");
+
     // Simulate AI response
     setTimeout(() => {
-      setMessages(prev => [...prev, { 
-        content: "I understand you want to make changes to the Blueprint. Could you please provide more details about what you'd like to modify?", 
-        isAi: true 
-      }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          content:
+            "I understand you want to make changes to the Blueprint. Could you please provide more details about what you'd like to modify?",
+          isAi: true,
+        },
+      ]);
     }, 1000);
   }, [input]);
 
@@ -461,12 +556,15 @@ export default function BlueprintEditor() {
             </DialogHeader>
             <div className="h-[300px] overflow-y-auto p-4 space-y-4 border rounded-md">
               {messages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.isAi ? 'justify-start' : 'justify-end'}`}>
-                  <div 
+                <div
+                  key={i}
+                  className={`flex ${msg.isAi ? "justify-start" : "justify-end"}`}
+                >
+                  <div
                     className={`rounded-lg p-3 max-w-[80%] ${
-                      msg.isAi 
-                        ? 'bg-secondary text-secondary-foreground' 
-                        : 'bg-primary text-primary-foreground'
+                      msg.isAi
+                        ? "bg-secondary text-secondary-foreground"
+                        : "bg-primary text-primary-foreground"
                     }`}
                   >
                     {msg.content}
@@ -479,7 +577,7 @@ export default function BlueprintEditor() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Type your message..."
-                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
               />
               <Button size="icon" onClick={handleSendMessage}>
                 <Send className="h-4 w-4" />
@@ -489,40 +587,93 @@ export default function BlueprintEditor() {
         </Dialog>
 
         {/* Tools Sidebar */}
-        <div className="w-64 bg-white/95 backdrop-blur-sm border-r p-4 fixed top-16 left-0 bottom-0 overflow-y-auto shadow-lg z-[100] transition-all duration-200 ease-in-out pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="w-64 bg-white/95 backdrop-blur-sm border-r p-4 fixed top-16 left-0 bottom-0 overflow-y-auto shadow-lg z-[100] transition-all duration-200 ease-in-out pointer-events-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">AR Elements</h2>
+            <h2 className="text-lg font-semibold">Elements</h2>
+
+            {/* Search Bar */}
+            <div className="relative">
+              <Input
+                type="text"
+                placeholder="Search elements..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pr-10"
+              />
+              <Search className="absolute right-2 top-2 h-5 w-5 text-gray-400" />
+            </div>
+
+            {/* Categories */}
             <div className="space-y-2">
+              <h3 className="text-sm font-medium">Categories</h3>
               <Button
-                onClick={() => addElement("infoCard")}
-                className="w-full justify-start"
+                onClick={() => setSelectedCategory("all")}
+                className={`w-full justify-start ${selectedCategory === "all" ? "bg-primary text-white" : "bg-white"}`}
                 variant="outline"
-                disabled={!editorState.layout.url}
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Info Card
+                All Elements
               </Button>
               <Button
-                onClick={() => addElement("marker")}
-                className="w-full justify-start"
+                onClick={() => setSelectedCategory("infoCard")}
+                className={`w-full justify-start ${selectedCategory === "infoCard" ? "bg-primary text-white" : "bg-white"}`}
                 variant="outline"
-                disabled={!editorState.layout.url}
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Marker
+                Info Cards
               </Button>
               <Button
-                onClick={() => addElement("interactive")}
-                className="w-full justify-start"
+                onClick={() => setSelectedCategory("marker")}
+                className={`w-full justify-start ${selectedCategory === "marker" ? "bg-primary text-white" : "bg-white"}`}
                 variant="outline"
-                disabled={!editorState.layout.url}
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Interactive Element
+                Markers
+              </Button>
+              <Button
+                onClick={() => setSelectedCategory("interactive")}
+                className={`w-full justify-start ${selectedCategory === "interactive" ? "bg-primary text-white" : "bg-white"}`}
+                variant="outline"
+              >
+                Interactive Elements
+              </Button>
+              <Button
+                onClick={() => setSelectedCategory("shapes")}
+                className={`w-full justify-start ${selectedCategory === "shapes" ? "bg-primary text-white" : "bg-white"}`}
+                variant="outline"
+              >
+                Shapes
+              </Button>
+              <Button
+                onClick={() => setSelectedCategory("media")}
+                className={`w-full justify-start ${selectedCategory === "media" ? "bg-primary text-white" : "bg-white"}`}
+                variant="outline"
+              >
+                Media
               </Button>
             </div>
 
+            {/* Elements List */}
             <div className="space-y-2">
+              <h3 className="text-sm font-medium">Elements</h3>
+              <div className="grid grid-cols-2 gap-2">
+                {filteredElements.map((elementType) => (
+                  <div
+                    key={elementType.id}
+                    className="flex flex-col items-center justify-center p-2 border rounded cursor-pointer hover:bg-gray-100"
+                    onClick={() => addElement(elementType.type)}
+                  >
+                    {elementType.icon}
+                    <span className="text-xs mt-1 text-center">
+                      {elementType.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* View Options */}
+            <div className="space-y-2 mt-4">
               <h3 className="text-sm font-medium">View Options</h3>
               <Button
                 onClick={() => setShowGrid(!showGrid)}
@@ -542,7 +693,8 @@ export default function BlueprintEditor() {
               </Button>
             </div>
 
-            <div className="space-y-2">
+            {/* Actions */}
+            <div className="space-y-2 mt-4">
               <h3 className="text-sm font-medium">Actions</h3>
               <Button
                 onClick={saveLayout}
@@ -558,8 +710,11 @@ export default function BlueprintEditor() {
 
         {/* Main Editor Area */}
         <div
-          className={`flex-1 relative ml-64 min-h-[calc(100vh-4rem)] isolate ${isPanMode ? 'cursor-grab' : ''} ${isDragging ? 'cursor-grabbing' : ''} ${
-            editorState.isPlacementMode ? 'ring-2 ring-primary ring-opacity-50' : ''}`}
+          className={`flex-1 relative ml-64 min-h-[calc(100vh-4rem)] isolate ${isPanMode ? "cursor-grab" : ""} ${isDragging ? "cursor-grabbing" : ""} ${
+            editorState.isPlacementMode
+              ? "ring-2 ring-primary ring-opacity-50"
+              : ""
+          }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -576,18 +731,21 @@ export default function BlueprintEditor() {
             style={{
               transform: `translate(${editorState.position.x}px, ${editorState.position.y}px) scale(${editorState.containerScale})`,
               transformOrigin: "center",
-              transition: isDragging ? 'none' : 'transform 0.1s ease-out',
-              zIndex: 0
+              transition: isDragging ? "none" : "transform 0.1s ease-out",
+              zIndex: 0,
             }}
           >
             {editorState.layout.url && (
-              <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 1 }}>
+              <div
+                className="absolute inset-0 flex items-center justify-center"
+                style={{ zIndex: 1 }}
+              >
                 <img
                   src={editorState.layout.url}
                   alt="Store Layout"
                   className="w-auto h-auto max-w-none"
                   style={{
-                    transformOrigin: 'center center'
+                    transformOrigin: "center center",
                   }}
                 />
               </div>
@@ -606,7 +764,7 @@ export default function BlueprintEditor() {
                   left: `${element.position.x}%`,
                   top: `${element.position.y}%`,
                   transform: "translate(-50%, -50%)",
-                  zIndex: 2
+                  zIndex: 2,
                 }}
                 drag
                 dragMomentum={false}
@@ -662,7 +820,8 @@ export default function BlueprintEditor() {
                       accept="image/png,image/jpeg,image/jpg"
                       className="hidden"
                       onChange={(e) =>
-                        e.target.files?.[0] && handleFileUpload(e.target.files[0])
+                        e.target.files?.[0] &&
+                        handleFileUpload(e.target.files[0])
                       }
                     />
                     <span className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90">
@@ -674,7 +833,10 @@ export default function BlueprintEditor() {
             )}
 
             {isLoading && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white/80" style={{ zIndex: 3 }}>
+              <div
+                className="absolute inset-0 flex items-center justify-center bg-white/80"
+                style={{ zIndex: 3 }}
+              >
                 <Loader2 className="w-8 h-8 animate-spin" />
                 <span className="ml-2">Processing image...</span>
               </div>
@@ -686,7 +848,12 @@ export default function BlueprintEditor() {
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
               <Button
                 variant={editorState.isPlacementMode ? "default" : "secondary"}
-                onClick={() => setEditorState(prev => ({ ...prev, isPlacementMode: !prev.isPlacementMode }))}
+                onClick={() =>
+                  setEditorState((prev) => ({
+                    ...prev,
+                    isPlacementMode: !prev.isPlacementMode,
+                  }))
+                }
                 className="shadow-lg bg-primary text-white hover:bg-primary/90"
                 size="lg"
               >
@@ -750,7 +917,7 @@ export default function BlueprintEditor() {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => handleAlign('horizontal')}
+                  onClick={() => handleAlign("horizontal")}
                   title="Align Horizontally"
                 >
                   <AlignStartHorizontal className="h-4 w-4" />
@@ -758,7 +925,7 @@ export default function BlueprintEditor() {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => handleAlign('vertical')}
+                  onClick={() => handleAlign("vertical")}
                   title="Align Vertically"
                 >
                   <AlignStartVertical className="h-4 w-4" />
@@ -768,7 +935,12 @@ export default function BlueprintEditor() {
               <Button
                 variant={editorState.snapToGrid ? "default" : "outline"}
                 size="sm"
-                onClick={() => setEditorState(prev => ({ ...prev, snapToGrid: !prev.snapToGrid }))}
+                onClick={() =>
+                  setEditorState((prev) => ({
+                    ...prev,
+                    snapToGrid: !prev.snapToGrid,
+                  }))
+                }
                 className="ml-2"
               >
                 <Grid className="h-4 w-4 mr-2" />
@@ -780,7 +952,7 @@ export default function BlueprintEditor() {
           {/* Properties Panel */}
           <AnimatePresence>
             {selectedElement && (
-              <motion.div 
+              <motion.div
                 className="w-80 bg-white/95 backdrop-blur-sm border-l p-4 fixed top-16 right-0 bottom-0 shadow-lg z-50 overflow-y-auto"
                 initial={{ x: "100%" }}
                 animate={{ x: 0 }}
@@ -802,7 +974,7 @@ export default function BlueprintEditor() {
                           e.preventDefault();
                           e.stopPropagation();
                           updateElementContent(selectedElement.id, {
-                            title: e.target.value
+                            title: e.target.value,
                           });
                         }}
                         onClick={(e) => e.stopPropagation()}
@@ -818,7 +990,7 @@ export default function BlueprintEditor() {
                           e.preventDefault();
                           e.stopPropagation();
                           updateElementContent(selectedElement.id, {
-                            description: e.target.value
+                            description: e.target.value,
                           });
                         }}
                         onClick={(e) => e.stopPropagation()}
@@ -893,7 +1065,9 @@ export default function BlueprintEditor() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleLayerOrder(selectedElement.id, 'forward')}
+                            onClick={() =>
+                              handleLayerOrder(selectedElement.id, "forward")
+                            }
                             className="flex-1"
                           >
                             <Layers className="h-4 w-4 mr-2" />
@@ -902,7 +1076,9 @@ export default function BlueprintEditor() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleLayerOrder(selectedElement.id, 'backward')}
+                            onClick={() =>
+                              handleLayerOrder(selectedElement.id, "backward")
+                            }
                             className="flex-1"
                           >
                             <Layers className="h-4 w-4 mr-2 rotate-180" />
@@ -917,7 +1093,9 @@ export default function BlueprintEditor() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleDuplicateElement(selectedElement)}
+                            onClick={() =>
+                              handleDuplicateElement(selectedElement)
+                            }
                             className="flex-1"
                           >
                             <Copy className="h-4 w-4 mr-2" />
@@ -926,7 +1104,9 @@ export default function BlueprintEditor() {
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => handleDeleteElement(selectedElement.id)}
+                            onClick={() =>
+                              handleDeleteElement(selectedElement.id)
+                            }
                             className="flex-1"
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
