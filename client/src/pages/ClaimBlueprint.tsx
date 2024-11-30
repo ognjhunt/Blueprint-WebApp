@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
 import CustomerExperienceDesigner from "@/components/CustomerExperienceDesigner";
+import { QRCodeSetup } from "@/components/QRCodeSetup";
 import {
   Check,
   ChevronRight,
@@ -536,60 +537,10 @@ export default function ClaimBlueprint() {
         );
       case 4:
         return (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold">Blueprint QR Code</h2>
-            <p className="text-muted-foreground">
-              We'll handle everything to get your location set up with Blueprint AR
-            </p>
-
-            <Card className="w-full">
-              <CardContent className="space-y-6 pt-6">
-                <div className="flex justify-center">
-                  <QrCode className="w-24 h-24 text-blue-500" />
-                </div>
-                
-                <h3 className="text-xl font-semibold text-center">Your Blueprint QR Code</h3>
-                
-                <div className="space-y-4">
-                  <h4 className="font-medium">What happens next:</h4>
-                  <ul className="space-y-2">
-                    <li className="flex items-start">
-                      <Check className="w-5 h-5 mr-2 text-green-500 flex-shrink-0 mt-0.5" />
-                      <span>We'll generate your unique Blueprint QR code</span>
-                    </li>
-                    <li className="flex items-start">
-                      <Check className="w-5 h-5 mr-2 text-green-500 flex-shrink-0 mt-0.5" />
-                      <span>Professional signage will be created with your QR code</span>
-                    </li>
-                    <li className="flex items-start">
-                      <Check className="w-5 h-5 mr-2 text-green-500 flex-shrink-0 mt-0.5" />
-                      <span>We'll ship everything directly to your location</span>
-                    </li>
-                  </ul>
-
-                  <div className="pt-4">
-                    <Label htmlFor="shipping">Shipping Address</Label>
-                    <Input
-                      id="shipping"
-                      name="shippingAddress"
-                      value={formData.shippingAddress}
-                      onChange={handleInputChange}
-                      className="mt-2"
-                    />
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Where should we send your Blueprint materials?
-                    </p>
-                  </div>
-
-                  <Alert className="mt-6">
-                    <AlertDescription>
-                      Once you submit, our team will process your Blueprint and prepare your materials. You'll receive tracking information when your package ships.
-                    </AlertDescription>
-                  </Alert>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <QRCodeSetup
+            businessName={formData.businessName}
+            blueprintId="temp-id-1" // This will be replaced with actual Blueprint ID once created
+          />
         );
       case 5:
         return (
