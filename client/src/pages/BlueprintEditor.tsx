@@ -484,7 +484,7 @@ export default function BlueprintEditor() {
         </Dialog>
 
         {/* Tools Sidebar */}
-        <div className="w-64 bg-white/95 backdrop-blur-sm border-r p-4 fixed top-16 left-0 bottom-0 overflow-y-auto shadow-lg z-[100] transition-all duration-200 ease-in-out">
+        <div className="w-64 bg-white/95 backdrop-blur-sm border-r p-4 fixed top-16 left-0 bottom-0 overflow-y-auto shadow-lg z-[100] transition-all duration-200 ease-in-out pointer-events-auto" onClick={(e) => e.stopPropagation()}>
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">AR Elements</h2>
             <div className="space-y-2">
@@ -553,7 +553,7 @@ export default function BlueprintEditor() {
 
         {/* Main Editor Area */}
         <div
-          className={`flex-1 relative ml-64 min-h-[calc(100vh-4rem)] ${isPanMode ? 'cursor-grab' : ''} ${isDragging ? 'cursor-grabbing' : ''} ${
+          className={`flex-1 relative ml-64 min-h-[calc(100vh-4rem)] isolate ${isPanMode ? 'cursor-grab' : ''} ${isDragging ? 'cursor-grabbing' : ''} ${
             editorState.isPlacementMode ? 'ring-2 ring-primary ring-opacity-50' : ''}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
