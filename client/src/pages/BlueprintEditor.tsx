@@ -781,6 +781,7 @@ export default function BlueprintEditor() {
                 animate={{ x: 0 }}
                 exit={{ x: "100%" }}
                 transition={{ type: "spring", damping: 30, stiffness: 300 }}
+                onClick={(e) => e.stopPropagation()}
               >
                 <Card>
                   <CardHeader>
@@ -791,22 +792,28 @@ export default function BlueprintEditor() {
                       <Label>Title</Label>
                       <Input
                         value={selectedElement.content.title}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          e.stopPropagation();
                           updateElementContent(selectedElement.id, {
                             title: e.target.value,
-                          })
-                        }
+                          });
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => e.stopPropagation()}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label>Description</Label>
                       <Input
                         value={selectedElement.content.description}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          e.stopPropagation();
                           updateElementContent(selectedElement.id, {
                             description: e.target.value,
-                          })
-                        }
+                          });
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => e.stopPropagation()}
                       />
                     </div>
                     <div className="space-y-2">
