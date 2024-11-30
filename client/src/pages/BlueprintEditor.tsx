@@ -483,70 +483,118 @@ export default function BlueprintEditor() {
           </DialogContent>
         </Dialog>
 
-        {/* Tools Sidebar */}
-        <div className="w-64 bg-white border-r p-4">
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">AR Elements</h2>
-            <div className="space-y-2">
-              <Button
-                onClick={() => addElement("infoCard")}
-                className="w-full justify-start"
-                variant="outline"
-                disabled={!editorState.layout.url}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Info Card
-              </Button>
-              <Button
-                onClick={() => addElement("marker")}
-                className="w-full justify-start"
-                variant="outline"
-                disabled={!editorState.layout.url}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Marker
-              </Button>
-              <Button
-                onClick={() => addElement("interactive")}
-                className="w-full justify-start"
-                variant="outline"
-                disabled={!editorState.layout.url}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Interactive Element
-              </Button>
+        {/* Canva-style Left Panel */}
+        <div className="w-80 bg-white border-r overflow-y-auto">
+          <div className="p-4 space-y-6">
+            {/* Elements Section */}
+            <div>
+              <h2 className="text-lg font-semibold mb-3">Elements</h2>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  onClick={() => addElement("infoCard")}
+                  className="aspect-square p-4 flex flex-col items-center justify-center gap-2"
+                  variant="outline"
+                  disabled={!editorState.layout.url}
+                >
+                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <Square className="w-6 h-6 text-primary" />
+                  </div>
+                  <span className="text-xs text-center">Info Card</span>
+                </Button>
+                <Button
+                  onClick={() => addElement("marker")}
+                  className="aspect-square p-4 flex flex-col items-center justify-center gap-2"
+                  variant="outline"
+                  disabled={!editorState.layout.url}
+                >
+                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <Plus className="w-6 h-6 text-primary" />
+                  </div>
+                  <span className="text-xs text-center">Marker</span>
+                </Button>
+                <Button
+                  onClick={() => addElement("interactive")}
+                  className="aspect-square p-4 flex flex-col items-center justify-center gap-2"
+                  variant="outline"
+                  disabled={!editorState.layout.url}
+                >
+                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <Hand className="w-6 h-6 text-primary" />
+                  </div>
+                  <span className="text-xs text-center">Interactive</span>
+                </Button>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium">View Options</h3>
-              <Button
-                onClick={() => setShowGrid(!showGrid)}
-                className="w-full justify-start"
-                variant={showGrid ? "default" : "outline"}
-              >
-                <Grid className="w-4 h-4 mr-2" />
-                Show Grid
-              </Button>
-              <Button
-                onClick={() => setIsPanMode(!isPanMode)}
-                className="w-full justify-start"
-                variant={isPanMode ? "default" : "outline"}
-              >
-                <Hand className="w-4 h-4 mr-2" />
-                Pan Tool
-              </Button>
+            {/* View Tools Section */}
+            <div>
+              <h2 className="text-lg font-semibold mb-3">View Tools</h2>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  onClick={() => setShowGrid(!showGrid)}
+                  className="aspect-square p-4 flex flex-col items-center justify-center gap-2"
+                  variant={showGrid ? "default" : "outline"}
+                >
+                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <Grid className="w-6 h-6" />
+                  </div>
+                  <span className="text-xs text-center">Grid</span>
+                </Button>
+                <Button
+                  onClick={() => setIsPanMode(!isPanMode)}
+                  className="aspect-square p-4 flex flex-col items-center justify-center gap-2"
+                  variant={isPanMode ? "default" : "outline"}
+                >
+                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <Hand className="w-6 h-6" />
+                  </div>
+                  <span className="text-xs text-center">Pan</span>
+                </Button>
+                <Button
+                  onClick={() => setEditorState(prev => ({ ...prev, snapToGrid: !prev.snapToGrid }))}
+                  className="aspect-square p-4 flex flex-col items-center justify-center gap-2"
+                  variant={editorState.snapToGrid ? "default" : "outline"}
+                >
+                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <Grid className="w-6 h-6" />
+                  </div>
+                  <span className="text-xs text-center">Snap</span>
+                </Button>
+                <Button
+                  onClick={() => setShowPreviewMode(!showPreviewMode)}
+                  className="aspect-square p-4 flex flex-col items-center justify-center gap-2"
+                  variant={showPreviewMode ? "default" : "outline"}
+                >
+                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <Eye className="w-6 h-6" />
+                  </div>
+                  <span className="text-xs text-center">Preview</span>
+                </Button>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium">Actions</h3>
-              <Button
-                onClick={saveLayout}
-                className="w-full justify-start"
-                disabled={!editorState.layout.url}
-              >
-                <Save className="w-4 h-4 mr-2" />
-                Save Layout
-              </Button>
+            {/* Quick Actions */}
+            <div>
+              <h2 className="text-lg font-semibold mb-3">Quick Actions</h2>
+              <div className="space-y-2">
+                <Button
+                  onClick={saveLayout}
+                  className="w-full justify-start"
+                  disabled={!editorState.layout.url}
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Layout
+                </Button>
+                <Button
+                  onClick={() => setShowSaveModal(true)}
+                  className="w-full justify-start"
+                  variant="outline"
+                  disabled={!editorState.layout.url}
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Layout Settings
+                </Button>
+              </div>
             </div>
           </div>
         </div>
