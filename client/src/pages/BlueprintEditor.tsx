@@ -27,6 +27,8 @@ import {
   Trash2,
   Square,
   Eye,
+  Pencil,
+  PlusCircle
 } from "lucide-react";
 import {
   Dialog,
@@ -49,22 +51,19 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import Nav from "@/components/Nav";
 
-interface ARElement {
-  id: string;
-  type: "infoCard" | "marker" | "interactive";
-  position: { x: number; y: number };
-  content: {
-    title?: string;
-    description?: string;
-    trigger?: "proximity" | "click" | "always";
-    customData?: Record<string, any>;
-  };
+interface Position {
+  x: number;
+  y: number;
 }
 
+interface ElementContent {
+  title: string;
+  description: string;
+  trigger: "proximity" | "click" | "always";
+}
 interface Zone {
   id: string;
   name: string;
-  color: string;
   bounds: {
     x: number;
     y: number;
@@ -73,28 +72,59 @@ interface Zone {
   };
 }
 
+interface ARElement {
+  id: string;
+  type: "infoCard" | "marker" | "interactive";
+  position: Position;
+  content: ElementContent;
+}
+
 interface EditorState {
-  scale: number;
-  rotation: number;
-  position: { x: number; y: number };
   layout: {
-    url: string | null;
-    name: string | null;
-    aspectRatio?: number;
-    originalWidth?: number;
-    originalHeight?: number;
+    url: string;
+    name: string;
+    aspectRatio: number;
+    originalWidth: number;
+    originalHeight: number;
   };
+  scale: number;
+  containerScale: number;
+  position: Position;
+  rotation: number;
   snapToGrid: boolean;
   isPlacementMode: boolean;
-  selectedZone: Zone | null;
 }
+
+interface Message {
+  content: string;
+  isAi: boolean;
+}
+
+// Helper functions
+const createImageFromFile = (file: File): Promise<HTMLImageElement> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+};
+
+const createImageUrl = async (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target?.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
 
 export default function BlueprintEditor() {
   const [currentStep, setCurrentStep] = useState(0);
   const [elements, setElements] = useState<ARElement[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const [drawTools, setDrawTools] = useState<DrawTools | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setLoading] = useState(false);
   const [selectedElement, setSelectedElement] = useState<ARElement | null>(null);
   const [showGrid, setShowGrid] = useState(true);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
@@ -109,13 +139,19 @@ export default function BlueprintEditor() {
   const { toast } = useToast();
   
   const [editorState, setEditorState] = useState<EditorState>({
+    layout: {
+      url: "",
+      name: "",
+      aspectRatio: 1,
+      originalWidth: 0,
+      originalHeight: 0,
+    },
     scale: 1,
-    rotation: 0,
+    containerScale: 1,
     position: { x: 0, y: 0 },
-    layout: { url: null, name: null },
-    snapToGrid: true,
+    rotation: 0,
+    snapToGrid: false,
     isPlacementMode: false,
-    selectedZone: null,
   });
   
   const [zones, setZones] = useState<Zone[]>([]);
@@ -141,90 +177,44 @@ export default function BlueprintEditor() {
   }, [editorState.scale]);
 
   const handleFileUpload = async (file: File) => {
-    // Validate file type
-    const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
-    if (!validTypes.includes(file.type)) {
-      toast({
-        title: "Invalid file type",
-        description: "Please upload a PNG or JPG image file",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
-    if (file.size > maxSize) {
-      toast({
-        title: "File too large",
-        description: "Please upload an image smaller than 5MB",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    setLoading(true);
     try {
-      setIsLoading(true);
-      const reader = new FileReader();
-      
-      reader.onload = (e) => {
-        const result = e.target?.result;
-        if (result && typeof result === "string" && containerRef.current) {
-          const img = new Image();
-          img.onload = () => {
-            const containerWidth = containerRef.current?.clientWidth || 800;
-            const containerHeight = containerRef.current?.clientHeight || 600;
-            
-            // Calculate scale to fit image while maintaining aspect ratio
-            const scale = Math.min(
-              containerWidth / img.width,
-              containerHeight / img.height
-            ) * 1.5; // Increased from 0.8 to 1.5
+      const img = await createImageFromFile(file);
+      const result = await createImageUrl(file);
 
-            setEditorState((prev) => ({
-              ...prev,
-              layout: {
-                url: result,
-                name: file.name,
-                aspectRatio: img.width / img.height,
-                originalWidth: img.width,
-                originalHeight: img.height,
-              },
-              scale: scale,
-              position: { 
-                x: (containerWidth - (img.width * scale)) / 2,
-                y: (containerHeight - (img.height * scale)) / 2
-              }
-            }));
+      // Calculate scale to fit the container while maintaining aspect ratio
+      const containerWidth = containerRef.current?.clientWidth || 800;
+      const containerHeight = containerRef.current?.clientHeight || 600;
+      const scale = Math.min(
+        containerWidth / img.width,
+        containerHeight / img.height,
+      );
 
-            setIsLoading(false);
-            toast({
-              title: "Layout uploaded",
-              description: "Your store layout has been uploaded successfully.",
-            });
-          };
-          img.src = result;
-        }
-      };
-
-      reader.onerror = () => {
-        setIsLoading(false);
-        toast({
-          title: "Upload failed",
-          description: "Failed to process the image. Please try again.",
-          variant: "destructive",
-        });
-      };
-
-      reader.readAsDataURL(file);
+      setEditorState(prev => ({
+        ...prev,
+        layout: {
+          url: result,
+          name: file.name,
+          aspectRatio: img.width / img.height,
+          originalWidth: img.width,
+          originalHeight: img.height,
+        },
+        scale: scale,
+        containerScale: scale,
+        position: { 
+          x: (containerWidth - (img.width * scale)) / 2,
+          y: (containerHeight - (img.height * scale)) / 2
+        },
+        isPlacementMode: true  // Automatically enter placement mode
+      }));
     } catch (error) {
-      setIsLoading(false);
-      console.error('Error uploading file:', error);
       toast({
-        title: "Upload failed",
-        description: "An error occurred while uploading the file.",
+        title: "Error",
+        description: "Failed to load the image. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -237,25 +227,30 @@ export default function BlueprintEditor() {
     setIsDraggingFile(false);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDraggingFile(false);
 
     const file = e.dataTransfer.files[0];
-    if (file) {
-      handleFileUpload(file);
+    if (file && (file.type === "image/png" || file.type === "image/jpeg")) {
+      await handleFileUpload(file);
     }
   };
 
+
   const handleZoom = (delta: number) => {
-    setEditorState((prev) => ({
-      ...prev,
-      scale: Math.max(0.1, Math.min(4, prev.scale + delta)),
-    }));
+    setEditorState(prev => {
+      const newScale = Math.max(0.1, Math.min(3, prev.scale + delta));
+      return {
+        ...prev,
+        scale: newScale,
+        containerScale: newScale
+      };
+    });
   };
 
   const handlePanStart = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isPanMode) {
+    if (isPanMode && e.button === 0) {
       setIsDragging(true);
       setDragStart({
         x: e.clientX - editorState.position.x,
@@ -279,6 +274,31 @@ export default function BlueprintEditor() {
     setIsDragging(false);
   };
 
+  const handleRotation = (degrees: number) => {
+    setEditorState(prev => ({
+      ...prev,
+      rotation: (prev.rotation + degrees) % 360
+    }));
+  };
+
+  const handleAlign = (direction: 'horizontal' | 'vertical') => {
+    if (!containerRef.current || !editorState.layout.url) return;
+    
+    const container = containerRef.current.getBoundingClientRect();
+    const newPosition = { ...editorState.position };
+    
+    if (direction === 'horizontal') {
+      newPosition.x = (container.width - (editorState.layout.originalWidth || 0) * editorState.scale) / 2;
+    } else {
+      newPosition.y = (container.height - (editorState.layout.originalHeight || 0) * editorState.scale) / 2;
+    }
+    
+    setEditorState(prev => ({
+      ...prev,
+      position: newPosition
+    }));
+  };
+
   const addElement = (type: ARElement["type"]) => {
     const newElement: ARElement = {
       id: `element-${Date.now()}`,
@@ -286,94 +306,67 @@ export default function BlueprintEditor() {
       position: { x: 50, y: 50 },
       content: {
         title: `New ${type}`,
-        description: "",
-        trigger: "proximity",
+        description: "Description here",
+        trigger: "click",
       },
     };
-    setElements([...elements, newElement]);
+    setElements((prev) => [...prev, newElement]);
     setSelectedElement(newElement);
   };
 
-  const updateElementPosition = (
-    id: string,
-    position: { x: number; y: number },
-  ) => {
-    setElements(
-      elements.map((el) => (el.id === id ? { ...el, position } : el)),
+  const updateElementPosition = (id: string, position: Position) => {
+    setElements((prev) =>
+      prev.map((el) => (el.id === id ? { ...el, position } : el)),
     );
   };
 
   const updateElementContent = (
     id: string,
-    content: Partial<ARElement["content"]>,
+    content: Partial<ElementContent>,
   ) => {
-    setElements(
-      elements.map((el) =>
+    setElements((prev) =>
+      prev.map((el) =>
         el.id === id ? { ...el, content: { ...el.content, ...content } } : el,
       ),
     );
   };
-const handleRotation = (degrees: number) => {
-  setEditorState(prev => ({
-    ...prev,
-    rotation: (prev.rotation + degrees) % 360
-  }));
-};
 
-const handleAlign = (direction: 'horizontal' | 'vertical') => {
-  if (!containerRef.current || !editorState.layout.url) return;
-  
-  const container = containerRef.current.getBoundingClientRect();
-  const newPosition = { ...editorState.position };
-  
-  if (direction === 'horizontal') {
-    newPosition.x = (container.width - (editorState.layout.originalWidth || 0) * editorState.scale) / 2;
-  } else {
-    newPosition.y = (container.height - (editorState.layout.originalHeight || 0) * editorState.scale) / 2;
-  }
-  
-  setEditorState(prev => ({
-    ...prev,
-    position: newPosition
-  }));
-};
-
-const handleDuplicateElement = (element: ARElement) => {
-  const newElement = {
-    ...element,
-    id: `element-${Date.now()}`,
-    position: {
-      x: element.position.x + 5,
-      y: element.position.y + 5
-    }
+  const handleDuplicateElement = (element: ARElement) => {
+    const newElement = {
+      ...element,
+      id: `element-${Date.now()}`,
+      position: {
+        x: element.position.x + 5,
+        y: element.position.y + 5
+      }
+    };
+    setElements(prev => [...prev, newElement]);
   };
-  setElements(prev => [...prev, newElement]);
-};
 
-const handleDeleteElement = (elementId: string) => {
-  setElements(prev => prev.filter(el => el.id !== elementId));
-  setSelectedElement(null);
-};
+  const handleDeleteElement = (elementId: string) => {
+    setElements(prev => prev.filter(el => el.id !== elementId));
+    setSelectedElement(null);
+  };
 
-const handleLayerOrder = (elementId: string, direction: 'forward' | 'backward') => {
-  setElements(prev => {
-    const index = prev.findIndex(el => el.id === elementId);
-    if (index === -1) return prev;
-    
-    const newElements = [...prev];
-    const element = newElements[index];
-    
-    if (direction === 'forward' && index < newElements.length - 1) {
-      newElements.splice(index, 1);
-      newElements.splice(index + 1, 0, element);
-    } else if (direction === 'backward' && index > 0) {
-      newElements.splice(index, 1);
-      newElements.splice(index - 1, 0, element);
-    }
-    
-    return newElements;
-  });
-};
+  const handleLayerOrder = (elementId: string, direction: 'forward' | 'backward') => {
+    setElements(prev => {
+      const index = prev.findIndex(el => el.id === elementId);
+      if (index === -1) return prev;
+      
+      const newElements = [...prev];
+      const element = newElements[index];
+      
+      if (direction === 'forward' && index < newElements.length - 1) {
+        newElements.splice(index, 1);
+        newElements.splice(index + 1, 0, element);
+      } else if (direction === 'backward' && index > 0) {
+        newElements.splice(index, 1);
+        newElements.splice(index - 1, 0, element);
+      }
+      
+      return newElements;
+    });
+  };
 
   const saveLayout = () => {
     if (!editorState.layout.url) {
@@ -560,7 +553,8 @@ const handleLayerOrder = (elementId: string, direction: 'forward' | 'backward') 
 
         {/* Main Editor Area */}
         <div
-          className={`flex-1 relative ${isPanMode ? 'cursor-grab' : ''} ${isDragging ? 'cursor-grabbing' : ''}`}
+          className={`flex-1 relative ${isPanMode ? 'cursor-grab' : ''} ${isDragging ? 'cursor-grabbing' : ''} ${
+            editorState.isPlacementMode ? 'ring-2 ring-primary ring-opacity-50' : ''}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -575,7 +569,7 @@ const handleLayerOrder = (elementId: string, direction: 'forward' | 'backward') 
               showGrid ? "bg-grid-pattern" : ""
             }`}
             style={{
-              transform: `translate(${editorState.position.x}px, ${editorState.position.y}px)`,
+              transform: `translate(${editorState.position.x}px, ${editorState.position.y}px) scale(${editorState.containerScale})`,
               transformOrigin: "center",
               transition: isDragging ? 'none' : 'transform 0.1s ease-out',
               zIndex: 0
@@ -588,7 +582,6 @@ const handleLayerOrder = (elementId: string, direction: 'forward' | 'backward') 
                   alt="Store Layout"
                   className="w-auto h-auto max-w-none"
                   style={{
-                    transform: `scale(${editorState.scale})`,
                     transformOrigin: 'center center'
                   }}
                 />
@@ -676,6 +669,30 @@ const handleLayerOrder = (elementId: string, direction: 'forward' | 'backward') 
             )}
           </div>
 
+          {/* Placement Mode Button */}
+          {editorState.layout.url && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
+              <Button
+                variant={editorState.isPlacementMode ? "default" : "secondary"}
+                onClick={() => setEditorState(prev => ({ ...prev, isPlacementMode: !prev.isPlacementMode }))}
+                className="shadow-lg bg-primary text-white hover:bg-primary/90"
+                size="lg"
+              >
+                {editorState.isPlacementMode ? (
+                  <>
+                    <Pencil className="w-4 h-4 mr-2" />
+                    Editing Layout
+                  </>
+                ) : (
+                  <>
+                    <PlusCircle className="w-4 h-4 mr-2" />
+                    Place AR Elements
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+
           {/* Controls */}
           <div className="absolute bottom-4 right-4 space-x-2 z-10">
             <div className="flex items-center gap-2 bg-white/80 p-2 rounded-lg shadow-lg">
@@ -748,161 +765,150 @@ const handleLayerOrder = (elementId: string, direction: 'forward' | 'backward') 
             </div>
           </div>
 
-          {/* Placement Mode Button */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
-            <Button
-              variant={editorState.isPlacementMode ? "default" : "outline"}
-              onClick={() => setEditorState(prev => ({ ...prev, isPlacementMode: !prev.isPlacementMode }))}
-              className="shadow-lg"
-            >
-              {editorState.isPlacementMode ? "Adjust Layout" : "Start Placing AR Elements"}
-            </Button>
-          </div>
+          {/* Properties Panel */}
+          {selectedElement && (
+            <div className="w-80 bg-white border-l p-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Element Properties</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Title</Label>
+                    <Input
+                      value={selectedElement.content.title}
+                      onChange={(e) =>
+                        updateElementContent(selectedElement.id, {
+                          title: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Description</Label>
+                    <Input
+                      value={selectedElement.content.description}
+                      onChange={(e) =>
+                        updateElementContent(selectedElement.id, {
+                          description: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Trigger Type</Label>
+                    <Select
+                      value={selectedElement.content.trigger}
+                      onValueChange={(value) =>
+                        updateElementContent(selectedElement.id, {
+                          trigger: value as "proximity" | "click" | "always",
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="proximity">Proximity</SelectItem>
+                        <SelectItem value="click">Click</SelectItem>
+                        <SelectItem value="always">Always Visible</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Position</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs">
+                            X: {selectedElement.position.x.toFixed(1)}%
+                          </Label>
+                          <Input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={selectedElement.position.x}
+                            onChange={(e) =>
+                              updateElementPosition(selectedElement.id, {
+                                ...selectedElement.position,
+                                x: parseFloat(e.target.value),
+                              })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">
+                            Y: {selectedElement.position.y.toFixed(1)}%
+                          </Label>
+                          <Input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={selectedElement.position.y}
+                            onChange={(e) =>
+                              updateElementPosition(selectedElement.id, {
+                                ...selectedElement.position,
+                                y: parseFloat(e.target.value),
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Layer Management</Label>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleLayerOrder(selectedElement.id, 'forward')}
+                          className="flex-1"
+                        >
+                          <Layers className="h-4 w-4 mr-2" />
+                          Bring Forward
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleLayerOrder(selectedElement.id, 'backward')}
+                          className="flex-1"
+                        >
+                          <Layers className="h-4 w-4 mr-2 rotate-180" />
+                          Send Backward
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Element Actions</Label>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDuplicateElement(selectedElement)}
+                          className="flex-1"
+                        >
+                          <Copy className="h-4 w-4 mr-2" />
+                          Duplicate
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteElement(selectedElement.id)}
+                          className="flex-1"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
-
-        {/* Properties Panel */}
-        {selectedElement && (
-          <div className="w-80 bg-white border-l p-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Element Properties</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Title</Label>
-                  <Input
-                    value={selectedElement.content.title}
-                    onChange={(e) =>
-                      updateElementContent(selectedElement.id, {
-                        title: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Description</Label>
-                  <Input
-                    value={selectedElement.content.description}
-                    onChange={(e) =>
-                      updateElementContent(selectedElement.id, {
-                        description: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Trigger Type</Label>
-                  <Select
-                    value={selectedElement.content.trigger}
-                    onValueChange={(value) =>
-                      updateElementContent(selectedElement.id, {
-                        trigger: value as "proximity" | "click" | "always",
-                      })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="proximity">Proximity</SelectItem>
-                      <SelectItem value="click">Click</SelectItem>
-                      <SelectItem value="always">Always Visible</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <Label>Position</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label className="text-xs">
-                          X: {selectedElement.position.x.toFixed(1)}%
-                        </Label>
-                        <Input
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={selectedElement.position.x}
-                          onChange={(e) =>
-                            updateElementPosition(selectedElement.id, {
-                              ...selectedElement.position,
-                              x: parseFloat(e.target.value),
-                            })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">
-                          Y: {selectedElement.position.y.toFixed(1)}%
-                        </Label>
-                        <Input
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={selectedElement.position.y}
-                          onChange={(e) =>
-                            updateElementPosition(selectedElement.id, {
-                              ...selectedElement.position,
-                              y: parseFloat(e.target.value),
-                            })
-                          }
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Layer Management</Label>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleLayerOrder(selectedElement.id, 'forward')}
-                        className="flex-1"
-                      >
-                        <Layers className="h-4 w-4 mr-2" />
-                        Bring Forward
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleLayerOrder(selectedElement.id, 'backward')}
-                        className="flex-1"
-                      >
-                        <Layers className="h-4 w-4 mr-2 rotate-180" />
-                        Send Backward
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Element Actions</Label>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDuplicateElement(selectedElement)}
-                        className="flex-1"
-                      >
-                        <Copy className="h-4 w-4 mr-2" />
-                        Duplicate
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeleteElement(selectedElement.id)}
-                        className="flex-1"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
       </div>
     </div>
   );

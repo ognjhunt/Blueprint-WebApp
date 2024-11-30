@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Mail, Lock } from 'lucide-react'
-import { Link } from "wouter"
+import { Link, useLocation } from "wouter"
 import { useAuth } from "@/contexts/AuthContext"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -40,6 +40,7 @@ export default function SignIn() {
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
   const { signIn } = useAuth()
+  const [, setLocation] = useLocation()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),

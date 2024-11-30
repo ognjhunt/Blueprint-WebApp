@@ -544,12 +544,23 @@ export default function ClaimBlueprint() {
 
             <Card className="w-full">
               <CardContent className="space-y-8 pt-6">
-                <div className="flex justify-center">
+                <div className="flex flex-col items-center space-y-4">
                   <div className="relative group">
                     <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg blur opacity-25 group-hover:opacity-50 transition duration-200"></div>
                     <div className="relative bg-white p-6 rounded-lg">
                       <QrCode className="w-32 h-32 text-blue-600" />
                     </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => window.print()}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Download PNG
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      <Download className="w-4 h-4 mr-2" />
+                      Download SVG
+                    </Button>
                   </div>
                 </div>
                 
@@ -558,6 +569,33 @@ export default function ClaimBlueprint() {
                   <p className="text-sm text-muted-foreground">
                     This unique QR code will connect customers to your interactive AR experience
                   </p>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="font-medium">QR Code Size Options</h4>
+                  <div className="grid grid-cols-3 gap-4">
+                    <Card className="p-4 cursor-pointer hover:border-blue-500 transition-colors">
+                      <div className="text-center">
+                        <p className="font-medium">Small</p>
+                        <p className="text-sm text-muted-foreground">2" x 2"</p>
+                        <p className="text-xs text-muted-foreground mt-2">Perfect for menus and small displays</p>
+                      </div>
+                    </Card>
+                    <Card className="p-4 cursor-pointer hover:border-blue-500 transition-colors">
+                      <div className="text-center">
+                        <p className="font-medium">Medium</p>
+                        <p className="text-sm text-muted-foreground">4" x 4"</p>
+                        <p className="text-xs text-muted-foreground mt-2">Ideal for countertops and tables</p>
+                      </div>
+                    </Card>
+                    <Card className="p-4 cursor-pointer hover:border-blue-500 transition-colors">
+                      <div className="text-center">
+                        <p className="font-medium">Large</p>
+                        <p className="text-sm text-muted-foreground">8" x 8"</p>
+                        <p className="text-xs text-muted-foreground mt-2">Best for window displays and walls</p>
+                      </div>
+                    </Card>
+                  </div>
                 </div>
                 
                 <div className="space-y-6">
@@ -588,25 +626,54 @@ export default function ClaimBlueprint() {
                     </ul>
                   </div>
 
-                  <div className="border rounded-lg p-4 space-y-4">
-                    <div>
-                      <Label htmlFor="shipping" className="text-base font-medium">Shipping Information</Label>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Where should we send your Blueprint setup materials?
-                      </p>
-                      <Input
-                        id="shipping"
-                        name="shippingAddress"
-                        value={formData.shippingAddress}
-                        onChange={handleInputChange}
-                        placeholder="Enter your shipping address"
-                        className="mt-2"
-                      />
+                  <div className="space-y-6">
+                    <div className="bg-blue-50 rounded-lg p-4">
+                      <h4 className="font-medium text-blue-900 mb-3">Recommended Placement Locations</h4>
+                      <ul className="space-y-3">
+                        <li className="flex items-start space-x-3">
+                          <MapPin className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-medium text-blue-900">Entrance/Window Display</p>
+                            <p className="text-sm text-blue-700">Attract customers with a large QR code display</p>
+                          </div>
+                        </li>
+                        <li className="flex items-start space-x-3">
+                          <MapPin className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-medium text-blue-900">Point of Sale</p>
+                            <p className="text-sm text-blue-700">Easy access during checkout process</p>
+                          </div>
+                        </li>
+                        <li className="flex items-start space-x-3">
+                          <MapPin className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-medium text-blue-900">Product Displays</p>
+                            <p className="text-sm text-blue-700">Next to featured items or promotions</p>
+                          </div>
+                        </li>
+                      </ul>
                     </div>
-                    
-                    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                      <MapPin className="w-4 h-4" />
-                      <span>US shipping addresses only</span>
+
+                    <div className="border rounded-lg p-4 space-y-4">
+                      <div>
+                        <Label htmlFor="shipping" className="text-base font-medium">Shipping Information</Label>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Where should we send your Blueprint setup materials?
+                        </p>
+                        <Input
+                          id="shipping"
+                          name="shippingAddress"
+                          value={formData.shippingAddress}
+                          onChange={handleInputChange}
+                          placeholder="Enter your shipping address"
+                          className="mt-2"
+                        />
+                      </div>
+                      
+                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                        <MapPin className="w-4 h-4" />
+                        <span>US shipping addresses only</span>
+                      </div>
                     </div>
                   </div>
 
