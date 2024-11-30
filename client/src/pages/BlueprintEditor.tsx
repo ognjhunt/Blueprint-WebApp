@@ -182,6 +182,8 @@ const createImageUrl = async (file: File): Promise<string> => {
 };
 
 export default function BlueprintEditor() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [currentStep, setCurrentStep] = useState(0);
   const [elements, setElements] = useState<ARElement[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -205,9 +207,6 @@ export default function BlueprintEditor() {
     },
   ]);
   const { toast } = useToast();
-
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
 
   const [editorState, setEditorState] = useState<EditorState>({
     layout: {
@@ -255,6 +254,25 @@ export default function BlueprintEditor() {
       drawTools.updateScale(editorState.scale);
     }
   }, [editorState.scale]);
+
+  const createImageFromFile = (file: File): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(img);
+      };
+      
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Failed to load image'));
+      };
+      
+      img.src = url;
+    });
+  };
 
   const handleFileUpload = async (file: File) => {
     setLoading(true);
@@ -307,6 +325,7 @@ export default function BlueprintEditor() {
         description: error instanceof Error ? error.message : "Failed to load the image. Please try again.",
         variant: "destructive",
       });
+      throw error; // Re-throw to ensure proper error handling
     } finally {
       setLoading(false);
     }
