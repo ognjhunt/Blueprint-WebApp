@@ -592,7 +592,7 @@ export default function BlueprintEditor() {
             {elements.map((element) => (
               <motion.div
                 key={element.id}
-                className={`absolute cursor-move p-4 rounded-lg ${
+                className={`absolute cursor-move p-4 rounded-lg group ${
                   selectedElement?.id === element.id
                     ? "ring-2 ring-blue-500"
                     : ""
@@ -618,13 +618,20 @@ export default function BlueprintEditor() {
                     });
                   }
                 }}
-                onClick={() => setSelectedElement(element)}
+                onDoubleClick={() => setSelectedElement(element)}
+                initial={{ scale: 1 }}
+                whileHover={{ scale: 1.05 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
               >
-                <div className="bg-white shadow-lg rounded-lg p-2">
-                  <div className="text-sm font-medium">
+                <div className="bg-white shadow-lg rounded-lg p-2 relative transition-all duration-200 group-hover:shadow-xl group-hover:bg-white/95">
+                  <div className="text-sm font-medium flex items-center gap-2">
                     {element.content.title}
+                    <Pencil className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                   <div className="text-xs text-gray-500">{element.type}</div>
+                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-75 transition-opacity pointer-events-none whitespace-nowrap">
+                    Double-tap to edit
+                  </div>
                 </div>
               </motion.div>
             ))}
@@ -766,148 +773,156 @@ export default function BlueprintEditor() {
           </div>
 
           {/* Properties Panel */}
-          {selectedElement && (
-            <div className="w-80 bg-white border-l p-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Element Properties</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Title</Label>
-                    <Input
-                      value={selectedElement.content.title}
-                      onChange={(e) =>
-                        updateElementContent(selectedElement.id, {
-                          title: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Description</Label>
-                    <Input
-                      value={selectedElement.content.description}
-                      onChange={(e) =>
-                        updateElementContent(selectedElement.id, {
-                          description: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Trigger Type</Label>
-                    <Select
-                      value={selectedElement.content.trigger}
-                      onValueChange={(value) =>
-                        updateElementContent(selectedElement.id, {
-                          trigger: value as "proximity" | "click" | "always",
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="proximity">Proximity</SelectItem>
-                        <SelectItem value="click">Click</SelectItem>
-                        <SelectItem value="always">Always Visible</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Position</Label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <Label className="text-xs">
-                            X: {selectedElement.position.x.toFixed(1)}%
-                          </Label>
-                          <Input
-                            type="range"
-                            min="0"
-                            max="100"
-                            value={selectedElement.position.x}
-                            onChange={(e) =>
-                              updateElementPosition(selectedElement.id, {
-                                ...selectedElement.position,
-                                x: parseFloat(e.target.value),
-                              })
-                            }
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">
-                            Y: {selectedElement.position.y.toFixed(1)}%
-                          </Label>
-                          <Input
-                            type="range"
-                            min="0"
-                            max="100"
-                            value={selectedElement.position.y}
-                            onChange={(e) =>
-                              updateElementPosition(selectedElement.id, {
-                                ...selectedElement.position,
-                                y: parseFloat(e.target.value),
-                              })
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-
+          <AnimatePresence>
+            {selectedElement && (
+              <motion.div 
+                className="w-80 bg-white/95 backdrop-blur-sm border-l p-4 fixed top-16 right-0 bottom-0 shadow-lg z-50 overflow-y-auto"
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              >
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Element Properties</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Layer Management</Label>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleLayerOrder(selectedElement.id, 'forward')}
-                          className="flex-1"
-                        >
-                          <Layers className="h-4 w-4 mr-2" />
-                          Bring Forward
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleLayerOrder(selectedElement.id, 'backward')}
-                          className="flex-1"
-                        >
-                          <Layers className="h-4 w-4 mr-2 rotate-180" />
-                          Send Backward
-                        </Button>
-                      </div>
+                      <Label>Title</Label>
+                      <Input
+                        value={selectedElement.content.title}
+                        onChange={(e) =>
+                          updateElementContent(selectedElement.id, {
+                            title: e.target.value,
+                          })
+                        }
+                      />
                     </div>
-
                     <div className="space-y-2">
-                      <Label>Element Actions</Label>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDuplicateElement(selectedElement)}
-                          className="flex-1"
-                        >
-                          <Copy className="h-4 w-4 mr-2" />
-                          Duplicate
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDeleteElement(selectedElement.id)}
-                          className="flex-1"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </Button>
+                      <Label>Description</Label>
+                      <Input
+                        value={selectedElement.content.description}
+                        onChange={(e) =>
+                          updateElementContent(selectedElement.id, {
+                            description: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Trigger Type</Label>
+                      <Select
+                        value={selectedElement.content.trigger}
+                        onValueChange={(value) =>
+                          updateElementContent(selectedElement.id, {
+                            trigger: value as "proximity" | "click" | "always",
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="proximity">Proximity</SelectItem>
+                          <SelectItem value="click">Click</SelectItem>
+                          <SelectItem value="always">Always Visible</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Position</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs">
+                              X: {selectedElement.position.x.toFixed(1)}%
+                            </Label>
+                            <Input
+                              type="range"
+                              min="0"
+                              max="100"
+                              value={selectedElement.position.x}
+                              onChange={(e) =>
+                                updateElementPosition(selectedElement.id, {
+                                  ...selectedElement.position,
+                                  x: parseFloat(e.target.value),
+                                })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">
+                              Y: {selectedElement.position.y.toFixed(1)}%
+                            </Label>
+                            <Input
+                              type="range"
+                              min="0"
+                              max="100"
+                              value={selectedElement.position.y}
+                              onChange={(e) =>
+                                updateElementPosition(selectedElement.id, {
+                                  ...selectedElement.position,
+                                  y: parseFloat(e.target.value),
+                                })
+                              }
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Layer Management</Label>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleLayerOrder(selectedElement.id, 'forward')}
+                            className="flex-1"
+                          >
+                            <Layers className="h-4 w-4 mr-2" />
+                            Bring Forward
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleLayerOrder(selectedElement.id, 'backward')}
+                            className="flex-1"
+                          >
+                            <Layers className="h-4 w-4 mr-2 rotate-180" />
+                            Send Backward
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Element Actions</Label>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDuplicateElement(selectedElement)}
+                            className="flex-1"
+                          >
+                            <Copy className="h-4 w-4 mr-2" />
+                            Duplicate
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDeleteElement(selectedElement.id)}
+                            className="flex-1"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>
