@@ -782,6 +782,7 @@ export default function BlueprintEditor() {
                 exit={{ x: "100%" }}
                 transition={{ type: "spring", damping: 30, stiffness: 300 }}
                 onClick={(e) => e.stopPropagation()}
+                onDoubleClick={(e) => e.stopPropagation()}
               >
                 <Card>
                   <CardHeader>
@@ -794,12 +795,14 @@ export default function BlueprintEditor() {
                         value={selectedElement.content.title}
                         onChange={(e) => {
                           e.stopPropagation();
+                          const value = e.target.value;
                           updateElementContent(selectedElement.id, {
-                            title: e.target.value,
+                            title: value,
                           });
                         }}
+                        onFocus={(e) => e.target.select()}
                         onClick={(e) => e.stopPropagation()}
-                        onDoubleClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
                       />
                     </div>
                     <div className="space-y-2">
@@ -808,12 +811,14 @@ export default function BlueprintEditor() {
                         value={selectedElement.content.description}
                         onChange={(e) => {
                           e.stopPropagation();
+                          const value = e.target.value;
                           updateElementContent(selectedElement.id, {
-                            description: e.target.value,
+                            description: value,
                           });
                         }}
+                        onFocus={(e) => e.target.select()}
                         onClick={(e) => e.stopPropagation()}
-                        onDoubleClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
                       />
                     </div>
                     <div className="space-y-2">
