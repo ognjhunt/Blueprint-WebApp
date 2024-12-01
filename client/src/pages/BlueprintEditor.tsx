@@ -28,6 +28,7 @@ import {
   Eye,
   Pencil,
   PlusCircle,
+  Text,
 } from "lucide-react";
 
 import {
@@ -86,7 +87,7 @@ interface Zone {
 
 interface ARElement {
   id: string;
-  type: "infoCard" | "marker" | "interactive" | "media" | "shape";
+  type: "infoCard" | "marker" | "interactive" | "media" | "shape" | "label";
   position: Position;
   content: ElementContent;
 }
@@ -123,6 +124,13 @@ const createImageFromFile = (file: File): Promise<HTMLImageElement> => {
 };
 
 const availableElements = [
+  {
+    id: "label",
+    type: "label",
+    name: "Label",
+    category: "labels",
+    icon: <Text className="h-6 w-6" />,
+  },
   {
     id: "infoCard",
     type: "infoCard",
@@ -685,6 +693,13 @@ export default function BlueprintEditor() {
                 variant="outline"
               >
                 Media
+              </Button>
+              <Button
+                onClick={() => setSelectedCategory("labels")}
+                className={`w-full justify-start ${selectedCategory === "labels" ? "bg-primary text-white" : "bg-white"}`}
+                variant="outline"
+              >
+                Labels
               </Button>
             </div>
 
