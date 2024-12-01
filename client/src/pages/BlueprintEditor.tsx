@@ -74,6 +74,26 @@ interface ElementContent {
   mediaUrl?: string;
   mediaType?: "image" | "video";
 }
+
+const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file || !selectedElement) return;
+
+  try {
+    const url = await createImageUrl(file);
+    updateElementContent(selectedElement.id, {
+      mediaUrl: url,
+      mediaType: file.type.startsWith("image/") ? "image" : "video"
+    });
+  } catch (error) {
+    console.error("Media upload error:", error);
+    toast({
+      title: "Upload Failed",
+      description: "Failed to upload media. Please try again.",
+      variant: "destructive"
+    });
+  }
+};
 interface Zone {
   id: string;
   name: string;
