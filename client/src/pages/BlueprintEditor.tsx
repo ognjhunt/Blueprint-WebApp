@@ -70,6 +70,8 @@ interface ElementContent {
   title: string;
   description: string;
   trigger: "proximity" | "click" | "always";
+  mediaUrl?: string;
+  mediaType?: "image" | "video";
 }
 interface Zone {
   id: string;
@@ -84,7 +86,7 @@ interface Zone {
 
 interface ARElement {
   id: string;
-  type: "infoCard" | "marker" | "interactive";
+  type: "infoCard" | "marker" | "interactive" | "media" | "shape";
   position: Position;
   content: ElementContent;
 }
@@ -998,6 +1000,137 @@ export default function BlueprintEditor() {
                   <CardHeader>
                     <CardTitle>Element Properties</CardTitle>
                   </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="title">Title</Label>
+                      <Input
+                        id="title"
+                        value={selectedElement.content.title}
+                        onChange={(e) =>
+                          updateElementContent(selectedElement.id, {
+                            title: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="description">Description</Label>
+                      <Input
+                        id="description"
+                        value={selectedElement.content.description}
+                        onChange={(e) =>
+                          updateElementContent(selectedElement.id, {
+                            description: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="trigger">Trigger Type</Label>
+                      <Select
+                        value={selectedElement.content.trigger}
+                        onValueChange={(value) =>
+                          updateElementContent(selectedElement.id, {
+                            trigger: value as "proximity" | "click" | "always",
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select trigger type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="click">Click</SelectItem>
+                          <SelectItem value="proximity">Proximity</SelectItem>
+                          <SelectItem value="always">Always</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {selectedElement.type === "media" && (
+                      <div className="space-y-2">
+                        <Label>Media Upload</Label>
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                          {selectedElement.content.mediaUrl ? (
+                            <div className="space-y-2">
+                              {selectedElement.content.mediaType === "image" ? (
+                                <img
+                                  src={selectedElement.content.mediaUrl}
+                                  alt="Uploaded media"
+                                  className="max-w-full h-auto rounded"
+                                />
+                              ) : (
+                                <video
+                                  src={selectedElement.content.mediaUrl}
+                                  controls
+                                  className="max-w-full h-auto rounded"
+                                />
+                              )}
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="w-full"
+                                onClick={() =>
+                                  updateElementContent(selectedElement.id, {
+                                    mediaUrl: undefined,
+                                    mediaType: undefined,
+                                  })
+                                }
+                              >
+                                Remove Media
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="text-center">
+                              <Input
+                                type="file"
+                                accept={
+                                  selectedElement.type === "image"
+                                    ? "image/*"
+                                    : "video/*"
+                                }
+                                className="hidden"
+                                id="media-upload"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    try {
+                                      const url = await createImageUrl(file);
+                                      updateElementContent(selectedElement.id, {
+                                        mediaUrl: url,
+                                        mediaType: file.type.startsWith("image")
+                                          ? "image"
+                                          : "video",
+                                      });
+                                    } catch (error) {
+                                      toast({
+                                        title: "Upload Failed",
+                                        description: "Failed to upload media. Please try again.",
+                                        variant: "destructive",
+                                      });
+                                    }
+                                  }
+                                }}
+                              />
+                              <Label
+                                htmlFor="media-upload"
+                                className="cursor-pointer flex flex-col items-center justify-center gap-2"
+                              >
+                                <div className="p-2 bg-primary/10 rounded-full">
+                                  {selectedElement.type === "image" ? (
+                                    <Image className="w-6 h-6 text-primary" />
+                                  ) : (
+                                    <Video className="w-6 h-6 text-primary" />
+                                  )}
+                                </div>
+                                <span className="text-sm text-gray-500">
+                                  Click to upload {selectedElement.type}
+                                </span>
+                              </Label>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <Label>Title</Label>
