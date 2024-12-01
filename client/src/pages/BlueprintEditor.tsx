@@ -285,7 +285,18 @@ export default function BlueprintEditor() {
         throw new Error(`File size exceeds 10MB limit (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
       }
 
-      const img = await createImageFromFile(file);
+      // File type validation
+      const allowedImageTypes = ['image/png', 'image/jpeg'];
+      const allowedVideoTypes = ['video/mp4'];
+      const isImage = allowedImageTypes.includes(file.type);
+      const isVideo = allowedVideoTypes.includes(file.type);
+
+      if (!isImage && !isVideo) {
+        throw new Error('Invalid file type. Please upload PNG/JPEG for images or MP4 for videos.');
+      }
+
+      // Only create image preview for image files
+      const img = isImage ? await createImageFromFile(file) : null;
 
       // Dimension checks
       const MAX_DIMENSION = 5000;
@@ -987,6 +998,484 @@ export default function BlueprintEditor() {
           {/* Properties Panel */}
           <AnimatePresence>
             {selectedElement && (
+              <motion.div
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", damping: 20 }}
+                className="fixed top-16 right-0 bottom-0 w-80 bg-white/95 backdrop-blur-sm border-l p-4 shadow-lg overflow-y-auto z-[100]"
+              >
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold">Element Properties</h3>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setSelectedElement(null)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Title</Label>
+                      <Input
+                        value={selectedElement.content.title}
+                        onChange={(e) =>
+                          updateElementContent(selectedElement.id, {
+                            title: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Description</Label>
+                      <Input
+                        value={selectedElement.content.description}
+                        onChange={(e) =>
+                          updateElementContent(selectedElement.id, {
+                            description: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Trigger Type</Label>
+                      <Select
+                        value={selectedElement.content.trigger}
+                        onValueChange={(value) =>
+                          updateElementContent(selectedElement.id, {
+                            trigger: value as "proximity" | "click" | "always",
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="click">Click</SelectItem>
+                          <SelectItem value="proximity">Proximity</SelectItem>
+                          <SelectItem value="always">Always</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {selectedElement.type === "media" && (
+                      <div className="space-y-2">
+                        <Label>Media Upload</Label>
+                        <Input
+                          type="file"
+                          accept={
+                            selectedElement.content.mediaType === "image"
+                              ? ".png,.jpg,.jpeg"
+                              : ".mp4"
+                          }
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+
+                            try {
+                              // File size check (10MB limit)
+                              const MAX_FILE_SIZE = 10 * 1024 * 1024;
+                              if (file.size > MAX_FILE_SIZE) {
+                                throw new Error(`File size exceeds 10MB limit`);
+                              }
+
+                              // File type validation
+                              const allowedImageTypes = ['image/png', 'image/jpeg'];
+                              const allowedVideoTypes = ['video/mp4'];
+                              const isImage = allowedImageTypes.includes(file.type);
+                              const isVideo = allowedVideoTypes.includes(file.type);
+
+                              if (!isImage && !isVideo) {
+                                throw new Error('Invalid file type. Please upload PNG/JPEG for images or MP4 for videos.');
+                              }
+
+                              const mediaUrl = await createImageUrl(file);
+                              updateElementContent(selectedElement.id, {
+                                mediaUrl,
+                                mediaType: isImage ? "image" : "video",
+                              });
+                            } catch (error) {
+                              toast({
+                                title: "Upload Failed",
+                                description: error instanceof Error ? error.message : "Failed to upload media",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                        />
+                        {selectedElement.content.mediaUrl && (
+                          <div className="mt-2 space-y-2">
+                            <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                              {selectedElement.content.mediaType === "image" ? (
+                                <img
+                                  src={selectedElement.content.mediaUrl}
+                                  alt="Media preview"
+                                  className="w-full h-full object-contain"
+                                />
+                              ) : (
+                                <video
+                                  src={selectedElement.content.mediaUrl}
+                                  controls
+                                  className="w-full h-full"
+                                />
+                              )}
+                            </div>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="w-full"
+                              onClick={() =>
+                                updateElementContent(selectedElement.id, {
+                                  mediaUrl: undefined,
+                                  mediaType: undefined,
+                                })
+                              }
+                            >
+                              Remove Media
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div>
+                      <Label>Position</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs">X: {selectedElement.position.x.toFixed(2)}%</Label>
+                          <Input
+                            type="range"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            value={selectedElement.position.x}
+                            onChange={(e) =>
+                              updateElementPosition(selectedElement.id, {
+                                ...selectedElement.position,
+                                x: parseFloat(e.target.value),
+                              })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Y: {selectedElement.position.y.toFixed(2)}%</Label>
+                          <Input
+                            type="range"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            value={selectedElement.position.y}
+                            onChange={(e) =>
+                              updateElementPosition(selectedElement.id, {
+                                ...selectedElement.position,
+                                y: parseFloat(e.target.value),
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label>Layer Management</Label>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() =>
+                            handleLayerOrder(selectedElement.id, "forward")
+                          }
+                        >
+                          <Layers className="h-4 w-4 mr-2" />
+                          Bring Forward
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() =>
+                            handleLayerOrder(selectedElement.id, "backward")
+                          }
+                        >
+                          <Layers className="h-4 w-4 mr-2" />
+                          Send Back
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label>Element Actions</Label>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() =>
+                            handleDuplicateElement(selectedElement)
+                          }
+                        >
+                          <Copy className="h-4 w-4 mr-2" />
+                          Duplicate
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => handleDeleteElement(selectedElement.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+              <motion.div
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", damping: 20 }}
+                className="fixed top-16 right-0 bottom-0 w-80 bg-white/95 backdrop-blur-sm border-l p-4 shadow-lg overflow-y-auto z-[100]"
+              >
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold">Element Properties</h3>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setSelectedElement(null)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Title</Label>
+                      <Input
+                        value={selectedElement.content.title}
+                        onChange={(e) =>
+                          updateElementContent(selectedElement.id, {
+                            title: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Description</Label>
+                      <Input
+                        value={selectedElement.content.description}
+                        onChange={(e) =>
+                          updateElementContent(selectedElement.id, {
+                            description: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Trigger Type</Label>
+                      <Select
+                        value={selectedElement.content.trigger}
+                        onValueChange={(value) =>
+                          updateElementContent(selectedElement.id, {
+                            trigger: value as "proximity" | "click" | "always",
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="click">Click</SelectItem>
+                          <SelectItem value="proximity">Proximity</SelectItem>
+                          <SelectItem value="always">Always</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {selectedElement.type === "media" && (
+                      <div className="space-y-2">
+                        <Label>Media Upload</Label>
+                        <Input
+                          type="file"
+                          accept={
+                            selectedElement.content.mediaType === "image"
+                              ? ".png,.jpg,.jpeg"
+                              : ".mp4"
+                          }
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+
+                            try {
+                              // File size check (10MB limit)
+                              const MAX_FILE_SIZE = 10 * 1024 * 1024;
+                              if (file.size > MAX_FILE_SIZE) {
+                                throw new Error(`File size exceeds 10MB limit`);
+                              }
+
+                              // File type validation
+                              const allowedImageTypes = ['image/png', 'image/jpeg'];
+                              const allowedVideoTypes = ['video/mp4'];
+                              const isImage = allowedImageTypes.includes(file.type);
+                              const isVideo = allowedVideoTypes.includes(file.type);
+
+                              if (!isImage && !isVideo) {
+                                throw new Error('Invalid file type. Please upload PNG/JPEG for images or MP4 for videos.');
+                              }
+
+                              const mediaUrl = await createImageUrl(file);
+                              updateElementContent(selectedElement.id, {
+                                mediaUrl,
+                                mediaType: isImage ? "image" : "video",
+                              });
+                            } catch (error) {
+                              toast({
+                                title: "Upload Failed",
+                                description: error instanceof Error ? error.message : "Failed to upload media",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                        />
+                        {selectedElement.content.mediaUrl && (
+                          <div className="mt-2 space-y-2">
+                            <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                              {selectedElement.content.mediaType === "image" ? (
+                                <img
+                                  src={selectedElement.content.mediaUrl}
+                                  alt="Media preview"
+                                  className="w-full h-full object-contain"
+                                />
+                              ) : (
+                                <video
+                                  src={selectedElement.content.mediaUrl}
+                                  controls
+                                  className="w-full h-full"
+                                />
+                              )}
+                            </div>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="w-full"
+                              onClick={() =>
+                                updateElementContent(selectedElement.id, {
+                                  mediaUrl: undefined,
+                                  mediaType: undefined,
+                                })
+                              }
+                            >
+                              Remove Media
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div>
+                      <Label>Position</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs">X: {selectedElement.position.x.toFixed(2)}%</Label>
+                          <Input
+                            type="range"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            value={selectedElement.position.x}
+                            onChange={(e) =>
+                              updateElementPosition(selectedElement.id, {
+                                ...selectedElement.position,
+                                x: parseFloat(e.target.value),
+                              })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Y: {selectedElement.position.y.toFixed(2)}%</Label>
+                          <Input
+                            type="range"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            value={selectedElement.position.y}
+                            onChange={(e) =>
+                              updateElementPosition(selectedElement.id, {
+                                ...selectedElement.position,
+                                y: parseFloat(e.target.value),
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label>Layer Management</Label>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() =>
+                            handleLayerOrder(selectedElement.id, "forward")
+                          }
+                        >
+                          <Layers className="h-4 w-4 mr-2" />
+                          Bring Forward
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() =>
+                            handleLayerOrder(selectedElement.id, "backward")
+                          }
+                        >
+                          <Layers className="h-4 w-4 mr-2" />
+                          Send Back
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label>Element Actions</Label>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() =>
+                            handleDuplicateElement(selectedElement)
+                          }
+                        >
+                          <Copy className="h-4 w-4 mr-2" />
+                          Duplicate
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => handleDeleteElement(selectedElement.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
               <motion.div
                 className="w-80 bg-white/95 backdrop-blur-sm border-l p-4 fixed top-16 right-0 bottom-0 shadow-lg z-50 overflow-y-auto"
                 initial={{ x: "100%" }}
