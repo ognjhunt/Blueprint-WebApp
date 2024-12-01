@@ -173,20 +173,6 @@ const availableElements = [
     icon: <Touchpad className="h-6 w-6" />,
   },
   {
-    id: "circle",
-    type: "shape",
-    name: "Circle",
-    category: "shapes",
-    icon: <Circle className="h-6 w-6" />,
-  },
-  {
-    id: "square",
-    type: "shape",
-    name: "Square",
-    category: "shapes",
-    icon: <SquareIcon className="h-6 w-6" />,
-  },
-  {
     id: "image",
     type: "media",
     name: "Image",
@@ -700,13 +686,7 @@ export default function BlueprintEditor() {
               >
                 Interactive Elements
               </Button>
-              <Button
-                onClick={() => setSelectedCategory("shapes")}
-                className={`w-full justify-start ${selectedCategory === "shapes" ? "bg-primary text-white" : "bg-white"}`}
-                variant="outline"
-              >
-                Shapes
-              </Button>
+              
               <Button
                 onClick={() => setSelectedCategory("media")}
                 className={`w-full justify-start ${selectedCategory === "media" ? "bg-primary text-white" : "bg-white"}`}
