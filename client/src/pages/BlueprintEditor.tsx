@@ -832,18 +832,11 @@ export default function BlueprintEditor() {
           onMouseLeave={handlePanEnd}
           onContextMenu={(e) => {
             e.preventDefault();
-            // Calculate position considering the current transform state
-            if (containerRef.current) {
-              const rect = containerRef.current.getBoundingClientRect();
-              // Get position relative to viewport
-              const viewportX = e.clientX;
-              const viewportY = e.clientY;
-              // Convert to percentage of container
-              const relativeX = ((viewportX - rect.left) / rect.width) * 100;
-              const relativeY = ((viewportY - rect.top) / rect.height) * 100;
-              setPromptPosition({ x: relativeX, y: relativeY });
-              setShowAiPrompt(true);
-            }
+            // Store the actual mouse coordinates
+            const x = Math.min(e.clientX, window.innerWidth - 250); // Prevent overflow
+            const y = Math.min(e.clientY, window.innerHeight - 100); // Prevent overflow
+            setPromptPosition({ x, y });
+            setShowAiPrompt(true);
           }}
           ref={containerRef}
         >
@@ -969,9 +962,8 @@ export default function BlueprintEditor() {
               <div
                 style={{
                   position: "fixed",
-                  left: `${promptPosition.x}%`,
-                  top: `${promptPosition.y}%`,
-                  transform: "translate(-50%, -50%)",
+                  left: `${promptPosition.x}px`,
+                  top: `${promptPosition.y}px`,
                   zIndex: 9999,
                 }}
                 className="bg-white border rounded shadow p-2"
