@@ -832,10 +832,15 @@ export default function BlueprintEditor() {
           onMouseLeave={handlePanEnd}
           onContextMenu={(e) => {
             e.preventDefault();
+            // Calculate position considering the current transform state
             if (containerRef.current) {
               const rect = containerRef.current.getBoundingClientRect();
-              const relativeX = ((e.clientX - rect.left) / rect.width) * 100;
-              const relativeY = ((e.clientY - rect.top) / rect.height) * 100;
+              // Get position relative to viewport
+              const viewportX = e.clientX;
+              const viewportY = e.clientY;
+              // Convert to percentage of container
+              const relativeX = ((viewportX - rect.left) / rect.width) * 100;
+              const relativeY = ((viewportY - rect.top) / rect.height) * 100;
               setPromptPosition({ x: relativeX, y: relativeY });
               setShowAiPrompt(true);
             }
@@ -959,39 +964,39 @@ export default function BlueprintEditor() {
                 <span className="ml-2">Processing image...</span>
               </div>
             )}
-          </div>
 
-          {/* Move AI Prompt outside of transformed div */}
-          {showAiPrompt && (
-            <div
-              style={{
-                position: "absolute",
-                left: `${promptPosition.x}%`,
-                top: `${promptPosition.y}%`,
-                transform: "translate(-50%, -50%)",
-                zIndex: 9999,
-              }}
-              className="bg-white border rounded shadow p-2"
-            >
-              <Input
-                type="text"
-                placeholder="What would you like to see at this location?"
-                value={promptInput}
-                onChange={(e) => setPromptInput(e.target.value)}
-                className="border p-1 w-48"
-              />
-              <Button
-                onClick={() => {
-                  // Handle AI logic here
-                  setShowAiPrompt(false);
-                  setPromptInput("");
+            {showAiPrompt && (
+              <div
+                style={{
+                  position: "fixed",
+                  left: `${promptPosition.x}%`,
+                  top: `${promptPosition.y}%`,
+                  transform: "translate(-50%, -50%)",
+                  zIndex: 9999,
                 }}
-                className="mt-2"
+                className="bg-white border rounded shadow p-2"
               >
-                Submit
-              </Button>
-            </div>
-          )}
+                <Input
+                  type="text"
+                  placeholder="What would you like to see at this location?"
+                  value={promptInput}
+                  onChange={(e) => setPromptInput(e.target.value)}
+                  className="border p-1 w-48"
+                />
+                <Button
+                  onClick={() => {
+                    // Handle AI logic here. For example:
+                    // send promptInput to your AI endpoint and then place an element at promptPosition.
+                    setShowAiPrompt(false);
+                    setPromptInput("");
+                  }}
+                  className="mt-2"
+                >
+                  Submit
+                </Button>
+              </div>
+            )}
+          </div>
 
           {/* Placement Mode Button */}
           {editorState.layout.url && (
