@@ -1,6 +1,12 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
+import { MouseEvent } from "react"; // Import MouseEvent
 import { createDrawTools, type DrawTools } from "@/lib/drawTools";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useLocation } from "wouter";
+
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Ruler,
@@ -35,7 +41,7 @@ import {
   MapPin,
   Touchpad,
   Search,
-  Image,
+  Image as ImageIcon,
   Video,
   Circle,
   Square as SquareIcon,
@@ -177,7 +183,7 @@ const availableElements = [
     type: "media",
     name: "Image",
     category: "media",
-    icon: <Image className="h-6 w-6" />,
+    icon: <ImageIcon className="h-6 w-6" />,
   },
   {
     id: "video",
@@ -199,6 +205,20 @@ const createImageUrl = async (file: File): Promise<string> => {
 
 export default function BlueprintEditor() {
   const [showAiPrompt, setShowAiPrompt] = useState(false);
+  const [location] = useLocation();
+  const blueprintId = location.split("/").pop(); // assuming the route is /blueprint-editor/{id}
+  const [generatingImage, setGeneratingImage] = useState(false); // Add loading state
+  const storage = getStorage();
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [mouseScreenPos, setMouseScreenPos] = useState({ x: 0, y: 0 });
+
+  const [isHighlighting, setIsHighlighting] = useState(false);
+  const [highlightStartPos, setHighlightStartPos] = useState<Position | null>(
+    null,
+  );
+  const [highlightCurrentPos, setHighlightCurrentPos] =
+    useState<Position | null>(null);
+
   const [promptPosition, setPromptPosition] = useState({ x: 0, y: 0 });
   const [promptInput, setPromptInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -296,51 +316,80 @@ export default function BlueprintEditor() {
   const handleFileUpload = async (file: File) => {
     setLoading(true);
     try {
-      // File size check (10MB limit)
-      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
-      if (file.size > MAX_FILE_SIZE) {
+      const fileType = file.type.toLowerCase();
+      let pdfUrl;
+
+      if (fileType === "application/pdf") {
+        pdfUrl = URL.createObjectURL(file);
+        // Setting editorState for PDF is done above as before
+        // After setting editorState, now upload to Firebase:
+        const storageRef = ref(storage, `blueprints/${blueprintId}`);
+        await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(storageRef);
+
+        // Update the blueprint document with floorPlanUrl
+        await updateDoc(doc(db, "blueprints", blueprintId), {
+          floorPlanUrl: downloadURL,
+        });
+
+        // Update the editor state layout url to the newly uploaded file:
+        setEditorState((prev) => ({
+          ...prev,
+          layout: { ...prev.layout, url: downloadURL },
+        }));
+      } else if (
+        fileType === "image/png" ||
+        fileType === "image/jpeg" ||
+        fileType === "image/jpg"
+      ) {
+        const img = await createImageFromFile(file);
+        const result = await createImageUrl(file);
+
+        const containerWidth = containerRef.current?.clientWidth || 800;
+        const containerHeight = containerRef.current?.clientHeight || 600;
+        const scale = Math.min(
+          containerWidth / img.width,
+          containerHeight / img.height,
+        );
+
+        setEditorState((prev) => ({
+          ...prev,
+          layout: {
+            url: result,
+            name: file.name,
+            aspectRatio: img.width / img.height,
+            originalWidth: img.width,
+            originalHeight: img.height,
+          },
+          scale: scale,
+          containerScale: scale,
+          position: {
+            x: (containerWidth - img.width * scale) / 2,
+            y: (containerHeight - img.height * scale) / 2,
+          },
+          isPlacementMode: true,
+        }));
+
+        // Now upload to Firebase Storage:
+        const storageRef = ref(storage, `blueprints/${blueprintId}`);
+        await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(storageRef);
+
+        // Update Firestore with the downloadURL
+        await updateDoc(doc(db, "blueprints", blueprintId), {
+          floorPlanUrl: downloadURL,
+        });
+
+        // Update the editor state layout url to the newly uploaded file:
+        setEditorState((prev) => ({
+          ...prev,
+          layout: { ...prev.layout, url: downloadURL },
+        }));
+      } else {
         throw new Error(
-          `File size exceeds 10MB limit (${(file.size / 1024 / 1024).toFixed(2)}MB)`,
+          "Unsupported file type. Please upload PNG, JPG, or PDF.",
         );
       }
-
-      const img = await createImageFromFile(file);
-
-      // Dimension checks
-      const MAX_DIMENSION = 5000;
-      if (img.width > MAX_DIMENSION || img.height > MAX_DIMENSION) {
-        throw new Error(
-          `Image dimensions exceed ${MAX_DIMENSION}x${MAX_DIMENSION} limit (${img.width}x${img.height})`,
-        );
-      }
-
-      const result = await createImageUrl(file);
-
-      // Calculate scale to fit the container while maintaining aspect ratio
-      const containerWidth = containerRef.current?.clientWidth || 800;
-      const containerHeight = containerRef.current?.clientHeight || 600;
-      const scale = Math.min(
-        containerWidth / img.width,
-        containerHeight / img.height,
-      );
-
-      setEditorState((prev) => ({
-        ...prev,
-        layout: {
-          url: result,
-          name: file.name,
-          aspectRatio: img.width / img.height,
-          originalWidth: img.width,
-          originalHeight: img.height,
-        },
-        scale: scale,
-        containerScale: scale,
-        position: {
-          x: (containerWidth - img.width * scale) / 2,
-          y: (containerHeight - img.height * scale) / 2,
-        },
-        isPlacementMode: true, // Automatically enter placement mode
-      }));
     } catch (error) {
       console.error("Image upload error:", error);
       toast({
@@ -348,10 +397,10 @@ export default function BlueprintEditor() {
         description:
           error instanceof Error
             ? error.message
-            : "Failed to load the image. Please try again.",
+            : "Failed to load the file. Please try again.",
         variant: "destructive",
       });
-      throw error; // Re-throw to ensure proper error handling
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -388,12 +437,24 @@ export default function BlueprintEditor() {
   };
 
   const handlePanStart = (e: React.MouseEvent<HTMLDivElement>) => {
+    // If we are in pan mode, do the old pan logic:
     if (isPanMode && e.button === 0) {
       setIsDragging(true);
       setDragStart({
         x: e.clientX - editorState.position.x,
         y: e.clientY - editorState.position.y,
       });
+    } else {
+      // Not in pan mode, start highlighting instead
+      if (!containerRef.current) return;
+      const bounds = containerRef.current.getBoundingClientRect();
+      // mousePos is calculated in handlePanMove, but we can calculate here similarly:
+      const newMouseX = (e.clientX - bounds.left) / editorState.containerScale;
+      const newMouseY = (e.clientY - bounds.top) / editorState.containerScale;
+
+      setIsHighlighting(true);
+      setHighlightStartPos({ x: newMouseX, y: newMouseY });
+      setHighlightCurrentPos({ x: newMouseX, y: newMouseY });
     }
   };
 
@@ -406,11 +467,45 @@ export default function BlueprintEditor() {
         position: { x: newX, y: newY },
       }));
     }
+
+    if (containerRef.current) {
+      const bounds = containerRef.current.getBoundingClientRect();
+      const newMouseX = (e.clientX - bounds.left) / editorState.containerScale;
+      const newMouseY = (e.clientY - bounds.top) / editorState.containerScale;
+      setMousePos({ x: newMouseX, y: newMouseY });
+      setMouseScreenPos({ x: e.clientX, y: e.clientY });
+
+      // If we are highlighting, update the highlightCurrentPos
+      if (isHighlighting && highlightStartPos) {
+        setHighlightCurrentPos({ x: newMouseX, y: newMouseY });
+      }
+    }
   };
 
-  const handlePanEnd = () => {
-    setIsDragging(false);
+
+
+    // Add this code AFTER your existing pan logic
+    if (containerRef.current) {
+      const bounds = containerRef.current.getBoundingClientRect();
+      const newMouseX = (e.clientX - bounds.left) / editorState.containerScale;
+      const newMouseY = (e.clientY - bounds.top) / editorState.containerScale;
+      setMousePos({ x: newMouseX, y: newMouseY });
+      setMouseScreenPos({ x: e.clientX, y: e.clientY });
+    }
   };
+
+const handlePanEnd = () => {
+  if (isPanMode) {
+    setIsDragging(false);
+  }
+
+  if (isHighlighting) {
+    // finalize highlight here if needed
+    setIsHighlighting(false);
+    // For now, we just stop highlighting. You can handle the selected area if desired.
+  }
+};
+
 
   const handleRotation = (degrees: number) => {
     setEditorState((prev) => ({
@@ -554,56 +649,179 @@ export default function BlueprintEditor() {
     }
   };
 
+  // Add a helper to generate unique IDs for messages if you don't have one:
+  function generateMessageId() {
+    return `msg-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+  }
+
+  // Replace your handleSendMessage function with this one
   const handleSendMessage = useCallback(async () => {
     if (!input.trim()) return;
 
-    const userMessage = { content: input, isAi: false };
+    const userMessageId = generateMessageId();
+    const userMessage = {
+      id: userMessageId,
+      content: input,
+      isAi: false,
+      isImage: false,
+    };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
 
-    try {
-      const response = await fetch(
-        "https://api.openai.com/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization:
-              "Bearer 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",
-          },
-          body: JSON.stringify({
-            model: "gpt-4o-mini", // using gpt-4 as requested (gpt4o-mini)
-            messages: [
-              ...messages
-                .filter((m) => !m.isAi)
-                .map((m) => ({ role: "user", content: m.content })),
-              { role: "user", content: input },
-            ],
-          }),
-        },
-      );
+    if (/I want a sign that says/i.test(userMessage.content)) {
+      setGeneratingImage(true);
+      const loadingId = generateMessageId();
+      const loadingMessage = {
+        id: loadingId,
+        content: "Generating image...",
+        isAi: true,
+        isImage: false,
+        isLoading: true, // ADD THIS LINE
+      };
+      setMessages((prev) => [...prev, loadingMessage]);
 
-      const data = await response.json();
-      if (data && data.choices && data.choices.length > 0) {
-        const aiMessage = {
-          content: data.choices[0].message.content.trim(),
+      try {
+        const hiveResponse = await fetch(
+          "https://api.thehive.ai/api/v3/hive/sdxl-enhanced",
+          {
+            method: "POST",
+            headers: {
+              accept: "application/json",
+              authorization: "Bearer zWgw8Jzre3zOXmAnNcbTa1fNJX7LRPc2",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              input: {
+                prompt: userMessage.content,
+                negative_prompt: "realistic",
+                image_size: { width: 1024, height: 1024 },
+                guidance_scale: 5,
+                num_images: 1,
+                seed: -1,
+                output_format: "jpeg",
+              },
+            }),
+          },
+        );
+        const hiveData = await hiveResponse.json();
+        if (
+          hiveData &&
+          hiveData.output &&
+          hiveData.output[0] &&
+          hiveData.output[0].url
+        ) {
+          const imageUrl = hiveData.output[0].url;
+          const imageMessage = {
+            id: generateMessageId(),
+            content: imageUrl,
+            isAi: true,
+            isImage: true,
+          };
+          setMessages((prev) =>
+            prev.filter((m) => m.id !== loadingId).concat(imageMessage),
+          );
+        } else {
+          const errorMessage = {
+            id: generateMessageId(),
+            content: "Sorry, I couldn't generate the image.",
+            isAi: true,
+            isImage: false,
+          };
+          setMessages((prev) =>
+            prev.filter((m) => m.id !== loadingId).concat(errorMessage),
+          );
+        }
+      } catch (error) {
+        const errorMessage = {
+          id: generateMessageId(),
+          content: "There was an error generating the image.",
           isAi: true,
+          isImage: false,
         };
-        setMessages((prev) => [...prev, aiMessage]);
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          { content: "Sorry, I couldn't understand your request.", isAi: true },
-        ]);
+        setMessages((prev) =>
+          prev.filter((m) => m.id !== loadingId).concat(errorMessage),
+        );
       }
-    } catch (error) {
-      console.error("OpenAI API error:", error);
-      setMessages((prev) => [
-        ...prev,
-        { content: "There was an error processing your request.", isAi: true },
-      ]);
+    } else {
+      try {
+        const response = await fetch(
+          "https://api.openai.com/v1/chat/completions",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization:
+                "Bearer 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",
+            },
+            body: JSON.stringify({
+              model: "gpt-4o-mini",
+              messages: [
+                ...messages
+                  .filter((m) => !m.isAi)
+                  .map((m) => ({ role: "user", content: m.content })),
+                { role: "user", content: input },
+              ],
+            }),
+          },
+        );
+
+        const data = await response.json();
+        if (data && data.choices && data.choices.length > 0) {
+          const aiMessage = {
+            id: generateMessageId(),
+            content: data.choices[0].message.content.trim(),
+            isAi: true,
+            isImage: false,
+          };
+          setMessages((prev) => [...prev, aiMessage]);
+        } else {
+          const errorMessage = {
+            id: generateMessageId(),
+            content: "Sorry, I couldn't understand your request.",
+            isAi: true,
+            isImage: false,
+          };
+          setMessages((prev) => [...prev, errorMessage]);
+        }
+      } catch (error) {
+        const errorMessage = {
+          id: generateMessageId(),
+          content: "There was an error processing your request.",
+          isAi: true,
+          isImage: false,
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      }
     }
-  }, [input, messages]);
+  }, [input, promptInput, messages]);
+
+  // In your message rendering code where you map over messages:
+  <div className="h-[300px] overflow-y-auto p-4 space-y-4 border rounded-md mt-4">
+    {messages.map((msg) => (
+      <div
+        key={msg.id}
+        className={`flex ${msg.isAi ? "justify-start" : "justify-end"}`}
+      >
+        <div
+          className={`rounded-lg p-3 max-w-[80%] ${
+            msg.isAi
+              ? "bg-secondary text-secondary-foreground"
+              : "bg-primary text-primary-foreground"
+          }`}
+        >
+          {msg.isImage ? ( // Check if it's an image message
+            <img
+              src={msg.content}
+              alt="Generated"
+              className="max-w-full h-auto rounded"
+            />
+          ) : (
+            msg.content
+          )}
+        </div>
+      </div>
+    ))}
+  </div>;
 
   // Load saved layout from localStorage on mount
   useEffect(() => {
@@ -621,6 +839,57 @@ export default function BlueprintEditor() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (!blueprintId) return;
+
+    const loadBlueprint = async () => {
+      const blueprintRef = doc(db, "blueprints", blueprintId);
+      const blueprintSnap = await getDoc(blueprintRef);
+      if (blueprintSnap.exists()) {
+        const blueprintData = blueprintSnap.data();
+        if (blueprintData.floorPlanUrl) {
+          // We have a stored floor plan. Let's load it.
+          // For PNG/JPG, we can calculate aspect ratio after loading image.
+
+          const img = new Image();
+          img.onload = () => {
+            const containerWidth = containerRef.current?.clientWidth || 800;
+            const containerHeight = containerRef.current?.clientHeight || 600;
+            const scale = Math.min(
+              containerWidth / img.width,
+              containerHeight / img.height,
+            );
+            setEditorState((prev) => ({
+              ...prev,
+              layout: {
+                url: blueprintData.floorPlanUrl,
+                name: blueprintData.name || "FloorPlan",
+                aspectRatio: img.width / img.height,
+                originalWidth: img.width,
+                originalHeight: img.height,
+              },
+              scale: scale,
+              containerScale: scale,
+              position: {
+                x: (containerWidth - img.width * scale) / 2,
+                y: (containerHeight - img.height * scale) / 2,
+              },
+              isPlacementMode: true,
+            }));
+          };
+          img.src = blueprintData.floorPlanUrl;
+        } else {
+          // No floor plan yet, show drag-drop UI (this is default if no layout url)
+          console.log("No floor plan found for this blueprint.");
+        }
+      } else {
+        console.error("Blueprint not found in Firestore.");
+      }
+    };
+
+loadBlueprint();
+}, [blueprintId]);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -662,22 +931,26 @@ export default function BlueprintEditor() {
               </Button>
             </div>
             <div className="h-[300px] overflow-y-auto p-4 space-y-4 border rounded-md mt-4">
-              {messages.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`flex ${msg.isAi ? "justify-start" : "justify-end"}`}
-                >
+              {messages.map(
+                (
+                  msg, // Correct key usage
+                ) => (
                   <div
-                    className={`rounded-lg p-3 max-w-[80%] ${
-                      msg.isAi
-                        ? "bg-secondary text-secondary-foreground"
-                        : "bg-primary text-primary-foreground"
-                    }`}
+                    key={msg.id}
+                    className={`flex ${msg.isAi ? "justify-start" : "justify-end"}`}
                   >
-                    {msg.content}
+                    <div
+                      className={`rounded-lg p-3 max-w-[80%] ${
+                        msg.isAi
+                          ? "bg-secondary text-secondary-foreground"
+                          : "bg-primary text-primary-foreground"
+                      }`}
+                    >
+                      {msg.content}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ),
+              )}
             </div>
             <div className="flex gap-2 mt-4">
               <Input
@@ -830,21 +1103,30 @@ export default function BlueprintEditor() {
           onMouseMove={handlePanMove}
           onMouseUp={handlePanEnd}
           onMouseLeave={handlePanEnd}
-          onContextMenu={(e) => {
+          onContextMenu={(e: MouseEvent<HTMLDivElement>) => {
+            // Type the event
             e.preventDefault();
-            // Store the actual mouse coordinates
-            const x = Math.min(e.clientX, window.innerWidth - 250); // Prevent overflow
-            const y = Math.min(e.clientY, window.innerHeight - 100); // Prevent overflow
+
+            if (!containerRef.current) return; // Add this check
+
+            const containerBounds =
+              containerRef.current.getBoundingClientRect();
+            // Calculate position relative to the container and scale
+            const x =
+              (e.clientX - containerBounds.left) / editorState.containerScale;
+            const y =
+              (e.clientY - containerBounds.top) / editorState.containerScale;
+
             setPromptPosition({ x, y });
             setShowAiPrompt(true);
           }}
           ref={containerRef}
         >
           <div
-            className={`absolute top-0 left-0 w-[200vw] h-[200vh] ${
-              showGrid ? "bg-grid-pattern" : ""
-            }`}
+            className={`absolute top-0 left-0 ${showGrid ? "bg-grid-pattern" : ""}`}
             style={{
+              width: `${editorState.layout.originalWidth * editorState.scale}px`,
+              height: `${editorState.layout.originalHeight * editorState.scale}px`,
               transform: `translate(${editorState.position.x}px, ${editorState.position.y}px) scale(${editorState.containerScale})`,
               transformOrigin: "center",
               transition: isDragging ? "none" : "transform 0.1s ease-out",
@@ -867,6 +1149,42 @@ export default function BlueprintEditor() {
               </div>
             )}
 
+            {/* Add highlight box here */}
+            {isHighlighting && highlightStartPos && highlightCurrentPos && (
+              <div
+                style={{
+                  position: "absolute",
+                  border: "2px dashed #2196f3",
+                  backgroundColor: "rgba(33, 150, 243, 0.2)",
+                  zIndex: 10,
+                  left: `${Math.min(highlightStartPos.x, highlightCurrentPos.x) * editorState.scale}px`,
+                  top: `${Math.min(highlightStartPos.y, highlightCurrentPos.y) * editorState.scale}px`,
+                  width: `${Math.abs(highlightCurrentPos.x - highlightStartPos.x) * editorState.scale}px`,
+                  height: `${Math.abs(highlightCurrentPos.y - highlightStartPos.y) * editorState.scale}px`,
+                }}
+              ></div>
+            )}
+
+            {editorState.layout.url && (
+              <div
+                style={{
+                  position: "fixed",
+                  left: mouseScreenPos.x + 15,
+                  top: mouseScreenPos.y + 15,
+                  zIndex: 9999,
+                  pointerEvents: "none",
+                  backgroundColor: "rgba(0,0,0,0.7)",
+                  color: "#fff",
+                  padding: "2px 4px",
+                  borderRadius: "4px",
+                  fontSize: "12px",
+                }}
+              >
+                X: {mousePos.x.toFixed(2)}, Y: {mousePos.y.toFixed(2)}
+              </div>
+            )}
+
+
             {/* AR Elements */}
             {elements.map((element) => (
               <motion.div
@@ -887,14 +1205,13 @@ export default function BlueprintEditor() {
                 onDragEnd={(event: any, info) => {
                   if (containerRef.current) {
                     const bounds = containerRef.current.getBoundingClientRect();
-                    const x =
-                      ((info.point.x - bounds.left) / bounds.width) * 100;
-                    const y =
-                      ((info.point.y - bounds.top) / bounds.height) * 100;
-                    updateElementPosition(element.id, {
-                      x: Math.max(0, Math.min(100, x)),
-                      y: Math.max(0, Math.min(100, y)),
-                    });
+                    const newMouseX =
+                      (event.clientX - bounds.left) /
+                      editorState.containerScale;
+                    const newMouseY =
+                      (event.clientY - bounds.top) / editorState.containerScale;
+                    setMousePos({ x: newMouseX, y: newMouseY });
+                    setMouseScreenPos({ x: event.clientX, y: event.clientY });
                   }
                 }}
                 onDoubleClick={() => setSelectedElement(element)}
@@ -933,7 +1250,7 @@ export default function BlueprintEditor() {
                   <Label className="cursor-pointer mt-2 inline-block">
                     <Input
                       type="file"
-                      accept="image/png,image/jpeg,image/jpg"
+                      accept="image/png,image/jpeg,image/jpg,application/pdf"
                       className="hidden"
                       onChange={(e) =>
                         e.target.files?.[0] &&
@@ -959,34 +1276,65 @@ export default function BlueprintEditor() {
             )}
 
             {showAiPrompt && (
-              <div
+              <motion.div
                 style={{
-                  position: "fixed",
+                  position: "absolute",
                   left: `${promptPosition.x}px`,
                   top: `${promptPosition.y}px`,
                   zIndex: 9999,
                 }}
-                className="bg-white border rounded shadow p-2"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="bg-white rounded-lg shadow-md p-4 w-80 relative space-y-3"
               >
-                <Input
-                  type="text"
-                  placeholder="What would you like to see at this location?"
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-2"
+                  onClick={() => setShowAiPrompt(false)}
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24">
+                    <path
+                      d="M6 18L18 6M6 6l12 12"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </Button>
+                <textarea
+                  placeholder="What would you like to see here?"
                   value={promptInput}
                   onChange={(e) => setPromptInput(e.target.value)}
-                  className="border p-1 w-48"
-                />
-                <Button
-                  onClick={() => {
-                    // Handle AI logic here. For example:
-                    // send promptInput to your AI endpoint and then place an element at promptPosition.
-                    setShowAiPrompt(false);
-                    setPromptInput("");
+                  onInput={(e) => {
+                    e.currentTarget.style.height = "auto";
+                    e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
                   }}
-                  className="mt-2"
-                >
-                  Submit
-                </Button>
-              </div>
+                  rows={1}
+                  className="w-full px-4 py-3 text-base rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none overflow-hidden"
+                />
+                {generatingImage ? ( // Conditionally render loading indicator or submit button
+                  <div className="flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                    Generating...
+                  </div>
+                ) : (
+                  <Button
+                    onClick={async () => {
+                      setGeneratingImage(true); // Set loading state to true *before* the API call
+                      await handleSendMessage();
+                      setGeneratingImage(false);
+                      setShowAiPrompt(false);
+                      setPromptInput("");
+                    }}
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg px-4 py-2"
+                  >
+                    Submit
+                  </Button>
+                )}
+              </motion.div> // Correctly closed motion.div
             )}
           </div>
 
@@ -1229,7 +1577,7 @@ export default function BlueprintEditor() {
                               >
                                 <div className="p-2 bg-primary/10 rounded-full">
                                   {selectedElement.type === "image" ? (
-                                    <Image className="w-6 h-6 text-primary" />
+                                    <ImageIcon className="w-6 h-6 text-primary" />
                                   ) : (
                                     <Video className="w-6 h-6 text-primary" />
                                   )}
