@@ -18,7 +18,7 @@ import {
   Loader2,
   QrCode,
   Download,
-  MapPin
+  MapPin,
 } from "lucide-react";
 import { CodeEntryModal } from "@/components/CodeEntryModal";
 import { Button } from "@/components/ui/button";
@@ -83,7 +83,8 @@ export default function ClaimBlueprint() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
-  const [autocomplete, setAutocomplete] = useState<google.maps.places.AutocompleteService | null>(null);
+  const [autocomplete, setAutocomplete] =
+    useState<google.maps.places.AutocompleteService | null>(null);
   const [loading, setLoading] = useState(false);
   const [loaderStatus, setLoaderStatus] = useState<LoaderStatus>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -101,7 +102,7 @@ export default function ClaimBlueprint() {
       specialPromotions: false,
       virtualTour: false,
     },
-    shippingAddress: ""
+    shippingAddress: "",
   });
 
   // Initialize Google Places API
@@ -131,7 +132,8 @@ export default function ClaimBlueprint() {
       setAutocomplete(autocompleteService);
       setLoaderStatus("success");
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred";
+      const errorMessage =
+        err instanceof Error ? err.message : "An unexpected error occurred";
       setError(`Failed to initialize Google Places API: ${errorMessage}`);
       setLoaderStatus("error");
       toast({
@@ -160,19 +162,25 @@ export default function ClaimBlueprint() {
         },
         (predictions, status) => {
           setLoading(false);
-          if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
-            setPredictions(predictions.map(prediction => ({
-              place_id: prediction.place_id,
-              description: prediction.description,
-              structured_formatting: {
-                main_text: prediction.structured_formatting.main_text,
-                secondary_text: prediction.structured_formatting.secondary_text,
-              },
-            })));
+          if (
+            status === google.maps.places.PlacesServiceStatus.OK &&
+            predictions
+          ) {
+            setPredictions(
+              predictions.map((prediction) => ({
+                place_id: prediction.place_id,
+                description: prediction.description,
+                structured_formatting: {
+                  main_text: prediction.structured_formatting.main_text,
+                  secondary_text:
+                    prediction.structured_formatting.secondary_text,
+                },
+              })),
+            );
           } else {
             setPredictions([]);
           }
-        }
+        },
       );
     } else {
       setPredictions([]);
@@ -187,27 +195,41 @@ export default function ClaimBlueprint() {
       const placesDiv = document.createElement("div");
       const placesService = new google.maps.places.PlacesService(placesDiv);
 
-      const place = await new Promise<google.maps.places.PlaceResult>((resolve, reject) => {
-        placesService.getDetails(
-          {
-            placeId: prediction.place_id,
-            fields: ["name", "formatted_address", "formatted_phone_number", "website"],
-          },
-          (place, status) => {
-            if (status === google.maps.places.PlacesServiceStatus.OK && place) {
-              resolve(place);
-            } else {
-              reject(new Error(`Places API error: ${status}`));
-            }
-          }
-        );
-      });
+      const place = await new Promise<google.maps.places.PlaceResult>(
+        (resolve, reject) => {
+          placesService.getDetails(
+            {
+              placeId: prediction.place_id,
+              fields: [
+                "name",
+                "formatted_address",
+                "formatted_phone_number",
+                "website",
+              ],
+            },
+            (place, status) => {
+              if (
+                status === google.maps.places.PlacesServiceStatus.OK &&
+                place
+              ) {
+                resolve(place);
+              } else {
+                reject(new Error(`Places API error: ${status}`));
+              }
+            },
+          );
+        },
+      );
 
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         businessName: place.name || prediction.structured_formatting.main_text,
-        address: place.formatted_address || prediction.structured_formatting.secondary_text,
-        shippingAddress: place.formatted_address || prediction.structured_formatting.secondary_text,
+        address:
+          place.formatted_address ||
+          prediction.structured_formatting.secondary_text,
+        shippingAddress:
+          place.formatted_address ||
+          prediction.structured_formatting.secondary_text,
         phone: place.formatted_phone_number || "",
         website: place.website || "",
       }));
@@ -230,7 +252,9 @@ export default function ClaimBlueprint() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleCustomizationToggle = (feature: keyof FormData["customizations"]) => {
+  const handleCustomizationToggle = (
+    feature: keyof FormData["customizations"],
+  ) => {
     setFormData((prev) => ({
       ...prev,
       customizations: {
@@ -255,24 +279,25 @@ export default function ClaimBlueprint() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser && currentStep === steps.length - 1) {
-      localStorage.setItem('pendingBlueprintClaim', JSON.stringify(formData));
-      setLocation('/sign-in?redirect=/claim-blueprint');
+      localStorage.setItem("pendingBlueprintClaim", JSON.stringify(formData));
+      setLocation("/sign-in?redirect=/claim-blueprint");
       return;
     }
     console.log("Blueprint claimed:", formData);
     toast({
       title: "Success",
-      description: "Your Blueprint has been successfully claimed and customized!",
+      description:
+        "Your Blueprint has been successfully claimed and customized!",
     });
   };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const businessData = params.get('data');
-    
+    const businessData = params.get("data");
+
     if (businessData) {
       const parsedData = JSON.parse(decodeURIComponent(businessData));
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         businessName: parsedData.name,
         address: parsedData.address,
@@ -280,10 +305,10 @@ export default function ClaimBlueprint() {
       }));
       setCurrentStep(1); // Skip search step if data is provided
     } else {
-      const pendingClaim = localStorage.getItem('pendingBlueprintClaim');
+      const pendingClaim = localStorage.getItem("pendingBlueprintClaim");
       if (pendingClaim && currentUser) {
         setFormData(JSON.parse(pendingClaim));
-        localStorage.removeItem('pendingBlueprintClaim');
+        localStorage.removeItem("pendingBlueprintClaim");
       }
     }
   }, [currentUser]);
@@ -406,7 +431,9 @@ export default function ClaimBlueprint() {
       case 2:
         return (
           <div className="space-y-4">
-            <h2 className="text-2xl font-bold">Review Your Business Information</h2>
+            <h2 className="text-2xl font-bold">
+              Review Your Business Information
+            </h2>
             <p className="text-muted-foreground">
               Please review the information we've gathered about your business.
               You can make changes if needed.
@@ -506,7 +533,9 @@ export default function ClaimBlueprint() {
                         ? "default"
                         : "outline"
                     }
-                    onClick={() => handleCustomizationToggle("specialPromotions")}
+                    onClick={() =>
+                      handleCustomizationToggle("specialPromotions")
+                    }
                   >
                     {formData.customizations.specialPromotions
                       ? "Enabled"
@@ -523,7 +552,9 @@ export default function ClaimBlueprint() {
                   </div>
                   <Button
                     variant={
-                      formData.customizations.virtualTour ? "default" : "outline"
+                      formData.customizations.virtualTour
+                        ? "default"
+                        : "outline"
                     }
                     onClick={() => handleCustomizationToggle("virtualTour")}
                   >
@@ -539,7 +570,8 @@ export default function ClaimBlueprint() {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">Blueprint QR Code Setup</h2>
             <p className="text-muted-foreground">
-              Let's get your location set up with Blueprint AR's smart navigation system
+              Let's get your location set up with Blueprint AR's smart
+              navigation system
             </p>
 
             <Card className="w-full">
@@ -551,9 +583,13 @@ export default function ClaimBlueprint() {
                       <QrCode className="w-32 h-32 text-blue-600" />
                     </div>
                   </div>
-                  
+
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => window.print()}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.print()}
+                    >
                       <Download className="w-4 h-4 mr-2" />
                       Download PNG
                     </Button>
@@ -563,11 +599,14 @@ export default function ClaimBlueprint() {
                     </Button>
                   </div>
                 </div>
-                
+
                 <div className="text-center space-y-2">
-                  <h3 className="text-xl font-semibold">Your Blueprint QR Code</h3>
+                  <h3 className="text-xl font-semibold">
+                    Your Blueprint QR Code
+                  </h3>
                   <p className="text-sm text-muted-foreground">
-                    This unique QR code will connect customers to your interactive AR experience
+                    This unique QR code will connect customers to your
+                    interactive AR experience
                   </p>
                 </div>
 
@@ -578,49 +617,66 @@ export default function ClaimBlueprint() {
                       <div className="text-center">
                         <p className="font-medium">Small</p>
                         <p className="text-sm text-muted-foreground">2" x 2"</p>
-                        <p className="text-xs text-muted-foreground mt-2">Perfect for menus and small displays</p>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Perfect for menus and small displays
+                        </p>
                       </div>
                     </Card>
                     <Card className="p-4 cursor-pointer hover:border-blue-500 transition-colors">
                       <div className="text-center">
                         <p className="font-medium">Medium</p>
                         <p className="text-sm text-muted-foreground">4" x 4"</p>
-                        <p className="text-xs text-muted-foreground mt-2">Ideal for countertops and tables</p>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Ideal for countertops and tables
+                        </p>
                       </div>
                     </Card>
                     <Card className="p-4 cursor-pointer hover:border-blue-500 transition-colors">
                       <div className="text-center">
                         <p className="font-medium">Large</p>
                         <p className="text-sm text-muted-foreground">8" x 8"</p>
-                        <p className="text-xs text-muted-foreground mt-2">Best for window displays and walls</p>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Best for window displays and walls
+                        </p>
                       </div>
                     </Card>
                   </div>
                 </div>
-                
+
                 <div className="space-y-6">
                   <div className="bg-blue-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-blue-700">Setup Process:</h4>
+                    <h4 className="font-medium text-blue-700">
+                      Setup Process:
+                    </h4>
                     <ul className="space-y-3 mt-3">
                       <li className="flex items-start">
                         <Check className="w-5 h-5 mr-2 text-blue-500 flex-shrink-0 mt-0.5" />
                         <div>
                           <span className="font-medium">Generate QR Code</span>
-                          <p className="text-sm text-blue-600/80">A unique identifier for your business's AR experience</p>
+                          <p className="text-sm text-blue-600/80">
+                            A unique identifier for your business's AR
+                            experience
+                          </p>
                         </div>
                       </li>
                       <li className="flex items-start">
                         <Check className="w-5 h-5 mr-2 text-blue-500 flex-shrink-0 mt-0.5" />
                         <div>
-                          <span className="font-medium">Create Professional Signage</span>
-                          <p className="text-sm text-blue-600/80">Eye-catching displays featuring your QR code</p>
+                          <span className="font-medium">
+                            Create Professional Signage
+                          </span>
+                          <p className="text-sm text-blue-600/80">
+                            Eye-catching displays featuring your QR code
+                          </p>
                         </div>
                       </li>
                       <li className="flex items-start">
                         <Check className="w-5 h-5 mr-2 text-blue-500 flex-shrink-0 mt-0.5" />
                         <div>
                           <span className="font-medium">Ship Materials</span>
-                          <p className="text-sm text-blue-600/80">Complete setup kit delivered to your location</p>
+                          <p className="text-sm text-blue-600/80">
+                            Complete setup kit delivered to your location
+                          </p>
                         </div>
                       </li>
                     </ul>
@@ -628,27 +684,41 @@ export default function ClaimBlueprint() {
 
                   <div className="space-y-6">
                     <div className="bg-blue-50 rounded-lg p-4">
-                      <h4 className="font-medium text-blue-900 mb-3">Recommended Placement Locations</h4>
+                      <h4 className="font-medium text-blue-900 mb-3">
+                        Recommended Placement Locations
+                      </h4>
                       <ul className="space-y-3">
                         <li className="flex items-start space-x-3">
                           <MapPin className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
                           <div>
-                            <p className="font-medium text-blue-900">Entrance/Window Display</p>
-                            <p className="text-sm text-blue-700">Attract customers with a large QR code display</p>
+                            <p className="font-medium text-blue-900">
+                              Entrance/Window Display
+                            </p>
+                            <p className="text-sm text-blue-700">
+                              Attract customers with a large QR code display
+                            </p>
                           </div>
                         </li>
                         <li className="flex items-start space-x-3">
                           <MapPin className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
                           <div>
-                            <p className="font-medium text-blue-900">Point of Sale</p>
-                            <p className="text-sm text-blue-700">Easy access during checkout process</p>
+                            <p className="font-medium text-blue-900">
+                              Point of Sale
+                            </p>
+                            <p className="text-sm text-blue-700">
+                              Easy access during checkout process
+                            </p>
                           </div>
                         </li>
                         <li className="flex items-start space-x-3">
                           <MapPin className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
                           <div>
-                            <p className="font-medium text-blue-900">Product Displays</p>
-                            <p className="text-sm text-blue-700">Next to featured items or promotions</p>
+                            <p className="font-medium text-blue-900">
+                              Product Displays
+                            </p>
+                            <p className="text-sm text-blue-700">
+                              Next to featured items or promotions
+                            </p>
                           </div>
                         </li>
                       </ul>
@@ -656,7 +726,12 @@ export default function ClaimBlueprint() {
 
                     <div className="border rounded-lg p-4 space-y-4">
                       <div>
-                        <Label htmlFor="shipping" className="text-base font-medium">Shipping Information</Label>
+                        <Label
+                          htmlFor="shipping"
+                          className="text-base font-medium"
+                        >
+                          Shipping Information
+                        </Label>
                         <p className="text-sm text-muted-foreground mb-4">
                           Where should we send your Blueprint setup materials?
                         </p>
@@ -669,7 +744,7 @@ export default function ClaimBlueprint() {
                           className="mt-2"
                         />
                       </div>
-                      
+
                       <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                         <MapPin className="w-4 h-4" />
                         <span>US shipping addresses only</span>
@@ -681,8 +756,10 @@ export default function ClaimBlueprint() {
                     <AlertDescription className="flex items-start space-x-2">
                       <Building2 className="w-5 h-5 flex-shrink-0 mt-0.5" />
                       <span>
-                        After submission, our team will process your Blueprint and prepare your materials. 
-                        You'll receive tracking information and setup instructions when your package ships.
+                        After submission, our team will process your Blueprint
+                        and prepare your materials. You'll receive tracking
+                        information and setup instructions when your package
+                        ships.
                       </span>
                     </AlertDescription>
                   </Alert>
@@ -730,15 +807,17 @@ export default function ClaimBlueprint() {
                     {formData.customizations.specialPromotions && (
                       <li>Special Promotions</li>
                     )}
-                    {formData.customizations.virtualTour && <li>Virtual Tour</li>}
+                    {formData.customizations.virtualTour && (
+                      <li>Virtual Tour</li>
+                    )}
                   </ul>
                 </div>
               </div>
 
               <Alert>
                 <AlertDescription>
-                  By submitting, you confirm that you are authorized to claim this
-                  business and agree to Blueprint's terms of service.
+                  By submitting, you confirm that you are authorized to claim
+                  this business and agree to Blueprint's terms of service.
                 </AlertDescription>
               </Alert>
             </div>
@@ -775,8 +854,8 @@ export default function ClaimBlueprint() {
                           currentStep === index
                             ? "bg-blue-600 text-white"
                             : index < currentStep
-                            ? "bg-green-500 text-white"
-                            : "bg-gray-200"
+                              ? "bg-green-500 text-white"
+                              : "bg-gray-200"
                         }`}
                       >
                         <step.icon className="w-4 h-4" />
@@ -815,7 +894,9 @@ export default function ClaimBlueprint() {
                     </Button>
                   )}
                   <Button
-                    type={currentStep === steps.length - 1 ? "submit" : "button"}
+                    type={
+                      currentStep === steps.length - 1 ? "submit" : "button"
+                    }
                     onClick={
                       currentStep === steps.length - 1 ? undefined : handleNext
                     }

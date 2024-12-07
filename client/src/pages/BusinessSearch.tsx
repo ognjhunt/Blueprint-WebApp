@@ -1,5 +1,7 @@
 "use client";
 
+import { db } from "@/lib/firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { useState, useEffect, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { Loader } from "@googlemaps/js-api-loader";
@@ -128,12 +130,11 @@ export default function BusinessSearch() {
 
       setLoading(true);
       setError(null);
-      setSelectedBusiness(null);
+      // remove setSelectedBusiness(null);
 
       try {
         const request: google.maps.places.AutocompletionRequest = {
           input,
-          types: ["establishment"],
           componentRestrictions: { country: "us" },
         };
 
@@ -222,16 +223,23 @@ export default function BusinessSearch() {
           },
         );
 
-        // Simulate checking if a Blueprint exists
-        const hasBlueprint = Math.random() > 0.5;
+        const address = result.formatted_address || "";
+        // Query Firestore to see if a blueprint exists for this address
+        const q = query(
+          collection(db, "blueprints"),
+          where("address", "==", address),
+        );
+        const querySnapshot = await getDocs(q);
+        const hasBlueprint = !querySnapshot.empty;
 
+        // Now we can setSelectedBusiness using the actual Firestore result instead of a simulated value
         setSelectedBusiness({
           name: result.name || "",
-          address: result.formatted_address || "",
+          address,
           hasBlueprint,
         });
 
-        setSearchQuery(prediction.description);
+        setSearchQuery(result.name || prediction.description);
         setPredictions([]);
       } catch (error) {
         const errorMessage =
@@ -366,11 +374,17 @@ export default function BusinessSearch() {
                               </span>
                             </AlertDescription>
                           </Alert>
-                          <Link href={`/claim-blueprint?data=${encodeURIComponent(JSON.stringify({
-                            name: selectedBusiness.name,
-                            address: selectedBusiness.address
-                          }))}`}>
-                            <Button className="w-full">Claim Existing Blueprint</Button>
+                          <Link
+                            href={`/claim-blueprint?data=${encodeURIComponent(
+                              JSON.stringify({
+                                name: selectedBusiness.name,
+                                address: selectedBusiness.address,
+                              }),
+                            )}`}
+                          >
+                            <Button className="w-full">
+                              Claim Existing Blueprint
+                            </Button>
                           </Link>
                         </div>
                       ) : (
@@ -380,11 +394,17 @@ export default function BusinessSearch() {
                               No Blueprint found for this business.
                             </AlertDescription>
                           </Alert>
-                          <Link href={`/create-blueprint?data=${encodeURIComponent(JSON.stringify({
-                            name: selectedBusiness.name,
-                            address: selectedBusiness.address
-                          }))}`}>
-                            <Button className="w-full">Create New Blueprint</Button>
+                          <Link
+                            href={`/create-blueprint?data=${encodeURIComponent(
+                              JSON.stringify({
+                                name: selectedBusiness.name,
+                                address: selectedBusiness.address,
+                              }),
+                            )}`}
+                          >
+                            <Button className="w-full">
+                              Create New Blueprint
+                            </Button>
                           </Link>
                         </div>
                       )}

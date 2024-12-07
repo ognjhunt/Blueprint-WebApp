@@ -83,14 +83,14 @@ const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const url = await createImageUrl(file);
     updateElementContent(selectedElement.id, {
       mediaUrl: url,
-      mediaType: file.type.startsWith("image/") ? "image" : "video"
+      mediaType: file.type.startsWith("image/") ? "image" : "video",
     });
   } catch (error) {
     console.error("Media upload error:", error);
     toast({
       title: "Upload Failed",
       description: "Failed to upload media. Please try again.",
-      variant: "destructive"
+      variant: "destructive",
     });
   }
 };
@@ -198,6 +198,9 @@ const createImageUrl = async (file: File): Promise<string> => {
 };
 
 export default function BlueprintEditor() {
+  const [showAiPrompt, setShowAiPrompt] = useState(false);
+  const [promptPosition, setPromptPosition] = useState({ x: 0, y: 0 });
+  const [promptInput, setPromptInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [currentStep, setCurrentStep] = useState(0);
@@ -253,7 +256,7 @@ export default function BlueprintEditor() {
         gridSize: 20,
       });
       setDrawTools(tools);
-  }
+    }
   }, [containerRef.current]);
 
   const filteredElements = availableElements.filter((element) => {
@@ -275,17 +278,17 @@ export default function BlueprintEditor() {
     return new Promise((resolve, reject) => {
       const img = new Image();
       const url = URL.createObjectURL(file);
-      
+
       img.onload = () => {
         URL.revokeObjectURL(url);
         resolve(img);
       };
-      
+
       img.onerror = () => {
         URL.revokeObjectURL(url);
-        reject(new Error('Failed to load image'));
+        reject(new Error("Failed to load image"));
       };
-      
+
       img.src = url;
     });
   };
@@ -296,7 +299,9 @@ export default function BlueprintEditor() {
       // File size check (10MB limit)
       const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
       if (file.size > MAX_FILE_SIZE) {
-        throw new Error(`File size exceeds 10MB limit (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+        throw new Error(
+          `File size exceeds 10MB limit (${(file.size / 1024 / 1024).toFixed(2)}MB)`,
+        );
       }
 
       const img = await createImageFromFile(file);
@@ -304,7 +309,9 @@ export default function BlueprintEditor() {
       // Dimension checks
       const MAX_DIMENSION = 5000;
       if (img.width > MAX_DIMENSION || img.height > MAX_DIMENSION) {
-        throw new Error(`Image dimensions exceed ${MAX_DIMENSION}x${MAX_DIMENSION} limit (${img.width}x${img.height})`);
+        throw new Error(
+          `Image dimensions exceed ${MAX_DIMENSION}x${MAX_DIMENSION} limit (${img.width}x${img.height})`,
+        );
       }
 
       const result = await createImageUrl(file);
@@ -338,7 +345,10 @@ export default function BlueprintEditor() {
       console.error("Image upload error:", error);
       toast({
         title: "Upload Failed",
-        description: error instanceof Error ? error.message : "Failed to load the image. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to load the image. Please try again.",
         variant: "destructive",
       });
       throw error; // Re-throw to ensure proper error handling
@@ -544,24 +554,56 @@ export default function BlueprintEditor() {
     }
   };
 
-  const handleSendMessage = useCallback(() => {
+  const handleSendMessage = useCallback(async () => {
     if (!input.trim()) return;
 
-    setMessages((prev) => [...prev, { content: input, isAi: false }]);
+    const userMessage = { content: input, isAi: false };
+    setMessages((prev) => [...prev, userMessage]);
     setInput("");
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      const response = await fetch(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization:
+              "Bearer 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",
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini", // using gpt-4 as requested (gpt4o-mini)
+            messages: [
+              ...messages
+                .filter((m) => !m.isAi)
+                .map((m) => ({ role: "user", content: m.content })),
+              { role: "user", content: input },
+            ],
+          }),
+        },
+      );
+
+      const data = await response.json();
+      if (data && data.choices && data.choices.length > 0) {
+        const aiMessage = {
+          content: data.choices[0].message.content.trim(),
+          isAi: true,
+        };
+        setMessages((prev) => [...prev, aiMessage]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          { content: "Sorry, I couldn't understand your request.", isAi: true },
+        ]);
+      }
+    } catch (error) {
+      console.error("OpenAI API error:", error);
       setMessages((prev) => [
         ...prev,
-        {
-          content:
-            "I understand you want to make changes to the Blueprint. Could you please provide more details about what you'd like to modify?",
-          isAi: true,
-        },
+        { content: "There was an error processing your request.", isAi: true },
       ]);
-    }, 1000);
-  }, [input]);
+    }
+  }, [input, messages]);
 
   // Load saved layout from localStorage on mount
   useEffect(() => {
@@ -588,22 +630,38 @@ export default function BlueprintEditor() {
         <Button
           variant="outline"
           size="icon"
-          className="fixed top-4 right-4 z-50 rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
+          className="fixed bottom-4 right-4 z-50 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 bg-blue-600 text-white"
           onClick={() => setIsChatOpen(true)}
         >
           <MessageCircle className="h-6 w-6" />
         </Button>
 
-        {/* Chat Dialog */}
-        <Dialog open={isChatOpen} onOpenChange={setIsChatOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Blueprint Editor AI</DialogTitle>
-              <DialogDescription>
-                How can I help you with your Blueprint today?
-              </DialogDescription>
-            </DialogHeader>
-            <div className="h-[300px] overflow-y-auto p-4 space-y-4 border rounded-md">
+        {/* Floating Chat Box */}
+        {isChatOpen && (
+          <div className="fixed bottom-20 right-4 bg-white rounded shadow p-4 w-80 z-50">
+            <div className="flex items-center justify-between border-b pb-2">
+              <div>
+                <h3 className="text-lg font-semibold">Blueprint Editor AI</h3>
+                <p className="text-sm text-gray-500">
+                  How can I help you with your Blueprint today?
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsChatOpen(false)}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24">
+                  <path
+                    d="M6 18L18 6M6 6l12 12"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </Button>
+            </div>
+            <div className="h-[300px] overflow-y-auto p-4 space-y-4 border rounded-md mt-4">
               {messages.map((msg, i) => (
                 <div
                   key={i}
@@ -632,8 +690,8 @@ export default function BlueprintEditor() {
                 <Send className="h-4 w-4" />
               </Button>
             </div>
-          </DialogContent>
-        </Dialog>
+          </div>
+        )}
 
         {/* Tools Sidebar */}
         <div
@@ -686,7 +744,7 @@ export default function BlueprintEditor() {
               >
                 Interactive Elements
               </Button>
-              
+
               <Button
                 onClick={() => setSelectedCategory("media")}
                 className={`w-full justify-start ${selectedCategory === "media" ? "bg-primary text-white" : "bg-white"}`}
@@ -772,6 +830,16 @@ export default function BlueprintEditor() {
           onMouseMove={handlePanMove}
           onMouseUp={handlePanEnd}
           onMouseLeave={handlePanEnd}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            if (containerRef.current) {
+              const rect = containerRef.current.getBoundingClientRect();
+              const relativeX = ((e.clientX - rect.left) / rect.width) * 100;
+              const relativeY = ((e.clientY - rect.top) / rect.height) * 100;
+              setPromptPosition({ x: relativeX, y: relativeY });
+              setShowAiPrompt(true);
+            }
+          }}
           ref={containerRef}
         >
           <div
@@ -836,13 +904,13 @@ export default function BlueprintEditor() {
                 whileHover={{ scale: 1.05 }}
                 transition={{ type: "spring", stiffness: 400, damping: 25 }}
               >
-                <div className="bg-white shadow-lg rounded-lg p-2 relative transition-all duration-200 group-hover:shadow-xl group-hover:bg-white/95">
+                <div className="bg-gradient-to-br from-gray-700 to-gray-800 text-white rounded-xl p-4 relative transition-all duration-200 shadow-lg group-hover:shadow-xl">
                   <div className="text-sm font-medium flex items-center gap-2">
                     {element.content.title}
-                    <Pencil className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <Pencil className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-white" />
                   </div>
-                  <div className="text-xs text-gray-500">{element.type}</div>
-                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-75 transition-opacity pointer-events-none whitespace-nowrap">
+                  <div className="text-xs text-white/80">{element.type}</div>
+                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-75 transition-opacity pointer-events-none whitespace-nowrap">
                     Double-tap to edit
                   </div>
                 </div>
@@ -892,6 +960,38 @@ export default function BlueprintEditor() {
               </div>
             )}
           </div>
+
+          {/* Move AI Prompt outside of transformed div */}
+          {showAiPrompt && (
+            <div
+              style={{
+                position: "absolute",
+                left: `${promptPosition.x}%`,
+                top: `${promptPosition.y}%`,
+                transform: "translate(-50%, -50%)",
+                zIndex: 9999,
+              }}
+              className="bg-white border rounded shadow p-2"
+            >
+              <Input
+                type="text"
+                placeholder="What would you like to see at this location?"
+                value={promptInput}
+                onChange={(e) => setPromptInput(e.target.value)}
+                className="border p-1 w-48"
+              />
+              <Button
+                onClick={() => {
+                  // Handle AI logic here
+                  setShowAiPrompt(false);
+                  setPromptInput("");
+                }}
+                className="mt-2"
+              >
+                Submit
+              </Button>
+            </div>
+          )}
 
           {/* Placement Mode Button */}
           {editorState.layout.url && (
@@ -1118,7 +1218,8 @@ export default function BlueprintEditor() {
                                     } catch (error) {
                                       toast({
                                         title: "Upload Failed",
-                                        description: "Failed to upload media. Please try again.",
+                                        description:
+                                          "Failed to upload media. Please try again.",
                                         variant: "destructive",
                                       });
                                     }

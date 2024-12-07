@@ -1,5 +1,9 @@
 "use client";
 
+import { doc, setDoc, updateDoc, arrayUnion } from "firebase/firestore"; // Add updateDoc and arrayUnion here
+import { serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase"; // ensure this is the correct path to your Firestore instance
+import { useAuth } from "@/contexts/AuthContext"; // to access currentUser
 import { useState, useEffect, useCallback, ChangeEvent } from "react";
 import { Loader } from "@googlemaps/js-api-loader";
 import {
@@ -50,8 +54,8 @@ type FeatureDetails = {
 
 type FormData = {
   businessName: string;
-  businessType: string;
-  locationName: string;
+  locationType: string;
+  name: string;
   address: string;
   city: string;
   state: string;
@@ -65,20 +69,20 @@ type FormData = {
   features: FeatureDetails;
 };
 
-const businessTypes = [
+const locationTypes = [
   { value: "restaurant", label: "Restaurant" },
   { value: "retail", label: "Retail Store" },
   { value: "service", label: "Service Business" },
   { value: "healthcare", label: "Healthcare" },
   { value: "education", label: "Education" },
   { value: "entertainment", label: "Entertainment" },
-  { value: "other", label: "Other" }
+  { value: "other", label: "Other" },
 ];
 
 const countries = [
   { value: "US", label: "United States" },
   { value: "CA", label: "Canada" },
-  { value: "MX", label: "Mexico" }
+  { value: "MX", label: "Mexico" },
 ];
 
 const states = {
@@ -132,7 +136,7 @@ const states = {
     { value: "WA", label: "Washington" },
     { value: "WV", label: "West Virginia" },
     { value: "WI", label: "Wisconsin" },
-    { value: "WY", label: "Wyoming" }
+    { value: "WY", label: "Wyoming" },
   ],
   CA: [
     { value: "AB", label: "Alberta" },
@@ -144,7 +148,7 @@ const states = {
     { value: "ON", label: "Ontario" },
     { value: "PE", label: "Prince Edward Island" },
     { value: "QC", label: "Quebec" },
-    { value: "SK", label: "Saskatchewan" }
+    { value: "SK", label: "Saskatchewan" },
   ],
   MX: [
     { value: "AGU", label: "Aguascalientes" },
@@ -156,8 +160,8 @@ const states = {
     { value: "CMX", label: "Ciudad de México" },
     { value: "COA", label: "Coahuila" },
     { value: "COL", label: "Colima" },
-    { value: "DUR", label: "Durango" }
-  ]
+    { value: "DUR", label: "Durango" },
+  ],
 };
 
 const steps = [
@@ -191,13 +195,14 @@ export default function CreateBlueprint() {
   const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { currentUser } = useAuth(); // get currently signed in user
 
   type FormDataWithId = FormData & { blueprintId?: string };
 
   const [formData, setFormData] = useState<FormDataWithId>({
     businessName: "",
-    businessType: "",
-    locationName: "",
+    locationType: "",
+    name: "",
     address: "",
     city: "",
     state: "",
@@ -279,7 +284,9 @@ export default function CreateBlueprint() {
 
   // Handle business name input change and autocomplete
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement> | { target: { name: string; value: string } },
+    e:
+      | React.ChangeEvent<HTMLInputElement>
+      | { target: { name: string; value: string } },
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -339,68 +346,77 @@ export default function CreateBlueprint() {
       const placesDiv = document.createElement("div");
       const placesService = new google.maps.places.PlacesService(placesDiv);
 
-      const result = await new Promise<google.maps.places.PlaceResult>((resolve, reject) => {
-        placesService.getDetails(
-          {
-            placeId: prediction.place_id,
-            fields: [
-              'name',
-              'formatted_address',
-              'formatted_phone_number',
-              'website',
-              'type',
-              'address_components'
-            ],
-          },
-          (place, status) => {
-            if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {
-              reject(new Error(`Places API error: ${status}`));
-              return;
-            }
-            resolve(place);
-          },
-        );
-      });
+      const result = await new Promise<google.maps.places.PlaceResult>(
+        (resolve, reject) => {
+          placesService.getDetails(
+            {
+              placeId: prediction.place_id,
+              fields: [
+                "name",
+                "formatted_address",
+                "formatted_phone_number",
+                "website",
+                "type",
+                "address_components",
+              ],
+            },
+            (place, status) => {
+              if (
+                status !== google.maps.places.PlacesServiceStatus.OK ||
+                !place
+              ) {
+                reject(new Error(`Places API error: ${status}`));
+                return;
+              }
+              resolve(place);
+            },
+          );
+        },
+      );
 
       // Determine business type from place types
-      let businessType = 'other';
+      let locationType = "other";
       if (result.types) {
-        if (result.types.includes('restaurant')) businessType = 'restaurant';
-        else if (result.types.includes('store')) businessType = 'retail';
-        else if (result.types.includes('school')) businessType = 'education';
-        else if (result.types.includes('hospital')) businessType = 'healthcare';
+        if (result.types.includes("restaurant")) locationType = "restaurant";
+        else if (result.types.includes("store")) locationType = "retail";
+        else if (result.types.includes("school")) locationType = "education";
+        else if (result.types.includes("hospital")) locationType = "healthcare";
       }
 
       setFormData((prev) => ({
         ...prev,
         businessName: result.name || prediction.structured_formatting.main_text,
-        businessType,
-        locationName: result.name || prediction.structured_formatting.main_text,
-        address: result.formatted_address || prediction.structured_formatting.secondary_text,
-        phone: result.formatted_phone_number || '',
-        website: result.website || '',
+        locationType,
+        name: result.name || prediction.structured_formatting.main_text,
+        address:
+          result.formatted_address ||
+          prediction.structured_formatting.secondary_text,
+        phone: result.formatted_phone_number || "",
+        website: result.website || "",
       }));
 
       // Extract and set address components
       result.address_components?.forEach((component) => {
         const types = component.types;
-        if (types.includes('locality')) {
-          setFormData(prev => ({ ...prev, city: component.long_name }));
-        } else if (types.includes('administrative_area_level_1')) {
-          setFormData(prev => ({ ...prev, state: component.short_name }));
-        } else if (types.includes('postal_code')) {
-          setFormData(prev => ({ ...prev, zipCode: component.long_name }));
-        } else if (types.includes('country')) {
-          setFormData(prev => ({ ...prev, country: component.short_name }));
+        if (types.includes("locality")) {
+          setFormData((prev) => ({ ...prev, city: component.long_name }));
+        } else if (types.includes("administrative_area_level_1")) {
+          setFormData((prev) => ({ ...prev, state: component.short_name }));
+        } else if (types.includes("postal_code")) {
+          setFormData((prev) => ({ ...prev, zipCode: component.long_name }));
+        } else if (types.includes("country")) {
+          setFormData((prev) => ({ ...prev, country: component.short_name }));
         }
       });
-
     } catch (error) {
-      console.error('Error fetching business details:', error);
-      setError('Failed to fetch business details. Please try entering information manually.');
+      console.error("Error fetching business details:", error);
+      setError(
+        "Failed to fetch business details. Please try entering information manually.",
+      );
       toast({
         title: "Error",
-        description: "Failed to fetch business details. Please try entering information manually.",
+        description:
+          "Failed to fetch business details. Please try entering information manually.",
         variant: "destructive",
       });
     } finally {
@@ -445,9 +461,9 @@ export default function CreateBlueprint() {
     switch (name) {
       case "businessName":
         return value.trim().length === 0 ? "Business name is required" : "";
-      case "businessType":
+      case "locationType":
         return value.trim().length === 0 ? "Business type is required" : "";
-      case "locationName":
+      case "name":
         return value.trim().length === 0 ? "Location name is required" : "";
       case "address":
         return value.trim().length === 0 ? "Address is required" : "";
@@ -488,11 +504,11 @@ export default function CreateBlueprint() {
       case 0:
         return (
           !validateField("businessName", formData.businessName) &&
-          !validateField("businessType", formData.businessType)
+          !validateField("locationType", formData.locationType)
         );
       case 1:
         return (
-          !validateField("locationName", formData.locationName) &&
+          !validateField("name", formData.name) &&
           !validateField("address", formData.address)
         );
       case 2:
@@ -524,20 +540,35 @@ export default function CreateBlueprint() {
     }
   };
 
+  function generateClaimCode(length: number = 6): string {
+    const characters =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let result = "";
+    for (let i = 0; i < length; i++) {
+      result += characters.charAt(
+        Math.floor(Math.random() * characters.length),
+      );
+    }
+    return result;
+  }
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (currentStep === steps.length - 1) {
       setIsLoading(true);
       try {
-        const blueprintId = Date.now().toString();
+        const blueprintId = crypto.randomUUID();
+        const claimCode = generateClaimCode();
         const blueprintData = {
           id: blueprintId,
           ...formData,
-          createdAt: new Date().toISOString(),
+          host: currentUser?.uid || "", // set the host field to currently signed in user ID
+          createdDate: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
+          claimCode: claimCode, // add this line
         };
 
-        // Store blueprint data in localStorage
+        // Store blueprint data locally as before
         const existingBlueprints = JSON.parse(
           localStorage.getItem("blueprints") || "[]",
         );
@@ -546,12 +577,21 @@ export default function CreateBlueprint() {
           JSON.stringify([...existingBlueprints, blueprintData]),
         );
 
+        // Write blueprint data to Firestore
+        await setDoc(doc(db, "blueprints", blueprintId), blueprintData);
+
+        // ADD THIS: Update the current user's 'createdBlueprintIDs' array
+        if (currentUser?.uid) {
+          await updateDoc(doc(db, "users", currentUser.uid), {
+            createdBlueprintIDs: arrayUnion(blueprintId),
+          });
+        }
+
         toast({
           title: "Blueprint Created Successfully!",
           description: "You can now customize your Blueprint in the editor.",
         });
 
-        // Store blueprintId in state for navigation
         setFormData((prev) => ({ ...prev, blueprintId }));
       } catch (error) {
         toast({
@@ -585,7 +625,7 @@ export default function CreateBlueprint() {
         placeholder={placeholder}
         className={cn(
           "w-full",
-          fieldErrors[name] && "border-red-500 focus-visible:ring-red-500"
+          fieldErrors[name] && "border-red-500 focus-visible:ring-red-500",
         )}
       />
       {fieldErrors[name] && (
@@ -610,11 +650,14 @@ export default function CreateBlueprint() {
                   placeholder="Enter your business name"
                   className={cn(
                     "w-full",
-                    fieldErrors.businessName && "border-red-500 focus-visible:ring-red-500"
+                    fieldErrors.businessName &&
+                      "border-red-500 focus-visible:ring-red-500",
                   )}
                 />
                 {fieldErrors.businessName && (
-                  <p className="text-sm text-red-500 mt-1">{fieldErrors.businessName}</p>
+                  <p className="text-sm text-red-500 mt-1">
+                    {fieldErrors.businessName}
+                  </p>
                 )}
                 {predictions.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 bg-white rounded-md border shadow-lg max-h-60 overflow-auto">
@@ -639,29 +682,34 @@ export default function CreateBlueprint() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="businessType">Business Type</Label>
+              <Label htmlFor="locationType">Business Type</Label>
               <Select
-                name="businessType"
-                value={formData.businessType}
+                name="locationType"
+                value={formData.locationType}
                 onValueChange={(value) =>
-                  handleInputChange({ target: { name: "businessType", value } })
+                  handleInputChange({ target: { name: "locationType", value } })
                 }
               >
-                <SelectTrigger className={cn(
-                  fieldErrors.businessType && "border-red-500 focus-visible:ring-red-500"
-                )}>
+                <SelectTrigger
+                  className={cn(
+                    fieldErrors.locationType &&
+                      "border-red-500 focus-visible:ring-red-500",
+                  )}
+                >
                   <SelectValue placeholder="Select business type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {businessTypes.map((type) => (
+                  {locationTypes.map((type) => (
                     <SelectItem key={type.value} value={type.value}>
                       {type.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {fieldErrors.businessType && (
-                <p className="text-sm text-red-500 mt-1">{fieldErrors.businessType}</p>
+              {fieldErrors.locationType && (
+                <p className="text-sm text-red-500 mt-1">
+                  {fieldErrors.locationType}
+                </p>
               )}
             </div>
           </div>
@@ -669,8 +717,18 @@ export default function CreateBlueprint() {
       case 1:
         return (
           <div className="space-y-4">
-            {renderInputField("locationName", "Location Name", "text", "Enter location name")}
-            {renderInputField("address", "Address", "text", "Enter street address")}
+            {renderInputField(
+              "name",
+              "Location Name",
+              "text",
+              "Enter location name",
+            )}
+            {renderInputField(
+              "address",
+              "Address",
+              "text",
+              "Enter street address",
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="country">Country</Label>
@@ -682,9 +740,10 @@ export default function CreateBlueprint() {
                     handleInputChange({ target: { name: "state", value: "" } });
                   }}
                 >
-                  <SelectTrigger 
+                  <SelectTrigger
                     className={cn(
-                      fieldErrors.country && "border-red-500 focus-visible:ring-red-500"
+                      fieldErrors.country &&
+                        "border-red-500 focus-visible:ring-red-500",
                     )}
                   >
                     <SelectValue placeholder="Select country" />
@@ -698,7 +757,9 @@ export default function CreateBlueprint() {
                   </SelectContent>
                 </Select>
                 {fieldErrors.country && (
-                  <p className="text-sm text-red-500 mt-1">{fieldErrors.country}</p>
+                  <p className="text-sm text-red-500 mt-1">
+                    {fieldErrors.country}
+                  </p>
                 )}
               </div>
               <div className="space-y-2">
@@ -711,23 +772,29 @@ export default function CreateBlueprint() {
                   }
                   disabled={!formData.country}
                 >
-                  <SelectTrigger 
+                  <SelectTrigger
                     className={cn(
-                      fieldErrors.state && "border-red-500 focus-visible:ring-red-500"
+                      fieldErrors.state &&
+                        "border-red-500 focus-visible:ring-red-500",
                     )}
                   >
                     <SelectValue placeholder="Select state" />
                   </SelectTrigger>
                   <SelectContent>
-                    {formData.country && states[formData.country as keyof typeof states]?.map((state) => (
-                      <SelectItem key={state.value} value={state.value}>
-                        {state.label}
-                      </SelectItem>
-                    ))}
+                    {formData.country &&
+                      states[formData.country as keyof typeof states]?.map(
+                        (state) => (
+                          <SelectItem key={state.value} value={state.value}>
+                            {state.label}
+                          </SelectItem>
+                        ),
+                      )}
                   </SelectContent>
                 </Select>
                 {fieldErrors.state && (
-                  <p className="text-sm text-red-500 mt-1">{fieldErrors.state}</p>
+                  <p className="text-sm text-red-500 mt-1">
+                    {fieldErrors.state}
+                  </p>
                 )}
               </div>
             </div>
@@ -756,9 +823,12 @@ export default function CreateBlueprint() {
                   handleInputChange({ target: { name: "aiProvider", value } })
                 }
               >
-                <SelectTrigger className={cn(
-                  fieldErrors.aiProvider && "border-red-500 focus-visible:ring-red-500"
-                )}>
+                <SelectTrigger
+                  className={cn(
+                    fieldErrors.aiProvider &&
+                      "border-red-500 focus-visible:ring-red-500",
+                  )}
+                >
                   <SelectValue placeholder="Select AI provider" />
                 </SelectTrigger>
                 <SelectContent>
@@ -770,10 +840,17 @@ export default function CreateBlueprint() {
                 </SelectContent>
               </Select>
               {fieldErrors.aiProvider && (
-                <p className="text-sm text-red-500 mt-1">{fieldErrors.aiProvider}</p>
+                <p className="text-sm text-red-500 mt-1">
+                  {fieldErrors.aiProvider}
+                </p>
               )}
             </div>
-            {renderInputField("apiKey", "API Key", "password", "Enter your AI provider API key OR Allow us to create one for you (takes ~1 min)")}
+            {renderInputField(
+              "apiKey",
+              "API Key",
+              "password",
+              "Enter your AI provider API key OR Allow us to create one for you (takes ~1 min)",
+            )}
           </div>
         );
       case 4:
@@ -972,6 +1049,13 @@ export default function CreateBlueprint() {
                   >
                     Next
                     <ChevronRight className="w-4 h-4 ml-2" />
+                  </Button>
+                ) : formData.blueprintId ? (
+                  <Button
+                    type="button"
+                    onClick={() => (window.location.href = "/dashboard")}
+                  >
+                    Go to Dashboard
                   </Button>
                 ) : (
                   <Button type="submit" disabled={!isStepValid()}>
