@@ -35,6 +35,7 @@ import {
   Pencil,
   PlusCircle,
   Text,
+  X,
 } from "lucide-react";
 
 import {
@@ -83,14 +84,16 @@ interface ElementContent {
 
 const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
   const file = e.target.files?.[0];
-  if (!file || !selectedElement) return;
+  if (!file) return;
 
   try {
-    const url = await createImageUrl(file);
-    updateElementContent(selectedElement.id, {
-      mediaUrl: url,
-      mediaType: file.type.startsWith("image/") ? "image" : "video",
-    });
+    if (selectedElement) {
+      const url = await createImageUrl(file);
+      updateElementContent(selectedElement.id, {
+        mediaUrl: url,
+        mediaType: file.type.startsWith("image/") ? "image" : "video",
+      });
+    }
   } catch (error) {
     console.error("Media upload error:", error);
     toast({
@@ -135,8 +138,11 @@ interface EditorState {
 }
 
 interface Message {
+  id: string;
   content: string;
   isAi: boolean;
+  isImage?: boolean;
+  isLoading?: boolean;
 }
 
 // Helper functions
@@ -205,7 +211,8 @@ const createImageUrl = async (file: File): Promise<string> => {
 
 export default function BlueprintEditor() {
   const [showAiPrompt, setShowAiPrompt] = useState(false);
-  const [geminiAnalysis, setGeminiAnalysis] = useState(null);
+  const [geminiAnalysis, setGeminiAnalysis] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [location] = useLocation();
   const blueprintId = location.split("/").pop(); // assuming the route is /blueprint-editor/{id}
   const [generatingImage, setGeneratingImage] = useState(false); // Add loading state
@@ -889,64 +896,79 @@ export default function BlueprintEditor() {
   // ADD THIS FUNCTION inside your BlueprintEditor component, before return:
   async function analyzeFloorPlanWithGemini(floorPlanUrl: string) {
     if (!floorPlanUrl) return;
-    setLoading(true);
+    setIsAnalyzing(true);
     try {
       const base64Image = await convertImageToBase64(floorPlanUrl);
-      const projectId = "blueprint-8c1ca";
-      const location = "us-central1";
-      const model = "gemini-1.5-flash";
-      const apiKey = "AIzaSyBfLLwlFQvxkztjgihEG7_2p9rTipdXGFs";
-      const vertexAiEndpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:predict`;
-      const requestBody = {
-        instances: [
-          {
-            image: { bytesBase64Encoded: base64Image },
-            prompt:
-              "Analyze this floor plan and provide insights about the layout, potential hotspots, and suggestions for improvement.",
-          },
-        ],
-      };
-      const response = await fetch(vertexAiEndpoint, {
+      if (!base64Image) throw new Error("Failed to convert image to base64");
+
+      const response = await fetch("https://generativelanguage.googleapis.com/v1/models/gemini-pro-vision:generateContent", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: "Bearer " + apiKey,
+          Authorization: `Bearer ${process.env.GEMINI_API_KEY}`,
         },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: "Analyze this floor plan and provide insights about the layout, potential hotspots, and suggestions for improvement. Focus on spatial organization, traffic flow, and areas that could benefit from AR enhancements." },
+              {
+                inline_data: {
+                  mime_type: "image/jpeg",
+                  data: base64Image
+                }
+              }
+            ]
+          }]
+        })
       });
+
       if (!response.ok) {
-        throw new Error(
-          "Gemini analysis request failed: " + response.statusText,
-        );
+        throw new Error("Gemini analysis request failed: " + response.statusText);
       }
+
       const analysisData = await response.json();
-      setGeminiAnalysis(analysisData.predictions[0].content);
-      console.log(
-        "Gemini analysis state:",
-        analysisData.predictions[0].content,
-      );
+      const analysis = analysisData.candidates[0].content.parts[0].text;
+      setGeminiAnalysis(analysis);
+      toast({
+        title: "Analysis Complete",
+        description: "Floor plan analysis has been generated successfully.",
+      });
     } catch (error) {
       console.error("Error:", error);
+      toast({
+        title: "Analysis Failed",
+        description: error instanceof Error ? error.message : "Failed to analyze floor plan",
+        variant: "destructive",
+      });
     } finally {
-      setLoading(false);
+      setIsAnalyzing(false);
     }
   }
 
-  async function convertImageToBase64(imageUrl) {
+  async function convertImageToBase64(imageUrl: string): Promise<string | null> {
     try {
       const encodedUrl = encodeURI(imageUrl);
-      console.log("Fetching image from (encoded):", encodedUrl); // Log the encoded URL
       const response = await fetch(encodedUrl);
+      if (!response.ok) throw new Error('Failed to fetch image');
+      
       const blob = await response.blob();
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result.split(",")[1]);
-        reader.onerror = reject;
+        reader.onloadend = () => {
+          const result = reader.result;
+          if (typeof result === 'string') {
+            const base64 = result.split(',')[1];
+            resolve(base64);
+          } else {
+            reject(new Error('Failed to convert image to base64'));
+          }
+        };
+        reader.onerror = () => reject(new Error('Failed to read image'));
         reader.readAsDataURL(blob);
       });
     } catch (error) {
-      console.error("Error fetching image:", error);
-      return null; // Or throw the error
+      console.error("Error converting image to base64:", error);
+      return null;
     }
   }
 
@@ -954,6 +976,35 @@ export default function BlueprintEditor() {
     <div className="min-h-screen bg-gray-100">
       <Nav />
       <div className="pt-16 flex h-[calc(100vh-4rem)]">
+        {/* Analysis Results Panel */}
+        {geminiAnalysis && (
+          <div className="fixed top-20 right-4 w-80 bg-white rounded-lg shadow-lg p-4 z-50">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="font-semibold text-lg">Floor Plan Analysis</h3>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setGeminiAnalysis(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="prose prose-sm max-h-96 overflow-y-auto">
+              {geminiAnalysis}
+            </div>
+          </div>
+        )}
+        
+        {/* Loading Indicator */}
+        {isAnalyzing && (
+          <div className="fixed top-20 right-4 bg-white rounded-lg shadow-lg p-4 z-50">
+            <div className="flex items-center space-x-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Analyzing floor plan...</span>
+            </div>
+          </div>
+        )}
+
         {/* Chat Button */}
         <Button
           variant="outline"
