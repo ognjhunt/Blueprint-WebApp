@@ -205,6 +205,7 @@ const createImageUrl = async (file: File): Promise<string> => {
 
 export default function BlueprintEditor() {
   const [showAiPrompt, setShowAiPrompt] = useState(false);
+  const [geminiAnalysis, setGeminiAnalysis] = useState(null);
   const [location] = useLocation();
   const blueprintId = location.split("/").pop(); // assuming the route is /blueprint-editor/{id}
   const [generatingImage, setGeneratingImage] = useState(false); // Add loading state
@@ -482,30 +483,17 @@ export default function BlueprintEditor() {
     }
   };
 
+  const handlePanEnd = () => {
+    if (isPanMode) {
+      setIsDragging(false);
+    }
 
-
-    // Add this code AFTER your existing pan logic
-    if (containerRef.current) {
-      const bounds = containerRef.current.getBoundingClientRect();
-      const newMouseX = (e.clientX - bounds.left) / editorState.containerScale;
-      const newMouseY = (e.clientY - bounds.top) / editorState.containerScale;
-      setMousePos({ x: newMouseX, y: newMouseY });
-      setMouseScreenPos({ x: e.clientX, y: e.clientY });
+    if (isHighlighting) {
+      // finalize highlight here if needed
+      setIsHighlighting(false);
+      // For now, we just stop highlighting. You can handle the selected area if desired.
     }
   };
-
-const handlePanEnd = () => {
-  if (isPanMode) {
-    setIsDragging(false);
-  }
-
-  if (isHighlighting) {
-    // finalize highlight here if needed
-    setIsHighlighting(false);
-    // For now, we just stop highlighting. You can handle the selected area if desired.
-  }
-};
-
 
   const handleRotation = (degrees: number) => {
     setEditorState((prev) => ({
@@ -888,8 +876,79 @@ const handlePanEnd = () => {
       }
     };
 
-loadBlueprint();
-}, [blueprintId]);
+    loadBlueprint();
+  }, [blueprintId]);
+
+  useEffect(() => {
+    if (editorState.layout.url) {
+      // We have a floor plan URL, so let's analyze it with Gemini
+      analyzeFloorPlanWithGemini(editorState.layout.url);
+    }
+  }, [editorState.layout.url]);
+
+  // ADD THIS FUNCTION inside your BlueprintEditor component, before return:
+  async function analyzeFloorPlanWithGemini(floorPlanUrl: string) {
+    if (!floorPlanUrl) return;
+    setLoading(true);
+    try {
+      const base64Image = await convertImageToBase64(floorPlanUrl);
+      const projectId = "blueprint-8c1ca";
+      const location = "us-central1";
+      const model = "gemini-1.5-flash";
+      const apiKey = "AIzaSyBfLLwlFQvxkztjgihEG7_2p9rTipdXGFs";
+      const vertexAiEndpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:predict`;
+      const requestBody = {
+        instances: [
+          {
+            image: { bytesBase64Encoded: base64Image },
+            prompt:
+              "Analyze this floor plan and provide insights about the layout, potential hotspots, and suggestions for improvement.",
+          },
+        ],
+      };
+      const response = await fetch(vertexAiEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + apiKey,
+        },
+        body: JSON.stringify(requestBody),
+      });
+      if (!response.ok) {
+        throw new Error(
+          "Gemini analysis request failed: " + response.statusText,
+        );
+      }
+      const analysisData = await response.json();
+      setGeminiAnalysis(analysisData.predictions[0].content);
+      console.log(
+        "Gemini analysis state:",
+        analysisData.predictions[0].content,
+      );
+    } catch (error) {
+      console.error("Error:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function convertImageToBase64(imageUrl) {
+    try {
+      const encodedUrl = encodeURI(imageUrl);
+      console.log("Fetching image from (encoded):", encodedUrl); // Log the encoded URL
+      const response = await fetch(encodedUrl);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result.split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error("Error fetching image:", error);
+      return null; // Or throw the error
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -1149,6 +1208,18 @@ loadBlueprint();
               </div>
             )}
 
+            {geminiAnalysis && (
+              <div
+                className="fixed top-16 right-64 bg-white rounded shadow p-4 z-[9999]"
+                style={{ width: "300px" }}
+              >
+                <h3 className="text-lg font-semibold mb-2">Gemini Analysis</h3>
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                  {geminiAnalysis}
+                </p>
+              </div>
+            )}
+
             {/* Add highlight box here */}
             {isHighlighting && highlightStartPos && highlightCurrentPos && (
               <div
@@ -1183,7 +1254,6 @@ loadBlueprint();
                 X: {mousePos.x.toFixed(2)}, Y: {mousePos.y.toFixed(2)}
               </div>
             )}
-
 
             {/* AR Elements */}
             {elements.map((element) => (
