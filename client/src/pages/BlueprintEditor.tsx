@@ -887,11 +887,24 @@ export default function BlueprintEditor() {
   }, [blueprintId]);
 
   useEffect(() => {
-    if (editorState.layout.url) {
-      // We have a floor plan URL, so let's analyze it with Gemini
-      analyzeFloorPlanWithGemini(editorState.layout.url);
-    }
-  }, [editorState.layout.url]);
+    const analyzeFloorPlan = async () => {
+      // Only analyze if we have a URL and we're not already analyzing
+      if (editorState.layout.url && !isAnalyzing) {
+        try {
+          await analyzeFloorPlanWithGemini(editorState.layout.url);
+        } catch (error) {
+          console.error("Error analyzing floor plan:", error);
+          toast({
+            title: "Analysis Failed",
+            description: "Failed to analyze the floor plan. Please try again.",
+            variant: "destructive",
+          });
+        }
+      }
+    };
+
+    analyzeFloorPlan();
+  }, [editorState.layout.url, isAnalyzing]);
 
   // ADD THIS FUNCTION inside your BlueprintEditor component, before return:
   async function analyzeFloorPlanWithGemini(floorPlanUrl: string) {
@@ -947,27 +960,45 @@ export default function BlueprintEditor() {
 
   async function convertImageToBase64(imageUrl: string): Promise<string | null> {
     try {
-      const encodedUrl = encodeURI(imageUrl);
-      const response = await fetch(encodedUrl);
-      if (!response.ok) throw new Error('Failed to fetch image');
-      
+      // For Firebase Storage URLs, we need to fetch with no-cors
+      const response = await fetch(imageUrl, {
+        mode: 'no-cors',
+        cache: 'no-cache',
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+
+      if (!response.ok) {
+        console.error('Response not ok:', response.status, response.statusText);
+        throw new Error('Failed to fetch image: ' + response.statusText);
+      }
+
       const blob = await response.blob();
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => {
-          const result = reader.result;
-          if (typeof result === 'string') {
-            const base64 = result.split(',')[1];
-            resolve(base64);
+          if (reader.result && typeof reader.result === 'string') {
+            // Get the base64 data after the "base64," marker
+            const base64Data = reader.result.split(',')[1];
+            resolve(base64Data);
           } else {
-            reject(new Error('Failed to convert image to base64'));
+            reject(new Error('Failed to convert to base64'));
           }
         };
-        reader.onerror = () => reject(new Error('Failed to read image'));
+        reader.onerror = (error) => {
+          console.error('FileReader error:', error);
+          reject(new Error('Failed to read image file'));
+        };
         reader.readAsDataURL(blob);
       });
     } catch (error) {
       console.error("Error converting image to base64:", error);
+      toast({
+        title: "Image Processing Failed",
+        description: error instanceof Error ? error.message : "Failed to process the floor plan image",
+        variant: "destructive",
+      });
       return null;
     }
   }
