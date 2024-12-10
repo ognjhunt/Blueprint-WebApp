@@ -886,25 +886,81 @@ export default function BlueprintEditor() {
     loadBlueprint();
   }, [blueprintId]);
 
+  // Function to trigger analysis manually or automatically
+  const triggerAnalysis = useCallback(async () => {
+    if (!editorState.layout.url || isAnalyzing) return;
+    
+    try {
+      setIsAnalyzing(true);
+      await analyzeFloorPlanWithGemini(editorState.layout.url);
+    } catch (error) {
+      console.error("Error analyzing floor plan:", error);
+      toast({
+        title: "Analysis Failed",
+        description: "Failed to analyze the floor plan. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [editorState.layout.url, isAnalyzing]);
+
+  // Only trigger analysis once when floor plan is first loaded
   useEffect(() => {
-    const analyzeFloorPlan = async () => {
-      // Only analyze if we have a URL and we're not already analyzing
-      if (editorState.layout.url && !isAnalyzing) {
+    if (editorState.layout.url && !isAnalyzing) {
+      const analyzeFloorPlan = async () => {
         try {
-          await analyzeFloorPlanWithGemini(editorState.layout.url);
+          setIsAnalyzing(true);
+          const base64Image = await convertImageToBase64(editorState.layout.url);
+          if (!base64Image) throw new Error("Failed to convert image to base64");
+
+          const response = await fetch("https://generativelanguage.googleapis.com/v1/models/gemini-pro-vision:generateContent", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${process.env.GEMINI_API_KEY}`,
+            },
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  { text: "Analyze this floor plan and provide insights about the layout, potential hotspots, and suggestions for improvement. Focus on spatial organization, traffic flow, and areas that could benefit from AR enhancements." },
+                  {
+                    inline_data: {
+                      mime_type: "image/jpeg",
+                      data: base64Image
+                    }
+                  }
+                ]
+              }]
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error("Gemini analysis request failed: " + response.statusText);
+          }
+
+          const analysisData = await response.json();
+          const analysis = analysisData.candidates[0].content.parts[0].text;
+          setGeminiAnalysis(analysis);
+          toast({
+            title: "Analysis Complete",
+            description: "Floor plan analysis has been generated successfully.",
+          });
         } catch (error) {
-          console.error("Error analyzing floor plan:", error);
+          console.error("Floor plan analysis error:", error);
           toast({
             title: "Analysis Failed",
             description: "Failed to analyze the floor plan. Please try again.",
             variant: "destructive",
           });
+        } finally {
+          setIsAnalyzing(false);
         }
-      }
-    };
+      };
 
-    analyzeFloorPlan();
-  }, [editorState.layout.url, isAnalyzing]);
+      analyzeFloorPlan();
+    }
+  }, [editorState.layout.url]); // Only depend on layout URL
 
   // ADD THIS FUNCTION inside your BlueprintEditor component, before return:
   async function analyzeFloorPlanWithGemini(floorPlanUrl: string) {
@@ -1008,31 +1064,47 @@ export default function BlueprintEditor() {
       <Nav />
       <div className="pt-16 flex h-[calc(100vh-4rem)]">
         {/* Analysis Results Panel */}
-        {geminiAnalysis && (
-          <div className="fixed top-20 right-4 w-80 bg-white rounded-lg shadow-lg p-4 z-50">
+        {(isAnalyzing || geminiAnalysis) && (
+          <div className="fixed top-20 right-4 w-96 bg-white rounded-lg shadow-lg p-4 z-50">
             <div className="flex justify-between items-center mb-2">
               <h3 className="font-semibold text-lg">Floor Plan Analysis</h3>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setGeminiAnalysis(null)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              {!isAnalyzing && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setGeminiAnalysis(null)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
-            <div className="prose prose-sm max-h-96 overflow-y-auto">
-              {geminiAnalysis}
-            </div>
-          </div>
-        )}
-        
-        {/* Loading Indicator */}
-        {isAnalyzing && (
-          <div className="fixed top-20 right-4 bg-white rounded-lg shadow-lg p-4 z-50">
-            <div className="flex items-center space-x-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Analyzing floor plan...</span>
-            </div>
+            
+            {isAnalyzing ? (
+              <div className="flex items-center justify-center space-x-2 p-4">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <span className="text-sm text-gray-600">Analyzing floor plan...</span>
+              </div>
+            ) : geminiAnalysis ? (
+              <div className="space-y-4">
+                <div className="prose prose-sm max-h-96 overflow-y-auto">
+                  {geminiAnalysis}
+                </div>
+                <div className="flex justify-end space-x-2 mt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setGeminiAnalysis(null);
+                      triggerAnalysis();
+                    }}
+                    disabled={isAnalyzing}
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Analyze Again
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </div>
         )}
 
