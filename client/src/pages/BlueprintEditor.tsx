@@ -6,7 +6,6 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useLocation } from "wouter";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -69,13 +68,6 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import Nav from "@/components/Nav";
-
-// Import Vertex AI SDK (you might need to install it: npm install @google-cloud/aiplatform)
-import {
-  VertexAI,
-  GenerateContentRequest,
-  Part,
-} from "@google-cloud/aiplatform";
 
 interface Position {
   x: number;
@@ -897,7 +889,7 @@ export default function BlueprintEditor() {
   // Function to trigger analysis manually or automatically
   const triggerAnalysis = useCallback(async () => {
     if (!editorState.layout.url || isAnalyzing) return;
-
+    
     try {
       setIsAnalyzing(true);
       await analyzeFloorPlanWithGemini(editorState.layout.url);
@@ -915,49 +907,97 @@ export default function BlueprintEditor() {
 
   // Only trigger analysis once when floor plan is first loaded
   useEffect(() => {
-    let isSubscribed = true;
+    if (editorState.layout.url && !isAnalyzing) {
+      const analyzeFloorPlan = async () => {
+        try {
+          setIsAnalyzing(true);
+          const base64Image = await convertImageToBase64(editorState.layout.url);
+          if (!base64Image) throw new Error("Failed to convert image to base64");
 
-    if (editorState.layout.url && !isAnalyzing && !geminiAnalysis) {
-      // Use a debounced version of the analysis to prevent spam
-      const timeoutId = setTimeout(async () => {
-        if (!isSubscribed) return;
-        await analyzeFloorPlanWithGemini(editorState.layout.url);
-      }, 1000); // Wait 1 second before triggering analysis
+          const response = await fetch("https://generativelanguage.googleapis.com/v1/models/gemini-pro-vision:generateContent", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${process.env.GEMINI_API_KEY}`,
+            },
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  { text: "Analyze this floor plan and provide insights about the layout, potential hotspots, and suggestions for improvement. Focus on spatial organization, traffic flow, and areas that could benefit from AR enhancements." },
+                  {
+                    inline_data: {
+                      mime_type: "image/jpeg",
+                      data: base64Image
+                    }
+                  }
+                ]
+              }]
+            })
+          });
 
-      return () => {
-        clearTimeout(timeoutId);
-        isSubscribed = false;
+          if (!response.ok) {
+            throw new Error("Gemini analysis request failed: " + response.statusText);
+          }
+
+          const analysisData = await response.json();
+          const analysis = analysisData.candidates[0].content.parts[0].text;
+          setGeminiAnalysis(analysis);
+          toast({
+            title: "Analysis Complete",
+            description: "Floor plan analysis has been generated successfully.",
+          });
+        } catch (error) {
+          console.error("Floor plan analysis error:", error);
+          toast({
+            title: "Analysis Failed",
+            description: "Failed to analyze the floor plan. Please try again.",
+            variant: "destructive",
+          });
+        } finally {
+          setIsAnalyzing(false);
+        }
       };
-    }
 
-    return () => {
-      isSubscribed = false;
-    };
-  }, [editorState.layout.url]); // Add toast to dependencies
+      analyzeFloorPlan();
+    }
+  }, [editorState.layout.url]); // Only depend on layout URL
 
   // ADD THIS FUNCTION inside your BlueprintEditor component, before return:
   async function analyzeFloorPlanWithGemini(floorPlanUrl: string) {
     if (!floorPlanUrl) return;
     setIsAnalyzing(true);
     try {
-      const response = await fetch('/api/gemini/analyze', {
-        method: 'POST',
+      const base64Image = await convertImageToBase64(floorPlanUrl);
+      if (!base64Image) throw new Error("Failed to convert image to base64");
+
+      const response = await fetch("https://generativelanguage.googleapis.com/v1/models/gemini-pro-vision:generateContent", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.GEMINI_API_KEY}`,
         },
         body: JSON.stringify({
-          imageUrl: floorPlanUrl
-        }),
+          contents: [{
+            parts: [
+              { text: "Analyze this floor plan and provide insights about the layout, potential hotspots, and suggestions for improvement. Focus on spatial organization, traffic flow, and areas that could benefit from AR enhancements." },
+              {
+                inline_data: {
+                  mime_type: "image/jpeg",
+                  data: base64Image
+                }
+              }
+            ]
+          }]
+        })
       });
 
       if (!response.ok) {
-        throw new Error(
-          "Gemini analysis request failed: " + response.statusText,
-        );
+        throw new Error("Gemini analysis request failed: " + response.statusText);
       }
 
-      const data = await response.json();
-      setGeminiAnalysis(data.analysis);
+      const analysisData = await response.json();
+      const analysis = analysisData.candidates[0].content.parts[0].text;
+      setGeminiAnalysis(analysis);
       toast({
         title: "Analysis Complete",
         description: "Floor plan analysis has been generated successfully.",
@@ -966,10 +1006,7 @@ export default function BlueprintEditor() {
       console.error("Error:", error);
       toast({
         title: "Analysis Failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to analyze floor plan",
+        description: error instanceof Error ? error.message : "Failed to analyze floor plan",
         variant: "destructive",
       });
     } finally {
@@ -977,39 +1014,37 @@ export default function BlueprintEditor() {
     }
   }
 
-  async function convertImageToBase64(
-    imageUrl: string,
-  ): Promise<string | null> {
+  async function convertImageToBase64(imageUrl: string): Promise<string | null> {
     try {
       // For Firebase Storage URLs, we need to fetch with no-cors
       const response = await fetch(imageUrl, {
-        mode: "no-cors",
-        cache: "no-cache",
+        mode: 'no-cors',
+        cache: 'no-cache',
         headers: {
-          "Access-Control-Allow-Origin": "*",
+          'Access-Control-Allow-Origin': '*',
         },
       });
 
       if (!response.ok) {
-        console.error("Response not ok:", response.status, response.statusText);
-        throw new Error("Failed to fetch image: " + response.statusText);
+        console.error('Response not ok:', response.status, response.statusText);
+        throw new Error('Failed to fetch image: ' + response.statusText);
       }
 
       const blob = await response.blob();
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => {
-          if (reader.result && typeof reader.result === "string") {
+          if (reader.result && typeof reader.result === 'string') {
             // Get the base64 data after the "base64," marker
-            const base64Data = reader.result.split(",")[1];
+            const base64Data = reader.result.split(',')[1];
             resolve(base64Data);
           } else {
-            reject(new Error("Failed to convert to base64"));
+            reject(new Error('Failed to convert to base64'));
           }
         };
         reader.onerror = (error) => {
-          console.error("FileReader error:", error);
-          reject(new Error("Failed to read image file"));
+          console.error('FileReader error:', error);
+          reject(new Error('Failed to read image file'));
         };
         reader.readAsDataURL(blob);
       });
@@ -1017,10 +1052,7 @@ export default function BlueprintEditor() {
       console.error("Error converting image to base64:", error);
       toast({
         title: "Image Processing Failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to process the floor plan image",
+        description: error instanceof Error ? error.message : "Failed to process the floor plan image",
         variant: "destructive",
       });
       return null;
@@ -1046,13 +1078,11 @@ export default function BlueprintEditor() {
                 </Button>
               )}
             </div>
-
+            
             {isAnalyzing ? (
               <div className="flex items-center justify-center space-x-2 p-4">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                <span className="text-sm text-gray-600">
-                  Analyzing floor plan...
-                </span>
+                <span className="text-sm text-gray-600">Analyzing floor plan...</span>
               </div>
             ) : geminiAnalysis ? (
               <div className="space-y-4">
