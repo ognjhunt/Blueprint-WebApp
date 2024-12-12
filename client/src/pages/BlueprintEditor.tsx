@@ -918,91 +918,37 @@ export default function BlueprintEditor() {
     let isSubscribed = true;
 
     if (editorState.layout.url && !isAnalyzing && !geminiAnalysis) {
-      const analyzeFloorPlan = async () => {
-        try {
-          setIsAnalyzing(true);
-          const response = await fetch('/api/gemini/analyze', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              imageUrl: editorState.layout.url,
-            }),
-          });
+      // Use a debounced version of the analysis to prevent spam
+      const timeoutId = setTimeout(async () => {
+        if (!isSubscribed) return;
+        await analyzeFloorPlanWithGemini(editorState.layout.url);
+      }, 1000); // Wait 1 second before triggering analysis
 
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(`Analysis failed: ${errorData.error}`);
-          }
-
-          const data = await response.json();
-          if (isSubscribed) {
-            setGeminiAnalysis(data.analysis);
-            toast({
-              title: "Analysis Complete",
-              description: "Floor plan analysis has been generated successfully.",
-            });
-          }
-        } catch (error) {
-          if (isSubscribed) {
-            console.error("Floor plan analysis error:", error);
-            toast({
-              title: "Analysis Failed",
-              description: error instanceof Error ? error.message : "Failed to analyze the floor plan. Please try again.",
-              variant: "destructive",
-            });
-          }
-        } finally {
-          if (isSubscribed) {
-            setIsAnalyzing(false);
-          }
-        }
+      return () => {
+        clearTimeout(timeoutId);
+        isSubscribed = false;
       };
-
-      analyzeFloorPlan();
     }
 
     return () => {
       isSubscribed = false;
     };
-  }, [editorState.layout.url, isAnalyzing, geminiAnalysis, toast]); // Add toast to dependencies
+  }, [editorState.layout.url]); // Add toast to dependencies
 
   // ADD THIS FUNCTION inside your BlueprintEditor component, before return:
   async function analyzeFloorPlanWithGemini(floorPlanUrl: string) {
     if (!floorPlanUrl) return;
     setIsAnalyzing(true);
     try {
-      const base64Image = await convertImageToBase64(floorPlanUrl);
-      if (!base64Image) throw new Error("Failed to convert image to base64");
-
-      const response = await fetch(
-        "https://generativelanguage.googleapis.com/v1/models/gemini-pro-vision:generateContent",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.GEMINI_API_KEY}`,
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: "Analyze this floor plan and provide insights about the layout, potential hotspots, and suggestions for improvement. Focus on spatial organization, traffic flow, and areas that could benefit from AR enhancements.",
-                  },
-                  {
-                    inline_data: {
-                      mime_type: "image/jpeg",
-                      data: base64Image,
-                    },
-                  },
-                ],
-              },
-            ],
-          }),
+      const response = await fetch('/api/gemini/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      );
+        body: JSON.stringify({
+          imageUrl: floorPlanUrl
+        }),
+      });
 
       if (!response.ok) {
         throw new Error(
@@ -1010,9 +956,8 @@ export default function BlueprintEditor() {
         );
       }
 
-      const analysisData = await response.json();
-      const analysis = analysisData.candidates[0].content.parts[0].text;
-      setGeminiAnalysis(analysis);
+      const data = await response.json();
+      setGeminiAnalysis(data.analysis);
       toast({
         title: "Analysis Complete",
         description: "Floor plan analysis has been generated successfully.",

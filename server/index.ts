@@ -16,8 +16,20 @@ function log(message: string) {
 }
 
 const app = express();
-app.use(express.json());
+
+// Configure middleware
+app.use(express.json({ limit: '50mb' }));  // Keep increased limit for base64 images
 app.use(express.urlencoded({ extended: false }));
+
+// Configure CORS for development
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  next();
+});
+
+// Mount the Gemini router
 app.use('/api/gemini', geminiRouter);
 
 app.use((req, res, next) => {
@@ -62,17 +74,12 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client
   const PORT = 5000;
   server.listen(PORT, "0.0.0.0", () => {
     log(`serving on port ${PORT}`);
