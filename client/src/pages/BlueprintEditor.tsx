@@ -210,11 +210,9 @@ const createImageUrl = async (file: File): Promise<string> => {
 };
 
 export default function BlueprintEditor() {
-  // State for Gemini Vision analysis
-  const [showAiPrompt, setShowAiPrompt] = useState<boolean>(false);
+  const [showAiPrompt, setShowAiPrompt] = useState(false);
   const [geminiAnalysis, setGeminiAnalysis] = useState<string | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
-  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [location] = useLocation();
   const blueprintId = location.split("/").pop(); // assuming the route is /blueprint-editor/{id}
   const [generatingImage, setGeneratingImage] = useState(false); // Add loading state
@@ -338,12 +336,9 @@ export default function BlueprintEditor() {
         const downloadURL = await getDownloadURL(storageRef);
 
         // Update the blueprint document with floorPlanUrl
-        if (blueprintId) {
-          const blueprintRef = doc(db, "blueprints", blueprintId);
-          await updateDoc(blueprintRef, {
-            floorPlanUrl: downloadURL,
-          });
-        }
+        await updateDoc(doc(db, "blueprints", blueprintId), {
+          floorPlanUrl: downloadURL,
+        });
 
         // Update the editor state layout url to the newly uploaded file:
         setEditorState((prev) => ({
@@ -389,12 +384,9 @@ export default function BlueprintEditor() {
         const downloadURL = await getDownloadURL(storageRef);
 
         // Update Firestore with the downloadURL
-        if (blueprintId) {
-          const blueprintRef = doc(db, "blueprints", blueprintId);
-          await updateDoc(blueprintRef, {
-            floorPlanUrl: downloadURL,
-          });
-        }
+        await updateDoc(doc(db, "blueprints", blueprintId), {
+          floorPlanUrl: downloadURL,
+        });
 
         // Update the editor state layout url to the newly uploaded file:
         setEditorState((prev) => ({
@@ -690,7 +682,7 @@ export default function BlueprintEditor() {
             method: "POST",
             headers: {
               accept: "application/json",
-              authorization: `Bearer ${process.env.HIVE_API_KEY}`,
+              authorization: "Bearer zWgw8Jzre3zOXmAnNcbTa1fNJX7LRPc2",
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
@@ -753,7 +745,8 @@ export default function BlueprintEditor() {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+              Authorization:
+                "Bearer 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",
             },
             body: JSON.stringify({
               model: "gpt-4o-mini",
@@ -908,28 +901,16 @@ export default function BlueprintEditor() {
       const base64Image = await convertImageToBase64(floorPlanUrl);
       if (!base64Image) throw new Error("Failed to convert image to base64");
 
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error("Missing Gemini API key");
-      }
-
       const response = await fetch("https://generativelanguage.googleapis.com/v1/models/gemini-pro-vision:generateContent", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${process.env.GEMINI_API_KEY}`,
         },
         body: JSON.stringify({
           contents: [{
             parts: [
-              { 
-                text: `Please analyze this floor plan and provide detailed insights about:
-                1. Layout Analysis: Describe the overall spatial organization
-                2. Traffic Flow: Identify main pathways and potential bottlenecks
-                3. AR Enhancement Opportunities: Suggest specific locations that could benefit from AR elements
-                4. Optimization Suggestions: Recommend improvements for space utilization
-                5. Key Areas: Highlight important zones or areas of interest`
-              },
+              { text: "Analyze this floor plan and provide insights about the layout, potential hotspots, and suggestions for improvement. Focus on spatial organization, traffic flow, and areas that could benefit from AR enhancements." },
               {
                 inline_data: {
                   mime_type: "image/jpeg",
@@ -954,11 +935,9 @@ export default function BlueprintEditor() {
       });
     } catch (error) {
       console.error("Error:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to analyze floor plan";
-      setAnalysisError(errorMessage);
       toast({
         title: "Analysis Failed",
-        description: errorMessage,
+        description: error instanceof Error ? error.message : "Failed to analyze floor plan",
         variant: "destructive",
       });
     } finally {
@@ -1020,30 +999,6 @@ export default function BlueprintEditor() {
         {isAnalyzing && (
           <div className="fixed top-20 right-4 bg-white rounded-lg shadow-lg p-4 z-50">
             <div className="flex items-center space-x-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <p className="text-sm text-gray-500">Analyzing floor plan...</p>
-            </div>
-          </div>
-        )}
-
-        {/* Analysis Results Panel */}
-        {geminiAnalysis && (
-          <div className="fixed top-20 right-4 w-80 bg-white rounded-lg shadow-lg p-4 z-50">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="font-semibold text-lg">Floor Plan Analysis</h3>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setGeminiAnalysis(null)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="prose prose-sm max-h-96 overflow-y-auto">
-              {geminiAnalysis}
-            </div>
-          </div>
-        )}
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>Analyzing floor plan...</span>
             </div>
