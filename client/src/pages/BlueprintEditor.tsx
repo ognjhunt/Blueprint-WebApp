@@ -1,46 +1,12 @@
 "use client";
-
-import { useState, useEffect, useCallback, useRef, MouseEvent } from "react";
-import { toast } from '@/components/ui/use-toast';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  MessageCircle, 
-  X, 
-  Loader2, 
-  RefreshCw,
-  Send,
-  Move,
-  Plus,
-  Settings,
-  Save,
-  Grid,
-  Minus,
-  ChevronLeft,
-  ChevronRight,
-  ChevronUp,
-  ChevronDown,
-  Hand,
-  RotateCw,
-  AlignStartHorizontal,
-  AlignStartVertical,
-  Layers,
-  Copy,
-  Trash2,
-  Square,
-  Eye,
-  Pencil,
-  PlusCircle,
-  Text
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { createDrawTools, type DrawTools } from "@/lib/drawTools";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { MouseEvent } from "react"; // Import MouseEvent
 import { createDrawTools, type DrawTools } from "@/lib/drawTools";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useLocation } from "wouter";
-//import { VertexAI } from "@google-cloud/vertexai";
+import { VertexAI } from "@google-cloud/vertexai";
 
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -172,40 +138,6 @@ interface EditorState {
   isPlacementMode: boolean;
 }
 
-interface ToastProps {
-  title: string;
-  description: string;
-  variant?: "default" | "destructive";
-}
-
-interface Position {
-  x: number;
-  y: number;
-}
-
-interface ElementContent {
-  title: string;
-  description: string;
-  trigger: "proximity" | "click" | "always";
-  mediaUrl?: string;
-  mediaType?: "image" | "video";
-}
-
-interface ARElement {
-  id: string;
-  type: "infoCard" | "marker" | "interactive" | "media" | "shape" | "label";
-  position: Position;
-  content: ElementContent;
-}
-
-interface Message {
-  id: string;
-  content: string;
-  isAi: boolean;
-  isImage?: boolean;
-  isLoading?: boolean;
-}
-
 interface Message {
   id: string;
   content: string;
@@ -324,57 +256,13 @@ export default function BlueprintEditor() {
   ]);
   const { toast } = useToast();
 
-  const analyzeFloorPlanWithGemini = async (imageUrl: string): Promise<string> => {
-    try {
-      const geminiApiKey = process.env.GEMINI_API_KEY;
-      if (!geminiApiKey) {
-        throw new Error("Gemini API key is not configured");
-      }
-
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro-vision-latest:generateContent?key=${geminiApiKey}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: "Analyze this floor plan image in detail. Describe the layout, identify rooms and spaces, and note any interesting architectural features."
-            }, {
-              inline_data: {
-                mime_type: "image/jpeg",
-                data: imageUrl.split(',')[1] // Remove data URL prefix if present
-              }
-            }]
-          }],
-          safety_settings: [{
-            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          }],
-          generation_config: {
-            temperature: 0.4,
-            topK: 32,
-            topP: 1,
-            maxOutputTokens: 1024,
-          }
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Gemini API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-        return data.candidates[0].content.parts[0].text;
-      }
-      
-      throw new Error("No analysis generated");
-    } catch (error) {
-      console.error('Error in analyzeFloorPlanWithGemini:', error);
-      throw error;
-    }
-  };
+  // Set environment variables for Vertex AI
+  const geminiApiKey = "AIzaSyCyyCfGsXRnIRC9HSVVuCMN5grzPkyTtkY";
+  const vertex = new VertexAI({
+    project: "blueprint-8c1ca",
+    location: "us-central1",
+    apiKey: geminiApiKey,
+  });
 
   const [editorState, setEditorState] = useState<EditorState>({
     layout: {
@@ -452,7 +340,7 @@ export default function BlueprintEditor() {
         pdfUrl = URL.createObjectURL(file);
         // Setting editorState for PDF is done above as before
         // After setting editorState, now upload to Firebase:
-        const storageRef = ref(storage, blueprints/${blueprintId});
+        const storageRef = ref(storage, `blueprints/${blueprintId}`);
         await uploadBytes(storageRef, file);
         const downloadURL = await getDownloadURL(storageRef);
 
@@ -500,7 +388,7 @@ export default function BlueprintEditor() {
         }));
 
         // Now upload to Firebase Storage:
-        const storageRef = ref(storage, blueprints/${blueprintId});
+        const storageRef = ref(storage, `blueprints/${blueprintId}`);
         await uploadBytes(storageRef, file);
         const downloadURL = await getDownloadURL(storageRef);
 
@@ -522,11 +410,8 @@ export default function BlueprintEditor() {
     } catch (error) {
       console.error("Image upload error:", error);
       toast({
-        title: "Upload Failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to load the file. Please try again.",
+        title: "Upload Failed", 
+        description: error instanceof Error ? error.message : "Failed to load the file. Please try again.",
         variant: "destructive",
       });
       throw error;
@@ -767,7 +652,7 @@ export default function BlueprintEditor() {
 
   // Add a helper to generate unique IDs for messages if you don't have one:
   function generateMessageId() {
-    return `msg-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    return msg-${Date.now()}-${Math.random().toString(36).substring(2, 8)};
   }
 
   // Replace your handleSendMessage function with this one
@@ -1013,12 +898,7 @@ export default function BlueprintEditor() {
 
     try {
       setIsAnalyzing(true);
-      await analyzeFloorPlanWithGemini(
-        editorState.layout.url,
-        setGeminiAnalysis,
-        toast,
-        setIsAnalyzing
-      );
+      await analyzeFloorPlanWithGemini(editorState.layout.url);
     } catch (error) {
       console.error("Error analyzing floor plan:", error);
       toast({
@@ -1026,150 +906,125 @@ export default function BlueprintEditor() {
         description: "Failed to analyze the floor plan. Please try again.",
         variant: "destructive",
       });
+    } finally {
       setIsAnalyzing(false);
     }
   }, [editorState.layout.url, isAnalyzing]);
 
-  // Only trigger analysis once when floor plan is first loaded and URL changes
+  // Only trigger analysis once when floor plan is first loaded
   useEffect(() => {
-    let isFirstLoad = true;
-    let isMounted = true;
-
-    const handleInitialAnalysis = async () => {
-      if (editorState.layout.url && !isAnalyzing && isFirstLoad && isMounted) {
-        isFirstLoad = false;
+    if (editorState.layout.url && !isAnalyzing) {
+      const analyzeFloorPlan = async () => {
         try {
-          await triggerAnalysis();
-        } catch (error) {
-          console.error("Initial analysis error:", error);
-          if (isMounted) {
-            toast({
-              title: "Analysis Failed",
-              description: "Could not analyze the floor plan automatically. Click 'Retry Analysis' to try again.",
-              variant: "destructive",
-            });
+          setIsAnalyzing(true);
+          const base64Image = await convertImageToBase64(
+            editorState.layout.url,
+          );
+          if (!base64Image)
+            throw new Error("Failed to convert image to base64");
+
+          const response = await fetch(
+            "https://generativelanguage.googleapis.com/v1/models/gemini-pro-vision:generateContent",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: Bearer ${process.env.GEMINI_API_KEY},
+              },
+              body: JSON.stringify({
+                contents: [
+                  {
+                    parts: [
+                      {
+                        text: "Analyze this floor plan and provide insights about the layout, potential hotspots, and suggestions for improvement. Focus on spatial organization, traffic flow, and areas that could benefit from AR enhancements.",
+                      },
+                      {
+                        inline_data: {
+                          mime_type: "image/jpeg",
+                          data: base64Image,
+                        },
+                      },
+                    ],
+                  },
+                ],
+              }),
+            },
+          );
+
+          if (!response.ok) {
+            throw new Error(
+              "Gemini analysis request failed: " + response.statusText,
+            );
           }
+
+          const analysisData = await response.json();
+          const analysis = analysisData.candidates[0].content.parts[0].text;
+          setGeminiAnalysis(analysis);
+          toast({
+            title: "Analysis Complete",
+            description: "Floor plan analysis has been generated successfully.",
+          });
+        } catch (error) {
+          console.error("Floor plan analysis error:", error);
+          toast({
+            title: "Analysis Failed",
+            description: "Failed to analyze the floor plan. Please try again.",
+            variant: "destructive",
+          });
+        } finally {
+          setIsAnalyzing(false);
         }
-      }
-    };
+      };
 
-    handleInitialAnalysis();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [editorState.layout.url, triggerAnalysis, isAnalyzing, toast]);
-
-  // Add UI elements for analysis results
-  const renderAnalysisResults = () => {
-    if (isAnalyzing) {
-      return (
-        <div className="fixed top-4 right-4 bg-white rounded-lg shadow-lg p-4 max-w-md">
-          <div className="flex items-center space-x-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Analyzing floor plan...</span>
-          </div>
-        </div>
-      );
+      analyzeFloorPlan();
     }
-
-    if (geminiAnalysis) {
-      return (
-        <div className="fixed top-4 right-4 bg-white rounded-lg shadow-lg p-4 max-w-md">
-          <div className="flex justify-between items-start">
-            <h3 className="text-lg font-semibold mb-2">Floor Plan Analysis</h3>
-            <Button variant="ghost" size="sm" onClick={() => setGeminiAnalysis(null)}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="prose prose-sm max-h-96 overflow-y-auto">
-            {geminiAnalysis}
-          </div>
-          <div className="mt-4 flex justify-end">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={triggerAnalysis}
-              className="flex items-center space-x-1"
-            >
-              <RefreshCw className="h-4 w-4" />
-              <span>Retry Analysis</span>
-            </Button>
-          </div>
-        </div>
-      );
-    }
-
-    return null;
-  };
-
-  async function generateText() {
-    const prompt = "Tell me a story about a heroic cat.";
-    const response = await generativeModel.generateContent({ prompt });
-    console.log(response.candidates[0].content);
-  }
+  }, [editorState.layout.url]); // Only depend on layout URL
 
   // ADD THIS FUNCTION inside your BlueprintEditor component, before return:
   async function analyzeFloorPlanWithGemini(
     floorPlanUrl: string,
-    setGeminiAnalysis: (analysis: string | null) => void,
+    setGeminiAnalysis: any,
     toast: any,
-    setIsAnalyzing: (analyzing: boolean) => void,
+    setIsAnalyzing: any,
   ) {
-    if (!floorPlanUrl) {
-      toast({
-        title: "Error",
-        description: "No floor plan URL provided",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    if (!floorPlanUrl) return;
+    setIsAnalyzing(true);
     try {
       const base64Image = await convertImageToBase64(floorPlanUrl);
       if (!base64Image) throw new Error("Failed to convert image to base64");
 
-      const response = await fetch(
-        "https://us-central1-aiplatform.googleapis.com/v1/projects/blueprint-8c1ca/locations/us-central1/publishers/google/models/gemini-1.0-pro-vision:streamGenerateContent",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.GEMINI_API_KEY}`,
-          },
-          body: JSON.stringify({
-            contents: [
+      const vertex = new VertexAI({
+        project: "blueprint-8c1ca",
+        location: "us-central1",
+        apiKey: process.env.REACT_APP_GEMINI_API_KEY,
+      });
+
+      const model = vertex.preview.generativeModel({
+        model: "gemini-1.5-pro",
+      });
+
+      const request = {
+        contents: [
+          {
+            parts: [
               {
-                parts: [
-                  {
-                    text: "Analyze this floor plan image in detail. Provide insights about:\n1. Layout organization\n2. Space utilization\n3. Traffic flow patterns\n4. Potential AR enhancement opportunities\n5. Areas that could benefit from interactive elements\n\nBe specific about locations and provide practical suggestions.",
-                  },
-                  {
-                    inlineData: {
-                      mimeType: "image/jpeg",
-                      data: base64Image,
-                    },
-                  },
-                ],
+                text: "Analyze this floor plan and provide insights about the layout, potential hotspots, and suggestions for improvement. Focus on spatial organization, traffic flow, and areas that could benefit from AR enhancements.",
+              },
+              {
+                inlineData: {
+                  mimeType: "image/jpeg",
+                  data: base64Image,
+                },
               },
             ],
-            generationConfig: {
-              temperature: 0.4,
-              topK: 32,
-              topP: 1,
-              maxOutputTokens: 1024,
-            },
-          }),
-        }
-      );
+          },
+        ],
+      };
 
-      if (!response.ok) {
-        throw new Error(`Gemini API error: ${response.statusText}`);
-      }
+      const response = await model.generateContent(request);
 
-      const result = await response.json();
-      const analysis = result.candidates?.[0]?.content?.parts?.[0]?.text;
-
+      const analysis =
+        response.response?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!analysis) {
         throw new Error("No analysis was returned from Gemini API");
       }
@@ -1180,14 +1035,17 @@ export default function BlueprintEditor() {
         description: "Floor plan analysis has been generated successfully.",
       });
     } catch (error) {
-      console.error("Analysis error:", error);
-      setGeminiAnalysis(null);
+      console.error("Error:", error);
       toast({
         title: "Analysis Failed",
-        description: error instanceof Error ? error.message : "Failed to analyze floor plan",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to analyze floor plan",
         variant: "destructive",
       });
-      throw error; // Re-throw to be handled by the caller
+    } finally {
+      setIsAnalyzing(false);
     }
   }
 
@@ -1195,33 +1053,30 @@ export default function BlueprintEditor() {
     imageUrl: string,
   ): Promise<string | null> {
     try {
-      // For Firebase Storage URLs, use default fetch mode to get actual data
-      const response = await fetch(imageUrl);
-      
+      // For Firebase Storage URLs, we need to fetch with no-cors
+      const response = await fetch(imageUrl, {
+        mode: "no-cors",
+        cache: "no-cache",
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+
       if (!response.ok) {
         console.error("Response not ok:", response.status, response.statusText);
         throw new Error("Failed to fetch image: " + response.statusText);
       }
 
       const blob = await response.blob();
-      
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => {
-          try {
-            if (reader.result && typeof reader.result === "string") {
-              // Extract base64 data properly
-              const base64Data = reader.result.split(",")[1];
-              if (!base64Data) {
-                throw new Error("Invalid base64 data format");
-              }
-              resolve(base64Data);
-            } else {
-              throw new Error("Invalid FileReader result");
-            }
-          } catch (error) {
-            console.error("Error processing FileReader result:", error);
-            reject(new Error("Failed to process image data"));
+          if (reader.result && typeof reader.result === "string") {
+            // Get the base64 data after the "base64," marker
+            const base64Data = reader.result.split(",")[1];
+            resolve(base64Data);
+          } else {
+            reject(new Error("Failed to convert to base64"));
           }
         };
         reader.onerror = (error) => {
@@ -1232,11 +1087,15 @@ export default function BlueprintEditor() {
       });
     } catch (error) {
       console.error("Error converting image to base64:", error);
-      throw new Error(
-        error instanceof Error
-          ? error.message
-          : "Failed to process the floor plan image"
-      );
+      toast({
+        title: "Image Processing Failed",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to process the floor plan image",
+        variant: "destructive",
+      });
+      return null;
     }
   }
 
@@ -1333,14 +1192,14 @@ export default function BlueprintEditor() {
                 ) => (
                   <div
                     key={msg.id}
-                    className={`flex ${msg.isAi ? "justify-start" : "justify-end"}`}
+                    className={flex ${msg.isAi ? "justify-start" : "justify-end"}}
                   >
                     <div
-                      className={`rounded-lg p-3 max-w-[80%] ${
+                      className={rounded-lg p-3 max-w-[80%] ${
                         msg.isAi
                           ? "bg-secondary text-secondary-foreground"
                           : "bg-primary text-primary-foreground"
-                      }`}
+                      }}
                     >
                       {msg.content}
                     </div>
@@ -1487,11 +1346,11 @@ export default function BlueprintEditor() {
 
         {/* Main Editor Area */}
         <div
-          className={`flex-1 relative ml-64 min-h-[calc(100vh-4rem)] isolate ${isPanMode ? "cursor-grab" : ""} ${isDragging ? "cursor-grabbing" : ""} ${
+          className={flex-1 relative ml-64 min-h-[calc(100vh-4rem)] isolate ${isPanMode ? "cursor-grab" : ""} ${isDragging ? "cursor-grabbing" : ""} ${
             editorState.isPlacementMode
               ? "ring-2 ring-primary ring-opacity-50"
               : ""
-          }`}
+          }}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -1717,7 +1576,7 @@ export default function BlueprintEditor() {
                   onChange={(e) => setPromptInput(e.target.value)}
                   onInput={(e) => {
                     e.currentTarget.style.height = "auto";
-                    e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
+                    e.currentTarget.style.height = ${e.currentTarget.scrollHeight}px;
                   }}
                   rows={1}
                   className="w-full px-4 py-3 text-base rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none overflow-hidden"
