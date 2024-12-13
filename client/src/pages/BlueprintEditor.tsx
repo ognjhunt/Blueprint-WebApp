@@ -86,6 +86,10 @@ const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
   const file = e.target.files?.[0];
   if (!file) return;
 
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
   try {
     if (selectedElement) {
       const url = await createImageUrl(file);
@@ -210,22 +214,20 @@ const createImageUrl = async (file: File): Promise<string> => {
 };
 
 export default function BlueprintEditor() {
+  const { toast } = useToast();
   const [showAiPrompt, setShowAiPrompt] = useState(false);
   const [geminiAnalysis, setGeminiAnalysis] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [location] = useLocation();
   const blueprintId = location.split("/").pop(); // assuming the route is /blueprint-editor/{id}
-  const [generatingImage, setGeneratingImage] = useState(false); // Add loading state
+  const [generatingImage, setGeneratingImage] = useState(false);
   const storage = getStorage();
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [mouseScreenPos, setMouseScreenPos] = useState({ x: 0, y: 0 });
 
   const [isHighlighting, setIsHighlighting] = useState(false);
-  const [highlightStartPos, setHighlightStartPos] = useState<Position | null>(
-    null,
-  );
-  const [highlightCurrentPos, setHighlightCurrentPos] =
-    useState<Position | null>(null);
+  const [highlightStartPos, setHighlightStartPos] = useState<Position | null>(null);
+  const [highlightCurrentPos, setHighlightCurrentPos] = useState<Position | null>(null);
 
   const [promptPosition, setPromptPosition] = useState({ x: 0, y: 0 });
   const [promptInput, setPromptInput] = useState("");
@@ -236,9 +238,7 @@ export default function BlueprintEditor() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [drawTools, setDrawTools] = useState<DrawTools | null>(null);
   const [isLoading, setLoading] = useState(false);
-  const [selectedElement, setSelectedElement] = useState<ARElement | null>(
-    null,
-  );
+  const [selectedElement, setSelectedElement] = useState<ARElement | null>(null);
   const [showGrid, setShowGrid] = useState(true);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [isPanMode, setIsPanMode] = useState(false);
@@ -246,14 +246,10 @@ export default function BlueprintEditor() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState([
-    {
-      content:
-        "Hello! I can help you edit your Blueprint. What would you like to do?",
-      isAi: true,
-    },
-  ]);
-  const { toast } = useToast();
+  const [messages, setMessages] = useState([{
+    content: "Hello! I can help you edit your Blueprint. What would you like to do?",
+    isAi: true,
+  }]);
 
   const [editorState, setEditorState] = useState<EditorState>({
     layout: {
@@ -682,7 +678,7 @@ export default function BlueprintEditor() {
             method: "POST",
             headers: {
               accept: "application/json",
-              authorization: "Bearer zWgw8Jzre3zOXmAnNcbTa1fNJX7LRPc2",
+              authorization: `Bearer ${import.meta.env.VITE_HIVE_API_KEY}`,
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
@@ -745,8 +741,7 @@ export default function BlueprintEditor() {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization:
-                "Bearer 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",
+              Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
             },
             body: JSON.stringify({
               model: "gpt-4o-mini",
@@ -905,7 +900,7 @@ export default function BlueprintEditor() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.GEMINI_API_KEY}`,
+          Authorization: `Bearer ${import.meta.env.VITE_GEMINI_API_KEY}`,
         },
         body: JSON.stringify({
           contents: [{

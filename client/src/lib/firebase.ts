@@ -21,15 +21,15 @@ import {
   DocumentData
 } from 'firebase/firestore';
 
+// Firebase configuration using environment variables
 const firebaseConfig = {
-  apiKey: "AIzaSyBfLLwlFQvxkztjgihEG7_2p9rTipdXGFs",
-  authDomain: "blueprint-8c1ca.firebaseapp.com",
-  databaseURL: "https://blueprint-8c1ca-default-rtdb.firebaseio.com",
-  projectId: "blueprint-8c1ca",
-  storageBucket: "blueprint-8c1ca.appspot.com",
-  messagingSenderId: "744608654760",
-  appId: "1:744608654760:web:5b697e80345ac2b0f4a99d",
-  measurementId: "G-7LHTQSRF9L"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase
@@ -258,4 +258,4 @@ export const logOut = async () => {
   }
 };
 
-export { auth, db, onAuthStateChanged, User };
+export { auth, db, onAuthStateChanged, FirebaseUser };
