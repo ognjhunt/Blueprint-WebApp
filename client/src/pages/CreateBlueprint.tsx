@@ -238,7 +238,7 @@ export default function CreateBlueprint() {
     setError(null);
 
     try {
-      const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+      const apiKey = "AIzaSyBgxzzgcT_9nyhz1D_JtfG7gevRUKQ5Vbs"; // Replace with your actual API key
       if (!apiKey) {
         throw new Error("Google Places API key is not configured");
       }
