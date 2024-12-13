@@ -7,10 +7,13 @@ import {
   GoogleAuthProvider,
   onAuthStateChanged,
   signOut,
-  User as FirebaseUser,
+  User,
   browserLocalPersistence,
-  setPersistence
+  setPersistence,
+  type Auth
 } from 'firebase/auth';
+
+export type FirebaseUser = User;
 import {
   getFirestore,
   doc,
@@ -258,4 +261,4 @@ export const logOut = async () => {
   }
 };
 
-export { auth, db, onAuthStateChanged, User };
+export { auth, db, onAuthStateChanged };
