@@ -1,11 +1,46 @@
 "use client";
-import { useState, useEffect, useCallback, useRef } from "react";
-import { MouseEvent } from "react"; // Import MouseEvent
+
+import { useState, useEffect, useCallback, useRef, MouseEvent } from "react";
+import { toast } from '@/components/ui/use-toast';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  MessageCircle, 
+  X, 
+  Loader2, 
+  RefreshCw,
+  Send,
+  Move,
+  Plus,
+  Settings,
+  Save,
+  Grid,
+  Minus,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  ChevronDown,
+  Hand,
+  RotateCw,
+  AlignStartHorizontal,
+  AlignStartVertical,
+  Layers,
+  Copy,
+  Trash2,
+  Square,
+  Eye,
+  Pencil,
+  PlusCircle,
+  Text
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { createDrawTools, type DrawTools } from "@/lib/drawTools";
 import { createDrawTools, type DrawTools } from "@/lib/drawTools";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useLocation } from "wouter";
+//import { VertexAI } from "@google-cloud/vertexai";
 
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -137,6 +172,40 @@ interface EditorState {
   isPlacementMode: boolean;
 }
 
+interface ToastProps {
+  title: string;
+  description: string;
+  variant?: "default" | "destructive";
+}
+
+interface Position {
+  x: number;
+  y: number;
+}
+
+interface ElementContent {
+  title: string;
+  description: string;
+  trigger: "proximity" | "click" | "always";
+  mediaUrl?: string;
+  mediaType?: "image" | "video";
+}
+
+interface ARElement {
+  id: string;
+  type: "infoCard" | "marker" | "interactive" | "media" | "shape" | "label";
+  position: Position;
+  content: ElementContent;
+}
+
+interface Message {
+  id: string;
+  content: string;
+  isAi: boolean;
+  isImage?: boolean;
+  isLoading?: boolean;
+}
+
 interface Message {
   id: string;
   content: string;
@@ -255,6 +324,58 @@ export default function BlueprintEditor() {
   ]);
   const { toast } = useToast();
 
+  const analyzeFloorPlanWithGemini = async (imageUrl: string): Promise<string> => {
+    try {
+      const geminiApiKey = process.env.GEMINI_API_KEY;
+      if (!geminiApiKey) {
+        throw new Error("Gemini API key is not configured");
+      }
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro-vision-latest:generateContent?key=${geminiApiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: "Analyze this floor plan image in detail. Describe the layout, identify rooms and spaces, and note any interesting architectural features."
+            }, {
+              inline_data: {
+                mime_type: "image/jpeg",
+                data: imageUrl.split(',')[1] // Remove data URL prefix if present
+              }
+            }]
+          }],
+          safety_settings: [{
+            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          }],
+          generation_config: {
+            temperature: 0.4,
+            topK: 32,
+            topP: 1,
+            maxOutputTokens: 1024,
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Gemini API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+        return data.candidates[0].content.parts[0].text;
+      }
+      
+      throw new Error("No analysis generated");
+    } catch (error) {
+      console.error('Error in analyzeFloorPlanWithGemini:', error);
+      throw error;
+    }
+  };
+
   const [editorState, setEditorState] = useState<EditorState>({
     layout: {
       url: "",
@@ -331,7 +452,7 @@ export default function BlueprintEditor() {
         pdfUrl = URL.createObjectURL(file);
         // Setting editorState for PDF is done above as before
         // After setting editorState, now upload to Firebase:
-        const storageRef = ref(storage, `blueprints/${blueprintId}`);
+        const storageRef = ref(storage, blueprints/${blueprintId});
         await uploadBytes(storageRef, file);
         const downloadURL = await getDownloadURL(storageRef);
 
@@ -379,7 +500,7 @@ export default function BlueprintEditor() {
         }));
 
         // Now upload to Firebase Storage:
-        const storageRef = ref(storage, `blueprints/${blueprintId}`);
+        const storageRef = ref(storage, blueprints/${blueprintId});
         await uploadBytes(storageRef, file);
         const downloadURL = await getDownloadURL(storageRef);
 
@@ -576,7 +697,7 @@ export default function BlueprintEditor() {
   const handleDuplicateElement = (element: ARElement) => {
     const newElement = {
       ...element,
-      id: `element-${Date.now()}`,
+      id: element-${Date.now()},
       position: {
         x: element.position.x + 5,
         y: element.position.y + 5,
@@ -795,14 +916,14 @@ export default function BlueprintEditor() {
     {messages.map((msg) => (
       <div
         key={msg.id}
-        className={`flex ${msg.isAi ? "justify-start" : "justify-end"}`}
+        className={flex ${msg.isAi ? "justify-start" : "justify-end"}}
       >
         <div
-          className={`rounded-lg p-3 max-w-[80%] ${
+          className={rounded-lg p-3 max-w-[80%] ${
             msg.isAi
               ? "bg-secondary text-secondary-foreground"
               : "bg-primary text-primary-foreground"
-          }`}
+          }}
         >
           {msg.isImage ? ( // Check if it's an image message
             <img
@@ -889,10 +1010,15 @@ export default function BlueprintEditor() {
   // Function to trigger analysis manually or automatically
   const triggerAnalysis = useCallback(async () => {
     if (!editorState.layout.url || isAnalyzing) return;
-    
+
     try {
       setIsAnalyzing(true);
-      await analyzeFloorPlanWithGemini(editorState.layout.url);
+      await analyzeFloorPlanWithGemini(
+        editorState.layout.url,
+        setGeminiAnalysis,
+        toast,
+        setIsAnalyzing
+      );
     } catch (error) {
       console.error("Error analyzing floor plan:", error);
       toast({
@@ -900,162 +1026,217 @@ export default function BlueprintEditor() {
         description: "Failed to analyze the floor plan. Please try again.",
         variant: "destructive",
       });
-    } finally {
       setIsAnalyzing(false);
     }
   }, [editorState.layout.url, isAnalyzing]);
 
-  // Only trigger analysis once when floor plan is first loaded
+  // Only trigger analysis once when floor plan is first loaded and URL changes
   useEffect(() => {
-    if (editorState.layout.url && !isAnalyzing) {
-      const analyzeFloorPlan = async () => {
+    let isFirstLoad = true;
+    let isMounted = true;
+
+    const handleInitialAnalysis = async () => {
+      if (editorState.layout.url && !isAnalyzing && isFirstLoad && isMounted) {
+        isFirstLoad = false;
         try {
-          setIsAnalyzing(true);
-          const base64Image = await convertImageToBase64(editorState.layout.url);
-          if (!base64Image) throw new Error("Failed to convert image to base64");
-
-          const response = await fetch("https://generativelanguage.googleapis.com/v1/models/gemini-pro-vision:generateContent", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${process.env.GEMINI_API_KEY}`,
-            },
-            body: JSON.stringify({
-              contents: [{
-                parts: [
-                  { text: "Analyze this floor plan and provide insights about the layout, potential hotspots, and suggestions for improvement. Focus on spatial organization, traffic flow, and areas that could benefit from AR enhancements." },
-                  {
-                    inline_data: {
-                      mime_type: "image/jpeg",
-                      data: base64Image
-                    }
-                  }
-                ]
-              }]
-            })
-          });
-
-          if (!response.ok) {
-            throw new Error("Gemini analysis request failed: " + response.statusText);
-          }
-
-          const analysisData = await response.json();
-          const analysis = analysisData.candidates[0].content.parts[0].text;
-          setGeminiAnalysis(analysis);
-          toast({
-            title: "Analysis Complete",
-            description: "Floor plan analysis has been generated successfully.",
-          });
+          await triggerAnalysis();
         } catch (error) {
-          console.error("Floor plan analysis error:", error);
-          toast({
-            title: "Analysis Failed",
-            description: "Failed to analyze the floor plan. Please try again.",
-            variant: "destructive",
-          });
-        } finally {
-          setIsAnalyzing(false);
+          console.error("Initial analysis error:", error);
+          if (isMounted) {
+            toast({
+              title: "Analysis Failed",
+              description: "Could not analyze the floor plan automatically. Click 'Retry Analysis' to try again.",
+              variant: "destructive",
+            });
+          }
         }
-      };
+      }
+    };
 
-      analyzeFloorPlan();
+    handleInitialAnalysis();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [editorState.layout.url, triggerAnalysis, isAnalyzing, toast]);
+
+  // Add UI elements for analysis results
+  const renderAnalysisResults = () => {
+    if (isAnalyzing) {
+      return (
+        <div className="fixed top-4 right-4 bg-white rounded-lg shadow-lg p-4 max-w-md">
+          <div className="flex items-center space-x-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Analyzing floor plan...</span>
+          </div>
+        </div>
+      );
     }
-  }, [editorState.layout.url]); // Only depend on layout URL
+
+    if (geminiAnalysis) {
+      return (
+        <div className="fixed top-4 right-4 bg-white rounded-lg shadow-lg p-4 max-w-md">
+          <div className="flex justify-between items-start">
+            <h3 className="text-lg font-semibold mb-2">Floor Plan Analysis</h3>
+            <Button variant="ghost" size="sm" onClick={() => setGeminiAnalysis(null)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="prose prose-sm max-h-96 overflow-y-auto">
+            {geminiAnalysis}
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={triggerAnalysis}
+              className="flex items-center space-x-1"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>Retry Analysis</span>
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  async function generateText() {
+    const prompt = "Tell me a story about a heroic cat.";
+    const response = await generativeModel.generateContent({ prompt });
+    console.log(response.candidates[0].content);
+  }
 
   // ADD THIS FUNCTION inside your BlueprintEditor component, before return:
-  async function analyzeFloorPlanWithGemini(floorPlanUrl: string) {
-    if (!floorPlanUrl) return;
-    setIsAnalyzing(true);
+  async function analyzeFloorPlanWithGemini(
+    floorPlanUrl: string,
+    setGeminiAnalysis: (analysis: string | null) => void,
+    toast: any,
+    setIsAnalyzing: (analyzing: boolean) => void,
+  ) {
+    if (!floorPlanUrl) {
+      toast({
+        title: "Error",
+        description: "No floor plan URL provided",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const base64Image = await convertImageToBase64(floorPlanUrl);
       if (!base64Image) throw new Error("Failed to convert image to base64");
 
-      const response = await fetch("https://generativelanguage.googleapis.com/v1/models/gemini-pro-vision:generateContent", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.GEMINI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: "Analyze this floor plan and provide insights about the layout, potential hotspots, and suggestions for improvement. Focus on spatial organization, traffic flow, and areas that could benefit from AR enhancements." },
+      const response = await fetch(
+        "https://us-central1-aiplatform.googleapis.com/v1/projects/blueprint-8c1ca/locations/us-central1/publishers/google/models/gemini-1.0-pro-vision:streamGenerateContent",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.GEMINI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            contents: [
               {
-                inline_data: {
-                  mime_type: "image/jpeg",
-                  data: base64Image
-                }
-              }
-            ]
-          }]
-        })
-      });
+                parts: [
+                  {
+                    text: "Analyze this floor plan image in detail. Provide insights about:\n1. Layout organization\n2. Space utilization\n3. Traffic flow patterns\n4. Potential AR enhancement opportunities\n5. Areas that could benefit from interactive elements\n\nBe specific about locations and provide practical suggestions.",
+                  },
+                  {
+                    inlineData: {
+                      mimeType: "image/jpeg",
+                      data: base64Image,
+                    },
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.4,
+              topK: 32,
+              topP: 1,
+              maxOutputTokens: 1024,
+            },
+          }),
+        }
+      );
 
       if (!response.ok) {
-        throw new Error("Gemini analysis request failed: " + response.statusText);
+        throw new Error(`Gemini API error: ${response.statusText}`);
       }
 
-      const analysisData = await response.json();
-      const analysis = analysisData.candidates[0].content.parts[0].text;
+      const result = await response.json();
+      const analysis = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (!analysis) {
+        throw new Error("No analysis was returned from Gemini API");
+      }
+
       setGeminiAnalysis(analysis);
       toast({
         title: "Analysis Complete",
         description: "Floor plan analysis has been generated successfully.",
       });
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Analysis error:", error);
+      setGeminiAnalysis(null);
       toast({
         title: "Analysis Failed",
         description: error instanceof Error ? error.message : "Failed to analyze floor plan",
         variant: "destructive",
       });
-    } finally {
-      setIsAnalyzing(false);
+      throw error; // Re-throw to be handled by the caller
     }
   }
 
-  async function convertImageToBase64(imageUrl: string): Promise<string | null> {
+  async function convertImageToBase64(
+    imageUrl: string,
+  ): Promise<string | null> {
     try {
-      // For Firebase Storage URLs, we need to fetch with no-cors
-      const response = await fetch(imageUrl, {
-        mode: 'no-cors',
-        cache: 'no-cache',
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-        },
-      });
-
+      // For Firebase Storage URLs, use default fetch mode to get actual data
+      const response = await fetch(imageUrl);
+      
       if (!response.ok) {
-        console.error('Response not ok:', response.status, response.statusText);
-        throw new Error('Failed to fetch image: ' + response.statusText);
+        console.error("Response not ok:", response.status, response.statusText);
+        throw new Error("Failed to fetch image: " + response.statusText);
       }
 
       const blob = await response.blob();
+      
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => {
-          if (reader.result && typeof reader.result === 'string') {
-            // Get the base64 data after the "base64," marker
-            const base64Data = reader.result.split(',')[1];
-            resolve(base64Data);
-          } else {
-            reject(new Error('Failed to convert to base64'));
+          try {
+            if (reader.result && typeof reader.result === "string") {
+              // Extract base64 data properly
+              const base64Data = reader.result.split(",")[1];
+              if (!base64Data) {
+                throw new Error("Invalid base64 data format");
+              }
+              resolve(base64Data);
+            } else {
+              throw new Error("Invalid FileReader result");
+            }
+          } catch (error) {
+            console.error("Error processing FileReader result:", error);
+            reject(new Error("Failed to process image data"));
           }
         };
         reader.onerror = (error) => {
-          console.error('FileReader error:', error);
-          reject(new Error('Failed to read image file'));
+          console.error("FileReader error:", error);
+          reject(new Error("Failed to read image file"));
         };
         reader.readAsDataURL(blob);
       });
     } catch (error) {
       console.error("Error converting image to base64:", error);
-      toast({
-        title: "Image Processing Failed",
-        description: error instanceof Error ? error.message : "Failed to process the floor plan image",
-        variant: "destructive",
-      });
-      return null;
+      throw new Error(
+        error instanceof Error
+          ? error.message
+          : "Failed to process the floor plan image"
+      );
     }
   }
 
@@ -1078,11 +1259,13 @@ export default function BlueprintEditor() {
                 </Button>
               )}
             </div>
-            
+
             {isAnalyzing ? (
               <div className="flex items-center justify-center space-x-2 p-4">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                <span className="text-sm text-gray-600">Analyzing floor plan...</span>
+                <span className="text-sm text-gray-600">
+                  Analyzing floor plan...
+                </span>
               </div>
             ) : geminiAnalysis ? (
               <div className="space-y-4">
@@ -1204,28 +1387,28 @@ export default function BlueprintEditor() {
               <h3 className="text-sm font-medium">Categories</h3>
               <Button
                 onClick={() => setSelectedCategory("all")}
-                className={`w-full justify-start ${selectedCategory === "all" ? "bg-primary text-white" : "bg-white"}`}
+                className={w-full justify-start ${selectedCategory === "all" ? "bg-primary text-white" : "bg-white"}}
                 variant="outline"
               >
                 All Elements
               </Button>
               <Button
                 onClick={() => setSelectedCategory("infoCard")}
-                className={`w-full justify-start ${selectedCategory === "infoCard" ? "bg-primary text-white" : "bg-white"}`}
+                className={w-full justify-start ${selectedCategory === "infoCard" ? "bg-primary text-white" : "bg-white"}}
                 variant="outline"
               >
                 Info Cards
               </Button>
               <Button
                 onClick={() => setSelectedCategory("marker")}
-                className={`w-full justify-start ${selectedCategory === "marker" ? "bg-primary text-white" : "bg-white"}`}
+                className={w-full justify-start ${selectedCategory === "marker" ? "bg-primary text-white" : "bg-white"}}
                 variant="outline"
               >
                 Markers
               </Button>
               <Button
                 onClick={() => setSelectedCategory("interactive")}
-                className={`w-full justify-start ${selectedCategory === "interactive" ? "bg-primary text-white" : "bg-white"}`}
+                className={w-full justify-start ${selectedCategory === "interactive" ? "bg-primary text-white" : "bg-white"}}
                 variant="outline"
               >
                 Interactive Elements
@@ -1233,14 +1416,14 @@ export default function BlueprintEditor() {
 
               <Button
                 onClick={() => setSelectedCategory("media")}
-                className={`w-full justify-start ${selectedCategory === "media" ? "bg-primary text-white" : "bg-white"}`}
+                className={w-full justify-start ${selectedCategory === "media" ? "bg-primary text-white" : "bg-white"}}
                 variant="outline"
               >
                 Media
               </Button>
               <Button
                 onClick={() => setSelectedCategory("labels")}
-                className={`w-full justify-start ${selectedCategory === "labels" ? "bg-primary text-white" : "bg-white"}`}
+                className={w-full justify-start ${selectedCategory === "labels" ? "bg-primary text-white" : "bg-white"}}
                 variant="outline"
               >
                 Labels
@@ -1336,11 +1519,11 @@ export default function BlueprintEditor() {
           ref={containerRef}
         >
           <div
-            className={`absolute top-0 left-0 ${showGrid ? "bg-grid-pattern" : ""}`}
+            className={absolute top-0 left-0 ${showGrid ? "bg-grid-pattern" : ""}}
             style={{
-              width: `${editorState.layout.originalWidth * editorState.scale}px`,
-              height: `${editorState.layout.originalHeight * editorState.scale}px`,
-              transform: `translate(${editorState.position.x}px, ${editorState.position.y}px) scale(${editorState.containerScale})`,
+              width: ${editorState.layout.originalWidth * editorState.scale}px,
+              height: ${editorState.layout.originalHeight * editorState.scale}px,
+              transform: translate(${editorState.position.x}px, ${editorState.position.y}px) scale(${editorState.containerScale}),
               transformOrigin: "center",
               transition: isDragging ? "none" : "transform 0.1s ease-out",
               zIndex: 0,
@@ -1382,10 +1565,10 @@ export default function BlueprintEditor() {
                   border: "2px dashed #2196f3",
                   backgroundColor: "rgba(33, 150, 243, 0.2)",
                   zIndex: 10,
-                  left: `${Math.min(highlightStartPos.x, highlightCurrentPos.x) * editorState.scale}px`,
-                  top: `${Math.min(highlightStartPos.y, highlightCurrentPos.y) * editorState.scale}px`,
-                  width: `${Math.abs(highlightCurrentPos.x - highlightStartPos.x) * editorState.scale}px`,
-                  height: `${Math.abs(highlightCurrentPos.y - highlightStartPos.y) * editorState.scale}px`,
+                  left: ${Math.min(highlightStartPos.x, highlightCurrentPos.x) * editorState.scale}px,
+                  top: ${Math.min(highlightStartPos.y, highlightCurrentPos.y) * editorState.scale}px,
+                  width: ${Math.abs(highlightCurrentPos.x - highlightStartPos.x) * editorState.scale}px,
+                  height: ${Math.abs(highlightCurrentPos.y - highlightStartPos.y) * editorState.scale}px,
                 }}
               ></div>
             )}
@@ -1413,14 +1596,14 @@ export default function BlueprintEditor() {
             {elements.map((element) => (
               <motion.div
                 key={element.id}
-                className={`absolute cursor-move p-4 rounded-lg group ${
+                className={absolute cursor-move p-4 rounded-lg group ${
                   selectedElement?.id === element.id
                     ? "ring-2 ring-blue-500"
                     : ""
-                }`}
+                }}
                 style={{
-                  left: `${element.position.x}%`,
-                  top: `${element.position.y}%`,
+                  left: ${element.position.x}%,
+                  top: ${element.position.y}%,
                   transform: "translate(-50%, -50%)",
                   zIndex: 2,
                 }}
@@ -1458,9 +1641,9 @@ export default function BlueprintEditor() {
 
             {!editorState.layout.url && !isLoading && (
               <div
-                className={`absolute inset-0 flex items-center justify-center ${
+                className={absolute inset-0 flex items-center justify-center ${
                   isDraggingFile ? "bg-blue-50" : ""
-                }`}
+                }}
                 style={{ zIndex: 1 }}
               >
                 <div className="text-center p-6 border-2 border-dashed border-gray-300 rounded-lg">
@@ -1503,8 +1686,8 @@ export default function BlueprintEditor() {
               <motion.div
                 style={{
                   position: "absolute",
-                  left: `${promptPosition.x}px`,
-                  top: `${promptPosition.y}px`,
+                  left: ${promptPosition.x}px,
+                  top: ${promptPosition.y}px,
                   zIndex: 9999,
                 }}
                 initial={{ scale: 0.8, opacity: 0 }}
