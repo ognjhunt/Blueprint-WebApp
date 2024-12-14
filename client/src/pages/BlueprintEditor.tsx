@@ -7,6 +7,7 @@ import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useLocation } from "wouter";
 import ScreenShareButton from "@/components/ScreenShareButton";
+import { GridOverlay } from "@/components/GridOverlay";
 
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -152,6 +153,7 @@ interface EditorState {
   rotation: number;
   snapToGrid: boolean;
   isPlacementMode: boolean;
+  opacity: number;
 }
 
 interface Message {
