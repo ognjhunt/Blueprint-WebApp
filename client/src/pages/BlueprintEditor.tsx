@@ -7,7 +7,6 @@ import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useLocation } from "wouter";
 import ScreenShareButton from "@/components/ScreenShareButton";
-import { GridOverlay } from "@/components/GridOverlay";
 
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -153,7 +152,6 @@ interface EditorState {
   rotation: number;
   snapToGrid: boolean;
   isPlacementMode: boolean;
-  opacity: number;
 }
 
 interface Message {
@@ -399,7 +397,6 @@ export default function BlueprintEditor() {
     rotation: 0,
     snapToGrid: false,
     isPlacementMode: false,
-    opacity: 0.7,
   });
 
   const [zones, setZones] = useState<Zone[]>([]);
@@ -1564,29 +1561,14 @@ export default function BlueprintEditor() {
             {/* View Options */}
             <div className="space-y-2 mt-4">
               <h3 className="text-sm font-medium">View Options</h3>
-              <div className="space-y-2">
-                <Button
-                  onClick={() => setShowGrid(!showGrid)}
-                  className="w-full justify-start"
-                  variant={showGrid ? "default" : "outline"}
-                >
-                  <Grid className="w-4 h-4 mr-2" />
-                  Show Grid
-                </Button>
-                <Button
-                  onClick={() => {
-                    setEditorState(prev => ({
-                      ...prev, 
-                      snapToGrid: !prev.snapToGrid
-                    }))
-                  }}
-                  className="w-full justify-start"
-                  variant={editorState.snapToGrid ? "default" : "outline"}
-                >
-                  <Magnet className="w-4 h-4 mr-2" />
-                  Snap to Grid
-                </Button>
-              </div>
+              <Button
+                onClick={() => setShowGrid(!showGrid)}
+                className="w-full justify-start"
+                variant={showGrid ? "default" : "outline"}
+              >
+                <Grid className="w-4 h-4 mr-2" />
+                Show Grid
+              </Button>
               <Button
                 onClick={() => setIsPanMode(!isPanMode)}
                 className="w-full justify-start"
@@ -1657,59 +1639,18 @@ export default function BlueprintEditor() {
             }}
           >
             {editorState.layout.url && (
-              <div className="relative w-full h-full">
-                {/* Grid Layer */}
-                <div 
-                  className="absolute inset-0 pointer-events-none"
+              <div
+                className="absolute inset-0 flex items-center justify-center"
+                style={{ zIndex: 1 }}
+              >
+                <img
+                  src={editorState.layout.url}
+                  alt="Store Layout"
+                  className="w-auto h-auto max-w-none"
                   style={{
-                    backgroundImage: `
-                      linear-gradient(to right, rgba(0, 0, 0, 0.2) 1px, transparent 1px),
-                      linear-gradient(to bottom, rgba(0, 0, 0, 0.2) 1px, transparent 1px)
-                    `,
-                    backgroundSize: `${20 * editorState.scale}px ${20 * editorState.scale}px`,
-                    transform: `translate(${editorState.position.x}px, ${editorState.position.y}px)`,
-                    zIndex: 1,
+                    transformOrigin: "center center",
                   }}
                 />
-
-                {/* Floor Plan Layer */}
-                <div 
-                  className="absolute inset-0"
-                  style={{
-                    transform: `translate(${editorState.position.x}px, ${editorState.position.y}px) scale(${editorState.scale})`,
-                    transformOrigin: "top left",
-                  }}
-                >
-                  <img
-                    src={editorState.layout.url}
-                    alt="Floor Plan"
-                    className="w-full h-full object-contain"
-                    style={{
-                      opacity: editorState.opacity,
-                      transform: `rotate(${editorState.rotation}deg)`,
-                      transformOrigin: "center",
-                    }}
-                  />
-                </div>
-
-                {/* Measurement Controls */}
-                <div className="fixed bottom-4 right-4 z-50 bg-white/90 p-3 rounded-lg shadow-lg">
-                  <div className="flex flex-col space-y-2">
-                    <div className="text-sm font-medium">Grid Scale: 1 block = 1 ft²</div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm">Floor Plan Opacity:</span>
-                      <input
-                        type="range"
-                        min="0.1"
-                        max="1"
-                        step="0.1"
-                        value={editorState.opacity}
-                        onChange={(e) => setEditorState(prev => ({ ...prev, opacity: parseFloat(e.target.value) }))}
-                        className="w-24"
-                      />
-                    </div>
-                  </div>
-                </div>
               </div>
             )}
 
@@ -1788,27 +1729,7 @@ export default function BlueprintEditor() {
                       editorState.containerScale;
                     const newMouseY =
                       (event.clientY - bounds.top) / editorState.containerScale;
-                    
-                    // Snap to grid (20px = 1ft)
-                    const gridSize = 20 * editorState.scale;
-                    const snappedX = Math.round(newMouseX / gridSize) * gridSize;
-                    const snappedY = Math.round(newMouseY / gridSize) * gridSize;
-                    
-                    // Update element position to snapped coordinates
-                    const elementIndex = elements.findIndex(el => el.id === element.id);
-                    if (elementIndex !== -1) {
-                      const updatedElements = [...elements];
-                      updatedElements[elementIndex] = {
-                        ...updatedElements[elementIndex],
-                        position: {
-                          x: (snappedX / containerRef.current.offsetWidth) * 100,
-                          y: (snappedY / containerRef.current.offsetHeight) * 100
-                        }
-                      };
-                      setElements(updatedElements);
-                    }
-                    
-                    setMousePos({ x: snappedX, y: snappedY });
+                    setMousePos({ x: newMouseX, y: newMouseY });
                     setMouseScreenPos({ x: event.clientX, y: event.clientY });
                   }
                 }}
