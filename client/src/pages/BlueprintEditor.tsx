@@ -399,6 +399,7 @@ export default function BlueprintEditor() {
     rotation: 0,
     snapToGrid: false,
     isPlacementMode: false,
+    opacity: 0.7,
   });
 
   const [zones, setZones] = useState<Zone[]>([]);
@@ -1641,18 +1642,59 @@ export default function BlueprintEditor() {
             }}
           >
             {editorState.layout.url && (
-              <div
-                className="absolute inset-0 flex items-center justify-center"
-                style={{ zIndex: 1 }}
-              >
-                <img
-                  src={editorState.layout.url}
-                  alt="Store Layout"
-                  className="w-auto h-auto max-w-none"
+              <div className="relative w-full h-full">
+                {/* Grid Layer */}
+                <div 
+                  className="absolute inset-0 pointer-events-none"
                   style={{
-                    transformOrigin: "center center",
+                    backgroundImage: `
+                      linear-gradient(to right, rgba(0, 0, 0, 0.2) 1px, transparent 1px),
+                      linear-gradient(to bottom, rgba(0, 0, 0, 0.2) 1px, transparent 1px)
+                    `,
+                    backgroundSize: `${20 * editorState.scale}px ${20 * editorState.scale}px`,
+                    transform: `translate(${editorState.position.x}px, ${editorState.position.y}px)`,
+                    zIndex: 1,
                   }}
                 />
+
+                {/* Floor Plan Layer */}
+                <div 
+                  className="absolute inset-0"
+                  style={{
+                    transform: `translate(${editorState.position.x}px, ${editorState.position.y}px) scale(${editorState.scale})`,
+                    transformOrigin: "top left",
+                  }}
+                >
+                  <img
+                    src={editorState.layout.url}
+                    alt="Floor Plan"
+                    className="w-full h-full object-contain"
+                    style={{
+                      opacity: editorState.opacity,
+                      transform: `rotate(${editorState.rotation}deg)`,
+                      transformOrigin: "center",
+                    }}
+                  />
+                </div>
+
+                {/* Measurement Controls */}
+                <div className="fixed bottom-4 right-4 z-50 bg-white/90 p-3 rounded-lg shadow-lg">
+                  <div className="flex flex-col space-y-2">
+                    <div className="text-sm font-medium">Grid Scale: 1 block = 1 ft²</div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm">Floor Plan Opacity:</span>
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="1"
+                        step="0.1"
+                        value={editorState.opacity}
+                        onChange={(e) => setEditorState(prev => ({ ...prev, opacity: parseFloat(e.target.value) }))}
+                        className="w-24"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
