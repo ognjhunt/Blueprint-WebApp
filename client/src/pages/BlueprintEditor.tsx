@@ -6,7 +6,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useLocation } from "wouter";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import ScreenShareButton from "@/components/ScreenShareButton";
 
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -70,12 +70,15 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import Nav from "@/components/Nav";
 
-// Import Vertex AI SDK (you might need to install it: npm install @google-cloud/aiplatform)
-import {
-  VertexAI,
-  GenerateContentRequest,
-  Part,
-} from "@google-cloud/aiplatform";
+// // Add the grid pattern CSS here
+// <style>
+//   .bg-grid-pattern {
+//     background-image: linear-gradient(to right, rgba(0, 0, 0, 0.1) 1px, transparent 1px),
+//       linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 1px, transparent 1px);
+//     background-size: 20px 20px;
+//     image-rendering: pixelated;
+//   }
+// </style>
 
 interface Position {
   x: number;
@@ -120,6 +123,12 @@ interface Zone {
     width: number;
     height: number;
   };
+}
+
+interface ZoomState {
+  isZooming: boolean;
+  startY: number;
+  lastScale: number;
 }
 
 interface ARElement {
@@ -208,6 +217,12 @@ const availableElements = [
   },
 ];
 
+const GRID_BASE_SIZE = 20; // Base grid size in pixels
+const MIN_ZOOM = 0.25; // Minimum zoom level
+const MAX_ZOOM = 5; // Maximum zoom level
+const ZOOM_SPEED = 0.1; // How much zoom changes per step
+const INITIAL_ZOOM_PADDING = 0.9; // Leave 10% padding when initially fitting image
+
 const createImageUrl = async (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -234,6 +249,12 @@ export default function BlueprintEditor() {
   );
   const [highlightCurrentPos, setHighlightCurrentPos] =
     useState<Position | null>(null);
+
+  const [zoomState, setZoomState] = useState<ZoomState>({
+    isZooming: false,
+    startY: 0,
+    lastScale: 1,
+  });
 
   const [promptPosition, setPromptPosition] = useState({ x: 0, y: 0 });
   const [promptInput, setPromptInput] = useState("");
@@ -263,6 +284,105 @@ export default function BlueprintEditor() {
   ]);
   const { toast } = useToast();
 
+  type EditorCommand = {
+    action: "add" | "edit" | "delete" | "move";
+    elementType?:
+      | "video"
+      | "image"
+      | "marker"
+      | "infoCard"
+      | "label"
+      | "interactive";
+    position?: { x: number; y: number };
+    content?: Partial<ElementContent>;
+  };
+
+  // Parser function to identify commands from natural language
+  const parseEditorCommand = (message: string): EditorCommand | null => {
+    message = message.toLowerCase();
+
+    // Add video command
+    if (message.includes("add video") || message.includes("insert video")) {
+      return {
+        action: "add",
+        elementType: "video",
+      };
+    }
+
+    // Add image command
+    if (message.includes("add image") || message.includes("insert image")) {
+      return {
+        action: "add",
+        elementType: "image",
+      };
+    }
+
+    // Add marker command
+    if (message.includes("add marker") || message.includes("place marker")) {
+      return {
+        action: "add",
+        elementType: "marker",
+      };
+    }
+
+    // Add more command patterns here...
+
+    return null;
+  };
+
+  // Function to execute editor commands
+  const executeEditorCommand = async (command: EditorCommand) => {
+    switch (command.action) {
+      case "add":
+        if (command.elementType) {
+          // Add the element using existing addElement function
+          addElement(command.elementType);
+
+          // If it's a media element, trigger file selection
+          if (
+            command.elementType === "video" ||
+            command.elementType === "image"
+          ) {
+            // Create a hidden file input and trigger it
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept =
+              command.elementType === "video" ? "video/*" : "image/*";
+            input.style.display = "none";
+
+            input.onchange = async (e) => {
+              const file = (e.target as HTMLInputElement).files?.[0];
+              if (file) {
+                try {
+                  const url = await createImageUrl(file);
+                  if (selectedElement) {
+                    updateElementContent(selectedElement.id, {
+                      mediaUrl: url,
+                      mediaType:
+                        command.elementType === "video" ? "video" : "image",
+                    });
+                  }
+                } catch (error) {
+                  toast({
+                    title: "Upload Failed",
+                    description: "Failed to upload media. Please try again.",
+                    variant: "destructive",
+                  });
+                }
+              }
+            };
+
+            document.body.appendChild(input);
+            input.click();
+            document.body.removeChild(input);
+          }
+        }
+        break;
+
+      // Add more cases for other actions...
+    }
+  };
+
   const [editorState, setEditorState] = useState<EditorState>({
     layout: {
       url: "",
@@ -289,11 +409,11 @@ export default function BlueprintEditor() {
       const tools = createDrawTools({
         containerRef,
         scale: editorState.scale,
-        gridSize: 20,
+        gridSize: calculateGridSize(editorState.scale),
       });
       setDrawTools(tools);
     }
-  }, [containerRef.current]);
+  }, [containerRef.current, editorState.scale]);
 
   const filteredElements = availableElements.filter((element) => {
     const matchesSearch = element.name
@@ -333,27 +453,8 @@ export default function BlueprintEditor() {
     setLoading(true);
     try {
       const fileType = file.type.toLowerCase();
-      let pdfUrl;
 
-      if (fileType === "application/pdf") {
-        pdfUrl = URL.createObjectURL(file);
-        // Setting editorState for PDF is done above as before
-        // After setting editorState, now upload to Firebase:
-        const storageRef = ref(storage, `blueprints/${blueprintId}`);
-        await uploadBytes(storageRef, file);
-        const downloadURL = await getDownloadURL(storageRef);
-
-        // Update the blueprint document with floorPlanUrl
-        await updateDoc(doc(db, "blueprints", blueprintId), {
-          floorPlanUrl: downloadURL,
-        });
-
-        // Update the editor state layout url to the newly uploaded file:
-        setEditorState((prev) => ({
-          ...prev,
-          layout: { ...prev.layout, url: downloadURL },
-        }));
-      } else if (
+      if (
         fileType === "image/png" ||
         fileType === "image/jpeg" ||
         fileType === "image/jpg"
@@ -363,10 +464,16 @@ export default function BlueprintEditor() {
 
         const containerWidth = containerRef.current?.clientWidth || 800;
         const containerHeight = containerRef.current?.clientHeight || 600;
-        const scale = Math.min(
-          containerWidth / img.width,
-          containerHeight / img.height,
-        );
+
+        // Calculate scale while maintaining aspect ratio and adding padding
+        const scaleWidth = (containerWidth * INITIAL_ZOOM_PADDING) / img.width;
+        const scaleHeight =
+          (containerHeight * INITIAL_ZOOM_PADDING) / img.height;
+        const initialScale = Math.min(scaleWidth, scaleHeight);
+
+        // Center the image
+        const xOffset = (containerWidth - img.width * initialScale) / 2;
+        const yOffset = (containerHeight - img.height * initialScale) / 2;
 
         setEditorState((prev) => ({
           ...prev,
@@ -377,11 +484,11 @@ export default function BlueprintEditor() {
             originalWidth: img.width,
             originalHeight: img.height,
           },
-          scale: scale,
-          containerScale: scale,
+          scale: initialScale,
+          containerScale: initialScale,
           position: {
-            x: (containerWidth - img.width * scale) / 2,
-            y: (containerHeight - img.height * scale) / 2,
+            x: xOffset,
+            y: yOffset,
           },
           isPlacementMode: true,
         }));
@@ -441,13 +548,122 @@ export default function BlueprintEditor() {
     }
   };
 
-  const handleZoom = (delta: number) => {
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    if (e.ctrlKey || e.metaKey) {
+      // For pinch-to-zoom gestures
+      const delta = -e.deltaY * 0.01;
+      handleZoom(delta, e.clientX, e.clientY);
+    } else {
+      // Regular scrolling for pan
+      setEditorState((prev) => ({
+        ...prev,
+        position: {
+          x: prev.position.x - e.deltaX,
+          y: prev.position.y - e.deltaY,
+        },
+      }));
+    }
+  };
+
+  const handleZoomStart = (e: React.MouseEvent) => {
+    if (e.altKey) {
+      // Use Alt key as a modifier for zoom mode
+      e.preventDefault();
+      setZoomState({
+        isZooming: true,
+        startY: e.clientY,
+        lastScale: editorState.scale,
+      });
+    }
+  };
+
+  const handleZoomMove = (e: React.MouseEvent) => {
+    if (zoomState.isZooming) {
+      e.preventDefault();
+      const deltaY = (zoomState.startY - e.clientY) * 0.01;
+      const newScale = Math.max(
+        MIN_ZOOM,
+        Math.min(MAX_ZOOM, zoomState.lastScale + deltaY),
+      );
+
+      // Calculate zoom center point (use mouse position)
+      const containerRect = containerRef.current?.getBoundingClientRect();
+      if (containerRect) {
+        const centerX = e.clientX;
+        const centerY = e.clientY;
+
+        // Update scale with proper center point
+        setEditorState((prev) => {
+          // Calculate the point we're zooming into in the image's coordinate space
+          const zoomPointX = (centerX - prev.position.x) / prev.scale;
+          const zoomPointY = (centerY - prev.position.y) / prev.scale;
+
+          // Calculate new position to maintain zoom point
+          const newPosX = centerX - zoomPointX * newScale;
+          const newPosY = centerY - zoomPointY * newScale;
+
+          return {
+            ...prev,
+            scale: newScale,
+            containerScale: newScale,
+            position: { x: newPosX, y: newPosY },
+          };
+        });
+      }
+    }
+  };
+
+  const handleZoomEnd = () => {
+    if (zoomState.isZooming) {
+      setZoomState((prev) => ({
+        ...prev,
+        isZooming: false,
+      }));
+    }
+  };
+
+  // Add this new function to calculate grid size:
+  const calculateGridSize = (scale: number): number => {
+    const baseSize = GRID_BASE_SIZE;
+    // Adjust grid size based on zoom level
+    if (scale < 0.5) return baseSize * 4;
+    if (scale < 1) return baseSize * 2;
+    if (scale > 2) return baseSize / 2;
+    return baseSize;
+  };
+
+  const handleZoom = (delta: number, centerX?: number, centerY?: number) => {
+    if (!containerRef.current) return;
+
+    const ZOOM_FACTOR = 0.1; // Smaller value for smoother zoom
+    const container = containerRef.current.getBoundingClientRect();
+
     setEditorState((prev) => {
-      const newScale = Math.max(0.1, Math.min(3, prev.scale + delta));
+      // Calculate new scale with smooth interpolation
+      const scaleDelta = delta * ZOOM_FACTOR * prev.scale;
+      const newScale = Math.max(
+        MIN_ZOOM,
+        Math.min(MAX_ZOOM, prev.scale + scaleDelta),
+      );
+
+      // Use provided center point or container center
+      const zoomCenterX = centerX ?? container.width / 2;
+      const zoomCenterY = centerY ?? container.height / 2;
+
+      // Calculate the point we're zooming into in the image's coordinate space
+      const zoomPointX = (zoomCenterX - prev.position.x) / prev.scale;
+      const zoomPointY = (zoomCenterY - prev.position.y) / prev.scale;
+
+      // Calculate new position to maintain zoom point
+      const newPosX = zoomCenterX - zoomPointX * newScale;
+      const newPosY = zoomCenterY - zoomPointY * newScale;
+
       return {
         ...prev,
         scale: newScale,
         containerScale: newScale,
+        position: { x: newPosX, y: newPosY },
       };
     });
   };
@@ -657,7 +873,147 @@ export default function BlueprintEditor() {
     return `msg-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
   }
 
-  // Replace your handleSendMessage function with this one
+  // // Replace your handleSendMessage function with this one
+  // const handleSendMessage = useCallback(async () => {
+  //   if (!input.trim()) return;
+
+  //   const userMessageId = generateMessageId();
+  //   const userMessage = {
+  //     id: userMessageId,
+  //     content: input,
+  //     isAi: false,
+  //     isImage: false,
+  //   };
+  //   setMessages((prev) => [...prev, userMessage]);
+  //   setInput("");
+
+  //   if (/I want a sign that says/i.test(userMessage.content)) {
+  //     setGeneratingImage(true);
+  //     const loadingId = generateMessageId();
+  //     const loadingMessage = {
+  //       id: loadingId,
+  //       content: "Generating image...",
+  //       isAi: true,
+  //       isImage: false,
+  //       isLoading: true, // ADD THIS LINE
+  //     };
+  //     setMessages((prev) => [...prev, loadingMessage]);
+
+  //     try {
+  //       const hiveResponse = await fetch(
+  //         "https://api.thehive.ai/api/v3/hive/sdxl-enhanced",
+  //         {
+  //           method: "POST",
+  //           headers: {
+  //             accept: "application/json",
+  //             authorization: "Bearer ", //zWgw8Jzre3zOXmAnNcbTa1fNJX7LRPc2
+  //             "Content-Type": "application/json",
+  //           },
+  //           body: JSON.stringify({
+  //             input: {
+  //               prompt: userMessage.content,
+  //               negative_prompt: "realistic",
+  //               image_size: { width: 1024, height: 1024 },
+  //               guidance_scale: 5,
+  //               num_images: 1,
+  //               seed: -1,
+  //               output_format: "jpeg",
+  //             },
+  //           }),
+  //         },
+  //       );
+  //       const hiveData = await hiveResponse.json();
+  //       if (
+  //         hiveData &&
+  //         hiveData.output &&
+  //         hiveData.output[0] &&
+  //         hiveData.output[0].url
+  //       ) {
+  //         const imageUrl = hiveData.output[0].url;
+  //         const imageMessage = {
+  //           id: generateMessageId(),
+  //           content: imageUrl,
+  //           isAi: true,
+  //           isImage: true,
+  //         };
+  //         setMessages((prev) =>
+  //           prev.filter((m) => m.id !== loadingId).concat(imageMessage),
+  //         );
+  //       } else {
+  //         const errorMessage = {
+  //           id: generateMessageId(),
+  //           content: "Sorry, I couldn't generate the image.",
+  //           isAi: true,
+  //           isImage: false,
+  //         };
+  //         setMessages((prev) =>
+  //           prev.filter((m) => m.id !== loadingId).concat(errorMessage),
+  //         );
+  //       }
+  //     } catch (error) {
+  //       const errorMessage = {
+  //         id: generateMessageId(),
+  //         content: "There was an error generating the image.",
+  //         isAi: true,
+  //         isImage: false,
+  //       };
+  //       setMessages((prev) =>
+  //         prev.filter((m) => m.id !== loadingId).concat(errorMessage),
+  //       );
+  //     }
+  //   } else {
+  //     try {
+  //       const response = await fetch(
+  //         "https://api.openai.com/v1/chat/completions",
+  //         {
+  //           method: "POST",
+  //           headers: {
+  //             "Content-Type": "application/json",
+  //             Authorization: "Bearer ", //const mySecret = process.env['OpenAIKey']
+  //           },
+  //           body: JSON.stringify({
+  //             model: "gpt-4o-mini",
+  //             messages: [
+  //               ...messages
+  //                 .filter((m) => !m.isAi)
+  //                 .map((m) => ({ role: "user", content: m.content })),
+  //               { role: "user", content: input },
+  //             ],
+  //           }),
+  //         },
+  //       );
+
+  //       const data = await response.json();
+  //       if (data && data.choices && data.choices.length > 0) {
+  //         const aiMessage = {
+  //           id: generateMessageId(),
+  //           content: data.choices[0].message.content.trim(),
+  //           isAi: true,
+  //           isImage: false,
+  //         };
+  //         setMessages((prev) => [...prev, aiMessage]);
+  //       } else {
+  //         const errorMessage = {
+  //           id: generateMessageId(),
+  //           content: "Sorry, I couldn't understand your request.",
+  //           isAi: true,
+  //           isImage: false,
+  //         };
+  //         setMessages((prev) => [...prev, errorMessage]);
+  //       }
+  //     } catch (error) {
+  //       const errorMessage = {
+  //         id: generateMessageId(),
+  //         content: "There was an error processing your request.",
+  //         isAi: true,
+  //         isImage: false,
+  //       };
+  //       setMessages((prev) => [...prev, errorMessage]);
+  //     }
+  //   }
+  // }, [input, promptInput, messages]);
+
+  // Modify your handleSendMessage function to include command processing
   const handleSendMessage = useCallback(async () => {
     if (!input.trim()) return;
 
@@ -669,134 +1025,28 @@ export default function BlueprintEditor() {
       isImage: false,
     };
     setMessages((prev) => [...prev, userMessage]);
-    setInput("");
 
-    if (/I want a sign that says/i.test(userMessage.content)) {
-      setGeneratingImage(true);
-      const loadingId = generateMessageId();
-      const loadingMessage = {
-        id: loadingId,
-        content: "Generating image...",
+    // Check for editor commands
+    const command = parseEditorCommand(input);
+    if (command) {
+      // Execute the command
+      await executeEditorCommand(command);
+
+      // Add AI confirmation message
+      const confirmationMessage = {
+        id: generateMessageId(),
+        content: `I've ${command.action}ed the ${command.elementType} to your Blueprint. You can now customize it in the properties panel.`,
         isAi: true,
         isImage: false,
-        isLoading: true, // ADD THIS LINE
       };
-      setMessages((prev) => [...prev, loadingMessage]);
+      setMessages((prev) => [...prev, confirmationMessage]);
 
-      try {
-        const hiveResponse = await fetch(
-          "https://api.thehive.ai/api/v3/hive/sdxl-enhanced",
-          {
-            method: "POST",
-            headers: {
-              accept: "application/json",
-              authorization: "Bearer zWgw8Jzre3zOXmAnNcbTa1fNJX7LRPc2",
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              input: {
-                prompt: userMessage.content,
-                negative_prompt: "realistic",
-                image_size: { width: 1024, height: 1024 },
-                guidance_scale: 5,
-                num_images: 1,
-                seed: -1,
-                output_format: "jpeg",
-              },
-            }),
-          },
-        );
-        const hiveData = await hiveResponse.json();
-        if (
-          hiveData &&
-          hiveData.output &&
-          hiveData.output[0] &&
-          hiveData.output[0].url
-        ) {
-          const imageUrl = hiveData.output[0].url;
-          const imageMessage = {
-            id: generateMessageId(),
-            content: imageUrl,
-            isAi: true,
-            isImage: true,
-          };
-          setMessages((prev) =>
-            prev.filter((m) => m.id !== loadingId).concat(imageMessage),
-          );
-        } else {
-          const errorMessage = {
-            id: generateMessageId(),
-            content: "Sorry, I couldn't generate the image.",
-            isAi: true,
-            isImage: false,
-          };
-          setMessages((prev) =>
-            prev.filter((m) => m.id !== loadingId).concat(errorMessage),
-          );
-        }
-      } catch (error) {
-        const errorMessage = {
-          id: generateMessageId(),
-          content: "There was an error generating the image.",
-          isAi: true,
-          isImage: false,
-        };
-        setMessages((prev) =>
-          prev.filter((m) => m.id !== loadingId).concat(errorMessage),
-        );
-      }
-    } else {
-      try {
-        const response = await fetch(
-          "https://api.openai.com/v1/chat/completions",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization:
-                "Bearer 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",
-            },
-            body: JSON.stringify({
-              model: "gpt-4o-mini",
-              messages: [
-                ...messages
-                  .filter((m) => !m.isAi)
-                  .map((m) => ({ role: "user", content: m.content })),
-                { role: "user", content: input },
-              ],
-            }),
-          },
-        );
-
-        const data = await response.json();
-        if (data && data.choices && data.choices.length > 0) {
-          const aiMessage = {
-            id: generateMessageId(),
-            content: data.choices[0].message.content.trim(),
-            isAi: true,
-            isImage: false,
-          };
-          setMessages((prev) => [...prev, aiMessage]);
-        } else {
-          const errorMessage = {
-            id: generateMessageId(),
-            content: "Sorry, I couldn't understand your request.",
-            isAi: true,
-            isImage: false,
-          };
-          setMessages((prev) => [...prev, errorMessage]);
-        }
-      } catch (error) {
-        const errorMessage = {
-          id: generateMessageId(),
-          content: "There was an error processing your request.",
-          isAi: true,
-          isImage: false,
-        };
-        setMessages((prev) => [...prev, errorMessage]);
-      }
+      setInput("");
+      return;
     }
-  }, [input, promptInput, messages]);
+
+    // Rest of your existing handleSendMessage logic...
+  }, [input, selectedElement]);
 
   // In your message rendering code where you map over messages:
   <div className="h-[300px] overflow-y-auto p-4 space-y-4 border rounded-md mt-4">
@@ -915,40 +1165,108 @@ export default function BlueprintEditor() {
 
   // Only trigger analysis once when floor plan is first loaded
   useEffect(() => {
-    let isSubscribed = true;
+    if (editorState.layout.url && !isAnalyzing) {
+      const analyzeFloorPlan = async () => {
+        try {
+          setIsAnalyzing(true);
+          const base64Image = await convertImageToBase64(
+            editorState.layout.url,
+          );
+          if (!base64Image)
+            throw new Error("Failed to convert image to base64");
 
-    if (editorState.layout.url && !isAnalyzing && !geminiAnalysis) {
-      // Use a debounced version of the analysis to prevent spam
-      const timeoutId = setTimeout(async () => {
-        if (!isSubscribed) return;
-        await analyzeFloorPlanWithGemini(editorState.layout.url);
-      }, 1000); // Wait 1 second before triggering analysis
+          const response = await fetch(
+            "https://generativelanguage.googleapis.com/v1/models/gemini-pro-vision:generateContent",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${process.env.GEMINI_API_KEY}`,
+              },
+              body: JSON.stringify({
+                contents: [
+                  {
+                    parts: [
+                      {
+                        text: "Analyze this floor plan and provide insights about the layout, potential hotspots, and suggestions for improvement. Focus on spatial organization, traffic flow, and areas that could benefit from AR enhancements.",
+                      },
+                      {
+                        inline_data: {
+                          mime_type: "image/jpeg",
+                          data: base64Image,
+                        },
+                      },
+                    ],
+                  },
+                ],
+              }),
+            },
+          );
 
-      return () => {
-        clearTimeout(timeoutId);
-        isSubscribed = false;
+          if (!response.ok) {
+            throw new Error(
+              "Gemini analysis request failed: " + response.statusText,
+            );
+          }
+
+          const analysisData = await response.json();
+          const analysis = analysisData.candidates[0].content.parts[0].text;
+          setGeminiAnalysis(analysis);
+          toast({
+            title: "Analysis Complete",
+            description: "Floor plan analysis has been generated successfully.",
+          });
+        } catch (error) {
+          console.error("Floor plan analysis error:", error);
+          toast({
+            title: "Analysis Failed",
+            description: "Failed to analyze the floor plan. Please try again.",
+            variant: "destructive",
+          });
+        } finally {
+          setIsAnalyzing(false);
+        }
       };
-    }
 
-    return () => {
-      isSubscribed = false;
-    };
-  }, [editorState.layout.url]); // Add toast to dependencies
+      analyzeFloorPlan();
+    }
+  }, [editorState.layout.url]); // Only depend on layout URL
 
   // ADD THIS FUNCTION inside your BlueprintEditor component, before return:
   async function analyzeFloorPlanWithGemini(floorPlanUrl: string) {
     if (!floorPlanUrl) return;
     setIsAnalyzing(true);
     try {
-      const response = await fetch('/api/gemini/analyze', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const base64Image = await convertImageToBase64(floorPlanUrl);
+      if (!base64Image) throw new Error("Failed to convert image to base64");
+
+      const response = await fetch(
+        "https://generativelanguage.googleapis.com/v1/models/gemini-1-vision:generateContent",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.GEMINI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text: "Analyze this floor plan and provide insights about the layout, potential hotspots, and suggestions for improvement. Focus on spatial organization, traffic flow, and areas that could benefit from AR enhancements.",
+                  },
+                  {
+                    inline_data: {
+                      mime_type: "image/jpeg",
+                      data: base64Image,
+                    },
+                  },
+                ],
+              },
+            ],
+          }),
         },
-        body: JSON.stringify({
-          imageUrl: floorPlanUrl
-        }),
-      });
+      );
 
       if (!response.ok) {
         throw new Error(
@@ -956,8 +1274,9 @@ export default function BlueprintEditor() {
         );
       }
 
-      const data = await response.json();
-      setGeminiAnalysis(data.analysis);
+      const analysisData = await response.json();
+      const analysis = analysisData.candidates[0].content.parts[0].text;
+      setGeminiAnalysis(analysis);
       toast({
         title: "Analysis Complete",
         description: "Floor plan analysis has been generated successfully.",
@@ -1078,15 +1397,18 @@ export default function BlueprintEditor() {
           </div>
         )}
 
-        {/* Chat Button */}
-        <Button
-          variant="outline"
-          size="icon"
-          className="fixed bottom-4 right-4 z-50 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 bg-blue-600 text-white"
-          onClick={() => setIsChatOpen(true)}
-        >
-          <MessageCircle className="h-6 w-6" />
-        </Button>
+        {/* Fixed Bottom-Right Buttons */}
+        <div className="fixed bottom-4 right-4 z-50 flex gap-2">
+          <ScreenShareButton />
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-full shadow-lg hover:shadow-xl transition-all duration-200 bg-blue-600 text-white"
+            onClick={() => setIsChatOpen(true)}
+          >
+            <MessageCircle className="h-6 w-6" />
+          </Button>
+        </div>
 
         {/* Floating Chat Box */}
         {isChatOpen && (
@@ -1274,33 +1596,33 @@ export default function BlueprintEditor() {
 
         {/* Main Editor Area */}
         <div
-          className={`flex-1 relative ml-64 min-h-[calc(100vh-4rem)] isolate ${isPanMode ? "cursor-grab" : ""} ${isDragging ? "cursor-grabbing" : ""} ${
-            editorState.isPlacementMode
-              ? "ring-2 ring-primary ring-opacity-50"
-              : ""
-          }`}
+          className={`flex-1 relative ml-64 min-h-[calc(100vh-4rem)] isolate ${isPanMode ? "cursor-grab" : ""} ${
+            isDragging ? "cursor-grabbing" : ""
+          } ${editorState.isPlacementMode ? "ring-2 ring-primary ring-opacity-50" : ""}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          onMouseDown={handlePanStart}
-          onMouseMove={handlePanMove}
-          onMouseUp={handlePanEnd}
-          onMouseLeave={handlePanEnd}
+          onMouseDown={zoomState.isZooming ? handleZoomStart : handlePanStart}
+          onMouseMove={zoomState.isZooming ? handleZoomMove : handlePanMove}
+          onMouseUp={zoomState.isZooming ? handleZoomEnd : handlePanEnd}
+          onMouseLeave={zoomState.isZooming ? handleZoomEnd : handlePanEnd}
+          onWheel={handleWheel}
           onContextMenu={(e: MouseEvent<HTMLDivElement>) => {
-            // Type the event
             e.preventDefault();
-
-            if (!containerRef.current) return; // Add this check
+            if (!containerRef.current) return;
 
             const containerBounds =
               containerRef.current.getBoundingClientRect();
-            // Calculate position relative to the container and scale
-            const x =
-              (e.clientX - containerBounds.left) / editorState.containerScale;
-            const y =
-              (e.clientY - containerBounds.top) / editorState.containerScale;
 
-            setPromptPosition({ x, y });
+            // Calculate position relative to container taking into account scroll position
+            const x = e.clientX - containerBounds.left;
+            const y = e.clientY - containerBounds.top;
+
+            // Set the prompt position in screen coordinates
+            setPromptPosition({
+              x: x + containerBounds.left,
+              y: y + containerBounds.top,
+            });
             setShowAiPrompt(true);
           }}
           ref={containerRef}
@@ -1364,18 +1686,21 @@ export default function BlueprintEditor() {
               <div
                 style={{
                   position: "fixed",
-                  left: mouseScreenPos.x + 15,
-                  top: mouseScreenPos.y + 15,
+                  left: mouseScreenPos.x + 30,
+                  top: mouseScreenPos.y,
                   zIndex: 9999,
                   pointerEvents: "none",
-                  backgroundColor: "rgba(0,0,0,0.7)",
+                  backgroundColor: "rgba(0,0,0,0.85)",
                   color: "#fff",
-                  padding: "2px 4px",
-                  borderRadius: "4px",
-                  fontSize: "12px",
+                  padding: "8px 12px",
+                  borderRadius: "6px",
+                  fontSize: "16px",
+                  fontWeight: 500,
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                  transform: "translate(0, -50%)",
                 }}
               >
-                X: {mousePos.x.toFixed(2)}, Y: {mousePos.y.toFixed(2)}
+                X: {mousePos.x.toFixed(0)}, Y: {mousePos.y.toFixed(0)}
               </div>
             )}
 
@@ -1472,7 +1797,7 @@ export default function BlueprintEditor() {
             {showAiPrompt && (
               <motion.div
                 style={{
-                  position: "absolute",
+                  position: "fixed",
                   left: `${promptPosition.x}px`,
                   top: `${promptPosition.y}px`,
                   zIndex: 9999,

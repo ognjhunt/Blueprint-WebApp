@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import GeminiMultimodal from "@/components/GeminiMultimodal";
+import { LiveAPIProvider } from "@/contexts/LiveAPIContext";
 import {
   BarChart,
   Building2,
@@ -47,6 +49,8 @@ import {
   where,
   getDocs,
 } from "firebase/firestore";
+import { ScreenShare } from "lucide-react";
+import ScreenShareButton from "@/components/ScreenShareButton";
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -414,6 +418,9 @@ export default function Dashboard() {
         </main>
       </div>
       <Footer />
+      <ScreenShareButton /> {/* Add this line here */}
+      // Add this to your JSX, right before the closing div:
+      <GeminiMultimodal />
     </div>
   );
 }

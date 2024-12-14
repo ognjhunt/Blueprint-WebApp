@@ -6,6 +6,7 @@ import { db } from "@/lib/firebase"; // ensure this is the correct path to your 
 import { useAuth } from "@/contexts/AuthContext"; // to access currentUser
 import { useState, useEffect, useCallback, ChangeEvent } from "react";
 import { Loader } from "@googlemaps/js-api-loader";
+import ScreenShareButton from "@/components/ScreenShareButton";
 import {
   ChevronRight,
   ChevronLeft,
@@ -1066,6 +1067,10 @@ export default function CreateBlueprint() {
             </form>
           </div>
         </div>
+      </div>
+      {/* Add the screen share button here */}
+      <div className="fixed bottom-4 right-4 z-50">
+        <ScreenShareButton />
       </div>
     </div>
   );

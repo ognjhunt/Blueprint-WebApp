@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
+import ScreenShareButton from "@/components/ScreenShareButton";
 import CustomerExperienceDesigner from "@/components/CustomerExperienceDesigner";
 import {
   Check,
@@ -922,6 +923,10 @@ export default function ClaimBlueprint() {
           handleNext();
         }}
       />
+      {/* Add the ScreenShareButton here */}
+      <div className="fixed bottom-4 right-4 z-50">
+        <ScreenShareButton />
+      </div>
     </div>
   );
 }

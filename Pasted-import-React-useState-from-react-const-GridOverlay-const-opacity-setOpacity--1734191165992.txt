@@ -1,0 +1,71 @@
+import React, { useState } from 'react';
+
+const GridOverlay = () => {
+  const [opacity, setOpacity] = useState(0.7);
+  
+  // Define grid size (1 foot = 20 pixels for example)
+  const GRID_SIZE = 20;
+  
+  return (
+    <div className="relative w-full h-full">
+      {/* Floor plan with transparency */}
+      <div 
+        className="absolute inset-0 z-10"
+        style={{ opacity: opacity }}
+      >
+        <img 
+          src="/api/placeholder/800/600"
+          alt="Floor Plan"
+          className="w-full h-full object-contain"
+        />
+      </div>
+      
+      {/* Grid overlay */}
+      <div 
+        className="absolute inset-0 z-20 pointer-events-none"
+        style={{
+          backgroundImage: `
+            linear-gradient(to right, rgba(0, 0, 0, 0.1) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 1px, transparent 1px)
+          `,
+          backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px`,
+          imageRendering: 'pixelated'
+        }}
+      />
+      
+      {/* Grid size indicator */}
+      <div className="absolute bottom-4 right-4 z-30 bg-white/90 p-2 rounded-lg shadow-lg text-sm">
+        <div className="flex items-center space-x-4">
+          <div>1 block = 1 ft²</div>
+          <div className="flex items-center space-x-2">
+            <label className="text-sm">Opacity:</label>
+            <input
+              type="range"
+              min="0.1"
+              max="1"
+              step="0.1"
+              value={opacity}
+              onChange={(e) => setOpacity(parseFloat(e.target.value))}
+              className="w-24"
+            />
+          </div>
+        </div>
+      </div>
+      
+      {/* Example room measurement overlay */}
+      <div className="absolute top-1/4 left-1/4 border-2 border-blue-500/50 bg-blue-100/20 z-15">
+        <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-2 py-1 rounded text-sm">
+          10' x 10'
+        </div>
+        <div 
+          style={{ 
+            width: `${10 * GRID_SIZE}px`, 
+            height: `${10 * GRID_SIZE}px` 
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+
+export default GridOverlay;
