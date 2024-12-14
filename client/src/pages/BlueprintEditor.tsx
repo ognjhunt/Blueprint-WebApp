@@ -1564,14 +1564,29 @@ export default function BlueprintEditor() {
             {/* View Options */}
             <div className="space-y-2 mt-4">
               <h3 className="text-sm font-medium">View Options</h3>
-              <Button
-                onClick={() => setShowGrid(!showGrid)}
-                className="w-full justify-start"
-                variant={showGrid ? "default" : "outline"}
-              >
-                <Grid className="w-4 h-4 mr-2" />
-                Show Grid
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  onClick={() => setShowGrid(!showGrid)}
+                  className="w-full justify-start"
+                  variant={showGrid ? "default" : "outline"}
+                >
+                  <Grid className="w-4 h-4 mr-2" />
+                  Show Grid
+                </Button>
+                <Button
+                  onClick={() => {
+                    setEditorState(prev => ({
+                      ...prev, 
+                      snapToGrid: !prev.snapToGrid
+                    }))
+                  }}
+                  className="w-full justify-start"
+                  variant={editorState.snapToGrid ? "default" : "outline"}
+                >
+                  <Magnet className="w-4 h-4 mr-2" />
+                  Snap to Grid
+                </Button>
+              </div>
               <Button
                 onClick={() => setIsPanMode(!isPanMode)}
                 className="w-full justify-start"
@@ -1773,7 +1788,27 @@ export default function BlueprintEditor() {
                       editorState.containerScale;
                     const newMouseY =
                       (event.clientY - bounds.top) / editorState.containerScale;
-                    setMousePos({ x: newMouseX, y: newMouseY });
+                    
+                    // Snap to grid (20px = 1ft)
+                    const gridSize = 20 * editorState.scale;
+                    const snappedX = Math.round(newMouseX / gridSize) * gridSize;
+                    const snappedY = Math.round(newMouseY / gridSize) * gridSize;
+                    
+                    // Update element position to snapped coordinates
+                    const elementIndex = elements.findIndex(el => el.id === element.id);
+                    if (elementIndex !== -1) {
+                      const updatedElements = [...elements];
+                      updatedElements[elementIndex] = {
+                        ...updatedElements[elementIndex],
+                        position: {
+                          x: (snappedX / containerRef.current.offsetWidth) * 100,
+                          y: (snappedY / containerRef.current.offsetHeight) * 100
+                        }
+                      };
+                      setElements(updatedElements);
+                    }
+                    
+                    setMousePos({ x: snappedX, y: snappedY });
                     setMouseScreenPos({ x: event.clientX, y: event.clientY });
                   }
                 }}
