@@ -2554,6 +2554,5 @@ export default function BlueprintEditor() {
         </div>
       </div>
     </div>
-    </>
   );
 }
