@@ -1,9 +1,6 @@
-"use client";
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
-import { USDZLoader } from "three-usdz-loader";
-import * as THREE from "three";
 
 // Camera controller component
 const CameraController = () => {
@@ -15,27 +12,6 @@ const CameraController = () => {
   }, [camera]);
 
   return null;
-};
-
-// Component to load and display the USDZ model
-const USDZModel = ({ modelUrl }: { modelUrl: string }) => {
-  const [model, setModel] = useState<THREE.Group | null>(null);
-
-  useEffect(() => {
-    const loader = new USDZLoader();
-    loader.load(
-      modelUrl,
-      (usdz) => {
-        setModel(usdz);
-      },
-      undefined,
-      (error) => {
-        console.error("Error loading USDZ model:", error);
-      },
-    );
-  }, [modelUrl]);
-
-  return model ? <primitive object={model} /> : null;
 };
 
 // Main viewer component
@@ -55,9 +31,6 @@ const ModelViewer = ({ modelUrl }: { modelUrl: string }) => {
         {/* Grid and axes helpers */}
         <gridHelper args={[20, 20]} />
         <axesHelper args={[5]} />
-
-        {/* USDZ Model */}
-        <USDZModel modelUrl={modelUrl} />
       </Canvas>
     </div>
   );

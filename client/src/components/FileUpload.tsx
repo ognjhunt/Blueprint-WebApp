@@ -4,12 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface FileUploadProps {
   onFileSelect: (file: File) => void;
   onFile3DSelect?: (file: File) => void;
   show3DUpload?: boolean;
   loading: boolean;
+  blueprintId: string; // Add this prop
 }
 
 const FileUpload = ({
@@ -17,9 +21,13 @@ const FileUpload = ({
   onFile3DSelect,
   show3DUpload,
   loading,
+  blueprintId, // Add this prop
 }: FileUploadProps) => {
   const [isDragging, setIsDragging] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selected3DFile, setSelected3DFile] = useState<File | null>(null);
+  const storage = getStorage();
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -30,16 +38,95 @@ const FileUpload = ({
     setIsDragging(false);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handle3DFileUpload = async (file: File) => {
+    try {
+      if (!blueprintId) {
+        throw new Error("Blueprint ID is required");
+      }
+
+      // 1. Upload to Firebase Storage with specific 3D models path
+      const storageRef = ref(
+        storage,
+        `blueprints/${blueprintId}/3d/${file.name}`,
+      );
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      // 2. Update Firestore document with both the URL and enable AR features
+      const blueprintRef = doc(db, "blueprints", blueprintId);
+      await updateDoc(blueprintRef, {
+        floorPlan3DUrl: downloadURL,
+        "features.arVisualizations": {
+          details: {
+            arModelUrls: downloadURL,
+            enabled: true,
+          },
+          enabled: true,
+        },
+      });
+
+      // 3. Call the provided callback
+      if (onFile3DSelect) {
+        onFile3DSelect(file);
+      }
+
+      setSelected3DFile(file);
+    } catch (error) {
+      console.error("Error uploading 3D file:", error);
+      setError("Failed to upload 3D file. Please try again.");
+      throw error; // Re-throw to handle in parent component
+    }
+  };
+
+  const validateFile = (file: File): boolean => {
+    setError(null);
+
+    if (show3DUpload) {
+      if (!file.name.toLowerCase().endsWith(".usdz")) {
+        setError("Only USDZ files are allowed");
+        return false;
+      }
+      if (file.size > 50 * 1024 * 1024) {
+        setError("File size must be less than 50MB");
+        return false;
+      }
+    } else {
+      if (!["image/png", "image/jpeg"].includes(file.type)) {
+        setError("Only PNG and JPEG files are allowed");
+        return false;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        setError("File size must be less than 10MB");
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
-    if (show3DUpload) {
-      if (file && file.type === "model/usdz") {
-        onFile3DSelect?.(file);
+
+    if (!file) return;
+
+    if (validateFile(file)) {
+      if (show3DUpload) {
+        await handle3DFileUpload(file);
+      } else {
+        onFileSelect(file);
       }
-    } else {
-      if (file && (file.type === "image/png" || file.type === "image/jpeg")) {
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (validateFile(file)) {
+      if (show3DUpload) {
+        await handle3DFileUpload(file);
+      } else {
         onFileSelect(file);
       }
     }
@@ -48,21 +135,6 @@ const FileUpload = ({
   const handleButtonClick = (e: React.MouseEvent) => {
     e.preventDefault();
     fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (show3DUpload) {
-        if (file.type === "model/usdz") {
-          onFile3DSelect?.(file);
-        }
-      } else {
-        if (file.type === "image/png" || file.type === "image/jpeg") {
-          onFileSelect(file);
-        }
-      }
-    }
   };
 
   return (
@@ -78,6 +150,13 @@ const FileUpload = ({
         exit={{ scale: 0.95, opacity: 0 }}
         className="w-full max-w-md mx-auto p-4"
       >
+        {/* Display selected file name */}
+        {show3DUpload && selected3DFile && (
+          <p className="text-sm text-gray-600">
+            Selected file: {selected3DFile.name}
+          </p>
+        )}
+
         <Card
           className={cn(
             "relative transition-all duration-200",
@@ -107,11 +186,7 @@ const FileUpload = ({
                     ref={fileInputRef}
                     type="file"
                     className="hidden"
-                    accept={
-                      show3DUpload
-                        ? "model/usdz"
-                        : "image/png,image/jpeg,image/jpg"
-                    }
+                    accept={show3DUpload ? ".usdz" : "image/png,image/jpeg"}
                     onChange={handleFileChange}
                     disabled={loading}
                   />
@@ -135,6 +210,10 @@ const FileUpload = ({
                     )}
                   </Button>
                 </div>
+
+                {error && (
+                  <p className="text-sm text-red-500 font-medium">{error}</p>
+                )}
 
                 <p className="text-sm text-muted-foreground">
                   {show3DUpload

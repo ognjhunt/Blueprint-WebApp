@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import ViewModeToggle from "@/components/ViewModeToggle";
+import ModelViewer from "@/components/ModelViewer"; // Import ModelViewer
 import { MouseEvent } from "react"; // Import MouseEvent
 import { createDrawTools, type DrawTools } from "@/lib/drawTools";
 import {
@@ -383,6 +384,7 @@ export default function BlueprintEditor() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [mouseScreenPos, setMouseScreenPos] = useState({ x: 0, y: 0 });
   const [viewMode, setViewMode] = useState<"2D" | "3D">("2D");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const [isHighlighting, setIsHighlighting] = useState(false);
   const [highlightStartPos, setHighlightStartPos] = useState<Position | null>(
@@ -592,16 +594,36 @@ export default function BlueprintEditor() {
 
   // Add near handleFileUpload
   const handle3DFileUpload = async (file: File) => {
+    setSelectedFile(file);
     setLoading(true);
     try {
       // Upload to Firebase Storage
-      const storageRef = ref(storage, `blueprints/${blueprintId}/3d`);
+      const storageRef = ref(
+        storage,
+        `blueprints/${blueprintId}/3d/${file.name}`,
+      );
       await uploadBytes(storageRef, file);
       const downloadURL = await getDownloadURL(storageRef);
 
       // Update Firestore with the 3D model URL
-      await updateDoc(doc(db, "blueprints", blueprintId), {
-        floorPlan3DUrl: downloadURL,
+      const blueprintRef = doc(db, "blueprints", blueprintId);
+
+      // Get the current blueprint data
+      const blueprintSnap = await getDoc(blueprintRef); // Fetch the document
+      const blueprintData = blueprintSnap.data() || {}; // Get data or empty object
+
+      await updateDoc(blueprintRef, {
+        floorPlan3DUrl: downloadURL, // Update 3D URL
+        features: {
+          ...blueprintData.features, // Now blueprintData is defined
+          arVisualizations: {
+            details: {
+              arModelUrls: downloadURL,
+              enabled: true,
+            },
+            enabled: true, // Add this line to enable the feature
+          },
+        },
       });
 
       // Update local state
@@ -612,6 +634,13 @@ export default function BlueprintEditor() {
           url3D: downloadURL,
         },
       }));
+
+      setSelectedFile(null); // Clear selected file
+
+      toast({
+        title: "Success",
+        description: "3D model uploaded successfully",
+      });
     } catch (error) {
       console.error("3D model upload error:", error);
       toast({
@@ -1382,7 +1411,7 @@ export default function BlueprintEditor() {
   }, []);
 
   useEffect(() => {
-  if (!blueprintId) return;
+    if (!blueprintId) return;
 
     const loadBlueprint = async () => {
       setLoading(true);
@@ -1408,14 +1437,14 @@ export default function BlueprintEditor() {
 
           // Update editor state based on view mode
           if (viewMode === "2D" && blueprintData.floorPlanUrl) {
-            // Load 2D floor plan
+            // Load 2D floor plan ONLY IF floorPlanUrl exists
             const img = new Image();
             img.onload = () => {
               const containerWidth = containerRef.current?.clientWidth || 800;
               const containerHeight = containerRef.current?.clientHeight || 600;
               const scale = Math.min(
                 containerWidth / img.width,
-                containerHeight / img.height
+                containerHeight / img.height,
               );
 
               setEditorState((prev) => ({
@@ -1439,13 +1468,38 @@ export default function BlueprintEditor() {
             };
             img.src = blueprintData.floorPlanUrl;
           } else if (viewMode === "3D") {
-            // Just set the 3D URL if available
+            return (
+              <div className="absolute inset-0 flex items-center justify-center">
+                {editorState.layout.url3D ? (
+                  <div className="w-full h-full">
+                    <ModelViewer modelUrl={editorState.layout.url3D} />
+                  </div>
+                ) : (
+                  <FileUpload
+                    onFileSelect={handle3DFileUpload}
+                    loading={isLoading}
+                    show3DUpload
+                    blueprintId={blueprintId}
+                  />
+                )}
+              </div>
+            );
+          } else if (viewMode === "2D" && !blueprintData.floorPlanUrl) {
+            // Reset the layout if no floorPlanUrl
             setEditorState((prev) => ({
               ...prev,
               layout: {
-                ...prev.layout,
-                url3D: blueprintData.floorPlan3DUrl || "",
+                url: "",
+                url3D: "",
+                name: "",
+                aspectRatio: 1,
+                originalWidth: 0,
+                originalHeight: 0,
               },
+              scale: 1,
+              containerScale: 1,
+              position: { x: 0, y: 0 },
+              isPlacementMode: false,
             }));
           }
         }
@@ -1957,7 +2011,8 @@ export default function BlueprintEditor() {
 
           {viewMode === "2D" ? (
             <>
-              <div className={`absolute top-0 left-0 ${showGrid ? "bg-grid-pattern" : ""}`}
+              <div
+                className={`absolute top-0 left-0 ${showGrid ? "bg-grid-pattern" : ""}`}
                 style={{
                   width: `${editorState.layout.originalWidth * editorState.scale}px`,
                   height: `${editorState.layout.originalHeight * editorState.scale}px`,
@@ -1965,9 +2020,13 @@ export default function BlueprintEditor() {
                   transformOrigin: "center",
                   transition: isDragging ? "none" : "transform 0.1s ease-out",
                   zIndex: 0,
-                }}>
+                }}
+              >
                 {editorState.layout.url && (
-                  <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 1 }}>
+                  <div
+                    className="absolute inset-0 flex items-center justify-center"
+                    style={{ zIndex: 1 }}
+                  >
                     <img
                       src={editorState.layout.url}
                       alt="Store Layout"
@@ -1991,10 +2050,15 @@ export default function BlueprintEditor() {
                     dragMomentum={false}
                     onDragEnd={(event, info) => {
                       if (containerRef.current) {
-                        const bounds = containerRef.current.getBoundingClientRect();
+                        const bounds =
+                          containerRef.current.getBoundingClientRect();
                         const newPosition = {
-                          x: ((event.clientX - bounds.left) / bounds.width) * 100,
-                          y: ((event.clientY - bounds.top) / bounds.height) * 100,
+                          x:
+                            ((event.clientX - bounds.left) / bounds.width) *
+                            100,
+                          y:
+                            ((event.clientY - bounds.top) / bounds.height) *
+                            100,
                         };
                         handleDragEnd(element.id, newPosition);
                       }
@@ -2009,7 +2073,9 @@ export default function BlueprintEditor() {
                         {element.content.title}
                         <Pencil className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-white" />
                       </div>
-                      <div className="text-xs text-white/80">{element.type}</div>
+                      <div className="text-xs text-white/80">
+                        {element.type}
+                      </div>
                       <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-75 transition-opacity pointer-events-none whitespace-nowrap">
                         Double-tap to edit
                       </div>
@@ -2019,7 +2085,13 @@ export default function BlueprintEditor() {
 
                 {!editorState.layout.url && !isLoading && (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <FileUpload onFileSelect={handleFileUpload} loading={isLoading} />
+                    <FileUpload
+                      onFileSelect={handleFileUpload}
+                      onFile3DSelect={handle3DFileUpload}
+                      loading={isLoading}
+                      show3DUpload
+                      blueprintId={blueprintId} // Add this prop
+                    />
                   </div>
                 )}
               </div>
@@ -2042,6 +2114,7 @@ export default function BlueprintEditor() {
                     onFileSelect={handle3DFileUpload}
                     loading={isLoading}
                     show3DUpload
+                    blueprintId={blueprintId} // Add this line
                   />
                 )}
               </div>
@@ -2049,7 +2122,10 @@ export default function BlueprintEditor() {
           )}
 
           {isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/80" style={{ zIndex: 3 }}>
+            <div
+              className="absolute inset-0 flex items-center justify-center bg-white/80"
+              style={{ zIndex: 3 }}
+            >
               <Loader2 className="w-8 h-8 animate-spin" />
               <span className="ml-2">Processing image...</span>
             </div>
@@ -2057,479 +2133,479 @@ export default function BlueprintEditor() {
 
           {/* Placement Mode Button */}
 
-            {showAiPrompt && (
-              <motion.div
-                style={{
-                  position: "fixed",
-                  left: `${promptPosition.x}px`,
-                  top: `${promptPosition.y}px`,
-                  zIndex: 9999,
+          {showAiPrompt && (
+            <motion.div
+              style={{
+                position: "fixed",
+                left: `${promptPosition.x}px`,
+                top: `${promptPosition.y}px`,
+                zIndex: 9999,
+              }}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white rounded-lg shadow-md p-4 w-80 relative space-y-3"
+            >
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-2 right-2"
+                onClick={() => setShowAiPrompt(false)}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24">
+                  <path
+                    d="M6 18L18 6M6 6l12 12"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </Button>
+              <textarea
+                placeholder="What would you like to see here?"
+                value={promptInput}
+                onChange={(e) => setPromptInput(e.target.value)}
+                onInput={(e) => {
+                  e.currentTarget.style.height = "auto";
+                  e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
                 }}
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.8, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="bg-white rounded-lg shadow-md p-4 w-80 relative space-y-3"
-              >
+                rows={1}
+                className="w-full px-4 py-3 text-base rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none overflow-hidden"
+              />
+              {generatingImage ? ( // Conditionally render loading indicator or submit button
+                <div className="flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                  Generating...
+                </div>
+              ) : (
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute top-2 right-2"
-                  onClick={() => setShowAiPrompt(false)}
-                >
-                  <svg className="h-4 w-4" viewBox="0 0 24 24">
-                    <path
-                      d="M6 18L18 6M6 6l12 12"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </Button>
-                <textarea
-                  placeholder="What would you like to see here?"
-                  value={promptInput}
-                  onChange={(e) => setPromptInput(e.target.value)}
-                  onInput={(e) => {
-                    e.currentTarget.style.height = "auto";
-                    e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
+                  onClick={async () => {
+                    setGeneratingImage(true); // Set loading state to true *before* the API call
+                    await handleSendMessage();
+                    setGeneratingImage(false);
+                    setShowAiPrompt(false);
+                    setPromptInput("");
                   }}
-                  rows={1}
-                  className="w-full px-4 py-3 text-base rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none overflow-hidden"
-                />
-                {generatingImage ? ( // Conditionally render loading indicator or submit button
-                  <div className="flex items-center justify-center">
-                    <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                    Generating...
-                  </div>
-                ) : (
-                  <Button
-                    onClick={async () => {
-                      setGeneratingImage(true); // Set loading state to true *before* the API call
-                      await handleSendMessage();
-                      setGeneratingImage(false);
-                      setShowAiPrompt(false);
-                      setPromptInput("");
-                    }}
-                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg px-4 py-2"
-                  >
-                    Submit
-                  </Button>
-                )}
-              </motion.div> // Correctly closed motion.div
-            )}
-          </div>
-
-          {/* Placement Mode Button */}
-          {editorState.layout.url && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
-              <Button
-                variant={editorState.isPlacementMode ? "default" : "secondary"}
-                onClick={() =>
-                  setEditorState((prev) => ({
-                    ...prev,
-                    isPlacementMode: !prev.isPlacementMode,
-                  }))
-                }
-                className="shadow-lg bg-primary text-white hover:bg-primary/90"
-                size="lg"
-              >
-                {editorState.isPlacementMode ? (
-                  <>
-                    <Pencil className="w-4 h-4 mr-2" />
-                    Editing Layout
-                  </>
-                ) : (
-                  <>
-                    <PlusCircle className="w-4 h-4 mr-2" />
-                    Place AR Elements
-                  </>
-                )}
-              </Button>
-            </div>
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg px-4 py-2"
+                >
+                  Submit
+                </Button>
+              )}
+            </motion.div> // Correctly closed motion.div
           )}
+        </div>
 
-          {/* Controls */}
-          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 space-x-2 z-[100]">
-            <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm p-2 rounded-lg shadow-lg">
-              <div className="space-x-1">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handleZoom(-0.1)}
-                  title="Zoom Out"
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handleZoom(0.1)}
-                  title="Zoom In"
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
+        {/* Placement Mode Button */}
+        {editorState.layout.url && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
+            <Button
+              variant={editorState.isPlacementMode ? "default" : "secondary"}
+              onClick={() =>
+                setEditorState((prev) => ({
+                  ...prev,
+                  isPlacementMode: !prev.isPlacementMode,
+                }))
+              }
+              className="shadow-lg bg-primary text-white hover:bg-primary/90"
+              size="lg"
+            >
+              {editorState.isPlacementMode ? (
+                <>
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Editing Layout
+                </>
+              ) : (
+                <>
+                  <PlusCircle className="w-4 h-4 mr-2" />
+                  Place AR Elements
+                </>
+              )}
+            </Button>
+          </div>
+        )}
 
-              <div className="space-x-1">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handleRotation(-90)}
-                  title="Rotate Left"
-                >
-                  <RotateCw className="h-4 w-4 -scale-x-100" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handleRotation(90)}
-                  title="Rotate Right"
-                >
-                  <RotateCw className="h-4 w-4" />
-                </Button>
-              </div>
-
-              <div className="space-x-1">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handleAlign("horizontal")}
-                  title="Align Horizontally"
-                >
-                  <AlignStartHorizontal className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handleAlign("vertical")}
-                  title="Align Vertically"
-                >
-                  <AlignStartVertical className="h-4 w-4" />
-                </Button>
-              </div>
-
+        {/* Controls */}
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 space-x-2 z-[100]">
+          <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm p-2 rounded-lg shadow-lg">
+            <div className="space-x-1">
               <Button
-                variant={editorState.snapToGrid ? "default" : "outline"}
-                size="sm"
-                onClick={() =>
-                  setEditorState((prev) => ({
-                    ...prev,
-                    snapToGrid: !prev.snapToGrid,
-                  }))
-                }
-                className="ml-2"
+                variant="outline"
+                size="icon"
+                onClick={() => handleZoom(-0.1)}
+                title="Zoom Out"
               >
-                <Grid className="h-4 w-4 mr-2" />
-                Snap to Grid
+                <Minus className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleZoom(0.1)}
+                title="Zoom In"
+              >
+                <Plus className="h-4 w-4" />
               </Button>
             </div>
-          </div>
 
-          {/* Properties Panel */}
-          <AnimatePresence>
-            {selectedElement && (
-              <motion.div
-                className="w-80 bg-white/95 backdrop-blur-sm border-l p-4 fixed top-16 right-0 bottom-0 shadow-lg z-50 overflow-y-auto"
-                initial={{ x: "100%" }}
-                animate={{ x: 0 }}
-                exit={{ x: "100%" }}
-                transition={{ type: "spring", damping: 30, stiffness: 300 }}
-                onClick={(e) => e.stopPropagation()}
-                onDoubleClick={(e) => e.stopPropagation()}
+            <div className="space-x-1">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleRotation(-90)}
+                title="Rotate Left"
               >
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Element Properties</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="title">Title</Label>
-                      <Input
-                        id="title"
-                        value={selectedElement.content.title}
-                        onChange={(e) =>
-                          updateElementContent(selectedElement.id, {
-                            title: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="description">Description</Label>
-                      <Input
-                        id="description"
-                        value={selectedElement.content.description}
-                        onChange={(e) =>
-                          updateElementContent(selectedElement.id, {
-                            description: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="trigger">Trigger Type</Label>
-                      <Select
-                        value={selectedElement.content.trigger}
-                        onValueChange={(value) =>
-                          updateElementContent(selectedElement.id, {
-                            trigger: value as "proximity" | "click" | "always",
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select trigger type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="click">Click</SelectItem>
-                          <SelectItem value="proximity">Proximity</SelectItem>
-                          <SelectItem value="always">Always</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {selectedElement.type === "media" && (
-                      <div className="space-y-2">
-                        <Label>Media Upload</Label>
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                          {selectedElement.content.mediaUrl ? (
-                            <div className="space-y-2">
-                              {selectedElement.content.mediaType === "image" ? (
-                                <img
-                                  src={selectedElement.content.mediaUrl}
-                                  alt="Uploaded media"
-                                  className="max-w-full h-auto rounded"
-                                />
-                              ) : (
-                                <video
-                                  src={selectedElement.content.mediaUrl}
-                                  controls
-                                  className="max-w-full h-auto rounded"
-                                />
-                              )}
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                className="w-full"
-                                onClick={() =>
-                                  updateElementContent(selectedElement.id, {
-                                    mediaUrl: undefined,
-                                    mediaType: undefined,
-                                  })
-                                }
-                              >
-                                Remove Media
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="text-center">
-                              <Input
-                                type="file"
-                                accept={
-                                  selectedElement.type === "image"
-                                    ? "image/*"
-                                    : "video/*"
-                                }
-                                className="hidden"
-                                id="media-upload"
-                                onChange={async (e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    try {
-                                      const url = await createImageUrl(file);
-                                      updateElementContent(selectedElement.id, {
-                                        mediaUrl: url,
-                                        mediaType: file.type.startsWith("image")
-                                          ? "image"
-                                          : "video",
-                                      });
-                                    } catch (error) {
-                                      toast({
-                                        title: "Upload Failed",
-                                        description:
-                                          "Failed to upload media. Please try again.",
-                                        variant: "destructive",
-                                      });
-                                    }
-                                  }
-                                }}
-                              />
-                              <Label
-                                htmlFor="media-upload"
-                                className="cursor-pointer flex flex-col items-center justify-center gap-2"
-                              >
-                                <div className="p-2 bg-primary/10 rounded-full">
-                                  {selectedElement.type === "image" ? (
-                                    <ImageIcon className="w-6 h-6 text-primary" />
-                                  ) : (
-                                    <Video className="w-6 h-6 text-primary" />
-                                  )}
-                                </div>
-                                <span className="text-sm text-gray-500">
-                                  Click to upload {selectedElement.type}
-                                </span>
-                              </Label>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Title</Label>
-                      <Input
-                        value={selectedElement.content.title}
-                        onChange={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          updateElementContent(selectedElement.id, {
-                            title: e.target.value,
-                          });
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        onDoubleClick={(e) => e.stopPropagation()}
-                        className="focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Description</Label>
-                      <Input
-                        value={selectedElement.content.description}
-                        onChange={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          updateElementContent(selectedElement.id, {
-                            description: e.target.value,
-                          });
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        onDoubleClick={(e) => e.stopPropagation()}
-                        className="focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Trigger Type</Label>
-                      <Select
-                        value={selectedElement.content.trigger}
-                        onValueChange={(value) =>
-                          updateElementContent(selectedElement.id, {
-                            trigger: value as "proximity" | "click" | "always",
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="proximity">Proximity</SelectItem>
-                          <SelectItem value="click">Click</SelectItem>
-                          <SelectItem value="always">Always Visible</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-4">
-                      <div>
-                        <Label>Position</Label>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <Label className="text-xs">
-                              X: {selectedElement.position.x.toFixed(1)}%
-                            </Label>
-                            <Input
-                              type="range"
-                              min="0"
-                              max="100"
-                              value={selectedElement.position.x}
-                              onChange={(e) =>
-                                updateElementPosition(selectedElement.id, {
-                                  ...selectedElement.position,
-                                  x: parseFloat(e.target.value),
-                                })
-                              }
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs">
-                              Y: {selectedElement.position.y.toFixed(1)}%
-                            </Label>
-                            <Input
-                              type="range"
-                              min="0"
-                              max="100"
-                              value={selectedElement.position.y}
-                              onChange={(e) =>
-                                updateElementPosition(selectedElement.id, {
-                                  ...selectedElement.position,
-                                  y: parseFloat(e.target.value),
-                                })
-                              }
-                            />
-                          </div>
-                        </div>
-                      </div>
+                <RotateCw className="h-4 w-4 -scale-x-100" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleRotation(90)}
+                title="Rotate Right"
+              >
+                <RotateCw className="h-4 w-4" />
+              </Button>
+            </div>
 
-                      <div className="space-y-2">
-                        <Label>Layer Management</Label>
-                        <div className="flex space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              handleLayerOrder(selectedElement.id, "forward")
-                            }
-                            className="flex-1"
-                          >
-                            <Layers className="h-4 w-4 mr-2" />
-                            Bring Forward
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              handleLayerOrder(selectedElement.id, "backward")
-                            }
-                            className="flex-1"
-                          >
-                            <Layers className="h-4 w-4 mr-2 rotate-180" />
-                            Send Backward
-                          </Button>
-                        </div>
-                      </div>
+            <div className="space-x-1">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleAlign("horizontal")}
+                title="Align Horizontally"
+              >
+                <AlignStartHorizontal className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleAlign("vertical")}
+                title="Align Vertically"
+              >
+                <AlignStartVertical className="h-4 w-4" />
+              </Button>
+            </div>
 
-                      <div className="space-y-2">
-                        <Label>Element Actions</Label>
-                        <div className="flex space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              handleDuplicateElement(selectedElement)
-                            }
-                            className="flex-1"
-                          >
-                            <Copy className="h-4 w-4 mr-2" />
-                            Duplicate
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() =>
-                              handleDeleteElement(selectedElement.id)
-                            }
-                            className="flex-1"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            )}
-          </AnimatePresence>
+            <Button
+              variant={editorState.snapToGrid ? "default" : "outline"}
+              size="sm"
+              onClick={() =>
+                setEditorState((prev) => ({
+                  ...prev,
+                  snapToGrid: !prev.snapToGrid,
+                }))
+              }
+              className="ml-2"
+            >
+              <Grid className="h-4 w-4 mr-2" />
+              Snap to Grid
+            </Button>
+          </div>
         </div>
+
+        {/* Properties Panel */}
+        <AnimatePresence>
+          {selectedElement && (
+            <motion.div
+              className="w-80 bg-white/95 backdrop-blur-sm border-l p-4 fixed top-16 right-0 bottom-0 shadow-lg z-50 overflow-y-auto"
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => e.stopPropagation()}
+            >
+              <Card>
+                <CardHeader>
+                  <CardTitle>Element Properties</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Title</Label>
+                    <Input
+                      id="title"
+                      value={selectedElement.content.title}
+                      onChange={(e) =>
+                        updateElementContent(selectedElement.id, {
+                          title: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Description</Label>
+                    <Input
+                      id="description"
+                      value={selectedElement.content.description}
+                      onChange={(e) =>
+                        updateElementContent(selectedElement.id, {
+                          description: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="trigger">Trigger Type</Label>
+                    <Select
+                      value={selectedElement.content.trigger}
+                      onValueChange={(value) =>
+                        updateElementContent(selectedElement.id, {
+                          trigger: value as "proximity" | "click" | "always",
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select trigger type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="click">Click</SelectItem>
+                        <SelectItem value="proximity">Proximity</SelectItem>
+                        <SelectItem value="always">Always</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {selectedElement.type === "media" && (
+                    <div className="space-y-2">
+                      <Label>Media Upload</Label>
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                        {selectedElement.content.mediaUrl ? (
+                          <div className="space-y-2">
+                            {selectedElement.content.mediaType === "image" ? (
+                              <img
+                                src={selectedElement.content.mediaUrl}
+                                alt="Uploaded media"
+                                className="max-w-full h-auto rounded"
+                              />
+                            ) : (
+                              <video
+                                src={selectedElement.content.mediaUrl}
+                                controls
+                                className="max-w-full h-auto rounded"
+                              />
+                            )}
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="w-full"
+                              onClick={() =>
+                                updateElementContent(selectedElement.id, {
+                                  mediaUrl: undefined,
+                                  mediaType: undefined,
+                                })
+                              }
+                            >
+                              Remove Media
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="text-center">
+                            <Input
+                              type="file"
+                              accept={
+                                selectedElement.type === "image"
+                                  ? "image/*"
+                                  : "video/*"
+                              }
+                              className="hidden"
+                              id="media-upload"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  try {
+                                    const url = await createImageUrl(file);
+                                    updateElementContent(selectedElement.id, {
+                                      mediaUrl: url,
+                                      mediaType: file.type.startsWith("image")
+                                        ? "image"
+                                        : "video",
+                                    });
+                                  } catch (error) {
+                                    toast({
+                                      title: "Upload Failed",
+                                      description:
+                                        "Failed to upload media. Please try again.",
+                                      variant: "destructive",
+                                    });
+                                  }
+                                }
+                              }}
+                            />
+                            <Label
+                              htmlFor="media-upload"
+                              className="cursor-pointer flex flex-col items-center justify-center gap-2"
+                            >
+                              <div className="p-2 bg-primary/10 rounded-full">
+                                {selectedElement.type === "image" ? (
+                                  <ImageIcon className="w-6 h-6 text-primary" />
+                                ) : (
+                                  <Video className="w-6 h-6 text-primary" />
+                                )}
+                              </div>
+                              <span className="text-sm text-gray-500">
+                                Click to upload {selectedElement.type}
+                              </span>
+                            </Label>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Title</Label>
+                    <Input
+                      value={selectedElement.content.title}
+                      onChange={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        updateElementContent(selectedElement.id, {
+                          title: e.target.value,
+                        });
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      onDoubleClick={(e) => e.stopPropagation()}
+                      className="focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Description</Label>
+                    <Input
+                      value={selectedElement.content.description}
+                      onChange={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        updateElementContent(selectedElement.id, {
+                          description: e.target.value,
+                        });
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      onDoubleClick={(e) => e.stopPropagation()}
+                      className="focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Trigger Type</Label>
+                    <Select
+                      value={selectedElement.content.trigger}
+                      onValueChange={(value) =>
+                        updateElementContent(selectedElement.id, {
+                          trigger: value as "proximity" | "click" | "always",
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="proximity">Proximity</SelectItem>
+                        <SelectItem value="click">Click</SelectItem>
+                        <SelectItem value="always">Always Visible</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Position</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs">
+                            X: {selectedElement.position.x.toFixed(1)}%
+                          </Label>
+                          <Input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={selectedElement.position.x}
+                            onChange={(e) =>
+                              updateElementPosition(selectedElement.id, {
+                                ...selectedElement.position,
+                                x: parseFloat(e.target.value),
+                              })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">
+                            Y: {selectedElement.position.y.toFixed(1)}%
+                          </Label>
+                          <Input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={selectedElement.position.y}
+                            onChange={(e) =>
+                              updateElementPosition(selectedElement.id, {
+                                ...selectedElement.position,
+                                y: parseFloat(e.target.value),
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Layer Management</Label>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            handleLayerOrder(selectedElement.id, "forward")
+                          }
+                          className="flex-1"
+                        >
+                          <Layers className="h-4 w-4 mr-2" />
+                          Bring Forward
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            handleLayerOrder(selectedElement.id, "backward")
+                          }
+                          className="flex-1"
+                        >
+                          <Layers className="h-4 w-4 mr-2 rotate-180" />
+                          Send Backward
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Element Actions</Label>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            handleDuplicateElement(selectedElement)
+                          }
+                          className="flex-1"
+                        >
+                          <Copy className="h-4 w-4 mr-2" />
+                          Duplicate
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() =>
+                            handleDeleteElement(selectedElement.id)
+                          }
+                          className="flex-1"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
+    </div>
   );
 }
