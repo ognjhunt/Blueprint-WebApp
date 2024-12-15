@@ -2531,6 +2531,5 @@ export default function BlueprintEditor() {
           </AnimatePresence>
         </div>
       </div>
-    </div>
   );
 }
