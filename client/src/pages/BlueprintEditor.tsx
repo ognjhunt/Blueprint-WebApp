@@ -1,9 +1,23 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
+import ViewModeToggle from "@/components/ViewModeToggle";
 import { MouseEvent } from "react"; // Import MouseEvent
 import { createDrawTools, type DrawTools } from "@/lib/drawTools";
+import {
+  syncElementWithFirebase,
+  updateAnchorInFirebase,
+  deleteAnchorFromFirebase,
+} from "@/lib/anchorSync";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc, // Add this import
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
+  setDoc,
+  deleteDoc,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useLocation } from "wouter";
 import ScreenShareButton from "@/components/ScreenShareButton";
@@ -46,7 +60,7 @@ import {
   Image as ImageIcon,
   Video,
   Circle,
-  Square as SquareIcon,
+  Cube as CubeIcon,
 } from "lucide-react";
 
 import {
@@ -59,6 +73,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import FileUpload from "@/components/FileUpload";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -85,6 +100,14 @@ interface Position {
   y: number;
 }
 
+interface ARElement {
+  id: string;
+  anchorId?: string; // Add this to track the corresponding Firebase anchor
+  type: "infoCard" | "marker" | "interactive" | "media" | "shape" | "label";
+  position: Position;
+  content: ElementContent;
+}
+
 interface ElementContent {
   title: string;
   description: string;
@@ -93,18 +116,29 @@ interface ElementContent {
   mediaType?: "image" | "video";
 }
 
-const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+const handleMediaUpload = async (file: File) => {
+  if (!selectedElement || !blueprintId) return;
 
   try {
-    if (selectedElement) {
-      const url = await createImageUrl(file);
-      updateElementContent(selectedElement.id, {
-        mediaUrl: url,
-        mediaType: file.type.startsWith("image/") ? "image" : "video",
-      });
-    }
+    // Update the element with the new media file
+    await updateAnchorInFirebase(
+      selectedElement,
+      selectedElement.anchorId!,
+      blueprintId,
+      file,
+    );
+
+    // Get the download URL and update local state
+    const { downloadUrl } = await uploadMediaToFirebase(
+      file,
+      blueprintId,
+      selectedElement.anchorId!,
+    );
+
+    updateElementContent(selectedElement.id, {
+      mediaUrl: downloadUrl,
+      mediaType: file.type.startsWith("image/") ? "image" : "video",
+    });
   } catch (error) {
     console.error("Media upload error:", error);
     toast({
@@ -114,6 +148,7 @@ const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     });
   }
 };
+
 interface Zone {
   id: string;
   name: string;
@@ -141,6 +176,7 @@ interface ARElement {
 interface EditorState {
   layout: {
     url: string;
+    url3D?: string; // Add this line
     name: string;
     aspectRatio: number;
     originalWidth: number;
@@ -232,6 +268,110 @@ const createImageUrl = async (file: File): Promise<string> => {
   });
 };
 
+// Function to convert Firebase anchor data back to an AR element
+const convertAnchorToElement = (anchorData: any): ARElement => {
+  console.log("Converting anchor data:", anchorData);
+
+  const baseElement: ARElement = {
+    id: anchorData.contentID,
+    anchorId: anchorData.id,
+    type: anchorData.contentType as ARElement["type"],
+    position: {
+      x: anchorData.x,
+      y: anchorData.y,
+    },
+    content: {
+      title: anchorData.title || "Untitled Element",
+      description: anchorData.description || "No description",
+      trigger: anchorData.trigger || "click",
+    },
+  };
+
+  // Add media-specific properties for media elements
+  if (anchorData.contentType === "media") {
+    return {
+      ...baseElement,
+      content: {
+        ...baseElement.content,
+        mediaUrl: anchorData.mediaUrl || "",
+        mediaType: anchorData.mediaType || "image",
+      },
+    };
+  }
+
+  // Add label-specific properties
+  if (anchorData.contentType === "label") {
+    return {
+      ...baseElement,
+      content: {
+        ...baseElement.content,
+        title: anchorData.textContent || anchorData.title,
+      },
+    };
+  }
+
+  return baseElement;
+};
+
+// Function to load all anchors for a blueprint
+const loadBlueprintAnchors = async (blueprintId: string) => {
+  try {
+    console.log("Starting to load anchors for blueprint:", blueprintId);
+
+    // First, get the blueprint document to get the anchor IDs
+    const blueprintRef = doc(db, "blueprints", blueprintId);
+    const blueprintSnap = await getDoc(blueprintRef);
+
+    if (!blueprintSnap.exists()) {
+      console.error("Blueprint not found");
+      return [];
+    }
+
+    const blueprintData = blueprintSnap.data();
+    const anchorIDs = blueprintData.anchorIDs || [];
+    console.log("Found anchor IDs:", anchorIDs);
+
+    if (anchorIDs.length === 0) {
+      console.log("No anchors found for blueprint");
+      return [];
+    }
+
+    // Then fetch all anchors in parallel
+    const anchorPromises = anchorIDs.map(async (anchorId: string) => {
+      console.log("Fetching anchor:", anchorId);
+      const anchorRef = doc(db, "anchors", anchorId);
+      const anchorSnap = await getDoc(anchorRef);
+
+      if (!anchorSnap.exists()) {
+        console.log("Anchor not found:", anchorId);
+        return null;
+      }
+
+      const data = anchorSnap.data();
+      console.log("Anchor data retrieved:", data);
+      return data;
+    });
+
+    const anchors = await Promise.all(anchorPromises);
+    console.log("All anchors loaded:", anchors);
+
+    // Filter out any null values and convert to AR elements
+    const elements = anchors
+      .filter((anchor): anchor is NonNullable<typeof anchor> => anchor !== null)
+      .map((anchorData) => {
+        const element = convertAnchorToElement(anchorData);
+        console.log("Converted anchor to element:", element);
+        return element;
+      });
+
+    console.log("Final converted elements:", elements);
+    return elements;
+  } catch (error) {
+    console.error("Error loading blueprint anchors:", error);
+    return [];
+  }
+};
+
 export default function BlueprintEditor() {
   const [showAiPrompt, setShowAiPrompt] = useState(false);
   const [geminiAnalysis, setGeminiAnalysis] = useState<string | null>(null);
@@ -242,6 +382,7 @@ export default function BlueprintEditor() {
   const storage = getStorage();
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [mouseScreenPos, setMouseScreenPos] = useState({ x: 0, y: 0 });
+  const [viewMode, setViewMode] = useState<"2D" | "3D">("2D");
 
   const [isHighlighting, setIsHighlighting] = useState(false);
   const [highlightStartPos, setHighlightStartPos] = useState<Position | null>(
@@ -449,6 +590,40 @@ export default function BlueprintEditor() {
     });
   };
 
+  // Add near handleFileUpload
+  const handle3DFileUpload = async (file: File) => {
+    setLoading(true);
+    try {
+      // Upload to Firebase Storage
+      const storageRef = ref(storage, `blueprints/${blueprintId}/3d`);
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      // Update Firestore with the 3D model URL
+      await updateDoc(doc(db, "blueprints", blueprintId), {
+        floorPlan3DUrl: downloadURL,
+      });
+
+      // Update local state
+      setEditorState((prev) => ({
+        ...prev,
+        layout: {
+          ...prev.layout,
+          url3D: downloadURL,
+        },
+      }));
+    } catch (error) {
+      console.error("3D model upload error:", error);
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload 3D model. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleFileUpload = async (file: File) => {
     setLoading(true);
     try {
@@ -532,6 +707,23 @@ export default function BlueprintEditor() {
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDraggingFile(true);
+  };
+
+  const handleDragEnd = async (elementId: string, position: Position) => {
+    try {
+      const element = elements.find((el) => el.id === elementId);
+      if (!element) return;
+
+      // Update position in local state and Firebase
+      await updateElementPosition(elementId, position);
+    } catch (error) {
+      console.error("Error handling drag end:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update element position. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDragLeave = () => {
@@ -690,6 +882,14 @@ export default function BlueprintEditor() {
     }
   };
 
+  const handleViewModeChange = (newMode: "2D" | "3D") => {
+    setViewMode(newMode);
+    // Clear elements when switching to 3D mode
+    if (newMode === "3D") {
+      setElements([]);
+    }
+  };
+
   const handlePanMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (isPanMode && isDragging) {
       const newX = e.clientX - dragStart.x;
@@ -757,44 +957,115 @@ export default function BlueprintEditor() {
     }));
   };
 
-  const addElement = (type: ARElement["type"] | "shape" | "media") => {
-    const newElement: ARElement = {
-      id: `element-${Date.now()}`,
-      type,
-      position: { x: 50, y: 50 },
-      content: {
-        title: `New ${type}`,
-        description: "Description here",
-        trigger: "click",
-      },
-    };
-    setElements((prev) => [...prev, newElement]);
-    setSelectedElement(newElement);
+  const addElement = async (type: ARElement["type"] | "shape" | "media") => {
+    try {
+      const newElement: ARElement = {
+        id: `element-${Date.now()}`,
+        type,
+        position: { x: 50, y: 50 },
+        content: {
+          title: `New ${type}`,
+          description: "Description here",
+          trigger: "click",
+        },
+      };
+
+      // Then sync with Firebase BEFORE adding to local state
+      let anchorId;
+      if (blueprintId) {
+        const hostId = "2EVim3RYhrgtP3KOKV2UykjXfqs2"; // Get this from your auth context
+        anchorId = await syncElementWithFirebase(
+          newElement,
+          blueprintId,
+          hostId,
+        );
+      }
+
+      // Add to local state with anchorId
+      const elementWithAnchor = {
+        ...newElement,
+        anchorId, // Add the anchorId from Firebase
+      };
+
+      setElements((prev) => [...prev, elementWithAnchor]);
+      setSelectedElement(elementWithAnchor);
+    } catch (error) {
+      console.error("Error adding element:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add element. Please try again.",
+        variant: "destructive",
+      });
+      throw error; // Re-throw to ensure error is handled properly
+    }
   };
 
-  const updateElementPosition = (id: string, position: Position) => {
-    setElements((prev) =>
-      prev.map((el) => (el.id === id ? { ...el, position } : el)),
-    );
+  // Also update your updateElementPosition function
+  const updateElementPosition = async (id: string, position: Position) => {
+    try {
+      // Find the element to update
+      const element = elements.find((el) => el.id === id);
+      if (!element) return;
+
+      // Update local state
+      setElements((prev) =>
+        prev.map((el) => (el.id === id ? { ...el, position } : el)),
+      );
+
+      // Update Firebase if we have an anchorId and blueprintId
+      if (element.anchorId && blueprintId) {
+        await updateAnchorInFirebase(
+          { ...element, position },
+          element.anchorId,
+          blueprintId,
+        );
+      }
+    } catch (error) {
+      console.error("Error updating element position:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update element position. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const updateElementContent = (
+  const updateElementContent = async (
     id: string,
     content: Partial<ElementContent>,
   ) => {
-    const updatedElement = elements.find((el) => el.id === id);
-    if (!updatedElement) return;
+    try {
+      // Find the element to update
+      const updatedElement = elements.find((el) => el.id === id);
+      if (!updatedElement) return;
 
-    const newContent = { ...updatedElement.content, ...content };
+      const newContent = { ...updatedElement.content, ...content };
 
-    // Update both states atomically
-    setElements((prev) =>
-      prev.map((el) => (el.id === id ? { ...el, content: newContent } : el)),
-    );
+      // Update both states atomically
+      setElements((prev) =>
+        prev.map((el) => (el.id === id ? { ...el, content: newContent } : el)),
+      );
 
-    setSelectedElement((prev) =>
-      prev?.id === id ? { ...prev, content: newContent } : prev,
-    );
+      setSelectedElement((prev) =>
+        prev?.id === id ? { ...prev, content: newContent } : prev,
+      );
+
+      // Update Firebase if we have an anchorId and blueprintId
+      if (updatedElement.anchorId && blueprintId) {
+        await updateAnchorInFirebase(
+          { ...updatedElement, content: newContent },
+          updatedElement.anchorId,
+          blueprintId,
+        );
+      }
+    } catch (error) {
+      console.error("Error updating element content:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update element content. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDuplicateElement = (element: ARElement) => {
@@ -809,9 +1080,26 @@ export default function BlueprintEditor() {
     setElements((prev) => [...prev, newElement]);
   };
 
-  const handleDeleteElement = (elementId: string) => {
-    setElements((prev) => prev.filter((el) => el.id !== elementId));
-    setSelectedElement(null);
+  const handleDeleteElement = async (elementId: string) => {
+    try {
+      const element = elements.find((el) => el.id === elementId);
+      if (element && blueprintId) {
+        const anchorId = element.anchorId; // You'll need to add this to your element type
+        if (anchorId) {
+          await deleteAnchorFromFirebase(anchorId, blueprintId);
+        }
+      }
+
+      setElements((prev) => prev.filter((el) => el.id !== elementId));
+      setSelectedElement(null);
+    } catch (error) {
+      console.error("Error deleting element:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete element. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleLayerOrder = (
@@ -1094,55 +1382,87 @@ export default function BlueprintEditor() {
   }, []);
 
   useEffect(() => {
-    if (!blueprintId) return;
+  if (!blueprintId) return;
 
     const loadBlueprint = async () => {
-      const blueprintRef = doc(db, "blueprints", blueprintId);
-      const blueprintSnap = await getDoc(blueprintRef);
-      if (blueprintSnap.exists()) {
-        const blueprintData = blueprintSnap.data();
-        if (blueprintData.floorPlanUrl) {
-          // We have a stored floor plan. Let's load it.
-          // For PNG/JPG, we can calculate aspect ratio after loading image.
+      setLoading(true);
+      try {
+        const blueprintRef = doc(db, "blueprints", blueprintId);
+        const blueprintSnap = await getDoc(blueprintRef);
 
-          const img = new Image();
-          img.onload = () => {
-            const containerWidth = containerRef.current?.clientWidth || 800;
-            const containerHeight = containerRef.current?.clientHeight || 600;
-            const scale = Math.min(
-              containerWidth / img.width,
-              containerHeight / img.height,
-            );
+        if (blueprintSnap.exists()) {
+          const blueprintData = blueprintSnap.data();
+
+          // Only load AR elements if we're in 2D mode
+          if (viewMode === "2D") {
+            console.log("Loading AR elements for blueprint:", blueprintId);
+            const arElements = await loadBlueprintAnchors(blueprintId);
+            console.log("Loaded AR elements:", arElements);
+
+            if (arElements.length > 0) {
+              setElements(arElements);
+            } else {
+              setElements([]);
+            }
+          }
+
+          // Update editor state based on view mode
+          if (viewMode === "2D" && blueprintData.floorPlanUrl) {
+            // Load 2D floor plan
+            const img = new Image();
+            img.onload = () => {
+              const containerWidth = containerRef.current?.clientWidth || 800;
+              const containerHeight = containerRef.current?.clientHeight || 600;
+              const scale = Math.min(
+                containerWidth / img.width,
+                containerHeight / img.height
+              );
+
+              setEditorState((prev) => ({
+                ...prev,
+                layout: {
+                  url: blueprintData.floorPlanUrl,
+                  url3D: blueprintData.floorPlan3DUrl,
+                  name: blueprintData.name || "FloorPlan",
+                  aspectRatio: img.width / img.height,
+                  originalWidth: img.width,
+                  originalHeight: img.height,
+                },
+                scale: scale,
+                containerScale: scale,
+                position: {
+                  x: (containerWidth - img.width * scale) / 2,
+                  y: (containerHeight - img.height * scale) / 2,
+                },
+                isPlacementMode: true,
+              }));
+            };
+            img.src = blueprintData.floorPlanUrl;
+          } else if (viewMode === "3D") {
+            // Just set the 3D URL if available
             setEditorState((prev) => ({
               ...prev,
               layout: {
-                url: blueprintData.floorPlanUrl,
-                name: blueprintData.name || "FloorPlan",
-                aspectRatio: img.width / img.height,
-                originalWidth: img.width,
-                originalHeight: img.height,
+                ...prev.layout,
+                url3D: blueprintData.floorPlan3DUrl || "",
               },
-              scale: scale,
-              containerScale: scale,
-              position: {
-                x: (containerWidth - img.width * scale) / 2,
-                y: (containerHeight - img.height * scale) / 2,
-              },
-              isPlacementMode: true,
             }));
-          };
-          img.src = blueprintData.floorPlanUrl;
-        } else {
-          // No floor plan yet, show drag-drop UI (this is default if no layout url)
-          console.log("No floor plan found for this blueprint.");
+          }
         }
-      } else {
-        console.error("Blueprint not found in Firestore.");
+      } catch (error) {
+        console.error("Error in loadBlueprint:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load blueprint data",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
       }
     };
 
     loadBlueprint();
-  }, [blueprintId]);
+  }, [blueprintId, viewMode]); // Add viewMode as a dependency
 
   // Function to trigger analysis manually or automatically
   const triggerAnalysis = useCallback(async () => {
@@ -1627,172 +1947,115 @@ export default function BlueprintEditor() {
           }}
           ref={containerRef}
         >
-          <div
-            className={`absolute top-0 left-0 ${showGrid ? "bg-grid-pattern" : ""}`}
-            style={{
-              width: `${editorState.layout.originalWidth * editorState.scale}px`,
-              height: `${editorState.layout.originalHeight * editorState.scale}px`,
-              transform: `translate(${editorState.position.x}px, ${editorState.position.y}px) scale(${editorState.containerScale})`,
-              transformOrigin: "center",
-              transition: isDragging ? "none" : "transform 0.1s ease-out",
-              zIndex: 0,
-            }}
-          >
-            {editorState.layout.url && (
-              <div
-                className="absolute inset-0 flex items-center justify-center"
-                style={{ zIndex: 1 }}
-              >
-                <img
-                  src={editorState.layout.url}
-                  alt="Store Layout"
-                  className="w-auto h-auto max-w-none"
-                  style={{
-                    transformOrigin: "center center",
-                  }}
-                />
-              </div>
-            )}
+          {editorState.layout.url && (
+            <ViewModeToggle
+              mode={viewMode}
+              onChange={handleViewModeChange}
+              has3DModel={!!editorState.layout.url3D}
+            />
+          )}
 
-            {geminiAnalysis && (
-              <div
-                className="fixed top-16 right-64 bg-white rounded shadow p-4 z-[9999]"
-                style={{ width: "300px" }}
-              >
-                <h3 className="text-lg font-semibold mb-2">Gemini Analysis</h3>
-                <p className="text-sm text-gray-800 whitespace-pre-wrap">
-                  {geminiAnalysis}
-                </p>
-              </div>
-            )}
-
-            {/* Add highlight box here */}
-            {isHighlighting && highlightStartPos && highlightCurrentPos && (
-              <div
+          {viewMode === "2D" ? (
+            <>
+              <div className={`absolute top-0 left-0 ${showGrid ? "bg-grid-pattern" : ""}`}
                 style={{
-                  position: "absolute",
-                  border: "2px dashed #2196f3",
-                  backgroundColor: "rgba(33, 150, 243, 0.2)",
-                  zIndex: 10,
-                  left: `${Math.min(highlightStartPos.x, highlightCurrentPos.x) * editorState.scale}px`,
-                  top: `${Math.min(highlightStartPos.y, highlightCurrentPos.y) * editorState.scale}px`,
-                  width: `${Math.abs(highlightCurrentPos.x - highlightStartPos.x) * editorState.scale}px`,
-                  height: `${Math.abs(highlightCurrentPos.y - highlightStartPos.y) * editorState.scale}px`,
-                }}
-              ></div>
-            )}
-
-            {editorState.layout.url && (
-              <div
-                style={{
-                  position: "fixed",
-                  left: mouseScreenPos.x + 30,
-                  top: mouseScreenPos.y,
-                  zIndex: 9999,
-                  pointerEvents: "none",
-                  backgroundColor: "rgba(0,0,0,0.85)",
-                  color: "#fff",
-                  padding: "8px 12px",
-                  borderRadius: "6px",
-                  fontSize: "16px",
-                  fontWeight: 500,
-                  boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                  transform: "translate(0, -50%)",
-                }}
-              >
-                X: {mousePos.x.toFixed(0)}, Y: {mousePos.y.toFixed(0)}
-              </div>
-            )}
-
-            {/* AR Elements */}
-            {elements.map((element) => (
-              <motion.div
-                key={element.id}
-                className={`absolute cursor-move p-4 rounded-lg group ${
-                  selectedElement?.id === element.id
-                    ? "ring-2 ring-blue-500"
-                    : ""
-                }`}
-                style={{
-                  left: `${element.position.x}%`,
-                  top: `${element.position.y}%`,
-                  transform: "translate(-50%, -50%)",
-                  zIndex: 2,
-                }}
-                drag
-                dragMomentum={false}
-                onDragEnd={(event: any, info) => {
-                  if (containerRef.current) {
-                    const bounds = containerRef.current.getBoundingClientRect();
-                    const newMouseX =
-                      (event.clientX - bounds.left) /
-                      editorState.containerScale;
-                    const newMouseY =
-                      (event.clientY - bounds.top) / editorState.containerScale;
-                    setMousePos({ x: newMouseX, y: newMouseY });
-                    setMouseScreenPos({ x: event.clientX, y: event.clientY });
-                  }
-                }}
-                onDoubleClick={() => setSelectedElement(element)}
-                initial={{ scale: 1 }}
-                whileHover={{ scale: 1.05 }}
-                transition={{ type: "spring", stiffness: 400, damping: 25 }}
-              >
-                <div className="bg-gradient-to-br from-gray-700 to-gray-800 text-white rounded-xl p-4 relative transition-all duration-200 shadow-lg group-hover:shadow-xl">
-                  <div className="text-sm font-medium flex items-center gap-2">
-                    {element.content.title}
-                    <Pencil className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-white" />
-                  </div>
-                  <div className="text-xs text-white/80">{element.type}</div>
-                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-75 transition-opacity pointer-events-none whitespace-nowrap">
-                    Double-tap to edit
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-
-            {!editorState.layout.url && !isLoading && (
-              <div
-                className={`absolute inset-0 flex items-center justify-center ${
-                  isDraggingFile ? "bg-blue-50" : ""
-                }`}
-                style={{ zIndex: 1 }}
-              >
-                <div className="text-center p-6 border-2 border-dashed border-gray-300 rounded-lg">
-                  <p className="text-gray-500">
-                    Drag and drop your store layout or floor plan (PNG, JPG)
-                  </p>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Required for placing AR elements accurately
-                  </p>
-                  <p className="text-sm text-gray-400 mt-1">or</p>
-                  <Label className="cursor-pointer mt-2 inline-block">
-                    <Input
-                      type="file"
-                      accept="image/png,image/jpeg,image/jpg,application/pdf"
-                      className="hidden"
-                      onChange={(e) =>
-                        e.target.files?.[0] &&
-                        handleFileUpload(e.target.files[0])
-                      }
+                  width: `${editorState.layout.originalWidth * editorState.scale}px`,
+                  height: `${editorState.layout.originalHeight * editorState.scale}px`,
+                  transform: `translate(${editorState.position.x}px, ${editorState.position.y}px) scale(${editorState.containerScale})`,
+                  transformOrigin: "center",
+                  transition: isDragging ? "none" : "transform 0.1s ease-out",
+                  zIndex: 0,
+                }}>
+                {editorState.layout.url && (
+                  <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 1 }}>
+                    <img
+                      src={editorState.layout.url}
+                      alt="Store Layout"
+                      className="w-auto h-auto max-w-none"
+                      style={{ transformOrigin: "center center" }}
                     />
-                    <span className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90">
-                      Choose File
-                    </span>
-                  </Label>
-                </div>
-              </div>
-            )}
+                  </div>
+                )}
 
-            {isLoading && (
-              <div
-                className="absolute inset-0 flex items-center justify-center bg-white/80"
-                style={{ zIndex: 3 }}
-              >
-                <Loader2 className="w-8 h-8 animate-spin" />
-                <span className="ml-2">Processing image...</span>
+                {elements.map((element) => (
+                  <motion.div
+                    key={element.id}
+                    className={`absolute cursor-move p-4 rounded-lg group ${selectedElement?.id === element.id ? "ring-2 ring-blue-500" : ""}`}
+                    style={{
+                      left: `${element.position.x}%`,
+                      top: `${element.position.y}%`,
+                      transform: "translate(-50%, -50%)",
+                      zIndex: 2,
+                    }}
+                    drag
+                    dragMomentum={false}
+                    onDragEnd={(event, info) => {
+                      if (containerRef.current) {
+                        const bounds = containerRef.current.getBoundingClientRect();
+                        const newPosition = {
+                          x: ((event.clientX - bounds.left) / bounds.width) * 100,
+                          y: ((event.clientY - bounds.top) / bounds.height) * 100,
+                        };
+                        handleDragEnd(element.id, newPosition);
+                      }
+                    }}
+                    onDoubleClick={() => setSelectedElement(element)}
+                    initial={{ scale: 1 }}
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  >
+                    <div className="bg-gradient-to-br from-gray-700 to-gray-800 text-white rounded-xl p-4 relative transition-all duration-200 shadow-lg group-hover:shadow-xl">
+                      <div className="text-sm font-medium flex items-center gap-2">
+                        {element.content.title}
+                        <Pencil className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-white" />
+                      </div>
+                      <div className="text-xs text-white/80">{element.type}</div>
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-75 transition-opacity pointer-events-none whitespace-nowrap">
+                        Double-tap to edit
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+
+                {!editorState.layout.url && !isLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <FileUpload onFileSelect={handleFileUpload} loading={isLoading} />
+                  </div>
+                )}
               </div>
-            )}
+            </>
+          ) : (
+            <>
+              <div className="absolute inset-0 flex items-center justify-center">
+                {editorState.layout.url3D ? (
+                  <div className="w-full h-full">
+                    <model-viewer
+                      src={editorState.layout.url3D}
+                      alt="3D Floor Plan"
+                      camera-controls
+                      auto-rotate
+                      style={{ width: "100%", height: "100%" }}
+                    />
+                  </div>
+                ) : (
+                  <FileUpload
+                    onFileSelect={handle3DFileUpload}
+                    loading={isLoading}
+                    show3DUpload
+                  />
+                )}
+              </div>
+            </>
+          )}
+
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/80" style={{ zIndex: 3 }}>
+              <Loader2 className="w-8 h-8 animate-spin" />
+              <span className="ml-2">Processing image...</span>
+            </div>
+          )}
+
+          {/* Placement Mode Button */}
 
             {showAiPrompt && (
               <motion.div
