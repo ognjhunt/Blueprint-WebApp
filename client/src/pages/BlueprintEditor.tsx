@@ -383,7 +383,6 @@ export default function BlueprintEditor() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [mouseScreenPos, setMouseScreenPos] = useState({ x: 0, y: 0 });
   const [viewMode, setViewMode] = useState<"2D" | "3D">("2D");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const [isHighlighting, setIsHighlighting] = useState(false);
   const [highlightStartPos, setHighlightStartPos] = useState<Position | null>(
@@ -593,26 +592,16 @@ export default function BlueprintEditor() {
 
   // Add near handleFileUpload
   const handle3DFileUpload = async (file: File) => {
-    setSelectedFile(file);
     setLoading(true);
     try {
       // Upload to Firebase Storage
-      const storageRef = ref(storage, `blueprints/${blueprintId}/3d/${file.name}`);
+      const storageRef = ref(storage, `blueprints/${blueprintId}/3d`);
       await uploadBytes(storageRef, file);
       const downloadURL = await getDownloadURL(storageRef);
 
       // Update Firestore with the 3D model URL
-      const blueprintRef = doc(db, "blueprints", blueprintId);
-      await updateDoc(blueprintRef, {
+      await updateDoc(doc(db, "blueprints", blueprintId), {
         floorPlan3DUrl: downloadURL,
-        features: {
-          arVisualizations: {
-            details: {
-              arModelUrls: downloadURL,
-              enabled: true
-            }
-          }
-        }
       });
 
       // Update local state
@@ -623,11 +612,6 @@ export default function BlueprintEditor() {
           url3D: downloadURL,
         },
       }));
-
-      toast({
-        title: "Success",
-        description: "3D model uploaded successfully",
-      });
     } catch (error) {
       console.error("3D model upload error:", error);
       toast({
@@ -2035,13 +2019,7 @@ export default function BlueprintEditor() {
 
                 {!editorState.layout.url && !isLoading && (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <FileUpload
-                      onFileSelect={handleFileUpload}
-                      onFile3DSelect={handle3DFileUpload}
-                      loading={isLoading}
-                      show3DUpload={viewMode === "3D"}
-                      selectedFile={selectedFile} // Add this to your state
-                      />
+                    <FileUpload onFileSelect={handleFileUpload} loading={isLoading} />
                   </div>
                 )}
               </div>
@@ -2553,6 +2531,5 @@ export default function BlueprintEditor() {
           </AnimatePresence>
         </div>
       </div>
-    </div>
   );
 }
