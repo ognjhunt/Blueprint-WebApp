@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import ViewModeToggle from "@/components/ViewModeToggle";
-import ModelViewer from "@/components/ModelViewer"; // Import ModelViewer
 import { MouseEvent } from "react"; // Import MouseEvent
 import { createDrawTools, type DrawTools } from "@/lib/drawTools";
 import {
@@ -1471,9 +1470,9 @@ export default function BlueprintEditor() {
             return (
               <div className="absolute inset-0 flex items-center justify-center">
                 {editorState.layout.url3D ? (
-                  <div className="w-full h-full">
+                  <ErrorBoundary fallback={<div>Error loading 3D model</div>}>
                     <ModelViewer modelUrl={editorState.layout.url3D} />
-                  </div>
+                  </ErrorBoundary>
                 ) : (
                   <FileUpload
                     onFileSelect={handle3DFileUpload}
