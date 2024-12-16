@@ -1,6 +1,16 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import ViewModeToggle from "@/components/ViewModeToggle";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import ModelViewer from "@/components/ModelViewer";
+
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'model-viewer': any;
+    }
+  }
+}
 import { MouseEvent } from "react"; // Import MouseEvent
 import { createDrawTools, type DrawTools } from "@/lib/drawTools";
 import {
