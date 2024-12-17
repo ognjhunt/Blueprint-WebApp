@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import GeminiChat from "@/components/GeminiChat";
 import GeminiMultimodal from "@/components/GeminiMultimodal";
 import { LiveAPIProvider } from "@/contexts/LiveAPIContext";
 import {
@@ -52,38 +51,12 @@ import {
 } from "firebase/firestore";
 import { ScreenShare } from "lucide-react";
 import ScreenShareButton from "@/components/ScreenShareButton";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const { currentUser } = useAuth();
   const [totalBlueprints, setTotalBlueprints] = useState(0);
   const [blueprints, setBlueprints] = useState<any[]>([]);
-
-  const apiKey = "AIzaSyCyyCfGsXRnIRC9HSVVuCMN5grzPkyTtkY";
-  const genAI = new GoogleGenerativeAI(apiKey);
-
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash-exp",
-  });
-
-  const generationConfig = {
-    temperature: 0.3,
-    topP: 0.95,
-    topK: 40,
-    maxOutputTokens: 8192,
-    responseMimeType: "text/plain",
-  };
-
-  async function run() {
-    const chatSession = model.startChat({
-      generationConfig,
-      history: [],
-    });
-
-    const result = await chatSession.sendMessage("INSERT_INPUT_HERE");
-    console.log(result.response.text());
-  }
 
   useEffect(() => {
     const fetchBlueprintsData = async () => {
@@ -126,7 +99,6 @@ export default function Dashboard() {
     };
 
     fetchBlueprintsData();
-    run();
   }, [currentUser]);
 
   return (
@@ -444,13 +416,6 @@ export default function Dashboard() {
             )}
           </div>
         </main>
-      </div>
-      <div className="max-w-6xl mx-auto">
-        <GeminiChat
-          genAI={genAI}
-          model={model}
-          generationConfig={generationConfig}
-        />
       </div>
       <Footer />
       <ScreenShareButton /> {/* Add this line here */}

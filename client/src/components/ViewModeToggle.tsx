@@ -1,66 +1,41 @@
-"use client";
-import React, { useEffect, useRef, useState } from "react";
-import { Canvas, useThree, useFrame } from "@react-three/fiber";
-import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
-import { USDZLoader } from "three-usdz-loader";
-import * as THREE from "three";
+import { Button } from "@/components/ui/button";
+import { Box, Square } from "lucide-react";
 
-// Camera controller component
-const CameraController = () => {
-  const { camera } = useThree();
+interface ViewModeToggleProps {
+  mode: "2D" | "3D";
+  onChange: (mode: "2D" | "3D") => void;
+  has3DModel: boolean;
+}
 
-  useEffect(() => {
-    camera.position.set(0, 2, 5);
-    camera.lookAt(0, 0, 0);
-  }, [camera]);
-
-  return null;
-};
-
-// Component to load and display the USDZ model
-const USDZModel = ({ modelUrl }: { modelUrl: string }) => {
-  const [model, setModel] = useState<THREE.Group | null>(null);
-
-  useEffect(() => {
-    const loader = new USDZLoader();
-    loader.load(
-      modelUrl,
-      (usdz) => {
-        setModel(usdz);
-      },
-      undefined,
-      (error) => {
-        console.error("Error loading USDZ model:", error);
-      },
-    );
-  }, [modelUrl]);
-
-  return model ? <primitive object={model} /> : null;
-};
-
-// Main viewer component
-const ModelViewer = ({ modelUrl }: { modelUrl: string }) => {
+const ViewModeToggle = ({
+  mode,
+  onChange,
+  has3DModel,
+}: ViewModeToggleProps) => {
   return (
-    <div className="w-full h-full">
-      <Canvas className="w-full h-full bg-gray-100">
-        <PerspectiveCamera makeDefault position={[0, 2, 5]} />
-        <CameraController />
-        <OrbitControls enableDamping dampingFactor={0.1} />
-
-        {/* Lighting */}
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[10, 10, 5]} intensity={1} />
-        <directionalLight position={[-10, -10, -5]} intensity={0.5} />
-
-        {/* Grid and axes helpers */}
-        <gridHelper args={[20, 20]} />
-        <axesHelper args={[5]} />
-
-        {/* USDZ Model */}
-        <USDZModel modelUrl={modelUrl} />
-      </Canvas>
+    <div className="fixed top-20 right-4 z-50">
+      <div className="bg-white rounded-lg shadow-lg p-1 flex space-x-1">
+        <Button
+          variant={mode === "2D" ? "default" : "ghost"}
+          size="sm"
+          onClick={() => onChange("2D")}
+          className="flex items-center gap-2"
+        >
+          <Square className="h-4 w-4" />
+          2D
+        </Button>
+        <Button
+          variant={mode === "3D" ? "default" : "ghost"}
+          size="sm"
+          onClick={() => onChange("3D")}
+          className="flex items-center gap-2"
+        >
+          <Box className="h-4 w-4" />
+          3D {!has3DModel && "(Upload)"}
+        </Button>
+      </div>
     </div>
   );
 };
 
-export default ModelViewer;
+export default ViewModeToggle;
