@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import ViewModeToggle from "@/components/ViewModeToggle";
+import ModelViewer from "@/components/ModelViewer"; // Adjust path if needed
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { MouseEvent } from "react"; // Import MouseEvent
 import { createDrawTools, type DrawTools } from "@/lib/drawTools";
 import {
@@ -84,16 +86,6 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import Nav from "@/components/Nav";
-
-// // Add the grid pattern CSS here
-// <style>
-//   .bg-grid-pattern {
-//     background-image: linear-gradient(to right, rgba(0, 0, 0, 0.1) 1px, transparent 1px),
-//       linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 1px, transparent 1px);
-//     background-size: 20px 20px;
-//     image-rendering: pixelated;
-//   }
-// </style>
 
 interface Position {
   x: number;
