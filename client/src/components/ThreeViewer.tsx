@@ -45,6 +45,101 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     }
   };
 
+  const loadModel = async (url: string, retryCount = 0): Promise<void> => {
+    console.log("Attempting to fetch 3D model from:", url);
+    try {
+      updateLoading(true);
+
+      // 1. Get Firebase Storage reference and download URL
+      let downloadUrl = url;
+      if (url.includes('firebasestorage.googleapis.com')) {
+        try {
+          // Extract the path from the Firebase Storage URL
+          const decodedPath = decodeURIComponent(url.split('/o/')[1].split('?')[0]);
+          const storageRef = ref(storage, decodedPath);
+          downloadUrl = await getDownloadURL(storageRef);
+        } catch (error) {
+          console.error("Error getting Firebase download URL:", error);
+          throw new Error("Failed to get download URL from Firebase Storage");
+        }
+      }
+
+      console.log("Loading model from download URL:", downloadUrl);
+
+      // 2. Load the model using GLTFLoader with proper cors settings
+      const loader = new GLTFLoader();
+      loader.setCrossOrigin('anonymous');
+
+      const gltf = await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error("Load timeout")), 30000);
+
+        loader.load(
+          downloadUrl,
+          (result) => {
+            clearTimeout(timeout);
+            resolve(result);
+          },
+          (progress) => {
+            const percent = ((progress.loaded / progress.total) * 100).toFixed(2);
+            console.log(`Loading progress: ${percent}%`);
+          },
+          (error) => {
+            clearTimeout(timeout);
+            console.error("GLTFLoader error:", error);
+            reject(new Error(`Failed to load model: ${error.message}`));
+          }
+        );
+      });
+
+      // 3. Handle the loaded model
+      if (!mountedRef.current || !sceneRef.current) return;
+
+      if (modelRef.current) {
+        sceneRef.current.remove(modelRef.current);
+        modelRef.current.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.geometry.dispose();
+            if (Array.isArray(child.material)) {
+              child.material.forEach((m) => m.dispose());
+            } else {
+              child.material.dispose();
+            }
+          }
+        });
+      }
+
+      modelRef.current = gltf.scene;
+      sceneRef.current.add(modelRef.current);
+
+      const box = new THREE.Box3().setFromObject(modelRef.current);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const scale = 2 / maxDim;
+      modelRef.current.scale.setScalar(scale);
+      modelRef.current.position.copy(center).multiplyScalar(-scale);
+
+      if (cameraRef.current && controlsRef.current) {
+        cameraRef.current.position.set(2, 2, 2);
+        controlsRef.current.target.set(0, 0, 0);
+        controlsRef.current.update();
+      }
+
+      updateLoading(false);
+    } catch (error) {
+      console.error("Error loading model:", error);
+
+      if (retryCount < 3 && mountedRef.current) {
+        console.log(`Retrying model load... Attempt ${retryCount + 1}/3`);
+        const backoffTime = Math.pow(2, retryCount) * 1000;
+        await new Promise((res) => setTimeout(res, backoffTime));
+        return loadModel(url, retryCount + 1);
+      }
+
+      handleError(error instanceof Error ? error.message : String(error));
+    }
+  };
+
   const initRenderer = () => {
     if (!containerRef.current) return null;
 
@@ -139,98 +234,6 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
 
     return { scene, camera, renderer, controls };
   };
-
-  const loadModel = async (url: string, retryCount = 0): Promise<void> => {
-    console.log("Attempting to fetch 3D model from:", url);
-    try {
-      updateLoading(true);
-
-      // 1. Get a fresh download URL from Firebase Storage
-      let downloadUrl = url;
-      if (url.includes('firebasestorage.googleapis.com')) {
-        // Extract the path and token from the Firebase Storage URL
-        const storageRef = ref(storage, url.split('/o/')[1].split('?')[0]);
-        downloadUrl = await getDownloadURL(storageRef);
-      }
-
-      console.log("Loading model from URL:", downloadUrl);
-
-      // 2. Load the model using GLTFLoader with timeout and progress tracking
-      const loader = new GLTFLoader();
-      const gltf = await new Promise<any>((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error("Load timeout")), 30000);
-
-        loader.load(
-          downloadUrl,
-          (result) => {
-            clearTimeout(timeout);
-            resolve(result);
-          },
-          (progress) => {
-            const percent = ((progress.loaded / progress.total) * 100).toFixed(2);
-            console.log(`Loading progress: ${percent}%`);
-          },
-          (error) => {
-            clearTimeout(timeout);
-            reject(error);
-          }
-        );
-      });
-
-      // 3. Handle the loaded model
-      if (!mountedRef.current || !sceneRef.current) return;
-
-      // Remove existing model if present
-      if (modelRef.current) {
-        sceneRef.current.remove(modelRef.current);
-        modelRef.current.traverse((child) => {
-          if (child instanceof THREE.Mesh) {
-            child.geometry.dispose();
-            if (Array.isArray(child.material)) {
-              child.material.forEach((m) => m.dispose());
-            } else {
-              child.material.dispose();
-            }
-          }
-        });
-      }
-
-      // Add new model
-      modelRef.current = gltf.scene;
-      sceneRef.current.add(modelRef.current);
-
-      // Center and scale the model
-      const box = new THREE.Box3().setFromObject(modelRef.current);
-      const center = box.getCenter(new THREE.Vector3());
-      const size = box.getSize(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const scale = 2 / maxDim;
-      modelRef.current.scale.setScalar(scale);
-      modelRef.current.position.copy(center).multiplyScalar(-scale);
-
-      // Reset camera position
-      if (cameraRef.current && controlsRef.current) {
-        cameraRef.current.position.set(2, 2, 2);
-        controlsRef.current.target.set(0, 0, 0);
-        controlsRef.current.update();
-      }
-
-      updateLoading(false);
-    } catch (error) {
-      console.error("Error loading model:", error);
-
-      // Retry logic with exponential backoff
-      if (retryCount < 3 && mountedRef.current) {
-        console.log(`Retrying model load... Attempt ${retryCount + 1}/3`);
-        const backoffTime = Math.pow(2, retryCount) * 1000; // Exponential backoff
-        await new Promise((res) => setTimeout(res, backoffTime));
-        return loadModel(url, retryCount + 1);
-      }
-
-      handleError(error instanceof Error ? error.message : String(error));
-    }
-  };
-
   useEffect(() => {
     mountedRef.current = true;
     const setup = setupScene();
