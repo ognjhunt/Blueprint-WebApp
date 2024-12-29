@@ -5,6 +5,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { Loader2, AlertCircle } from "lucide-react";
 import { getStorage, ref, getDownloadURL } from "firebase/storage";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {getStorage as getStorage2} from "firebase/storage";
+const storage = getStorage2();
 
 interface ThreeViewerProps {
   modelUrl: string;
@@ -138,63 +140,48 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     return { scene, camera, renderer, controls };
   };
 
-  // AFTER:
   const loadModel = async (url: string, retryCount = 0): Promise<void> => {
     console.log("Attempting to fetch 3D model from:", url);
     try {
-      console.log("Loading model from direct URL:", url);
       updateLoading(true);
 
-      // 1) Directly fetch the given URL
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(
-          `Network response was not ok. Status: ${response.status}`,
-        );
+      // 1. Get a fresh download URL from Firebase Storage
+      let downloadUrl = url;
+      if (url.includes('firebasestorage.googleapis.com')) {
+        // Extract the path and token from the Firebase Storage URL
+        const storageRef = ref(storage, url.split('/o/')[1].split('?')[0]);
+        downloadUrl = await getDownloadURL(storageRef);
       }
 
-      // 2) Convert to a Blob
-      const blob = await response.blob();
-      console.log(
-        `Model file size: ${(blob.size / (1024 * 1024)).toFixed(2)} MB`,
-      );
+      console.log("Loading model from URL:", downloadUrl);
 
-      // 3) Create local object URL
-      const objectUrl = URL.createObjectURL(blob);
-
-      // 4) Load via GLTFLoader
+      // 2. Load the model using GLTFLoader with timeout and progress tracking
       const loader = new GLTFLoader();
-      const gltf = await new Promise((resolve, reject) => {
-        const timeout = setTimeout(
-          () => reject(new Error("Load timeout")),
-          30000,
-        );
+      const gltf = await new Promise<any>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error("Load timeout")), 30000);
+
         loader.load(
-          objectUrl,
-          (res) => {
+          downloadUrl,
+          (result) => {
             clearTimeout(timeout);
-            resolve(res);
+            resolve(result);
           },
           (progress) => {
-            console.log(
-              `Loading progress: ${(
-                (progress.loaded / progress.total) *
-                100
-              ).toFixed(2)}%`,
-            );
+            const percent = ((progress.loaded / progress.total) * 100).toFixed(2);
+            console.log(`Loading progress: ${percent}%`);
           },
-          (err) => {
+          (error) => {
             clearTimeout(timeout);
-            reject(err);
-          },
+            reject(error);
+          }
         );
       });
-      URL.revokeObjectURL(objectUrl);
 
-      // 5) Attach to scene
+      // 3. Handle the loaded model
       if (!mountedRef.current || !sceneRef.current) return;
+
+      // Remove existing model if present
       if (modelRef.current) {
-        // remove old model
         sceneRef.current.remove(modelRef.current);
         modelRef.current.traverse((child) => {
           if (child instanceof THREE.Mesh) {
@@ -207,10 +194,12 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
           }
         });
       }
+
+      // Add new model
       modelRef.current = gltf.scene;
       sceneRef.current.add(modelRef.current);
 
-      // 6) Center, scale, re-position camera
+      // Center and scale the model
       const box = new THREE.Box3().setFromObject(modelRef.current);
       const center = box.getCenter(new THREE.Vector3());
       const size = box.getSize(new THREE.Vector3());
@@ -219,6 +208,7 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
       modelRef.current.scale.setScalar(scale);
       modelRef.current.position.copy(center).multiplyScalar(-scale);
 
+      // Reset camera position
       if (cameraRef.current && controlsRef.current) {
         cameraRef.current.position.set(2, 2, 2);
         controlsRef.current.target.set(0, 0, 0);
@@ -228,11 +218,15 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
       updateLoading(false);
     } catch (error) {
       console.error("Error loading model:", error);
+
+      // Retry logic with exponential backoff
       if (retryCount < 3 && mountedRef.current) {
         console.log(`Retrying model load... Attempt ${retryCount + 1}/3`);
-        await new Promise((res) => setTimeout(res, 1000 * (retryCount + 1)));
+        const backoffTime = Math.pow(2, retryCount) * 1000; // Exponential backoff
+        await new Promise((res) => setTimeout(res, backoffTime));
         return loadModel(url, retryCount + 1);
       }
+
       handleError(error instanceof Error ? error.message : String(error));
     }
   };
