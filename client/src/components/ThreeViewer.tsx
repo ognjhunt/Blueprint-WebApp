@@ -2,26 +2,22 @@ import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
-import { Loader2, AlertCircle, Upload } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import { getStorage, ref, getDownloadURL } from "firebase/storage";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { getStorage as getStorage2 } from "firebase/storage";
-
+import {getStorage as getStorage2} from "firebase/storage";
 const storage = getStorage2();
 
 interface ThreeViewerProps {
   modelUrl: string;
   onLoadingChange?: (loading: boolean) => void;
   onError?: (error: string) => void;
-  blueprintId?: string; // Add blueprintId prop
 }
 
 const ThreeViewer: React.FC<ThreeViewerProps> = ({
   modelUrl,
   onLoadingChange,
   onError,
-  blueprintId,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -52,6 +48,7 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
   const initRenderer = () => {
     if (!containerRef.current) return null;
 
+    // Try to create renderer with different context attributes
     let renderer: THREE.WebGLRenderer | null = null;
     try {
       renderer = new THREE.WebGLRenderer({
@@ -91,9 +88,11 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
   const setupScene = () => {
     if (!containerRef.current) return null;
 
+    // Scene setup
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf5f5f5);
 
+    // Camera setup
     const camera = new THREE.PerspectiveCamera(
       75,
       containerRef.current.clientWidth / containerRef.current.clientHeight,
@@ -102,6 +101,7 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     );
     camera.position.set(0, 2, 5);
 
+    // Initialize renderer
     const renderer = initRenderer();
     if (!renderer) {
       handleError("Failed to initialize WebGL renderer");
@@ -110,11 +110,13 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
 
     containerRef.current.appendChild(renderer.domElement);
 
+    // Controls setup
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.target.set(0, 0, 0);
 
+    // Lighting setup
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
 
@@ -123,6 +125,7 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     directionalLight.castShadow = true;
     scene.add(directionalLight);
 
+    // Add ground plane for reference
     const groundGeometry = new THREE.PlaneGeometry(10, 10);
     const groundMaterial = new THREE.MeshStandardMaterial({
       color: 0xcccccc,
@@ -137,43 +140,22 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     return { scene, camera, renderer, controls };
   };
 
-  const getFirebaseStoragePath = (url: string): string => {
-    try {
-      const pathMatch = url.match(/\/o\/(.+?)\?/);
-      if (!pathMatch) return "";
-
-      const decodedPath = decodeURIComponent(pathMatch[1]);
-      return decodedPath;
-    } catch (error) {
-      console.error("Error parsing Firebase Storage URL:", error);
-      return "";
-    }
-  };
-
   const loadModel = async (url: string, retryCount = 0): Promise<void> => {
     console.log("Attempting to fetch 3D model from:", url);
     try {
       updateLoading(true);
 
+      // 1. Get a fresh download URL from Firebase Storage
       let downloadUrl = url;
       if (url.includes('firebasestorage.googleapis.com')) {
-        try {
-          const path = getFirebaseStoragePath(url);
-          if (!path) throw new Error("Invalid Firebase Storage URL");
-
-          const storageRef = ref(storage, path);
-          downloadUrl = await getDownloadURL(storageRef);
-        } catch (error: any) {
-          if (error.code === 'storage/object-not-found') {
-            handleError(`No 3D model found. Please upload a GLB/GLTF file first.`);
-            return;
-          }
-          throw error;
-        }
+        // Extract the path and token from the Firebase Storage URL
+        const storageRef = ref(storage, url.split('/o/')[1].split('?')[0]);
+        downloadUrl = await getDownloadURL(storageRef);
       }
 
       console.log("Loading model from URL:", downloadUrl);
 
+      // 2. Load the model using GLTFLoader with timeout and progress tracking
       const loader = new GLTFLoader();
       const gltf = await new Promise<any>((resolve, reject) => {
         const timeout = setTimeout(() => reject(new Error("Load timeout")), 30000);
@@ -195,8 +177,10 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
         );
       });
 
+      // 3. Handle the loaded model
       if (!mountedRef.current || !sceneRef.current) return;
 
+      // Remove existing model if present
       if (modelRef.current) {
         sceneRef.current.remove(modelRef.current);
         modelRef.current.traverse((child) => {
@@ -211,9 +195,11 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
         });
       }
 
+      // Add new model
       modelRef.current = gltf.scene;
       sceneRef.current.add(modelRef.current);
 
+      // Center and scale the model
       const box = new THREE.Box3().setFromObject(modelRef.current);
       const center = box.getCenter(new THREE.Vector3());
       const size = box.getSize(new THREE.Vector3());
@@ -222,6 +208,7 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
       modelRef.current.scale.setScalar(scale);
       modelRef.current.position.copy(center).multiplyScalar(-scale);
 
+      // Reset camera position
       if (cameraRef.current && controlsRef.current) {
         cameraRef.current.position.set(2, 2, 2);
         controlsRef.current.target.set(0, 0, 0);
@@ -229,22 +216,18 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
       }
 
       updateLoading(false);
-      setError(null);
     } catch (error) {
       console.error("Error loading model:", error);
 
+      // Retry logic with exponential backoff
       if (retryCount < 3 && mountedRef.current) {
         console.log(`Retrying model load... Attempt ${retryCount + 1}/3`);
-        const backoffTime = Math.pow(2, retryCount) * 1000;
+        const backoffTime = Math.pow(2, retryCount) * 1000; // Exponential backoff
         await new Promise((res) => setTimeout(res, backoffTime));
         return loadModel(url, retryCount + 1);
       }
 
-      handleError(
-        error instanceof Error 
-          ? error.message 
-          : "Failed to load 3D model. Please check the file format and try again."
-      );
+      handleError(error instanceof Error ? error.message : String(error));
     }
   };
 
@@ -282,6 +265,7 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     window.addEventListener("resize", handleResize);
     animate();
 
+    // Load model if URL is provided
     if (modelUrl) {
       loadModel(modelUrl);
     }
@@ -300,6 +284,7 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
         renderer.dispose();
       }
 
+      // Clean up model resources
       if (modelRef.current) {
         modelRef.current.traverse((child) => {
           if (child instanceof THREE.Mesh) {
@@ -315,6 +300,7 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     };
   }, []);
 
+  // Handle model URL changes
   useEffect(() => {
     if (modelUrl && sceneRef.current && mountedRef.current) {
       loadModel(modelUrl);
@@ -335,33 +321,8 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
         <div className="absolute inset-0 flex items-center justify-center bg-background/95">
           <Alert variant="destructive" className="w-[400px]">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="mt-2">
-              {error}
-              {error.includes("Please upload") && blueprintId && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-4 w-full"
-                  onClick={() => {
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = '.glb,.gltf';
-                    input.onchange = (e) => {
-                      const file = (e.target as HTMLInputElement).files?.[0];
-                      if (file) {
-                        const uploadEvent = new CustomEvent('model-upload-requested', {
-                          detail: { file, blueprintId }
-                        });
-                        window.dispatchEvent(uploadEvent);
-                      }
-                    };
-                    input.click();
-                  }}
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload 3D Model
-                </Button>
-              )}
+            <AlertDescription>
+              Failed to load 3D model: {error}
             </AlertDescription>
           </Alert>
         </div>
