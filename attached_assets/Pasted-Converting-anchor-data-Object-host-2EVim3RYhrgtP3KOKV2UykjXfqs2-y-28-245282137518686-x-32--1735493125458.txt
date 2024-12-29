@@ -1,0 +1,125 @@
+Converting anchor data: 
+Object {host: "2EVim3RYhrgtP3KOKV2UykjXfqs2", y: 28.245282137518686, x: 32.024171128500825, isPrivate: false, timeStamp: _Timestamp, …}
+Converted anchor to element: 
+Object {id: "element-1734219369223", anchorId: "anchor-1734219369223-mzegyuu", type: "infoCard", position: {…}, content: {…}}
+Converting anchor data: 
+Object {title: "New infoCard", trigger: "click", id: "anchor-1734219733942-rlj2idq", timeStamp: _Timestamp, host: "2EVim3RYhrgtP3KOKV2UykjXfqs2", …}
+Converted anchor to element: 
+Object {id: "element-1734219733942", anchorId: "anchor-1734219733942-rlj2idq", type: "infoCard", position: {…}, content: {…}}
+Converting anchor data: 
+Object {z: 0, y: 36.16682431801196, date: _Timestamp, host: "2EVim3RYhrgtP3KOKV2UykjXfqs2", isPrivate: false, …}
+Converted anchor to element: 
+Object {id: "element-1734219739756", anchorId: "anchor-1734219739756-zujhjkn", type: "media", position: {…}, content: {…}}
+Converting anchor data: 
+Object {id: "anchor-1735305990203-vcjzimx", contentID: "element-1735305990201", timeStamp: _Timestamp, contentType: "infoCard", roomID: "07ef9cea-65a4-487f-be11-0cec626201bb", …}
+Converted anchor to element: 
+Object {id: "element-1735305990201", anchorId: "anchor-1735305990203-vcjzimx", type: "infoCard", position: {…}, content: {…}}
+Final converted elements: 
+(9) [{…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}]
+Loaded AR elements: 
+(9) [{…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}]
+Anchor data retrieved: 
+Object {id: "anchor-1735305990203-vcjzimx", contentID: "element-1735305990201", timeStamp: _Timestamp, contentType: "infoCard", roomID: "07ef9cea-65a4-487f-be11-0cec626201bb", …}
+All anchors loaded: 
+(9) [{…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}]
+Converting anchor data: 
+Object {roomID: "07ef9cea-65a4-487f-be11-0cec626201bb", z: 0, y: 50, id: "anchor-1734215521136-mcbtwme", description: "Description here", …}
+Converted anchor to element: 
+Object {id: "element-1734215521136", anchorId: "anchor-1734215521136-mcbtwme", type: "infoCard", position: {…}, content: {…}}
+Converting anchor data: 
+Object {description: "This is my desrcifsdfopisdfs", trigger: "proximity", title: "HELLO123", z: 0, host: "2EVim3RYhrgtP3KOKV2UykjXfqs2", …}
+Converted anchor to element: 
+Object {id: "element-1734215861785", anchorId: "anchor-1734215861786-zv0fv0e", type: "infoCard", position: {…}, content: {…}}
+Converting anchor data: 
+Object {title: "New media", date: _Timestamp, contentID: "element-1734216254003", trigger: "click", roomID: "07ef9cea-65a4-487f-be11-0cec626201bb", …}
+Converted anchor to element: 
+Object {id: "element-1734216254003", anchorId: "anchor-1734216254003-tjdmuku", type: "media", position: {…}, content: {…}}
+Converting anchor data: 
+Object {description: "Description here", contentType: "media", contentID: "element-1734217657229", timeStamp: _Timestamp, mediaUrl: "", …}
+Converted anchor to element: 
+Object {id: "element-1734217657229", anchorId: "anchor-1734217657229-2g30p10", type: "media", position: {…}, content: {…}}
+Converting anchor data: 
+Object {title: "New media", id: "anchor-1734217915607-s8d5p94", mediaUrl: "", roomID: "07ef9cea-65a4-487f-be11-0cec626201bb", isPrivate: false, …}
+Converted anchor to element: 
+Object {id: "element-1734217915606", anchorId: "anchor-1734217915607-s8d5p94", type: "media", position: {…}, content: {…}}
+Converting anchor data: 
+Object {host: "2EVim3RYhrgtP3KOKV2UykjXfqs2", y: 28.245282137518686, x: 32.024171128500825, isPrivate: false, timeStamp: _Timestamp, …}
+Converted anchor to element: 
+Object {id: "element-1734219369223", anchorId: "anchor-1734219369223-mzegyuu", type: "infoCard", position: {…}, content: {…}}
+Converting anchor data: 
+Object {title: "New infoCard", trigger: "click", id: "anchor-1734219733942-rlj2idq", timeStamp: _Timestamp, host: "2EVim3RYhrgtP3KOKV2UykjXfqs2", …}
+Converted anchor to element: 
+Object {id: "element-1734219733942", anchorId: "anchor-1734219733942-rlj2idq", type: "infoCard", position: {…}, content: {…}}
+Converting anchor data: 
+Object {z: 0, y: 36.16682431801196, date: _Timestamp, host: "2EVim3RYhrgtP3KOKV2UykjXfqs2", isPrivate: false, …}
+Converted anchor to element: 
+Object {id: "element-1734219739756", anchorId: "anchor-1734219739756-zujhjkn", type: "media", position: {…}, content: {…}}
+Converting anchor data: 
+Object {id: "anchor-1735305990203-vcjzimx", contentID: "element-1735305990201", timeStamp: _Timestamp, contentType: "infoCard", roomID: "07ef9cea-65a4-487f-be11-0cec626201bb", …}
+Converted anchor to element: 
+Object {id: "element-1735305990201", anchorId: "anchor-1735305990203-vcjzimx", type: "infoCard", position: {…}, content: {…}}
+Final converted elements: 
+(9) [{…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}]
+Loaded AR elements: 
+(9) [{…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}]
+Okay, I understand. 
+
+Here's the message to the user:
+
+"Okay, I've analyzed the floor plan. Now, I'd recommend trying out Multimodal (Share screen) with AI Studio. It's a great way to interact with visual information.
+
+Once you've had a chance to explore that, I have a question for you about the editor: Based on the floor plan analysis, where do you think would be the most strategic location to place a new piece of furniture to maximize both functionality and flow within the space?"
+Attempting to fetch 3D model from: https://firebasestorage.googleapis.com/v0/b/blueprint-8c1ca.appspot.com/o/blueprints%2F07ef9cea-65a4-487f-be11-0cec626201bb%2F3d%2F%20-%20Uniform%20%E2%80%A2%20100%25%20%E2%80%A2%208k.glb?alt=media&token=39faf145-db42-44e2-a3c2-7431b5c85b70
+Error loading model: 
+_StorageError {code: "storage/object-not-found", customData: {…}, name: "FirebaseError", status_: 0, _baseMessage: "Firebase Storage: Object…"}
+
+Retrying model load... Attempt 1/3
+Error loading model: 
+_StorageError {code: "storage/object-not-found", customData: {…}, name: "FirebaseError", status_: 0, _baseMessage: "Firebase Storage: Object…"}
+
+Retrying model load... Attempt 1/3
+Error loading model: 
+_StorageError {code: "storage/object-not-found", customData: {…}, name: "FirebaseError", status_: 0, _baseMessage: "Firebase Storage: Object…"}
+
+Retrying model load... Attempt 1/3
+Error loading model: 
+_StorageError {code: "storage/object-not-found", customData: {…}, name: "FirebaseError", status_: 0, _baseMessage: "Firebase Storage: Object…"}
+
+Retrying model load... Attempt 1/3
+Attempting to fetch 3D model from: https://firebasestorage.googleapis.com/v0/b/blueprint-8c1ca.appspot.com/o/blueprints%2F07ef9cea-65a4-487f-be11-0cec626201bb%2F3d%2F%20-%20Uniform%20%E2%80%A2%20100%25%20%E2%80%A2%208k.glb?alt=media&token=39faf145-db42-44e2-a3c2-7431b5c85b70
+Error loading model: 
+_StorageError {code: "storage/object-not-found", customData: {…}, name: "FirebaseError", status_: 0, _baseMessage: "Firebase Storage: Object…"}
+
+Retrying model load... Attempt 2/3
+Attempting to fetch 3D model from: https://firebasestorage.googleapis.com/v0/b/blueprint-8c1ca.appspot.com/o/blueprints%2F07ef9cea-65a4-487f-be11-0cec626201bb%2F3d%2F%20-%20Uniform%20%E2%80%A2%20100%25%20%E2%80%A2%208k.glb?alt=media&token=39faf145-db42-44e2-a3c2-7431b5c85b70
+Error loading model: 
+_StorageError {code: "storage/object-not-found", customData: {…}, name: "FirebaseError", status_: 0, _baseMessage: "Firebase Storage: Object…"}
+
+Retrying model load... Attempt 2/3
+Attempting to fetch 3D model from: https://firebasestorage.googleapis.com/v0/b/blueprint-8c1ca.appspot.com/o/blueprints%2F07ef9cea-65a4-487f-be11-0cec626201bb%2F3d%2F%20-%20Uniform%20%E2%80%A2%20100%25%20%E2%80%A2%208k.glb?alt=media&token=39faf145-db42-44e2-a3c2-7431b5c85b70
+Error loading model: 
+_StorageError {code: "storage/object-not-found", customData: {…}, name: "FirebaseError", status_: 0, _baseMessage: "Firebase Storage: Object…"}
+
+Retrying model load... Attempt 2/3
+Error loading model: 
+_StorageError {code: "storage/object-not-found", customData: {…}, name: "FirebaseError", status_: 0, _baseMessage: "Firebase Storage: Object…"}
+
+Retrying model load... Attempt 2/3
+Attempting to fetch 3D model from: https://firebasestorage.googleapis.com/v0/b/blueprint-8c1ca.appspot.com/o/blueprints%2F07ef9cea-65a4-487f-be11-0cec626201bb%2F3d%2F%20-%20Uniform%20%E2%80%A2%20100%25%20%E2%80%A2%208k.glb?alt=media&token=39faf145-db42-44e2-a3c2-7431b5c85b70
+Error loading model: 
+_StorageError {code: "storage/object-not-found", customData: {…}, name: "FirebaseError", status_: 0, _baseMessage: "Firebase Storage: Object…"}
+
+Retrying model load... Attempt 3/3
+Attempting to fetch 3D model from: https://firebasestorage.googleapis.com/v0/b/blueprint-8c1ca.appspot.com/o/blueprints%2F07ef9cea-65a4-487f-be11-0cec626201bb%2F3d%2F%20-%20Uniform%20%E2%80%A2%20100%25%20%E2%80%A2%208k.glb?alt=media&token=39faf145-db42-44e2-a3c2-7431b5c85b70
+Error loading model: 
+_StorageError {code: "storage/object-not-found", customData: {…}, name: "FirebaseError", status_: 0, _baseMessage: "Firebase Storage: Object…"}
+code: "storage/object-not-found"
+customData: Object
+name: "FirebaseError"
+status_: 0
+_baseMessage: "Firebase Storage: Object 'blueprints%2F07ef9cea-65a4-487f-be11-0cec626201bb%2F3d%2F%20-%20Uniform%20%E2%80%A2%20100%25%20%E2%80%A2%208k.glb' does not exist. (storage/object-not-found)"
+message: "Firebase Storage: Object 'blueprints%2F07ef9cea-65a4-487f-be11-0cec626201bb%2F3d%2F%20-%20Uniform%20%E2%80%A2%20100%25%20%E2%80%A2%208k.glb' does not exist. (storage/object-not-found)"
+stack: "FirebaseError: Firebase Storage: Object 'blueprints%2F07ef9cea-65a4-487f-be11-0cec626201bb%2F3d%2F%20-%20Uniform%20%E2%80%A2%20100%25%20%E2%80%A2%208k.glb' does not exist. (storage/object-not-found)"
+get stack: ƒ ()
+set stack: ƒ ()
+[[Prototype]]: Objec
