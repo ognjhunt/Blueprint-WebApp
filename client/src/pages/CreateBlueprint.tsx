@@ -6,6 +6,7 @@ import { db } from "@/lib/firebase"; // ensure this is the correct path to your 
 import { useAuth } from "@/contexts/AuthContext"; // to access currentUser
 import { useState, useEffect, useCallback, ChangeEvent } from "react";
 import { Loader } from "@googlemaps/js-api-loader";
+import { ScanningSetup } from "@/components/ScanningSetup";
 import ScreenShareButton from "@/components/ScreenShareButton";
 import {
   ChevronRight,
@@ -27,6 +28,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { QRCodeSetup } from "@/components/QRCodeSetup";
+import { CalendarSetup } from "@/components/CalendarSetup";
+import { CalendarDays } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Select,
@@ -37,21 +41,21 @@ import {
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-type FeatureDetail = {
-  crm?: string;
-  tourUrl?: string;
-  programDetails?: string;
-  arModelUrls?: string;
-};
+// type FeatureDetail = {
+//   crm?: string;
+//   tourUrl?: string;
+//   programDetails?: string;
+//   arModelUrls?: string;
+// };
 
-interface BaseFeatureDetail {
-  enabled: boolean;
-  details: FeatureDetail;
-}
+// interface BaseFeatureDetail {
+//   enabled: boolean;
+//   details: FeatureDetail;
+// }
 
-type FeatureDetails = {
-  [key: string]: BaseFeatureDetail;
-};
+// type FeatureDetails = {
+//   [key: string]: BaseFeatureDetail;
+// };
 
 type FormData = {
   businessName: string;
@@ -67,7 +71,14 @@ type FormData = {
   website: string;
   aiProvider: string;
   apiKey: string;
-  features: FeatureDetails;
+  // features: FeatureDetails;
+  scheduling: {
+    appointmentDate?: string;
+    appointmentTime?: string;
+    contactName?: string; // <-- add this
+    contactPhone?: string; // <-- add this
+    status: "scheduled" | "pending" | "completed";
+  };
 };
 
 const locationTypes = [
@@ -168,9 +179,10 @@ const states = {
 const steps = [
   { id: "business-info", title: "Business Information", icon: Building2 },
   { id: "location-details", title: "Location Details", icon: MapPin },
-  { id: "contact-info", title: "Contact Information", icon: Phone },
-  { id: "customization", title: "AI Assistant", icon: Palette },
-  { id: "features", title: "Blueprint Features", icon: Cog },
+  { id: "contact-info", title: "Location Contact", icon: Phone },
+  { id: "scheduling", title: "Schedule Mapping", icon: CalendarDays },
+  // { id: "features", title: "Blueprint Features", icon: Cog },
+  { id: "scanning", title: "Scanning", icon: Cog },
   { id: "review", title: "Review & Submit", icon: Check },
 ];
 
@@ -214,11 +226,16 @@ export default function CreateBlueprint() {
     website: "",
     aiProvider: "",
     apiKey: "",
-    features: {
-      personalizedRecommendations: { enabled: false, details: { crm: "" } },
-      virtualTours: { enabled: false, details: { tourUrl: "" } },
-      loyaltyProgram: { enabled: false, details: { programDetails: "" } },
-      arVisualizations: { enabled: false, details: { arModelUrls: "" } },
+    // features: {
+    //   personalizedRecommendations: { enabled: false, details: { crm: "" } },
+    //   virtualTours: { enabled: false, details: { tourUrl: "" } },
+    //   loyaltyProgram: { enabled: false, details: { programDetails: "" } },
+    //   arVisualizations: { enabled: false, details: { arModelUrls: "" } },
+    // },
+    scheduling: {
+      appointmentDate: "", // Change from undefined to empty string
+      appointmentTime: "", // Change from undefined to empty string
+      status: "pending",
     },
   });
 
@@ -519,7 +536,7 @@ export default function CreateBlueprint() {
           !validateField("website", formData.website)
         );
       case 3:
-        return !validateField("aiProvider", formData.aiProvider);
+        return true; // The step is valid as long as they've viewed the information
       case 4:
         return true; // Features are optional
       case 5:
@@ -560,12 +577,36 @@ export default function CreateBlueprint() {
       try {
         const blueprintId = crypto.randomUUID();
         const claimCode = generateClaimCode();
+        const now = new Date(); // Add this line to define 'now'
+
+        // Format the date as desired
+        const formattedDate = now.toLocaleString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+          second: "2-digit",
+          timeZoneName: "short",
+          hour12: true,
+        });
+
+        // Clean up the form data before sending to Firebase
+        const cleanedFormData = {
+          ...formData,
+          scheduling: {
+            appointmentDate: formData.scheduling.appointmentDate || "",
+            appointmentTime: formData.scheduling.appointmentTime || "",
+            status: formData.scheduling.status || "pending",
+          },
+        };
+
         const blueprintData = {
           id: blueprintId,
-          ...formData,
+          ...cleanedFormData,
           host: currentUser?.uid || "", // set the host field to currently signed in user ID
-          createdDate: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdDate: formattedDate, // Use the formatted date here
+          updatedAt: formattedDate, // And here
           claimCode: claimCode, // add this line
         };
 
@@ -809,167 +850,158 @@ export default function CreateBlueprint() {
         return (
           <div className="space-y-4">
             {renderInputField("phone", "Phone Number")}
-            {renderInputField("email", "Email Address", "email")}
+            {renderInputField(
+              "email",
+              "Business Email Address (not personal)",
+              "email",
+              "Enter the business location’s email address (not a personal email)",
+            )}
             {renderInputField("website", "Website", "url")}
           </div>
         );
       case 3:
         return (
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="aiProvider">AI Assistant Provider</Label>
-              <Select
-                name="aiProvider"
-                onValueChange={(value) =>
-                  handleInputChange({ target: { name: "aiProvider", value } })
-                }
-              >
-                <SelectTrigger
-                  className={cn(
-                    fieldErrors.aiProvider &&
-                      "border-red-500 focus-visible:ring-red-500",
-                  )}
-                >
-                  <SelectValue placeholder="Select AI provider" />
-                </SelectTrigger>
-                <SelectContent>
-                  {aiProviders.map((provider) => (
-                    <SelectItem key={provider.value} value={provider.value}>
-                      {provider.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {fieldErrors.aiProvider && (
-                <p className="text-sm text-red-500 mt-1">
-                  {fieldErrors.aiProvider}
-                </p>
-              )}
-            </div>
-            {renderInputField(
-              "apiKey",
-              "API Key",
-              "password",
-              "Enter your AI provider API key OR Allow us to create one for you (takes ~1 min)",
-            )}
+          <div className="space-y-8">
+            <QRCodeSetup
+              businessName={formData.businessName}
+              blueprintId={formData.blueprintId || ""}
+            />
+            <CalendarSetup
+              onScheduleSelect={(date, time, contactName, contactPhone) => {
+                setFormData((prev) => ({
+                  ...prev,
+                  scheduling: {
+                    appointmentDate: date.toISOString(),
+                    appointmentTime: time,
+                    status: "scheduled",
+                  },
+                  // Optionally store in some new fields:
+                  mappingContactName: contactName ?? "",
+                  mappingContactPhone: contactPhone ?? "",
+                }));
+              }}
+            />
           </div>
         );
-      case 4:
-        return (
-          <div className="space-y-4">
-            <Label>Select Blueprint Features</Label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Object.entries(formData.features).map(
-                ([feature, { enabled }]) => (
-                  <div key={feature} className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id={feature}
-                        checked={enabled}
-                        onChange={() => handleFeatureToggle(feature)}
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                      />
-                      <Label htmlFor={feature} className="select-none">
-                        {feature.split(/(?=[A-Z])/).join(" ")}
-                      </Label>
-                    </div>
-                    {enabled && (
-                      <div className="ml-6 space-y-2">
-                        {feature === "personalizedRecommendations" && (
-                          <div>
-                            <Label htmlFor={`${feature}-crm`}>
-                              Provide Blueprint / Floor Plan OR Scan
-                            </Label>
-                            <Input
-                              id={`${feature}-crm`}
-                              value={
-                                formData.features[feature].details.crm || ""
-                              }
-                              onChange={(e) =>
-                                handleFeatureDetailChange(
-                                  feature,
-                                  "crm",
-                                  e.target.value,
-                                )
-                              }
-                              placeholder="Upload Blueprint / Floor Plan OR Scan Your Location"
-                            />
-                          </div>
-                        )}
-                        {feature === "virtualTours" && (
-                          <div>
-                            <Label htmlFor={`${feature}-tourUrl`}>
-                              Virtual Tour URL
-                            </Label>
-                            <Input
-                              id={`${feature}-tourUrl`}
-                              value={
-                                formData.features[feature].details.tourUrl || ""
-                              }
-                              onChange={(e) =>
-                                handleFeatureDetailChange(
-                                  feature,
-                                  "tourUrl",
-                                  e.target.value,
-                                )
-                              }
-                              placeholder="Provide virtual tour URL"
-                            />
-                          </div>
-                        )}
-                        {feature === "loyaltyProgram" && (
-                          <div>
-                            <Label htmlFor={`${feature}-programDetails`}>
-                              Loyalty Program Details
-                            </Label>
-                            <Textarea
-                              id={`${feature}-programDetails`}
-                              value={
-                                formData.features[feature].details
-                                  .programDetails || ""
-                              }
-                              onChange={(e) =>
-                                handleFeatureDetailChange(
-                                  feature,
-                                  "programDetails",
-                                  e.target.value,
-                                )
-                              }
-                              placeholder="Enter loyalty program details"
-                            />
-                          </div>
-                        )}
-                        {feature === "arVisualizations" && (
-                          <div>
-                            <Label htmlFor={`${feature}-arModelUrls`}>
-                              AR Model URLs
-                            </Label>
-                            <Textarea
-                              id={`${feature}-arModelUrls`}
-                              value={
-                                formData.features[feature].details
-                                  .arModelUrls || ""
-                              }
-                              onChange={(e) =>
-                                handleFeatureDetailChange(
-                                  feature,
-                                  "arModelUrls",
-                                  e.target.value,
-                                )
-                              }
-                              placeholder="Enter AR model URLs (one per line)"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ),
-              )}
-            </div>
-          </div>
-        );
+
+      case 3:
+        return <ScanningSetup />;
+      // case 4:
+      //   return (
+      //     <div className="space-y-4">
+      //       <Label>Select Blueprint Features</Label>
+      //       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      //         {Object.entries(formData.features).map(
+      //           ([feature, { enabled }]) => (
+      //             <div key={feature} className="space-y-2">
+      //               <div className="flex items-center space-x-2">
+      //                 <input
+      //                   type="checkbox"
+      //                   id={feature}
+      //                   checked={enabled}
+      //                   onChange={() => handleFeatureToggle(feature)}
+      //                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+      //                 />
+      //                 <Label htmlFor={feature} className="select-none">
+      //                   {feature.split(/(?=[A-Z])/).join(" ")}
+      //                 </Label>
+      //               </div>
+      //               {enabled && (
+      //                 <div className="ml-6 space-y-2">
+      //                   {feature === "personalizedRecommendations" && (
+      //                     <div>
+      //                       <Label htmlFor={`${feature}-crm`}>
+      //                         Provide Blueprint / Floor Plan OR Scan
+      //                       </Label>
+      //                       <Input
+      //                         id={`${feature}-crm`}
+      //                         value={
+      //                           formData.features[feature].details.crm || ""
+      //                         }
+      //                         onChange={(e) =>
+      //                           handleFeatureDetailChange(
+      //                             feature,
+      //                             "crm",
+      //                             e.target.value,
+      //                           )
+      //                         }
+      //                         placeholder="Upload Blueprint / Floor Plan OR Scan Your Location"
+      //                       />
+      //                     </div>
+      //                   )}
+      //                   {feature === "virtualTours" && (
+      //                     <div>
+      //                       <Label htmlFor={`${feature}-tourUrl`}>
+      //                         Virtual Tour URL
+      //                       </Label>
+      //                       <Input
+      //                         id={`${feature}-tourUrl`}
+      //                         value={
+      //                           formData.features[feature].details.tourUrl || ""
+      //                         }
+      //                         onChange={(e) =>
+      //                           handleFeatureDetailChange(
+      //                             feature,
+      //                             "tourUrl",
+      //                             e.target.value,
+      //                           )
+      //                         }
+      //                         placeholder="Provide virtual tour URL"
+      //                       />
+      //                     </div>
+      //                   )}
+      //                   {feature === "loyaltyProgram" && (
+      //                     <div>
+      //                       <Label htmlFor={`${feature}-programDetails`}>
+      //                         Loyalty Program Details
+      //                       </Label>
+      //                       <Textarea
+      //                         id={`${feature}-programDetails`}
+      //                         value={
+      //                           formData.features[feature].details
+      //                             .programDetails || ""
+      //                         }
+      //                         onChange={(e) =>
+      //                           handleFeatureDetailChange(
+      //                             feature,
+      //                             "programDetails",
+      //                             e.target.value,
+      //                           )
+      //                         }
+      //                         placeholder="Enter loyalty program details"
+      //                       />
+      //                     </div>
+      //                   )}
+      //                   {feature === "arVisualizations" && (
+      //                     <div>
+      //                       <Label htmlFor={`${feature}-arModelUrls`}>
+      //                         AR Model URLs
+      //                       </Label>
+      //                       <Textarea
+      //                         id={`${feature}-arModelUrls`}
+      //                         value={
+      //                           formData.features[feature].details
+      //                             .arModelUrls || ""
+      //                         }
+      //                         onChange={(e) =>
+      //                           handleFeatureDetailChange(
+      //                             feature,
+      //                             "arModelUrls",
+      //                             e.target.value,
+      //                           )
+      //                         }
+      //                         placeholder="Enter AR model URLs (one per line)"
+      //                       />
+      //                     </div>
+      //                   )}
+      //                 </div>
+      //               )}
+      //             </div>
+      //           ),
+      //         )}
+      //       </div>
+      //     </div>
+      //   );
       case 5:
         return (
           <div className="space-y-4">

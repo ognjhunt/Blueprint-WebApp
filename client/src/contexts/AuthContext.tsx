@@ -1,16 +1,16 @@
-import { createContext, useContext, useEffect, useState } from 'react';
-import { useLocation } from 'wouter';
-import { 
-  auth, 
-  loginWithEmailAndPassword, 
+import { createContext, useContext, useEffect, useState } from "react";
+import { useLocation } from "wouter";
+import {
+  auth,
+  loginWithEmailAndPassword,
   registerWithEmailAndPassword,
   signInWithGoogle as firebaseSignInWithGoogle,
   logOut,
   onAuthStateChanged,
   getUserData,
   UserData,
-  FirebaseUser
-} from '@/lib/firebase';
+  FirebaseUser,
+} from "@/lib/firebase";
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -27,7 +27,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }
@@ -72,19 +72,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const user = await loginWithEmailAndPassword(email, password);
       console.log("User signed in successfully:", user.uid);
-      
+
       try {
         const userData = await getUserData(user.uid);
         if (!userData) {
           throw new Error("User data not found");
         }
         setUserData(userData);
-        
+
         // Handle redirect
         try {
-          const redirectPath = sessionStorage.getItem('redirectAfterAuth');
+          const redirectPath = sessionStorage.getItem("redirectAfterAuth");
           if (redirectPath) {
-            sessionStorage.removeItem('redirectAfterAuth');
+            sessionStorage.removeItem("redirectAfterAuth");
             setLocation(redirectPath);
           } else {
             setLocation("/dashboard");
@@ -92,14 +92,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log("Successfully redirected after sign in");
         } catch (redirectError: any) {
           console.error("Error during redirect after sign in:", redirectError);
-          throw new Error("Failed to navigate after sign in. Please try again.");
+          throw new Error(
+            "Failed to navigate after sign in. Please try again.",
+          );
         }
       } catch (userDataError: any) {
         console.error("Error fetching user data after sign in:", userDataError);
-        throw new Error("Failed to load user data. Please try signing in again.");
+        throw new Error(
+          "Failed to load user data. Please try signing in again.",
+        );
       }
     } catch (error: any) {
-      console.error("Sign in error:", { code: error.code, message: error.message });
+      console.error("Sign in error:", {
+        code: error.code,
+        message: error.message,
+      });
       throw new Error(getAuthErrorMessage(error.code) || error.message);
     }
   }
@@ -108,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const user = await registerWithEmailAndPassword(email, password, name);
       console.log("User registered successfully:", user.uid);
-      
+
       try {
         const userData = await getUserData(user.uid);
         if (!userData) {
@@ -117,11 +124,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUserData(userData);
         setLocation("/");
       } catch (userDataError: any) {
-        console.error("Error creating/fetching user data after registration:", userDataError);
-        throw new Error("Account created but failed to set up user profile. Please try signing in again.");
+        console.error(
+          "Error creating/fetching user data after registration:",
+          userDataError,
+        );
+        throw new Error(
+          "Account created but failed to set up user profile. Please try signing in again.",
+        );
       }
     } catch (error: any) {
-      console.error("Sign up error:", { code: error.code, message: error.message });
+      console.error("Sign up error:", {
+        code: error.code,
+        message: error.message,
+      });
       throw new Error(getAuthErrorMessage(error.code) || error.message);
     }
   }
@@ -133,7 +148,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const userData = await getUserData(user.uid);
       setUserData(userData);
     } catch (error: any) {
-      console.error("Google sign in error:", { code: error.code, message: error.message });
+      console.error("Google sign in error:", {
+        code: error.code,
+        message: error.message,
+      });
       throw new Error(getAuthErrorMessage(error.code) || error.message);
     }
   }
@@ -144,33 +162,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUserData(null);
       console.log("User logged out successfully");
     } catch (error: any) {
-      console.error("Logout error:", { code: error.code, message: error.message });
+      console.error("Logout error:", {
+        code: error.code,
+        message: error.message,
+      });
       throw new Error("Failed to sign out. Please try again.");
     }
   }
 
   function getAuthErrorMessage(code: string): string {
     switch (code) {
-      case 'auth/email-already-in-use':
-        return 'An account with this email already exists';
-      case 'auth/invalid-email':
-        return 'Invalid email address';
-      case 'auth/operation-not-allowed':
-        return 'Operation not allowed';
-      case 'auth/weak-password':
-        return 'Password is too weak';
-      case 'auth/user-disabled':
-        return 'This account has been disabled';
-      case 'auth/user-not-found':
-        return 'No account found with this email';
-      case 'auth/wrong-password':
-        return 'Invalid password';
-      case 'auth/popup-closed-by-user':
-        return 'Google sign-in was cancelled';
-      case 'auth/network-request-failed':
-        return 'Network error occurred. Please check your connection';
+      case "auth/email-already-in-use":
+        return "An account with this email already exists";
+      case "auth/invalid-email":
+        return "Invalid email address";
+      case "auth/operation-not-allowed":
+        return "Operation not allowed";
+      case "auth/weak-password":
+        return "Password is too weak";
+      case "auth/user-disabled":
+        return "This account has been disabled";
+      case "auth/user-not-found":
+        return "No account found with this email";
+      case "auth/wrong-password":
+        return "Invalid password";
+      case "auth/popup-closed-by-user":
+        return "Google sign-in was cancelled";
+      case "auth/network-request-failed":
+        return "Network error occurred. Please check your connection";
       default:
-        return '';
+        return "";
     }
   }
 
@@ -181,7 +202,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signIn,
     signUp,
     signInWithGoogle,
-    logout
+    logout,
   };
 
   return (

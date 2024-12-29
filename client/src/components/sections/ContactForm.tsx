@@ -5,29 +5,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Invalid email address"),
-  company: z.string().min(2, "Company name is required"),
   message: z.string().min(10, "Message must be at least 10 characters"),
 });
 
 export default function ContactForm() {
-  const form = useForm<z.infer<typeof formSchema>>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
       email: "",
-      company: "",
       message: "",
     },
   });
@@ -35,103 +30,90 @@ export default function ContactForm() {
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     console.log(values);
     // Handle form submission
+    reset();
   };
 
   return (
-    <section className="py-24 bg-white">
+    <motion.section
+      className="py-24 bg-white"
+      initial={{ opacity: 0, y: 40 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.8 }}
+      viewport={{ once: true, amount: 0.2 }}
+    >
       <div className="container mx-auto px-4">
         <div className="max-w-3xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-bold mb-4">
-              Ready to Transform Your Business?
-            </h2>
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">See Blueprint in Action</h2>
             <p className="text-xl text-gray-600">
-              Get in touch to schedule a demo and see Blueprint in action.
+              Request a demo and discover the future of spatial AR.
             </p>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-          >
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="John Doe" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+            <div>
+              <label className="block text-lg font-medium mb-2" htmlFor="name">
+                Name
+              </label>
+              <Input
+                type="text"
+                id="name"
+                placeholder="John Doe"
+                {...register("name")}
+              />
+              {errors.name && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.name.message}
+                </p>
+              )}
+            </div>
 
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input placeholder="john@company.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+            <div>
+              <label className="block text-lg font-medium mb-2" htmlFor="email">
+                Email
+              </label>
+              <Input
+                type="email"
+                id="email"
+                placeholder="john@company.com"
+                {...register("email")}
+              />
+              {errors.email && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
 
-                <FormField
-                  control={form.control}
-                  name="company"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Company</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Your Company" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+            <div>
+              <label
+                className="block text-lg font-medium mb-2"
+                htmlFor="message"
+              >
+                Message
+              </label>
+              <Textarea
+                id="message"
+                placeholder="Tell us how we can help..."
+                rows={5}
+                {...register("message")}
+              />
+              {errors.message && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.message.message}
+                </p>
+              )}
+            </div>
 
-                <FormField
-                  control={form.control}
-                  name="message"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Message</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Tell us about your business and how we can help..."
-                          className="h-32"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <Button type="submit" size="lg" className="w-full">
-                  Request Demo
-                </Button>
-              </form>
-            </Form>
-          </motion.div>
+            <Button
+              type="submit"
+              className="w-full py-3 text-lg hover:scale-[1.02] transition-transform"
+            >
+              Request Demo
+            </Button>
+          </form>
         </div>
       </div>
-    </section>
+    </motion.section>
   );
 }

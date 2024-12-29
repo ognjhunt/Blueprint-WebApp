@@ -1,5 +1,3 @@
-// LiveAPIContext.tsx
-
 import React, {
   createContext,
   useContext,
@@ -9,105 +7,47 @@ import React, {
   useRef,
 } from "react";
 import { EventEmitter } from "eventemitter3";
-import { difference } from "lodash";
-
-const API_KEY = "AIzaSyCyyCfGsXRnIRC9HSVVuCMN5grzPkyTtkY";
-
-interface StreamingLog {
-  date: Date;
-  type: string;
-  message: any;
-}
-
-interface LiveConfig {
-  model: string;
-  generationConfig: {
-    responseModalities: string[];
-    speechConfig: {
-      voice: string;
-    };
-  };
-}
-
-interface GenerativeContentBlob {
-  mimeType: string;
-  data: string;
-}
 
 class MultimodalLiveClient extends EventEmitter {
-  public ws: WebSocket | null = null;
-  protected config: LiveConfig | null = null;
-  public url: string;
-  private setupComplete: boolean = false;
-  private setupSent: boolean = false;
-
-  constructor({ url, apiKey }: { url?: string; apiKey: string }) {
+  constructor({ apiKey }) {
     super();
-    url =
-      url ||
-      `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent`;
-    url += `?key=${apiKey}`;
+    const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
     this.url = url;
-    this.send = this.send.bind(this);
+    this.ws = null;
+    this.setupComplete = true;
+    this.setupSent = false;
   }
 
-  log(type: string, message: StreamingLog["message"]) {
-    const log: StreamingLog = {
-      date: new Date(),
-      type,
-      message,
-    };
-    this.emit("log", log);
-  }
-
-  connect(config: LiveConfig): Promise<boolean> {
-    this.config = config;
+  connect(config) {
     const ws = new WebSocket(this.url);
-    this.setupComplete = false;
+    this.setupComplete = true;
     this.setupSent = false;
 
     return new Promise((resolve, reject) => {
-      ws.addEventListener("message", async (evt: MessageEvent) => {
+      ws.addEventListener("message", async (evt) => {
+        console.log("before Blob");
         if (evt.data instanceof Blob) {
-          try {
-            const json = await evt.data.text();
-            const response = JSON.parse(json);
-            console.log("Received message:", response);
+          const json = await evt.data.text();
+          const response = JSON.parse(json);
 
-            if (response.setupResponse && !this.setupComplete) {
-              console.log("Setup completed successfully");
-              this.setupComplete = true;
-              this.setupSent = false;
-            }
+          console.log(response);
 
-            this.emit("message", response);
-
-            if (response.serverContent?.modelTurn) {
-              console.log(
-                "Model turn content:",
-                response.serverContent.modelTurn,
-              );
-              this.emit("content", response.serverContent);
-            }
-          } catch (error) {
-            console.error("Error processing message:", error);
+          if (response.setupResponse && !this.setupComplete) {
+            this.setupComplete = true;
+            this.setupSent = false;
           }
-        } else {
-          console.log("non blob message", evt);
+
+          this.emit("message", response);
+
+          if (response.serverContent?.modelTurn) {
+            this.emit("content", response.serverContent);
+          }
         }
       });
 
-      ws.addEventListener("error", (ev: Event) => {
-        this.disconnect();
-        const message = `Could not connect to "${this.url}"`;
-        this.log(`server.${ev.type}`, message);
-        reject(new Error(message));
-      });
-
-      ws.addEventListener("open", (ev: Event) => {
-        this.log(`client.${ev.type}`, `connected to socket`);
-        this.emit("open");
+      ws.addEventListener("open", () => {
         this.ws = ws;
+        this.emit("open");
 
         const setupMessage = {
           setup: {
@@ -117,7 +57,7 @@ class MultimodalLiveClient extends EventEmitter {
               responseModalities: ["TEXT", "SPEECH"],
               candidateCount: 1,
               maxOutputTokens: 1024,
-              temperature: 0.9,
+              temperature: 0.3,
               topP: 1,
               topK: 1,
               stopSequences: [],
@@ -128,59 +68,40 @@ class MultimodalLiveClient extends EventEmitter {
           },
         };
 
-        const sendSetup = () => {
-          if (
-            !this.setupComplete &&
-            this.ws?.readyState === WebSocket.OPEN &&
-            !this.setupSent
-          ) {
-            console.log("Sending setup message...");
-            this._sendDirect(setupMessage);
-            this.setupSent = true;
-
-            setTimeout(() => {
-              if (!this.setupComplete) {
-                console.log("Setup not acknowledged, retrying...");
-                sendSetup();
-              }
-            }, 1000);
-          }
-        };
-
-        sendSetup();
+        this._sendDirect(setupMessage);
         resolve(true);
       });
 
-      ws.addEventListener("close", (ev: CloseEvent) => {
-        this.log(`server.${ev.type}`, `disconnected ${ev.reason || ""}`);
-        this.ws = null;
-        this.setupComplete = false;
-        this.setupSent = false;
-        this.emit("close", ev);
+      ws.addEventListener("error", (ev) => {
+        this.disconnect();
+        console.log("error");
+        reject(new Error(`WebSocket connection failed`));
+      });
 
-        if (!this.setupComplete) {
-          console.log("Attempting to reconnect...");
-          setTimeout(() => {
-            this.connect(config).catch(console.error);
-          }, 2000);
-        }
+      ws.addEventListener("close", () => {
+        this.ws = null;
+        console.log("close -- false");
+        // this.setupComplete = false;
+        this.setupSent = false;
+        this.emit("close");
       });
     });
   }
 
   disconnect() {
     if (this.ws) {
+      console.log("disconnecting");
       this.ws.close();
       this.ws = null;
       this.setupComplete = false;
       this.setupSent = false;
-      this.log("client.close", `Disconnected`);
       return true;
     }
     return false;
   }
 
-  send(parts: any[] | any, turnComplete: boolean = true) {
+  send(parts, turnComplete = true) {
+    console.log(this.setupComplete);
     if (!this.setupComplete) {
       console.warn("Cannot send message before setup is complete");
       return;
@@ -199,93 +120,48 @@ class MultimodalLiveClient extends EventEmitter {
     };
 
     this._sendDirect(clientContentRequest);
-    this.log(`client.send`, clientContentRequest);
   }
 
-  sendRealtimeInput(chunks: GenerativeContentBlob[]) {
-    if (!this.setupComplete) {
-      console.warn("Cannot send realtime input before setup is complete");
-      return;
-    }
-
-    console.log("Sending realtime input:", {
-      chunksLength: chunks.length,
-      firstChunkType: chunks[0]?.constructor.name,
-      firstChunkLength: chunks[0]?.byteLength,
-    });
+  sendRealtimeInput(chunks) {
+    if (!this.setupComplete) return;
 
     const data = {
       realtimeInput: {
         mediaChunks: chunks.map((chunk) => ({
-          mimeType: "audio/pcm;bits=16;rate=16000",
+          mimeType: chunk.mimeType || "audio/pcm;bits=16;rate=16000",
           data: chunk.data,
         })),
       },
     };
+
     this._sendDirect(data);
-    this.log(`client.realtimeInput`, "audio data");
   }
 
-  _sendDirect(request: object) {
+  _sendDirect(request) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new Error("WebSocket is not connected");
     }
-    const str = JSON.stringify(request);
-    console.log("Sending message:", str);
-    this.ws.send(str);
+    this.ws.send(JSON.stringify(request));
   }
 }
 
-interface LiveAPIContextType {
-  client: MultimodalLiveClient | null;
-  isConnected: boolean;
-  sendMessage: (message: any) => void;
-  setConfig: (config: any) => void;
-}
+const LiveAPIContext = createContext(null);
 
-const LiveAPIContext = createContext<LiveAPIContextType | null>(null);
-
-export const LiveAPIProvider = ({
-  children,
-}: {
-  children: React.ReactNode;
-}) => {
-  const clientRef = useRef<MultimodalLiveClient | null>(null);
+export const LiveAPIProvider = ({ children }) => {
+  const clientRef = useRef(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [config] = useState({
-    model: "models/gemini-2.0-flash-exp",
-    generationConfig: {
-      responseModalities: ["TEXT", "SPEECH"],
-      candidateCount: 1,
-      maxOutputTokens: 1024,
-      temperature: 0.9,
-      topP: 1,
-      topK: 1,
-      stopSequences: [],
-      speechConfig: {
-        voice: "Charon",
-      },
-    },
-  });
+  console.log("LiveAPIProvider");
 
   useEffect(() => {
     if (!clientRef.current) {
-      clientRef.current = new MultimodalLiveClient({ apiKey: API_KEY });
-
-      clientRef.current.on("open", () => {
-        console.log("WebSocket connection opened");
-        setIsConnected(true);
+      clientRef.current = new MultimodalLiveClient({
+        apiKey: "AIzaSyCyyCfGsXRnIRC9HSVVuCMN5grzPkyTtkY",
       });
 
-      clientRef.current.on("close", () => {
-        console.log("WebSocket connection closed");
-        setIsConnected(false);
-      });
+      clientRef.current.on("open", () => setIsConnected(true));
+      clientRef.current.on("close", () => setIsConnected(false));
 
-      console.log("Attempting to connect to WebSocket with config:", config);
-      clientRef.current.connect(config).catch((error) => {
-        console.error("WebSocket connection error:", error);
-      });
+      clientRef.current.connect().catch(console.error);
     }
 
     return () => {
@@ -296,7 +172,7 @@ export const LiveAPIProvider = ({
     };
   }, []);
 
-  const sendMessage = useCallback((message: any) => {
+  const sendMessage = useCallback((message) => {
     if (!clientRef.current) return;
 
     if (message.media_chunks) {
@@ -306,22 +182,12 @@ export const LiveAPIProvider = ({
     }
   }, []);
 
-  const setConfig = useCallback((newConfig: any) => {
-    if (clientRef.current) {
-      clientRef.current.disconnect();
-      clientRef.current.connect(newConfig).catch((error) => {
-        console.error("WebSocket connection error:", error);
-      });
-    }
-  }, []);
-
   return (
     <LiveAPIContext.Provider
       value={{
         client: clientRef.current,
         isConnected,
         sendMessage,
-        setConfig,
       }}
     >
       {children}

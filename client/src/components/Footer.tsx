@@ -1,80 +1,105 @@
-import { Facebook, Twitter, Linkedin, Instagram } from "lucide-react";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
 
 export default function Footer() {
-  const [email, setEmail] = useState("");
-
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Handle newsletter subscription
-    console.log("Subscribed:", email);
-    setEmail("");
-  };
-
   return (
-    <footer className="bg-gray-900 text-gray-300">
-      <div className="container mx-auto px-4 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-          {/* Company Info */}
-          <div>
-            <h3 className="text-2xl font-bold text-white mb-4">Blueprint</h3>
-            <p className="mb-4">
-              Transforming spaces with cutting-edge AR technology for enhanced customer experiences.
-            </p>
-            <div className="flex space-x-4">
-              <a href="#" className="hover:text-primary transition-colors">
-                <Facebook size={20} />
-              </a>
-              <a href="#" className="hover:text-primary transition-colors">
-                <Twitter size={20} />
-              </a>
-              <a href="#" className="hover:text-primary transition-colors">
-                <Linkedin size={20} />
-              </a>
-              <a href="#" className="hover:text-primary transition-colors">
-                <Instagram size={20} />
-              </a>
-            </div>
-          </div>
-
-          {/* Resources */}
-          <div>
-            <h4 className="text-lg font-semibold text-white mb-4">Resources</h4>
-            <ul className="space-y-2">
-              <li>
-                <a href="#" className="hover:text-primary transition-colors">Support Center</a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
-              </li>
-            </ul>
-          </div>
-
-          {/* Newsletter */}
-          <div>
-            <h4 className="text-lg font-semibold text-white mb-4">Stay Updated</h4>
-            <p className="mb-4">Subscribe to our newsletter for the latest updates and insights.</p>
-            <form onSubmit={handleSubscribe} className="space-y-2">
-              <Input
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="bg-gray-800 border-gray-700"
-                required
-              />
-              <Button type="submit" className="w-full">
-                Subscribe
-              </Button>
-            </form>
+    <footer className="bg-neutral-900 text-white py-12 mt-24">
+      <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
+        {/* Brand/Company */}
+        <div className="md:col-span-1">
+          <h3 className="text-2xl font-bold mb-2">Blueprint</h3>
+          <p className="text-gray-400 leading-relaxed text-sm">
+            Transforming spaces with cutting-edge AR technology for enhanced
+            customer experiences.
+          </p>
+          <div className="flex items-center gap-3 mt-4 text-gray-400">
+            <a href="#" aria-label="Facebook" className="hover:text-white">
+              <i className="fab fa-facebook-f" />
+            </a>
+            <a href="#" aria-label="Twitter" className="hover:text-white">
+              <i className="fab fa-twitter" />
+            </a>
+            <a href="#" aria-label="LinkedIn" className="hover:text-white">
+              <i className="fab fa-linkedin-in" />
+            </a>
+            <a href="#" aria-label="Instagram" className="hover:text-white">
+              <i className="fab fa-instagram" />
+            </a>
           </div>
         </div>
 
-        <div className="border-t border-gray-800 mt-12 pt-8 text-center">
-          <p>&copy; {new Date().getFullYear()} Blueprint. All rights reserved.</p>
+        {/* Resources */}
+        <div>
+          <h4 className="text-lg font-semibold mb-3">Resources</h4>
+          <ul className="space-y-2 text-sm text-gray-400">
+            <li>
+              <a href="#" className="hover:text-white">
+                Support Center
+              </a>
+            </li>
+            <li>
+              <a href="#" className="hover:text-white">
+                Privacy Policy
+              </a>
+            </li>
+            <li>
+              <a href="#" className="hover:text-white">
+                Pricing
+              </a>
+            </li>
+          </ul>
         </div>
+
+        {/* Another Column Example */}
+        <div>
+          <h4 className="text-lg font-semibold mb-3">Company</h4>
+          <ul className="space-y-2 text-sm text-gray-400">
+            <li>
+              <a href="#" className="hover:text-white">
+                About Us
+              </a>
+            </li>
+            <li>
+              <a href="#" className="hover:text-white">
+                Blog
+              </a>
+            </li>
+            <li>
+              <a href="#" className="hover:text-white">
+                Careers
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        {/* Newsletter */}
+        <div>
+          <h4 className="text-lg font-semibold mb-3">Stay Updated</h4>
+          <p className="text-sm text-gray-400 mb-4">
+            Subscribe to our newsletter for the latest updates and insights.
+          </p>
+          <div className="flex gap-2">
+            <Input
+              type="email"
+              placeholder="Enter your email"
+              className="text-black"
+            />
+            <Button
+              className="hover:scale-105 transition-transform"
+              variant="default"
+            >
+              Subscribe
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Bar */}
+      <div className="container mx-auto px-4 mt-8 border-t border-gray-700 pt-4">
+        <p className="text-xs text-gray-500 text-center">
+          © 2024 Blueprint. All rights reserved.
+        </p>
       </div>
     </footer>
   );

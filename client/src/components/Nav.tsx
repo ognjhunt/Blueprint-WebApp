@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -8,11 +9,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useState, useEffect } from "react";
 import { Menu, X, Search, User } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { motion } from "framer-motion";
 
 export default function Nav() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -26,14 +27,14 @@ export default function Nav() {
       await logout();
       toast({
         title: "Signed Out",
-        description: "You have been successfully signed out."
+        description: "You have been successfully signed out.",
       });
       setLocation("/");
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to sign out. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
@@ -47,25 +48,37 @@ export default function Nav() {
   }, []);
 
   return (
-    <nav
+    <motion.nav
       className={`fixed w-full z-50 transition-all duration-300 ${
         isScrolled ? "bg-white/90 backdrop-blur-sm shadow-sm" : "bg-transparent"
       }`}
+      initial={{ y: -80 }}
+      animate={{ y: 0 }}
+      transition={{ duration: 0.6 }}
     >
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          <div className="flex items-center">
-            <Link href="/" className="text-2xl font-bold text-primary hover:opacity-80 transition-opacity">
-              Blueprint
-            </Link>
-          </div>
+          {/* Brand */}
+          <Link
+            href="/"
+            className="text-2xl font-extrabold text-primary hover:opacity-80 transition-opacity"
+          >
+            Blueprint
+          </Link>
 
+          {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-4">
-            <Link href="/search" className="text-sm font-medium hover:text-primary transition-colors flex items-center">
+            <Link
+              href="/search"
+              className="text-sm font-medium hover:text-primary transition-colors flex items-center"
+            >
               <Search className="w-4 h-4 mr-1" />
               Search
             </Link>
-            <Link href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">
+            <Link
+              href="/pricing"
+              className="text-sm font-medium hover:text-primary transition-colors"
+            >
               Pricing
             </Link>
             <Link href="/claim-blueprint">
@@ -91,7 +104,10 @@ export default function Nav() {
                 </Link>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                    <Button
+                      variant="ghost"
+                      className="relative h-8 w-8 rounded-full"
+                    >
                       <Avatar className="h-8 w-8">
                         <AvatarImage src="/avatars/01.png" alt="Profile" />
                         <AvatarFallback>
@@ -104,7 +120,9 @@ export default function Nav() {
                     <DropdownMenuLabel className="font-normal">
                       <div className="flex flex-col space-y-1">
                         <p className="text-sm font-medium">{userData?.name}</p>
-                        <p className="text-xs text-muted-foreground">{userData?.email}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {userData?.email}
+                        </p>
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
@@ -124,6 +142,7 @@ export default function Nav() {
             )}
           </div>
 
+          {/* Mobile Menu Toggle */}
           <button
             className="md:hidden"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -132,18 +151,33 @@ export default function Nav() {
           </button>
         </div>
 
+        {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden py-4">
+          <motion.div
+            className="md:hidden py-4"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+          >
             <div className="flex flex-col space-y-4">
-              <Link href="/search" className="text-sm font-medium hover:text-primary transition-colors flex items-center">
+              <Link
+                href="/search"
+                className="text-sm font-medium hover:text-primary transition-colors flex items-center"
+              >
                 <Search className="w-4 h-4 mr-1" />
                 Search
               </Link>
-              <Link href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">
+              <Link
+                href="/pricing"
+                className="text-sm font-medium hover:text-primary transition-colors"
+              >
                 Pricing
               </Link>
               <Link href="/claim-blueprint" className="w-full">
-                <Button variant="outline" className="w-full mb-2">Claim Blueprint</Button>
+                <Button variant="outline" className="w-full mb-2">
+                  Claim Blueprint
+                </Button>
               </Link>
               {!currentUser ? (
                 <Link href="/sign-in" className="w-full">
@@ -155,20 +189,26 @@ export default function Nav() {
                 <>
                   {location !== "/dashboard" && (
                     <Link href="/dashboard" className="w-full">
-                      <Button variant="outline" className="w-full mb-2">Dashboard</Button>
+                      <Button variant="outline" className="w-full mb-2">
+                        Dashboard
+                      </Button>
                     </Link>
                   )}
                   <Link href="/create-blueprint" className="w-full">
                     <Button className="w-full mb-2">Create Blueprint</Button>
                   </Link>
                   <Link href="/profile" className="w-full">
-                    <Button variant="outline" className="w-full mb-2">Profile</Button>
+                    <Button variant="outline" className="w-full mb-2">
+                      Profile
+                    </Button>
                   </Link>
                   <Link href="/settings" className="w-full">
-                    <Button variant="outline" className="w-full mb-2">Settings</Button>
+                    <Button variant="outline" className="w-full mb-2">
+                      Settings
+                    </Button>
                   </Link>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full"
                     onClick={handleSignOut}
                   >
@@ -177,9 +217,9 @@ export default function Nav() {
                 </>
               )}
             </div>
-          </div>
+          </motion.div>
         )}
       </div>
-    </nav>
+    </motion.nav>
   );
 }

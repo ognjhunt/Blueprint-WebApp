@@ -18,6 +18,8 @@ import Settings from "./pages/Settings";
 import SignIn from "./pages/SignIn";
 import CreateAccount from "./pages/CreateAccount";
 import BlueprintEditor from "./pages/BlueprintEditor";
+import Discover from "./pages/Discover";
+import HowItWorks from "./pages/HowItWorks";
 
 import ProtectedRoute from "@/components/ProtectedRoute";
 
@@ -28,6 +30,8 @@ function Router() {
       <Route path="/pricing" component={PricingPage} />
       <Route path="/search" component={BusinessSearch} />
       <Route path="/sign-in" component={SignIn} />
+      <Route path="/discover" component={Discover} />
+      <Route path="/how-it-works" component={HowItWorks} />
       <Route path="/create-account" component={CreateAccount} />
 
       {/* Protected Routes */}
