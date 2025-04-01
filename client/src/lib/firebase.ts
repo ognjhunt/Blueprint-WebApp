@@ -1,6 +1,6 @@
-import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, 
+import { initializeApp } from "firebase/app";
+import {
+  getAuth,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
@@ -9,8 +9,8 @@ import {
   signOut,
   User as FirebaseUser,
   browserLocalPersistence,
-  setPersistence
-} from 'firebase/auth';
+  setPersistence,
+} from "firebase/auth";
 import {
   getFirestore,
   doc,
@@ -18,8 +18,9 @@ import {
   setDoc,
   updateDoc,
   serverTimestamp,
-  DocumentData
-} from 'firebase/firestore';
+  DocumentData,
+} from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBfLLwlFQvxkztjgihEG7_2p9rTipdXGFs",
@@ -29,7 +30,7 @@ const firebaseConfig = {
   storageBucket: "blueprint-8c1ca.appspot.com",
   messagingSenderId: "744608654760",
   appId: "1:744608654760:web:5b697e80345ac2b0f4a99d",
-  measurementId: "G-7LHTQSRF9L"
+  measurementId: "G-7LHTQSRF9L",
 };
 
 // Initialize Firebase
@@ -44,9 +45,10 @@ try {
 
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
-  prompt: 'select_account'
+  prompt: "select_account",
 });
 
 // User data interface
@@ -107,21 +109,21 @@ export interface UserData {
 // Firestore functions
 export const createUserDocument = async (
   user: FirebaseUser,
-  additionalData?: { name?: string }
+  additionalData?: { name?: string },
 ): Promise<void> => {
   if (!user) {
-    console.error('No user provided to createUserDocument');
-    throw new Error('No user provided to createUserDocument');
+    console.error("No user provided to createUserDocument");
+    throw new Error("No user provided to createUserDocument");
   }
 
   try {
-    const userRef = doc(db, 'users', user.uid);
+    const userRef = doc(db, "users", user.uid);
     const snapshot = await getDoc(userRef);
 
     if (!snapshot.exists()) {
       const { email } = user;
-      const name = additionalData?.name || email?.split('@')[0] || '';
-      const username = name.toLowerCase().replace(/\s+/g, '_');
+      const name = additionalData?.name || email?.split("@")[0] || "";
+      const username = name.toLowerCase().replace(/\s+/g, "_");
       const timestamp = serverTimestamp();
 
       const newUserData = {
@@ -129,7 +131,7 @@ export const createUserDocument = async (
         email,
         name,
         username,
-        deviceToken: '',
+        deviceToken: "",
         referralCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
         createdDate: timestamp,
         lastLoginAt: timestamp,
@@ -137,7 +139,7 @@ export const createUserDocument = async (
         numSessions: 1,
         uploadedContentCount: 0,
         collectedContentCount: 0,
-        planType: 'free',
+        planType: "free",
         credits: 0,
         finishedOnboarding: false,
         hasEnteredNotes: false,
@@ -171,42 +173,47 @@ export const createUserDocument = async (
         weeklyEngagementScore: 0,
         completedTutorials: [],
         skillLevels: {},
-        mostFrequentLocation: '',
-        deviceTypes: []
+        mostFrequentLocation: "",
+        deviceTypes: [],
       };
 
       await setDoc(userRef, newUserData);
-      console.log('User document created successfully:', user.uid);
+      console.log("User document created successfully:", user.uid);
     } else {
       await updateDoc(userRef, {
         lastLoginAt: serverTimestamp(),
-        numSessions: snapshot.data().numSessions + 1
+        numSessions: snapshot.data().numSessions + 1,
       });
-      console.log('User document updated successfully:', user.uid);
+      console.log("User document updated successfully:", user.uid);
     }
   } catch (error) {
-    console.error('Error in createUserDocument:', error);
-    throw new Error(`Failed to create/update user document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error("Error in createUserDocument:", error);
+    throw new Error(
+      `Failed to create/update user document: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
   }
 };
 
 export const getUserData = async (uid: string): Promise<UserData | null> => {
   try {
-    const userDoc = await getDoc(doc(db, 'users', uid));
+    const userDoc = await getDoc(doc(db, "users", uid));
     if (userDoc.exists()) {
       return userDoc.data() as UserData;
     }
     return null;
   } catch (error) {
-    console.error('Error fetching user data:', error);
+    console.error("Error fetching user data:", error);
     throw error;
   }
 };
 
 // Auth functions
-export const loginWithEmailAndPassword = async (email: string, password: string) => {
+export const loginWithEmailAndPassword = async (
+  email: string,
+  password: string,
+) => {
   if (!auth) throw new Error("Firebase auth not initialized");
-  
+
   try {
     const result = await signInWithEmailAndPassword(auth, email, password);
     await createUserDocument(result.user);
@@ -218,9 +225,13 @@ export const loginWithEmailAndPassword = async (email: string, password: string)
   }
 };
 
-export const registerWithEmailAndPassword = async (email: string, password: string, name?: string) => {
+export const registerWithEmailAndPassword = async (
+  email: string,
+  password: string,
+  name?: string,
+) => {
   if (!auth) throw new Error("Firebase auth not initialized");
-  
+
   try {
     const result = await createUserWithEmailAndPassword(auth, email, password);
     await createUserDocument(result.user, { name });
@@ -234,7 +245,7 @@ export const registerWithEmailAndPassword = async (email: string, password: stri
 
 export const signInWithGoogle = async () => {
   if (!auth) throw new Error("Firebase auth not initialized");
-  
+
   try {
     const result = await signInWithPopup(auth, googleProvider);
     await createUserDocument(result.user);
@@ -248,7 +259,7 @@ export const signInWithGoogle = async () => {
 
 export const logOut = async () => {
   if (!auth) throw new Error("Firebase auth not initialized");
-  
+
   try {
     await signOut(auth);
     console.log("Logout successful");
@@ -258,4 +269,4 @@ export const logOut = async () => {
   }
 };
 
-export { auth, db, onAuthStateChanged, User };
+export { auth, db, onAuthStateChanged, User, storage };

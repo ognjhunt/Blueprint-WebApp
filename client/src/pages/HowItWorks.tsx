@@ -3,13 +3,15 @@
 import React from "react";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
+import ContactForm from "@/components/sections/ContactForm";
+
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 // Replace MagicWand with Wand2 here:
 import { MapPin, Edit, Wand2, PlayCircle, Check } from "lucide-react";
 
 // Example placeholder illustration; replace or remove
-const heroIllustration = "/images/how-it-works-hero.png";
+const heroIllustration = "/images/apple-store-blueprint.jpeg";
 
 // The step icons and copy for the process
 const steps = [
@@ -191,6 +193,8 @@ function CallToActionSection() {
           </div>
         </motion.div>
       </div>
+
+      <ContactForm />
     </section>
   );
 }

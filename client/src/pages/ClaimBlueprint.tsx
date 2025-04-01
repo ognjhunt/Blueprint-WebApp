@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
 import ScreenShareButton from "@/components/ScreenShareButton";
 import CustomerExperienceDesigner from "@/components/CustomerExperienceDesigner";
+import Nav from "@/components/Nav";
 import {
   Check,
   ChevronRight,
@@ -831,7 +832,8 @@ export default function ClaimBlueprint() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-100 to-white">
-      <div className="container mx-auto px-4 py-8">
+      <Nav />
+      <div className="container mx-auto px-4 pt-24 pb-8">
         <div className="max-w-3xl mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-center">

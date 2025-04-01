@@ -14,14 +14,22 @@ import Dashboard from "./pages/Dashboard";
 import PricingPage from "./pages/Pricing";
 import BusinessSearch from "./pages/BusinessSearch";
 import Profile from "./pages/Profile";
-import Settings from "./pages/Settings";
 import SignIn from "./pages/SignIn";
 import CreateAccount from "./pages/CreateAccount";
 import BlueprintEditor from "./pages/BlueprintEditor";
 import Discover from "./pages/Discover";
 import HowItWorks from "./pages/HowItWorks";
-
+import OffWaitlistSignUpFlow from "./pages/OffWaitlistSignUpFlow";
+import WorkflowHub from "@/components/WorkflowHub";
+import WorkflowEditor from "@/components/WorkflowEditor";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import WorkspacePage from "./pages/Workspace"; // or wherever you placed workspace.tsx
+import Help from "./pages/Help";
+import ManagePlan from "./pages/ManagePlan";
+import TeamMembers from "./pages/TeamMembers";
+import Settings from "./pages/Settings";
+import ScannerPortal from "./pages/ScannerPortal";
+import AcceptInvite from "./pages/AcceptInvite";
 
 function Router() {
   return (
@@ -33,6 +41,14 @@ function Router() {
       <Route path="/discover" component={Discover} />
       <Route path="/how-it-works" component={HowItWorks} />
       <Route path="/create-account" component={CreateAccount} />
+      <Route path="/off-waitlist-signup" component={OffWaitlistSignUpFlow} />
+      <Route path="/workspace" component={WorkspacePage} />
+      <Route path="/help" component={Help} />
+      <Route path="/manage-plan" component={ManagePlan} />
+      <Route path="/team-members" component={TeamMembers} />
+      <Route path="/settings" component={Settings} />
+      <Route path="/scanner-portal" component={ScannerPortal} />
+      <Route path="/accept-invite" component={AcceptInvite} />
 
       {/* Protected Routes */}
       <Route path="/create-blueprint">
@@ -51,33 +67,41 @@ function Router() {
           <Profile />
         </ProtectedRoute>
       </Route>
-      <Route path="/settings">
-        <ProtectedRoute>
-          <Settings />
-        </ProtectedRoute>
-      </Route>
       <Route path="/blueprint-editor/:id?">
         <ProtectedRoute>
           <BlueprintEditor />
         </ProtectedRoute>
       </Route>
+
+      <Route path="/workflow-hub">
+        <ProtectedRoute>
+          <WorkflowHub />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/workflow-editor/:flowId">
+        <ProtectedRoute>
+          <WorkflowEditor />
+        </ProtectedRoute>
+      </Route>
+
       <Route>404 Page Not Found</Route>
     </Switch>
   );
 }
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <LiveAPIProvider>
-          {" "}
-          {/* Add this here */}
-          <Router />
-          <Toaster />
-        </LiveAPIProvider>{" "}
-        {/* And close it here */}
-      </AuthProvider>
-    </QueryClientProvider>
-  </StrictMode>,
+  //  <StrictMode>
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      <LiveAPIProvider>
+        {" "}
+        {/* Add this here */}
+        <Router />
+        <Toaster />
+      </LiveAPIProvider>{" "}
+      {/* And close it here */}
+    </AuthProvider>
+  </QueryClientProvider>,
+  //  </StrictMode>,
 );

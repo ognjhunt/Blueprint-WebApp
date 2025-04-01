@@ -1,149 +1,226 @@
-import { useState, useEffect } from "react";
+"use client";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useInView } from "framer-motion";
 import { Link } from "wouter";
+import { PlayIcon, ArrowRightIcon } from "@heroicons/react/24/solid";
+import { Info } from "lucide-react";
 
 export default function Hero() {
-  // Your headlines (each with a \n so “Blueprint” sits on its own line)
   const headlines = [
-    { text: "Reimagine your business with\nBlueprint" },
-    { text: "Reimagine your customer experience with\nBlueprint" },
-    { text: "Reimagine your brand presence with\nBlueprint" },
-    { text: "Reimagine your environment with\nBlueprint" },
+    {
+      text: "Reimagine Your Business",
+      highlight: "With Blueprint AR",
+      description:
+        "Transform physical spaces into interactive experiences that delight your customers and drive results.",
+    },
+    {
+      text: "Reimagine Customer Engagement",
+      highlight: "Without Building an App",
+      description:
+        "Create immersive AR experiences that work directly in your customers' browsers—no downloads required.",
+    },
+    {
+      text: "Reimagine Physical Spaces",
+      highlight: "With Digital Interactions",
+      description:
+        "Bridge the physical and digital worlds with AR experiences that enhance how customers engage with your brand.",
+    },
+    {
+      text: "Reimagine What's Possible",
+      highlight: "With Blueprint",
+      description:
+        "Join forward-thinking businesses already transforming their spaces with our cutting-edge AR technology.",
+    },
   ];
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  const heroRef = useRef(null);
+  const isInView = useInView(heroRef, { once: true });
 
-  // Cycle through headlines every 4 seconds
+  const handleScrollToContactForm = () => {
+    const contactFormElement = document.getElementById("contactForm");
+    if (contactFormElement) {
+      contactFormElement.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % headlines.length);
-    }, 4000);
+    }, 5000);
     return () => clearInterval(interval);
   }, [headlines.length]);
 
   return (
-    <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
-      {/* Animated background shapes */}
+    <section
+      ref={heroRef}
+      className="relative min-h-[90vh] flex items-center justify-center py-16 md:py-20 lg:py-24 overflow-hidden"
+    >
+      {/* Animated elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <motion.div
+          className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-gradient-to-br from-violet-300/30 to-fuchsia-300/30 blur-3xl"
+          animate={{
+            y: [0, 15, 0],
+            x: [0, 10, 0],
+            scale: [1, 1.1, 1],
+          }}
+          transition={{ duration: 10, repeat: Infinity, repeatType: "reverse" }}
+        />
+        <motion.div
+          className="absolute bottom-32 -left-32 w-96 h-96 rounded-full bg-gradient-to-tr from-blue-300/20 to-cyan-300/20 blur-3xl"
+          animate={{
+            y: [0, -20, 0],
+            x: [0, 10, 0],
+            scale: [1, 1.05, 1],
+          }}
+          transition={{
+            duration: 12,
+            repeat: Infinity,
+            repeatType: "reverse",
+            delay: 1,
+          }}
+        />
+      </div>
+
+      {/* 3D Device Mock */}
       <motion.div
-        className="absolute inset-0 bg-[url('/images/hero-pattern.svg')] bg-cover bg-center opacity-10"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.2 }}
-        transition={{ duration: 2 }}
-      />
+        className="absolute -right-[10%] lg:right-0 bottom-0 w-[60%] h-full max-w-xl"
+        initial={{ opacity: 0, x: 100 }}
+        animate={{ opacity: isInView ? 1 : 0, x: isInView ? 0 : 100 }}
+        transition={{ duration: 1.2, delay: 0.5 }}
+      >
+        <div className="h-full relative flex items-center justify-center">
+          <img
+            src="/images/grocerystoreafter2.png"
+            alt="AR on smartphone"
+            className="w-full h-auto object-contain"
+          />
 
-      {/* Hero content */}
-      <div className="container mx-auto px-4 text-center relative z-10">
-        <AnimatePresence mode="wait">
-          <motion.h1
-            key={currentIndex} // Important: helps AnimatePresence track the current text
-            className="text-5xl md:text-6xl font-extrabold mb-6 leading-tight text-gray-800 whitespace-pre-wrap"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.6 }}
+          {/* AR indicators */}
+          <motion.div
+            className="absolute top-[30%] left-[20%] w-12 h-12 rounded-full border-2 border-indigo-400 flex items-center justify-center"
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: [0, 1.2, 1], opacity: [0, 0.8, 1] }}
+            transition={{ delay: 1.5, duration: 0.8 }}
           >
-            {headlines[currentIndex].text}
-          </motion.h1>
-        </AnimatePresence>
+            <div className="w-3 h-3 rounded-full bg-indigo-500" />
+          </motion.div>
 
-        <motion.p
-          className="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
+          <motion.div
+            className="absolute top-[28%] left-[18%] text-sm font-medium bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg border border-indigo-100"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.8, duration: 0.5 }}
+          >
+            <span className="text-indigo-600">AR Object</span>
+          </motion.div>
+        </div>
+      </motion.div>
+
+      <div className="container mx-auto px-4 text-center lg:text-left relative z-10 lg:max-w-3xl lg:ml-20 xl:ml-32">
+        <motion.div
+          className="inline-block mb-3 bg-indigo-50 text-indigo-700 py-1 px-4 rounded-full text-sm font-medium tracking-wide"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 20 }}
+          transition={{ duration: 0.6 }}
         >
-          The all-in-one platform for creating immersive, AR-driven customer
-          experiences. Transform any environment—no custom app required.
-        </motion.p>
+          Next-Generation AR + AI Platform
+        </motion.div>
+
+        {/* Modified headline container - no fixed height, using min-height instead */}
+        <div className="min-h-[200px] sm:min-h-[180px] md:min-h-[220px] flex flex-col mb-12">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentIndex}
+              className="w-full"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.6 }}
+            >
+              <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-6 leading-tight text-gray-800">
+                {headlines[currentIndex].text}{" "}
+                <span className="bg-gradient-to-r from-indigo-600 to-violet-600 text-transparent bg-clip-text">
+                  {headlines[currentIndex].highlight}
+                </span>
+              </h1>
+              <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto lg:mx-0">
+                {headlines[currentIndex].description}
+              </p>
+            </motion.div>
+          </AnimatePresence>
+        </div>
 
         <motion.div
-          className="flex flex-col sm:flex-row gap-4 justify-center"
-          initial={{ opacity: 0, y: 5 }}
-          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 20 }}
           transition={{ duration: 0.8, delay: 0.3 }}
         >
-          <Link href="/create-blueprint">
-            <Button
-              size="lg"
-              className="text-lg px-8 tracking-wide shadow-lg hover:scale-105 transition-transform"
-            >
-              Create Blueprint
-            </Button>
-          </Link>
+          <Button
+            size="lg"
+            className="text-lg px-8 py-6 tracking-wide shadow-lg bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 hover:scale-105 transition-all duration-300"
+            onClick={handleScrollToContactForm}
+          >
+            Join Waitlist
+            <ArrowRightIcon className="w-5 h-5 ml-2" />
+          </Button>
+
+          {/* <Button
+            size="lg"
+            variant="outline"
+            className="text-lg px-8 py-6 tracking-wide border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:scale-105 transition-all duration-300"
+          >
+            <PlayIcon className="w-5 h-5 mr-2" />
+            Watch Demo
+          </Button> */}
           <Link href="/discover">
             <Button
               size="lg"
               variant="outline"
-              className="text-lg px-8 tracking-wide shadow hover:scale-105 transition-transform"
+              className="text-lg px-8 py-6 tracking-wide border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:scale-105 transition-all duration-300"
             >
-              Discover How It Works
+              <Info className="w-5 h-5 mr-2" />
+              How It Works
             </Button>
           </Link>
         </motion.div>
 
-        <motion.p
-          className="mt-6 text-sm text-gray-500"
-          initial={{ opacity: 0, y: 5 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
+        <motion.div
+          className="mt-12 flex items-center justify-center lg:justify-start gap-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 20 }}
+          transition={{ duration: 0.8, delay: 0.5 }}
         >
-          Join <span className="font-semibold">1,000+</span> businesses already
-          using Blueprint
-        </motion.p>
+          <div className="flex -space-x-2">
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="w-8 h-8 rounded-full border-2 border-white overflow-hidden"
+              >
+                <img
+                  src={`/images/avatar-${i}.jpg`}
+                  alt="User avatar"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = `https://ui-avatars.com/api/?name=User+${i}&background=818cf8&color=fff`;
+                  }}
+                />
+              </div>
+            ))}
+            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 text-xs flex items-center justify-center border-2 border-white font-medium">
+              +2k
+            </div>
+          </div>
+          <div className="text-sm text-gray-600">
+            <span className="font-semibold text-gray-800">2,000+</span>{" "}
+            businesses trust Blueprint
+          </div>
+        </motion.div>
       </div>
     </section>
   );
 }
-
-//   return (
-//     <section className="min-h-[80vh] flex items-center justify-center bg-gradient-to-b from-blue-50 to-white pt-16">
-//       <div className="container mx-auto px-4">
-//         <div className="max-w-3xl mx-auto text-center">
-//           <motion.div
-//             initial={{ opacity: 0, y: 20 }}
-//             animate={{ opacity: 1, y: 0 }}
-//             transition={{ duration: 0.5 }}
-//           >
-//             <motion.h1
-//               className="text-4xl md:text-5xl font-bold mb-6"
-//               key={`title-${currentIndex}`}
-//               initial={{ opacity: 0 }}
-//               animate={{ opacity: 1 }}
-//               transition={{ duration: 0.5 }}
-//             >
-//               {headlines[currentIndex].title}
-//             </motion.h1>
-//             <AnimatePresence mode="wait">
-//               <motion.p
-//                 key={`subtitle-${currentIndex}`}
-//                 initial={{ opacity: 0, y: 10 }}
-//                 animate={{ opacity: 1, y: 0 }}
-//                 exit={{ opacity: 0, y: -10 }}
-//                 transition={{ duration: 0.5 }}
-//                 className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto"
-//               >
-//                 {headlines[currentIndex].subtitle}
-//               </motion.p>
-//             </AnimatePresence>
-//             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-//               <Link href="/create-blueprint">
-//                 <Button size="lg" className="text-lg px-8">
-//                   Create Blueprint
-//                 </Button>
-//               </Link>
-//               <Link href="/claim-blueprint">
-//                 <Button size="lg" variant="outline" className="text-lg px-8">
-//                   Claim Existing Blueprint
-//                 </Button>
-//               </Link>
-//             </div>
-//             <p className="mt-6 text-sm text-gray-500">
-//               Join 1,000+ businesses already using Blueprint
-//             </p>
-//           </motion.div>
-//         </div>
-//       </div>
-//     </section>
-//   );
-// }
