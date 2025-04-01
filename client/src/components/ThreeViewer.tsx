@@ -1726,11 +1726,40 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     clickMarker.visible = false;
 
     const loader = new GLTFLoader();
-    // const fullModelPath = `/${modelPath}`;
-    const fullModelPath =
-      "https://f005.backblazeb2.com/file/objectModels-dev/home.glb";
+    // Determine if modelPath is an external URL or local path
+    let fullModelPath = modelPath;
+    
+    // If it's not an external URL, prepend a slash for local path
+    if (!modelPath.startsWith('http') && !modelPath.startsWith('/')) {
+      fullModelPath = `/${modelPath}`;
+    }
 
-    loader.load(
+    console.log("Attempting to fetch 3D model from:", fullModelPath);
+    
+    // Set cross-origin setting for the loader
+    loader.setCrossOrigin('anonymous');
+    
+    // For Firebase Storage URLs, we need to handle them directly
+    if (fullModelPath.includes('firebasestorage.googleapis.com')) {
+      console.log("Loading model from direct URL:", fullModelPath);
+      
+      // Add special request header management for Firebase Storage
+      // Create a custom loader manager for Firebase URLs
+      const manager = new THREE.LoadingManager();
+      manager.setURLModifier((url) => {
+        // If it's a Firebase URL and we're having CORS issues, we could potentially:
+        // 1. Try with a different token parameter format
+        // 2. Route through a CORS proxy if available
+        // 3. Add additional error handling specific to Firebase Storage
+        return url;
+      });
+      
+      loader.manager = manager;
+    }
+
+    // Set up loading with retry logic
+    const loadModelWithRetry = (attempt = 0, maxAttempts = 3) => {
+      loader.load(
       fullModelPath,
       (gltf) => {
         const model = gltf.scene;
@@ -1753,11 +1782,27 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
       undefined,
       (error) => {
         console.error("Error loading model:", error);
-        if (onError) {
-          onError(error.message || "Error loading model");
+        
+        // Implement retry logic for Firebase Storage URLs
+        if (attempt < maxAttempts - 1 && fullModelPath.includes('firebasestorage.googleapis.com')) {
+          console.log(`Retrying model load... Attempt ${attempt + 1}/${maxAttempts}`);
+          
+          // Wait a short delay before retrying
+          setTimeout(() => {
+            loadModelWithRetry(attempt + 1, maxAttempts);
+          }, 1000); // 1 second delay between retries
+        } else {
+          // All retries failed or not a Firebase URL
+          if (onError) {
+            onError(error.message || "Error loading model");
+          }
         }
-      },
+      }
     );
+    };
+    
+    // Start the loading process with retry
+    loadModelWithRetry(0, 3);
 
     const handleRightClick = (event: MouseEvent) => {
       event.preventDefault();
