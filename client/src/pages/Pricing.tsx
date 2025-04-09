@@ -874,6 +874,9 @@ export default function PricingPage() {
                     <FeatureItem highlight={true}>
                       Sliding discount on customer hours
                     </FeatureItem>
+                    <FeatureItem highlight={true}>
+                      Blueprint continuously refines your space with data & feedback for a streamlined experience.
+                    </FeatureItem>
                   </ul>
 
                   <ul className="space-y-4">

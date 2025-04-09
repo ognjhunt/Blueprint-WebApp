@@ -505,9 +505,11 @@ export default function Dashboard() {
                     visitors: Math.floor(Math.random() * 400) + 100,
                     address: blueprintData.address || null,
                     image: imageUrl, // Use the determined imageUrl (cached, new, or fallback)
-                      fallbackImage: fallbackImage,
-                      // --- Include the flag for potential update ---
-                      _needsStreetViewUpdate: needsFirestoreUpdate ? imageUrl : null, // Store the URL to update if needed
+                    fallbackImage: fallbackImage,
+                    // --- Include the flag for potential update ---
+                    _needsStreetViewUpdate: needsFirestoreUpdate
+                      ? imageUrl
+                      : null, // Store the URL to update if needed
                   };
                 } else {
                   console.error(`Blueprint with ID ${blueprintID} not found.`);
@@ -534,18 +536,19 @@ export default function Dashboard() {
           // --- Perform Firestore Updates Asynchronously After Setting State ---
           // This prevents blocking the UI rendering
           const updatePromises = blueprintsData
-            .filter(bp => bp._needsStreetViewUpdate) // Filter blueprints that need update
-            .map(bp => {
-              console.log(`Updating Firestore for ${bp.id} with new Street View URL.`);
+            .filter((bp) => bp._needsStreetViewUpdate) // Filter blueprints that need update
+            .map((bp) => {
+              console.log(
+                `Updating Firestore for ${bp.id} with new Street View URL.`,
+              );
               const blueprintRef = doc(db, "blueprints", bp.id);
               return updateDoc(blueprintRef, {
-                streetViewImageUrl: bp._needsStreetViewUpdate // Use the stored URL
-              }).catch(err => {
+                streetViewImageUrl: bp._needsStreetViewUpdate, // Use the stored URL
+              }).catch((err) => {
                 // Log error but don't block other updates
                 console.error(`Failed to update Firestore for ${bp.id}:`, err);
               });
             });
-
         } else {
           console.error("No such user document!");
           setTotalBlueprints(0);
@@ -1363,9 +1366,7 @@ export default function Dashboard() {
                             variant="secondary"
                             size="sm"
                             className="w-full bg-white/10 hover:bg-white/20 text-white border-0"
-                            onClick={() =>
-                              (window.location.href = "/pricing")
-                            }
+                            onClick={() => (window.location.href = "/pricing")}
                           >
                             Upgrade to Plus
                           </Button>
@@ -2247,9 +2248,6 @@ export default function Dashboard() {
           </div>
         )}
         <Footer />
-        <ScreenShareButton />
-        <GeminiMultimodal />
-        <DarkModeToggle />
       </div>
 
       {/* Onboarding Components */}

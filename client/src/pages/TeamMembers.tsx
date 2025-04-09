@@ -296,49 +296,102 @@ export default function TeamMembersPage() {
 
         console.log(`Added to Firestore: ${email} with role ${inviteRole}`);
 
+        //       // Send webhook with dynamic user ID and invite link
+        //       console.log(`Sending webhook for ${email}...`);
+        //       const webhookData = {
+        //         user_id: "Hs4h5E9hjnVCNcbF4ns2puDi3oR2", // Use the current user's ID
+        //         saved_item_id: "nMq3QiE7YRQfUk2V3oKg6E",
+        //         pipeline_inputs: [
+        //           { input_name: "name", value: inviterName },
+        //           { input_name: "email", value: email },
+        //           { input_name: "invite_link", value: inviteLink }, // Include the invite link
+        //           { input_name: "role", value: inviteRole },
+        //         ],
+        //       };
+
+        //       const xhr = new XMLHttpRequest();
+        //       xhr.open("POST", "https://api.gumloop.com/api/v1/start_pipeline", true);
+        //       xhr.setRequestHeader("Content-Type", "application/json");
+        //       xhr.setRequestHeader(
+        //         "Authorization",
+        //         "Bearer c4dc7fe399094cd3819c96e51dded30c",
+        //       );
+
+        //       xhr.onreadystatechange = function () {
+        //         if (xhr.readyState === 4) {
+        //           console.log(`Webhook response for ${email}: Status ${xhr.status}`);
+        //           console.log(`Response text: ${xhr.responseText}`);
+        //         }
+        //       };
+
+        //       xhr.onerror = function () {
+        //         console.error(`XHR error for ${email}`);
+        //       };
+
+        //       xhr.send(JSON.stringify(webhookData));
+        //       console.log(
+        //         `Webhook request sent for ${email} with invite link: ${inviteLink}`,
+        //       );
+        //     }
+
+        //     toast({
+        //       title: "Invitations sent!",
+        //       description: `Invites have been sent to ${emails.length} email${emails.length !== 1 ? "s" : ""}`,
+        //     });
+
+        //     setInviteEmail("");
+        //     setInviteRole("Viewer"); // Reset to default role
+        //     setShowSuccessMessage(true);
+        //     setTimeout(() => setShowSuccessMessage(false), 3000);
+        //   } catch (error) {
+        //     console.error("Error in invitation process:", error);
+        //     toast({
+        //       title: "Invitation failed",
+        //       description: "Failed to send invites. Please try again.",
+        //       variant: "destructive",
+        //     });
+        //   } finally {
+        //     setIsInviting(false);
+        //   }
+        // };
         // Send webhook with dynamic user ID and invite link
         console.log(`Sending webhook for ${email}...`);
         const webhookData = {
-          user_id: "Hs4h5E9hjnVCNcbF4ns2puDi3oR2", // Use the current user's ID
-          saved_item_id: "nMq3QiE7YRQfUk2V3oKg6E",
-          pipeline_inputs: [
-            { input_name: "name", value: inviterName },
-            { input_name: "email", value: email },
-            { input_name: "invite_link", value: inviteLink }, // Include the invite link
-            { input_name: "role", value: inviteRole },
-          ],
+          name: inviterName,
+          email: email,
+          invite_link: inviteLink,
+          role: inviteRole,
         };
 
         const xhr = new XMLHttpRequest();
-        xhr.open("POST", "https://api.gumloop.com/api/v1/start_pipeline", true);
+        xhr.open(
+          "POST",
+          "https://public.lindy.ai/api/v1/webhooks/lindy/91d17fff-be31-45f5-8b0b-497fb168c2b6",
+          true,
+        );
         xhr.setRequestHeader("Content-Type", "application/json");
         xhr.setRequestHeader(
           "Authorization",
-          "Bearer c4dc7fe399094cd3819c96e51dded30c",
+          "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
         );
-
         xhr.onreadystatechange = function () {
           if (xhr.readyState === 4) {
             console.log(`Webhook response for ${email}: Status ${xhr.status}`);
             console.log(`Response text: ${xhr.responseText}`);
           }
         };
-
         xhr.onerror = function () {
           console.error(`XHR error for ${email}`);
         };
-
         xhr.send(JSON.stringify(webhookData));
         console.log(
           `Webhook request sent for ${email} with invite link: ${inviteLink}`,
         );
       }
-
       toast({
         title: "Invitations sent!",
         description: `Invites have been sent to ${emails.length} email${emails.length !== 1 ? "s" : ""}`,
       });
-
       setInviteEmail("");
       setInviteRole("Viewer"); // Reset to default role
       setShowSuccessMessage(true);

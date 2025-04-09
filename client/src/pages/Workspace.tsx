@@ -95,25 +95,72 @@ export default function WorkspacePage() {
           createdAt: new Date(),
         });
 
+        //       // Call webhook for each email
+        //       const options = {
+        //         method: "POST",
+        //         headers: {
+        //           Authorization: "Bearer c4dc7fe399094cd3819c96e51dded30c",
+        //           "Content-Type": "application/json",
+        //         },
+        //         body: JSON.stringify({
+        //           user_id: currentUser.uid,
+        //           saved_item_id: "nMq3QiE7YRQfUk2V3oKg6E",
+        //           pipeline_inputs: [
+        //             { input_name: "name", value: inviterName },
+        //             { input_name: "email", value: email },
+        //           ],
+        //         }),
+        //       };
+
+        //       // Don't await, send in parallel
+        //       fetch("https://api.gumloop.com/api/v1/start_pipeline", options)
+        //         .then((response) => response.json())
+        //         .then((data) =>
+        //           console.log(`Email webhook response for ${email}:`, data),
+        //         )
+        //         .catch((err) =>
+        //           console.error(`Email webhook error for ${email}:`, err),
+        //         );
+        //     }
+
+        //     toast({
+        //       title: "Invitations sent!",
+        //       description: `Invites have been sent to ${emails.length} email${emails.length !== 1 ? "s" : ""}`,
+        //     });
+
+        //     setInviteEmail("");
+        //     setShowSuccessMessage(true);
+        //     setTimeout(() => setShowSuccessMessage(false), 3000);
+        //   } catch (error) {
+        //     console.error("Error inviting users:", error);
+        //     toast({
+        //       title: "Invitation failed",
+        //       description: "Failed to send invites. Please try again.",
+        //       variant: "destructive",
+        //     });
+        //   } finally {
+        //     setIsInviting(false);
+        //   }
+        // };
+
         // Call webhook for each email
         const options = {
           method: "POST",
           headers: {
-            Authorization: "Bearer c4dc7fe399094cd3819c96e51dded30c",
+            Authorization:
+              "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            user_id: currentUser.uid,
-            saved_item_id: "nMq3QiE7YRQfUk2V3oKg6E",
-            pipeline_inputs: [
-              { input_name: "name", value: inviterName },
-              { input_name: "email", value: email },
-            ],
+            name: inviterName,
+            email: email,
           }),
         };
-
         // Don't await, send in parallel
-        fetch("https://api.gumloop.com/api/v1/start_pipeline", options)
+        fetch(
+          "https://public.lindy.ai/api/v1/webhooks/lindy/91d17fff-be31-45f5-8b0b-497fb168c2b6",
+          options,
+        )
           .then((response) => response.json())
           .then((data) =>
             console.log(`Email webhook response for ${email}:`, data),
@@ -122,12 +169,10 @@ export default function WorkspacePage() {
             console.error(`Email webhook error for ${email}:`, err),
           );
       }
-
       toast({
         title: "Invitations sent!",
         description: `Invites have been sent to ${emails.length} email${emails.length !== 1 ? "s" : ""}`,
       });
-
       setInviteEmail("");
       setShowSuccessMessage(true);
       setTimeout(() => setShowSuccessMessage(false), 3000);

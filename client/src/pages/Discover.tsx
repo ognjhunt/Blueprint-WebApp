@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import Nav from "@/components/Nav";
 import { Link } from "wouter";
 import ContactForm from "@/components/sections/ContactForm";
@@ -32,6 +32,115 @@ import {
   PenTool,
   Activity,
 } from "lucide-react";
+// Insert this block right after your import statements and before your Discover component
+
+const ImageCarousel = () => {
+  const slides = [
+    {
+      src: "/images/ChatGPT Image Apr 9, 2025, 08_32_27 AM.png",
+      alt: "Step 1: Your first step description",
+      caption:
+        "Step 1: Our mapping specialist will meet your contact at the scheduled date + time. (estimated time: 5 mins)",
+    },
+    {
+      src: "/images/ChatGPT Image Apr 9, 2025, 08_50_20 AM.png",
+      alt: "Step 2: Your second step description",
+      caption:
+        "Step 2: After a brief overview, the mapper will start scanning your location. (estimated time: 20 mins)",
+    },
+    {
+      src: "/images/ChatGPT Image Apr 9, 2025, 10_28_16 AM.png",
+      alt: "Step 3: Your third step description",
+      caption:
+        "Step 3: Within minutes, our AI Agent will create a customized AR experience for customers. The location contact has the option to test it out and further edit _____. (estimated time: 15 mins)",
+    },
+    {
+      src: "/images/ChatGPT Image Apr 9, 2025, 09_03_13 AM.png",
+      alt: "Step 4: Your fourth step description",
+      caption:
+        "Step 4: Once finished, with the help of the location contact, we'll place QR codes in the ideal positions for customers. (estimated time: 15 mins)",
+    },
+    {
+      src: "/images/ChatGPT Image Apr 9, 2025, 09_08_15 AM.png",
+      alt: "Step 5: Your final step description",
+      caption:
+        "Step 5: Customers with smart glasses can now easily enter a personalized experience at your location by scanning a QR code.",
+    },
+    {
+      src: "/images/ChatGPT Image Apr 9, 2025, 10_33_42 AM.png",
+      alt: "Step 6: Your final step description",
+      caption:
+        "Step 6: Continuous Improvement. Using data + analytics, Blueprint's Agent will continue to update your location's experience.",
+    },
+  ];
+
+  const [activeIndex, setActiveIndex] = useState(0);
+  const timeoutRef = useRef(null);
+  const delay = 6000; // slide duration in milliseconds
+
+  // Clear timeout before starting a new one
+  const resetTimeout = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+  };
+
+  useEffect(() => {
+    resetTimeout();
+    timeoutRef.current = setTimeout(() => {
+      setActiveIndex((prevIndex) =>
+        prevIndex === slides.length - 1 ? 0 : prevIndex + 1,
+      );
+    }, delay);
+    return () => {
+      resetTimeout();
+    };
+  }, [activeIndex, slides.length]);
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl shadow-2xl">
+      <div className="relative w-full aspect-[3/2]">
+        <AnimatePresence>
+          <motion.img
+            key={activeIndex}
+            src={slides[activeIndex].src}
+            alt={slides[activeIndex].alt}
+            className="absolute top-0 left-0 w-full h-full object-cover"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8 }}
+          />
+        </AnimatePresence>
+        {/* Caption overlay */}
+        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-4 text-center">
+          {slides[activeIndex].caption}
+        </div>
+      </div>
+      {/* Manual Controls */}
+      <div className="absolute inset-0 flex items-center justify-between px-4">
+        <button
+          onClick={() =>
+            setActiveIndex(
+              activeIndex === 0 ? slides.length - 1 : activeIndex - 1,
+            )
+          }
+          className="bg-black bg-opacity-50 text-white p-2 rounded-full focus:outline-none"
+        >
+          Prev
+        </button>
+        <button
+          onClick={() =>
+            setActiveIndex(
+              activeIndex === slides.length - 1 ? 0 : activeIndex + 1,
+            )
+          }
+          className="bg-black bg-opacity-50 text-white p-2 rounded-full focus:outline-none"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+};
 
 // Animation variants
 const fadeIn = {
@@ -229,48 +338,8 @@ export default function Discover() {
               transition={{ duration: 0.8, delay: 0.3 }}
               className="relative"
             >
-              <div className="relative rounded-2xl overflow-hidden shadow-2xl">
-                <img
-                  src="/images/hotel.jpeg"
-                  alt="AR Experience Preview"
-                  className="w-full h-auto object-cover rounded-2xl"
-                />
-                <div className="absolute inset-0 bg-gradient-to-tr from-indigo-900/30 to-transparent" />
-
-                {/* AR Overlay Elements */}
-                <motion.div
-                  className="absolute top-[30%] left-[20%] bg-white/90 backdrop-blur-sm rounded-xl p-3 shadow-lg border border-indigo-100 transform -rotate-3"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1.0, duration: 0.5 }}
-                >
-                  <div className="text-xs font-medium text-indigo-800">
-                    AR Information
-                  </div>
-                  <div className="text-sm font-bold text-gray-800">
-                    Hotel Amenities
-                  </div>
-                </motion.div>
-
-                <motion.div
-                  className="absolute top-[50%] right-[15%] bg-white/90 backdrop-blur-sm rounded-xl p-3 shadow-lg border border-indigo-100 transform rotate-2"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1.2, duration: 0.5 }}
-                >
-                  <div className="text-xs font-medium text-indigo-800">
-                    Interactive Point
-                  </div>
-                  <div className="text-sm font-bold text-gray-800">
-                    View Restaurant Menu
-                  </div>
-                </motion.div>
-              </div>
-
-              {/* "Blueprint AR" label */}
-              <div className="absolute -bottom-4 right-8 bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-6 py-2 rounded-full text-sm font-semibold shadow-lg">
-                Blueprint AR
-              </div>
+              {/* Replace the static image with the carousel */}
+              <ImageCarousel />
             </motion.div>
           </div>
         </div>

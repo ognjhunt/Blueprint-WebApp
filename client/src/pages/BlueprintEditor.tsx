@@ -192,6 +192,21 @@ import {
 // Types
 import { MarkedArea } from "@/types/AreaMarkingStyles";
 
+// Define TextAnchor type (if not already defined/imported)
+interface TextAnchor {
+  id: string;
+  x: number;
+  y: number;
+  z: number;
+  textContent: string;
+  // Add other potential fields like contentType, contentID, createdDate, blueprintID etc.
+  contentType?: string;
+  contentID?: string;
+  createdDate?: any; // Consider using Date or Timestamp type
+  blueprintID?: string;
+  position?: { x: number; y: number; z: number }; // Handle potential nested position
+}
+
 /**
  * Main component for the Blueprint Editor
  * A complete rewrite focused on modern UI/UX and seamless integration with ThreeViewer
@@ -203,6 +218,7 @@ export default function BlueprintEditor() {
 
   // Auth and navigation
   const { currentUser } = useAuth();
+  const [showShareDialog, setShowShareDialog] = useState(false);
   const [location] = useLocation();
   const blueprintId = location.split("/").pop();
   const { toast } = useToast();
@@ -258,9 +274,15 @@ export default function BlueprintEditor() {
   const [onboardingMode, setOnboardingMode] = useState("fullscreen"); // "fullscreen" or "sidebar"
 
   // Element states
+  // const [activeSection, setActiveSection] = useState(null); // ADDED - Tracks the open Canva-style panel ('text', 'media', '3d', 'uploads', 'webpages', 'areas', 'settings', or null)
   const [elements, setElements] = useState([]);
+  const [panelWidth, setPanelWidth] = useState(360); // RENAMED from sidebarWidth
   const [selectedElement, setSelectedElement] = useState(null);
   const [hoveredElement, setHoveredElement] = useState(null);
+
+  const [selectedAnchorData, setSelectedAnchorData] = useState(null);
+
+  //const isPanelOpen = activeSection !== null;
   const [elementCategories, setElementCategories] = useState([
     { id: "all", name: "All Elements", icon: <LayoutGrid size={18} /> },
     { id: "text", name: "Text", icon: <Type size={18} /> },
@@ -271,18 +293,42 @@ export default function BlueprintEditor() {
   ]);
   const [selectedCategory, setSelectedCategory] = useState("all");
 
+  // ADDED: Define sections for the new icon bar
+  const sections = [
+    { id: "text", name: "Text", icon: <Type size={24} /> },
+    { id: "media", name: "Media", icon: <ImageIcon size={24} /> }, // Combined Image & Video
+    { id: "3d", name: "3D Content", icon: <Box size={24} /> },
+    { id: "uploads", name: "Uploads", icon: <Upload size={24} /> },
+    { id: "webpages", name: "Webpages", icon: <Link size={24} /> },
+    { id: "separator", type: "separator" }, // Special type for separator
+    { id: "areas", name: "Areas", icon: <Square size={24} /> },
+    { id: "settings", name: "Settings", icon: <Settings size={24} /> },
+  ];
+
   // Models and assets states
   const [modelAnchors, setModelAnchors] = useState([]);
   const [webpageAnchors, setWebpageAnchors] = useState([]);
-  const [textAnchors, setTextAnchors] = useState([]);
+  const [textAnchors, setTextAnchors] = useState<TextAnchor[]>([]);
+  const [textContent, setTextContent] = useState("");
+  const [activeSection, setActiveSection] = useState<string | null>(null); // Explicitly type state
+  const [editingTextAnchorId, setEditingTextAnchorId] = useState<string | null>(
+    null,
+  ); // ADDED STAT
+  const [editingWebpageAnchorId, setEditingWebpageAnchorId] = useState<
+    string | null
+  >(null);
+  const [editingFileAnchorId, setEditingFileAnchorId] = useState<string | null>(
+    null,
+  );
+  const isPanelOpen = activeSection !== null;
   const [fileAnchors, setFileAnchors] = useState([]);
+  const [qrCodeAnchors, setQrCodeAnchors] = useState([]); // <<< ADD THIS LINE
   const [featuredModels, setFeaturedModels] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [externalUrl, setExternalUrl] = useState("");
 
   // Text editing states
-  const [textContent, setTextContent] = useState("");
   const pendingLabelTextRef = useRef("");
   const showTextBoxInputRef = useRef(false);
 
@@ -3021,6 +3067,220 @@ export default function BlueprintEditor() {
     }
   };
 
+  // NEW: Handler for file anchors
+  const handleFileAnchorClicked = async (anchorId: string, anchorData: any) => {
+    // Accept anchorData passed from ThreeViewer
+    console.log(`File anchor clicked in editor: ${anchorId}`, anchorData);
+
+    // 1. Open the 'uploads' panel (or your designated file panel)
+    setActiveSection("uploads");
+
+    // 2. Set the editing state for this file anchor
+    setEditingFileAnchorId(anchorId); // Make sure this state exists and is used in your 'uploads' panel logic
+
+    // 3. Set the selected anchor data for the settings card
+    //    Use the data passed from ThreeViewer if available, otherwise fetch
+    if (anchorData) {
+      setSelectedAnchorData({ id: anchorId, ...anchorData }); // Ensure ID is included
+    } else {
+      // Fallback to fetching if data wasn't passed (though passing is better)
+      try {
+        const anchorRef = doc(db, "anchors", anchorId);
+        const anchorSnap = await getDoc(anchorRef);
+        if (anchorSnap.exists()) {
+          setSelectedAnchorData({ id: anchorId, ...anchorSnap.data() }); // Ensure ID is included
+        } else {
+          console.warn("File anchor not found in Firestore:", anchorId);
+          setSelectedAnchorData(null);
+        }
+      } catch (error) {
+        console.error("Error fetching file anchor data:", error);
+        setSelectedAnchorData(null);
+      }
+    }
+  };
+
+  const handleWebpageAnchorClicked = async (
+    anchorId: string,
+    anchorUrl: string,
+  ) => {
+    console.log(
+      `Webpage anchor clicked in editor: ${anchorId}, URL: "${anchorUrl}"`,
+    );
+
+    // 1. Open the 'webpages' panel
+    setActiveSection("webpages");
+
+    // 2. Set the URL in the input field
+    setExternalUrl(anchorUrl); // Use the existing state for the input
+
+    // 3. Set the ID for editing/saving
+    setEditingWebpageAnchorId(anchorId);
+
+    // 4. Fetch anchor data for the settings card (reuse/adapt existing logic)
+    try {
+      const anchorRef = doc(db, "anchors", anchorId);
+      const anchorSnap = await getDoc(anchorRef);
+      if (anchorSnap.exists()) {
+        // Set selectedAnchorData to show the settings card
+        setSelectedAnchorData({ id: anchorId, ...anchorSnap.data() }); // Ensure ID is included
+      } else {
+        console.warn("Webpage anchor not found in Firestore:", anchorId);
+        setSelectedAnchorData(null); // Clear if not found
+      }
+    } catch (error) {
+      console.error("Error fetching webpage anchor data:", error);
+      setSelectedAnchorData(null); // Clear on error
+    }
+  };
+
+  // Handler for when a text anchor is clicked in ThreeViewer
+  const handleTextAnchorClicked = async (
+    anchorId: string,
+    currentText: string,
+  ) => {
+    console.log(
+      `Text anchor clicked in editor: ${anchorId}, Text: "${currentText}"`,
+    );
+
+    // Keep your existing logic:
+    setActiveSection("text");
+    setTextContent(currentText);
+    setEditingTextAnchorId(anchorId);
+
+    // 2) Fetch anchor data from Firestore and store in state:
+    try {
+      const anchorRef = doc(db, "anchors", anchorId);
+      const anchorSnap = await getDoc(anchorRef);
+      if (anchorSnap.exists()) {
+        setSelectedAnchorData(anchorSnap.data());
+      } else {
+        console.warn("Anchor not found in Firestore:", anchorId);
+        setSelectedAnchorData(null);
+      }
+    } catch (error) {
+      console.error("Error fetching anchor data:", error);
+      setSelectedAnchorData(null);
+    }
+  };
+
+  const updateWebpageAnchorUrl = async (anchorId: string, newUrl: string) => {
+    if (!anchorId || !newUrl.trim().startsWith("http")) {
+      toast({
+        title: "Invalid URL",
+        description: "Please enter a valid URL starting with http(s)://",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // 1. Update local state (optional, for immediate feedback if needed)
+    setWebpageAnchors((prevAnchors) =>
+      prevAnchors.map((anchor) =>
+        anchor.id === anchorId ? { ...anchor, webpageUrl: newUrl } : anchor,
+      ),
+    );
+
+    // 2. Update Firebase
+    try {
+      const anchorRef = doc(db, "anchors", anchorId);
+      await updateDoc(anchorRef, {
+        webpageUrl: newUrl,
+        updatedAt: serverTimestamp(), // Optional: track updates
+      });
+      console.log(`Successfully updated URL for webpage anchor ${anchorId}`);
+      toast({ title: "Webpage URL Updated", variant: "success" });
+
+      // Clear editing state after successful update
+      setEditingWebpageAnchorId(null);
+      setSelectedAnchorData(null); // Clear settings card
+      // Optionally clear the input field or leave it showing the new URL
+      // setExternalUrl("");
+    } catch (error) {
+      console.error("Error updating webpage anchor URL:", error);
+      toast({
+        title: "Update Error",
+        description: "Failed to save URL changes.",
+        variant: "destructive",
+      });
+      // Optional: Revert local state if needed by re-fetching
+    }
+  };
+
+  // Function to update text anchor content in state and Firebase
+  const updateTextAnchorContent = async (anchorId: string, newText: string) => {
+    if (!anchorId) return;
+
+    // 1. Update local state immediately for responsiveness
+    setTextAnchors((prevAnchors) =>
+      prevAnchors.map((anchor) =>
+        anchor.id === anchorId ? { ...anchor, textContent: newText } : anchor,
+      ),
+    );
+
+    // 2. Update Firebase (debouncing recommended for production)
+    try {
+      const anchorRef = doc(db, "anchors", anchorId);
+      await updateDoc(anchorRef, {
+        textContent: newText,
+        updatedAt: serverTimestamp(), // Optional: track updates
+      });
+      console.log(
+        `Successfully updated text for anchor ${anchorId} in Firestore.`,
+      );
+    } catch (error) {
+      console.error("Error updating text anchor in Firestore:", error);
+      toast({
+        title: "Update Error",
+        description: "Failed to save text changes.",
+        variant: "destructive",
+      });
+      // Optional: Revert local state if Firebase update fails
+      // You might need to fetch the original text again here
+    }
+  };
+
+  // Modify the text area onChange to call the update function
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newText = e.target.value;
+    setTextContent(newText);
+    // Remove the call to updateTextAnchorContent here
+  };
+
+  // Modify the toggleSection function to clear editing state when closing text panel
+  const toggleSection = (sectionId: string) => {
+    setActiveSection((prev) => {
+      const nextSection = prev === sectionId ? null : sectionId;
+
+      // Clear state when closing or switching away from TEXT panel
+      if (prev === "text" && nextSection !== "text") {
+        setEditingTextAnchorId(null);
+        setSelectedAnchorData(null);
+        // Optionally clear textContent: setTextContent("");
+      }
+      // Clear state when closing or switching away from WEBPAGES panel
+      if (prev === "webpages" && nextSection !== "webpages") {
+        setEditingWebpageAnchorId(null);
+        setSelectedAnchorData(null);
+        // Optionally clear externalUrl: setExternalUrl("");
+      }
+
+      // Clear state when opening a panel *without* clicking an anchor first
+      if (nextSection === "text" && prev !== "text") {
+        setEditingTextAnchorId(null);
+        setTextContent(""); // Start fresh
+        setSelectedAnchorData(null);
+      }
+      if (nextSection === "webpages" && prev !== "webpages") {
+        setEditingWebpageAnchorId(null);
+        setExternalUrl(""); // Start fresh
+        setSelectedAnchorData(null);
+      }
+
+      return nextSection;
+    });
+  };
+
   // Load blueprint anchors
   const loadBlueprintAnchors = async (blueprintId) => {
     try {
@@ -3034,24 +3294,19 @@ export default function BlueprintEditor() {
 
       if (anchorIDs.length === 0) return;
 
-      // Fetch all anchors
       const anchors = await Promise.all(
         anchorIDs.map(async (anchorId) => {
           const anchorRef = doc(db, "anchors", anchorId);
           const anchorSnap = await getDoc(anchorRef);
-
           if (!anchorSnap.exists()) return null;
-
-          const data = anchorSnap.data();
-          data.id = anchorId;
-          return data;
+          const anchorData = anchorSnap.data();
+          anchorData.id = anchorId; // Ensure ID is attached
+          return anchorData;
         }),
       );
 
-      // Filter out null values
       const validAnchors = anchors.filter((anchor) => anchor !== null);
 
-      // Sort anchors by type
       const models = validAnchors.filter(
         (anchor) => anchor.contentType === "model",
       );
@@ -3064,17 +3319,21 @@ export default function BlueprintEditor() {
       const files = validAnchors.filter(
         (anchor) => anchor.contentType === "file",
       );
+      const qrCodes = validAnchors.filter(
+        // <<< ADD THIS FILTER
+        (anchor) => anchor.contentType === "qrCode",
+      );
       const elementsData = validAnchors.filter((anchor) =>
         ["infoCard", "marker", "media", "interactive"].includes(
           anchor.contentType,
         ),
       );
 
-      // Update state
       setModelAnchors(models);
       setWebpageAnchors(webpages);
-      setTextAnchors(texts);
+      setTextAnchors(texts as TextAnchor[]); // Cast to TextAnchor[]
       setFileAnchors(files);
+      setQrCodeAnchors(qrCodes);
       setElements(elementsData.map(convertAnchorToElement));
     } catch (error) {
       console.error("Error loading anchors:", error);
@@ -3364,28 +3623,55 @@ export default function BlueprintEditor() {
     }
   };
 
-
   // ========================
   // FILE ANCHOR HANDLING (NEW)
   // ========================
-  const handleFileAnchorPlaced = async (fileInfo: any, realWorldCoords: { x: number; y: number; z: number }) => {
-    if (!blueprintId || !currentUser || !originPoint) { // Added originPoint check
-      toast({
-        title: "Error Placing File",
-        description: "Cannot save file anchor. Missing blueprint, user info, or origin point.",
-        variant: "destructive",
-      });
+  const handleFileAnchorPlaced = async (
+    fileInfo: any,
+    realWorldCoords: { x: number; y: number; z: number },
+  ) => {
+    console.log(
+      "[BlueprintEditor] handleFileAnchorPlaced triggered with:",
+      fileInfo,
+      realWorldCoords,
+    );
+
+    if (!blueprintId || !currentUser || !originPoint) {
+      console.warn(
+        "[BlueprintEditor] Missing blueprintId, currentUser, or originPoint - cannot create anchor",
+      );
       return;
     }
 
-    console.log("[BlueprintEditor] handleFileAnchorPlaced called with:", fileInfo, realWorldCoords);
+    // if (!blueprintId || !currentUser || !originPoint) {
+    //   // Added originPoint check
+    //   toast({
+    //     title: "Error Placing File",
+    //     description:
+    //       "Cannot save file anchor. Missing blueprint, user info, or origin point.",
+    //     variant: "destructive",
+    //   });
+    //   return;
+    // }
+
+    console.log(
+      "[BlueprintEditor] handleFileAnchorPlaced called with:",
+      fileInfo,
+      realWorldCoords,
+    );
 
     // 1. Generate unique IDs
     const newAnchorId = `anchor-file-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
     const newContentId = `file-${Date.now()}`; // Use a consistent prefix
 
     // 2. Determine file type for the anchor
-    const fileTypeStr = fileInfo.fileType || (fileInfo.type?.includes("image") ? "image" : fileInfo.type?.includes("video") ? "video" : "document");
+    const fileTypeStr =
+      fileInfo.fileType ||
+      (fileInfo.type?.includes("image")
+        ? "image"
+        : fileInfo.type?.includes("video")
+          ? "video"
+          : "document");
 
     // 3. Create the new anchor object for local state
     const newAnchor = {
@@ -3413,7 +3699,10 @@ export default function BlueprintEditor() {
 
     // 4. Update local state IMMEDIATELY
     setFileAnchors((prev) => [...prev, newAnchor]);
-    console.log("[BlueprintEditor] Updated local fileAnchors state:", newAnchor);
+    console.log(
+      "[BlueprintEditor] Updated local fileAnchors state:",
+      newAnchor,
+    );
 
     // 5. Save to Firestore (asynchronously)
     try {
@@ -3444,14 +3733,20 @@ export default function BlueprintEditor() {
       await updateDoc(doc(db, "blueprints", blueprintId), {
         anchorIDs: arrayUnion(newAnchorId),
       });
+      console.log(
+        "[BlueprintEditor] Creating new file anchor in Firestore for:",
+        fileInfo.name,
+      );
 
       toast({
         title: "File Placed",
         description: `${newAnchor.fileName} added to your blueprint.`,
         variant: "success",
       });
-      console.log("[BlueprintEditor] Successfully saved file anchor to Firestore:", newAnchorId);
-
+      console.log(
+        "[BlueprintEditor] Successfully saved file anchor to Firestore:",
+        newAnchorId,
+      );
     } catch (error) {
       console.error("Error saving file anchor to Firestore:", error);
       toast({
@@ -3878,6 +4173,25 @@ export default function BlueprintEditor() {
       // Build QR code data
       const dataStr = `blueprintId=${blueprintId}&anchorId=${newAnchorId}&x=${offset.x.toFixed(2)}&y=${offset.y.toFixed(2)}&z=${offset.z.toFixed(2)}`;
 
+      // <<< --- ADD THIS SECTION --- >>>
+      // Create the data object for the new anchor to update local state
+      const newAnchorData = {
+        id: newAnchorId,
+        contentType: "qrCode",
+        x: offset.x * 45.64, // Use the saved real-world coordinates
+        y: offset.y * 45.64,
+        z: offset.z * 45.64,
+        locationName: `Location ${currentPlacingIndex + 1}`, // Include other relevant data if needed
+        createdDate: new Date(),
+      };
+
+      // Update the local state immediately
+      setQrCodeAnchors((prevAnchors) => [...prevAnchors, newAnchorData]);
+      console.log(
+        "[BlueprintEditor] Updated local qrCodeAnchors state:",
+        newAnchorData,
+      );
+      // <<< --- END ADDED SECTION --- >>>
       // Update state
       setQrLocations((prev) => [...prev, point]);
       setQrAnchorIds((prev) => [...prev, newAnchorId]);
@@ -4722,41 +5036,15 @@ export default function BlueprintEditor() {
           </Button>
 
           {/* Share button */}
-          <Button variant="ghost" size="sm" className="gap-1.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setShowShareDialog(true)}
+          >
             <Share2 className="h-4 w-4" />
             <span>Share</span>
           </Button>
-
-          {/* View controls */}
-          <div className="h-9 flex bg-muted rounded-md overflow-hidden">
-            <Button
-              variant={viewMode === "2D" ? "subtle" : "ghost"}
-              size="sm"
-              className={`px-3 h-full rounded-none ${viewMode === "2D" ? "bg-background" : ""}`}
-              onClick={() => setViewMode("2D")}
-            >
-              <Map className="h-4 w-4 mr-1.5" />
-              2D
-            </Button>
-            <Button
-              variant={viewMode === "3D" ? "subtle" : "ghost"}
-              size="sm"
-              className={`px-3 h-full rounded-none ${viewMode === "3D" ? "bg-background" : ""}`}
-              onClick={() => setViewMode("3D")}
-            >
-              <Box className="h-4 w-4 mr-1.5" />
-              3D
-            </Button>
-            <Button
-              variant={viewMode === "WORKFLOW" ? "subtle" : "ghost"}
-              size="sm"
-              className={`px-3 h-full rounded-none ${viewMode === "WORKFLOW" ? "bg-background" : ""}`}
-              onClick={() => setViewMode("WORKFLOW")}
-            >
-              <LayoutDashboard className="h-4 w-4 mr-1.5" />
-              Workflow
-            </Button>
-          </div>
 
           {/* Activation button */}
           {blueprintStatus !== "active" && (
@@ -4781,406 +5069,439 @@ export default function BlueprintEditor() {
           )}
         </div>
       </header>
+
       {/* Main content area */}
       <div className="flex-1 flex relative overflow-hidden">
-        {/* Left sidebar */}
-        <AnimatePresence initial={false}>
-          {sidebarOpen && (
-            <motion.div
-              ref={sidebarRef}
-              initial={{ width: 0, x: -sidebarWidth }}
-              animate={{ width: sidebarWidth, x: 0 }}
-              exit={{ width: 0, x: -sidebarWidth }}
-              transition={{ type: "spring", bounce: 0, duration: 0.4 }}
-              className={`h-full bg-background border-r relative z-20 flex flex-col ${isDragging ? "transition-none" : "transition-all duration-200"}`}
-              style={{
-                boxShadow: isDragging ? "0 0 15px rgba(0,0,0,0.1)" : "none",
-              }}
-            >
-              {/* Sidebar categories */}
-              <div className="border-b">
-                <div className="grid grid-cols-4 p-1.5 gap-1">
-                  <Button
-                    variant={activePanel === "elements" ? "default" : "ghost"}
-                    size="sm"
-                    className="flex flex-col h-16 px-0 rounded-lg gap-1"
-                    onClick={() => setActivePanel("elements")}
-                  >
-                    <LayoutGrid className="h-5 w-5" />
-                    <span className="text-[10px]">Content</span>
-                  </Button>
+        {/* NEW: Vertical Icon Bar */}
+        <div className="w-20 bg-neutral-100 border-r flex flex-col items-center py-4 space-y-1 z-20 flex-shrink-0">
+          {sections.map((section) =>
+            section.type === "separator" ? (
+              <Separator key="separator" className="my-2 bg-neutral-300" />
+            ) : (
+              <TooltipProvider key={section.id} delayDuration={100}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={
+                        activeSection === section.id ? "secondary" : "ghost"
+                      }
+                      size="lg" // Make button larger for easier clicking
+                      className={`w-16 h-16 flex flex-col items-center justify-center rounded-lg group transition-colors duration-150 ${
+                        activeSection === section.id
+                          ? "bg-indigo-100 text-indigo-700"
+                          : "text-neutral-600 hover:bg-neutral-200 hover:text-neutral-800"
+                      }`}
+                      onClick={() => toggleSection(section.id)}
+                    >
+                      <div className="mb-1">{section.icon}</div>
+                      <span className="text-[10px] font-medium leading-tight text-center">
+                        {section.name}
+                      </span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <p>{section.name}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ),
+          )}
+        </div>
 
+        {/* NEW: Sliding Panel Container */}
+        <div className="relative z-10">
+          {" "}
+          {/* Container for the animated panel */}
+          <AnimatePresence>
+            {isPanelOpen && ( // <<< New visibility logic
+              <motion.div
+                // ref={sidebarRef} // Keep ref if resizing is needed
+                initial={{ x: "-100%", opacity: 0 }} // <<< New animation
+                animate={{ x: 0, opacity: 1 }} // <<< New animation
+                exit={{ x: "-100%", opacity: 0 }} // <<< New animation
+                transition={{ type: "spring", bounce: 0.1, duration: 0.4 }}
+                className="h-full bg-background border-r shadow-lg flex flex-col absolute top-0 left-0" // Use absolute positioning
+                style={{ width: panelWidth }} // Use new panelWidth state
+              >
+                {/* Panel Header (Optional but good UX) */}
+                <div className="p-3 border-b flex items-center justify-between h-14">
+                  <h2 className="font-semibold text-lg">
+                    {sections.find((s) => s.id === activeSection)?.name ||
+                      "Panel"}
+                  </h2>
                   <Button
-                    variant={activePanel === "models" ? "default" : "ghost"}
-                    size="sm"
-                    className="flex flex-col h-16 px-0 rounded-lg gap-1"
-                    onClick={() => setActivePanel("models")}
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setActiveSection(null)}
+                    className="h-8 w-8"
                   >
-                    <Box className="h-5 w-5" />
-                    <span className="text-[10px]">Models</span>
-                  </Button>
-
-                  <Button
-                    variant={activePanel === "areas" ? "default" : "ghost"}
-                    size="sm"
-                    className="flex flex-col h-16 px-0 rounded-lg gap-1"
-                    onClick={() => setActivePanel("areas")}
-                  >
-                    <Square className="h-5 w-5" />
-                    <span className="text-[10px]">Areas</span>
-                  </Button>
-
-                  <Button
-                    variant={activePanel === "settings" ? "default" : "ghost"}
-                    size="sm"
-                    className="flex flex-col h-16 px-0 rounded-lg gap-1"
-                    onClick={() => setActivePanel("settings")}
-                  >
-                    <Settings className="h-5 w-5" />
-                    <span className="text-[10px]">Settings</span>
+                    <X className="h-4 w-4" />
                   </Button>
                 </div>
-              </div>
 
-              {/* Panel content */}
-              <div className="flex-1 overflow-hidden">
-                {/* Elements Panel */}
-                {activePanel === "elements" && (
-                  <div className="h-full flex flex-col">
-                    <div className="p-4 border-b">
-                      <h2 className="font-semibold text-xl mb-4 flex items-center">
-                        <LayoutGrid className="h-5 w-5 text-indigo-500 mr-2" />
-                        Content Library
-                      </h2>
-
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="relative flex-1">
-                          <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                          <Input
-                            placeholder="Search elements..."
-                            className="pl-9"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                {/* Panel content (NEW conditional rendering) */}
+                <ScrollArea className="flex-1">
+                  {" "}
+                  {/* Wrap content in ScrollArea */}
+                  <div className="p-4">
+                    {" "}
+                    {/* Add padding around content */}
+                    {/* Text Panel */}
+                    {activeSection === "text" && (
+                      <div className="space-y-4">
+                        {/* --- PASTE Text Label Section JSX HERE --- */}
+                        {/* (From old activePanel === 'elements' -> Text Label Section) */}
+                        <div className="bg-gray-50 rounded-lg p-4 border">
+                          <h3 className="text-sm font-medium mb-2 flex items-center text-gray-700">
+                            <Type className="h-4 w-4 mr-1.5" />
+                            {editingTextAnchorId
+                              ? "Edit Text Label"
+                              : "Add Text Label"}
+                          </h3>
+                          <Textarea
+                            placeholder={
+                              editingTextAnchorId
+                                ? "Edit the label text..."
+                                : "Enter text for new label..."
+                            }
+                            className="resize-none mb-3 bg-white"
+                            rows={3}
+                            value={textContent}
+                            onChange={handleTextChange} // Use the new handler
                           />
-                        </div>
-                      </div>
-
-                      <div className="overflow-x-auto pb-2 -mx-1">
-                        <div className="flex gap-1 px-1">
-                          {elementCategories.map((category) => (
-                            <Button
-                              key={category.id}
-                              variant="ghost"
-                              size="sm"
-                              className={`whitespace-nowrap border rounded-full px-4 h-9 ${
-                                selectedCategory === category.id
-                                  ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                                  : "hover:bg-gray-50"
-                              }`}
-                              onClick={() => setSelectedCategory(category.id)}
-                            >
-                              {category.icon}
-                              <span className="ml-1.5">{category.name}</span>
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <ScrollArea className="flex-1">
-                      <div className="p-4 space-y-6">
-                        {/* Quick Actions */}
-                        <div className="grid grid-cols-2 gap-2">
                           <Button
-                            variant="outline"
-                            size="lg"
-                            className="h-auto flex flex-col items-center justify-center p-4 gap-2 border-dashed"
-                            onClick={() => fileInputRef.current?.click()}
-                          >
-                            <Upload className="h-6 w-6 text-indigo-500" />
-                            <span className="text-sm font-medium">
-                              Upload Files
-                            </span>
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="lg"
-                            className="h-auto flex flex-col items-center justify-center p-4 gap-2 border-dashed"
-                            onClick={() => setSelectedCategory("text")}
-                          >
-                            <Type className="h-6 w-6 text-indigo-500" />
-                            <span className="text-sm font-medium">
-                              Add Text
-                            </span>
-                          </Button>
-                        </div>
-
-                        {/* Text Content Section - Only show when Text is selected */}
-                        {(selectedCategory === "text" ||
-                          selectedCategory === "all") && (
-                          <div className="bg-gray-50 rounded-lg p-4 border">
-                            <h3 className="text-sm font-medium mb-2 flex items-center text-gray-700">
-                              <Type className="h-4 w-4 mr-1.5" /> Text Label
-                            </h3>
-                            <Textarea
-                              placeholder="Enter text for label..."
-                              className="resize-none mb-3 bg-white"
-                              rows={3}
-                              value={textContent}
-                              onChange={(e) => setTextContent(e.target.value)}
-                            />
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => handleAddTextLabel()}
-                              disabled={!textContent.trim()}
-                              className="w-full"
-                            >
-                              <Type className="h-4 w-4 mr-1.5" />
-                              Place Text Label
-                            </Button>
-                          </div>
-                        )}
-
-                        {/* Webpage Link Section - Show when webpage or all is selected */}
-                        {(selectedCategory === "webpage" ||
-                          selectedCategory === "all") && (
-                          <div className="bg-gray-50 rounded-lg p-4 border">
-                            <h3 className="text-sm font-medium mb-2 flex items-center text-gray-700">
-                              <Link className="h-4 w-4 mr-1.5" /> Webpage Link
-                            </h3>
-                            <div className="flex mb-3">
-                              <Input
-                                placeholder="Enter webpage URL (https://example.com)"
-                                className="flex-1 bg-white"
-                                value={externalUrl}
-                                onChange={(e) => setExternalUrl(e.target.value)}
-                              />
-                            </div>
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={handleLoadExternalLink}
-                              disabled={
-                                !externalUrl.trim() ||
-                                !externalUrl.startsWith("http")
+                            variant="default"
+                            size="sm"
+                            onClick={() => {
+                              if (editingTextAnchorId) {
+                                // User is editing an existing anchor:
+                                updateTextAnchorContent(
+                                  editingTextAnchorId,
+                                  textContent,
+                                );
+                                toast({
+                                  title: "Text Updated",
+                                  description:
+                                    "Your label text has been saved to Firebase.",
+                                });
+                              } else {
+                                // User is creating a new label:
+                                handleAddTextLabel();
                               }
-                              className="w-full"
-                            >
-                              <Link className="h-4 w-4 mr-1.5" />
-                              Place Webpage Link
-                            </Button>
+                            }}
+                            // Only disable if the text field is empty:
+                            disabled={!textContent.trim()}
+                            className="w-full"
+                          >
+                            <Type className="h-4 w-4 mr-1.5" />
+                            {editingTextAnchorId
+                              ? "Update Label"
+                              : "Place New Text Label"}
+                          </Button>
+                          {editingTextAnchorId && (
                             <p className="text-xs text-gray-500 mt-2">
-                              Links will be displayed as interactive elements in
-                              your 3D space
+                              Editing anchor:{" "}
+                              <code className="bg-gray-200 px-1 rounded">
+                                {editingTextAnchorId.substring(0, 12)}...
+                              </code>
+                              . Changes saved automatically.
                             </p>
-                          </div>
-                        )}
-
-                        {/* Media Upload Section - Show when image/video is selected */}
-                        {(selectedCategory === "image" ||
-                          selectedCategory === "video" ||
-                          selectedCategory === "file" ||
-                          selectedCategory === "all") && (
-                          <div className="bg-gray-50 rounded-lg p-4 border">
-                            <h3 className="text-sm font-medium mb-2 flex items-center text-gray-700">
-                              {selectedCategory === "image" ? (
+                          )}
+                        </div>
+                        {/* --- END PASTE --- */}
+                      </div>
+                    )}
+                    {/* Media Panel */}
+                    {activeSection === "media" && (
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold mb-3">
+                          Media (Images & Videos)
+                        </h3>
+                        {/* --- PASTE Media Upload Section JSX HERE --- */}
+                        {/* (From old activePanel === 'elements' -> Media Upload Section) */}
+                        {/* You might want to adjust the 'accept' prop based on this combined section */}
+                        <div className="bg-gray-50 rounded-lg p-4 border">
+                          <h3 className="text-sm font-medium mb-2 flex items-center text-gray-700">
+                            <ImageIcon className="h-4 w-4 mr-1.5" /> /{" "}
+                            <Video className="h-4 w-4 ml-1 mr-1.5" /> Upload
+                            Media
+                          </h3>
+                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center bg-white mb-3">
+                            <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                            <p className="text-sm font-medium mb-1">
+                              Drag & drop images/videos here
+                            </p>
+                            <p className="text-xs text-gray-500 mb-3">
+                              Or click to browse
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mx-auto"
+                              onClick={() => fileInputRef.current?.click()}
+                              disabled={uploadLoading}
+                            >
+                              {uploadLoading ? (
                                 <>
-                                  <ImageIcon className="h-4 w-4 mr-1.5" />{" "}
-                                  Upload Images
-                                </>
-                              ) : selectedCategory === "video" ? (
-                                <>
-                                  <Video className="h-4 w-4 mr-1.5" /> Upload
-                                  Videos
+                                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                  Uploading...
                                 </>
                               ) : (
                                 <>
-                                  <File className="h-4 w-4 mr-1.5" /> Upload
-                                  Files
+                                  <Upload className="h-3.5 w-3.5 mr-1.5" />
+                                  Choose Files
                                 </>
                               )}
-                            </h3>
-
-                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center bg-white mb-3">
-                              <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                              <p className="text-sm font-medium mb-1">
-                                Drag & drop files here
-                              </p>
-                              <p className="text-xs text-gray-500 mb-3">
-                                Or click to browse
-                              </p>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="mx-auto"
-                                onClick={() => fileInputRef.current?.click()}
-                                disabled={uploadLoading}
-                              >
-                                {uploadLoading ? (
-                                  <>
-                                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                                    Uploading...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Upload className="h-3.5 w-3.5 mr-1.5" />
-                                    Choose Files
-                                  </>
-                                )}
-                              </Button>
-                            </div>
-
-                            <input
-                              type="file"
-                              ref={fileInputRef}
-                              className="hidden"
-                              accept={
-                                selectedCategory === "image"
-                                  ? "image/*"
-                                  : selectedCategory === "video"
-                                    ? "video/*"
-                                    : "*"
-                              }
-                              onChange={(e) => {
-                                if (e.target.files?.[0]) {
-                                  // First, create a visual placeholder in the UI immediately
-                                  const file = e.target.files[0];
-                                  const tempUrl = URL.createObjectURL(file);
-
-                                  // Add temporary file to the state for immediate feedback
-                                  const tempFile = {
-                                    id: `temp_${Date.now()}`,
-                                    name: file.name,
-                                    url: tempUrl,
-                                    type: file.type,
-                                    uploadDate: new Date(),
-                                    isUploading: true,
-                                  };
-
-                                  setUploadedFiles((prev) => [
-                                    ...prev,
-                                    tempFile,
-                                  ]);
-
-                                  // Now start the actual upload process
-                                  handleFileUpload(file).then(() => {
-                                    // Revoke the object URL to prevent memory leaks
-                                    URL.revokeObjectURL(tempUrl);
-                                  });
-
-                                  // Create an element for the uploaded file if it's media
-                                  if (
-                                    selectedCategory === "image" ||
-                                    selectedCategory === "video"
-                                  ) {
-                                    const mediaType =
-                                      selectedCategory === "image"
-                                        ? "image"
-                                        : "video";
-                                    addElement("media", {
-                                      mediaType: mediaType,
-                                      mediaUrl: tempUrl,
-                                    });
-                                  }
-
-                                  // Clear the file input so the same file can be selected again
-                                  e.target.value = "";
-                                }
-                              }}
-                            />
+                            </Button>
                           </div>
-                        )}
-
-                        {/* Your Elements Section */}
+                          <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            accept="image/*,video/*" // Accept both
+                            multiple // Allow multiple file selection
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files.length > 0) {
+                                Array.from(e.target.files).forEach((file) => {
+                                  // Handle each file upload
+                                  handleFileUpload(file);
+                                });
+                                e.target.value = ""; // Clear input
+                              }
+                            }}
+                          />
+                        </div>
+                        {/* --- END PASTE --- */}
+                        {/* You might also want to list existing Image/Video elements/anchors here */}
                         <div>
-                          <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center justify-between">
-                            <span>Your Elements</span>
-                            <Badge variant="outline" className="bg-gray-50">
-                              {getFilteredElements().length} items
-                            </Badge>
+                          <h3 className="text-sm font-medium text-gray-700 mb-3">
+                            Uploaded Media
                           </h3>
-
-                          {getFilteredElements().length === 0 ? (
-                            <div className="py-6 text-center bg-gray-50 rounded-lg border border-gray-200">
-                              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-                                <LayoutGrid className="h-6 w-6 text-gray-400" />
-                              </div>
-                              <p className="text-sm text-gray-600">
-                                No elements found
-                              </p>
-                              <p className="text-xs text-gray-500 mt-1">
-                                {searchQuery
-                                  ? "Try a different search term"
-                                  : "Add elements using the options above"}
-                              </p>
-                            </div>
-                          ) : (
-                            <div className="space-y-2 pb-6">
-                              {getFilteredElements().map((element) => (
+                          {/* Filter and display uploadedFiles that are images or videos */}
+                          <div className="grid grid-cols-2 gap-2">
+                            {uploadedFiles
+                              .filter(
+                                (f) =>
+                                  f.type?.startsWith("image/") ||
+                                  f.type?.startsWith("video/"),
+                              )
+                              .slice(0, 8)
+                              .map((file) => (
                                 <div
-                                  key={element.id}
-                                  className={`border px-4 py-3 rounded-lg cursor-pointer transition-all ${
-                                    selectedElement?.id === element.id
-                                      ? "bg-indigo-50 border-indigo-300 shadow"
-                                      : "hover:border-indigo-200 hover:shadow hover:bg-gray-50"
-                                  }`}
-                                  onClick={() => setSelectedElement(element)}
+                                  key={file.id}
+                                  className="border rounded-lg overflow-hidden bg-white"
+                                  draggable
+                                  onDragStart={(e) => {
+                                    // Attach file metadata to the drag event
+                                    e.dataTransfer.setData(
+                                      "application/file",
+                                      JSON.stringify(file),
+                                    );
+                                  }}
                                 >
-                                  <div className="flex items-center justify-between mb-1">
-                                    <div className="flex items-center gap-2">
-                                      {element.type === "infoCard" && (
-                                        <StickyNote className="h-4 w-4 text-blue-500" />
-                                      )}
-                                      {element.type === "marker" && (
-                                        <MapPin className="h-4 w-4 text-red-500" />
-                                      )}
-                                      {element.type === "text" && (
-                                        <Type className="h-4 w-4 text-green-500" />
-                                      )}
-                                      {element.type === "media" &&
-                                        (element.content.mediaType ===
-                                        "video" ? (
-                                          <Video className="h-4 w-4 text-orange-500" />
-                                        ) : (
-                                          <ImageIcon className="h-4 w-4 text-purple-500" />
-                                        ))}
-                                      <span className="font-medium text-sm truncate max-w-[120px]">
-                                        {element.content.title}
-                                      </span>
-                                    </div>
-
-                                    <div className="flex gap-1">
-                                      <Badge
-                                        variant="outline"
-                                        className="text-[10px] h-4 px-1.5 bg-white"
-                                      >
-                                        {element.type}
-                                      </Badge>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-5 w-5 text-red-500 hover:text-red-600 hover:bg-red-50"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          deleteElement(element.id);
-                                        }}
-                                      >
-                                        <X className="h-3 w-3" />
-                                      </Button>
-                                    </div>
+                                  <div className="w-full aspect-square bg-gray-50 relative flex items-center justify-center">
+                                    {file.type?.includes("image") ? (
+                                      <img
+                                        src={file.url}
+                                        alt={file.name}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    ) : file.type?.includes("video") ? (
+                                      <Video className="h-10 w-10 text-orange-500" />
+                                    ) : (
+                                      <File className="h-10 w-10 text-gray-400" />
+                                    )}
                                   </div>
-
-                                  <div className="text-xs text-gray-500 truncate">
-                                    {element.content.description}
+                                  <div className="p-2">
+                                    <p className="text-xs font-medium truncate">
+                                      {file.name}
+                                    </p>
+                                    <p className="text-[10px] text-gray-500">
+                                      {file.type?.split("/")[0] || "File"}
+                                    </p>
                                   </div>
                                 </div>
                               ))}
-                            </div>
+                          </div>
+                          {uploadedFiles.filter(
+                            (f) =>
+                              f.type?.startsWith("image/") ||
+                              f.type?.startsWith("video/"),
+                          ).length > 8 && (
+                            <Button variant="link" size="sm" className="mt-2">
+                              View All Media
+                            </Button>
                           )}
                         </div>
+                      </div>
+                    )}
+                    {/* 3D Content Panel */}
+                    {activeSection === "3d" && (
+                      <div className="space-y-4">
+                        {/* --- PASTE 3D Models Panel JSX HERE --- */}
+                        {/* (From old activePanel === 'models') */}
+                        <div className="h-full flex flex-col">
+                          <div className="p-0">
+                            {" "}
+                            {/* Removed padding and border */}
+                            <h2 className="font-semibold text-lg mb-3 flex items-center">
+                              <Box className="h-5 w-5 text-indigo-500 mr-2" />
+                              3D Models
+                            </h2>
+                            <div className="flex items-center gap-2 mb-3">
+                              <div className="relative flex-1">
+                                <Search className="h-4 w-4 absolute left-2.5 top-2.5 text-muted-foreground" />
+                                <Input
+                                  placeholder="Search models..."
+                                  className="pl-9"
+                                  value={searchQuery}
+                                  onChange={(e) =>
+                                    setSearchQuery(e.target.value)
+                                  }
+                                />
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() =>
+                                  modelFileInputRef.current?.click()
+                                }
+                              >
+                                <Upload className="h-4 w-4" />
+                              </Button>
+                              <input
+                                type="file"
+                                ref={modelFileInputRef}
+                                accept=".glb,.gltf"
+                                className="hidden"
+                                onChange={(e) => {
+                                  if (e.target.files?.[0]) {
+                                    handleFileUpload(
+                                      e.target.files[0],
+                                      "3dmodel",
+                                    );
+                                  }
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <div className="flex-1">
+                            {" "}
+                            {/* Removed ScrollArea */}
+                            <div className="space-y-4">
+                              <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                                {searchQuery.trim()
+                                  ? "Search Results"
+                                  : "Featured Models"}
+                              </h3>
+                              <div className="grid grid-cols-2 gap-2">
+                                {featuredModels.map((model) => (
+                                  // Reuse the existing model card component structure
+                                  <div
+                                    key={model.id}
+                                    className="border rounded-lg overflow-hidden hover:border-primary cursor-pointer transition-all relative group"
+                                    onClick={() =>
+                                      handleFeaturedModelClick(model)
+                                    }
+                                    draggable
+                                  >
+                                    {/* ... model card JSX ... */}
+                                    <div className="w-full aspect-video bg-muted relative">
+                                      {model.thumbnail ? (
+                                        <img
+                                          src={model.thumbnail}
+                                          alt={model.name}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center">
+                                          <Box className="h-8 w-8 text-muted-foreground opacity-50" />
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="p-2">
+                                      <div className="font-medium text-sm truncate">
+                                        {model.name}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground truncate mt-0.5">
+                                        {model.description || "3D Model"}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              {featuredModels.length === 0 && (
+                                <div className="text-center py-10">
+                                  <p className="text-gray-500">
+                                    No models found
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        {/* --- END PASTE --- */}
+                      </div>
+                    )}
+                    {/* Uploads Panel */}
+                    {activeSection === "uploads" && (
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold mb-3">Uploads</h3>
+                        {/* --- PASTE General Upload Area JSX HERE --- */}
+                        {/* (From old activePanel === 'elements' -> Quick Actions / Upload Files) */}
+                        <div className="bg-gray-50 rounded-lg p-4 border">
+                          <h3 className="text-sm font-medium mb-2 flex items-center text-gray-700">
+                            <Upload className="h-4 w-4 mr-1.5" /> Upload Any
+                            File
+                          </h3>
+                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center bg-white mb-3">
+                            <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                            <p className="text-sm font-medium mb-1">
+                              Drag & drop files here
+                            </p>
+                            <p className="text-xs text-gray-500 mb-3">
+                              Or click to browse
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mx-auto"
+                              onClick={() => fileInputRef.current?.click()}
+                              disabled={uploadLoading}
+                            >
+                              {uploadLoading ? (
+                                <>
+                                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                  Uploading...
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="h-3.5 w-3.5 mr-1.5" />
+                                  Choose Files
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                          <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            accept="*" // Accept any file type
+                            multiple
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files.length > 0) {
+                                Array.from(e.target.files).forEach((file) => {
+                                  handleFileUpload(file);
+                                });
+                                e.target.value = "";
+                              }
+                            }}
+                          />
+                        </div>
+                        {/* --- END PASTE --- */}
 
-                        {/* Recent Uploads Section */}
+                        {/* --- PASTE Recent Uploads List JSX HERE --- */}
+                        {/* (From old activePanel === 'elements' -> Recent Uploads Section) */}
                         <div>
                           <div className="flex justify-between items-center mb-3">
                             <h3 className="text-sm font-medium text-gray-700 flex items-center">
@@ -5197,1011 +5518,390 @@ export default function BlueprintEditor() {
                               <RefreshCw className="h-3.5 w-3.5" />
                             </Button>
                           </div>
-
                           {uploadedFiles.length === 0 ? (
                             <div className="py-6 text-center bg-gray-50 rounded-lg border border-gray-200">
-                              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-                                <File className="h-6 w-6 text-gray-400" />
-                              </div>
                               <p className="text-sm text-gray-600">
                                 No files uploaded yet
-                              </p>
-                              <p className="text-xs text-gray-500 mt-1">
-                                Upload files to use them in your blueprint
                               </p>
                             </div>
                           ) : (
                             <div className="grid grid-cols-2 gap-2">
-                              {uploadedFiles.slice(0, 4).map((file) => (
-                                <div
-                                  key={file.id}
-                                  className={`border rounded-lg overflow-hidden transition-all bg-white ${
-                                    file.isUploading
-                                      ? "border-blue-300 bg-blue-50"
-                                      : "hover:border-indigo-300 hover:shadow-md cursor-pointer"
-                                  }`}
-                                  draggable={!file.isUploading}
-                                  onDragStart={(e) => {
-                                    if (file.isUploading) return;
-
-                                    // IMPORTANT FIX: Properly format the file data for the drop handler
-                                    const fileData = {
-                                      id: file.id,
-                                      name: file.name,
-                                      url: file.url,
-                                      type: file.type,
-                                      fileType: file.type?.includes("image")
-                                        ? "image"
-                                        : file.type?.includes("video")
-                                          ? "video"
-                                          : "document",
-                                    };
-
-                                    e.dataTransfer.setData(
-                                      "application/file",
-                                      JSON.stringify(fileData),
-                                    );
-
-                                    // Create a drag ghost image
-                                    const ghostImg =
-                                      document.createElement("img");
-                                    if (
-                                      file.type?.includes("image") &&
-                                      file.url
-                                    ) {
-                                      ghostImg.src = file.url;
-                                    } else {
-                                      // Create a placeholder for non-image files
-                                      const canvas =
-                                        document.createElement("canvas");
-                                      canvas.width = 100;
-                                      canvas.height = 100;
-                                      const ctx = canvas.getContext("2d");
-                                      if (ctx) {
-                                        ctx.fillStyle = "#e2e8f0"; // Light gray background
-                                        ctx.fillRect(0, 0, 100, 100);
-                                        ctx.fillStyle = "#64748b"; // Text color
-                                        ctx.font = "14px sans-serif";
-                                        ctx.textAlign = "center";
-                                        ctx.fillText(
-                                          file.name || "File",
-                                          50,
-                                          50,
-                                        );
-                                        ghostImg.src = canvas.toDataURL();
-                                      }
-                                    }
-                                    ghostImg.width = 100;
-                                    e.dataTransfer.setDragImage(
-                                      ghostImg,
-                                      50,
-                                      50,
-                                    );
-
-                                    toast({
-                                      title: "Drag to Place",
-                                      description:
-                                        "Drag the file to where you want it in the 3D view",
-                                      duration: 3000,
-                                    });
-                                  }}
-                                >
-                                  <div className="w-full aspect-square bg-gray-50 relative flex items-center justify-center">
-                                    {file.isUploading ? (
-                                      <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
-                                    ) : file.type?.includes("image") ? (
-                                      <img
-                                        src={file.url}
-                                        alt={file.name}
-                                        className="w-full h-full object-cover"
-                                      />
-                                    ) : file.type?.includes("video") ? (
-                                      <Video className="h-10 w-10 text-orange-500" />
-                                    ) : file.name?.endsWith(".glb") ||
-                                      file.name?.endsWith(".gltf") ? (
-                                      <Box className="h-10 w-10 text-purple-500" />
-                                    ) : (
-                                      <File className="h-10 w-10 text-gray-400" />
-                                    )}
-
-                                    {!file.isUploading && (
-                                      <Button
-                                        variant="secondary"
-                                        size="icon"
-                                        className="h-6 w-6 p-0 absolute bottom-2 right-2 bg-white shadow-sm border opacity-80 hover:opacity-100"
-                                        onClick={() => {
-                                          // Use this file to create an element
-                                          setViewMode("3D");
-
-                                          if (file.type?.includes("image")) {
-                                            setPlacementMode({
-                                              type: "file",
-                                              data: {
-                                                file: file,
-                                                fileType: "image",
-                                                url: file.url,
-                                                name: file.name,
-                                              },
-                                            });
-                                            toast({
-                                              title: "Image Placement Mode",
-                                              description:
-                                                "Click in the 3D view to place the image anchor",
-                                            });
-                                          } else if (
-                                            file.type?.includes("video")
-                                          ) {
-                                            setPlacementMode({
-                                              type: "file",
-                                              data: {
-                                                file: file,
-                                                fileType: "video",
-                                                url: file.url,
-                                                name: file.name,
-                                              },
-                                            });
-                                            toast({
-                                              title: "Video Placement Mode",
-                                              description:
-                                                "Click in the 3D view to place the video anchor",
-                                            });
-                                          } else if (
-                                            file.name?.endsWith(".glb") ||
-                                            file.name?.endsWith(".gltf")
-                                          ) {
-                                            setPlacementMode({
-                                              type: "model",
-                                              data: {
-                                                name: file.name,
-                                                url: file.url,
-                                              },
-                                            });
-                                            toast({
-                                              title: "Model Placement Mode",
-                                              description:
-                                                "Click in the 3D view to place the 3D model",
-                                            });
-                                          } else {
-                                            // Handle other file types (documents, PDFs, etc.)
-                                            setPlacementMode({
-                                              type: "file",
-                                              data: {
-                                                file: file,
-                                                fileType: "document",
-                                                url: file.url,
-                                                name: file.name,
-                                              },
-                                            });
-                                            toast({
-                                              title: "File Placement Mode",
-                                              description:
-                                                "Click in the 3D view to place the file anchor",
-                                            });
-                                          }
-                                        }}
-                                      >
-                                        <Plus className="h-3 w-3" />
-                                      </Button>
-                                    )}
-                                  </div>
-                                  <div className="p-2">
-                                    <p className="text-xs font-medium truncate">
-                                      {file.name}
-                                    </p>
-                                    <p className="text-[10px] text-gray-500">
-                                      {file.isUploading
-                                        ? "Uploading..."
-                                        : file.type?.split("/")[0] || "File"}
-                                    </p>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Webpage Links Section */}
-                          {webpageAnchors.length > 0 && (
-                            <div>
-                              <div className="flex justify-between items-center mb-3">
-                                <h3 className="text-sm font-medium text-gray-700 flex items-center">
-                                  <Link className="h-4 w-4 mr-1.5 text-indigo-500" />
-                                  Embedded Webpages
-                                </h3>
-                                <Badge variant="outline" className="bg-gray-50">
-                                  {webpageAnchors.length}
-                                </Badge>
-                              </div>
-
-                              <div className="space-y-2 mb-4">
-                                {webpageAnchors.slice(0, 3).map((anchor) => (
+                              {uploadedFiles.slice(0, 10).map(
+                                (
+                                  file, // Show more uploads here
+                                ) => (
+                                  // Reuse the existing file display card component structure
                                   <div
-                                    key={anchor.id}
-                                    className="border rounded-lg p-2 flex items-center justify-between hover:border-indigo-300 hover:bg-indigo-50/20 transition-all cursor-pointer"
-                                    onClick={() => {
-                                      // Jump to this anchor in the 3D view
-                                      setViewMode("3D");
-                                      // You could add a function to focus the camera on this anchor
+                                    key={file.id}
+                                    className="border rounded-lg overflow-hidden bg-white"
+                                    // ADDED: Make it draggable
+                                    draggable
+                                    // ADDED: On drag start, attach the file data to dataTransfer
+                                    onDragStart={(e) => {
+                                      e.dataTransfer.setData(
+                                        "application/file",
+                                        JSON.stringify(file),
+                                      );
+                                      console.log(
+                                        "[BlueprintEditor] onDragStart - setting file data:",
+                                        file,
+                                      );
                                     }}
                                   >
-                                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                                      <div className="h-8 w-8 bg-indigo-100 rounded-md flex items-center justify-center text-indigo-600">
-                                        <Link className="h-4 w-4" />
-                                      </div>
-                                      <div className="truncate flex-1">
-                                        <div className="text-sm font-medium truncate">
-                                          {anchor.webpageUrl}
-                                        </div>
-                                        <div className="text-xs text-gray-500">
-                                          {new Date(
-                                            anchor.createdDate || Date.now(),
-                                          ).toLocaleDateString()}
-                                        </div>
-                                      </div>
+                                    {/* ... file card JSX ... */}
+                                    <div className="w-full aspect-square bg-gray-50 relative flex items-center justify-center">
+                                      {/* ... image/video/file preview ... */}
+                                      {file.type?.includes("image") ? (
+                                        <img
+                                          src={file.url}
+                                          alt={file.name}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      ) : file.type?.includes("video") ? (
+                                        <Video className="h-10 w-10 text-orange-500" />
+                                      ) : (
+                                        <File className="h-10 w-10 text-gray-400" />
+                                      )}
+                                      {/* ... place button ... */}
                                     </div>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        // Delete webpage anchor function
-                                        if (
-                                          confirm(
-                                            "Are you sure you want to remove this webpage?",
-                                          )
-                                        ) {
-                                          // Delete logic similar to deleteElement function
-                                        }
-                                      }}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                    <div className="p-2">
+                                      <p className="text-xs font-medium truncate">
+                                        {file.name}
+                                      </p>
+                                      <p className="text-[10px] text-gray-500">
+                                        {file.type?.split("/")[0] || "File"}
+                                      </p>
+                                    </div>
                                   </div>
-                                ))}
-                              </div>
-
-                              {webpageAnchors.length > 3 && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="w-full text-indigo-600 hover:text-indigo-700"
-                                >
-                                  View All Webpages ({webpageAnchors.length})
-                                </Button>
+                                ),
                               )}
                             </div>
                           )}
-
-                          {uploadedFiles.length > 4 && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="w-full mt-2 text-indigo-600 hover:text-indigo-700"
-                              onClick={() => {
-                                // Refresh the uploaded files from Firebase
-                                refreshUploadedFiles();
-                                // Show a toast notification
-                                toast({
-                                  title: "Files Refreshed",
-                                  description: `${uploadedFiles.length} files available for placement`,
-                                  duration: 3000,
-                                });
-                              }}
-                            >
-                              View All Files ({uploadedFiles.length})
+                          {uploadedFiles.length > 10 && (
+                            <Button variant="link" size="sm" className="mt-2">
+                              View All Uploads
                             </Button>
                           )}
                         </div>
-
-                        {/* Help tips for new users */}
-                        <div className="bg-blue-50 rounded-lg p-3 border border-blue-100 mt-4">
-                          <h4 className="text-sm font-medium text-blue-800 mb-2 flex items-center">
-                            <Info className="h-4 w-4 mr-1.5 text-blue-500" />
-                            Quick Tip
-                          </h4>
-                          <p className="text-xs text-blue-700">
-                            Drag and drop items from this panel directly onto
-                            the 3D model to place them in your space.
-                          </p>
-                        </div>
+                        {/* --- END PASTE --- */}
                       </div>
-                    </ScrollArea>
-                  </div>
-                )}
-
-                {/* 3D Models Panel */}
-                {activePanel === "models" && (
-                  <div className="h-full flex flex-col">
-                    <div className="p-3 border-b">
-                      <h2 className="font-semibold text-base mb-3 flex items-center">
-                        <Box className="h-5 w-5 text-indigo-500 mr-2" />
-                        3D Models
-                      </h2>
-
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="relative flex-1">
-                          <Search className="h-4 w-4 absolute left-2.5 top-2.5 text-muted-foreground" />
-                          <Input
-                            placeholder="Search models..."
-                            className="pl-9"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                          />
-                        </div>
-
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => modelFileInputRef.current?.click()}
-                        >
-                          <Upload className="h-4 w-4" />
-                        </Button>
-
-                        <input
-                          type="file"
-                          ref={modelFileInputRef}
-                          accept=".glb,.gltf"
-                          className="hidden"
-                          onChange={(e) => {
-                            if (e.target.files?.[0]) {
-                              handleFileUpload(e.target.files[0], "3dmodel");
-                            }
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    <ScrollArea className="flex-1">
-                      <div className="p-4 space-y-4">
-                        <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                          {searchQuery.trim()
-                            ? "Search Results"
-                            : "Featured Models"}
-                        </h3>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          {featuredModels.map((model) => (
-                            <div
-                              key={model.id}
-                              className="border rounded-lg overflow-hidden hover:border-primary cursor-pointer transition-all relative group"
-                              onClick={() => handleFeaturedModelClick(model)}
-                              draggable
-                              onDragStart={(e) => {
-                                // Add feedback class to element being dragged
-                                e.currentTarget.classList.add("dragging");
-
-                                // Provide model metadata
-                                const modelData = {
-                                  ...model,
-                                  _dragStartTime: Date.now(),
-                                  _dragPreviewSize: { width: 100, height: 100 },
-                                };
-
-                                e.dataTransfer.setData(
-                                  "application/model",
-                                  JSON.stringify(modelData),
-                                );
-
-                                // Ensure drag effect is "copy" to indicate creation of a new element
-                                e.dataTransfer.effectAllowed = "copy";
-
-                                // Improve the drag ghost image
-                                const ghostContainer =
-                                  document.createElement("div");
-                                ghostContainer.style.position = "absolute";
-                                ghostContainer.style.width = "100px";
-                                ghostContainer.style.height = "100px";
-                                ghostContainer.style.padding = "5px";
-                                ghostContainer.style.backgroundColor = "white";
-                                ghostContainer.style.borderRadius = "8px";
-                                ghostContainer.style.boxShadow =
-                                  "0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08)";
-                                ghostContainer.style.overflow = "hidden";
-                                ghostContainer.style.display = "flex";
-                                ghostContainer.style.flexDirection = "column";
-                                ghostContainer.style.alignItems = "center";
-
-                                // Create thumbnail or placeholder
-                                const imageElement =
-                                  document.createElement("div");
-                                imageElement.style.width = "90px";
-                                imageElement.style.height = "60px";
-                                imageElement.style.display = "flex";
-                                imageElement.style.alignItems = "center";
-                                imageElement.style.justifyContent = "center";
-                                imageElement.style.marginBottom = "4px";
-
-                                if (model.thumbnail) {
-                                  const img = document.createElement("img");
-                                  img.src = model.thumbnail;
-                                  img.style.width = "100%";
-                                  img.style.height = "100%";
-                                  img.style.objectFit = "cover";
-                                  img.style.borderRadius = "4px";
-                                  imageElement.appendChild(img);
-                                } else {
-                                  imageElement.style.backgroundColor =
-                                    "#e2e8f0";
-                                  imageElement.style.color = "#64748b";
-                                  imageElement.style.fontSize = "12px";
-                                  imageElement.textContent = "3D Model";
-                                }
-
-                                // Add a text label
-                                const label = document.createElement("div");
-                                label.textContent = model.name || "3D Model";
-                                label.style.fontSize = "12px";
-                                label.style.fontWeight = "500";
-                                label.style.textAlign = "center";
-                                label.style.whiteSpace = "nowrap";
-                                label.style.overflow = "hidden";
-                                label.style.textOverflow = "ellipsis";
-                                label.style.width = "90px";
-
-                                // Assemble ghost container
-                                ghostContainer.appendChild(imageElement);
-                                ghostContainer.appendChild(label);
-
-                                // Add to document temporarily
-                                document.body.appendChild(ghostContainer);
-                                e.dataTransfer.setDragImage(
-                                  ghostContainer,
-                                  50,
-                                  30,
-                                );
-
-                                // Remove ghost container after a delay
-                                setTimeout(() => {
-                                  document.body.removeChild(ghostContainer);
-                                }, 100);
-
-                                // Show concise toast
-                                toast({
-                                  title: "Dragging Model",
-                                  description: "Drop on 3D view to place",
-                                  variant: "info",
-                                  duration: 2000,
-                                });
-                              }}
-                              onDragEnd={(e) => {
-                                // Remove the feedback class
-                                e.currentTarget.classList.remove("dragging");
-                              }}
-                            >
-                              {/* Add drag handle indicator to show it's draggable */}
-                              <div className="absolute top-2 right-2 bg-gray-800/50 text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-full p-1">
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  width="14"
-                                  height="14"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                >
-                                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path>
-                                </svg>
-                              </div>
-                              <div className="w-full aspect-video bg-muted relative">
-                                {model.thumbnail ? (
-                                  <img
-                                    src={model.thumbnail}
-                                    alt={model.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center">
-                                    <Box className="h-8 w-8 text-muted-foreground opacity-50" />
-                                  </div>
-                                )}
-
-                                <div className="absolute top-1 left-1">
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-xs py-0 bg-background/70 backdrop-blur-sm"
-                                  >
-                                    Draggable
-                                  </Badge>
-                                </div>
-
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="absolute top-1 right-1 h-7 w-7 bg-background/70 backdrop-blur-sm hover:bg-background/90"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    // Handle preview
-                                  }}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                              </div>
-
-                              <div className="p-2">
-                                <div className="font-medium text-sm truncate">
-                                  {model.name}
-                                </div>
-                                <div className="text-xs text-muted-foreground truncate mt-0.5">
-                                  {model.description || "3D Model"}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        {featuredModels.length === 0 ? (
-                          <div className="text-center py-10">
-                            <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto flex items-center justify-center mb-4">
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="h-8 w-8 text-gray-400"
-                                viewBox="0 0 20 20"
-                                fill="currentColor"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5 2V4a2 2 0 00-2-2H5zm4.707 4.707a1 1 0 00-1.414 0L8 7.414l-.293-.293a1 1 0 00-1.414 1.414L7.586 9.5l-.293.293a1 1 0 101.414 1.414L9 10.914l.293.293a1 1 0 001.414-1.414L10.414 9.5l.293-.293a1 1 0 00-1.414-1.414L9 8.086l-.293-.293z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                            </div>
-                            <p className="text-gray-500">
-                              {searchQuery.trim()
-                                ? "No models match your search"
-                                : "No models found"}
-                            </p>
-                            <p className="text-sm text-gray-400 mt-1">
-                              {searchQuery.trim()
-                                ? "Try different search terms"
-                                : "Upload a model to get started"}
-                            </p>
+                    )}
+                    {/* Webpages Panel */}
+                    {activeSection === "webpages" && (
+                      <div className="space-y-4">
+                        {/* Webpage Link Input/Update Section */}
+                        <div className="bg-gray-50 rounded-lg p-4 border">
+                          <h3 className="text-sm font-medium mb-2 flex items-center text-gray-700">
+                            <Link className="h-4 w-4 mr-1.5" /> Webpage Link
+                          </h3>
+                          <div className="flex mb-3">
+                            <Input
+                              placeholder="Enter webpage URL (https://example.com)"
+                              className="flex-1 bg-white"
+                              value={externalUrl}
+                              onChange={(e) => setExternalUrl(e.target.value)}
+                            />
                           </div>
-                        ) : null}
-                      </div>
-                    </ScrollArea>
-                  </div>
-                )}
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => {
+                              if (editingWebpageAnchorId) {
+                                updateWebpageAnchorUrl(
+                                  editingWebpageAnchorId,
+                                  externalUrl,
+                                );
+                              } else {
+                                handleLoadExternalLink();
+                              }
+                            }}
+                            disabled={
+                              !externalUrl.trim() ||
+                              !externalUrl.startsWith("http")
+                            }
+                            className="w-full"
+                          >
+                            <Link className="h-4 w-4 mr-1.5" />
+                            {editingWebpageAnchorId
+                              ? "Update Webpage URL"
+                              : "Place Webpage Link"}
+                          </Button>
 
-                {/* Areas Panel */}
-                {activePanel === "areas" && (
-                  <div className="h-full flex flex-col">
-                    <div className="p-3 border-b">
-                      <h2 className="font-semibold text-base mb-3 flex items-center">
-                        <Square className="h-5 w-5 text-indigo-500 mr-2" />
-                        Marked Areas
-                      </h2>
-
-                      <Button
-                        variant={isMarkingArea ? "default" : "outline"}
-                        size="sm"
-                        className="w-full flex items-center justify-center gap-1.5"
-                        onClick={() => {
-                          if (isMarkingArea) {
-                            // If stopping area marking, reset the corner reference
-                            corner1Ref.current = null;
-                          }
-                          setIsMarkingArea(!isMarkingArea);
-                        }}
-                      >
-                        {isMarkingArea ? (
-                          <>
-                            <X className="h-4 w-4 mr-1.5" />
-                            Stop Marking
-                          </>
-                        ) : (
-                          <>
-                            <Square className="h-4 w-4 mr-1.5" />
-                            Mark New Area
-                          </>
-                        )}
-                      </Button>
-
-                      {isMarkingArea && (
-                        <div className="mt-2 p-3 bg-blue-50 rounded-md border border-blue-100">
-                          <h4 className="text-sm font-medium text-blue-800 mb-1">
-                            How to mark an area:
-                          </h4>
-                          <ol className="text-xs text-blue-700 ml-4 space-y-1 list-decimal">
-                            <li>Click where you want to start the area</li>
-                            <li>Drag to define the area size</li>
-                            <li>Release to complete marking the area</li>
-                          </ol>
-                        </div>
-                      )}
-                    </div>
-
-                    <ScrollArea className="flex-1">
-                      <div className="p-4 space-y-4">
-                        <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center justify-between">
-                          <span>Your Areas</span>
-                          <Badge variant="outline" className="bg-gray-50">
-                            {markedAreas.length} areas
-                          </Badge>
-                        </h3>
-
-                        {markedAreas.length === 0 ? (
-                          <div className="py-6 text-center bg-gray-50 rounded-lg border border-gray-200">
-                            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-                              <Square className="h-8 w-8 text-gray-400" />
-                            </div>
-                            <p className="text-sm text-gray-600">
-                              No areas marked yet
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              Create areas to organize your space
-                            </p>
+                          {editingWebpageAnchorId && (
                             <Button
                               variant="outline"
                               size="sm"
-                              className="mt-4"
-                              onClick={() => setIsMarkingArea(true)}
+                              onClick={() => {
+                                setEditingWebpageAnchorId(null);
+                                setExternalUrl("");
+                                setSelectedAnchorData(null);
+                              }}
+                              className="w-full mt-2"
                             >
-                              <Square className="h-4 w-4 mr-1.5" />
-                              Mark Your First Area
+                              Cancel Edit
                             </Button>
-                          </div>
-                        ) : (
-                          <div className="space-y-2 pb-6">
-                            {markedAreas.map((area) => (
-                              <div
-                                key={area.id}
-                                className={`border rounded-lg overflow-hidden cursor-pointer transition-all relative group ${selectedArea === area.id ? "border-indigo-500 bg-indigo-50" : "hover:border-primary"}`}
-                                onClick={() =>
-                                  setSelectedArea(
-                                    area.id === selectedArea ? null : area.id,
-                                  )
-                                }
-                              >
-                                <div className="p-3 flex items-center gap-3">
-                                  <div
-                                    className="w-10 h-10 rounded flex items-center justify-center shrink-0"
-                                    style={{
-                                      backgroundColor: area.color || "#3B82F6",
+                          )}
+
+                          <p className="text-xs text-gray-500 mt-2">
+                            Links will be displayed as interactive elements in
+                            your 3D space
+                          </p>
+                        </div>{" "}
+                        {/* Correct closing tag for the input/button section */}
+                        {/* List of Placed Webpages Section (Starts directly after the above div) */}
+                        {webpageAnchors.length > 0 && (
+                          <div>
+                            <h3 className="text-sm font-medium text-gray-700 mb-3">
+                              Placed Webpages
+                            </h3>
+                            <div className="space-y-2">
+                              {webpageAnchors.map((anchor) => (
+                                <div
+                                  key={anchor.id}
+                                  className={`border rounded-lg p-2 flex items-center justify-between hover:bg-gray-50 cursor-pointer ${
+                                    editingWebpageAnchorId === anchor.id
+                                      ? "ring-2 ring-indigo-500 bg-indigo-50"
+                                      : ""
+                                  }`}
+                                  onClick={() =>
+                                    handleWebpageAnchorClicked(
+                                      anchor.id,
+                                      anchor.webpageUrl,
+                                    )
+                                  }
+                                >
+                                  <span className="text-sm truncate">
+                                    {anchor.webpageUrl}
+                                  </span>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-red-500 hover:bg-red-100"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      console.log(
+                                        "Delete clicked for:",
+                                        anchor.id,
+                                      );
+                                      // Add delete logic here if desired
                                     }}
                                   >
-                                    <Square className="h-5 w-5 text-white" />
-                                  </div>
-
-                                  <div className="flex-1 min-w-0">
-                                    <div className="font-medium text-sm truncate">
-                                      {area.name}
-                                    </div>
-                                    <div className="text-xs text-gray-500 flex items-center gap-2">
-                                      <span>Size: </span>
-                                      <Badge
-                                        variant="outline"
-                                        className="bg-gray-50 font-mono text-xs py-0 h-4"
-                                      >
-                                        {Math.abs(
-                                          area.max.x - area.min.x,
-                                        ).toFixed(1)}{" "}
-                                        ×{" "}
-                                        {Math.abs(
-                                          area.max.z - area.min.z,
-                                        ).toFixed(1)}
-                                      </Badge>
-                                    </div>
-                                  </div>
-
-                                  <div className="flex gap-2">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-50"
-                                      onClick={(e) =>
-                                        handleRemarkArea(area.id, e)
-                                      }
-                                      title="Re-mark Area"
-                                    >
-                                      <PenTool className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        deleteMarkedArea(area.id);
-                                      }}
-                                      title="Delete Area"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
                                 </div>
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
                         )}
-
-                        {/* Help tips for areas */}
-                        <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                          <h4 className="text-sm font-medium text-gray-700 mb-2">
-                            Why mark areas?
-                          </h4>
-                          <ul className="text-xs text-gray-600 space-y-2">
-                            <li className="flex items-start gap-2">
-                              <div className="mt-0.5 flex-shrink-0">
-                                <MapPin className="h-3.5 w-3.5 text-indigo-500" />
-                              </div>
-                              <span>Define navigation zones for visitors</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <div className="mt-0.5 flex-shrink-0">
-                                <Tag className="h-3.5 w-3.5 text-indigo-500" />
-                              </div>
-                              <span>Group related content together</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <div className="mt-0.5 flex-shrink-0">
-                                <Eye className="h-3.5 w-3.5 text-indigo-500" />
-                              </div>
-                              <span>
-                                Create interactive zones for different
-                                experiences
-                              </span>
-                            </li>
-                          </ul>
-                        </div>
+                        {/* No extra <p> or </div> here */}
                       </div>
-                    </ScrollArea>
-                  </div>
-                )}
-
-                {/* Settings Panel */}
-                {activePanel === "settings" && (
-                  <div className="h-full flex flex-col">
-                    <div className="p-3 border-b">
-                      <h2 className="font-semibold text-base mb-3 flex items-center">
-                        <Settings className="h-5 w-5 text-indigo-500 mr-2" />
-                        Blueprint Settings
-                      </h2>
-                    </div>
-
-                    <ScrollArea className="flex-1">
-                      <div className="p-4 space-y-4">
-                        <Accordion type="single" collapsible className="w-full">
-                          <AccordionItem value="blueprint">
-                            <AccordionTrigger className="text-sm">
-                              Blueprint Properties
-                            </AccordionTrigger>
-                            <AccordionContent>
-                              <div className="space-y-3">
-                                <div className="space-y-1.5">
-                                  <Label htmlFor="title">Title</Label>
-                                  <Input
-                                    id="title"
-                                    value={blueprintTitle}
-                                    onChange={(e) =>
-                                      setBlueprintTitle(e.target.value)
-                                    }
-                                  />
+                    )}
+                    {/* Areas Panel */}
+                    {activeSection === "areas" && (
+                      <div className="space-y-4">
+                        {/* --- PASTE Areas Panel JSX HERE --- */}
+                        {/* (From old activePanel === 'areas') */}
+                        <div className="h-full flex flex-col">
+                          <div className="p-0">
+                            {" "}
+                            {/* Removed padding and border */}
+                            <h2 className="font-semibold text-lg mb-3 flex items-center">
+                              <Square className="h-5 w-5 text-indigo-500 mr-2" />
+                              Marked Areas
+                            </h2>
+                            <Button
+                              variant={isMarkingArea ? "default" : "outline"}
+                              size="sm"
+                              className="w-full flex items-center justify-center gap-1.5"
+                              onClick={() => setIsMarkingArea(!isMarkingArea)}
+                            >
+                              {isMarkingArea ? (
+                                <>
+                                  <X className="h-4 w-4 mr-1.5" />
+                                  Stop Marking
+                                </>
+                              ) : (
+                                <>
+                                  <Square className="h-4 w-4 mr-1.5" />
+                                  Mark New Area
+                                </>
+                              )}
+                            </Button>
+                            {isMarkingArea && (
+                              <div className="mt-2 p-3 bg-blue-50 rounded-md border border-blue-100">
+                                <h4 className="text-sm font-medium text-blue-800 mb-1">
+                                  How to mark:
+                                </h4>
+                                <ol className="text-xs text-blue-700 ml-4 space-y-1 list-decimal">
+                                  <li>Click to start</li>
+                                  <li>Drag to define size</li>
+                                  <li>Release to complete</li>
+                                </ol>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 mt-4">
+                            {" "}
+                            {/* Removed ScrollArea */}
+                            <div className="space-y-4">
+                              <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center justify-between">
+                                <span>Your Areas</span>
+                                <Badge variant="outline" className="bg-gray-50">
+                                  {markedAreas.length} areas
+                                </Badge>
+                              </h3>
+                              {markedAreas.length === 0 ? (
+                                <div className="py-6 text-center bg-gray-50 rounded-lg border border-gray-200">
+                                  <p className="text-sm text-gray-600">
+                                    No areas marked yet
+                                  </p>
                                 </div>
-
-                                <div className="space-y-1.5">
-                                  <Label>Status</Label>
-                                  <div className="flex items-center gap-2">
-                                    <Badge
-                                      className={
-                                        blueprintStatus === "active"
-                                          ? "bg-green-100 text-green-800 hover:bg-green-200"
-                                          : "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                              ) : (
+                                <div className="space-y-2 pb-6">
+                                  {markedAreas.map((area) => (
+                                    // Reuse the existing area card component structure
+                                    <div
+                                      key={area.id}
+                                      className={`border rounded-lg overflow-hidden cursor-pointer transition-all relative group ${selectedArea === area.id ? "border-indigo-500 bg-indigo-50" : "hover:border-primary"}`}
+                                      onClick={() =>
+                                        setSelectedArea(
+                                          area.id === selectedArea
+                                            ? null
+                                            : area.id,
+                                        )
                                       }
                                     >
-                                      {blueprintStatus === "active"
-                                        ? "Active"
-                                        : "Pending"}
-                                    </Badge>
-
-                                    {blueprintStatus !== "active" && (
-                                      <Button
-                                        variant="default"
-                                        size="sm"
-                                        onClick={handleActivateBlueprint}
-                                        disabled={isActivating}
-                                      >
-                                        {isActivating
-                                          ? "Activating..."
-                                          : "Activate Now"}
-                                      </Button>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-
-                          <AccordionItem value="3dsettings">
-                            <AccordionTrigger className="text-sm">
-                              3D View Settings
-                            </AccordionTrigger>
-                            <AccordionContent>
-                              <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <Label className="cursor-pointer">
-                                    Show Grid
-                                  </Label>
-                                  <div className="flex items-center space-x-2">
-                                    <Button
-                                      variant={showGrid ? "outline" : "ghost"}
-                                      size="sm"
-                                      className={`h-8 w-8 p-0 ${showGrid ? "border-primary" : ""}`}
-                                      onClick={() => setShowGrid(!showGrid)}
-                                    >
-                                      {showGrid ? (
-                                        <CheckCircle2 className="h-4 w-4 text-primary" />
-                                      ) : (
-                                        <Circle className="h-4 w-4" />
-                                      )}
-                                    </Button>
-                                  </div>
-                                </div>
-
-                                <div className="flex items-center justify-between">
-                                  <Label className="cursor-pointer">
-                                    Set Origin Point
-                                  </Label>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                      setViewMode("3D");
-                                      setIsChoosingOrigin(true);
-                                    }}
-                                  >
-                                    <Target className="h-4 w-4 mr-1.5" />
-                                    {originPoint ? "Recalibrate" : "Set Origin"}
-                                  </Button>
-                                </div>
-
-                                <div className="flex items-center justify-between">
-                                  <Label className="cursor-pointer">
-                                    Align 2D & 3D
-                                  </Label>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                      setShowAlignmentWizard(true);
-                                      setActiveLabel("A");
-                                      setAwaiting3D(false);
-                                      setReferencePoints2D([]);
-                                      setReferencePoints3D([]);
-                                    }}
-                                  >
-                                    <Ruler className="h-4 w-4 mr-1.5" />
-                                    Align Views
-                                  </Button>
-                                </div>
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-
-                          <AccordionItem value="qrcodes">
-                            <AccordionTrigger className="text-sm">
-                              QR Codes
-                            </AccordionTrigger>
-                            <AccordionContent>
-                              <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <Label className="cursor-pointer">
-                                    Place QR Code
-                                  </Label>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="gap-1.5"
-                                    onClick={() => {
-                                      setViewMode("3D");
-                                      setQrPlacementMode(true);
-                                    }}
-                                  >
-                                    <QrCode className="h-4 w-4" />
-                                    Place QR
-                                  </Button>
-                                </div>
-
-                                <div className="flex items-center justify-between">
-                                  <Label className="cursor-pointer">
-                                    QR Code Configuration
-                                  </Label>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="gap-1.5"
-                                    onClick={() => {
-                                      setQrGenerationActive(true);
-                                      setQrGenerationStep(0);
-                                    }}
-                                  >
-                                    <Settings className="h-4 w-4" />
-                                    Configure
-                                  </Button>
-                                </div>
-
-                                {qrLocations.length > 0 && (
-                                  <div className="pt-1">
-                                    <Label className="text-xs text-muted-foreground">
-                                      {qrLocations.length} QR code
-                                      {qrLocations.length !== 1 ? "s" : ""}{" "}
-                                      placed
-                                    </Label>
-                                    <div className="w-full bg-muted rounded-full h-2 mt-1.5">
-                                      <div
-                                        className="bg-primary h-2 rounded-full"
-                                        style={{
-                                          width: `${Math.min(100, (qrLocations.length / 3) * 100)}%`,
-                                        }}
-                                      ></div>
+                                      {/* ... area card JSX ... */}
+                                      <div className="p-3 flex items-center gap-3">
+                                        <div
+                                          className="w-10 h-10 rounded flex items-center justify-center shrink-0"
+                                          style={{
+                                            backgroundColor:
+                                              area.color || "#3B82F6",
+                                          }}
+                                        >
+                                          <Square className="h-5 w-5 text-white" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <div className="font-medium text-sm truncate">
+                                            {area.name}
+                                          </div>
+                                          {/* ... size badge ... */}
+                                        </div>
+                                        <div className="flex gap-2">
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                                            onClick={(e) =>
+                                              handleRemarkArea(area.id, e)
+                                            }
+                                            title="Re-mark Area"
+                                          >
+                                            <PenTool className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              deleteMarkedArea(area.id);
+                                            }}
+                                            title="Delete Area"
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-
-                          <AccordionItem value="team">
-                            <AccordionTrigger className="text-sm">
-                              Team & Collaboration
-                            </AccordionTrigger>
-                            <AccordionContent>
-                              <div className="space-y-3">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="w-full gap-1.5"
-                                  onClick={() => setShowInviteModal(true)}
-                                >
-                                  <UserPlus className="h-4 w-4" />
-                                  Invite Team Members
-                                </Button>
-
-                                <p className="text-xs text-muted-foreground">
-                                  Invite team members to collaborate on this
-                                  blueprint.
-                                </p>
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-                        </Accordion>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        {/* --- END PASTE --- */}
                       </div>
-                    </ScrollArea>
+                    )}
+                    {/* Settings Panel */}
+                    {activeSection === "settings" && (
+                      <div className="space-y-4">
+                        {/* --- PASTE Settings Panel JSX HERE --- */}
+                        {/* (From old activePanel === 'settings') */}
+                        <div className="h-full flex flex-col">
+                          <div className="p-0">
+                            {" "}
+                            {/* Removed padding and border */}
+                            <h2 className="font-semibold text-lg mb-3 flex items-center">
+                              <Settings className="h-5 w-5 text-indigo-500 mr-2" />
+                              Blueprint Settings
+                            </h2>
+                          </div>
+                          <div className="flex-1">
+                            {" "}
+                            {/* Removed ScrollArea */}
+                            <div className="space-y-4">
+                              <Accordion
+                                type="single"
+                                collapsible
+                                className="w-full"
+                              >
+                                {/* Paste AccordionItem sections here */}
+                                <AccordionItem value="blueprint">
+                                  <AccordionTrigger className="text-sm">
+                                    Blueprint Properties
+                                  </AccordionTrigger>
+                                  <AccordionContent>
+                                    {/* ... content ... */}
+                                  </AccordionContent>
+                                </AccordionItem>
+                                <AccordionItem value="3dsettings">
+                                  <AccordionTrigger className="text-sm">
+                                    3D View Settings
+                                  </AccordionTrigger>
+                                  <AccordionContent>
+                                    {/* ... content ... */}
+                                  </AccordionContent>
+                                </AccordionItem>
+                                <AccordionItem value="qrcodes">
+                                  <AccordionTrigger className="text-sm">
+                                    QR Codes
+                                  </AccordionTrigger>
+                                  <AccordionContent>
+                                    {/* ... content ... */}
+                                  </AccordionContent>
+                                </AccordionItem>
+                                <AccordionItem value="team">
+                                  <AccordionTrigger className="text-sm">
+                                    Team & Collaboration
+                                  </AccordionTrigger>
+                                  <AccordionContent>
+                                    {/* ... content ... */}
+                                  </AccordionContent>
+                                </AccordionItem>
+                              </Accordion>
+                            </div>
+                          </div>
+                        </div>
+                        {/* --- END PASTE --- */}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </ScrollArea>
 
-              {/* Resize handle */}
-              <div
-                className="absolute top-0 right-0 w-6 h-full cursor-col-resize group z-50 flex items-center justify-center"
-                onMouseDown={startSidebarResize}
-              >
-                <div className="w-0.5 h-3/4 bg-gray-200 group-hover:bg-primary group-hover:h-full transition-all duration-150"></div>
-                <div
-                  className={`w-0.5 h-3/4 mx-0.5 bg-gray-200 group-hover:bg-primary group-hover:h-full transition-all duration-150 ${isDragging ? "bg-primary h-full" : ""}`}
-                ></div>
-                <div className="w-0.5 h-3/4 bg-gray-200 group-hover:bg-primary group-hover:h-full transition-all duration-150"></div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Toggle sidebar button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className={`absolute left-3 top-3 z-30 h-8 w-8 bg-background/80 backdrop-blur-sm border shadow-sm ${!sidebarOpen ? "rounded-full" : "hidden"}`}
-          onClick={() => setSidebarOpen(true)}
-        >
-          <PanelRight className="h-4 w-4" />
-        </Button>
+                {/* Resize handle (Optional: Add if panel resizing is desired) */}
+                {/* <div className="absolute top-0 right-0 w-2 h-full cursor-col-resize group z-50" onMouseDown={startSidebarResize}> ... </div> */}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* Main viewer area */}
         <div
           ref={containerRef}
           className="flex-1 relative overflow-hidden bg-neutral-100"
-          onMouseUp={endSidebarResize}
+          //onMouseUp={endSidebarResize}
         >
           {/* Loading overlay */}
           {isLoading && (
@@ -6331,6 +6031,7 @@ export default function BlueprintEditor() {
               selectedArea={selectedArea}
               modelAnchors={modelAnchors}
               webpageAnchors={webpageAnchors}
+              fileAnchors={fileAnchors}
               textAnchors={textAnchors}
               fileAnchors={fileAnchors}
               pendingLabelTextRef={pendingLabelTextRef}
@@ -6439,6 +6140,10 @@ export default function BlueprintEditor() {
               scaleFactor={scaleFactor}
               showGrid={showGrid}
               onFileDropped={handleFileAnchorPlaced}
+              onTextAnchorClick={handleTextAnchorClicked}
+              onWebpageAnchorClick={handleWebpageAnchorClicked}
+              onFileAnchorClick={handleFileAnchorClicked}
+              qrCodeAnchors={qrCodeAnchors}
             />
           )}
 
@@ -6889,6 +6594,7 @@ export default function BlueprintEditor() {
                       onAreaMarked={handleAreaMarked}
                       corner1Ref={corner1Ref}
                       markedAreas={markedAreas}
+                      fileAnchors={fileAnchors}
                       setAwaiting3D={setAwaiting3D}
                       setActiveLabel={setActiveLabel}
                       showGrid={showGrid}
@@ -7519,6 +7225,125 @@ export default function BlueprintEditor() {
         </DialogContent>
       </Dialog>
       {showOnboarding && <InteractiveOnboarding />}
+      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Share This Blueprint</DialogTitle>
+            <DialogDescription>
+              Invite others to view this Blueprint or copy the link below.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-4">
+            <Label className="text-sm">Public Share Link</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                readOnly
+                value={window.location.origin + "/public/" + blueprintId}
+                className="flex-1"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    window.location.origin + "/public/" + blueprintId,
+                  );
+                  toast({
+                    title: "Link Copied",
+                    description: "Share link has been copied to your clipboard",
+                  });
+                }}
+              >
+                Copy
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Anyone with this link can view the Blueprint.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowShareDialog(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {selectedAnchorData && (
+        <div className="absolute top-20 right-4 w-80 p-6 bg-white rounded-lg border border-gray-100 shadow-xl z-50 transition-all duration-200 ease-in-out">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="font-semibold text-gray-800 text-base">
+              Selected Anchor Info
+            </h3>
+            <button
+              onClick={() => setSelectedAnchorData(null)}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            <div className="bg-gray-50 p-2 rounded-md">
+              <p className="text-xs text-gray-500 mb-1">Anchor ID</p>
+              <p className="text-sm font-mono text-gray-700 break-all">
+                {selectedAnchorData.id || "N/A"}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Text Content</p>
+              <p className="text-sm text-gray-700 max-h-24 overflow-y-auto pr-1">
+                {selectedAnchorData.textContent || "N/A"}
+              </p>
+            </div>
+
+            <div className="bg-gray-50 p-2 rounded-md">
+              <p className="text-xs text-gray-500 mb-1">Blueprint ID</p>
+              <p className="text-sm font-mono text-gray-700 break-all">
+                {selectedAnchorData.blueprintID || "N/A"}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Created</p>
+              <p className="text-sm text-gray-700">
+                {selectedAnchorData.createdDate
+                  ? new Date(
+                      selectedAnchorData.createdDate.seconds * 1000,
+                    ).toLocaleString()
+                  : "N/A"}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 text-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedAnchorData(null)}
+              className="w-full bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 rounded-md py-1.5 transition-colors"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

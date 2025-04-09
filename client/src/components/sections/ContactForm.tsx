@@ -127,18 +127,92 @@ export default function ContactForm() {
     return Object.keys(newErrors).length === 0;
   };
 
+  // const handleSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   if (!validateForm()) return;
+
+  //   setIsSubmitting(true);
+
+  //   try {
+  //     // Generate a unique token
+  //     const token = uuidv4();
+  //     const baseUrl = window.location.origin;
+  //     const offWaitlistUrl = `${baseUrl}/off-waitlist-signup?token=${token}`;
+
+  //     // Store token in Firebase
+  //     await addDoc(collection(db, "waitlistTokens"), {
+  //       token: token,
+  //       email: formData.email,
+  //       company: formData.company,
+  //       status: "unused",
+  //       createdAt: serverTimestamp(),
+  //     });
+
+  //     const options = {
+  //       method: "POST",
+  //       headers: {
+  //         Authorization: "Bearer c4dc7fe399094cd3819c96e51dded30c",
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({
+  //         user_id: "Hs4h5E9hjnVCNcbF4ns2puDi3oR2",
+  //         saved_item_id: "oxcGGr2mxAXaZTg6o1hJaN",
+  //         pipeline_inputs: [
+  //           { input_name: "contact_name", value: formData.name },
+  //           { input_name: "email", value: formData.email },
+  //           { input_name: "company", value: formData.company },
+  //           { input_name: "company_url", value: companyWebsite },
+  //           {
+  //             input_name: "location",
+  //             value: `${formData.city}, ${formData.state}`,
+  //           },
+  //           { input_name: "message", value: formData.message },
+  //           { input_name: "signup_link", value: offWaitlistUrl }, // Keep this
+  //           { input_name: "token", value: token }, // Add the token explicitly
+  //           { input_name: "base_url", value: baseUrl }, // Add base URL for flexibility
+  //         ],
+  //       }),
+  //     };
+
+  //     console.log("Sending request to Gumloop with options:", options);
+  //     const response = await fetch(
+  //       "https://api.gumloop.com/api/v1/start_pipeline",
+  //       options,
+  //     );
+  //     console.log("Gumloop API response status:", response.status);
+  //     const gumloopResponse = await response.json();
+  //     console.log("Gumloop API response:", gumloopResponse);
+
+  //     if (!response.ok) {
+  //       throw new Error("Failed to submit form");
+  //     }
+
+  //     setIsSuccess(true);
+  //     setFormData({
+  //       name: "",
+  //       email: "",
+  //       company: "",
+  //       city: "",
+  //       state: "",
+  //       message: "",
+  //     });
+  //   } catch (error) {
+  //     console.error("Error submitting form:", error);
+  //     alert("There was an error submitting your form. Please try again.");
+  //   } finally {
+  //     setIsSubmitting(false);
+  //   }
+  // };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
-
     setIsSubmitting(true);
-
     try {
       // Generate a unique token
       const token = uuidv4();
       const baseUrl = window.location.origin;
       const offWaitlistUrl = `${baseUrl}/off-waitlist-signup?token=${token}`;
-
       // Store token in Firebase
       await addDoc(collection(db, "waitlistTokens"), {
         token: token,
@@ -148,40 +222,35 @@ export default function ContactForm() {
         createdAt: serverTimestamp(),
       });
 
-      const options = {
+      // New Lindy webhook implementation
+      const lindyOptions = {
         method: "POST",
         headers: {
-          Authorization: "Bearer c4dc7fe399094cd3819c96e51dded30c",
+          Authorization:
+            "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          user_id: "Hs4h5E9hjnVCNcbF4ns2puDi3oR2",
-          saved_item_id: "oxcGGr2mxAXaZTg6o1hJaN",
-          pipeline_inputs: [
-            { input_name: "contact_name", value: formData.name },
-            { input_name: "email", value: formData.email },
-            { input_name: "company", value: formData.company },
-            { input_name: "company_url", value: companyWebsite },
-            {
-              input_name: "location",
-              value: `${formData.city}, ${formData.state}`,
-            },
-            { input_name: "message", value: formData.message },
-            { input_name: "signup_link", value: offWaitlistUrl }, // Keep this
-            { input_name: "token", value: token }, // Add the token explicitly
-            { input_name: "base_url", value: baseUrl }, // Add base URL for flexibility
-          ],
+          name: formData.name,
+          email: formData.email,
+          company: formData.company,
+          company_url: companyWebsite,
+          location: `${formData.city}, ${formData.state}`,
+          message: formData.message,
+          signup_link: offWaitlistUrl,
+          token: token,
+          base_url: baseUrl,
         }),
       };
 
-      console.log("Sending request to Gumloop with options:", options);
+      console.log("Sending request to Lindy with options:", lindyOptions);
       const response = await fetch(
-        "https://api.gumloop.com/api/v1/start_pipeline",
-        options,
+        "https://public.lindy.ai/api/v1/webhooks/lindy/163b37c0-2f5c-4969-9b2e-0d5ec61afb52",
+        lindyOptions,
       );
-      console.log("Gumloop API response status:", response.status);
-      const gumloopResponse = await response.json();
-      console.log("Gumloop API response:", gumloopResponse);
+      console.log("Lindy API response status:", response.status);
+      const lindyResponse = await response.json();
+      console.log("Lindy API response:", lindyResponse);
 
       if (!response.ok) {
         throw new Error("Failed to submit form");
@@ -336,7 +405,6 @@ export default function ContactForm() {
                       </div>
                     </div>
                   </div>
-
                 </div>
 
                 {/* Background decorations */}
@@ -546,7 +614,7 @@ export default function ContactForm() {
                           type="text"
                           id="city"
                           name="city"
-                          placeholder="San Francisco"
+                          placeholder="Los Angeles"
                           value={formData.city}
                           onChange={handleChange}
                           className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl"

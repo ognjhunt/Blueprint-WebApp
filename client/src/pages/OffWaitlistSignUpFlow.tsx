@@ -217,40 +217,77 @@ export default function OffWaitlistSignUpFlow() {
         const options = {
           method: "POST",
           headers: {
-            Authorization: "Bearer c4dc7fe399094cd3819c96e51dded30c",
+            Authorization:
+              "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            user_id: "Hs4h5E9hjnVCNcbF4ns2puDi3oR2",
-            saved_item_id: "6u9qqqaskkFoxxsLz1tWX9",
-            pipeline_inputs: [
-              { input_name: "have_we_onboarded", value: "No" },
-              { input_name: "chosen_time_of_mapping", value: chosenTime },
-              { input_name: "chosen_date_of_mapping", value: chosenDate },
-              { input_name: "have_user_chosen_date", value: "Yes" },
-              { input_name: "address", value: cAddress },
-              { input_name: "company_url", value: cUrl },
-              { input_name: "company_name", value: cName },
-              { input_name: "contact_name", value: personName },
-              { input_name: "contact_phone_number", value: contactPhone },
-            ],
+            have_we_onboarded: "No",
+            chosen_time_of_mapping: chosenTime,
+            chosen_date_of_mapping: chosenDate,
+            have_user_chosen_date: "Yes",
+            address: cAddress,
+            company_url: cUrl,
+            company_name: cName,
+            contact_name: personName,
+            contact_phone_number: contactPhone,
           }),
         };
 
-        fetch("https://api.gumloop.com/api/v1/start_pipeline", options)
+        fetch(
+          "https://public.lindy.ai/api/v1/webhooks/lindy/43c7b7d7-bc40-4593-acfe-ba79ad6488b8",
+          options,
+        )
           .then((res) => res.json())
-          .then((data) => console.log("Gumloop response:", data))
-          .catch((err) => console.error("Gumloop error:", err));
+          .then((data) => console.log("Lindy response:", data))
+          .catch((err) => console.error("Lindy error:", err));
       } catch (error) {
         console.error("Error updating scheduling info:", error);
         setErrorMessage("Error updating scheduling info: " + error.message);
         return; // Stop here if there's an error
       }
     }
-
     // Finally, advance to the next step if everything succeeded
     setStep((prev) => prev + 1);
   }
+
+  //       const options = {
+  //         method: "POST",
+  //         headers: {
+  //           Authorization: "Bearer c4dc7fe399094cd3819c96e51dded30c",
+  //           "Content-Type": "application/json",
+  //         },
+  //         body: JSON.stringify({
+  //           user_id: "Hs4h5E9hjnVCNcbF4ns2puDi3oR2",
+  //           saved_item_id: "6u9qqqaskkFoxxsLz1tWX9",
+  //           pipeline_inputs: [
+  //             { input_name: "have_we_onboarded", value: "No" },
+  //             { input_name: "chosen_time_of_mapping", value: chosenTime },
+  //             { input_name: "chosen_date_of_mapping", value: chosenDate },
+  //             { input_name: "have_user_chosen_date", value: "Yes" },
+  //             { input_name: "address", value: cAddress },
+  //             { input_name: "company_url", value: cUrl },
+  //             { input_name: "company_name", value: cName },
+  //             { input_name: "contact_name", value: personName },
+  //             { input_name: "contact_phone_number", value: contactPhone },
+  //           ],
+  //         }),
+  //       };
+
+  //       fetch("https://api.gumloop.com/api/v1/start_pipeline", options)
+  //         .then((res) => res.json())
+  //         .then((data) => console.log("Gumloop response:", data))
+  //         .catch((err) => console.error("Gumloop error:", err));
+  //     } catch (error) {
+  //       console.error("Error updating scheduling info:", error);
+  //       setErrorMessage("Error updating scheduling info: " + error.message);
+  //       return; // Stop here if there's an error
+  //     }
+  //   }
+
+  //   // Finally, advance to the next step if everything succeeded
+  //   setStep((prev) => prev + 1);
+  // }
 
   function handlePrevStep() {
     setStep((prev) => prev - 1);
