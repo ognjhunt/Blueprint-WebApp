@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { CSS3DRenderer } from "three/examples/jsm/renderers/CSS3DRenderer";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls";
+import { DragControls } from "three/examples/jsm/controls/DragControls";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -96,6 +97,16 @@ interface ThreeViewerProps {
     fileInfo: any,
     realWorldCoords: { x: number; y: number; z: number },
   ) => void;
+  onTextAnchorClick?: (anchorId: string, currentText: string) => void;
+  onWebpageAnchorClick?: (anchorId: string, anchorUrl: string) => void;
+  onFileAnchorClick?: (anchorId: string, anchorData: any) => void;
+  qrCodeAnchors?: Array<{
+    id: string;
+    x: number;
+    y: number;
+    z: number;
+    [key: string]: any;
+  }>;
 }
 
 interface OriginMarkerConfig {
@@ -133,6 +144,11 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
   modelPath,
   onLoad,
   onError,
+  onTextAnchorClick,
+  onWebpageAnchorClick,
+  qrCodeAnchors,
+  onFileAnchorClick,
+  onFileDropped,
   activeLabel,
   awaiting3D,
   setReferencePoints3D,
@@ -178,6 +194,8 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const transformControlsRef = useRef<TransformControls | null>(null);
   const orbitControlsRef = useRef<OrbitControls | null>(null);
+  const dragControlsRef = useRef<DragControls | null>(null);
+
   const isMarkerSelectedRef = useRef<boolean>(false);
   const anchorModelsRef = useRef<Map<string, THREE.Object3D>>(new Map());
   const anchorWebpagesRef = useRef<Map<string, THREE.Object3D>>(new Map());
@@ -191,6 +209,7 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
   const [transformError, setTransformError] = useState<string | null>(null);
   const animateDragIndicatorRef = useRef<() => void | null>(null);
   const highlightedAreaMeshRef = useRef<THREE.Mesh | null>(null);
+  const qrCodeMarkersRef = useRef<Map<string, THREE.Object3D>>(new Map()); // <<< ADD THIS LINE
 
   const [location] = useLocation();
   const blueprintId = location.split("/").pop(); // assuming the route is /blueprint-editor/{id}
@@ -233,11 +252,14 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
   const awaiting3DRef = useRef(awaiting3D);
   const isChoosingOriginRef = useRef(isChoosingOrigin);
 
+  const [selectedAnchorId, setSelectedAnchorId] = useState<string | null>(null); // NEW: Unified ID
+  const [selectedAnchorType, setSelectedAnchorType] = useState<
+    "model" | "text" | "file" | "webpage" | null
+  >(null); // NEW: Type of selected anchor
   const [showTransformUI, setShowTransformUI] = useState(false);
-  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [transformMode, setTransformMode] = useState<
-    "translate" | "rotate" | "scale"
-  >("translate");
+    "translate" | "rotate" | "scale" | null // Allow null initially
+  >(null);
   const [lastTransform, setLastTransform] = useState<{
     position: THREE.Vector3 | null;
     rotation: THREE.Euler | null;
@@ -359,17 +381,46 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
 
   // In ThreeViewer.tsx, find the configureTransformControls function
   const configureTransformControls = (transformControls: TransformControls) => {
-    // Increase size and visibility
-    transformControls.setSize(1.5); // Larger for better visibility
-
-    // Set to world space by default, more intuitive for beginners
+    // Make the transform controls larger so it’s easy to see
+    transformControls.setSize(1.8); // Increase if you want even bigger
     transformControls.setSpace("world");
 
-    // More precise snapping for better control
+    // Snap increments if desired
     transformControls.setTranslationSnap(0.05);
     transformControls.setRotationSnap(THREE.MathUtils.degToRad(5));
     transformControls.setScaleSnap(0.05);
   };
+
+  // Then, in a useEffect:
+  useEffect(() => {
+    if (!transformControlsRef.current || !sceneRef.current) return;
+
+    requestAnimationFrame(() => {
+      const transformControls = transformControlsRef.current;
+      if (!transformControls || !transformControls.children?.length) return;
+
+      // Access the main gizmo group
+      const gizmo = transformControls.children[0] as THREE.Object3D;
+
+      gizmo.traverse((child: THREE.Object3D) => {
+        // For each axis part, apply a bright color
+        if (child instanceof THREE.Mesh) {
+          // Red for X axis
+          if (child.name.includes("X")) {
+            child.material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+          }
+          // Green for Y axis
+          if (child.name.includes("Y")) {
+            child.material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+          }
+          // Blue for Z axis
+          if (child.name.includes("Z")) {
+            child.material = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+          }
+        }
+      });
+    });
+  }, [transformControlsRef.current, sceneRef.current]);
 
   // Add effect to handle selected area changes
   useEffect(() => {
@@ -539,21 +590,31 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     });
   }, [sceneRef.current, originPoint]);
 
-  useEffect(() => {
-    if (!sceneRef.current || !fileAnchors || !cameraRef.current) return; // Added cameraRef check
+  // Inside ThreeViewer component
 
-    console.log("[ThreeViewer useEffect fileAnchors] Processing anchors:", fileAnchors);
+  // Inside ThreeViewer component
+
+  useEffect(() => {
+    if (!sceneRef.current || !fileAnchors || !cameraRef.current) return;
+
+    console.log(
+      `%c[ThreeViewer fileAnchors Effect] START - Processing ${fileAnchors.length} anchors`,
+      "color: blue; font-weight: bold;",
+      fileAnchors,
+    );
+
+    const currentAnchorIds = new Set(fileAnchors.map((a) => a.id));
 
     fileAnchors.forEach((anchor) => {
-      // Skip if we've already added this anchor visually
       if (fileAnchorsRef.current.has(anchor.id)) {
-        console.log(`[ThreeViewer useEffect fileAnchors] Anchor ${anchor.id} already exists, skipping.`);
-        return;
+        return; // Already exists
       }
 
-      console.log(`[ThreeViewer useEffect fileAnchors] Creating visual for anchor ${anchor.id}`, anchor);
+      console.log(
+        `[ThreeViewer fileAnchors] Processing Anchor ID: ${anchor.id}, Type: ${anchor.fileType}, Name: ${anchor.fileName}, URL: ${anchor.fileUrl}`,
+      );
 
-      // 1. Calculate Position (same as before)
+      // --- 1. Calculate Position --- (Keep existing logic)
       const realWorldPosition = new THREE.Vector3(
         Number(anchor.x || 0),
         Number(anchor.y || 0),
@@ -562,160 +623,478 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
       let modelSpacePosition: THREE.Vector3;
       if (originPoint) {
         const offsetInModelUnits = realWorldPosition.clone().divideScalar(45.6);
-        const originVector = originPoint instanceof THREE.Vector3
+        const originVector =
+          originPoint instanceof THREE.Vector3
             ? originPoint.clone()
             : new THREE.Vector3(originPoint.x, originPoint.y, originPoint.z);
         modelSpacePosition = originVector.clone().add(offsetInModelUnits);
       } else {
         modelSpacePosition = realWorldPosition.clone().divideScalar(45.6);
-        console.warn(`[ThreeViewer useEffect fileAnchors] No originPoint, placing anchor ${anchor.id} relative to world origin.`);
+        console.warn(
+          `[ThreeViewer fileAnchors] No originPoint for anchor ${anchor.id}. Placing relative to world origin.`,
+        );
       }
+      console.log(
+        `[ThreeViewer fileAnchors] Calculated modelSpacePosition for ${anchor.id}:`,
+        modelSpacePosition,
+      );
 
-      // 2. Create Visual based on fileType
-      let anchorObject: THREE.Object3D | null = null; // To store the main visual object
+      // --- 2. Create Visual based on fileType ---
+      let anchorObject: THREE.Object3D | null = null;
 
-      switch (anchor.fileType) {
-        case "image":
-          console.log(`[ThreeViewer useEffect fileAnchors] Creating image plane for ${anchor.fileName}`);
-          const img = new Image();
-          img.crossOrigin = "Anonymous"; // Important for textures from other origins
-          img.onload = () => {
-            try {
-              const aspect = img.width / img.height;
-              const planeWidth = 0.5; // Adjust size as needed
-              const planeHeight = planeWidth / aspect;
+      // --- Create Label --- (Keep existing logic)
+      if (anchor.fileType !== "image" && anchor.fileType !== "video") {
+        const labelDiv = document.createElement("div");
+        labelDiv.textContent = anchor.fileName || "File";
+        labelDiv.style.padding = "2px 5px";
+        labelDiv.style.fontSize = "10px";
+        labelDiv.style.color = "#333";
+        labelDiv.style.backgroundColor = "rgba(255, 255, 255, 0.85)";
+        labelDiv.style.borderRadius = "3px";
+        labelDiv.style.border = "1px solid #ccc";
+        labelDiv.style.whiteSpace = "nowrap";
+        labelDiv.style.pointerEvents = "none";
 
-              const texture = new THREE.Texture(img);
-              texture.needsUpdate = true;
-              texture.encoding = THREE.sRGBEncoding; // Use sRGB for color accuracy
+        const labelObject = new CSS3DObject(labelDiv);
+        labelObject.scale.set(0.003, 0.003, 0.003);
+        labelObject.position
+          .copy(modelSpacePosition)
+          .add(new THREE.Vector3(0, 0.15, 0));
+        labelObject.userData.isLabel = true;
+        labelObject.userData.anchorId = anchor.id;
+        sceneRef.current!.add(labelObject);
+      }
+      // --- Handle Media Types ---
+      if (anchor.fileType === "image") {
+        console.log(
+          `[ThreeViewer fileAnchors] Attempting to create image plane for ${anchor.id} (${anchor.fileName}) using Backblaze URL`,
+        );
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
 
-              const material = new THREE.MeshBasicMaterial({
-                map: texture,
-                side: THREE.DoubleSide,
-                transparent: true, // Allow transparency if needed
-              });
-              const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
-              const imagePlane = new THREE.Mesh(geometry, material);
+        img.onload = () => {
+          console.log(
+            `%c[ThreeViewer fileAnchors] img.onload FIRED for ${anchor.id}. Image dimensions: ${img.width}x${img.height}`,
+            "color: green;",
+          );
+          if (img.width === 0 || img.height === 0) {
+            console.error(
+              `[ThreeViewer fileAnchors] Image ${anchor.id} loaded but has zero dimensions! URL: ${img.src}`,
+            );
+            return;
+          }
+          try {
+            const aspect = img.width / img.height;
+            const planeWidth = 0.15;
+            const planeHeight = planeWidth / aspect;
+            const texture = new THREE.Texture(img);
+            texture.needsUpdate = true;
+            texture.encoding = THREE.sRGBEncoding;
 
-              imagePlane.position.copy(modelSpacePosition);
-              // Orient towards camera initially (optional, adjust as needed)
-              imagePlane.lookAt(cameraRef.current!.position);
-              imagePlane.rotation.x += Math.PI / 12; // Slight tilt up
+            const material = new THREE.MeshBasicMaterial({
+              map: texture,
+              side: THREE.DoubleSide,
+              transparent: true,
+              depthWrite: false,
+              alphaTest: 0.1,
+            });
+            const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
+            const imagePlane = new THREE.Mesh(geometry, material);
 
-              sceneRef.current!.add(imagePlane);
-              fileAnchorsRef.current.set(anchor.id, imagePlane); // Store reference
-              console.log(`[ThreeViewer useEffect fileAnchors] Image plane added for ${anchor.id}`);
-            } catch(loadError) {
-               console.error(`[ThreeViewer useEffect fileAnchors] Error creating image texture/mesh for ${anchor.id}:`, loadError);
-               // Optionally create a fallback placeholder here
+            // imagePlane.position.copy(modelSpacePosition);
+            // imagePlane.lookAt(cameraRef.current!.position);
+            imagePlane.position.copy(modelSpacePosition);
+
+            imagePlane.userData.anchorId = anchor.id;
+            imagePlane.userData.type = "file-image";
+
+            // Modify pointerdown event listener to select the helper mesh
+            imagePlane.addEventListener("pointerdown", (e) => {
+              e.stopPropagation();
+              e.preventDefault(); // Prevent default browser actions
+
+              const helper = imagePlane.userData.helperMesh as THREE.Mesh;
+              const anchorId = imagePlane.userData.anchorId;
+              const fileAnchorData = fileAnchors?.find(
+                (a) => a.id === anchorId,
+              ); // Get full anchor data
+
+              console.log(
+                `Image plane clicked for ${anchorId}. Helper found: ${!!helper}`,
+              );
+
+              // 1. Notify BlueprintEditor
+              if (onFileAnchorClick && fileAnchorData) {
+                onFileAnchorClick(anchorId, fileAnchorData); // Pass anchor data too
+              } else {
+                console.warn(
+                  `onFileAnchorClick callback missing or anchor data not found for ${anchorId}`,
+                );
+              }
+
+              // 2. Select the HELPER mesh for 3D interaction
+              if (helper) {
+                handleAnchorSelect(anchorId, helper, "file"); // Pass the HELPER mesh
+              } else {
+                console.warn(
+                  `Helper mesh not found for file anchor ${anchorId} on click.`,
+                );
+                // Fallback: Maybe select the visual object, but highlight might be weird
+                // handleAnchorSelect(anchorId, imagePlane, "file");
+              }
+            });
+
+            sceneRef.current!.add(imagePlane);
+            console.log(
+              `%c[ThreeViewer fileAnchors] Successfully ADDED imagePlane mesh to scene for ${anchor.id}`,
+              "color: green;",
+            );
+            fileAnchorsRef.current.set(anchor.id, imagePlane);
+
+            // AFTER (Inside the fileAnchors.forEach loop, AFTER creating imagePlane/videoPlane/pdfObject/docIcon):
+            // --- ADD HELPER MESH FOR ALL FILE ANCHOR TYPES ---
+            const visualObject = imagePlane; // or videoPlane, pdfObject, docIcon (use the correct variable name)
+            const helperGeometry = new THREE.BoxGeometry(0.01, 0.01, 0.01); // Small invisible box
+            const helperMaterial = new THREE.MeshBasicMaterial({
+              visible: false,
+              depthTest: false, // Optional: helps with raycasting consistency
+              transparent: true,
+              opacity: 0,
+            });
+            const helperMesh = new THREE.Mesh(helperGeometry, helperMaterial);
+
+            // Position helper exactly where the visual object is
+            helperMesh.position.copy(visualObject.position);
+            helperMesh.rotation.copy(visualObject.rotation); // Match rotation
+            // Note: Scaling helpers might not be desired, especially for CSS objects.
+            // helperMesh.scale.copy(visualObject.scale);
+
+            // Link helper and visual object using userData
+            visualObject.userData.helperMesh = helperMesh; // Link visual -> helper
+            helperMesh.userData.visualObject = visualObject; // Link helper -> visual
+            helperMesh.userData.anchorId = anchor.id; // Store anchor ID on helper
+            helperMesh.userData.type = "file-helper"; // Identify helper type
+
+            // Add helper to the main WebGL scene
+            sceneRef.current!.add(helperMesh);
+            console.log(
+              `[ThreeViewer fileAnchors] Added helper mesh for anchor ${anchor.id}`,
+            );
+            // --- END HELPER MESH ADDITION ---
+
+            sceneRef.current!.add(visualObject);
+            // Store the VISUAL object in the ref (or the helper, depending on your selection strategy, but visual is often fine here)
+            fileAnchorsRef.current.set(anchor.id, visualObject);
+          } catch (loadError) {
+            console.error(
+              `[ThreeViewer fileAnchors] Error creating image texture/mesh inside onload for ${anchor.id} (${anchor.fileName}):`,
+              loadError,
+            );
+          }
+        };
+        img.onerror = (errEvent) => {
+          console.error(
+            `%c[ThreeViewer fileAnchors] img.onerror FIRED for anchor ${anchor.id} (${anchor.fileName}). URL: ${img.src}. Check Network tab for details (CORS?). Error event:`,
+            "color: red; font-weight: bold;",
+            errEvent,
+          );
+        };
+
+        // Use hardcoded Backblaze URL for images
+        const backblazeImageUrl =
+          "https://f005.backblazeb2.com/file/uploadedFiles-dev/083B81B6-F5EB-4AF3-B491-1DE40976280F_Asset0017.jpg";
+        console.log(
+          `[ThreeViewer fileAnchors] Setting img.src for ${anchor.id} to Backblaze URL: ${backblazeImageUrl}`,
+        );
+        img.src = backblazeImageUrl;
+      } else if (anchor.fileType === "video") {
+        console.log(
+          `[ThreeViewer fileAnchors] Attempting to create video plane for ${anchor.id} (${anchor.fileName}) using Backblaze URL`,
+        );
+        const video = document.createElement("video");
+        video.crossOrigin = "Anonymous";
+        video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.preload = "auto";
+
+        video.onloadeddata = () => {
+          console.log(
+            `%c[ThreeViewer fileAnchors] video.onloadeddata FIRED for ${anchor.id}. Video dimensions: ${video.videoWidth}x${video.videoHeight}`,
+            "color: green;",
+          );
+          if (video.videoWidth === 0 || video.videoHeight === 0) {
+            console.error(
+              `[ThreeViewer fileAnchors] Video ${anchor.id} loaded but has zero dimensions! URL: ${video.src}`,
+            );
+            return;
+          }
+          try {
+            const aspect = video.videoWidth / video.videoHeight;
+            const planeWidth = 0.25;
+            const planeHeight = planeWidth / aspect;
+
+            const videoTexture = new THREE.VideoTexture(video);
+            videoTexture.needsUpdate = true;
+            videoTexture.encoding = THREE.sRGBEncoding;
+
+            const material = new THREE.MeshBasicMaterial({
+              map: videoTexture,
+              side: THREE.DoubleSide,
+              toneMapped: false,
+              depthWrite: false,
+              depthTest: false,
+            });
+            const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
+            const videoPlane = new THREE.Mesh(geometry, material);
+
+            videoPlane.renderOrder = 1;
+
+            videoPlane.position.copy(modelSpacePosition);
+            // videoPlane.lookAt(cameraRef.current!.position);
+            videoPlane.userData.anchorId = anchor.id;
+            videoPlane.userData.type = "file-video";
+            videoPlane.userData.videoElement = video;
+
+            // Add a pointerdown event listener to select the video anchor
+            videoPlane.addEventListener("pointerdown", (e) => {
+              e.stopPropagation();
+              // Try to get a helper mesh if it was created (if not, fall back to videoPlane itself)
+              const helper = videoPlane.userData.helperMesh as THREE.Mesh;
+              if (helper) {
+                handleAnchorSelect(anchor.id, helper, "file");
+              } else {
+                handleAnchorSelect(anchor.id, videoPlane, "file");
+              }
+            });
+
+            sceneRef.current!.add(videoPlane);
+            console.log(
+              `%c[ThreeViewer fileAnchors] Successfully ADDED videoPlane mesh to scene for ${anchor.id}`,
+              "color: green;",
+            );
+            fileAnchorsRef.current.set(anchor.id, videoPlane);
+
+            video
+              .play()
+              .then(() =>
+                console.log(
+                  `[ThreeViewer fileAnchors] Video ${anchor.id} playing.`,
+                ),
+              )
+              .catch((e) =>
+                console.warn(
+                  `[ThreeViewer fileAnchors] Video ${anchor.id} autoplay prevented.`,
+                  e,
+                ),
+              );
+
+            // AFTER (Inside the fileAnchors.forEach loop, AFTER creating imagePlane/videoPlane/pdfObject/docIcon):
+            // --- ADD HELPER MESH FOR ALL FILE ANCHOR TYPES ---
+            const visualObject = imagePlane; // or videoPlane, pdfObject, docIcon (use the correct variable name)
+            const helperGeometry = new THREE.BoxGeometry(0.01, 0.01, 0.01); // Small invisible box
+            const helperMaterial = new THREE.MeshBasicMaterial({
+              visible: false,
+              depthTest: false, // Optional: helps with raycasting consistency
+              transparent: true,
+              opacity: 0,
+            });
+            const helperMesh = new THREE.Mesh(helperGeometry, helperMaterial);
+
+            // Position helper exactly where the visual object is
+            helperMesh.position.copy(visualObject.position);
+            helperMesh.rotation.copy(visualObject.rotation); // Match rotation
+            // Note: Scaling helpers might not be desired, especially for CSS objects.
+            // helperMesh.scale.copy(visualObject.scale);
+
+            // Link helper and visual object using userData
+            visualObject.userData.helperMesh = helperMesh; // Link visual -> helper
+            helperMesh.userData.visualObject = visualObject; // Link helper -> visual
+            helperMesh.userData.anchorId = anchor.id; // Store anchor ID on helper
+            helperMesh.userData.type = "file-helper"; // Identify helper type
+
+            // Add helper to the main WebGL scene
+            sceneRef.current!.add(helperMesh);
+            console.log(
+              `[ThreeViewer fileAnchors] Added helper mesh for anchor ${anchor.id}`,
+            );
+            // --- END HELPER MESH ADDITION ---
+
+            sceneRef.current!.add(visualObject);
+            // Store the VISUAL object in the ref (or the helper, depending on your selection strategy, but visual is often fine here)
+            fileAnchorsRef.current.set(anchor.id, visualObject);
+          } catch (loadError) {
+            console.error(
+              `[ThreeViewer fileAnchors] Error creating video texture/mesh inside onloadeddata for ${anchor.id} (${anchor.fileName}):`,
+              loadError,
+            );
+          }
+        };
+        video.onerror = (errEvent) => {
+          console.error(
+            `%c[ThreeViewer fileAnchors] video.onerror FIRED for anchor ${anchor.id} (${anchor.fileName}). URL: ${video.src}. Check Network tab for details (CORS?). Error event:`,
+            "color: red; font-weight: bold;",
+            errEvent,
+          );
+        };
+
+        // Use hardcoded Backblaze URL for videos
+        const backblazeVideoUrl =
+          "https://f005.backblazeb2.com/file/uploadedFiles-dev/24406E68-8FBD-4BAC-B773-E09EE0497599_Blueprint++In+Shared+Space+-+With+Explanations.mp4";
+        console.log(
+          `[ThreeViewer fileAnchors] Setting video.src for ${anchor.id} to Backblaze URL: ${backblazeVideoUrl}`,
+        );
+        video.src = backblazeVideoUrl;
+      } else if (anchor.fileType === "pdf") {
+        //if (anchor.fileType === "pdf")
+        console.log(
+          `[ThreeViewer fileAnchors] Attempting to create PDF viewer for ${anchor.id} (${anchor.fileName}) using Backblaze URL`,
+        );
+        // Create an iframe to display the PDF file
+        const iframe = document.createElement("iframe");
+        iframe.crossOrigin = "Anonymous";
+        iframe.style.width = "0.8"; // Adjust as needed for your scene
+        iframe.style.height = "1";
+        iframe.style.border = "none";
+
+        // Use hardcoded Backblaze URL for PDFs
+        const backblazePdfUrl =
+          "https://f005.backblazeb2.com/file/uploadedFiles-dev/00225FF2-0FE0-4B55-88E6-94F21ADE5512_Bio+Exam+1+Study+Notes.pdf";
+        console.log(
+          `[ThreeViewer fileAnchors] Setting iframe.src for ${anchor.id} to Backblaze URL: ${backblazePdfUrl}`,
+        );
+        iframe.src = backblazePdfUrl;
+
+        // Wrap the iframe in a CSS3DObject so it can be positioned in the scene
+        const pdfObject = new CSS3DObject(iframe);
+        pdfObject.position.copy(modelSpacePosition);
+        pdfObject.userData.anchorId = anchor.id;
+        pdfObject.userData.type = "file-pdf";
+
+        // --- ADD HELPER MESH FOR PDF ANCHOR ---
+        const helperGeometry = new THREE.BoxGeometry(0.01, 0.01, 0.01);
+        const helperMaterial = new THREE.MeshBasicMaterial({
+          visible: false,
+          depthTest: false,
+          transparent: true,
+          opacity: 0,
+        });
+        const helperMesh = new THREE.Mesh(helperGeometry, helperMaterial);
+        helperMesh.position.copy(pdfObject.position);
+        pdfObject.userData.helperMesh = helperMesh;
+        helperMesh.userData.anchorId = anchor.id;
+        helperMesh.userData.type = "file-helper";
+        sceneRef.current!.add(helperMesh);
+        // --- END HELPER MESH ---
+
+        // Modify pointerdown listener to select the helper mesh
+        if (onFileAnchorClick) {
+          pdfObject.addEventListener("pointerdown", (e) => {
+            e.stopPropagation();
+            const helper = pdfObject.userData.helperMesh as THREE.Mesh;
+            if (helper) {
+              console.log(
+                `PDF object clicked for ${anchor.id}, selecting helper mesh.`,
+              );
+              handleAnchorSelect(anchor.id, helper, "file");
+            } else {
+              console.warn(`Helper mesh not found for PDF anchor ${anchor.id}`);
             }
-          };
-          img.onerror = (err) => {
-            console.error(`[ThreeViewer useEffect fileAnchors] Error loading image ${anchor.fileUrl} for anchor ${anchor.id}:`, err);
-             // Optionally create a fallback placeholder here
-          };
-          img.src = anchor.fileUrl; // Start loading
-          // Note: We don't set anchorObject here because it's async
-          break;
-
-        case "video":
-          console.log(`[ThreeViewer useEffect fileAnchors] Creating video plane for ${anchor.fileName}`);
-          const video = document.createElement('video');
-          video.crossOrigin = "Anonymous";
-          video.loop = true;
-          video.muted = true;
-          video.playsInline = true;
-          video.preload = "metadata"; // Load metadata first
-
-          video.onloadeddata = () => {
-             try {
-                const aspect = video.videoWidth / video.videoHeight;
-                const planeWidth = 0.6; // Adjust size
-                const planeHeight = planeWidth / aspect;
-
-                const videoTexture = new THREE.VideoTexture(video);
-                videoTexture.needsUpdate = true;
-                videoTexture.encoding = THREE.sRGBEncoding;
-
-                const material = new THREE.MeshBasicMaterial({ map: videoTexture, side: THREE.DoubleSide, toneMapped: false });
-                const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
-                const videoPlane = new THREE.Mesh(geometry, material);
-
-                videoPlane.position.copy(modelSpacePosition);
-                videoPlane.lookAt(cameraRef.current!.position);
-                videoPlane.rotation.x += Math.PI / 12; // Slight tilt
-
-                sceneRef.current!.add(videoPlane);
-                fileAnchorsRef.current.set(anchor.id, videoPlane); // Store reference
-                console.log(`[ThreeViewer useEffect fileAnchors] Video plane added for ${anchor.id}`);
-                // Start muted playback automatically (optional)
-                video.play().catch(e => console.warn("Video autoplay prevented:", e));
-             } catch(loadError) {
-                 console.error(`[ThreeViewer useEffect fileAnchors] Error creating video texture/mesh for ${anchor.id}:`, loadError);
-             }
-          };
-          video.onerror = (err) => {
-             console.error(`[ThreeViewer useEffect fileAnchors] Error loading video ${anchor.fileUrl} for anchor ${anchor.id}:`, err);
-          };
-          video.src = anchor.fileUrl;
-          // Note: We don't set anchorObject here because it's async
-          break;
-
-        case "document":
-        default: // Fallback for documents or unknown types
-          console.log(`[ThreeViewer useEffect fileAnchors] Creating document icon for ${anchor.fileName}`);
-          const docGeometry = new THREE.BoxGeometry(0.15, 0.2, 0.02); // Simple box icon
-          const docMaterial = new THREE.MeshBasicMaterial({ color: 0x2196f3 }); // Blue
-          const docIcon = new THREE.Mesh(docGeometry, docMaterial);
-          docIcon.position.copy(modelSpacePosition);
-          sceneRef.current!.add(docIcon);
-          anchorObject = docIcon; // Set the object to be stored
-          break;
-      }
-
-      // Store the main visual object (if created synchronously)
-      if (anchorObject) {
-        fileAnchorsRef.current.set(anchor.id, anchorObject);
-        console.log(`[ThreeViewer useEffect fileAnchors] Synchronous visual added for ${anchor.id}`);
-      }
-
-      // Add a text label regardless of type (optional)
-      const labelDiv = document.createElement("div");
-      labelDiv.textContent = anchor.fileName || "File";
-      labelDiv.style.padding = "2px 5px";
-      labelDiv.style.fontSize = "10px";
-      labelDiv.style.color = "#333";
-      labelDiv.style.backgroundColor = "rgba(255, 255, 255, 0.85)";
-      labelDiv.style.borderRadius = "3px";
-      labelDiv.style.border = "1px solid #ccc";
-      labelDiv.style.whiteSpace = "nowrap";
-      labelDiv.style.pointerEvents = "none"; // Prevent label from blocking clicks on the object
-
-      const labelObject = new CSS3DObject(labelDiv);
-      labelObject.scale.set(0.003, 0.003, 0.003); // Smaller scale
-      // Position slightly above the calculated position
-      labelObject.position.copy(modelSpacePosition).add(new THREE.Vector3(0, 0.15, 0)); // Adjust Y offset as needed
-      sceneRef.current!.add(labelObject);
-      // We don't store the label in fileAnchorsRef, only the main visual object
-
-    });
-
-    // Cleanup: Remove visuals for anchors that are no longer in the props
-    const currentAnchorIds = new Set(fileAnchors.map(a => a.id));
-    fileAnchorsRef.current.forEach((object, id) => {
-        if (!currentAnchorIds.has(id)) {
-            console.log(`[ThreeViewer useEffect fileAnchors] Cleaning up anchor ${id}`);
-            sceneRef.current?.remove(object);
-            // Also remove associated labels if they exist (you might need a separate map for labels)
-            const labelToRemove = sceneRef.current?.children.find(child => child instanceof CSS3DObject && child.userData.anchorId === id);
-            if (labelToRemove) {
-                sceneRef.current?.remove(labelToRemove);
-            }
-            fileAnchorsRef.current.delete(id);
+            onFileAnchorClick(anchor.id, anchor);
+          });
         }
+
+        sceneRef.current!.add(pdfObject);
+        console.log(
+          `[ThreeViewer fileAnchors] Successfully added PDF viewer for ${anchor.id}`,
+        );
+        fileAnchorsRef.current.set(anchor.id, pdfObject);
+      } else {
+        console.log(
+          `[ThreeViewer fileAnchors] Creating document placeholder for ${anchor.id} (${anchor.fileName})`,
+        );
+        const docGeometry = new THREE.BoxGeometry(0.15, 0.2, 0.02);
+        const docMaterial = new THREE.MeshBasicMaterial({ color: 0x60a5fa });
+        const docIcon = new THREE.Mesh(docGeometry, docMaterial);
+        docIcon.position.copy(modelSpacePosition);
+        docIcon.userData.anchorId = anchor.id;
+        docIcon.userData.type = "file-document";
+
+        // --- ADD HELPER MESH FOR DOCUMENT ANCHOR ---
+        const helperGeometry = new THREE.BoxGeometry(0.01, 0.01, 0.01);
+        const helperMaterial = new THREE.MeshBasicMaterial({
+          visible: false,
+          depthTest: false,
+          transparent: true,
+          opacity: 0,
+        });
+        const helperMesh = new THREE.Mesh(helperGeometry, helperMaterial);
+        helperMesh.position.copy(docIcon.position);
+        docIcon.userData.helperMesh = helperMesh;
+        helperMesh.userData.anchorId = anchor.id;
+        helperMesh.userData.type = "file-helper";
+        sceneRef.current!.add(helperMesh);
+        // --- END HELPER MESH ---
+
+        // Modify pointerdown listener to select the helper mesh
+        docIcon.addEventListener("pointerdown", (e) => {
+          e.stopPropagation();
+          const helper = docIcon.userData.helperMesh as THREE.Mesh;
+          if (helper) {
+            console.log(
+              `Document placeholder clicked for ${anchor.id}, selecting helper mesh.`,
+            );
+            handleAnchorSelect(anchor.id, helper, "file");
+          } else {
+            console.warn(
+              `Helper mesh not found for document anchor ${anchor.id}`,
+            );
+          }
+          if (onFileAnchorClick) {
+            onFileAnchorClick(anchor.id, anchor);
+          }
+        });
+
+        sceneRef.current!.add(docIcon);
+        anchorObject = docIcon;
+        if (anchorObject) {
+          fileAnchorsRef.current.set(anchor.id, anchorObject);
+          console.log(
+            `[ThreeViewer fileAnchors] Document placeholder added for ${anchor.id}`,
+          );
+        }
+      }
+    }); // <-- End of fileAnchors.forEach
+
+    // --- Cleanup --- (Keep existing logic)
+    fileAnchorsRef.current.forEach((object, id) => {
+      if (!currentAnchorIds.has(id)) {
+        console.log(
+          `[ThreeViewer fileAnchors] Cleaning up visuals for anchor ${id}`,
+        );
+        if (
+          object.userData.type === "file-video" &&
+          object.userData.videoElement
+        ) {
+          object.userData.videoElement.pause();
+          object.userData.videoElement.src = "";
+        }
+        sceneRef.current?.remove(object);
+        const labelToRemove = sceneRef.current?.children.find(
+          (child) =>
+            child.userData.isLabel === true && child.userData.anchorId === id,
+        );
+        if (labelToRemove) {
+          sceneRef.current?.remove(labelToRemove);
+        }
+        fileAnchorsRef.current.delete(id);
+      }
     });
 
-
+    console.log(
+      `%c[ThreeViewer fileAnchors Effect] END`,
+      "color: blue; font-weight: bold;",
+    );
   }, [fileAnchors, originPoint, cameraRef.current]);
 
   useEffect(() => {
@@ -876,63 +1255,328 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     });
   }, [modelAnchors, originPoint]);
 
-  // Add this function to ThreeViewer.tsx
-  const addModelHighlight = (
-    model: THREE.Object3D,
+  // NEW: Centralized selection handler for ALL anchor types
+  // NEW: Centralized selection handler for ALL anchor types
+  const handleAnchorSelect = (
+    anchorId: string,
+    objectToTransform: THREE.Object3D, // This is the object to attach controls to (often the helper)
+    anchorType: "model" | "text" | "file" | "webpage",
+  ) => {
+    console.log(
+      `Selecting ${anchorType} anchor: ${anchorId}`,
+      objectToTransform,
+    );
+
+    // --- ADD LOGGING ---
+    console.log(
+      `[handleAnchorSelect] Called for ${anchorType} anchor: ${anchorId}`,
+    );
+    console.log(`[handleAnchorSelect] Object to transform:`, objectToTransform);
+    console.log(
+      `[handleAnchorSelect] Object type: ${objectToTransform.type}, name: ${objectToTransform.name}, userData:`,
+      objectToTransform.userData,
+    );
+    // --- END LOGGING ---
+
+    handleDeselect(); // Deselect previous first
+    // 1. Update State
+    setSelectedAnchorId(anchorId);
+    setSelectedAnchorType(anchorType);
+
+    // 2. Store Original Transform (for potential undo/cancel)
+    setLastTransform({
+      position: objectToTransform.position.clone(),
+      rotation: objectToTransform.rotation.clone(),
+      scale: objectToTransform.scale.clone(),
+    });
+
+    // 3. Attach Transform Controls
+    if (transformControlsRef.current) {
+      console.log(`[handleAnchorSelect] Attaching TransformControls...`); // ADD LOG
+      transformControlsRef.current.attach(objectToTransform);
+      console.log(
+        `[handleAnchorSelect] Controls attached. Current object:`,
+        transformControlsRef.current.object,
+      );
+      // Default to translate mode on new selection
+      transformControlsRef.current.setMode("translate");
+      setTransformMode("translate"); // Update state
+
+      transformControlsRef.current.enabled = true; // Ensure controls are enabled
+      // Make controls visible
+      transformControlsRef.current.visible = true;
+      console.log(
+        `[handleAnchorSelect] Controls enabled: ${transformControlsRef.current.enabled}, visible: ${transformControlsRef.current.visible}`,
+      );
+    } else {
+      console.error("TransformControls ref is not available!");
+      return; // Cannot proceed without transform controls
+    }
+
+    // 4. Show Transform UI Indicator (We removed the UI, but keep state for logic)
+    setShowTransformUI(true);
+
+    // 5. Apply Highlighting
+    highlightObject(objectToTransform, sceneRef.current); // Highlight the object attached to controls
+
+    // 6. Visual Feedback Animation (Subtle scale pulse)
+    // Avoid scaling CSS3D objects directly as it affects layout/size
+    // Don't pulse helpers either
+    if (
+      !(objectToTransform instanceof CSS3DObject) &&
+      !objectToTransform.userData?.type?.includes("helper")
+    ) {
+      const originalScale = objectToTransform.scale.clone();
+      const targetScale = originalScale.clone().multiplyScalar(1.05); // Slightly larger
+
+      new TWEEN.Tween(objectToTransform.scale)
+        .to({ x: targetScale.x, y: targetScale.y, z: targetScale.z }, 150)
+        .easing(TWEEN.Easing.Cubic.Out)
+        .yoyo(true) // Go back to original size
+        .repeat(1)
+        .start();
+    }
+
+    // 7. Ensure OrbitControls are handled (disabled during drag via listeners)
+    if (orbitControlsRef.current && transformControlsRef.current) {
+      // Orbit controls will be disabled by the 'dragging-changed' listener
+      // on TransformControls, so ensure they are enabled when *not* dragging.
+      orbitControlsRef.current.enabled = !transformControlsRef.current.dragging;
+    }
+  };
+
+  // NEW: Function to handle deselection
+  const handleDeselect = () => {
+    if (selectedAnchorId) {
+      console.log(`Deselecting anchor: ${selectedAnchorId}`);
+      setSelectedAnchorId(null);
+      setSelectedAnchorType(null);
+      setShowTransformUI(false); // Update state even though UI is gone
+      if (transformControlsRef.current) {
+        transformControlsRef.current.detach();
+        transformControlsRef.current.visible = false; // Hide gizmo
+        transformControlsRef.current.enabled = false; // Disable controls
+      }
+      highlightObject(null, sceneRef.current); // Remove highlight
+      if (orbitControlsRef.current) {
+        orbitControlsRef.current.enabled = true; // Ensure orbit controls are re-enabled
+      }
+    }
+  };
+
+  const highlightObject = (
+    object: THREE.Object3D | null,
     scene: THREE.Scene | null,
   ) => {
     if (!scene) return;
 
-    // Remove any existing highlights
-    const existingOutline = scene.getObjectByName("model-highlight");
-    if (existingOutline) {
-      scene.remove(existingOutline);
+    // Remove any existing highlight
+    const existingHighlight = scene.getObjectByName("selection-highlight");
+    if (existingHighlight) {
+      // If it was a CSS highlight, revert styles
+      if (
+        existingHighlight.userData.originalStyle &&
+        existingHighlight.userData.targetElement
+      ) {
+        Object.assign(
+          existingHighlight.userData.targetElement.style,
+          existingHighlight.userData.originalStyle,
+        );
+      }
+      scene.remove(existingHighlight);
     }
 
-    // Create a bounding box
-    const bbox = new THREE.Box3().setFromObject(model);
+    if (!object) return; // If null, we just wanted to remove the highlight
 
-    // Create a box helper with cyan color
-    const boxHelper = new THREE.Box3Helper(bbox, 0x00ffff);
-    boxHelper.name = "model-highlight";
-    boxHelper.material.depthTest = false; // Make it visible through objects
-    boxHelper.material.transparent = true;
-    boxHelper.material.opacity = 0.8;
+    // ***** START CHANGE: Check if it's our text helper mesh *****
+    if (
+      object.userData?.type === "text-helper" &&
+      object.userData?.labelObject
+    ) {
+      // Option 1: Highlight the CSS element via the labelObject reference
+      const labelObject = object.userData.labelObject as CSS3DObject;
+      const element = labelObject.element as HTMLElement;
+      if (element) {
+        const originalStyle = {
+          outline: element.style.outline || "",
+          outlineOffset: element.style.outlineOffset || "",
+          boxShadow: element.style.boxShadow || "",
+          transition: element.style.transition || "",
+        };
 
-    // Add to scene
-    scene.add(boxHelper);
+        element.style.outline = "3px solid #00ffff"; // Cyan outline
+        element.style.outlineOffset = "2px";
+        element.style.boxShadow = "0 0 15px rgba(0, 255, 255, 0.7)";
+        element.style.transition =
+          "outline 0.1s ease-in-out, box-shadow 0.1s ease-in-out";
 
-    // Subtle pulse animation
-    const animate = () => {
-      if (!boxHelper.material) return;
+        // Store original style and target element in a dummy object added to the scene
+        const dummyObject = new THREE.Object3D();
+        dummyObject.name = "selection-highlight"; // Use same name for easy removal
+        dummyObject.userData.isCSSHighlight = true;
+        dummyObject.userData.targetElement = element;
+        dummyObject.userData.originalStyle = originalStyle;
+        scene.add(dummyObject);
+      }
 
-      requestAnimationFrame(animate);
-      const time = Date.now() * 0.001;
-      boxHelper.material.opacity = 0.4 + Math.sin(time * 4) * 0.2;
-    };
+      // Option 2 (Alternative/Additional): Highlight the helper mesh itself using Box3Helper
+      // This provides a 3D bounding box highlight around the invisible helper
+      try {
+        // Since the helper is tiny, create a slightly larger box around its position
+        const helperPos = object.position;
+        const size = 0.05; // Adjust size of highlight box as needed
+        const min = helperPos.clone().subScalar(size / 2);
+        const max = helperPos.clone().addScalar(size / 2);
+        const bbox = new THREE.Box3(min, max);
 
-    animate();
+        // --- MODIFIED CHECK ---
+        // For helper meshes, assume the position is valid and skip the potentially problematic isFinite check
+        // Just ensure the box isn't empty (which it shouldn't be if size > 0)
+        if (!bbox.isEmpty()) {
+          // --- END MODIFIED CHECK ---
+          const boxHelper = new THREE.Box3Helper(bbox, 0x00ffff); // Cyan color
+          boxHelper.name = "selection-highlight"; // Use same name
+          boxHelper.material.depthTest = false;
+          boxHelper.material.transparent = true;
+          boxHelper.material.opacity = 0.9;
+          boxHelper.renderOrder = 10001;
+          scene.add(boxHelper);
+
+          // Optional pulse animation for BoxHelper
+          const animatePulse = () => {
+            if (!boxHelper.parent) return;
+            requestAnimationFrame(animatePulse);
+            const time = Date.now() * 0.002;
+            boxHelper.material.opacity = 0.6 + Math.sin(time * 5) * 0.3;
+          };
+          animatePulse();
+        } else {
+          console.warn(
+            "[highlightObject] Bounding box for helper mesh is empty.",
+            object,
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Error creating bounding box highlight for helper:",
+          error,
+          object,
+        );
+      }
+    }
+    // ***** END CHANGE *****
+    else if (object instanceof CSS3DObject) {
+      // Original CSS3DObject handling (for webpages etc.)
+      // Highlight CSS3DObject (Webpage iframe container)
+      const element = object.element as HTMLElement;
+      if (element) {
+        const originalStyle = {
+          outline: element.style.outline || "",
+          outlineOffset: element.style.outlineOffset || "",
+          boxShadow: element.style.boxShadow || "",
+          transition: element.style.transition || "",
+        };
+
+        element.style.outline = "3px solid #00ffff"; // Cyan outline
+        element.style.outlineOffset = "2px";
+        element.style.boxShadow = "0 0 15px rgba(0, 255, 255, 0.7)";
+        element.style.transition =
+          "outline 0.1s ease-in-out, box-shadow 0.1s ease-in-out";
+
+        // Store original style and target element in a dummy object added to the scene
+        const dummyObject = new THREE.Object3D();
+        dummyObject.name = "selection-highlight";
+        dummyObject.userData.isCSSHighlight = true;
+        dummyObject.userData.targetElement = element;
+        dummyObject.userData.originalStyle = originalStyle;
+        scene.add(dummyObject);
+      }
+    } else if (object instanceof THREE.Mesh || object instanceof THREE.Group) {
+      // Handle other Meshes/Groups (Models, File Planes)
+      // Highlight Meshes or Groups (Models, File Planes) using Box3Helper
+      try {
+        const bbox = new THREE.Box3().setFromObject(object);
+        // Check if bounding box is valid (not empty or infinite)
+        if (!bbox.isEmpty() && bbox.min.isFinite() && bbox.max.isFinite()) {
+          const boxHelper = new THREE.Box3Helper(bbox, 0x00ffff); // Cyan color
+          boxHelper.name = "selection-highlight";
+          boxHelper.material.depthTest = false;
+          boxHelper.material.transparent = true;
+          boxHelper.material.opacity = 0.9;
+          boxHelper.renderOrder = 10001; // Ensure it renders on top
+          scene.add(boxHelper);
+
+          // Optional: Add subtle pulse animation to BoxHelper
+          const animatePulse = () => {
+            if (!boxHelper.parent) return; // Stop if removed
+            requestAnimationFrame(animatePulse);
+            const time = Date.now() * 0.002;
+            boxHelper.material.opacity = 0.6 + Math.sin(time * 5) * 0.3;
+          };
+          animatePulse();
+        } else {
+          console.warn(
+            "Cannot create highlight: Invalid bounding box for object",
+            object,
+          );
+        }
+      } catch (error) {
+        console.error("Error creating bounding box highlight:", error, object);
+      }
+    }
   };
 
   useEffect(() => {
     // Ensure both scene and textAnchors exist before proceeding.
     if (!sceneRef.current || !textAnchors) return;
 
-    textAnchors.forEach((anchor: TextAnchor) => {
-      // Skip if we've already added this anchor.
-      if (textAnchorsRef.current.has(anchor.id)) return;
+    const currentAnchorIds = new Set<string>(); // Keep track of anchors processed in this run
 
-      // Create a local vector from the anchor's x, y, z.
+    textAnchors.forEach((anchor: TextAnchor) => {
+      currentAnchorIds.add(anchor.id); // Mark this ID as current
+
+      // Check if this anchor already exists visually
+      const existingLabelObject = textAnchorsRef.current.get(anchor.id);
+
+      if (existingLabelObject && existingLabelObject instanceof CSS3DObject) {
+        // --- UPDATE EXISTING ANCHOR ---
+        const currentVisualText = existingLabelObject.element.textContent;
+        const newText = anchor.textContent;
+
+        if (currentVisualText !== newText) {
+          console.log(
+            `Updating text for anchor ${anchor.id} from "${currentVisualText}" to "${newText}"`,
+          );
+          existingLabelObject.element.textContent = newText;
+        }
+
+        // Optionally update position if needed
+        // You might need to recalculate modelSpacePosition here if position can change
+        // existingLabelObject.position.copy(newModelSpacePosition);
+
+        // IMPORTANT: Also update the helper mesh position if the anchor can be moved externally
+        const helperMesh = existingLabelObject.userData
+          .helperMesh as THREE.Mesh;
+        if (helperMesh) {
+          // Recalculate modelSpacePosition if necessary and update helper
+          // helperMesh.position.copy(newModelSpacePosition);
+        }
+
+        return; // Skip adding logic, move to next anchor
+      }
+
+      // --- ADD NEW ANCHOR ---
       let anchorPosition;
-      if (anchor.position) {
-        // If anchor has a nested position object
+      if (
+        (anchor as any).position &&
+        typeof (anchor as any).position === "object"
+      ) {
         anchorPosition = new THREE.Vector3(
-          Number(anchor.position.x),
-          Number(anchor.position.y),
-          Number(anchor.position.z),
+          Number((anchor as any).position.x || 0),
+          Number((anchor as any).position.y || 0),
+          Number((anchor as any).position.z || 0),
         );
       } else {
-        // If anchor has direct x, y, z properties
         anchorPosition = new THREE.Vector3(
           Number(anchor.x || 0),
           Number(anchor.y || 0),
@@ -940,66 +1584,43 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
         );
       }
 
-      // STORE ORIGINAL COORDS FOR REFERENCE
       const originalX = anchorPosition.x;
       const originalY = anchorPosition.y;
       const originalZ = anchorPosition.z;
-
-      // FIXED POSITIONING LOGIC:
-      // 1. Convert real-world feet to model units
-      // 2. ADD to origin point (not subtract!)
       let modelSpacePosition;
-
       if (originPoint) {
-        // Scale down by 45.6 to convert from feet to model units
         const offsetInModelUnits = new THREE.Vector3(
           anchorPosition.x / 45.6,
           anchorPosition.y / 45.6,
           anchorPosition.z / 45.6,
         );
-
-        // Create a proper THREE.Vector3 from originPoint
         const originVector =
           originPoint instanceof THREE.Vector3
             ? originPoint.clone()
             : new THREE.Vector3(originPoint.x, originPoint.y, originPoint.z);
-
-        // ADD this offset to the origin point (critically important - we add, not subtract!)
         modelSpacePosition = originVector.clone().add(offsetInModelUnits);
-
-        console.log(`Text anchor ${anchor.id} positioning calculation:`, {
-          originalPosition: anchorPosition,
-          offsetInModelUnits,
-          originPoint,
-          finalPosition: modelSpacePosition,
-        });
+        // console.log(`Text anchor ${anchor.id} positioning calculation:`, { // Keep commented unless debugging position
+        //   originalPosition: anchorPosition,
+        //   offsetInModelUnits,
+        //   originPoint,
+        //   finalPosition: modelSpacePosition,
+        // });
       } else {
-        // If no origin, just convert from feet to model units
         modelSpacePosition = anchorPosition.clone().divideScalar(45.6);
       }
 
-      // --- CREATE THE RED DOT ---
-      const markerGeometry = new THREE.SphereGeometry(0.02, 16, 16);
-      const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-      const markerMesh = new THREE.Mesh(markerGeometry, markerMaterial);
-
-      // Use modelSpacePosition for positioning the marker
-      markerMesh.position.copy(modelSpacePosition);
-      markerMesh.renderOrder = 1000;
-      sceneRef.current.add(markerMesh);
-
       // --- CREATE A CSS3DObject FOR THE LABEL ---
       const labelDiv = document.createElement("div");
-      // For text anchors, we display the textContent.
       labelDiv.textContent = anchor.textContent;
+      labelDiv.style.pointerEvents = "auto"; // keep pointer events ON
+
       labelDiv.style.padding = "10px 12px";
       labelDiv.style.fontSize = "14px";
       labelDiv.style.color = "#ffffff";
       labelDiv.style.backgroundColor = "rgba(120, 120, 130, 0.82)";
       labelDiv.style.borderRadius = "12px";
-      // Remove nowrap and add max-width with word wrapping
       labelDiv.style.whiteSpace = "normal";
-      labelDiv.style.maxWidth = "220px"; // Set your desired max width
+      labelDiv.style.maxWidth = "220px";
       labelDiv.style.wordWrap = "break-word";
       labelDiv.style.overflowWrap = "break-word";
       labelDiv.style.textAlign = "left";
@@ -1011,97 +1632,101 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
       labelDiv.style.fontWeight = "400";
       labelDiv.style.letterSpacing = "0.2px";
 
-      const labelObject = new CSS3DObject(labelDiv);
-      // Scale down the label as needed.
+      const labelObject = new CSS3DObject(labelDiv); // Define labelObject here
       labelObject.scale.set(0.0015, 0.0015, 0.0015);
-
-      // Position the label slightly above the red dot using modelSpacePosition
-      labelObject.position
-        .copy(modelSpacePosition)
-        .add(new THREE.Vector3(0, 0.05, 0));
-
-      // Important: Store reference to anchor ID
+      labelObject.position.copy(modelSpacePosition);
       labelObject.userData.anchorId = anchor.id;
-      // Also mark this as a text label for easier identification
       labelObject.userData.isTextLabel = true;
+      labelObject.userData.type = "text"; // Add type for easier identification
 
-      sceneRef.current.add(labelObject);
+      // 2) Create a small invisible helper mesh in the WebGL scene:
+      const helperGeometry = new THREE.BoxGeometry(0.01, 0.01, 0.01); // Tiny box
+      const helperMaterial = new THREE.MeshBasicMaterial({
+        visible: false, // Make it invisible
+        depthTest: false, // Optional: might help with raycasting consistency
+        transparent: true,
+        opacity: 0,
+      });
+      const helperMesh = new THREE.Mesh(helperGeometry, helperMaterial);
 
-      const compositeAnchor = {
-        marker: markerMesh,
-        label: labelObject,
-        id: anchor.id,
-      };
+      // Place helper mesh exactly where the label is:
+      helperMesh.position.copy(labelObject.position);
 
-      // Track that we've added this text anchor.
-      textAnchorsRef.current.set(anchor.id, markerMesh);
+      // Store a reference in labelObject.userData so we can find it later:
+      // AND store a reference back from the helper to the label
+      labelObject.userData.helperMesh = helperMesh;
+      helperMesh.userData.labelObject = labelObject; // Reference back to the CSS3DObject
+      helperMesh.userData.anchorId = anchor.id; // Also store anchorId on helper
+      helperMesh.userData.type = "text-helper"; // Identify the helper
+
+      // ADD THIS EVENT LISTENER (now inside the scope where labelObject is defined):
+      labelDiv.addEventListener("pointerdown", (ev) => {
+        ev.stopPropagation();
+        ev.preventDefault(); // Add this to prevent potential conflicts
+        console.log(
+          `[Text Label PointerDown] Event propagation stopped for ${anchor.id}`,
+        );
+
+        // ***** CHANGE: Select the HELPER MESH *****
+        const helper = labelObject.userData.helperMesh as THREE.Mesh;
+        if (helper) {
+          console.log(
+            `Text label div clicked for ${anchor.id}, selecting helper mesh.`,
+          );
+          handleAnchorSelect(anchor.id, helper, "text"); // Pass helper mesh to selection handler
+        } else {
+          console.warn(`Helper mesh not found for text anchor ${anchor.id}`);
+        }
+        // ***** END CHANGE *****
+
+        if (onTextAnchorClick) {
+          // Still call the info panel callback
+          onTextAnchorClick(anchor.id, anchor.textContent);
+        }
+      });
+
+      // Add both to the scene:
+      sceneRef.current.add(labelObject); // CSS layer
+      sceneRef.current.add(helperMesh); // WebGL layer
+
+      // Store the label object in the ref
+      textAnchorsRef.current.set(anchor.id, labelObject); // Store the CSS3DObject directly
+    }); // End forEach
+
+    // --- CLEANUP REMOVED ANCHORS ---
+    textAnchorsRef.current.forEach((labelObject, anchorId) => {
+      if (!currentAnchorIds.has(anchorId)) {
+        // This anchor is no longer in the props, remove it from the scene
+        console.log(`Removing text anchor ${anchorId} from scene.`);
+        if (labelObject && sceneRef.current) {
+          sceneRef.current.remove(labelObject);
+          // ALSO REMOVE THE HELPER MESH
+          if (labelObject.userData.helperMesh && sceneRef.current) {
+            sceneRef.current.remove(labelObject.userData.helperMesh);
+            console.log(`Removing helper mesh for text anchor ${anchorId}.`);
+          }
+        }
+        textAnchorsRef.current.delete(anchorId); // Remove from our tracking ref
+      }
     });
-  }, [textAnchors, originPoint]);
+  }, [
+    textAnchors,
+    originPoint,
+    sceneRef.current,
+    onTextAnchorClick,
+    handleAnchorSelect,
+  ]); // Added dependencies
 
-  useEffect(() => {
-    // Highlight the selected model
-    if (selectedModelId && anchorModelsRef.current.has(selectedModelId)) {
-      const model = anchorModelsRef.current.get(selectedModelId);
-
-      // Create outline effect for selected model
-      if (model && sceneRef.current) {
-        // Remove any existing highlight
-        const existingOutline =
-          sceneRef.current.getObjectByName("model-highlight");
-        if (existingOutline) {
-          sceneRef.current.remove(existingOutline);
-        }
-
-        // Create a bounding box for the model
-        const bbox = new THREE.Box3().setFromObject(model);
-
-        // Create a box helper with a distinct color
-        const boxHelper = new THREE.Box3Helper(bbox, 0x00ffff);
-        boxHelper.name = "model-highlight";
-
-        // Add to scene
-        sceneRef.current.add(boxHelper);
-
-        // Pulse animation effect
-        const animate = () => {
-          if (!boxHelper || !sceneRef.current) return;
-
-          const time = Date.now() * 0.001;
-          const pulse = Math.sin(time * 4) * 0.1 + 0.9;
-
-          boxHelper.material.opacity = pulse;
-
-          requestAnimationFrame(animate);
-        };
-
-        animate();
-      }
-    } else {
-      // Remove highlight when no model is selected
-      if (sceneRef.current) {
-        const existingOutline =
-          sceneRef.current.getObjectByName("model-highlight");
-        if (existingOutline) {
-          sceneRef.current.remove(existingOutline);
-        }
-      }
-    }
-
-    return () => {
-      // Cleanup when component unmounts
-      if (sceneRef.current) {
-        const existingOutline =
-          sceneRef.current.getObjectByName("model-highlight");
-        if (existingOutline) {
-          sceneRef.current.remove(existingOutline);
-        }
-      }
-    };
-  }, [selectedModelId]);
-
+  // Update keyboard shortcuts useEffect
   useEffect(() => {
     const handleTransformKeydown = (e: KeyboardEvent) => {
-      if (!selectedModelId || !showTransformUI) return;
+      // Use selectedAnchorId now
+      if (
+        !selectedAnchorId ||
+        !showTransformUI ||
+        !transformControlsRef.current?.object
+      )
+        return;
 
       switch (e.key.toLowerCase()) {
         case "g": // Move
@@ -1113,13 +1738,19 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
           transformControlsRef.current?.setMode("rotate");
           break;
         case "s": // Scale
-          setTransformMode("scale");
-          transformControlsRef.current?.setMode("scale");
+          // Prevent scaling for CSS3DObjects (text, webpages) as it often breaks layout/interaction
+          if (!(transformControlsRef.current.object instanceof CSS3DObject)) {
+            setTransformMode("scale");
+            transformControlsRef.current?.setMode("scale");
+          } else {
+            console.warn("Scaling is disabled for text and webpage anchors.");
+            // Optionally show a small message to the user
+          }
           break;
-        case "escape": // Cancel transformations
-          setShowTransformUI(false);
-          transformControlsRef.current?.detach();
-          if (orbitControlsRef.current) orbitControlsRef.current.enabled = true;
+        case "escape": // Cancel transformations / Deselect
+          handleDeselect(); // Use the deselect handler
+          // Optionally restore original transform if needed (handleDeselect doesn't do this)
+          // You might want to add restore logic here or within handleDeselect if desired
           break;
       }
     };
@@ -1129,7 +1760,291 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     return () => {
       window.removeEventListener("keydown", handleTransformKeydown);
     };
-  }, [selectedModelId, showTransformUI]);
+    // Dependency uses selectedAnchorId
+  }, [selectedAnchorId, showTransformUI, handleDeselect]); // Add handleDeselect dependency
+
+  useEffect(() => {
+    if (!sceneRef.current || !qrCodeAnchors) {
+      console.log(
+        "[ThreeViewer qrCodeAnchors Effect] Skipping: No scene or anchors.",
+      );
+      return; // Exit if scene or anchors aren't ready
+    }
+
+    console.log(
+      `%c[ThreeViewer qrCodeAnchors Effect] START - Processing ${qrCodeAnchors.length} anchors`,
+      "color: purple; font-weight: bold;",
+      qrCodeAnchors,
+    );
+
+    const currentAnchorIds = new Set(qrCodeAnchors.map((a) => a.id));
+
+    // --- Add or Update Markers ---
+    qrCodeAnchors.forEach((anchor) => {
+      if (qrCodeMarkersRef.current.has(anchor.id)) {
+        // Optional: Update position if needed, though QR codes are usually static
+        // const existingMarker = qrCodeMarkersRef.current.get(anchor.id);
+        // existingMarker.position.copy(calculateModelSpacePosition(anchor));
+        return; // Already exists, skip creation
+      }
+
+      console.log(
+        `[ThreeViewer qrCodeAnchors] Creating marker for Anchor ID: ${anchor.id}`,
+      );
+
+      // --- Calculate Position ---
+      const realWorldPosition = new THREE.Vector3(
+        Number(anchor.x || 0),
+        Number(anchor.y || 0),
+        Number(anchor.z || 0),
+      );
+      let modelSpacePosition: THREE.Vector3;
+
+      if (originPoint) {
+        const offsetInModelUnits = realWorldPosition
+          .clone()
+          .divideScalar(45.64); // Use your scale factor
+        const originVector =
+          originPoint instanceof THREE.Vector3
+            ? originPoint.clone()
+            : new THREE.Vector3(originPoint.x, originPoint.y, originPoint.z);
+        modelSpacePosition = originVector.clone().add(offsetInModelUnits);
+      } else {
+        modelSpacePosition = realWorldPosition.clone().divideScalar(45.64); // Use your scale factor
+        console.warn(
+          `[ThreeViewer qrCodeAnchors] No originPoint for anchor ${anchor.id}. Placing relative to world origin.`,
+        );
+      }
+      console.log(
+        `[ThreeViewer qrCodeAnchors] Calculated modelSpacePosition for ${anchor.id}:`,
+        modelSpacePosition,
+      );
+
+      // --- Create Visual Marker ---
+      // Example: Simple orange sphere marker
+      const markerGeometry = new THREE.SphereGeometry(0.025, 16, 16); // Adjust size as needed
+      const markerMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffa500, // Orange color
+        depthTest: false, // Make it render on top
+        transparent: true,
+        opacity: 0.9,
+      });
+      const markerMesh = new THREE.Mesh(markerGeometry, markerMaterial);
+      markerMesh.position.copy(modelSpacePosition);
+      markerMesh.renderOrder = 9999; // Ensure it's visible
+
+      // Add userData for potential future interactions
+      markerMesh.userData.anchorId = anchor.id;
+      markerMesh.userData.type = "qrCode";
+
+      // Add marker to the scene
+      sceneRef.current!.add(markerMesh);
+      console.log(
+        `%c[ThreeViewer qrCodeAnchors] Successfully ADDED marker mesh to scene for ${anchor.id}`,
+        "color: green;",
+      );
+
+      // Store reference to the marker
+      qrCodeMarkersRef.current.set(anchor.id, markerMesh);
+    }); // <-- End of qrCodeAnchors.forEach
+
+    // --- Cleanup Removed Markers ---
+    qrCodeMarkersRef.current.forEach((marker, id) => {
+      if (!currentAnchorIds.has(id)) {
+        console.log(
+          `[ThreeViewer qrCodeAnchors] Cleaning up marker for anchor ${id}`,
+        );
+        sceneRef.current?.remove(marker);
+        qrCodeMarkersRef.current.delete(id);
+      }
+    });
+
+    console.log(
+      `%c[ThreeViewer qrCodeAnchors Effect] END`,
+      "color: purple; font-weight: bold;",
+    );
+  }, [qrCodeAnchors, originPoint, sceneRef.current]);
+
+  const loadAndAddWebpage = async (
+    url: string,
+    anchorId: string,
+    position: THREE.Vector3,
+  ) => {
+    if (!sceneRef.current) return null;
+    console.log("Loading webpage at position:", position, "URL:", url);
+
+    // Create a container for the webpage with a better appearance
+    const container = document.createElement("div");
+    container.style.width = "800px";
+    container.style.height = "600px";
+    container.style.overflow = "hidden";
+    container.style.borderRadius = "8px";
+    container.style.boxShadow = "0 10px 30px rgba(0,0,0,0.3)";
+    container.style.position = "relative";
+    container.style.backgroundColor = "white";
+
+    /* INSERT THE FOLLOWING CODE HERE */
+    const overlay = document.createElement("div");
+    overlay.style.position = "absolute";
+    overlay.style.top = "0";
+    overlay.style.left = "0";
+    overlay.style.width = "100%";
+    overlay.style.height = "100%";
+    overlay.style.zIndex = "100"; // Ensure the overlay is on top of the iframe
+    overlay.style.backgroundColor = "transparent";
+    overlay.style.pointerEvents = "auto";
+    overlay.addEventListener("pointerdown", (ev) => {
+      ev.stopPropagation();
+      ev.preventDefault(); // Prevent default actions
+
+      // Find the associated helper mesh via the css3dObject
+      const helper = css3dObject.userData.helperMesh as THREE.Mesh;
+      const anchorId = css3dObject.userData.anchorId; // Get ID from CSS object
+      const fileAnchorData = fileAnchors?.find((a) => a.id === anchorId); // Get full anchor data
+
+      console.log(
+        `PDF overlay clicked for ${anchorId}. Helper found: ${!!helper}`,
+      );
+
+      // 1. Notify BlueprintEditor
+      if (onFileAnchorClick && fileAnchorData) {
+        onFileAnchorClick(anchorId, fileAnchorData); // Pass anchor data
+      } else {
+        console.warn(
+          `onFileAnchorClick callback missing or anchor data not found for PDF ${anchorId}`,
+        );
+      }
+
+      // 2. Select the HELPER mesh
+      if (helper) {
+        handleAnchorSelect(anchorId, helper, "file"); // Select the HELPER
+      } else {
+        console.warn(
+          `Helper mesh not found for PDF anchor ${anchorId} on click.`,
+        );
+      }
+    });
+    container.appendChild(overlay);
+
+    // Add a URL bar to show what's being loaded
+    const urlBar = document.createElement("div");
+    urlBar.style.width = "100%";
+    urlBar.style.height = "30px";
+    urlBar.style.backgroundColor = "#f0f0f0";
+    urlBar.style.borderBottom = "1px solid #ccc";
+    urlBar.style.display = "flex";
+    urlBar.style.alignItems = "center";
+    urlBar.style.padding = "0 10px";
+    urlBar.style.fontSize = "12px";
+    urlBar.style.color = "#333";
+    urlBar.style.fontFamily = "Arial, sans-serif";
+    urlBar.innerHTML = `
+      <div style="
+        display: flex; 
+        align-items: center; 
+        width: 100%; 
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      ">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>
+        <span style="overflow: hidden; text-overflow: ellipsis;">${url}</span>
+      </div>
+    `;
+    container.appendChild(urlBar);
+
+    // Create content container
+    const contentContainer = document.createElement("div");
+    contentContainer.style.width = "100%";
+    contentContainer.style.height = "calc(100% - 30px)";
+    contentContainer.style.position = "relative";
+    container.appendChild(contentContainer);
+
+    // Add loading indicator
+    const loadingDiv = document.createElement("div");
+    loadingDiv.style.position = "absolute";
+    loadingDiv.style.top = "0";
+    loadingDiv.style.left = "0";
+    loadingDiv.style.width = "100%";
+    loadingDiv.style.height = "100%";
+    loadingDiv.style.display = "flex";
+    loadingDiv.style.flexDirection = "column";
+    loadingDiv.style.alignItems = "center";
+    loadingDiv.style.justifyContent = "center";
+    loadingDiv.style.backgroundColor = "white";
+    loadingDiv.style.zIndex = "10";
+    loadingDiv.innerHTML = `
+      <div style="
+        width: 40px;
+        height: 40px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #3498db;
+        border-radius: 50%;
+        margin-bottom: 15px;
+        animation: spin 1s linear infinite;
+      "></div>
+      <div style="font-family: Arial, sans-serif; color: #666;">Loading webpage...</div>
+      <style>
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      </style>
+    `;
+    contentContainer.appendChild(loadingDiv);
+
+    // Create and add the iframe
+    const iframe = document.createElement("iframe");
+    iframe.src = url;
+    iframe.style.width = "100%";
+    iframe.style.height = "100%";
+    iframe.style.border = "none";
+    contentContainer.appendChild(iframe);
+
+    // When iframe loads, remove loading indicator
+    iframe.onload = () => {
+      loadingDiv.style.display = "none";
+      console.log("Webpage loaded successfully:", url);
+    };
+
+    // Handle iframe errors
+    iframe.onerror = () => {
+      loadingDiv.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 15px;">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="15" y1="9" x2="9" y2="15"></line>
+          <line x1="9" y1="9" x2="15" y2="15"></line>
+        </svg>
+        <div style="font-family: Arial, sans-serif; color: #e74c3c; font-weight: bold; margin-bottom: 5px;">Error loading webpage</div>
+        <div style="font-family: Arial, sans-serif; color: #666; font-size: 12px;">${url}</div>
+      `;
+      console.error("Failed to load webpage:", url);
+    };
+
+    // Create the CSS3DObject with the container
+    const css3dObject = new CSS3DObject(container);
+    css3dObject.position.copy(position); // Position directly at the anchor point
+
+    // Adjust scale
+    css3dObject.scale.set(0.0003, 0.0003, 0.0003); // Start small
+    // css3dObject.position.y += 0.1; // <-- Line removed or commented out
+    css3dObject.userData.anchorId = anchorId;
+    // Add to scene
+    sceneRef.current.add(css3dObject);
+
+    // Animate the appearance
+    new TWEEN.Tween(css3dObject.scale)
+      .to({ x: 0.005, y: 0.005, z: 0.005 }, 400)
+      .easing(TWEEN.Easing.Back.Out)
+      .start();
+
+    console.log("Added webpage to scene:", url);
+    return css3dObject;
+  };
 
   useEffect(() => {
     if (!sceneRef.current || !webpageAnchors) return;
@@ -1139,7 +2054,37 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     webpageAnchors.forEach(async (anchor) => {
       // Skip if we've already added this anchor
       if (anchorWebpagesRef.current.has(anchor.id)) {
-        console.log(`Anchor ${anchor.id} already exists in scene, skipping`);
+        // Check if helper mesh exists, if not, add it (migration case)
+        const existingWebpageObject = anchorWebpagesRef.current.get(anchor.id);
+        if (
+          existingWebpageObject &&
+          !existingWebpageObject.userData.helperMesh &&
+          sceneRef.current
+        ) {
+          console.log(
+            `Adding missing helper mesh for existing webpage anchor ${anchor.id}`,
+          );
+          const helperGeometry = new THREE.BoxGeometry(0.01, 0.01, 0.01);
+          const helperMaterial = new THREE.MeshBasicMaterial({
+            visible: false,
+            depthTest: false,
+            transparent: true,
+            opacity: 0,
+          });
+          const helperMesh = new THREE.Mesh(helperGeometry, helperMaterial);
+          helperMesh.position.copy(existingWebpageObject.position);
+          helperMesh.rotation.copy(existingWebpageObject.rotation);
+          helperMesh.scale.copy(existingWebpageObject.scale);
+          helperMesh.userData.anchorId = anchor.id;
+          helperMesh.userData.type = "webpage-helper";
+          helperMesh.userData.cssObject = existingWebpageObject;
+          existingWebpageObject.userData.helperMesh = helperMesh;
+          sceneRef.current.add(helperMesh);
+        } else {
+          console.log(
+            `Anchor ${anchor.id} already exists in scene (with helper), skipping`,
+          );
+        }
         return;
       }
 
@@ -1190,52 +2135,63 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
         modelSpacePosition = realWorldPosition.clone().divideScalar(45.6);
       }
 
-      // Create a small, semi-transparent marker for reference
-      const markerGeometry = new THREE.SphereGeometry(0.01, 16, 16);
-      const markerMaterial = new THREE.MeshBasicMaterial({
-        color: 0x0066ff,
-        transparent: true,
-        opacity: 0.7,
-      });
-      const markerMesh = new THREE.Mesh(markerGeometry, markerMaterial);
-      markerMesh.position.copy(modelSpacePosition);
-      markerMesh.renderOrder = 1000;
-      sceneRef.current.add(markerMesh);
-
       // Load and add the actual webpage using CSS3DObject with iframe
       const webpageObject = await loadAndAddWebpage(
         anchor.webpageUrl,
+        anchor.id, // Pass anchor ID
         modelSpacePosition,
       );
 
       // If webpage loading was successful, store both objects
-      if (webpageObject) {
-        // Store webpage object in the map
-        anchorWebpagesRef.current.set(anchor.id, webpageObject);
+      if (webpageObject && sceneRef.current) {
+        // Add sceneRef check
 
-        // Associate marker with webpage for reference
-        markerMesh.userData.webpageId = anchor.id;
-        markerMesh.userData.webpageObject = webpageObject;
+        // --- ADD HELPER MESH FOR WEBPAGE ANCHOR ---
+        const helperGeometry = new THREE.BoxGeometry(0.01, 0.01, 0.01); // Tiny invisible box
+        const helperMaterial = new THREE.MeshBasicMaterial({
+          visible: false,
+          depthTest: false,
+          transparent: true,
+          opacity: 0,
+        });
+        const helperMesh = new THREE.Mesh(helperGeometry, helperMaterial);
+        helperMesh.position.copy(webpageObject.position); // Position helper where the CSS object is
+        helperMesh.rotation.copy(webpageObject.rotation); // Match rotation
+        helperMesh.scale.copy(webpageObject.scale); // Match scale (though scaling CSS might be tricky)
+        helperMesh.userData.anchorId = anchor.id;
+        helperMesh.userData.type = "webpage-helper";
+        helperMesh.userData.cssObject = webpageObject; // Link helper back to CSS object
+        webpageObject.userData.helperMesh = helperMesh; // Link CSS object to helper
+        sceneRef.current!.add(helperMesh); // Add helper to the main scene
+        // --- END HELPER MESH ---
+
+        anchorWebpagesRef.current.set(anchor.id, webpageObject); // Store the CSS3DObject
+        webpageObject.userData.anchorId = anchor.id;
+        webpageObject.userData.isWebpageAnchor = true; // Mark for identification
       } else {
-        // Fallback to storing just the marker if webpage loading failed
-        anchorWebpagesRef.current.set(anchor.id, markerMesh);
-
-        // Create a label with the URL as fallback
-        const labelDiv = document.createElement("div");
-        labelDiv.textContent = anchor.webpageUrl;
-        labelDiv.style.padding = "2px 4px";
-        labelDiv.style.fontSize = "12px";
-        labelDiv.style.color = "#000";
-        labelDiv.style.backgroundColor = "rgba(255,255,255,0.8)";
-        labelDiv.style.borderRadius = "4px";
-        labelDiv.style.whiteSpace = "nowrap";
-
-        const labelObject = new CSS3DObject(labelDiv);
-        labelObject.scale.set(0.005, 0.005, 0.005);
-        labelObject.position.copy(
-          modelSpacePosition.clone().add(new THREE.Vector3(0, 0.05, 0)),
+        // Fallback: Webpage failed to load. Don't add anything to the ref,
+        // or consider adding a placeholder CSS3DObject if needed.
+        console.warn(
+          `Webpage anchor ${anchor.id} failed to load, not adding to scene map.`,
         );
-        sceneRef.current.add(labelObject);
+        // Optionally create a fallback visual like a simple text label here if desired,
+        // but don't store the non-existent marker in the ref.
+        // Example fallback label (similar to before, but not stored in anchorWebpagesRef):
+        if (sceneRef.current) {
+          // Add sceneRef check for fallback
+          const labelDiv = document.createElement("div");
+          labelDiv.textContent = `Error: ${anchor.webpageUrl}`;
+          labelDiv.style.padding = "2px 4px";
+          labelDiv.style.fontSize = "12px";
+          labelDiv.style.color = "#cc0000"; // Error color
+          labelDiv.style.backgroundColor = "rgba(255,220,220,0.8)";
+          labelDiv.style.borderRadius = "4px";
+          labelDiv.style.whiteSpace = "nowrap";
+          const labelObject = new CSS3DObject(labelDiv);
+          labelObject.scale.set(0.005, 0.005, 0.005);
+          labelObject.position.copy(modelSpacePosition); // Position at the anchor point
+          sceneRef.current.add(labelObject);
+        }
       }
 
       console.log(
@@ -1243,7 +2199,24 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
         modelSpacePosition,
       );
     });
-  }, [webpageAnchors, originPoint]);
+
+    // Cleanup removed webpage anchors
+    anchorWebpagesRef.current.forEach((webpageObject, id) => {
+      if (!webpageAnchors.some((a) => a.id === id)) {
+        console.log(`Cleaning up webpage anchor ${id}`);
+        if (sceneRef.current) {
+          sceneRef.current.remove(webpageObject);
+          // Also remove the helper mesh
+          const helperMesh = webpageObject.userData.helperMesh;
+          if (helperMesh && sceneRef.current.getObjectById(helperMesh.id)) {
+            sceneRef.current.remove(helperMesh);
+            console.log(`Removed helper mesh for webpage anchor ${id}`);
+          }
+        }
+        anchorWebpagesRef.current.delete(id);
+      }
+    });
+  }, [webpageAnchors, originPoint, sceneRef, loadAndAddWebpage]); // Added sceneRef and loadAndAddWebpage dependencies
 
   const createTextBoxMesh = (text: string, position: THREE.Vector3) => {
     // Create a canvas to draw the text
@@ -1377,140 +2350,6 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     }
   };
 
-  const loadAndAddWebpage = async (url: string, position: THREE.Vector3) => {
-    if (!sceneRef.current) return null;
-    console.log("Loading webpage at position:", position, "URL:", url);
-
-    // Create a container for the webpage with a better appearance
-    const container = document.createElement("div");
-    container.style.width = "800px";
-    container.style.height = "600px";
-    container.style.overflow = "hidden";
-    container.style.borderRadius = "8px";
-    container.style.boxShadow = "0 10px 30px rgba(0,0,0,0.3)";
-    container.style.position = "relative";
-    container.style.backgroundColor = "white";
-
-    // Add a URL bar to show what's being loaded
-    const urlBar = document.createElement("div");
-    urlBar.style.width = "100%";
-    urlBar.style.height = "30px";
-    urlBar.style.backgroundColor = "#f0f0f0";
-    urlBar.style.borderBottom = "1px solid #ccc";
-    urlBar.style.display = "flex";
-    urlBar.style.alignItems = "center";
-    urlBar.style.padding = "0 10px";
-    urlBar.style.fontSize = "12px";
-    urlBar.style.color = "#333";
-    urlBar.style.fontFamily = "Arial, sans-serif";
-    urlBar.innerHTML = `
-      <div style="
-        display: flex; 
-        align-items: center; 
-        width: 100%; 
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-      ">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="2" y1="12" x2="22" y2="12"></line>
-          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-        </svg>
-        <span style="overflow: hidden; text-overflow: ellipsis;">${url}</span>
-      </div>
-    `;
-    container.appendChild(urlBar);
-
-    // Create content container
-    const contentContainer = document.createElement("div");
-    contentContainer.style.width = "100%";
-    contentContainer.style.height = "calc(100% - 30px)";
-    contentContainer.style.position = "relative";
-    container.appendChild(contentContainer);
-
-    // Add loading indicator
-    const loadingDiv = document.createElement("div");
-    loadingDiv.style.position = "absolute";
-    loadingDiv.style.top = "0";
-    loadingDiv.style.left = "0";
-    loadingDiv.style.width = "100%";
-    loadingDiv.style.height = "100%";
-    loadingDiv.style.display = "flex";
-    loadingDiv.style.flexDirection = "column";
-    loadingDiv.style.alignItems = "center";
-    loadingDiv.style.justifyContent = "center";
-    loadingDiv.style.backgroundColor = "white";
-    loadingDiv.style.zIndex = "10";
-    loadingDiv.innerHTML = `
-      <div style="
-        width: 40px;
-        height: 40px;
-        border: 3px solid #f3f3f3;
-        border-top: 3px solid #3498db;
-        border-radius: 50%;
-        margin-bottom: 15px;
-        animation: spin 1s linear infinite;
-      "></div>
-      <div style="font-family: Arial, sans-serif; color: #666;">Loading webpage...</div>
-      <style>
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      </style>
-    `;
-    contentContainer.appendChild(loadingDiv);
-
-    // Create and add the iframe
-    const iframe = document.createElement("iframe");
-    iframe.src = url;
-    iframe.style.width = "100%";
-    iframe.style.height = "100%";
-    iframe.style.border = "none";
-    contentContainer.appendChild(iframe);
-
-    // When iframe loads, remove loading indicator
-    iframe.onload = () => {
-      loadingDiv.style.display = "none";
-      console.log("Webpage loaded successfully:", url);
-    };
-
-    // Handle iframe errors
-    iframe.onerror = () => {
-      loadingDiv.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 15px;">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="15" y1="9" x2="9" y2="15"></line>
-          <line x1="9" y1="9" x2="15" y2="15"></line>
-        </svg>
-        <div style="font-family: Arial, sans-serif; color: #e74c3c; font-weight: bold; margin-bottom: 5px;">Error loading webpage</div>
-        <div style="font-family: Arial, sans-serif; color: #666; font-size: 12px;">${url}</div>
-      `;
-      console.error("Failed to load webpage:", url);
-    };
-
-    // Create the CSS3DObject with the container
-    const css3dObject = new CSS3DObject(container);
-    css3dObject.position.copy(position);
-
-    // Adjust scale and position
-    css3dObject.scale.set(0.0003, 0.0003, 0.0003); // Start small
-    css3dObject.position.y += 0.1; // Lift slightly above the surface
-
-    // Add to scene
-    sceneRef.current.add(css3dObject);
-
-    // Animate the appearance
-    new TWEEN.Tween(css3dObject.scale)
-      .to({ x: 0.005, y: 0.005, z: 0.005 }, 400)
-      .easing(TWEEN.Easing.Back.Out)
-      .start();
-
-    console.log("Added webpage to scene:", url);
-    return css3dObject;
-  };
-
   useEffect(() => {
     if (!mountRef.current || !modelPath) return;
 
@@ -1639,44 +2478,41 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     // Configure gizmo appearance
     configureTransformControls(transformControls);
 
-    // Add keyboard shortcuts for transformation modes
-    window.addEventListener("keydown", (event) => {
-      if (!transformControls.object) return;
+    const handleTransformKeyDown = (event: KeyboardEvent) => {
+      // Use selectedAnchorId to ensure an anchor is actually selected for transform
+      if (!selectedAnchorId || !transformControlsRef.current?.object) return;
+
+      const currentControls = transformControlsRef.current; // Use ref here
 
       switch (event.key.toLowerCase()) {
         case "g": // Move
-          transformControls.setMode("translate");
-          setTransformMode?.("translate");
+          currentControls.setMode("translate");
+          setTransformMode("translate"); // Keep state in sync if needed elsewhere
           break;
         case "r": // Rotate
-          transformControls.setMode("rotate");
-          setTransformMode?.("rotate");
+          currentControls.setMode("rotate");
+          setTransformMode("rotate");
           break;
         case "s": // Scale
-          transformControls.setMode("scale");
-          setTransformMode?.("scale");
+          // Prevent scaling CSS3DObjects via helper mesh if desired
+          if (currentControls.object?.userData?.type?.includes("helper")) {
+            // Or check if selectedAnchorType is text/webpage/pdf etc.
+            console.warn(
+              "Scaling is generally not recommended for CSS-based anchors.",
+            );
+            // Optionally allow it, or just return
+            // return;
+          }
+          currentControls.setMode("scale");
+          setTransformMode("scale");
           break;
-        case "x": // Toggle local/world space
-          const newSpace =
-            transformControls.space === "local" ? "world" : "local";
-          transformControls.setSpace(newSpace);
-          break;
-        case "shift": // Enable precise mode
-          transformControls.setTranslationSnap(0.01);
-          transformControls.setRotationSnap(THREE.MathUtils.degToRad(5));
-          transformControls.setScaleSnap(0.01);
+        case "escape": // Cancel transformations / Deselect
+          console.log("Escape pressed - Deselecting");
+          handleDeselect(); // Use the central deselect handler
           break;
       }
-    });
-
-    window.addEventListener("keyup", (event) => {
-      if (event.key.toLowerCase() === "shift") {
-        // Reset snapping when shift is released
-        transformControls.setTranslationSnap(0.1);
-        transformControls.setRotationSnap(THREE.MathUtils.degToRad(15));
-        transformControls.setScaleSnap(0.1);
-      }
-    });
+    };
+    window.addEventListener("keydown", handleTransformKeyDown);
 
     transformControls.addEventListener("dragging-changed", (event) => {
       orbitControls.enabled = !event.value;
@@ -1726,23 +2562,27 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     clickMarker.visible = false;
 
     const loader = new GLTFLoader();
+
+    const fullModelPath =
+      "https://f005.backblazeb2.com/file/objectModels-dev/home.glb";
+
     // Determine if modelPath is an external URL or local path
-    let fullModelPath = modelPath;
-    
-    // If it's not an external URL, prepend a slash for local path
-    if (!modelPath.startsWith('http') && !modelPath.startsWith('/')) {
-      fullModelPath = `/${modelPath}`;
-    }
+    // let fullModelPath = modelPath;
+
+    // // If it's not an external URL, prepend a slash for local path
+    // if (!modelPath.startsWith('http') && !modelPath.startsWith('/')) {
+    //   fullModelPath = `/${modelPath}`;
+    // }
 
     console.log("Attempting to fetch 3D model from:", fullModelPath);
-    
+
     // Set cross-origin setting for the loader
-    loader.setCrossOrigin('anonymous');
-    
+    loader.setCrossOrigin("anonymous");
+
     // For Firebase Storage URLs, we need to handle them directly
-    if (fullModelPath.includes('firebasestorage.googleapis.com')) {
+    if (fullModelPath.includes("firebasestorage.googleapis.com")) {
       console.log("Loading model from direct URL:", fullModelPath);
-      
+
       // Add special request header management for Firebase Storage
       // Create a custom loader manager for Firebase URLs
       const manager = new THREE.LoadingManager();
@@ -1753,54 +2593,59 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
         // 3. Add additional error handling specific to Firebase Storage
         return url;
       });
-      
+
       loader.manager = manager;
     }
 
     // Set up loading with retry logic
     const loadModelWithRetry = (attempt = 0, maxAttempts = 3) => {
       loader.load(
-      fullModelPath,
-      (gltf) => {
-        const model = gltf.scene;
-        parentModelRef.current = model;
-        const box = new THREE.Box3().setFromObject(model);
-        const center = box.getCenter(new THREE.Vector3());
-        const size = box.getSize(new THREE.Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const scale = 2 / maxDim;
-        model.scale.multiplyScalar(scale);
-        model.position.copy(center).multiplyScalar(-scale);
+        fullModelPath,
+        (gltf) => {
+          const model = gltf.scene;
+          parentModelRef.current = model;
+          const box = new THREE.Box3().setFromObject(model);
+          const center = box.getCenter(new THREE.Vector3());
+          const size = box.getSize(new THREE.Vector3());
+          const maxDim = Math.max(size.x, size.y, size.z);
+          const scale = 2 / maxDim;
+          model.scale.multiplyScalar(scale * 2);
+          model.position.copy(center).multiplyScalar(-scale);
 
-        scene.add(model);
+          scene.add(model);
 
-        onLoad?.();
-        camera.position.set(0.85, 0.85, 0.85);
-        orbitControls.target.set(0, 0, 0);
-        orbitControls.update();
-      },
-      undefined,
-      (error) => {
-        console.error("Error loading model:", error);
-        
-        // Implement retry logic for Firebase Storage URLs
-        if (attempt < maxAttempts - 1 && fullModelPath.includes('firebasestorage.googleapis.com')) {
-          console.log(`Retrying model load... Attempt ${attempt + 1}/${maxAttempts}`);
-          
-          // Wait a short delay before retrying
-          setTimeout(() => {
-            loadModelWithRetry(attempt + 1, maxAttempts);
-          }, 1000); // 1 second delay between retries
-        } else {
-          // All retries failed or not a Firebase URL
-          if (onError) {
-            onError(error.message || "Error loading model");
+          onLoad?.();
+          camera.position.set(0.85, 0.85, 0.85);
+          orbitControls.target.set(0, 0, 0);
+          orbitControls.update();
+        },
+        undefined,
+        (error) => {
+          console.error("Error loading model:", error);
+
+          // Implement retry logic for Firebase Storage URLs
+          if (
+            attempt < maxAttempts - 1 &&
+            fullModelPath.includes("firebasestorage.googleapis.com")
+          ) {
+            console.log(
+              `Retrying model load... Attempt ${attempt + 1}/${maxAttempts}`,
+            );
+
+            // Wait a short delay before retrying
+            setTimeout(() => {
+              loadModelWithRetry(attempt + 1, maxAttempts);
+            }, 1000); // 1 second delay between retries
+          } else {
+            // All retries failed or not a Firebase URL
+            if (onError) {
+              onError(error.message || "Error loading model");
+            }
           }
-        }
-      }
-    );
+        },
+      );
     };
-    
+
     // Start the loading process with retry
     loadModelWithRetry(0, 3);
 
@@ -1845,15 +2690,683 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     // 3) Instead of offset = hitPoint.sub(originPoint),
     //    do offset = hitPoint.sub(originRef.current!).
 
+    // async function handleClick(event: MouseEvent) {
+    //   console.log("[ThreeViewer] handleClick fired!");
+    //   if (
+    //     !mountRef.current ||
+    //     !clickMarkerRef.current ||
+    //     !sceneRef.current ||
+    //     !cameraRef.current
+    //   )
+    //     return;
+
+    //   // 1) Convert click to normalized coords
+    //   const rect = mountRef.current.getBoundingClientRect();
+    //   const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    //   const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    //   const mouse = new THREE.Vector2(x, y);
+
+    //   // 2) Perform the raycast
+    //   raycasterRef.current.setFromCamera(mouse, cameraRef.current);
+    //   const allIntersects = raycasterRef.current.intersectObjects(
+    //     sceneRef.current.children,
+    //     true,
+    //   );
+
+    //   // 3) If no intersection, bail out
+    //   if (allIntersects.length === 0) return;
+
+    //   // After your existing code that checks if something is clicked (inside handleClick)
+    //   // Check if we clicked on an image or video anchor
+    //   let isMediaAnchorClicked = false;
+    //   let mediaAnchorId = null;
+    //   let mediaObject = null;
+
+    //   // Check all file anchors (images/videos)
+    //   fileAnchorsRef.current.forEach((anchor, id) => {
+    //     if (!isMediaAnchorClicked) {
+    //       // Check if this anchor was clicked or contains the clicked object
+    //       if (clickedObj === anchor || clickedObj.isDescendantOf?.(anchor)) {
+    //         isMediaAnchorClicked = true;
+    //         mediaAnchorId = id;
+    //         mediaObject = anchor;
+    //       }
+    //     }
+    //   });
+
+    //   if (isMediaAnchorClicked && mediaObject) {
+    //     console.log(`Media anchor clicked: ${mediaAnchorId}`);
+
+    //     // If it's a video, check for the onClick handler
+    //     if (mediaObject.userData.type === "video") {
+    //       const videoPlane = mediaObject.children.find(
+    //         (child) =>
+    //           child instanceof THREE.Mesh &&
+    //           child.material &&
+    //           child.material.map instanceof THREE.VideoTexture,
+    //       );
+
+    //       if (videoPlane && videoPlane.userData.onClick) {
+    //         videoPlane.userData.onClick();
+    //       }
+    //     }
+
+    //     // Show transform controls for the media
+    //     if (transformControlsRef.current) {
+    //       // Get current mode or default to translate
+    //       const currentMode = transformControlsRef.current.mode || "translate";
+
+    //       // Attach to model
+    //       transformControlsRef.current.attach(mediaObject);
+
+    //       // Configure appearance and feedback
+    //       transformControlsRef.current.setMode(currentMode);
+    //       transformControlsRef.current.visible = true;
+
+    //       // Add visual feedback
+    //       addModelHighlight(mediaObject, sceneRef.current);
+
+    //       // Show transformation UI
+    //       setShowTransformUI(true);
+    //       setTransformMode(currentMode as "translate" | "rotate" | "scale");
+
+    //       // Animation feedback
+    //       const originalScale = mediaObject.scale.clone();
+    //       new TWEEN.Tween(mediaObject.scale)
+    //         .to(
+    //           {
+    //             x: originalScale.x * 1.05,
+    //             y: originalScale.y * 1.05,
+    //             z: originalScale.z * 1.05,
+    //           },
+    //           150,
+    //         )
+    //         .easing(TWEEN.Easing.Cubic.Out)
+    //         .yoyo(true)
+    //         .repeat(1)
+    //         .start();
+    //     }
+
+    //     return; // Exit early after handling media click
+    //   }
+
+    //   // MOVED: Handle origin point setting first - this is the key fix
+    //   if (isChoosingOriginRef.current) {
+    //     console.log("ORIGIN SELECTION MODE - Processing click");
+    //     const hitPoint = allIntersects[0].point;
+    //     if (onOriginSet && setIsChoosingOrigin) {
+    //       onOriginSet(hitPoint.clone());
+    //       setIsChoosingOrigin(false);
+
+    //       originRef.current = hitPoint.clone();
+
+    //       // (Optional: marker animation) - keep the animation as is
+    //       const originMarkerGeometry = new THREE.SphereGeometry(0.03, 16, 16);
+    //       const originMarkerMaterial = new THREE.MeshBasicMaterial({
+    //         color: 0xffff00,
+    //         transparent: true,
+    //         opacity: 0.8,
+    //       });
+    //       const originMarker = new THREE.Mesh(
+    //         originMarkerGeometry,
+    //         originMarkerMaterial,
+    //       );
+    //       originMarker.position.copy(hitPoint);
+    //       sceneRef.current?.add(originMarker);
+
+    //       // Animated ring
+    //       const ringGeometry = new THREE.RingGeometry(0.05, 0.06, 32);
+    //       const ringMaterial = new THREE.MeshBasicMaterial({
+    //         color: 0xffff00,
+    //         side: THREE.DoubleSide,
+    //         transparent: true,
+    //       });
+    //       const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+    //       ring.rotation.x = Math.PI / 2;
+    //       ring.position.copy(hitPoint);
+    //       sceneRef.current?.add(ring);
+
+    //       new TWEEN.Tween(ring.scale)
+    //         .to({ x: 2, y: 2, z: 2 }, 1000)
+    //         .easing(TWEEN.Easing.Quadratic.Out)
+    //         .start();
+
+    //       new TWEEN.Tween(ringMaterial)
+    //         .to({ opacity: 0 }, 1000)
+    //         .onComplete(() => sceneRef.current?.remove(ring))
+    //         .start();
+
+    //       console.log("Origin point set successfully!");
+    //     }
+    //     return;
+    //   }
+
+    //   if (qrPlacementModeRef.current && onQRPlaced) {
+    //     // The user just clicked in the 3D view while in QR placement mode
+    //     const hitPoint = allIntersects[0].point.clone();
+    //     console.log(
+    //       "[handleClick] Placing QR code at:",
+    //       allIntersects[0].point,
+    //     );
+    //     onQRPlaced(hitPoint);
+    //     return;
+    //   } else if (placementModeRef.current?.type === "link" && onLinkPlaced) {
+    //     // The user is placing a link
+    //     const hitPoint = allIntersects[0].point.clone();
+    //     console.log("[handleClick] Placing link at:", hitPoint);
+
+    //     // Create immediate visual feedback
+    //     const markerGeometry = new THREE.SphereGeometry(0.02, 16, 16);
+    //     const markerMaterial = new THREE.MeshBasicMaterial({ color: 0x0066ff }); // Blue color for links
+    //     const markerMesh = new THREE.Mesh(markerGeometry, markerMaterial);
+    //     markerMesh.position.copy(hitPoint);
+    //     markerMesh.renderOrder = 1000;
+    //     sceneRef.current?.add(markerMesh);
+
+    //     // Callback to parent component - this is the critical part!
+    //     onLinkPlaced(hitPoint);
+
+    //     // Add animation feedback
+    //     new TWEEN.Tween(markerMesh.scale)
+    //       .to({ x: 1.5, y: 1.5, z: 1.5 }, 300)
+    //       .easing(TWEEN.Easing.Elastic.Out)
+    //       .yoyo(true)
+    //       .repeat(1)
+    //       .start();
+
+    //     // Try to immediately load and show a preview of the webpage
+    //     const url = placementModeRef.current.data;
+    //     if (url && typeof url === "string") {
+    //       // Add visual loading indicator
+    //       const loadingGeo = new THREE.SphereGeometry(0.05, 16, 16);
+    //       const loadingMat = new THREE.MeshBasicMaterial({
+    //         color: 0x3b82f6,
+    //         transparent: true,
+    //         opacity: 0.7,
+    //       });
+    //       const loadingIndicator = new THREE.Mesh(loadingGeo, loadingMat);
+    //       loadingIndicator.position.copy(
+    //         hitPoint.clone().add(new THREE.Vector3(0, 0.1, 0)),
+    //       );
+    //       sceneRef.current?.add(loadingIndicator);
+
+    //       // Animate the loading indicator
+    //       const animate = () => {
+    //         if (!loadingIndicator.parent) return;
+    //         loadingIndicator.rotation.y += 0.05;
+    //         requestAnimationFrame(animate);
+    //       };
+    //       animate();
+
+    //       // Try to load the webpage
+    //       loadAndAddWebpage(url, hitPoint)
+    //         .then((webObj) => {
+    //           if (webObj && loadingIndicator.parent) {
+    //             sceneRef.current?.remove(loadingIndicator);
+    //           }
+    //         })
+    //         .catch((err) => {
+    //           console.error("Error loading webpage:", err);
+    //           if (loadingIndicator.parent) {
+    //             sceneRef.current?.remove(loadingIndicator);
+    //           }
+    //         });
+    //     }
+
+    //     return;
+    //   } else if (
+    //     placementModeRef.current?.type === "file" &&
+    //     placementModeRef.current.data
+    //   ) {
+    //     // The user is placing a file
+    //     const hitPoint = allIntersects[0].point.clone();
+    //     const fileData = placementModeRef.current.data;
+
+    //     console.log(
+    //       "[handleClick] Placing file at:",
+    //       hitPoint,
+    //       "File data:",
+    //       fileData,
+    //     );
+
+    //     // Set marker color based on file type
+    //     let markerColor;
+    //     switch (fileData.fileType) {
+    //       case "image":
+    //         markerColor = 0x9c27b0; // Purple for images
+    //         break;
+    //       case "video":
+    //         markerColor = 0xff5722; // Orange for videos
+    //         break;
+    //       case "document":
+    //       default:
+    //         markerColor = 0x2196f3; // Blue for documents/other
+    //         break;
+    //     }
+
+    //     // Create immediate visual feedback
+    //     const markerGeometry = new THREE.SphereGeometry(0.02, 16, 16);
+    //     const markerMaterial = new THREE.MeshBasicMaterial({
+    //       color: markerColor,
+    //     });
+    //     const markerMesh = new THREE.Mesh(markerGeometry, markerMaterial);
+    //     markerMesh.position.copy(hitPoint);
+    //     markerMesh.renderOrder = 1000;
+    //     sceneRef.current?.add(markerMesh);
+
+    //     // Add a label above the marker
+    //     const labelDiv = document.createElement("div");
+    //     labelDiv.textContent = fileData.name || "File";
+    //     labelDiv.style.padding = "2px 4px";
+    //     labelDiv.style.fontSize = "12px";
+    //     labelDiv.style.color = "#000";
+    //     labelDiv.style.backgroundColor = "rgba(255,255,255,0.8)";
+    //     labelDiv.style.borderRadius = "4px";
+    //     labelDiv.style.whiteSpace = "nowrap";
+
+    //     const labelObject = new CSS3DObject(labelDiv);
+    //     labelObject.scale.set(0.005, 0.005, 0.005);
+    //     labelObject.position.copy(
+    //       hitPoint.clone().add(new THREE.Vector3(0, 0.05, 0)),
+    //     );
+    //     sceneRef.current?.add(labelObject);
+
+    //     // Add a small animation/feedback
+    //     new TWEEN.Tween(markerMesh.scale)
+    //       .to({ x: 1.5, y: 1.5, z: 1.5 }, 300)
+    //       .easing(TWEEN.Easing.Elastic.Out)
+    //       .yoyo(true)
+    //       .repeat(1)
+    //       .start();
+
+    //     // For file placement, we call onPlacementComplete from the parent
+    //     if (onPlacementComplete) {
+    //       // Call with a fake placement mode
+    //       placementModeRef.current = {
+    //         type: "file",
+    //         data: fileData,
+    //       };
+
+    //       // Call the placement complete callback
+    //       onPlacementComplete(hitPoint, null);
+
+    //       // Reset the placement mode
+    //       placementModeRef.current = null;
+    //     }
+
+    //     return;
+    //   } else if (showTextBoxInputRef?.current && pendingLabelTextRef?.current) {
+    //     console.log("[ThreeViewer] handleClick -- Text placement initiated!");
+    //     // 1) The user wants to place a text label
+    //     const hitPoint = allIntersects[0].point.clone();
+    //     const textToPlace = pendingLabelTextRef.current; // Get text before clearing refs
+
+    //     // 2) Turn off text placement mode immediately
+    //     showTextBoxInputRef.current = false;
+    //     pendingLabelTextRef.current = ""; // Clear the pending text
+
+    //     // 3) Calculate real-world coordinates relative to origin
+    //     if (originPoint) {
+    //       const offset = hitPoint.clone().sub(originPoint);
+    //       const scaledOffset = {
+    //         x: offset.x * 45.64,
+    //         y: offset.y * 45.64,
+    //         z: offset.z * 45.64,
+    //       };
+
+    //       // 4) Call the callback to notify BlueprintEditor
+    //       if (onTextBoxSubmit) {
+    //         console.log(
+    //           "[ThreeViewer] Calling onTextBoxSubmit with:",
+    //           textToPlace,
+    //           scaledOffset,
+    //         );
+    //         onTextBoxSubmit(textToPlace, scaledOffset);
+    //       } else {
+    //         console.error("[ThreeViewer] onTextBoxSubmit callback is missing!");
+    //       }
+    //     } else {
+    //       console.error(
+    //         "[ThreeViewer] Cannot place text anchor: Origin point not set.",
+    //       );
+    //       // Optionally show a toast or error message to the user
+    //       // e.g., onError?.("Please set the origin point before placing text.");
+    //     }
+
+    //     return; // Exit handleClick after handling text placement
+    //   } else {
+    //     console.log("HANDLE CLICK - DID NOT MEET CRITERIA");
+    //     console.log("qrPlacementMode is now:", qrPlacementMode);
+    //     console.log("onQRPlaced is now:", onQRPlaced);
+    //   }
+
+    //   // IMPORTANT: Check for alignment mode (awaiting 3D picks)
+    //   if (
+    //     awaiting3DRef.current &&
+    //     activeLabelRef.current &&
+    //     setReferencePoints3D
+    //   ) {
+    //     const hitPoint = allIntersects[0].point;
+    //     const sphereGeom = new THREE.SphereGeometry(0.02, 16, 16);
+    //     const sphereMat = new THREE.MeshBasicMaterial({
+    //       color: labelColors[activeLabelRef.current],
+    //     });
+    //     const newSphere = new THREE.Mesh(sphereGeom, sphereMat);
+    //     newSphere.position.copy(hitPoint);
+    //     sceneRef.current?.add(newSphere);
+    //     newSphere.userData.label = activeLabelRef.current;
+
+    //     transformControlsRef.current?.attach(newSphere);
+    //     transformControlsRef.current?.setMode("translate");
+    //     orbitControlsRef.current!.enabled = false;
+
+    //     setReferencePoints3D((oldPoints) => [
+    //       ...oldPoints,
+    //       {
+    //         label: activeLabelRef.current!,
+    //         x3D: hitPoint.x,
+    //         y3D: hitPoint.y,
+    //         z3D: hitPoint.z,
+    //       },
+    //     ]);
+
+    //     if (activeLabelRef.current === "A") {
+    //       setActiveLabel?.("B");
+    //     } else if (activeLabelRef.current === "B") {
+    //       setActiveLabel?.("C");
+    //     } else if (activeLabelRef.current === "C") {
+    //       setActiveLabel?.(null);
+    //     }
+
+    //     setAwaiting3D?.(false);
+    //     return;
+    //   }
+
+    //   // NOW we can check if originPoint exists for other operations that need it
+    //   if (!originPoint) {
+    //     console.log("Origin point is not set. Cannot calculate coordinates.");
+    //     return; // Exit early if originPoint is not set
+    //   }
+
+    //   if (allIntersects.length > 0) {
+    //     let clickedObj = allIntersects[0].object;
+    //     let isModelClicked = false;
+    //     let modelAnchorId = null;
+
+    //     // Check if clicked on a 3D model from anchor models
+    //     // We need to traverse up the parent chain to find the actual model
+    //     let currentObj = clickedObj;
+    //     let modelTransform = null;
+
+    //     // First, try to find if it's a model by traversing up
+    //     while (currentObj.parent && !isModelClicked) {
+    //       // If the current object is in our anchorModelsRef
+    //       for (const [id, model] of anchorModelsRef.current.entries()) {
+    //         if (model === currentObj || currentObj.isDescendantOf?.(model)) {
+    //           isModelClicked = true;
+    //           modelAnchorId = id;
+    //           modelTransform = model;
+    //           // Stop the traversal since we found a match
+    //           break;
+    //         }
+    //       }
+    //       // If we didn't find a match yet, continue up the hierarchy
+    //       if (!isModelClicked) {
+    //         currentObj = currentObj.parent;
+    //       }
+    //     }
+
+    //     // If we clicked on a model from our model anchors
+    //     if (isModelClicked && modelTransform) {
+    //       console.log(`Model clicked: ${modelAnchorId}`);
+
+    //       // Use our new selection handler
+    //       handleModelSelect(modelTransform, modelAnchorId);
+    //       return;
+    //     }
+
+    //     // CHECK FOR TEXT ANCHORS, FILE ANCHORS, AND WEBPAGE ANCHORS
+    //     let isAnchorClicked = false;
+    //     let clickedAnchorId = null;
+    //     let clickedAnchorObject = null;
+
+    //     // Check text anchors
+    //     // First check if we clicked directly on a text label (CSS3DObject with userData.isTextLabel)
+    //     if (clickedObj.userData && clickedObj.userData.isTextLabel) {
+    //       isAnchorClicked = true;
+    //       clickedAnchorId = clickedObj.userData.anchorId;
+    //       clickedAnchorObject = clickedObj;
+    //       console.log(`Text label clicked directly: ${clickedAnchorId}`);
+    //     }
+    //     // Then check the composite objects in textAnchorsRef
+    //     else {
+    //       for (const [id, composite] of textAnchorsRef.current.entries()) {
+    //         // Check if we clicked either the marker or the label
+    //         if (
+    //           clickedObj === composite.marker ||
+    //           clickedObj === composite.label ||
+    //           clickedObj.isDescendantOf?.(composite.marker) ||
+    //           clickedObj.isDescendantOf?.(composite.label)
+    //         ) {
+    //           isAnchorClicked = true;
+    //           clickedAnchorId = id;
+    //           // Use the label for selection instead of the marker
+    //           clickedAnchorObject = composite.label;
+    //           console.log(`Text anchor component clicked: ${id}`);
+    //           break;
+    //         }
+    //       }
+    //     }
+
+    //     // Check file anchors if no text anchor was clicked
+    //     if (!isAnchorClicked) {
+    //       for (const [id, object] of fileAnchorsRef.current.entries()) {
+    //         if (clickedObj === object || clickedObj.isDescendantOf?.(object)) {
+    //           isAnchorClicked = true;
+    //           clickedAnchorId = id;
+    //           clickedAnchorObject = object;
+    //           console.log(`File anchor clicked: ${id}`);
+    //           break;
+    //         }
+    //       }
+    //     }
+
+    //     // Check webpage anchors if still no match
+    //     if (!isAnchorClicked) {
+    //       for (const [id, object] of anchorWebpagesRef.current.entries()) {
+    //         if (clickedObj === object || clickedObj.isDescendantOf?.(object)) {
+    //           isAnchorClicked = true;
+    //           clickedAnchorId = id;
+    //           clickedAnchorObject = object;
+    //           console.log(`Webpage anchor clicked: ${id}`);
+    //           break;
+    //         }
+    //       }
+    //     }
+
+    //     // Handle the clicked anchor if found
+    //     if (isAnchorClicked && clickedAnchorObject) {
+    //       // Save the current selected ID
+    //       setSelectedModelId(clickedAnchorId);
+
+    //       // Store original transform for cancel/undo operations
+    //       setLastTransform({
+    //         position: clickedAnchorObject.position.clone(),
+    //         rotation: clickedAnchorObject.rotation.clone(),
+    //         scale: clickedAnchorObject.scale.clone(),
+    //       });
+
+    //       // Attach transform controls
+    //       if (transformControlsRef.current) {
+    //         transformControlsRef.current.attach(clickedAnchorObject);
+    //         transformControlsRef.current.setMode("translate"); // Default to move mode
+    //         setTransformMode("translate");
+
+    //         // Show transform UI indicator
+    //         setShowTransformUI(true);
+
+    //         // Highlight the selected object
+    //         addModelHighlight(clickedAnchorObject, sceneRef.current);
+
+    //         // Animation for visual feedback
+    //         new TWEEN.Tween(clickedAnchorObject.scale)
+    //           .to(
+    //             {
+    //               x: clickedAnchorObject.scale.x * 1.05,
+    //               y: clickedAnchorObject.scale.y * 1.05,
+    //               z: clickedAnchorObject.scale.z * 1.05,
+    //             },
+    //             150,
+    //           )
+    //           .yoyo(true)
+    //           .repeat(1)
+    //           .easing(TWEEN.Easing.Cubic.Out)
+    //           .start();
+    //       }
+
+    //       if (
+    //         clickedAnchorObject.userData &&
+    //         clickedAnchorObject.userData.isTextLabel
+    //       ) {
+    //         // Add a subtle highlight effect to the label
+    //         const labelElement = clickedAnchorObject.element;
+    //         if (labelElement) {
+    //           // Backup original background color
+    //           const originalBgColor = labelElement.style.backgroundColor;
+    //           labelElement.style.backgroundColor = "rgba(100, 149, 237, 0.9)"; // Cornflower blue with more opacity
+
+    //           // Add a subtle animation
+    //           labelElement.style.transition = "all 0.2s ease-in-out";
+
+    //           // Restore original color on deselection
+    //           const restoreOriginalColor = () => {
+    //             if (
+    //               transformControlsRef.current &&
+    //               transformControlsRef.current.object !== clickedAnchorObject
+    //             ) {
+    //               labelElement.style.backgroundColor = originalBgColor;
+    //             }
+    //           };
+
+    //           // Set up a handler for deselection
+    //           setTimeout(restoreOriginalColor, 100);
+    //         }
+    //       }
+    //       return;
+    //     }
+
+    //     // Check if it's a reference point with a label
+    //     while (
+    //       clickedObj.parent &&
+    //       !clickedObj.userData.label &&
+    //       !isModelClicked &&
+    //       clickedObj.name !== "Antique_Iron_Safe"
+    //     ) {
+    //       clickedObj = clickedObj.parent;
+    //     }
+
+    //     // If we clicked on a model from our model anchors
+    //     if (isModelClicked && modelTransform) {
+    //       console.log(`Model clicked: ${modelAnchorId}`);
+
+    //       // Save the current selected model ID for updates
+    //       setSelectedModelId(modelAnchorId);
+
+    //       // Show transform controls and attach to the model
+    //       if (transformControlsRef.current) {
+    //         // Get current mode or default to translate
+    //         const currentMode =
+    //           transformControlsRef.current.mode || "translate";
+
+    //         // Attach to model
+    //         transformControlsRef.current.attach(modelTransform);
+
+    //         // Configure appearance and feedback
+    //         transformControlsRef.current.setMode(currentMode);
+    //         transformControlsRef.current.visible = true;
+
+    //         // Add visual feedback
+    //         addModelHighlight(modelTransform, sceneRef.current);
+
+    //         // Temporarily disable orbit controls while transforming
+    //         if (orbitControlsRef.current) {
+    //           // We'll keep orbit controls enabled but they'll be disabled during dragging
+    //           orbitControlsRef.current.enabled = true;
+    //         }
+
+    //         // Show transformation UI
+    //         setShowTransformUI(true);
+    //         setTransformMode(currentMode as "translate" | "rotate" | "scale");
+
+    //         // Play a subtle animation to show selection
+    //         const originalScale = modelTransform.scale.clone();
+    //         new TWEEN.Tween(modelTransform.scale)
+    //           .to(
+    //             {
+    //               x: originalScale.x * 1.05,
+    //               y: originalScale.y * 1.05,
+    //               z: originalScale.z * 1.05,
+    //             },
+    //             150,
+    //           )
+    //           .easing(TWEEN.Easing.Cubic.Out)
+    //           .yoyo(true)
+    //           .repeat(1)
+    //           .start();
+    //       }
+    //       return;
+    //     } else if (clickedObj.userData.label) {
+    //       // This is the existing logic for labeled points
+    //       orbitControlsRef.current!.enabled = false;
+    //       transformControlsRef.current?.attach(clickedObj);
+    //       transformControlsRef.current?.setMode("translate");
+    //       isMarkerSelectedRef.current = true;
+    //       return;
+    //     } else {
+    //       // #5: Calculate and display coordinates relative to originPoint prop
+    //       if (originPoint) {
+    //         const hitPoint = allIntersects[0].point.clone();
+    //         // Create a new vector to avoid modifying the original point in the calculation
+    //         const offset = hitPoint.clone().sub(originPoint);
+    //         const distanceInFeet = offset.length() * 45.64;
+    //         const msg = `X:${(offset.x * 45.64).toFixed(2)}, Y:${(offset.y * 45.64).toFixed(2)}, Z:${(offset.z * 45.64).toFixed(2)}
+    //         distance = ${distanceInFeet.toFixed(2)} ft from origin`;
+
+    //         console.log("Coordinate display:", msg);
+    //         setDistanceDisplay(msg);
+    //       }
+
+    //       // Hide transform UI if we clicked elsewhere
+    //       setShowTransformUI(false);
+    //     }
+
+    //     // If we didn't click on anything special, detach the transform controls
+    //     transformControlsRef.current?.detach();
+    //     if (orbitControlsRef.current) {
+    //       orbitControlsRef.current.enabled = true;
+    //     }
+    //   }
+    // }
+
     async function handleClick(event: MouseEvent) {
       console.log("[ThreeViewer] handleClick fired!");
       if (
         !mountRef.current ||
-        !clickMarkerRef.current ||
         !sceneRef.current ||
-        !cameraRef.current
-      )
+        !cameraRef.current ||
+        !transformControlsRef.current // Add check for transform controls
+      ) {
+        console.warn("[handleClick] Missing refs, aborting.");
         return;
+      }
+
+      // Prevent click handling if dragging transform controls
+      if (transformControlsRef.current.dragging) {
+        console.log(
+          "[handleClick] Ignoring click while dragging transform controls.",
+        );
+        return;
+      }
 
       // 1) Convert click to normalized coords
       const rect = mountRef.current.getBoundingClientRect();
@@ -1865,643 +3378,405 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
       raycasterRef.current.setFromCamera(mouse, cameraRef.current);
       const allIntersects = raycasterRef.current.intersectObjects(
         sceneRef.current.children,
-        true,
+        true, // Check descendants
       );
 
-      // 3) If no intersection, bail out
-      if (allIntersects.length === 0) return;
+      // Filter out non-visible objects and helpers like the highlight itself
+      const visibleIntersects = allIntersects.filter(
+        (intersect) =>
+          intersect.object.visible &&
+          intersect.object.name !== "selection-highlight" &&
+          !intersect.object.name.includes("Helper") &&
+          // IMPORTANT: Also filter out the origin marker itself if it exists
+          (!originMarkerRef.current ||
+            intersect.object !== originMarkerRef.current),
+      );
 
-      // After your existing code that checks if something is clicked (inside handleClick)
-      // Check if we clicked on an image or video anchor
-      let isMediaAnchorClicked = false;
-      let mediaAnchorId = null;
-      let mediaObject = null;
-
-      // Check all file anchors (images/videos)
-      fileAnchorsRef.current.forEach((anchor, id) => {
-        if (!isMediaAnchorClicked) {
-          // Check if this anchor was clicked or contains the clicked object
-          if (clickedObj === anchor || clickedObj.isDescendantOf?.(anchor)) {
-            isMediaAnchorClicked = true;
-            mediaAnchorId = id;
-            mediaObject = anchor;
-          }
+      // ***** START CONFIRMATION LOGGING *****
+      console.log(
+        `[handleClick] Visible Intersects Count: ${visibleIntersects.length}`,
+      );
+      if (visibleIntersects.length > 0) {
+        const firstHit = visibleIntersects[0].object;
+        console.log(`[handleClick] First Hit Object Name: ${firstHit.name}`);
+        console.log(`[handleClick] First Hit Object Type: ${firstHit.type}`);
+        // Log userData directly without stringifying to avoid circular reference errors
+        console.log(
+          `[handleClick] First Hit Object userData:`,
+          firstHit.userData, // <--- FIXED LINE
+        );
+        console.log(
+          `[handleClick] First Hit Distance: ${visibleIntersects[0].distance}`,
+        );
+        // Check if it's a CSS3DObject specifically
+        if (firstHit instanceof CSS3DObject) {
+          console.log("[handleClick] First Hit IS a CSS3DObject.");
+        } else {
+          console.log("[handleClick] First Hit is NOT a CSS3DObject.");
         }
-      });
-
-      if (isMediaAnchorClicked && mediaObject) {
-        console.log(`Media anchor clicked: ${mediaAnchorId}`);
-
-        // If it's a video, check for the onClick handler
-        if (mediaObject.userData.type === "video") {
-          const videoPlane = mediaObject.children.find(
-            (child) =>
-              child instanceof THREE.Mesh &&
-              child.material &&
-              child.material.map instanceof THREE.VideoTexture,
-          );
-
-          if (videoPlane && videoPlane.userData.onClick) {
-            videoPlane.userData.onClick();
-          }
-        }
-
-        // Show transform controls for the media
-        if (transformControlsRef.current) {
-          // Get current mode or default to translate
-          const currentMode = transformControlsRef.current.mode || "translate";
-
-          // Attach to model
-          transformControlsRef.current.attach(mediaObject);
-
-          // Configure appearance and feedback
-          transformControlsRef.current.setMode(currentMode);
-          transformControlsRef.current.visible = true;
-
-          // Add visual feedback
-          addModelHighlight(mediaObject, sceneRef.current);
-
-          // Show transformation UI
-          setShowTransformUI(true);
-          setTransformMode(currentMode as "translate" | "rotate" | "scale");
-
-          // Animation feedback
-          const originalScale = mediaObject.scale.clone();
-          new TWEEN.Tween(mediaObject.scale)
-            .to(
-              {
-                x: originalScale.x * 1.05,
-                y: originalScale.y * 1.05,
-                z: originalScale.z * 1.05,
-              },
-              150,
-            )
-            .easing(TWEEN.Easing.Cubic.Out)
-            .yoyo(true)
-            .repeat(1)
-            .start();
-        }
-
-        return; // Exit early after handling media click
       }
+      // ***** END CONFIRMATION LOGGING *****
 
-      // MOVED: Handle origin point setting first - this is the key fix
+      // --- Early Exit for Special Modes ---
+      // (Keep your existing logic for origin, QR, link, file, text, alignment placement modes here)
+      // ... (Your existing code for placement modes) ...
       if (isChoosingOriginRef.current) {
-        console.log("ORIGIN SELECTION MODE - Processing click");
-        const hitPoint = allIntersects[0].point;
-        if (onOriginSet && setIsChoosingOrigin) {
-          onOriginSet(hitPoint.clone());
-          setIsChoosingOrigin(false);
-
-          originRef.current = hitPoint.clone();
-
-          // (Optional: marker animation) - keep the animation as is
-          const originMarkerGeometry = new THREE.SphereGeometry(0.03, 16, 16);
-          const originMarkerMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffff00,
-            transparent: true,
-            opacity: 0.8,
-          });
-          const originMarker = new THREE.Mesh(
-            originMarkerGeometry,
-            originMarkerMaterial,
-          );
-          originMarker.position.copy(hitPoint);
-          sceneRef.current?.add(originMarker);
-
-          // Animated ring
-          const ringGeometry = new THREE.RingGeometry(0.05, 0.06, 32);
-          const ringMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffff00,
-            side: THREE.DoubleSide,
-            transparent: true,
-          });
-          const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-          ring.rotation.x = Math.PI / 2;
-          ring.position.copy(hitPoint);
-          sceneRef.current?.add(ring);
-
-          new TWEEN.Tween(ring.scale)
-            .to({ x: 2, y: 2, z: 2 }, 1000)
-            .easing(TWEEN.Easing.Quadratic.Out)
-            .start();
-
-          new TWEEN.Tween(ringMaterial)
-            .to({ opacity: 0 }, 1000)
-            .onComplete(() => sceneRef.current?.remove(ring))
-            .start();
-
-          console.log("Origin point set successfully!");
+        console.log("[handleClick] Origin selection mode.");
+        if (visibleIntersects.length > 0) {
+          const hitPoint = visibleIntersects[0].point;
+          if (onOriginSet && setIsChoosingOrigin) {
+            onOriginSet(hitPoint.clone());
+            setIsChoosingOrigin(false);
+            originRef.current = hitPoint.clone(); // Also update local ref if needed
+            console.log("Origin point set at:", hitPoint);
+            updateOriginMarker(sceneRef.current, hitPoint.clone()); // Use your marker function
+          }
+        } else {
+          console.log("[handleClick] Origin selection click missed model.");
         }
-        return;
+        return; // Handled origin setting
       }
 
       if (qrPlacementModeRef.current && onQRPlaced) {
-        // The user just clicked in the 3D view while in QR placement mode
-        const hitPoint = allIntersects[0].point.clone();
-        console.log(
-          "[handleClick] Placing QR code at:",
-          allIntersects[0].point,
-        );
-        onQRPlaced(hitPoint);
-        return;
-      } else if (placementModeRef.current?.type === "link" && onLinkPlaced) {
-        // The user is placing a link
-        const hitPoint = allIntersects[0].point.clone();
-        console.log("[handleClick] Placing link at:", hitPoint);
-
-        // Create immediate visual feedback
-        const markerGeometry = new THREE.SphereGeometry(0.02, 16, 16);
-        const markerMaterial = new THREE.MeshBasicMaterial({ color: 0x0066ff }); // Blue color for links
-        const markerMesh = new THREE.Mesh(markerGeometry, markerMaterial);
-        markerMesh.position.copy(hitPoint);
-        markerMesh.renderOrder = 1000;
-        sceneRef.current?.add(markerMesh);
-
-        // Callback to parent component - this is the critical part!
-        onLinkPlaced(hitPoint);
-
-        // Add animation feedback
-        new TWEEN.Tween(markerMesh.scale)
-          .to({ x: 1.5, y: 1.5, z: 1.5 }, 300)
-          .easing(TWEEN.Easing.Elastic.Out)
-          .yoyo(true)
-          .repeat(1)
-          .start();
-
-        // Try to immediately load and show a preview of the webpage
-        const url = placementModeRef.current.data;
-        if (url && typeof url === "string") {
-          // Add visual loading indicator
-          const loadingGeo = new THREE.SphereGeometry(0.05, 16, 16);
-          const loadingMat = new THREE.MeshBasicMaterial({
-            color: 0x3b82f6,
-            transparent: true,
-            opacity: 0.7,
-          });
-          const loadingIndicator = new THREE.Mesh(loadingGeo, loadingMat);
-          loadingIndicator.position.copy(
-            hitPoint.clone().add(new THREE.Vector3(0, 0.1, 0)),
-          );
-          sceneRef.current?.add(loadingIndicator);
-
-          // Animate the loading indicator
-          const animate = () => {
-            if (!loadingIndicator.parent) return;
-            loadingIndicator.rotation.y += 0.05;
-            requestAnimationFrame(animate);
-          };
-          animate();
-
-          // Try to load the webpage
-          loadAndAddWebpage(url, hitPoint)
-            .then((webObj) => {
-              if (webObj && loadingIndicator.parent) {
-                sceneRef.current?.remove(loadingIndicator);
-              }
-            })
-            .catch((err) => {
-              console.error("Error loading webpage:", err);
-              if (loadingIndicator.parent) {
-                sceneRef.current?.remove(loadingIndicator);
-              }
-            });
-        }
-
-        return;
-      } else if (
-        placementModeRef.current?.type === "file" &&
-        placementModeRef.current.data
-      ) {
-        // The user is placing a file
-        const hitPoint = allIntersects[0].point.clone();
-        const fileData = placementModeRef.current.data;
-
-        console.log(
-          "[handleClick] Placing file at:",
-          hitPoint,
-          "File data:",
-          fileData,
-        );
-
-        // Set marker color based on file type
-        let markerColor;
-        switch (fileData.fileType) {
-          case "image":
-            markerColor = 0x9c27b0; // Purple for images
-            break;
-          case "video":
-            markerColor = 0xff5722; // Orange for videos
-            break;
-          case "document":
-          default:
-            markerColor = 0x2196f3; // Blue for documents/other
-            break;
-        }
-
-        // Create immediate visual feedback
-        const markerGeometry = new THREE.SphereGeometry(0.02, 16, 16);
-        const markerMaterial = new THREE.MeshBasicMaterial({
-          color: markerColor,
-        });
-        const markerMesh = new THREE.Mesh(markerGeometry, markerMaterial);
-        markerMesh.position.copy(hitPoint);
-        markerMesh.renderOrder = 1000;
-        sceneRef.current?.add(markerMesh);
-
-        // Add a label above the marker
-        const labelDiv = document.createElement("div");
-        labelDiv.textContent = fileData.name || "File";
-        labelDiv.style.padding = "2px 4px";
-        labelDiv.style.fontSize = "12px";
-        labelDiv.style.color = "#000";
-        labelDiv.style.backgroundColor = "rgba(255,255,255,0.8)";
-        labelDiv.style.borderRadius = "4px";
-        labelDiv.style.whiteSpace = "nowrap";
-
-        const labelObject = new CSS3DObject(labelDiv);
-        labelObject.scale.set(0.005, 0.005, 0.005);
-        labelObject.position.copy(
-          hitPoint.clone().add(new THREE.Vector3(0, 0.05, 0)),
-        );
-        sceneRef.current?.add(labelObject);
-
-        // Add a small animation/feedback
-        new TWEEN.Tween(markerMesh.scale)
-          .to({ x: 1.5, y: 1.5, z: 1.5 }, 300)
-          .easing(TWEEN.Easing.Elastic.Out)
-          .yoyo(true)
-          .repeat(1)
-          .start();
-
-        // For file placement, we call onPlacementComplete from the parent
-        if (onPlacementComplete) {
-          // Call with a fake placement mode
-          placementModeRef.current = {
-            type: "file",
-            data: fileData,
-          };
-
-          // Call the placement complete callback
-          onPlacementComplete(hitPoint, null);
-
-          // Reset the placement mode
-          placementModeRef.current = null;
-        }
-
-        return;
-      } else if (showTextBoxInputRef?.current && pendingLabelTextRef?.current) {
-        console.log("[ThreeViewer] handleClick -- Text placement initiated!");
-        // 1) The user wants to place a text label
-        const hitPoint = allIntersects[0].point.clone();
-        const textToPlace = pendingLabelTextRef.current; // Get text before clearing refs
-
-        // 2) Turn off text placement mode immediately
-        showTextBoxInputRef.current = false;
-        pendingLabelTextRef.current = ""; // Clear the pending text
-
-        // 3) Calculate real-world coordinates relative to origin
-        if (originPoint) {
-          const offset = hitPoint.clone().sub(originPoint);
-          const scaledOffset = {
-            x: offset.x * 45.64,
-            y: offset.y * 45.64,
-            z: offset.z * 45.64,
-          };
-
-          // 4) Call the callback to notify BlueprintEditor
-          if (onTextBoxSubmit) {
-            console.log(
-              "[ThreeViewer] Calling onTextBoxSubmit with:",
-              textToPlace,
-              scaledOffset,
-            );
-            onTextBoxSubmit(textToPlace, scaledOffset);
-          } else {
-            console.error("[ThreeViewer] onTextBoxSubmit callback is missing!");
-          }
+        console.log("[handleClick] QR placement mode.");
+        if (visibleIntersects.length > 0) {
+          const hitPoint = visibleIntersects[0].point.clone();
+          console.log("[handleClick] Placing QR code at:", hitPoint);
+          onQRPlaced(hitPoint); // Callback to parent
         } else {
-          console.error(
-            "[ThreeViewer] Cannot place text anchor: Origin point not set.",
-          );
-          // Optionally show a toast or error message to the user
-          // e.g., onError?.("Please set the origin point before placing text.");
+          console.log("[handleClick] QR placement click missed model.");
         }
-
-        return; // Exit handleClick after handling text placement
-      } else {
-        console.log("HANDLE CLICK - DID NOT MEET CRITERIA");
-        console.log("qrPlacementMode is now:", qrPlacementMode);
-        console.log("onQRPlaced is now:", onQRPlaced);
+        return; // Handled QR placement
       }
 
-      // IMPORTANT: Check for alignment mode (awaiting 3D picks)
+      if (placementModeRef.current?.type === "link" && onLinkPlaced) {
+        console.log("[handleClick] Link placement mode.");
+        if (visibleIntersects.length > 0) {
+          const hitPoint = visibleIntersects[0].point.clone();
+          const url = placementModeRef.current.data;
+          console.log("[handleClick] Placing link at:", hitPoint, "URL:", url);
+          onLinkPlaced(hitPoint); // Callback to parent
+          if (url && typeof url === "string") {
+            loadAndAddWebpage(url, hitPoint); // Attempt to show preview
+          }
+        } else {
+          console.log("[handleClick] Link placement click missed model.");
+        }
+        return; // Handled link placement
+      }
+
+      if (placementModeRef.current?.type === "file" && onPlacementComplete) {
+        console.log("[handleClick] File placement mode.");
+        if (visibleIntersects.length > 0) {
+          const hitPoint = visibleIntersects[0].point.clone();
+          const fileData = placementModeRef.current.data;
+          console.log(
+            "[handleClick] Placing file at:",
+            hitPoint,
+            "Data:",
+            fileData,
+          );
+          onPlacementComplete(hitPoint, null); // Use the generic placement callback
+        } else {
+          console.log("[handleClick] File placement click missed model.");
+        }
+        return; // Handled file placement
+      }
+
+      if (showTextBoxInputRef?.current && pendingLabelTextRef?.current) {
+        console.log("[handleClick] Text placement mode.");
+        if (visibleIntersects.length > 0) {
+          const hitPoint = visibleIntersects[0].point.clone();
+          const textToPlace = pendingLabelTextRef.current;
+
+          showTextBoxInputRef.current = false;
+          pendingLabelTextRef.current = "";
+
+          if (originPoint) {
+            const realWorldCoords = convertToRealWorldCoords(hitPoint);
+            if (onTextBoxSubmit) {
+              console.log(
+                "[handleClick] Calling onTextBoxSubmit:",
+                textToPlace,
+                realWorldCoords,
+              );
+              onTextBoxSubmit(textToPlace, realWorldCoords);
+            } else {
+              console.error("[handleClick] onTextBoxSubmit callback missing!");
+            }
+          } else {
+            console.error("[handleClick] Cannot place text: Origin not set.");
+            onError?.("Please set the origin point before placing text.");
+          }
+        } else {
+          console.log("[handleClick] Text placement click missed model.");
+        }
+        return; // Handled text placement
+      }
+
       if (
         awaiting3DRef.current &&
         activeLabelRef.current &&
         setReferencePoints3D
       ) {
-        const hitPoint = allIntersects[0].point;
-        const sphereGeom = new THREE.SphereGeometry(0.02, 16, 16);
-        const sphereMat = new THREE.MeshBasicMaterial({
-          color: labelColors[activeLabelRef.current],
-        });
-        const newSphere = new THREE.Mesh(sphereGeom, sphereMat);
-        newSphere.position.copy(hitPoint);
-        sceneRef.current?.add(newSphere);
-        newSphere.userData.label = activeLabelRef.current;
-
-        transformControlsRef.current?.attach(newSphere);
-        transformControlsRef.current?.setMode("translate");
-        orbitControlsRef.current!.enabled = false;
-
-        setReferencePoints3D((oldPoints) => [
-          ...oldPoints,
-          {
-            label: activeLabelRef.current!,
-            x3D: hitPoint.x,
-            y3D: hitPoint.y,
-            z3D: hitPoint.z,
-          },
-        ]);
-
-        if (activeLabelRef.current === "A") {
-          setActiveLabel?.("B");
-        } else if (activeLabelRef.current === "B") {
-          setActiveLabel?.("C");
-        } else if (activeLabelRef.current === "C") {
-          setActiveLabel?.(null);
-        }
-
-        setAwaiting3D?.(false);
-        return;
-      }
-
-      // NOW we can check if originPoint exists for other operations that need it
-      if (!originPoint) {
-        console.log("Origin point is not set. Cannot calculate coordinates.");
-        return; // Exit early if originPoint is not set
-      }
-
-      if (allIntersects.length > 0) {
-        let clickedObj = allIntersects[0].object;
-        let isModelClicked = false;
-        let modelAnchorId = null;
-
-        // Check if clicked on a 3D model from anchor models
-        // We need to traverse up the parent chain to find the actual model
-        let currentObj = clickedObj;
-        let modelTransform = null;
-
-        // First, try to find if it's a model by traversing up
-        while (currentObj.parent && !isModelClicked) {
-          // If the current object is in our anchorModelsRef
-          for (const [id, model] of anchorModelsRef.current.entries()) {
-            if (model === currentObj || currentObj.isDescendantOf?.(model)) {
-              isModelClicked = true;
-              modelAnchorId = id;
-              modelTransform = model;
-              // Stop the traversal since we found a match
-              break;
-            }
-          }
-          // If we didn't find a match yet, continue up the hierarchy
-          if (!isModelClicked) {
-            currentObj = currentObj.parent;
-          }
-        }
-
-        // If we clicked on a model from our model anchors
-        if (isModelClicked && modelTransform) {
-          console.log(`Model clicked: ${modelAnchorId}`);
-
-          // Use our new selection handler
-          handleModelSelect(modelTransform, modelAnchorId);
-          return;
-        }
-
-        // CHECK FOR TEXT ANCHORS, FILE ANCHORS, AND WEBPAGE ANCHORS
-        let isAnchorClicked = false;
-        let clickedAnchorId = null;
-        let clickedAnchorObject = null;
-
-        // Check text anchors
-        // First check if we clicked directly on a text label (CSS3DObject with userData.isTextLabel)
-        if (clickedObj.userData && clickedObj.userData.isTextLabel) {
-          isAnchorClicked = true;
-          clickedAnchorId = clickedObj.userData.anchorId;
-          clickedAnchorObject = clickedObj;
-          console.log(`Text label clicked directly: ${clickedAnchorId}`);
-        }
-        // Then check the composite objects in textAnchorsRef
-        else {
-          for (const [id, composite] of textAnchorsRef.current.entries()) {
-            // Check if we clicked either the marker or the label
-            if (
-              clickedObj === composite.marker ||
-              clickedObj === composite.label ||
-              clickedObj.isDescendantOf?.(composite.marker) ||
-              clickedObj.isDescendantOf?.(composite.label)
-            ) {
-              isAnchorClicked = true;
-              clickedAnchorId = id;
-              // Use the label for selection instead of the marker
-              clickedAnchorObject = composite.label;
-              console.log(`Text anchor component clicked: ${id}`);
-              break;
-            }
-          }
-        }
-
-        // Check file anchors if no text anchor was clicked
-        if (!isAnchorClicked) {
-          for (const [id, object] of fileAnchorsRef.current.entries()) {
-            if (clickedObj === object || clickedObj.isDescendantOf?.(object)) {
-              isAnchorClicked = true;
-              clickedAnchorId = id;
-              clickedAnchorObject = object;
-              console.log(`File anchor clicked: ${id}`);
-              break;
-            }
-          }
-        }
-
-        // Check webpage anchors if still no match
-        if (!isAnchorClicked) {
-          for (const [id, object] of anchorWebpagesRef.current.entries()) {
-            if (clickedObj === object || clickedObj.isDescendantOf?.(object)) {
-              isAnchorClicked = true;
-              clickedAnchorId = id;
-              clickedAnchorObject = object;
-              console.log(`Webpage anchor clicked: ${id}`);
-              break;
-            }
-          }
-        }
-
-        // Handle the clicked anchor if found
-        if (isAnchorClicked && clickedAnchorObject) {
-          // Save the current selected ID
-          setSelectedModelId(clickedAnchorId);
-
-          // Store original transform for cancel/undo operations
-          setLastTransform({
-            position: clickedAnchorObject.position.clone(),
-            rotation: clickedAnchorObject.rotation.clone(),
-            scale: clickedAnchorObject.scale.clone(),
+        console.log("[handleClick] Alignment point placement mode.");
+        if (visibleIntersects.length > 0) {
+          const hitPoint = visibleIntersects[0].point;
+          const sphereGeom = new THREE.SphereGeometry(0.02, 16, 16);
+          const sphereMat = new THREE.MeshBasicMaterial({
+            color: labelColors[activeLabelRef.current],
           });
+          const newSphere = new THREE.Mesh(sphereGeom, sphereMat);
+          newSphere.position.copy(hitPoint);
+          sceneRef.current?.add(newSphere);
+          newSphere.userData.label = activeLabelRef.current; // Important for identification
 
-          // Attach transform controls
-          if (transformControlsRef.current) {
-            transformControlsRef.current.attach(clickedAnchorObject);
-            transformControlsRef.current.setMode("translate"); // Default to move mode
-            setTransformMode("translate");
-
-            // Show transform UI indicator
-            setShowTransformUI(true);
-
-            // Highlight the selected object
-            addModelHighlight(clickedAnchorObject, sceneRef.current);
-
-            // Animation for visual feedback
-            new TWEEN.Tween(clickedAnchorObject.scale)
-              .to(
-                {
-                  x: clickedAnchorObject.scale.x * 1.05,
-                  y: clickedAnchorObject.scale.y * 1.05,
-                  z: clickedAnchorObject.scale.z * 1.05,
-                },
-                150,
-              )
-              .yoyo(true)
-              .repeat(1)
-              .easing(TWEEN.Easing.Cubic.Out)
-              .start();
-          }
-
-          if (
-            clickedAnchorObject.userData &&
-            clickedAnchorObject.userData.isTextLabel
-          ) {
-            // Add a subtle highlight effect to the label
-            const labelElement = clickedAnchorObject.element;
-            if (labelElement) {
-              // Backup original background color
-              const originalBgColor = labelElement.style.backgroundColor;
-              labelElement.style.backgroundColor = "rgba(100, 149, 237, 0.9)"; // Cornflower blue with more opacity
-
-              // Add a subtle animation
-              labelElement.style.transition = "all 0.2s ease-in-out";
-
-              // Restore original color on deselection
-              const restoreOriginalColor = () => {
-                if (
-                  transformControlsRef.current &&
-                  transformControlsRef.current.object !== clickedAnchorObject
-                ) {
-                  labelElement.style.backgroundColor = originalBgColor;
-                }
-              };
-
-              // Set up a handler for deselection
-              setTimeout(restoreOriginalColor, 100);
-            }
-          }
-          return;
-        }
-
-        // Check if it's a reference point with a label
-        while (
-          clickedObj.parent &&
-          !clickedObj.userData.label &&
-          !isModelClicked &&
-          clickedObj.name !== "Antique_Iron_Safe"
-        ) {
-          clickedObj = clickedObj.parent;
-        }
-
-        // If we clicked on a model from our model anchors
-        if (isModelClicked && modelTransform) {
-          console.log(`Model clicked: ${modelAnchorId}`);
-
-          // Save the current selected model ID for updates
-          setSelectedModelId(modelAnchorId);
-
-          // Show transform controls and attach to the model
-          if (transformControlsRef.current) {
-            // Get current mode or default to translate
-            const currentMode =
-              transformControlsRef.current.mode || "translate";
-
-            // Attach to model
-            transformControlsRef.current.attach(modelTransform);
-
-            // Configure appearance and feedback
-            transformControlsRef.current.setMode(currentMode);
-            transformControlsRef.current.visible = true;
-
-            // Add visual feedback
-            addModelHighlight(modelTransform, sceneRef.current);
-
-            // Temporarily disable orbit controls while transforming
-            if (orbitControlsRef.current) {
-              // We'll keep orbit controls enabled but they'll be disabled during dragging
-              orbitControlsRef.current.enabled = true;
-            }
-
-            // Show transformation UI
-            setShowTransformUI(true);
-            setTransformMode(currentMode as "translate" | "rotate" | "scale");
-
-            // Play a subtle animation to show selection
-            const originalScale = modelTransform.scale.clone();
-            new TWEEN.Tween(modelTransform.scale)
-              .to(
-                {
-                  x: originalScale.x * 1.05,
-                  y: originalScale.y * 1.05,
-                  z: originalScale.z * 1.05,
-                },
-                150,
-              )
-              .easing(TWEEN.Easing.Cubic.Out)
-              .yoyo(true)
-              .repeat(1)
-              .start();
-          }
-          return;
-        } else if (clickedObj.userData.label) {
-          // This is the existing logic for labeled points
-          orbitControlsRef.current!.enabled = false;
-          transformControlsRef.current?.attach(clickedObj);
+          transformControlsRef.current?.attach(newSphere);
           transformControlsRef.current?.setMode("translate");
-          isMarkerSelectedRef.current = true;
-          return;
-        } else {
-          // #5: Calculate and display coordinates relative to originPoint prop
-          if (originPoint) {
-            const hitPoint = allIntersects[0].point.clone();
-            // Create a new vector to avoid modifying the original point in the calculation
-            const offset = hitPoint.clone().sub(originPoint);
-            const distanceInFeet = offset.length() * 45.64;
-            const msg = `X:${(offset.x * 45.64).toFixed(2)}, Y:${(offset.y * 45.64).toFixed(2)}, Z:${(offset.z * 45.64).toFixed(2)}
-            distance = ${distanceInFeet.toFixed(2)} ft from origin`;
+          if (orbitControlsRef.current)
+            orbitControlsRef.current.enabled = false; // Disable orbit while adjusting
 
-            console.log("Coordinate display:", msg);
-            setDistanceDisplay(msg);
+          setReferencePoints3D((oldPoints) => [
+            ...oldPoints,
+            {
+              label: activeLabelRef.current!,
+              x3D: hitPoint.x,
+              y3D: hitPoint.y,
+              z3D: hitPoint.z,
+            },
+          ]);
+
+          if (activeLabelRef.current === "A") setActiveLabel?.("B");
+          else if (activeLabelRef.current === "B") setActiveLabel?.("C");
+          else if (activeLabelRef.current === "C") setActiveLabel?.(null); // Done
+
+          setAwaiting3D?.(false); // No longer awaiting this point
+        } else {
+          console.log("[handleClick] Alignment point click missed model.");
+        }
+        return; // Handled alignment point placement
+      }
+
+      // --- Anchor Selection Logic ---
+      if (visibleIntersects.length > 0) {
+        let clickedObj = visibleIntersects[0].object;
+        let foundAnchor = false;
+        let selectedAnchorObjectForHighlight: THREE.Object3D | null = null; // Store object for potential highlight
+
+        // Traverse up the hierarchy to find the main anchor object
+        let currentObj: THREE.Object3D | null = clickedObj;
+        while (currentObj && !foundAnchor) {
+          // Check Text Anchors FIRST
+          if (
+            currentObj instanceof CSS3DObject &&
+            currentObj.userData.isTextLabel === true // Check our custom flag
+          ) {
+            const anchorId = currentObj.userData.anchorId;
+            const currentText = currentObj.element.textContent || "";
+            const helperMesh = currentObj.userData.helperMesh as THREE.Mesh; // Get the helper mesh
+
+            console.log(
+              `Text label clicked: ${anchorId}, Text: "${currentText}"`,
+              helperMesh ? "Helper found." : "Helper NOT found!",
+            );
+
+            // Call the info panel callback FIRST
+            if (onTextAnchorClick) {
+              onTextAnchorClick(anchorId, currentText);
+            } else {
+              console.warn("onTextAnchorClick prop is missing in ThreeViewer");
+            }
+
+            // NOW, if helper mesh exists, call handleAnchorSelect to show gizmo
+            if (helperMesh) {
+              handleAnchorSelect(anchorId, helperMesh, "text"); // Select the HELPER mesh
+              foundAnchor = true; // Mark as found *after* selection attempt
+              selectedAnchorObjectForHighlight = helperMesh; // Highlight the helper mesh
+            } else {
+              console.warn(
+                `Helper mesh not found for text anchor ${anchorId} during click.`,
+              );
+              // Still mark as found to prevent distance display, even if gizmo fails
+              foundAnchor = true;
+              selectedAnchorObjectForHighlight = currentObj; // Highlight the CSS object as fallback
+            }
+            // Break here since we've handled the text anchor click
+            break;
           }
 
-          // Hide transform UI if we clicked elsewhere
-          setShowTransformUI(false);
-        }
+          // Check Models (only if text anchor wasn't found yet)
+          if (!foundAnchor) {
+            for (const [id, model] of anchorModelsRef.current.entries()) {
+              // Make sure to check descendants as well for complex models
+              if (currentObj === model || currentObj.isDescendantOf?.(model)) {
+                handleAnchorSelect(id, model, "model");
+                foundAnchor = true;
+                selectedAnchorObjectForHighlight = model;
+                break; // Exit inner loop
+              }
+            }
+            if (foundAnchor) break; // Exit outer loop if model found
+          }
 
-        // If we didn't click on anything special, detach the transform controls
-        transformControlsRef.current?.detach();
-        if (orbitControlsRef.current) {
-          orbitControlsRef.current.enabled = true;
+          // Check File Anchors (only if not found yet)
+          if (!foundAnchor) {
+            for (const [id, fileObject] of fileAnchorsRef.current.entries()) {
+              // Check the main object OR its helper mesh
+              const helperMesh = fileObject.userData.helperMesh as THREE.Mesh;
+              if (
+                currentObj === fileObject ||
+                (helperMesh && currentObj === helperMesh)
+              ) {
+                const objectToSelect = helperMesh || fileObject; // Prefer helper if it exists
+                console.log(
+                  `File anchor clicked: ${id}, selecting ${objectToSelect === helperMesh ? "helper" : "main object"}`,
+                );
+                handleAnchorSelect(id, objectToSelect, "file");
+                foundAnchor = true;
+                selectedAnchorObjectForHighlight = objectToSelect;
+                // Also trigger the specific file click handler if needed
+                if (onFileAnchorClick) {
+                  const fileAnchorData = fileAnchors?.find((a) => a.id === id);
+                  if (fileAnchorData) {
+                    onFileAnchorClick(id, fileAnchorData);
+                  }
+                }
+                break; // Exit inner loop
+              }
+            }
+            if (foundAnchor) break; // Exit outer loop if file found
+          }
+
+          // Check Webpage Anchors (only if not found yet)
+          if (!foundAnchor) {
+            for (const [
+              id,
+              webpageObj, // This is the CSS3DObject (iframe container)
+            ] of anchorWebpagesRef.current.entries()) {
+              // Check if the clicked object IS the webpage object itself OR its helper
+              const helperMesh = webpageObj.userData.helperMesh as THREE.Mesh;
+              if (
+                currentObj === webpageObj ||
+                (helperMesh && currentObj === helperMesh)
+              ) {
+                const anchorId = webpageObj.userData.anchorId; // Get ID from CSS object
+
+                if (helperMesh) {
+                  console.log(
+                    `Webpage anchor (CSS or helper) clicked: ${anchorId}, selecting helper mesh.`,
+                  );
+                  handleAnchorSelect(anchorId, helperMesh, "webpage"); // Select the HELPER
+                  foundAnchor = true;
+                  selectedAnchorObjectForHighlight = helperMesh; // Highlight the helper
+                  // Also call the info panel callback if needed
+                  if (onWebpageAnchorClick) {
+                    const originalAnchorData = webpageAnchors?.find(
+                      (a) => a.id === anchorId,
+                    );
+                    const anchorUrl = originalAnchorData?.webpageUrl || "";
+                    onWebpageAnchorClick(anchorId, anchorUrl);
+                  }
+                } else {
+                  console.warn(
+                    `Helper mesh not found for webpage anchor ${anchorId}`,
+                  );
+                  // Fallback: maybe just call the info panel click?
+                  const originalAnchorData = webpageAnchors?.find(
+                    (a) => a.id === anchorId,
+                  );
+                  const anchorUrl = originalAnchorData?.webpageUrl || "";
+                  if (onWebpageAnchorClick) {
+                    onWebpageAnchorClick(anchorId, anchorUrl);
+                    foundAnchor = true; // Mark as found to prevent distance display
+                    selectedAnchorObjectForHighlight = webpageObj; // Highlight CSS obj as fallback
+                  }
+                }
+
+                break; // Exit the loop once found
+              }
+            }
+            if (foundAnchor) break; // Exit outer loop if webpage found
+          }
+
+          // Check Alignment Point Markers (only if not found yet)
+          if (!foundAnchor) {
+            if (
+              currentObj instanceof THREE.Mesh &&
+              currentObj.userData.label &&
+              ["A", "B", "C"].includes(currentObj.userData.label)
+            ) {
+              console.log(
+                `[handleClick] Clicked on alignment marker: ${currentObj.userData.label}`,
+              );
+              // Don't call handleAnchorSelect for alignment markers, just attach directly
+              transformControlsRef.current?.attach(currentObj);
+              transformControlsRef.current?.setMode("translate");
+              if (orbitControlsRef.current)
+                orbitControlsRef.current.enabled = false;
+              highlightObject(currentObj, sceneRef.current); // Highlight the marker
+              foundAnchor = true;
+              selectedAnchorObjectForHighlight = currentObj; // Store for potential highlight update if needed
+              // No break needed, already at end of checks for this level
+            }
+          }
+
+          // If we found any anchor type at this level, stop traversing up
+          if (foundAnchor) {
+            break; // Exit the while loop
+          }
+
+          currentObj = currentObj.parent; // Move up the hierarchy
+        } // End while loop
+
+        // ***** START CONFIRMATION LOGGING *****
+        console.log(
+          `[handleClick] After Anchor Check Loop - foundAnchor: ${foundAnchor}`,
+        );
+        // ***** END CONFIRMATION LOGGING *****
+
+        // If an anchor was found and selected/handled, apply highlight and return
+        if (foundAnchor) {
+          console.log("Anchor found, preventing distance display.");
+          // Apply highlight to the object identified during the loop
+          if (selectedAnchorObjectForHighlight) {
+            highlightObject(selectedAnchorObjectForHighlight, sceneRef.current);
+          } else {
+            // Clear highlight if somehow no object was stored but anchor was found
+            highlightObject(null, sceneRef.current);
+          }
+          return; // <-- IMPORTANT: Prevent fall-through to distance calculation
         }
+      } // End if (visibleIntersects.length > 0)
+
+      // --- Deselection or Background Click ---
+      // This part only runs if NO anchor was found OR click missed everything
+      console.log(
+        "[handleClick] No anchor found or click missed. Deselecting.",
+      );
+
+      handleDeselect(); // Deselect any currently selected anchor
+
+      // --- DISTANCE CALCULATION (The part you want to AVOID for anchors) ---
+      // Only show distance if the click hit *something* (but not a selectable anchor)
+      // and the origin point is set.
+      if (visibleIntersects.length > 0 && originPoint) {
+        const hitPoint = visibleIntersects[0].point.clone();
+        const offset = hitPoint.clone().sub(originPoint);
+        const distanceInFeet = offset.length() * 45.64; // Assuming 45.64 is your scale factor
+        const msg = `X: ${(offset.x * 45.64).toFixed(2)}, Y: ${(offset.y * 45.64).toFixed(2)}, Z: ${(offset.z * 45.64).toFixed(2)}
+          distance = ${distanceInFeet.toFixed(2)} ft from origin`;
+        console.log("Coordinate display:", msg);
+        setDistanceDisplay(msg); // Update the distance display state
+      } else if (visibleIntersects.length > 0) {
+        // Hit something, but origin not set
+        setDistanceDisplay(
+          "Origin not set. Cannot calculate relative coordinates.",
+        );
+      } else {
+        // Clicked empty space
+        setDistanceDisplay(""); // Clear distance display
       }
-    }
+    } // End of handleClick
 
     function getNDCCoords(event: MouseEvent, container: HTMLDivElement) {
       const rect = container.getBoundingClientRect();
@@ -2519,187 +3794,6 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
       raycasterRef.current.setFromCamera({ x, y }, camera);
       return raycasterRef.current.intersectObjects(scene.children, true);
     }
-
-    // Add this function to ThreeViewer.tsx
-    const createBlenderStyleGizmo = (object) => {
-      if (!sceneRef.current || !object) return;
-
-      // Remove any existing gizmo
-      const existingGizmo = sceneRef.current.getObjectByName("blender-gizmo");
-      if (existingGizmo) {
-        sceneRef.current.remove(existingGizmo);
-      }
-
-      // Create a group to hold our custom gizmo
-      const gizmoGroup = new THREE.Group();
-      gizmoGroup.name = "blender-gizmo";
-
-      // X-axis (red) arrow
-      const xArrow = createAxisArrow(0xff0000, new THREE.Vector3(1, 0, 0));
-      gizmoGroup.add(xArrow);
-
-      // Y-axis (green) arrow
-      const yArrow = createAxisArrow(0x00ff00, new THREE.Vector3(0, 1, 0));
-      gizmoGroup.add(yArrow);
-
-      // Z-axis (blue) arrow
-      const zArrow = createAxisArrow(0x0000ff, new THREE.Vector3(0, 0, 1));
-      gizmoGroup.add(zArrow);
-
-      // Position the gizmo at the object's position
-      gizmoGroup.position.copy(object.position);
-
-      // Add to scene
-      sceneRef.current.add(gizmoGroup);
-
-      // Helper function to create an arrow for an axis
-      function createAxisArrow(color, direction) {
-        const arrowLength = 0.3;
-        const arrowHead = new THREE.ConeGeometry(0.05, 0.1, 8);
-        const arrowBody = new THREE.CylinderGeometry(
-          0.01,
-          0.01,
-          arrowLength - 0.1,
-          8,
-        );
-
-        const material = new THREE.MeshBasicMaterial({ color: color });
-
-        const headMesh = new THREE.Mesh(arrowHead, material);
-        const bodyMesh = new THREE.Mesh(arrowBody, material);
-
-        // Position the arrow parts
-        bodyMesh.position.copy(
-          direction.clone().multiplyScalar(arrowLength / 2 - 0.05),
-        );
-        headMesh.position.copy(
-          direction.clone().multiplyScalar(arrowLength - 0.05),
-        );
-
-        // Rotate the arrow to point in the correct direction
-        if (!direction.equals(new THREE.Vector3(0, 1, 0))) {
-          const axis = new THREE.Vector3(0, 1, 0).cross(direction).normalize();
-          const angle = Math.acos(new THREE.Vector3(0, 1, 0).dot(direction));
-          bodyMesh.setRotationFromAxisAngle(axis, angle);
-          headMesh.setRotationFromAxisAngle(axis, angle);
-        }
-
-        const arrow = new THREE.Group();
-        arrow.add(headMesh);
-        arrow.add(bodyMesh);
-
-        return arrow;
-      }
-
-      return gizmoGroup;
-    };
-
-    // Add this function to ThreeViewer.tsx
-    const handleModelSelect = (model, anchorId) => {
-      // Save the current model ID
-      setSelectedModelId(anchorId);
-
-      // Store original transform for cancel/undo operations
-      setLastTransform({
-        position: model.position.clone(),
-        rotation: model.rotation.clone(),
-        scale: model.scale.clone(),
-      });
-
-      // Attach transform controls
-      if (transformControlsRef.current) {
-        transformControlsRef.current.attach(model);
-        transformControlsRef.current.setMode("translate"); // Default to move mode
-        setTransformMode("translate");
-
-        // Show transform UI indicator
-        setShowTransformUI(true);
-
-        // Highlight the selected model
-        addModelHighlight(model, sceneRef.current);
-
-        // Transition animation for visual feedback
-        new TWEEN.Tween(model.scale)
-          .to(
-            {
-              x: model.scale.x * 1.05,
-              y: model.scale.y * 1.05,
-              z: model.scale.z * 1.05,
-            },
-            150,
-          )
-          .yoyo(true)
-          .repeat(1)
-          .easing(TWEEN.Easing.Cubic.Out)
-          .start();
-      }
-    };
-
-    // Add this to your existing keyboard event handlers
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!transformControlsRef.current || !transformControlsRef.current.object)
-        return;
-
-      switch (event.key.toLowerCase()) {
-        case "g": // Move
-          transformControlsRef.current.setMode("translate");
-          setTransformMode("translate");
-          break;
-        case "r": // Rotate
-          transformControlsRef.current.setMode("rotate");
-          setTransformMode("rotate");
-          break;
-        case "s": // Scale
-          transformControlsRef.current.setMode("scale");
-          setTransformMode("scale");
-          break;
-        case "x": // Constrain to X axis
-          transformControlsRef.current.showX = true;
-          transformControlsRef.current.showY = false;
-          transformControlsRef.current.showZ = false;
-          break;
-        case "y": // Constrain to Y axis
-          transformControlsRef.current.showX = false;
-          transformControlsRef.current.showY = true;
-          transformControlsRef.current.showZ = false;
-          break;
-        case "z": // Constrain to Z axis
-          transformControlsRef.current.showX = false;
-          transformControlsRef.current.showY = false;
-          transformControlsRef.current.showZ = true;
-          break;
-        case " ": // Spacebar - Reset axis constraints
-          transformControlsRef.current.showX = true;
-          transformControlsRef.current.showY = true;
-          transformControlsRef.current.showZ = true;
-          break;
-        case "escape": // Cancel transformation
-          if (transformControlsRef.current.object) {
-            const originalTransform = lastTransform;
-            // Restore original position if available
-            if (originalTransform.position) {
-              transformControlsRef.current.object.position.copy(
-                originalTransform.position,
-              );
-            }
-            if (originalTransform.rotation) {
-              transformControlsRef.current.object.rotation.copy(
-                originalTransform.rotation,
-              );
-            }
-            if (originalTransform.scale) {
-              transformControlsRef.current.object.scale.copy(
-                originalTransform.scale,
-              );
-            }
-          }
-          transformControlsRef.current.detach();
-          setShowTransformUI(false);
-          break;
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
 
     mountRef.current.addEventListener("contextmenu", handleRightClick);
     mountRef.current.addEventListener("click", (e) => {
@@ -2814,12 +3908,22 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     function handleDrop(e: DragEvent) {
       e.preventDefault();
 
+      console.log(
+        "[ThreeViewer] handleDrop fired with dataTransfer items:",
+        e.dataTransfer.items,
+      );
+
       const modelDataString = e.dataTransfer?.getData("application/model");
       const fileDataString = e.dataTransfer?.getData("application/file");
-      console.log(
-        "[ThreeViewer handleDrop] Retrieved fileDataString:",
-        fileDataString,
-      ); // Log retrieved data
+      // ADDED: log the raw fileDataString
+      console.log("[ThreeViewer] handleDrop - fileDataString:", fileDataString);
+
+      if (!fileDataString) {
+        console.warn(
+          "[ThreeViewer] No 'application/file' data found. Skipping anchor creation.",
+        );
+        return;
+      }
 
       // Immediately hide the drag indicator with animation
       if (dragCircleRef.current) {
@@ -2874,13 +3978,14 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
         loadingIndicator.name = "loadingIndicator";
         sceneRef.current.add(loadingIndicator);
 
-        
-
         if (modelDataString) {
           try {
             const modelInfo = JSON.parse(modelDataString); // Parse the string here
-            console.log("[ThreeViewer handleDrop] Processing dropped model:", modelInfo);
-             // Show loading animation
+            console.log(
+              "[ThreeViewer handleDrop] Processing dropped model:",
+              modelInfo,
+            );
+            // Show loading animation
             const animate = () => {
               if (!loadingIndicator.parent) return;
               loadingIndicator.rotation.y += 0.1;
@@ -2888,183 +3993,194 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
             };
             animate();
 
-
             // Create a unique anchor ID for the model
-      const newAnchorId = `anchor-model-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+            const newAnchorId = `anchor-model-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
-              // Load the model using GLTFLoader
-              const loader = new GLTFLoader();
+            // Load the model using GLTFLoader
+            const loader = new GLTFLoader();
 
-              try {
-                // Use the URL from the model data
-                const modelUrl =
-                  modelInfo.modelUrl ||
-                  "https://f005.backblazeb2.com/file/objectModels-dev/Mona_Lisa_PBR_hires_model.glb";
+            try {
+              // Use the URL from the model data
+              const modelUrl =
+                modelInfo.modelUrl ||
+                "https://f005.backblazeb2.com/file/objectModels-dev/Mona_Lisa_PBR_hires_model.glb";
 
-                loader.load(
-                  modelUrl,
-                  (gltf) => {
-                    const model = gltf.scene;
+              loader.load(
+                modelUrl,
+                (gltf) => {
+                  const model = gltf.scene;
 
-                    // Calculate bounding box for scaling
-                    const box = new THREE.Box3().setFromObject(model);
-                    const size = box.getSize(new THREE.Vector3());
-                    const maxDim = Math.max(size.x, size.y, size.z);
+                  // Calculate bounding box for scaling
+                  const box = new THREE.Box3().setFromObject(model);
+                  const size = box.getSize(new THREE.Vector3());
+                  const maxDim = Math.max(size.x, size.y, size.z);
 
-                    // Base scale factor
-                    const baseFactor = 0.1 / maxDim;
-                    model.scale.multiplyScalar(baseFactor);
+                  // Base scale factor
+                  const baseFactor = 0.1 / maxDim;
+                  model.scale.multiplyScalar(baseFactor);
 
-                    // Position the model at the drop point
-                    model.position.copy(dropPoint);
+                  // Position the model at the drop point
+                  model.position.copy(dropPoint);
 
-                    // Add to scene
-                    sceneRef.current.add(model);
+                  // Add to scene
+                  sceneRef.current.add(model);
 
-                    // Store reference to the model
-                    anchorModelsRef.current.set(newAnchorId, model);
+                  // Store reference to the model
+                  anchorModelsRef.current.set(newAnchorId, model);
 
-                    // Add user data to identify it later
-                    model.userData.anchorId = newAnchorId;
+                  // Add user data to identify it later
+                  model.userData.anchorId = newAnchorId;
 
-                    if (loadingIndicator.parent)
-                      sceneRef.current.remove(loadingIndicator);
-
-                    // Calculate offset from origin if it exists
-                    let scaledX = dropPoint.x * 45.64;
-                    let scaledY = dropPoint.y * 45.64;
-                    let scaledZ = dropPoint.z * 45.64;
-
-                    if (originPoint) {
-                      const offset = dropPoint.clone().sub(originPoint);
-                      scaledX = offset.x * 45.64;
-                      scaledY = offset.y * 45.64;
-                      scaledZ = offset.z * 45.64;
-                    }
-
-                    // Create anchor in Firestore
-                    if (blueprintId) {
-                      // Ensure currentUser is available before accessing uid
-                      const userId = currentUser?.uid || "anonymous"; // Use optional chaining and provide a fallback
-
-                      setDoc(doc(db, "anchors", newAnchorId), {
-                        id: newAnchorId,
-                        createdDate: new Date(),
-                        contentID: `model-${Date.now()}`,
-                        contentType: "model",
-                        modelName: modelInfo.name || "3D Model",
-                        host: userId, // Use the safe userId
-                        blueprintID: blueprintId,
-                        x: scaledX,
-                        y: scaledY,
-                        z: scaledZ,
-                        scaleX: model.scale.x,
-                        scaleY: model.scale.y,
-                        scaleZ: model.scale.z,
-                        rotationX: model.rotation.x,
-                        rotationY: model.rotation.y,
-                        rotationZ: model.rotation.z,
-                        isPrivate: false,
-                      })
-                        .then(() => {
-                          console.log(
-                            "Saved model anchor to Firestore:",
-                            newAnchorId,
-                          );
-
-                          // CRITICAL FIX: Update blueprint document in a separate operation
-                          updateDoc(doc(db, "blueprints", blueprintId), {
-                            anchorIDs: arrayUnion(newAnchorId),
-                          })
-                            .then(() => {
-                              console.log(
-                                "Updated blueprint with new anchor ID:",
-                                newAnchorId,
-                              );
-                            })
-                            .catch((err) => {
-                              console.error(
-                                "Error updating blueprint with anchor ID:",
-                                err,
-                              );
-                            });
-                        })
-                        .catch((err) => {
-                          console.error("Error saving model anchor:", err);
-                        });
-                    }
-
-                    // Show success feedback
-                    showSuccessIndicator(dropPoint, modelInfo.name || "3D Model");
-                  },
-                  (xhr) => {
-                    console.log(
-                      `Model: ${(xhr.loaded / xhr.total) * 100}% loaded`,
-                    );
-                  },
-                  (error) => {
-                    console.error("Error loading model:", error);
+                  if (loadingIndicator.parent)
                     sceneRef.current.remove(loadingIndicator);
-                    showErrorIndicator(dropPoint);
-                  },
-                );
-              } catch (error) {
-                console.error("Error processing model:", error);
-                sceneRef.current.remove(loadingIndicator);
-                showErrorIndicator(dropPoint);
-              }
+
+                  // Calculate offset from origin if it exists
+                  let scaledX = dropPoint.x * 45.64;
+                  let scaledY = dropPoint.y * 45.64;
+                  let scaledZ = dropPoint.z * 45.64;
+
+                  if (originPoint) {
+                    const offset = dropPoint.clone().sub(originPoint);
+                    scaledX = offset.x * 45.64;
+                    scaledY = offset.y * 45.64;
+                    scaledZ = offset.z * 45.64;
+                  }
+
+                  // Create anchor in Firestore
+                  if (blueprintId) {
+                    // Ensure currentUser is available before accessing uid
+                    const userId = currentUser?.uid || "anonymous"; // Use optional chaining and provide a fallback
+
+                    setDoc(doc(db, "anchors", newAnchorId), {
+                      id: newAnchorId,
+                      createdDate: new Date(),
+                      contentID: `model-${Date.now()}`,
+                      contentType: "model",
+                      modelName: modelInfo.name || "3D Model",
+                      host: userId, // Use the safe userId
+                      blueprintID: blueprintId,
+                      x: scaledX,
+                      y: scaledY,
+                      z: scaledZ,
+                      scaleX: model.scale.x,
+                      scaleY: model.scale.y,
+                      scaleZ: model.scale.z,
+                      rotationX: model.rotation.x,
+                      rotationY: model.rotation.y,
+                      rotationZ: model.rotation.z,
+                      isPrivate: false,
+                    })
+                      .then(() => {
+                        console.log(
+                          "Saved model anchor to Firestore:",
+                          newAnchorId,
+                        );
+
+                        // CRITICAL FIX: Update blueprint document in a separate operation
+                        updateDoc(doc(db, "blueprints", blueprintId), {
+                          anchorIDs: arrayUnion(newAnchorId),
+                        })
+                          .then(() => {
+                            console.log(
+                              "Updated blueprint with new anchor ID:",
+                              newAnchorId,
+                            );
+                          })
+                          .catch((err) => {
+                            console.error(
+                              "Error updating blueprint with anchor ID:",
+                              err,
+                            );
+                          });
+                      })
+                      .catch((err) => {
+                        console.error("Error saving model anchor:", err);
+                      });
+                  }
+
+                  // Show success feedback
+                  showSuccessIndicator(dropPoint, modelInfo.name || "3D Model");
+                },
+                (xhr) => {
+                  console.log(
+                    `Model: ${(xhr.loaded / xhr.total) * 100}% loaded`,
+                  );
+                },
+                (error) => {
+                  console.error("Error loading model:", error);
+                  sceneRef.current.remove(loadingIndicator);
+                  showErrorIndicator(dropPoint);
+                },
+              );
             } catch (error) {
-              console.error("Error parsing model data:", error);
+              console.error("Error processing model:", error);
               sceneRef.current.remove(loadingIndicator);
               showErrorIndicator(dropPoint);
             }
-          } else if (fileDataString) { // Use the string retrieved earlier
-            try {
-              const fileInfo = JSON.parse(fileDataString); // Parse the string here
-              console.log("[ThreeViewer] File dropped:", fileInfo, "at:", dropPoint);
+          } catch (error) {
+            console.error("Error parsing model data:", error);
+            sceneRef.current.remove(loadingIndicator);
+            showErrorIndicator(dropPoint);
+          }
+        } else if (fileDataString) {
+          // Use the string retrieved earlier
+          try {
+            const fileInfo = JSON.parse(fileDataString); // Parse the string here
+            console.log(
+              "[ThreeViewer] File dropped:",
+              fileInfo,
+              "at:",
+              dropPoint,
+            );
 
-              // Calculate real-world coordinates relative to origin
-              if (originPoint) {
-                  const offset = dropPoint.clone().sub(originPoint);
-                  const scaledOffset = {
-                      x: offset.x * 45.64,
-                      y: offset.y * 45.64,
-                      z: offset.z * 45.64,
-                  };
+            // Calculate real-world coordinates relative to origin
+            if (originPoint) {
+              const offset = dropPoint.clone().sub(originPoint);
+              const scaledOffset = {
+                x: offset.x * 45.64,
+                y: offset.y * 45.64,
+                z: offset.z * 45.64,
+              };
 
-                  // Call the callback to notify BlueprintEditor
-                  if (onFileDropped) {
-                      console.log("[ThreeViewer] Calling onFileDropped with:", fileInfo, scaledOffset);
-                      onFileDropped(fileInfo, scaledOffset); // Pass fileInfo and calculated coords
-                  } else {
-                      console.error("[ThreeViewer] onFileDropped callback is missing!");
-                  }
-
-                  // Remove loading indicator (it will be re-added by state update if needed)
-                  sceneRef.current?.remove(loadingIndicator);
-                  // Show temporary success feedback (optional)
-                  showSuccessIndicator(dropPoint, fileInfo.name || "File");
-
+              // Call the callback to notify BlueprintEditor
+              if (onFileDropped) {
+                console.log(
+                  "[ThreeViewer] Calling onFileDropped with:",
+                  fileInfo,
+                  scaledOffset,
+                );
+                onFileDropped(fileInfo, scaledOffset); // Pass fileInfo and calculated coords
               } else {
-                   console.error("[ThreeViewer] Cannot place file anchor: Origin point not set.");
-                   sceneRef.current?.remove(loadingIndicator);
-                   showErrorIndicator(dropPoint, "Set origin first");
-                   // Optionally show a toast or error message to the user via onError prop
-                   onError?.("Please set the origin point before placing files.");
+                console.error(
+                  "[ThreeViewer] onFileDropped callback is missing!",
+                );
               }
 
-            } catch (error) {
-              console.error("Error processing dropped file data:", error);
+              // Remove loading indicator (it will be re-added by state update if needed)
               sceneRef.current?.remove(loadingIndicator);
-              showErrorIndicator(dropPoint);
+              // Show temporary success feedback (optional)
+              showSuccessIndicator(dropPoint, fileInfo.name || "File");
+            } else {
+              console.error(
+                "[ThreeViewer] Cannot place file anchor: Origin point not set.",
+              );
+              sceneRef.current?.remove(loadingIndicator);
+              showErrorIndicator(dropPoint, "Set origin first");
+              // Optionally show a toast or error message to the user via onError prop
+              onError?.("Please set the origin point before placing files.");
             }
-          } else {
-              // Handle case where neither model nor file data was found
-              console.warn("No valid model or file data found in drop event.");
-              sceneRef.current?.remove(loadingIndicator); // Remove loading indicator
+          } catch (error) {
+            console.error("Error processing dropped file data:", error);
+            sceneRef.current?.remove(loadingIndicator);
+            showErrorIndicator(dropPoint);
           }
-        });
-      }
+        } else {
+          // Handle case where neither model nor file data was found
+          console.warn("No valid model or file data found in drop event.");
+          sceneRef.current?.remove(loadingIndicator); // Remove loading indicator
+        }
+      });
+    }
 
     // Helper function to create loading indicator
     function createLoadingIndicator(position) {
@@ -3290,7 +4406,7 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
 
     return () => {
       window.removeEventListener("resize", handleResize);
-      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keydown", handleTransformKeyDown); // Use correct handler name
       if (mountRef.current) {
         mountRef.current.removeEventListener("contextmenu", handleRightClick);
         mountRef.current.removeEventListener("click", handleClick);
@@ -3299,6 +4415,13 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
         });
         mountRef.current.removeEventListener("drop", handleFileDrop);
         mountRef.current.removeChild(renderer.domElement);
+        if (
+          cssRenderer &&
+          cssRenderer.domElement &&
+          mountRef.current.contains(cssRenderer.domElement)
+        ) {
+          mountRef.current.removeChild(cssRenderer.domElement);
+        }
       }
       transformControls.dispose();
       scene.clear();
@@ -3310,66 +4433,152 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
       anchorWebpagesRef.current.clear();
       textAnchorsRef.current.clear();
       fileAnchorsRef.current.clear();
+      qrCodeMarkersRef.current.clear();
     };
   }, [modelPath]);
 
+  // UPDATED: useEffect for saving transform changes for ANY selected anchor
+  // UPDATED: useEffect for saving transform changes for ANY selected anchor
   useEffect(() => {
-    // Set up listener for transform changes
     if (!transformControlsRef.current) return;
 
     const handleTransformChange = () => {
-      if (!selectedModelId || !transformControlsRef.current?.object) return;
+      // Use the new unified state variables
+      if (
+        !selectedAnchorId ||
+        !selectedAnchorType || // Need type to know it's a data anchor
+        !transformControlsRef.current?.object
+      ) {
+        // Also check if the currently attached object is an alignment marker (A, B, C)
+        // If so, we don't want to save it via updateAnchorTransform
+        const attachedObj = transformControlsRef.current?.object;
+        if (
+          attachedObj &&
+          attachedObj.userData.label &&
+          ["A", "B", "C"].includes(attachedObj.userData.label)
+        ) {
+          console.log(
+            "Transform changed for alignment marker, not saving to DB.",
+          );
+          // Update the reference points state directly if needed
+          if (setReferencePoints3D) {
+            setReferencePoints3D((prevPoints) =>
+              prevPoints.map((p) => {
+                if (p.label === attachedObj.userData.label) {
+                  return {
+                    ...p,
+                    x3D: attachedObj.position.x,
+                    y3D: attachedObj.position.y,
+                    z3D: attachedObj.position.z,
+                  };
+                }
+                return p;
+              }),
+            );
+          }
+          return; // Don't proceed to save anchor data
+        }
+        // If no anchor selected, or it's not a data anchor, do nothing
+        return;
+      }
 
       const transformedObject = transformControlsRef.current.object;
+      const isHelper = transformedObject.userData?.type?.includes("helper");
 
-      // Get the current world position/rotation/scale
+      // Get the current world position/rotation/scale from the transformed object
       const currentPosition = transformedObject.position.clone();
       const currentRotation = transformedObject.rotation.clone();
       const currentScale = transformedObject.scale.clone();
 
-      // Store the last transform for undo functionality
+      // Store the last transform state locally (useful for immediate feedback or potential undo)
       setLastTransform({
         position: currentPosition,
         rotation: currentRotation,
         scale: currentScale,
       });
 
-      // Debounce the Firebase update to avoid too many writes
+      // ***** START CHANGE: Link helper transform to CSS3DObject *****
+      // If the transformed object is a helper, update its corresponding CSS object
+      if (isHelper && transformedObject.userData?.cssObject) {
+        // General case (e.g., webpage)
+        const cssObject = transformedObject.userData.cssObject as CSS3DObject;
+        cssObject.position.copy(currentPosition);
+        cssObject.rotation.copy(currentRotation);
+        // cssObject.scale.copy(currentScale); // Apply scale cautiously
+      } else if (isHelper && transformedObject.userData?.labelObject) {
+        // Specific case for text labels
+        const labelObject = transformedObject.userData
+          .labelObject as CSS3DObject;
+        labelObject.position.copy(currentPosition);
+        labelObject.rotation.copy(currentRotation);
+        // labelObject.scale.copy(currentScale); // Apply scale cautiously
+      }
+      // ***** END CHANGE *****
+
+      // Debounce the Firebase update to avoid excessive writes during drag
       if (transformUpdateTimeout.current) {
         clearTimeout(transformUpdateTimeout.current);
       }
 
       transformUpdateTimeout.current = setTimeout(() => {
-        // Convert to real-world coordinates
+        if (!selectedAnchorId) return; // Check again inside timeout
+
+        // Convert the TRANSFORMED object's world position to real-world coordinates relative to origin
+        // This works whether it's the model itself or a helper mesh
         const realWorldPos = convertToRealWorldCoords(currentPosition);
 
-        // Update Firebase with the new transform
-        updateAnchorTransform(selectedModelId, {
+        console.log(
+          `Debounced Save for ${selectedAnchorType} anchor ${selectedAnchorId}:`,
+          { realWorldPos, currentRotation, currentScale },
+        );
+
+        // Call the existing function to update Firebase
+        // This function needs to handle updating the correct fields (x, y, z, rotation, scale)
+        // Note: You might not want to save scale for text/webpage anchors unless you explicitly handle it
+        updateAnchorTransform(selectedAnchorId, {
           x: realWorldPos.x,
           y: realWorldPos.y,
           z: realWorldPos.z,
           rotationX: currentRotation.x,
           rotationY: currentRotation.y,
           rotationZ: currentRotation.z,
-          scaleX: currentScale.x,
-          scaleY: currentScale.y,
-          scaleZ: currentScale.z,
+          // Only include scale if you intend to save/restore it for this anchor type
+          // Avoid saving scale for helper-controlled anchors unless intended
+          scaleX: isHelper ? (lastTransform.scale?.x ?? 1) : currentScale.x, // Use previous scale for helpers or 1 if null
+          scaleY: isHelper ? (lastTransform.scale?.y ?? 1) : currentScale.y,
+          scaleZ: isHelper ? (lastTransform.scale?.z ?? 1) : currentScale.z,
         });
-      }, 300); // Wait 300ms after the last change
+      }, 500); // Wait 500ms after the last transform change before saving
     };
 
+    // Add listener when component mounts or controls/selection changes
     transformControlsRef.current.addEventListener(
       "objectChange",
       handleTransformChange,
     );
 
+    // Cleanup listener when component unmounts or dependencies change
     return () => {
       transformControlsRef.current?.removeEventListener(
         "objectChange",
         handleTransformChange,
       );
+      // Clear any pending timeout on cleanup
+      if (transformUpdateTimeout.current) {
+        clearTimeout(transformUpdateTimeout.current);
+      }
     };
-  }, [selectedModelId, transformControlsRef.current, originPoint]);
+    // Dependencies: Listen for changes in selected anchor, controls, and origin (for coord conversion)
+  }, [
+    selectedAnchorId,
+    selectedAnchorType,
+    transformControlsRef.current,
+    originPoint,
+    convertToRealWorldCoords,
+    updateAnchorTransform,
+    setReferencePoints3D, // Added dependency
+    lastTransform, // Added dependency for scale fallback
+  ]);
 
   useEffect(() => {
     if (!mountRef.current || !cameraRef.current || !sceneRef.current) return;
@@ -3461,6 +4670,7 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
 
         // 1) Re-create the yellow wireframe helper
         const helper = new THREE.Box3Helper(box3, 0xffff00);
+        helper.renderOrder = 9999; // Add: High render order
         scene.add(helper);
         tempBoxHelperRef.current = helper;
 
@@ -3472,18 +4682,20 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
 
         const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
         const material = new THREE.MeshBasicMaterial({
-          color: 0x0000ff, // or pick any highlight color
+          color: 0x0000ff, // Blue color
           transparent: true,
-          opacity: 0.2, // 20% visible
+          opacity: 0.3, // Optional: Slightly increased opacity
+          depthTest: false, // Add: Render on top of other objects
+          side: THREE.DoubleSide, // Ensure: Visible from inside
         });
         const fillMesh = new THREE.Mesh(geometry, material);
         fillMesh.position.copy(center);
-
-        // Optional: so you can see inside if camera is inside box
-        // fillMesh.material.side = THREE.DoubleSide;
+        fillMesh.renderOrder = 9998; // Add: High render order (just below helper)
 
         scene.add(fillMesh);
         tempBoxMeshRef.current = fillMesh;
+
+        // --- END CHANGES ---
       }
     }
 
@@ -3737,33 +4949,6 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
           </motion.div>
         )}
       </AnimatePresence>
-
-      {showTransformUI && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 20 }}
-          className="fixed bottom-4 left-4 bg-black/70 text-white rounded-lg shadow-lg px-4 py-2 z-50"
-        >
-          <div className="flex items-center gap-3">
-            <div className="font-medium text-sm uppercase">
-              {transformMode === "translate"
-                ? "MOVE"
-                : transformMode === "rotate"
-                  ? "ROTATE"
-                  : "SCALE"}
-            </div>
-            <div className="text-xs opacity-80">
-              {transformMode === "translate"
-                ? "G"
-                : transformMode === "rotate"
-                  ? "R"
-                  : "S"}
-            </div>
-            <div className="text-xs">Press X/Y/Z to constrain to axis</div>
-          </div>
-        </motion.div>
-      )}
 
       {transformUpdateSuccess && (
         <motion.div
