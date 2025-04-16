@@ -5,7 +5,7 @@ import * as THREE from "three";
 import ThreeViewer from "@/components/ThreeViewer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import ViewModeToggle from "@/components/ViewModeToggle";
+import ViewModeToggle from "@/componentsSTATE MANAGEMENT/ViewModeToggle";
 import WorkflowEditor from "@/components/WorkflowEditor";
 import { QRCodeCanvas } from "qrcode.react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -219,6 +219,11 @@ export default function BlueprintEditor() {
   // Auth and navigation
   const { currentUser } = useAuth();
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [showQrCodes, setShowQrCodes] = useState(true);
+  const [showTextAnchors, setShowTextAnchors] = useState(true); // New state for Text
+  const [showFileAnchors, setShowFileAnchors] = useState(true); // New state for Files (incl. images/videos)
+  const [showWebpageAnchors, setShowWebpageAnchors] = useState(true); // New state for Webpages
+  const [showModelAnchors, setShowModelAnchors] = useState(true); // New state for 3D Models
   const [location] = useLocation();
   const blueprintId = location.split("/").pop();
   const { toast } = useToast();
@@ -282,6 +287,56 @@ export default function BlueprintEditor() {
 
   const [selectedAnchorData, setSelectedAnchorData] = useState(null);
 
+  const handleDeleteAnchor = async (anchorId: string, blueprintId: string) => {
+    toast({
+      title: "Are you sure?",
+      description: "Deleting this anchor cannot be undone.",
+      variant: "destructive",
+      action: (
+        <Button
+          variant="destructive"
+          onClick={async () => {
+            try {
+              // 1) Delete from Firestore
+              await deleteDoc(doc(db, "anchors", anchorId));
+              await updateDoc(doc(db, "blueprints", blueprintId), {
+                anchorIDs: arrayRemove(anchorId),
+              });
+
+              // 2) Remove the anchor from local state arrays so that ThreeViewer cleans up
+              setTextAnchors((prev) => prev.filter((a) => a.id !== anchorId));
+              setFileAnchors((prev) => prev.filter((a) => a.id !== anchorId));
+              setWebpageAnchors((prev) =>
+                prev.filter((a) => a.id !== anchorId),
+              );
+              setQrCodeAnchors((prev) => prev.filter((a) => a.id !== anchorId));
+              setModelAnchors((prev) => prev.filter((a) => a.id !== anchorId));
+
+              // 3) Deselect the anchor so that any transform controls or highlighting are removed
+              setSelectedAnchorData(null);
+
+              // 4) Show success toast
+              toast({
+                title: "Anchor Deleted",
+                description: "This anchor has been permanently removed.",
+                variant: "success",
+              });
+            } catch (error) {
+              console.error("Error deleting anchor:", error);
+              toast({
+                title: "Deletion Failed",
+                description: "Could not delete anchor. Please try again.",
+                variant: "destructive",
+              });
+            }
+          }}
+        >
+          Confirm
+        </Button>
+      ),
+    });
+  };
+
   //const isPanelOpen = activeSection !== null;
   const [elementCategories, setElementCategories] = useState([
     { id: "all", name: "All Elements", icon: <LayoutGrid size={18} /> },
@@ -298,8 +353,8 @@ export default function BlueprintEditor() {
     { id: "text", name: "Text", icon: <Type size={24} /> },
     { id: "media", name: "Media", icon: <ImageIcon size={24} /> }, // Combined Image & Video
     { id: "3d", name: "3D Content", icon: <Box size={24} /> },
-    { id: "uploads", name: "Uploads", icon: <Upload size={24} /> },
     { id: "webpages", name: "Webpages", icon: <Link size={24} /> },
+    { id: "uploads", name: "Uploads", icon: <Upload size={24} /> },
     { id: "separator", type: "separator" }, // Special type for separator
     { id: "areas", name: "Areas", icon: <Square size={24} /> },
     { id: "settings", name: "Settings", icon: <Settings size={24} /> },
@@ -366,6 +421,7 @@ export default function BlueprintEditor() {
   const [activeAreaToMark, setActiveAreaToMark] = useState(null);
   // Refs
   const containerRef = useRef(null);
+  const threeViewerRef = useRef<ThreeViewerRef>(null);
   const sidebarRef = useRef(null);
   const fileInputRef = useRef(null);
   const modelFileInputRef = useRef(null);
@@ -5993,7 +6049,19 @@ export default function BlueprintEditor() {
           ) : (
             <ThreeViewer
               modelPath={model3DPath}
+              ref={threeViewerRef}
               originPoint={originPoint}
+              qrCodeAnchors={qrCodeAnchors}
+              textAnchors={textAnchors}
+              fileAnchors={fileAnchors}
+              webpageAnchors={webpageAnchors}
+              modelAnchors={modelAnchors}
+              // Pass visibility states as props
+              showQrCodes={showQrCodes}
+              showTextAnchors={showTextAnchors}
+              showFileAnchors={showFileAnchors}
+              showWebpageAnchors={showWebpageAnchors}
+              showModelAnchors={showModelAnchors}
               onOriginSet={(point) => {
                 setOriginPoint(point);
                 setIsChoosingOrigin(false);
@@ -6144,6 +6212,16 @@ export default function BlueprintEditor() {
               onWebpageAnchorClick={handleWebpageAnchorClicked}
               onFileAnchorClick={handleFileAnchorClicked}
               qrCodeAnchors={qrCodeAnchors}
+              textAnchors={textAnchors}
+              fileAnchors={fileAnchors}
+              webpageAnchors={webpageAnchors}
+              modelAnchors={modelAnchors}
+              // Pass visibility states as props
+              showQrCodes={showQrCodes}
+              showTextAnchors={showTextAnchors}
+              showFileAnchors={showFileAnchors}
+              showWebpageAnchors={showWebpageAnchors}
+              showModelAnchors={showModelAnchors}
             />
           )}
 
@@ -6157,8 +6235,10 @@ export default function BlueprintEditor() {
                   size="sm"
                   className="h-8 w-8 p-0"
                   onClick={() => {
-                    // Handle zoom out
+                    // Call zoomOut on the ThreeViewer ref
+                    threeViewerRef.current?.zoomOut(); // <<< ADD THIS
                   }}
+                  title="Zoom Out" // Optional: Add title for accessibility
                 >
                   <ZoomOut className="h-4 w-4" />
                 </Button>
@@ -6168,45 +6248,27 @@ export default function BlueprintEditor() {
                   size="sm"
                   className="h-8 w-8 p-0"
                   onClick={() => {
-                    // Handle zoom in
+                    // Call zoomIn on the ThreeViewer ref
+                    threeViewerRef.current?.zoomIn(); // <<< ADD THIS
                   }}
+                  title="Zoom In" // Optional: Add title for accessibility
                 >
                   <ZoomIn className="h-4 w-4" />
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => {
-                    // Handle center view
-                  }}
-                >
-                  <Maximize className="h-4 w-4" />
                 </Button>
               </div>
 
               {/* Separator */}
               <Separator orientation="vertical" className="h-8" />
 
-              {/* Grid Toggle */}
-              <Button
-                variant={showGrid ? "subtle" : "ghost"}
-                size="sm"
-                onClick={() => setShowGrid(!showGrid)}
-                className="h-8 w-8 p-0"
-              >
-                <Grid3X3 className="h-4 w-4" />
-              </Button>
-
               {/* Origin Point */}
               <Button
                 variant={isChoosingOrigin ? "subtle" : "ghost"}
                 size="sm"
                 onClick={() => setIsChoosingOrigin(!isChoosingOrigin)}
-                className="h-8 w-8 p-0"
+                className="h-8 p-0"
               >
-                <Target className="h-4 w-4" />
+                <Target className="h-4 w-4 mr-1.5" />
+                Choose Origin
               </Button>
 
               {/* Separator */}
@@ -6248,6 +6310,104 @@ export default function BlueprintEditor() {
                 {qrPlacementMode ? "Cancel QR" : "Place QR"}
               </Button>
             </div>
+          </div>
+
+          {/* Toggle QR Button - bottom right */}
+
+          <div className="absolute bottom-4 right-4 z-40 flex flex-col items-end gap-1">
+            {/* --- Text Anchors Toggle --- */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowTextAnchors(!showTextAnchors)}
+              className="gap-1.5 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-2 py-1 h-auto rounded-md shadow"
+              title={
+                showTextAnchors ? "Hide Text Anchors" : "Show Text Anchors"
+              }
+            >
+              {showTextAnchors ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+              <Type className="h-4 w-4" />
+            </Button>
+
+            {/* --- File Anchors Toggle (incl. Images/Videos) --- */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowFileAnchors(!showFileAnchors)}
+              className="gap-1.5 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-2 py-1 h-auto rounded-md shadow"
+              title={
+                showFileAnchors ? "Hide File Anchors" : "Show File Anchors"
+              }
+            >
+              {showFileAnchors ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+              <File className="h-4 w-4" /> {/* Using File icon */}
+            </Button>
+
+            {/* --- Webpage Anchors Toggle --- */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowWebpageAnchors(!showWebpageAnchors)}
+              className="gap-1.5 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-2 py-1 h-auto rounded-md shadow"
+              title={
+                showWebpageAnchors
+                  ? "Hide Webpage Anchors"
+                  : "Show Webpage Anchors"
+              }
+            >
+              {showWebpageAnchors ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+              <Link className="h-4 w-4" />
+            </Button>
+
+            {/* --- 3D Model Anchors Toggle --- */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowModelAnchors(!showModelAnchors)}
+              className="gap-1.5 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-2 py-1 h-auto rounded-md shadow"
+              title={
+                showModelAnchors
+                  ? "Hide 3D Model Anchors"
+                  : "Show 3D Model Anchors"
+              }
+            >
+              {showModelAnchors ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+              <Box className="h-4 w-4" />
+            </Button>
+
+            {/* --- QR Code Anchors Toggle (Existing) --- */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowQrCodes(!showQrCodes)}
+              className="gap-1.5 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-2 py-1 h-auto rounded-md shadow"
+              title={
+                showQrCodes ? "Hide QR Code Anchors" : "Show QR Code Anchors"
+              }
+            >
+              {showQrCodes ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+              <QrCode className="h-4 w-4" />
+            </Button>
           </div>
 
           {/* Properties panel - right side for selected element */}
@@ -6586,6 +6746,7 @@ export default function BlueprintEditor() {
                   <div className="w-full h-full">
                     <ThreeViewer
                       modelPath={model3DPath}
+                      ref={threeViewerRef}
                       originPoint={originPoint}
                       activeLabel={activeLabel}
                       awaiting3D={awaiting3D}
@@ -7332,7 +7493,8 @@ export default function BlueprintEditor() {
             </div>
           </div>
 
-          <div className="mt-4 text-center">
+          <div className="mt-4 flex flex-col gap-2">
+            {/* Close Button */}
             <Button
               variant="outline"
               size="sm"
@@ -7340,6 +7502,38 @@ export default function BlueprintEditor() {
               className="w-full bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 rounded-md py-1.5 transition-colors"
             >
               Close
+            </Button>
+
+            {/* 3) Our new Delete button */}
+            <Button
+              variant="destructive"
+              size="sm"
+              className="w-full text-white bg-red-500 hover:bg-red-600"
+              onClick={() =>
+                handleDeleteAnchor(
+                  selectedAnchorData.id,
+                  selectedAnchorData.blueprintID,
+                )
+              }
+            >
+              {/* Example: using a Trash icon plus “Delete” */}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4 mr-1.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 
+                  2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V5a2 
+                  2 0 00-2-2H9a2 2 0 00-2 2v2H5m14 0H5"
+                />
+              </svg>
+              Delete
             </Button>
           </div>
         </div>

@@ -1,4 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  forwardRef,
+  useImperativeHandle,
+} from "react"; // Added forwardRef, useImperativeHandle
 import * as THREE from "three";
 import { CSS3DRenderer } from "three/examples/jsm/renderers/CSS3DRenderer";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
@@ -100,6 +106,7 @@ interface ThreeViewerProps {
   onTextAnchorClick?: (anchorId: string, currentText: string) => void;
   onWebpageAnchorClick?: (anchorId: string, anchorUrl: string) => void;
   onFileAnchorClick?: (anchorId: string, anchorData: any) => void;
+  // Anchor Data Props (Keep these)
   qrCodeAnchors?: Array<{
     id: string;
     x: number;
@@ -107,6 +114,32 @@ interface ThreeViewerProps {
     z: number;
     [key: string]: any;
   }>;
+  textAnchors?: TextAnchor[];
+  fileAnchors?: Array<{
+    id: string;
+    fileType: string;
+    fileName: string;
+    fileUrl: string;
+    x: number;
+    y: number;
+    z: number;
+    thumbnailUrl?: string;
+  }>; // Added thumbnailUrl
+  webpageAnchors?: Array<{
+    id: string;
+    webpageUrl: string;
+    x: number;
+    y: number;
+    z: number;
+  }>;
+  modelAnchors?: ModelAnchor[];
+
+  // NEW Visibility Props
+  showQrCodes?: boolean;
+  showTextAnchors?: boolean;
+  showFileAnchors?: boolean;
+  showWebpageAnchors?: boolean;
+  showModelAnchors?: boolean;
 }
 
 interface OriginMarkerConfig {
@@ -140,44 +173,52 @@ const labelColors: Record<"A" | "B" | "C", number> = {
   C: 0x0000ff,
 };
 
-const ThreeViewer: React.FC<ThreeViewerProps> = ({
-  modelPath,
-  onLoad,
-  onError,
-  onTextAnchorClick,
-  onWebpageAnchorClick,
-  qrCodeAnchors,
-  onFileAnchorClick,
-  onFileDropped,
-  activeLabel,
-  awaiting3D,
-  setReferencePoints3D,
-  setAwaiting3D,
-  setActiveLabel,
-  pendingLabelTextRef,
-  scaleFactor,
-  setIsChoosingOrigin,
-  isChoosingOrigin,
-  setOriginPoint,
-  onOriginSet,
-  qrPlacementMode, // new
-  onQRPlaced, // new
-  placementMode, // ADD THIS
-  onLinkPlaced, // ADD THIS
-  originPoint,
-  modelAnchors,
-  fileAnchors,
-  showTextBoxInputRef,
-  onTextBoxSubmit,
-  isMarkingArea,
-  onAreaMarked,
-  webpageAnchors,
-  textAnchors,
-  onModelDropped,
-  onPlacementComplete,
-  markedAreas,
-  selectedArea,
-}) => {
+const ThreeViewer = forwardRef(function ThreeViewer(
+  {
+    modelPath,
+    onLoad,
+    onError,
+    onTextAnchorClick,
+    onWebpageAnchorClick,
+    qrCodeAnchors,
+    onFileAnchorClick,
+    onFileDropped,
+    activeLabel,
+    awaiting3D,
+    setReferencePoints3D,
+    setAwaiting3D,
+    setActiveLabel,
+    pendingLabelTextRef,
+    scaleFactor,
+    setIsChoosingOrigin,
+    isChoosingOrigin,
+    setOriginPoint,
+    onOriginSet,
+    qrPlacementMode, // new
+    onQRPlaced, // new
+    placementMode, // ADD THIS
+    onLinkPlaced, // ADD THIS
+    originPoint,
+    modelAnchors,
+    fileAnchors,
+    showTextBoxInputRef,
+    onTextBoxSubmit,
+    isMarkingArea,
+    onAreaMarked,
+    webpageAnchors,
+    textAnchors,
+    onModelDropped,
+    onPlacementComplete,
+    markedAreas,
+    selectedArea,
+    showQrCodes,
+    showTextAnchors,
+    showFileAnchors,
+    showWebpageAnchors,
+    showModelAnchors,
+  }: ThreeViewerProps,
+  ref, // <-- Removed extra comma here
+) {
   console.log("ThreeViewer - modelPath prop:", modelPath); // ADD THIS LINE
   const mountRef = useRef<HTMLDivElement>(null);
   const qrPlacementModeRef = useRef(qrPlacementMode);
@@ -195,6 +236,33 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
   const transformControlsRef = useRef<TransformControls | null>(null);
   const orbitControlsRef = useRef<OrbitControls | null>(null);
   const dragControlsRef = useRef<DragControls | null>(null);
+
+  useImperativeHandle(ref, () => ({
+    zoomIn() {
+      if (!orbitControlsRef.current) return;
+      // Example approach: move camera closer to target by ~10%
+      const controls = orbitControlsRef.current;
+      const cam = controls.object; // the THREE.PerspectiveCamera
+      const direction = cam.position
+        .clone()
+        .sub(controls.target)
+        .multiplyScalar(0.9);
+      cam.position.copy(controls.target.clone().add(direction));
+      controls.update();
+    },
+    zoomOut() {
+      if (!orbitControlsRef.current) return;
+      // Move camera further from target by ~10%
+      const controls = orbitControlsRef.current;
+      const cam = controls.object;
+      const direction = cam.position
+        .clone()
+        .sub(controls.target)
+        .multiplyScalar(1.1);
+      cam.position.copy(controls.target.clone().add(direction));
+      controls.update();
+    },
+  }));
 
   const isMarkerSelectedRef = useRef<boolean>(false);
   const anchorModelsRef = useRef<Map<string, THREE.Object3D>>(new Map());
@@ -215,6 +283,9 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
   const blueprintId = location.split("/").pop(); // assuming the route is /blueprint-editor/{id}
   const [originConfirmation, setOriginConfirmation] = useState<string>("");
   const [showSidePanel, setShowSidePanel] = useState(false);
+  const [modelLoadProgress, setModelLoadProgress] = useState(0);
+  const [modelLoaded, setModelLoaded] = useState(false);
+
   const [promptInput, setPromptInput] = useState("");
   const [selectedPoint, setSelectedPoint] = useState<THREE.Vector3 | null>(
     null,
@@ -390,6 +461,120 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     transformControls.setRotationSnap(THREE.MathUtils.degToRad(5));
     transformControls.setScaleSnap(0.05);
   };
+
+  useEffect(() => {
+    if (!sceneRef.current) return;
+
+    // --- Visibility Check ---
+    if (!showQrCodes) {
+      // If hidden, remove all existing QR markers and clear the map
+      qrCodeMarkersRef.current.forEach((marker, id) => {
+        sceneRef.current!.remove(marker);
+      });
+      qrCodeMarkersRef.current.clear();
+      console.log(
+        "[ThreeViewer QR Effect] All QR Code markers removed due to visibility toggle.",
+      );
+      return; // Exit early
+    }
+    // --- End Visibility Check ---
+
+    // If no anchors are passed (or an empty array), remove any existing QR markers.
+    if (!qrCodeAnchors || qrCodeAnchors.length === 0) {
+      // Loop through your stored markers and remove them from the scene.
+      qrCodeMarkersRef.current.forEach((marker, id) => {
+        sceneRef.current!.remove(marker);
+      });
+      // Clear the markers map.
+      qrCodeMarkersRef.current.clear();
+      console.log("[ThreeViewer QR Effect] All QR Code markers removed.");
+      return;
+    }
+
+    console.log(
+      `%c[ThreeViewer qrCodeAnchors Effect] START - Processing ${qrCodeAnchors.length} anchors`,
+      "color: purple; font-weight: bold;",
+    );
+
+    const currentAnchorIds = new Set(qrCodeAnchors.map((a) => a.id));
+
+    // --- Create or update markers ---
+    qrCodeAnchors.forEach((anchor) => {
+      // Skip if marker already exists (or update position if desired)
+      if (qrCodeMarkersRef.current.has(anchor.id)) {
+        // (Optional update: you could update marker.position here)
+        return;
+      }
+
+      console.log(
+        `[ThreeViewer qrCodeAnchors] Creating marker for Anchor ID: ${anchor.id}`,
+      );
+
+      // --- Calculate Position (using your code logic) ---
+      const realWorldPosition = new THREE.Vector3(
+        Number(anchor.x || 0),
+        Number(anchor.y || 0),
+        Number(anchor.z || 0),
+      );
+      let modelSpacePosition: THREE.Vector3;
+      if (originPoint) {
+        const offsetInModelUnits = realWorldPosition
+          .clone()
+          .divideScalar(45.64);
+        const originVector =
+          originPoint instanceof THREE.Vector3
+            ? originPoint.clone()
+            : new THREE.Vector3(originPoint.x, originPoint.y, originPoint.z);
+        modelSpacePosition = originVector.clone().add(offsetInModelUnits);
+      } else {
+        modelSpacePosition = realWorldPosition.clone().divideScalar(45.64);
+        console.warn(
+          `[ThreeViewer qrCodeAnchors] No originPoint for anchor ${anchor.id}. Placing relative to world origin.`,
+        );
+      }
+      console.log(
+        `[ThreeViewer qrCodeAnchors] Calculated modelSpacePosition for ${anchor.id}:`,
+        modelSpacePosition,
+      );
+
+      // --- Create a marker mesh (you already use an orange sphere) ---
+      const markerGeometry = new THREE.SphereGeometry(0.025, 16, 16);
+      const markerMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffa500, // Orange color
+        depthTest: false, // Render on top
+        transparent: true,
+        opacity: 0.9,
+      });
+      const markerMesh = new THREE.Mesh(markerGeometry, markerMaterial);
+      markerMesh.position.copy(modelSpacePosition);
+      markerMesh.renderOrder = 9999;
+      markerMesh.userData.anchorId = anchor.id;
+      markerMesh.userData.type = "qrCode";
+
+      // Add marker to the scene
+      sceneRef.current!.add(markerMesh);
+      console.log(`[ThreeViewer qrCodeAnchors] Added marker for ${anchor.id}`);
+
+      // Store the marker so you can remove or update it later.
+      qrCodeMarkersRef.current.set(anchor.id, markerMesh);
+    });
+
+    // --- Cleanup Removed Markers ---
+    qrCodeMarkersRef.current.forEach((marker, id) => {
+      if (!currentAnchorIds.has(id)) {
+        console.log(
+          `[ThreeViewer qrCodeAnchors] Removing marker for removed anchor ${id}`,
+        );
+        sceneRef.current!.remove(marker);
+        qrCodeMarkersRef.current.delete(id);
+      }
+    });
+
+    console.log(
+      `%c[ThreeViewer qrCodeAnchors Effect] END`,
+      "color: purple; font-weight: bold;",
+    );
+  }, [qrCodeAnchors, originPoint, sceneRef.current, showQrCodes]);
 
   // Then, in a useEffect:
   useEffect(() => {
@@ -596,6 +781,41 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
 
   useEffect(() => {
     if (!sceneRef.current || !fileAnchors || !cameraRef.current) return;
+
+    // --- Visibility Check ---
+    if (!showFileAnchors) {
+      fileAnchorsRef.current.forEach((object, id) => {
+        console.log(
+          `[ThreeViewer File Effect] Removing file anchor ${id} due to visibility toggle.`,
+        );
+        if (
+          object.userData.type === "file-video" &&
+          object.userData.videoElement
+        ) {
+          object.userData.videoElement.pause();
+          object.userData.videoElement.src = "";
+        }
+        sceneRef.current?.remove(object); // Remove visual object
+        // Remove associated label if it exists
+        const labelToRemove = sceneRef.current?.children.find(
+          (child) =>
+            child.userData.isLabel === true && child.userData.anchorId === id,
+        );
+        if (labelToRemove) {
+          sceneRef.current?.remove(labelToRemove);
+        }
+        // Remove helper mesh if it exists
+        if (object.userData.helperMesh && sceneRef.current) {
+          sceneRef.current.remove(object.userData.helperMesh);
+        }
+      });
+      fileAnchorsRef.current.clear();
+      console.log(
+        "[ThreeViewer File Effect] All File anchors removed due to visibility toggle.",
+      );
+      return; // Exit early
+    }
+    // --- End Visibility Check ---
 
     console.log(
       `%c[ThreeViewer fileAnchors Effect] START - Processing ${fileAnchors.length} anchors`,
@@ -945,6 +1165,99 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
           `[ThreeViewer fileAnchors] Setting video.src for ${anchor.id} to Backblaze URL: ${backblazeVideoUrl}`,
         );
         video.src = backblazeVideoUrl;
+      } else if (anchor.thumbnailUrl) {
+        // If a thumbnail URL exists (even for PDFs/docs), treat it like an image
+        console.log(
+          `[ThreeViewer fileAnchors] Found thumbnailUrl for ${anchor.id} (${anchor.fileName}). Rendering as image preview. URL: ${anchor.thumbnailUrl}`,
+        );
+        const img = new Image();
+        img.crossOrigin = "Anonymous"; // Important for textures from other origins
+
+        img.onload = () => {
+          console.log(`Thumbnail image loaded for ${anchor.id}`);
+          try {
+            const aspect = img.width / img.height;
+            // Adjust size as needed for previews
+            const planeWidth = 0.15;
+            const planeHeight = planeWidth / aspect;
+            const texture = new THREE.Texture(img);
+            texture.needsUpdate = true;
+            texture.encoding = THREE.sRGBEncoding; // Use sRGB for color accuracy
+
+            const material = new THREE.MeshBasicMaterial({
+              map: texture,
+              side: THREE.DoubleSide,
+              transparent: true, // Enable transparency if needed
+              depthWrite: false, // Often good for overlay elements
+            });
+            const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
+            const imagePlane = new THREE.Mesh(geometry, material);
+
+            imagePlane.position.copy(modelSpacePosition);
+            // Optional: Make it face the camera slightly? Or keep it aligned with world axes?
+            // imagePlane.lookAt(cameraRef.current!.position);
+
+            imagePlane.userData.anchorId = anchor.id;
+            // Distinguish preview type if needed
+            imagePlane.userData.type = "file-preview";
+
+            // Add click listener (similar to image anchors)
+            imagePlane.addEventListener("pointerdown", (e) => {
+              e.stopPropagation();
+              const helper = imagePlane.userData.helperMesh as THREE.Mesh;
+              const anchorId = imagePlane.userData.anchorId;
+              const fileAnchorData = fileAnchors?.find(
+                (a) => a.id === anchorId,
+              );
+
+              if (onFileAnchorClick && fileAnchorData) {
+                onFileAnchorClick(anchorId, fileAnchorData);
+              }
+              if (helper) {
+                handleAnchorSelect(anchorId, helper, "file");
+              } else {
+                handleAnchorSelect(anchorId, imagePlane, "file"); // Fallback
+              }
+            });
+
+            sceneRef.current!.add(imagePlane);
+            fileAnchorsRef.current.set(anchor.id, imagePlane);
+
+            // Add helper mesh (reuse existing logic)
+            const helperGeometry = new THREE.BoxGeometry(0.01, 0.01, 0.01);
+            const helperMaterial = new THREE.MeshBasicMaterial({
+              visible: false,
+              depthTest: false,
+              transparent: true,
+              opacity: 0,
+            });
+            const helperMesh = new THREE.Mesh(helperGeometry, helperMaterial);
+            helperMesh.position.copy(imagePlane.position);
+            helperMesh.rotation.copy(imagePlane.rotation);
+            imagePlane.userData.helperMesh = helperMesh;
+            helperMesh.userData.visualObject = imagePlane;
+            helperMesh.userData.anchorId = anchor.id;
+            helperMesh.userData.type = "file-helper";
+            sceneRef.current!.add(helperMesh);
+          } catch (loadError) {
+            console.error(
+              `Error creating thumbnail mesh for ${anchor.id}:`,
+              loadError,
+            );
+            // Optionally add the blue box fallback here if mesh creation fails
+          }
+        };
+        img.onerror = (errEvent) => {
+          console.error(
+            `Error loading thumbnail image for anchor ${anchor.id}. URL: ${img.src}`,
+            errEvent,
+          );
+          // Optionally add the blue box fallback here on image load error
+          // You might call a function createFallbackPlaceholder(anchor, modelSpacePosition);
+        };
+        img.src = anchor.thumbnailUrl; // Use the thumbnail URL from Firestore
+
+        // --- Keep existing PDF iframe logic if fileType is explicitly "pdf" AND no thumbnail exists ---
       } else if (anchor.fileType === "pdf") {
         //if (anchor.fileType === "pdf")
         console.log(
@@ -967,10 +1280,10 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
 
         // Wrap the iframe in a CSS3DObject so it can be positioned in the scene
         const pdfObject = new CSS3DObject(iframe);
+        pdfObject.scale.set(0.001, 0.001, 0.001);
         pdfObject.position.copy(modelSpacePosition);
         pdfObject.userData.anchorId = anchor.id;
         pdfObject.userData.type = "file-pdf";
-
         // --- ADD HELPER MESH FOR PDF ANCHOR ---
         const helperGeometry = new THREE.BoxGeometry(0.01, 0.01, 0.01);
         const helperMaterial = new THREE.MeshBasicMaterial({
@@ -1095,10 +1408,36 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
       `%c[ThreeViewer fileAnchors Effect] END`,
       "color: blue; font-weight: bold;",
     );
-  }, [fileAnchors, originPoint, cameraRef.current]);
+  }, [fileAnchors, originPoint, cameraRef.current, showFileAnchors]);
 
   useEffect(() => {
     if (!sceneRef.current || !modelAnchors) return;
+
+    // --- Visibility Check ---
+    if (!showModelAnchors) {
+      anchorModelsRef.current.forEach((modelObject, id) => {
+        console.log(
+          `[ThreeViewer Model Effect] Removing model anchor ${id} due to visibility toggle.`,
+        );
+        if (sceneRef.current) {
+          sceneRef.current.remove(modelObject);
+          // Remove associated label if it exists
+          const labelToRemove = sceneRef.current.children.find(
+            (child) =>
+              child instanceof CSS3DObject && child.userData.anchorId === id,
+          );
+          if (labelToRemove) {
+            sceneRef.current.remove(labelToRemove);
+          }
+        }
+      });
+      anchorModelsRef.current.clear();
+      console.log(
+        "[ThreeViewer Model Effect] All Model anchors removed due to visibility toggle.",
+      );
+      return; // Exit early
+    }
+    // --- End Visibility Check ---
 
     modelAnchors.forEach((anchor) => {
       if (anchorModelsRef.current.has(anchor.id)) return;
@@ -1253,7 +1592,7 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
       // Add label to scene
       sceneRef.current.add(labelObject);
     });
-  }, [modelAnchors, originPoint]);
+  }, [modelAnchors, originPoint, showModelAnchors]);
 
   // NEW: Centralized selection handler for ALL anchor types
   // NEW: Centralized selection handler for ALL anchor types
@@ -1530,6 +1869,24 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     // Ensure both scene and textAnchors exist before proceeding.
     if (!sceneRef.current || !textAnchors) return;
 
+    // --- Visibility Check ---
+    if (!showTextAnchors) {
+      textAnchorsRef.current.forEach((labelObject, anchorId) => {
+        if (labelObject && sceneRef.current) {
+          sceneRef.current.remove(labelObject);
+          if (labelObject.userData.helperMesh && sceneRef.current) {
+            sceneRef.current.remove(labelObject.userData.helperMesh);
+          }
+        }
+      });
+      textAnchorsRef.current.clear();
+      console.log(
+        "[ThreeViewer Text Effect] All Text anchors removed due to visibility toggle.",
+      );
+      return; // Exit early
+    }
+    // --- End Visibility Check ---
+
     const currentAnchorIds = new Set<string>(); // Keep track of anchors processed in this run
 
     textAnchors.forEach((anchor: TextAnchor) => {
@@ -1715,6 +2072,7 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     sceneRef.current,
     onTextAnchorClick,
     handleAnchorSelect,
+    showTextAnchors,
   ]); // Added dependencies
 
   // Update keyboard shortcuts useEffect
@@ -1764,11 +2122,23 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
   }, [selectedAnchorId, showTransformUI, handleDeselect]); // Add handleDeselect dependency
 
   useEffect(() => {
+    if (!showQrCodes) {
+      // If hidden, remove all existing QR markers and clear the map
+      qrCodeMarkersRef.current.forEach((marker, id) => {
+        sceneRef.current!.remove(marker);
+      });
+      qrCodeMarkersRef.current.clear();
+      console.log(
+        "[ThreeViewer QR Effect] All QR Code markers removed due to visibility toggle.",
+      );
+      return; // Exit early
+    }
+
     if (!sceneRef.current || !qrCodeAnchors) {
       console.log(
         "[ThreeViewer qrCodeAnchors Effect] Skipping: No scene or anchors.",
       );
-      return; // Exit if scene or anchors aren't ready
+      return;
     }
 
     console.log(
@@ -1777,40 +2147,31 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
       qrCodeAnchors,
     );
 
-    const currentAnchorIds = new Set(qrCodeAnchors.map((a) => a.id));
+    const currentAnchorIds = new Set(qrCodeAnchors.map((anchor) => anchor.id));
 
-    // --- Add or Update Markers ---
     qrCodeAnchors.forEach((anchor) => {
-      if (qrCodeMarkersRef.current.has(anchor.id)) {
-        // Optional: Update position if needed, though QR codes are usually static
-        // const existingMarker = qrCodeMarkersRef.current.get(anchor.id);
-        // existingMarker.position.copy(calculateModelSpacePosition(anchor));
-        return; // Already exists, skip creation
-      }
+      if (qrCodeMarkersRef.current.has(anchor.id)) return;
 
       console.log(
         `[ThreeViewer qrCodeAnchors] Creating marker for Anchor ID: ${anchor.id}`,
       );
-
-      // --- Calculate Position ---
       const realWorldPosition = new THREE.Vector3(
         Number(anchor.x || 0),
         Number(anchor.y || 0),
         Number(anchor.z || 0),
       );
       let modelSpacePosition: THREE.Vector3;
-
       if (originPoint) {
         const offsetInModelUnits = realWorldPosition
           .clone()
-          .divideScalar(45.64); // Use your scale factor
+          .divideScalar(45.64);
         const originVector =
           originPoint instanceof THREE.Vector3
             ? originPoint.clone()
             : new THREE.Vector3(originPoint.x, originPoint.y, originPoint.z);
         modelSpacePosition = originVector.clone().add(offsetInModelUnits);
       } else {
-        modelSpacePosition = realWorldPosition.clone().divideScalar(45.64); // Use your scale factor
+        modelSpacePosition = realWorldPosition.clone().divideScalar(45.64);
         console.warn(
           `[ThreeViewer qrCodeAnchors] No originPoint for anchor ${anchor.id}. Placing relative to world origin.`,
         );
@@ -1820,41 +2181,32 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
         modelSpacePosition,
       );
 
-      // --- Create Visual Marker ---
-      // Example: Simple orange sphere marker
-      const markerGeometry = new THREE.SphereGeometry(0.025, 16, 16); // Adjust size as needed
+      const markerGeometry = new THREE.SphereGeometry(0.025, 16, 16);
       const markerMaterial = new THREE.MeshBasicMaterial({
-        color: 0xffa500, // Orange color
-        depthTest: false, // Make it render on top
+        color: 0xffa500,
+        depthTest: false,
         transparent: true,
         opacity: 0.9,
       });
       const markerMesh = new THREE.Mesh(markerGeometry, markerMaterial);
       markerMesh.position.copy(modelSpacePosition);
-      markerMesh.renderOrder = 9999; // Ensure it's visible
-
-      // Add userData for potential future interactions
+      markerMesh.renderOrder = 9999;
       markerMesh.userData.anchorId = anchor.id;
       markerMesh.userData.type = "qrCode";
-
-      // Add marker to the scene
-      sceneRef.current!.add(markerMesh);
+      sceneRef.current.add(markerMesh);
       console.log(
         `%c[ThreeViewer qrCodeAnchors] Successfully ADDED marker mesh to scene for ${anchor.id}`,
         "color: green;",
       );
-
-      // Store reference to the marker
       qrCodeMarkersRef.current.set(anchor.id, markerMesh);
-    }); // <-- End of qrCodeAnchors.forEach
+    });
 
-    // --- Cleanup Removed Markers ---
     qrCodeMarkersRef.current.forEach((marker, id) => {
       if (!currentAnchorIds.has(id)) {
         console.log(
           `[ThreeViewer qrCodeAnchors] Cleaning up marker for anchor ${id}`,
         );
-        sceneRef.current?.remove(marker);
+        sceneRef.current.remove(marker);
         qrCodeMarkersRef.current.delete(id);
       }
     });
@@ -1863,7 +2215,7 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
       `%c[ThreeViewer qrCodeAnchors Effect] END`,
       "color: purple; font-weight: bold;",
     );
-  }, [qrCodeAnchors, originPoint, sceneRef.current]);
+  }, [qrCodeAnchors, originPoint, sceneRef.current, showQrCodes]);
 
   const loadAndAddWebpage = async (
     url: string,
@@ -2049,6 +2401,28 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
   useEffect(() => {
     if (!sceneRef.current || !webpageAnchors) return;
 
+    // --- Visibility Check ---
+    if (!showWebpageAnchors) {
+      anchorWebpagesRef.current.forEach((webpageObject, id) => {
+        console.log(
+          `[ThreeViewer Webpage Effect] Removing webpage anchor ${id} due to visibility toggle.`,
+        );
+        if (sceneRef.current) {
+          sceneRef.current.remove(webpageObject);
+          const helperMesh = webpageObject.userData.helperMesh;
+          if (helperMesh && sceneRef.current.getObjectById(helperMesh.id)) {
+            sceneRef.current.remove(helperMesh);
+          }
+        }
+      });
+      anchorWebpagesRef.current.clear();
+      console.log(
+        "[ThreeViewer Webpage Effect] All Webpage anchors removed due to visibility toggle.",
+      );
+      return; // Exit early
+    }
+    // --- End Visibility Check ---
+
     console.log("Processing webpage anchors:", webpageAnchors);
 
     webpageAnchors.forEach(async (anchor) => {
@@ -2216,7 +2590,13 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
         anchorWebpagesRef.current.delete(id);
       }
     });
-  }, [webpageAnchors, originPoint, sceneRef, loadAndAddWebpage]); // Added sceneRef and loadAndAddWebpage dependencies
+  }, [
+    webpageAnchors,
+    originPoint,
+    sceneRef,
+    loadAndAddWebpage,
+    showWebpageAnchors,
+  ]); // Added sceneRef and loadAndAddWebpage dependencies
 
   const createTextBoxMesh = (text: string, position: THREE.Vector3) => {
     // Create a canvas to draw the text
@@ -2609,21 +2989,30 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
           const size = box.getSize(new THREE.Vector3());
           const maxDim = Math.max(size.x, size.y, size.z);
           const scale = 2 / maxDim;
-          model.scale.multiplyScalar(scale * 2);
+          model.scale.multiplyScalar(scale);
           model.position.copy(center).multiplyScalar(-scale);
-
           scene.add(model);
+
+          // When the model is added, set the progress to 100 and mark as loaded:
+          setModelLoadProgress(100);
+          setModelLoaded(true);
 
           onLoad?.();
           camera.position.set(0.85, 0.85, 0.85);
           orbitControls.target.set(0, 0, 0);
           orbitControls.update();
         },
-        undefined,
+        (xhr) => {
+          if (xhr.lengthComputable) {
+            const percentComplete = (xhr.loaded / xhr.total) * 100;
+            setModelLoadProgress(percentComplete);
+          } else {
+            console.log(`Downloaded ${xhr.loaded} bytes so far`);
+          }
+        },
         (error) => {
           console.error("Error loading model:", error);
-
-          // Implement retry logic for Firebase Storage URLs
+          // Implement retry logic or error handling as needed…
           if (
             attempt < maxAttempts - 1 &&
             fullModelPath.includes("firebasestorage.googleapis.com")
@@ -2631,13 +3020,10 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
             console.log(
               `Retrying model load... Attempt ${attempt + 1}/${maxAttempts}`,
             );
-
-            // Wait a short delay before retrying
             setTimeout(() => {
               loadModelWithRetry(attempt + 1, maxAttempts);
-            }, 1000); // 1 second delay between retries
+            }, 1000);
           } else {
-            // All retries failed or not a Firebase URL
             if (onError) {
               onError(error.message || "Error loading model");
             }
@@ -4854,6 +5240,33 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     <>
       <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
 
+      {/* +++ ADD THIS PROGRESS BAR +++ */}
+      {!modelLoaded && modelLoadProgress > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: "1rem",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "240px",
+            height: "10px",
+            background: "#e2e8f0", // a light gray
+            borderRadius: "4px",
+            overflow: "hidden",
+            zIndex: 9999,
+          }}
+        >
+          <div
+            style={{
+              width: `${modelLoadProgress}%`,
+              height: "100%",
+              background: "#3b82f6", // a blue color
+              transition: "width 0.2s ease-in-out",
+            }}
+          />
+        </div>
+      )}
+
       {showTextBoxInputRef && selectedPoint && (
         <div
           style={{
@@ -4997,6 +5410,6 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
       )}
     </>
   );
-};
+});
 
 export default React.memo(ThreeViewer);
