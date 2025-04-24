@@ -6759,7 +6759,6 @@ export default function BlueprintEditor() {
                       setAwaiting3D={setAwaiting3D}
                       setActiveLabel={setActiveLabel}
                       showGrid={showGrid}
-                      markedAreas={markedAreas}
                       selectedArea={selectedArea}
                       placementMode={null}
                       webpageAnchors={[]}
