@@ -4,7 +4,7 @@
 
 "use client";
 import { Loader } from "@googlemaps/js-api-loader";
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
@@ -39,7 +39,8 @@ export default function OffWaitlistSignUpFlow() {
   // ------------------------------
   // TOKEN VALIDATION
   // ------------------------------
-
+  const [showStep2Errors, setShowStep2Errors] = useState(false);
+  const [isAddressFocused, setIsAddressFocused] = useState(false);
   const [isValidToken, setIsValidToken] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [tokenData, setTokenData] = useState(null);
@@ -61,6 +62,7 @@ export default function OffWaitlistSignUpFlow() {
   const [contactName, setContactName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [address, setAddress] = useState("");
+  const [squareFootage, setSquareFootage] = useState<number>(0);
 
   // Step 3
   const [scheduleDate, setScheduleDate] = useState(new Date());
@@ -73,6 +75,20 @@ export default function OffWaitlistSignUpFlow() {
     const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return pattern.test(email);
   }
+
+  function isValidPhone(phone: string) {
+    const digits = phone.replace(/\D/g, "");
+    return digits.length === 10;
+  }
+
+  const initialOrgNameSet = useRef(false);
+  const [isFetchingAddress, setIsFetchingAddress] = useState(false);
+
+  const step2Valid =
+    contactName.trim() !== "" &&
+    isValidPhone(phoneNumber) &&
+    address.trim() !== "" &&
+    squareFootage > 0;
 
   // ------------------------------
   // STEP HANDLERS
@@ -126,6 +142,10 @@ export default function OffWaitlistSignUpFlow() {
         return; // Stop here if there's an error
       }
     } else if (step === 2) {
+      if (!step2Valid) {
+        setShowStep2Errors(true);
+        return;
+      }
       // 1) Get the current user
       const auth = getAuth();
       const user = auth.currentUser;
@@ -140,6 +160,7 @@ export default function OffWaitlistSignUpFlow() {
           mappingContactName: contactName.trim(),
           mappingContactPhoneNumber: phoneNumber.trim(),
           address: address.trim(),
+          mappingAreaSqFt: squareFootage,
         });
       } catch (error) {
         console.error("Error updating contact info:", error);
@@ -461,7 +482,11 @@ export default function OffWaitlistSignUpFlow() {
           const data = tokenDoc.data();
 
           // Pre-fill form fields if available
-          if (data.company) setOrganizationName(data.company);
+          // Pre-fill form fields if available
+          if (data.company) {
+            setOrganizationName(data.company);
+            initialOrgNameSet.current = true; // Mark that the initial value was set programmatically
+          }
           if (data.email) setEmail(data.email);
 
           setTokenData({
@@ -483,14 +508,31 @@ export default function OffWaitlistSignUpFlow() {
   }, []); // No dependency on searchParams anymore
 
   useEffect(() => {
+    if (step === 2) {
+      setAddressPredictions([]); // wipe old suggestions
+      setShowStep2Errors(false); // reset any prior errors
+    }
+  }, [step]);
+
+  useEffect(() => {
+    // If the name was just set programmatically from the token, skip the fetch this time.
+    if (initialOrgNameSet.current) {
+      initialOrgNameSet.current = false; // Reset the flag for subsequent user input
+      return; // Exit early
+    }
+
     const timer = setTimeout(() => {
+      // Only search if the name wasn't just set programmatically AND has length
       if (organizationName) {
         handleOrgSearch(organizationName);
+      } else {
+        // Ensure predictions are cleared if the input becomes empty
+        setOrgPredictions([]);
       }
     }, 300); // 300ms debounce
 
     return () => clearTimeout(timer);
-  }, [organizationName, handleOrgSearch]);
+  }, [organizationName, handleOrgSearch]); // Dependencies remain the same
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -683,16 +725,51 @@ export default function OffWaitlistSignUpFlow() {
         placeholder="Contact's Phone Number"
         value={phoneNumber}
         onChange={(e) => setPhoneNumber(e.target.value)}
+        className={
+          showStep2Errors && !isValidPhone(phoneNumber) ? "border-red-500" : ""
+        }
       />
+      {showStep2Errors && !isValidPhone(phoneNumber) && (
+        <p className="text-red-500 text-xs mt-1">
+          Please enter a valid 10‑digit phone number.
+        </p>
+      )}
 
       <Input
         type="text"
         placeholder="Physical Address (where the mapping will occur)"
         value={address}
         onChange={(e) => setAddress(e.target.value)}
+        onFocus={() => setIsAddressFocused(true)}
+        onBlur={() => setTimeout(() => setIsAddressFocused(false), 200)}
       />
 
-      {addressPredictions.length > 0 && (
+      {/* ────────────────────────────────────────────────────────────────────── */}
+      {/* NEW FIELD: Prompt user for estimated square footage of the mapping area */}
+      <Label>Estimated Square Footage to Map</Label>
+      <Input
+        type="number"
+        placeholder="e.g. 1500"
+        value={squareFootage}
+        onChange={(e) => setSquareFootage(Number(e.target.value))}
+        className={
+          showStep2Errors && squareFootage <= 0 ? "border-red-500" : ""
+        }
+      />
+      {showStep2Errors && squareFootage <= 0 && (
+        <p className="text-red-500 text-xs mt-1">
+          Estimated square footage must be greater than zero.
+        </p>
+      )}
+
+      {showStep2Errors && (
+        <p className="text-red-500 text-sm mt-3">
+          Fix the errors above to unlock the Next button.
+        </p>
+      )}
+      {/* ────────────────────────────────────────────────────────────────────── */}
+
+      {isAddressFocused && addressPredictions.length > 0 && (
         <div className="relative">
           <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-md">
             {addressPredictions.map((prediction) => (
@@ -717,7 +794,9 @@ export default function OffWaitlistSignUpFlow() {
         <Button variant="outline" onClick={handlePrevStep}>
           Back
         </Button>
-        <Button onClick={handleNextStep}>Next</Button>
+        <Button onClick={handleNextStep} disabled={!step2Valid}>
+          Next
+        </Button>
       </div>
     </div>
   );

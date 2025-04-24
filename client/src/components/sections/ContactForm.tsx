@@ -43,6 +43,7 @@ export default function ContactForm() {
   // Form submission state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const wasSelection = useRef(false);
 
   // NEW: Company website and autocomplete
   const [companyWebsite, setCompanyWebsite] = useState("");
@@ -76,6 +77,11 @@ export default function ContactForm() {
   }, []);
 
   useEffect(() => {
+    if (wasSelection.current) {
+      wasSelection.current = false; // Reset the flag
+      return; // Exit the effect early
+    }
+
     const timer = setTimeout(() => {
       if (formData.company.length >= 3 && companyAutocomplete) {
         const request: google.maps.places.AutocompletionRequest = {
@@ -92,6 +98,9 @@ export default function ContactForm() {
               setCompanyPredictions([]);
               return;
             }
+            // Only update predictions if the input hasn't changed *during* the fetch
+            // (This check might be redundant now with the wasSelection flag, but good practice)
+            // No, removing this check as the flag handles the primary issue.
             setCompanyPredictions(predictions);
           },
         );
@@ -546,6 +555,12 @@ export default function ContactForm() {
                         placeholder="Company Name"
                         value={formData.company}
                         onChange={handleChange}
+                        onBlur={() => {
+                          // Use setTimeout to allow click event on predictions to fire first
+                          setTimeout(() => {
+                            setCompanyPredictions([]);
+                          }, 150); // 150ms delay
+                        }}
                         className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl"
                       />
                       {errors.company && (
@@ -555,6 +570,7 @@ export default function ContactForm() {
                       )}
 
                       {/* Company Autocomplete Predictions */}
+                      {/* Keep this section exactly as it was */}
                       {companyPredictions.length > 0 && (
                         <div className="relative z-10">
                           <div className="absolute w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg">
@@ -563,11 +579,12 @@ export default function ContactForm() {
                                 key={prediction.place_id}
                                 className="px-4 py-3 hover:bg-indigo-50 cursor-pointer transition-colors duration-150 first:rounded-t-xl last:rounded-b-xl"
                                 onClick={() => {
+                                  wasSelection.current = true; // Mark that the change is from selection
                                   setFormData({
                                     ...formData,
                                     company: prediction.description,
                                   });
-                                  setCompanyPredictions([]);
+                                  setCompanyPredictions([]); // Clear predictions on selection
                                   if (companyPlacesService) {
                                     const request = {
                                       placeId: prediction.place_id,
