@@ -1059,6 +1059,28 @@ export default function ScannerPortal() {
         });
       }
 
+      try {
+        await fetch(
+          "https://public.lindy.ai/api/v1/webhooks/lindy/d4154987-467d-4387-b80c-3adf9b064b9f",
+          {
+            method: "POST",
+            headers: {
+              Authorization:
+                "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              booking_id: selectedBooking.id,
+              blueprint_id: selectedBooking.blueprintId || blueprintId,
+              model_url: modelUrl || null,
+              floorplan_url: floorplanUrl || null,
+            }),
+          },
+        );
+      } catch (err) {
+        console.error("Lindy webhook error:", err);
+      }
+
       // Show success message
       toast({
         title: "Upload Complete",

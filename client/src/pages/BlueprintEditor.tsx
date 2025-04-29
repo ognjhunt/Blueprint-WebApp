@@ -6101,7 +6101,6 @@ export default function BlueprintEditor() {
               webpageAnchors={webpageAnchors}
               fileAnchors={fileAnchors}
               textAnchors={textAnchors}
-              fileAnchors={fileAnchors}
               pendingLabelTextRef={pendingLabelTextRef}
               showTextBoxInputRef={showTextBoxInputRef}
               onTextPlaced={() => {
@@ -6211,12 +6210,13 @@ export default function BlueprintEditor() {
               onTextAnchorClick={handleTextAnchorClicked}
               onWebpageAnchorClick={handleWebpageAnchorClicked}
               onFileAnchorClick={handleFileAnchorClicked}
+              // Anchor data
               qrCodeAnchors={qrCodeAnchors}
               textAnchors={textAnchors}
               fileAnchors={fileAnchors}
               webpageAnchors={webpageAnchors}
               modelAnchors={modelAnchors}
-              // Pass visibility states as props
+              // Visibility states
               showQrCodes={showQrCodes}
               showTextAnchors={showTextAnchors}
               showFileAnchors={showFileAnchors}

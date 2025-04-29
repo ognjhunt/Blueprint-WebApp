@@ -7,6 +7,7 @@ import React, {
 } from "react"; // Added forwardRef, useImperativeHandle
 import * as THREE from "three";
 import { CSS3DRenderer } from "three/examples/jsm/renderers/CSS3DRenderer";
+import { sRGBEncoding } from "three/build/three.module.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls";
 import { DragControls } from "three/examples/jsm/controls/DragControls";
@@ -909,7 +910,7 @@ const ThreeViewer = forwardRef(function ThreeViewer(
             const planeHeight = planeWidth / aspect;
             const texture = new THREE.Texture(img);
             texture.needsUpdate = true;
-            texture.encoding = THREE.sRGBEncoding;
+            texture.colorSpace = THREE.SRGBColorSpace;
 
             const material = new THREE.MeshBasicMaterial({
               map: texture,
@@ -1056,7 +1057,7 @@ const ThreeViewer = forwardRef(function ThreeViewer(
 
             const videoTexture = new THREE.VideoTexture(video);
             videoTexture.needsUpdate = true;
-            videoTexture.encoding = THREE.sRGBEncoding;
+            videoTexture.colorSpace = THREE.SRGBColorSpace;
 
             const material = new THREE.MeshBasicMaterial({
               map: videoTexture,
@@ -1182,7 +1183,7 @@ const ThreeViewer = forwardRef(function ThreeViewer(
             const planeHeight = planeWidth / aspect;
             const texture = new THREE.Texture(img);
             texture.needsUpdate = true;
-            texture.encoding = THREE.sRGBEncoding; // Use sRGB for color accuracy
+            texture.colorSpace = THREE.SRGBColorSpace; // Use sRGB for color accuracy
 
             const material = new THREE.MeshBasicMaterial({
               map: texture,
@@ -2944,7 +2945,8 @@ const ThreeViewer = forwardRef(function ThreeViewer(
     const loader = new GLTFLoader();
 
     const fullModelPath =
-      "https://f005.backblazeb2.com/file/objectModels-dev/home.glb";
+      "https://f005.backblazeb2.com/file/objectModels-dev/4_27_2025.glb";
+    //  "https://f005.backblazeb2.com/file/objectModels-dev/home.glb";
 
     // Determine if modelPath is an external URL or local path
     // let fullModelPath = modelPath;
@@ -4199,9 +4201,20 @@ const ThreeViewer = forwardRef(function ThreeViewer(
       TWEEN.update();
 
       // Always update orbit controls - they should remain responsive
-      if (orbitControls) {
-        orbitControls.update();
-      }
+      // if (orbitControls) {
+      orbitControls.update();
+      //  }
+
+      // ─── Make each CSS3D label face the camera ───
+      textAnchorsRef.current.forEach((labelObject) => {
+        labelObject.rotation.set(0, 0, 0); // ← reset
+        labelObject.lookAt(camera.position); // ← face camera
+      });
+
+      anchorWebpagesRef.current.forEach((cssObject) => {
+        cssObject.rotation.set(0, 0, 0);
+        cssObject.lookAt(camera.position);
+      });
 
       // Single render pass
       if (renderer && scene && camera) {
