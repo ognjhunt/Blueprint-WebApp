@@ -280,11 +280,23 @@ export default function BlueprintEditor() {
     name: string;
   }
 
-  const [onboardingData, setOnboardingData] = useState({
+  // Define typings for onboarding data
+  interface OnboardingData {
+    goal: string;
+    useCases: string[]; // Array of use case identifiers
+    audienceType: string;
+    keyAreas: (string | AreaItem)[]; // Can be either strings or objects with id and name
+    expectedVisitors: string;
+    techComfort: string;
+    preferredStyle: string;
+    specialFeatures: string[]; // Array of special feature identifiers
+  }
+
+  const [onboardingData, setOnboardingData] = useState<OnboardingData>({
     goal: "",
     useCases: [], // Changed from primaryUseCase (string) to useCases (array)
     audienceType: "",
-    keyAreas: [] as (string | AreaItem)[], // Can be either strings or objects with id and name
+    keyAreas: [], // Can be either strings or objects with id and name
     expectedVisitors: "",
     techComfort: "moderate",
     preferredStyle: "professional",
@@ -2657,19 +2669,11 @@ export default function BlueprintEditor() {
                       </p>
 
                       {/* Set audience type automatically based on goal */}
-                      {useEffect(() => {
-                        if (
-                          onboardingData.goal === "customerEngagement" &&
-                          !onboardingData.audienceType
-                        ) {
-                          updateOnboardingData("audienceType", "customers");
-                        } else if (
-                          onboardingData.goal === "staffTraining" &&
-                          !onboardingData.audienceType
-                        ) {
-                          updateOnboardingData("audienceType", "staff");
-                        }
-                      }, [onboardingData.goal])}
+                      <AudienceTypeEffect 
+                        goal={onboardingData.goal}
+                        audienceType={onboardingData.audienceType}
+                        updateOnboardingData={updateOnboardingData}
+                      />
 
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                         {getUseCasesByIndustry(
