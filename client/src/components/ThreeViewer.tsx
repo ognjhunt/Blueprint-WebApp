@@ -823,7 +823,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
     const originVector =
       originPoint instanceof THREE.Vector3
         ? originPoint.clone()
-        : new THREE.Vector3(originPoint.x, originPoint.y, originPoint.z);
+        : new THREE.Vector3(0, 0, 0);
 
     // 1. Get the offset from origin
     const offset = worldPos.clone().sub(originVector);
