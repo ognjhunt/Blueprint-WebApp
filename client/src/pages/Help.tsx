@@ -146,7 +146,7 @@ export default function Help() {
     },
   ]);
   const [chatInput, setChatInput] = useState("");
-  const chatEndRef = useRef(null);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
   const rescheduleForm = useForm({
     resolver: zodResolver(rescheduleFormSchema),
     defaultValues: {
@@ -168,11 +168,13 @@ export default function Help() {
 
   // Scroll to bottom of chat
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
   }, [chatMessages]);
 
   // Form submission handlers
-  const onRescheduleSubmit = (data) => {
+  const onRescheduleSubmit = (data: any) => {
     console.log(data);
     // Here you would normally send this data to your backend
     toast({
@@ -182,7 +184,7 @@ export default function Help() {
     rescheduleForm.reset();
   };
 
-  const onContactSubmit = (data) => {
+  const onContactSubmit = (data: any) => {
     console.log(data);
     // Here you would normally send this data to your backend
     toast({
@@ -194,7 +196,7 @@ export default function Help() {
   };
 
   // Chat handler
-  const handleSendMessage = (e) => {
+  const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
 
