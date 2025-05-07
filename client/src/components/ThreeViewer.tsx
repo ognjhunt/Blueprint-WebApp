@@ -7,7 +7,7 @@ import React, {
 } from "react"; // Added forwardRef, useImperativeHandle
 import * as THREE from "three";
 import { CSS3DRenderer } from "three/examples/jsm/renderers/CSS3DRenderer";
-import { sRGBEncoding } from "three/build/three.module.js";
+// Updated import to use modern THREE.SRGBColorSpace instead of deprecated sRGBEncoding
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls";
 import { DragControls } from "three/examples/jsm/controls/DragControls";
