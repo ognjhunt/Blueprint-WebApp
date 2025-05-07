@@ -661,7 +661,13 @@ export default function Dashboard() {
 
   // Generate data for the chart
   // Generate data for the chart based on user data or defaults
-  const [chartData, setChartData] = useState([]);
+  interface ChartDataItem {
+    month: string;
+    visitors: number;
+    engagement: number;
+  }
+  
+  const [chartData, setChartData] = useState<ChartDataItem[]>([]);
 
   useEffect(() => {
     const generateRealChartData = async () => {
@@ -1784,7 +1790,6 @@ export default function Dashboard() {
                                   <Progress
                                     value={42}
                                     className="h-2 bg-gray-100"
-                                    indicatorColor="bg-indigo-600"
                                   />
                                 </div>
                               </div>
