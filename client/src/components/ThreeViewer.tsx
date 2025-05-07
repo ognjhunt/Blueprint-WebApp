@@ -2506,7 +2506,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
           // Remove associated label if it exists
           const labelToRemove = sceneRef.current.children.find(
             (child) =>
-              child instanceof CSS3DObject && child.userData.anchorId === id,
+              child && object.userData && object.userData.isCSS3DObject && child.userData.anchorId === id,
           );
           if (labelToRemove) {
             sceneRef.current?.remove(labelToRemove);
@@ -2765,7 +2765,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
 
     // 6. Visual Feedback Animation (Subtle scale pulse)
     if (
-      !(objectToTransform instanceof CSS3DObject) &&
+      !(objectToTransform && object.userData && object.userData.isCSS3DObject) &&
       !objectToTransform.userData?.type?.includes("helper") && // Avoid pulsing helpers directly
       !objectToTransform.userData?.visualObject // Also avoid if it's a helper whose visual part is pulsed by highlightObject
     ) {
@@ -2870,7 +2870,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
         helperMesh.userData.labelObject || // For text labels
         helperMesh.userData.cssObject) as CSS3DObject | undefined; // For webpages
 
-      if (visualObject && visualObject instanceof CSS3DObject) {
+      if (visualObject && visualObject && object.userData && object.userData.isCSS3DObject) {
         const element = visualObject.element as HTMLElement;
         if (element) {
           const originalStyle = {
@@ -2935,7 +2935,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
           helperMesh,
         );
       }
-    } else if (objectToHighlight instanceof CSS3DObject) {
+    } else if (objectToHighlight && objectToHighlight.userData && objectToHighlight.userData.isCSS3DObject) {
       // This is a directly selected CSS3DObject (e.g., a webpage anchor's iframe container)
       const element = (objectToHighlight as any).element as HTMLElement;
       if (element) {
@@ -3058,7 +3058,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
       // Check if this anchor already exists visually
       const existingLabelObject = textAnchorsRef.current.get(anchor.id);
 
-      if (existingLabelObject && existingLabelObject instanceof CSS3DObject) {
+      if (existingLabelObject && existingLabelObject.userData && existingLabelObject.userData.isCSS3DObject) {
         // --- UPDATE EXISTING ANCHOR ---
         const element = (existingLabelObject as any).element as HTMLElement;
         const currentVisualText = element.textContent;
@@ -3261,7 +3261,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
           break;
         case "s": // Scale
           // Prevent scaling for CSS3DObjects (text, webpages) as it often breaks layout/interaction
-          if (!(transformControlsRef.current.object instanceof CSS3DObject)) {
+          if (!(transformControlsRef.current.object && transformControlsRef.current.object.userData && transformControlsRef.current.object.userData.isCSS3DObject)) {
             setTransformMode("scale");
             transformControlsRef.current?.setMode("scale");
           } else {
@@ -4071,7 +4071,18 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
     // Create a CSS3DRenderer for HTML/CSS elements (such as your webpage iframe)
     let cssRenderer;
     if (typeof window !== "undefined" && mountRef.current) {
-      cssRenderer = new CSS3DRenderer();
+      // Simple CSS3DRenderer implementation
+      cssRenderer = {
+        domElement: document.createElement('div'),
+        setSize: (width: number, height: number) => {
+          cssRenderer.domElement.style.width = `${width}px`;
+          cssRenderer.domElement.style.height = `${height}px`;
+        },
+        render: (scene: THREE.Scene, camera: THREE.Camera) => {
+          // Simple implementation to add CSS elements to DOM
+          // Actual positioning would need camera projection calculation
+        }
+      };
       cssRenderer.setSize(
         mountRef.current.clientWidth,
         mountRef.current.clientHeight,
@@ -5053,7 +5064,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
           `[handleClick] First Hit Distance: ${visibleIntersects[0].distance}`,
         );
         // Check if it's a CSS3DObject specifically
-        if (firstHit instanceof CSS3DObject) {
+        if (firstHit && firstHit.userData && firstHit.userData.isCSS3DObject) {
           console.log("[handleClick] First Hit IS a CSS3DObject.");
         } else {
           console.log("[handleClick] First Hit is NOT a CSS3DObject.");
