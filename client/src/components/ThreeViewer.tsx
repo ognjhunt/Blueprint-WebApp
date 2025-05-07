@@ -39,6 +39,13 @@ declare module "three" {
   }
 }
 
+// Extend CSS3DObject with element typings
+declare module "three/examples/jsm/renderers/CSS3DRenderer" {
+  interface CSS3DObject {
+    element: HTMLElement;
+  }
+}
+
 // Extend THREE.Object3D prototype with the isDescendantOf method
 if (typeof THREE !== "undefined" && THREE.Object3D) {
   THREE.Object3D.prototype.isDescendantOf = function (
