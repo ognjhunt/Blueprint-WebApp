@@ -471,7 +471,7 @@ export default function BlueprintEditor() {
 
   // Interactive states
   const [isDragging, setIsDragging] = useState(false);
-  const [placementMode, setPlacementMode] = useState<string | null>(null);
+  const [placementMode, setPlacementMode] = useState<{ type: "link" | "file" | "model"; data?: any } | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [activeLabel, setActiveLabel] = useState<"A" | "B" | "C" | null>(null);
@@ -4905,7 +4905,7 @@ export default function BlueprintEditor() {
   const handlePlacementComplete = async (
     position: THREE.Vector3,
     anchorIdToUpdate?: string,
-    activePlacementMode?: typeof placementMode,
+    activePlacementMode?: { type: "link" | "file" | "model"; data?: any } | null,
   ) => {
     console.log(
       "[BlueprintEditor handlePlacementComplete] Checking prerequisites:",
