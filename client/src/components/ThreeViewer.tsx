@@ -5462,7 +5462,7 @@ const ThreeViewer = forwardRef(function ThreeViewer(
       }
 
       // Check what's being dragged
-      const isModelDrag = e.dataTransfer.types.includes("application/model");
+      const isModelDrag = e.dataTransfer?.types.includes("application/model") || false;
 
       // Do a raycast so we know where to move the circle
       // Fast raycast against the drag plane only
