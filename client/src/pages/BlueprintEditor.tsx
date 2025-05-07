@@ -128,7 +128,6 @@ import {
   ZoomIn,
   ZoomOut,
   RefreshCw,
-  Cube,
   Maximize,
   Minimize,
   Move,
@@ -6463,17 +6462,6 @@ export default function BlueprintEditor() {
               onWebpageAnchorClick={handleWebpageAnchorClicked}
               onBackgroundClick={handleViewerBackgroundClick}
               onFileAnchorClick={handleFileAnchorClicked}
-              // Anchor data and visibility states
-              qrCodeAnchors={qrCodeAnchors}
-              textAnchors={textAnchors}
-              fileAnchors={fileAnchors}
-              webpageAnchors={webpageAnchors}
-              modelAnchors={modelAnchors}
-              showQrCodes={showQrCodes}
-              showTextAnchors={showTextAnchors}
-              showFileAnchors={showFileAnchors}
-              showWebpageAnchors={showWebpageAnchors}
-              showModelAnchors={showModelAnchors}
             />
           )}
 

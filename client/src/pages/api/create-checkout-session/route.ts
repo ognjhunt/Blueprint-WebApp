@@ -1,22 +1,21 @@
-import { NextResponse } from "next/server";
+import { Request, Response } from "express";
 import Stripe from "stripe";
 
-export async function POST(request) {
+export default async function handler(req: Request, res: Response) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+  
   try {
-    const body = await request.json();
+    const body = req.body;
     const { totalCost, hours, costPerHour } = body;
 
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "API_KEY";
     if (!stripeSecretKey) {
-      return NextResponse.json(
-        { error: "Missing Stripe Secret Key" },
-        { status: 500 },
-      );
+      return res.status(500).json({ error: "Missing Stripe Secret Key" });
     }
 
-    const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2022-11-15",
-    });
+    const stripe = new Stripe(stripeSecretKey);
 
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
@@ -44,12 +43,11 @@ export async function POST(request) {
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || window.location.origin}/pricing?canceled=true`,
     });
 
-    return NextResponse.json({ sessionId: session.id });
+    return res.json({ sessionId: session.id });
   } catch (error) {
     console.error("Error creating Stripe session:", error);
-    return NextResponse.json(
-      { error: error.message || "Internal Server Error" },
-      { status: 500 },
-    );
+    return res.status(500).json({ 
+      error: error.message || "Internal Server Error" 
+    });
   }
 }
