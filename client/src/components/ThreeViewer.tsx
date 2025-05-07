@@ -69,6 +69,18 @@ interface FileAnchorElements {
   isLoadingContent?: boolean; // Prevent multiple load attempts
 }
 
+// Define FileAnchor interface to fix duplicate definition errors
+interface FileAnchor {
+  id: string;
+  fileType: string;
+  fileName: string;
+  fileUrl: string;
+  x: number;
+  y: number;
+  z: number;
+  thumbnailUrl?: string;
+}
+
 interface ThreeViewerProps {
   modelPath: string;
   originPoint?: THREE.Vector3 | null;
@@ -109,15 +121,7 @@ interface ThreeViewerProps {
     max: { x: number; y: number; z: number };
   }) => void;
   markedAreas?: MarkedArea[];
-  fileAnchors?: Array<{
-    id: string;
-    fileType: string;
-    fileName: string;
-    fileUrl: string;
-    x: number;
-    y: number;
-    z: number;
-  }>;
+  fileAnchors?: FileAnchor[];
   webpageAnchors?: Array<{
     id: string;
     webpageUrl: string;
@@ -142,25 +146,6 @@ interface ThreeViewerProps {
     [key: string]: any;
   }>;
   onBackgroundClick?: () => void;
-  textAnchors?: TextAnchor[];
-  fileAnchors?: Array<{
-    id: string;
-    fileType: string;
-    fileName: string;
-    fileUrl: string;
-    x: number;
-    y: number;
-    z: number;
-    thumbnailUrl?: string;
-  }>; // Added thumbnailUrl
-  webpageAnchors?: Array<{
-    id: string;
-    webpageUrl: string;
-    x: number;
-    y: number;
-    z: number;
-  }>;
-  modelAnchors?: ModelAnchor[];
 
   // NEW Visibility Props
   showQrCodes?: boolean;
@@ -195,6 +180,10 @@ interface ModelAnchor {
   scaleX?: number;
   scaleY?: number;
   scaleZ?: number;
+  rotationX?: number;
+  rotationY?: number;
+  rotationZ?: number;
+  position?: any; // Allow position property for compatibility
   // Add any other fields if needed
 }
 
@@ -285,7 +274,9 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
       if (!orbitControlsRef.current) return;
       // Example approach: move camera closer to target by ~10%
       const controls = orbitControlsRef.current;
-      const cam = controls.object; // the THREE.PerspectiveCamera
+      // Use the camera reference directly instead of controls.object
+      const cam = cameraRef.current;
+      if (!cam) return;
       const direction = cam.position
         .clone()
         .sub(controls.target)
@@ -297,7 +288,9 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
       if (!orbitControlsRef.current) return;
       // Move camera further from target by ~10%
       const controls = orbitControlsRef.current;
-      const cam = controls.object;
+      // Use the camera reference directly instead of controls.object
+      const cam = cameraRef.current;
+      if (!cam) return;
       const direction = cam.position
         .clone()
         .sub(controls.target)
@@ -2866,7 +2859,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
       }
     } else if (objectToHighlight instanceof CSS3DObject) {
       // This is a directly selected CSS3DObject (e.g., a webpage anchor's iframe container)
-      const element = objectToHighlight.element as HTMLElement;
+      const element = (objectToHighlight as any).element as HTMLElement;
       if (element) {
         const originalStyle = {
           outline: element.style.outline || "",
@@ -2989,14 +2982,15 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
 
       if (existingLabelObject && existingLabelObject instanceof CSS3DObject) {
         // --- UPDATE EXISTING ANCHOR ---
-        const currentVisualText = existingLabelObject.element.textContent;
+        const element = (existingLabelObject as any).element as HTMLElement;
+        const currentVisualText = element.textContent;
         const newText = anchor.textContent;
 
         if (currentVisualText !== newText) {
           console.log(
             `Updating text for anchor ${anchor.id} from "${currentVisualText}" to "${newText}"`,
           );
-          existingLabelObject.element.textContent = newText;
+          element.textContent = newText;
         }
 
         // Optionally update position if needed
