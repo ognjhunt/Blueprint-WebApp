@@ -8,6 +8,13 @@ import { useToast } from "@/hooks/use-toast";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+
+// Add pdfjsLib interface to Window
+declare global {
+  interface Window {
+    pdfjsLib: any;
+  }
+}
 import {
   collection,
   query,
@@ -972,7 +979,13 @@ export default function ScannerPortal() {
 
         // Also store the files in the uploadedFiles array of the blueprint
         if (modelFile || floorplanFile) {
-          const filesArray = [];
+          const filesArray: Array<{
+            id: string;
+            type: string;
+            name: string;
+            url: string;
+            uploadedAt: number;
+          }> = [];
 
           // When creating filesArray for arrayUnion
           if (modelFile) {
@@ -1059,6 +1072,9 @@ export default function ScannerPortal() {
         });
       }
 
+      // Initialize a variable to store the blueprint ID
+      const finalBlueprintId = selectedBooking.blueprintId || (typeof blueprintId !== 'undefined' ? blueprintId : '');
+      
       try {
         await fetch(
           "https://public.lindy.ai/api/v1/webhooks/lindy/d4154987-467d-4387-b80c-3adf9b064b9f",
@@ -1071,7 +1087,7 @@ export default function ScannerPortal() {
             },
             body: JSON.stringify({
               booking_id: selectedBooking.id,
-              blueprint_id: selectedBooking.blueprintId || blueprintId,
+              blueprint_id: finalBlueprintId,
               model_url: modelUrl || null,
               floorplan_url: floorplanUrl || null,
             }),
