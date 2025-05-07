@@ -215,7 +215,7 @@ export default function CreateBlueprint() {
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
 
   // Schedule date state
-  const [scheduleDate, setScheduleDate] = useState(new Date());
+  const [scheduleDate, setScheduleDate] = useState<Date>(new Date());
   const [scheduleTime, setScheduleTime] = useState<string | null>(null);
 
   // Initialize Google Places API
