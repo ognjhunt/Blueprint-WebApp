@@ -2819,12 +2819,22 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
       // Highlight Effect 2: Add a 3D Box3Helper around the helper mesh itself
       try {
         const bbox = new THREE.Box3().setFromObject(helperMesh);
-        if (!bbox.isEmpty() && bbox.min.isFinite() && bbox.max.isFinite()) {
+        if (!bbox.isEmpty() && isFinite(bbox.min.x) && isFinite(bbox.min.y) && isFinite(bbox.min.z) && isFinite(bbox.max.x) && isFinite(bbox.max.y) && isFinite(bbox.max.z)) {
           const boxHelper = new THREE.Box3Helper(bbox, 0x00ffff); // Cyan color
           boxHelper.name = "highlight-box3-helper";
-          boxHelper.material.depthTest = false;
-          boxHelper.material.transparent = true;
-          boxHelper.material.opacity = 0.9;
+          // Safely handle materials which might be an array or a single material
+          const mat = boxHelper.material;
+          if (Array.isArray(mat)) {
+            mat.forEach(m => {
+              m.depthTest = false;
+              m.transparent = true;
+              m.opacity = 0.9;
+            });
+          } else {
+            mat.depthTest = false;
+            mat.transparent = true;
+            mat.opacity = 0.9;
+          }
           boxHelper.renderOrder = 10001;
           scene.add(boxHelper);
 
@@ -2884,12 +2894,25 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
         }
 
         const bbox = new THREE.Box3().setFromObject(objectToHighlight);
-        if (!bbox.isEmpty() && bbox.min.isFinite() && bbox.max.isFinite()) {
+        if (!bbox.isEmpty() && 
+            isFinite(bbox.min.x) && isFinite(bbox.min.y) && isFinite(bbox.min.z) &&
+            isFinite(bbox.max.x) && isFinite(bbox.max.y) && isFinite(bbox.max.z)) {
           const boxHelper = new THREE.Box3Helper(bbox, 0x00ffff); // Cyan color
           boxHelper.name = "highlight-box3-primary";
-          boxHelper.material.depthTest = false;
-          boxHelper.material.transparent = true;
-          boxHelper.material.opacity = 0.9;
+          
+          // Safely handle materials which might be an array or a single material
+          const mat = boxHelper.material;
+          if (Array.isArray(mat)) {
+            mat.forEach(m => {
+              m.depthTest = false;
+              m.transparent = true;
+              m.opacity = 0.9;
+            });
+          } else {
+            mat.depthTest = false;
+            mat.transparent = true;
+            mat.opacity = 0.9;
+          }
           boxHelper.renderOrder = 10001;
           scene.add(boxHelper);
 
@@ -3209,19 +3232,27 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
       // Now we can safely use 'controls'
       switch (e.key) {
         case "ArrowLeft":
-          controls.panLeft(panSpeed, controls.object.matrix);
+          if (typeof controls.panLeft === 'function') {
+            controls.panLeft(panSpeed);
+          }
           controls.update();
           break;
         case "ArrowRight":
-          controls.panLeft(-panSpeed, controls.object.matrix);
+          if (typeof controls.panLeft === 'function') {
+            controls.panLeft(-panSpeed);
+          }
           controls.update();
           break;
         case "ArrowUp":
-          controls.dollyIn(1 / dollySpeed); // Should now work
+          if (typeof controls.dollyIn === 'function') {
+            controls.dollyIn(1 / dollySpeed);
+          }
           controls.update();
           break;
         case "ArrowDown":
-          controls.dollyOut(1 / dollySpeed); // Should now work
+          if (typeof controls.dollyOut === 'function') {
+            controls.dollyOut(1 / dollySpeed);
+          }
           controls.update();
           break;
         default:
