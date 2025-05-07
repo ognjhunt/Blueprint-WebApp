@@ -3849,7 +3849,7 @@ export default function BlueprintEditor() {
       toast({
         title: "File Placed",
         description: `${newAnchor.fileName} added to your blueprint.`,
-        variant: "success",
+        variant: "default",
       });
       console.log(
         "[BlueprintEditor] Successfully saved file anchor to Firestore:",
@@ -3936,7 +3936,7 @@ export default function BlueprintEditor() {
       toast({
         title: "Text Label Placed",
         description: `"${text}" added to your blueprint.`,
-        variant: "success",
+        variant: "default",
       });
       console.log(
         "[BlueprintEditor] Successfully saved text anchor to Firestore:",
@@ -4006,7 +4006,7 @@ export default function BlueprintEditor() {
       toast({
         title: "Area Defined!",
         description: "Now give it a name to save it.",
-        variant: "success",
+        variant: "default",
       });
     }
   };
@@ -4322,7 +4322,7 @@ export default function BlueprintEditor() {
             title: "Minimum QR Codes Placed",
             description:
               "You've placed the minimum required QR codes. Click 'Finish' when ready.",
-            variant: "success",
+            variant: "default",
             duration: 5000,
           });
         }
@@ -4332,7 +4332,7 @@ export default function BlueprintEditor() {
             title: "Maximum QR Codes Reached",
             description:
               "You've reached the maximum of 6 QR codes. Click 'Finish' to continue.",
-            variant: "success",
+            variant: "default",
             duration: 5000,
           });
         }
@@ -4386,7 +4386,7 @@ export default function BlueprintEditor() {
       toast({
         title: "Blueprint Activated",
         description: "Your blueprint is now live and ready to use!",
-        variant: "success",
+        variant: "default",
       });
 
       // Start QR generation flow
@@ -4554,7 +4554,7 @@ export default function BlueprintEditor() {
         toast({
           title: "Upload Complete",
           description: `${file.name} has been uploaded successfully.`,
-          variant: "success",
+          variant: "default",
         });
 
         const simpleType = getSimpleFileType(fileType); // <—
@@ -4641,7 +4641,7 @@ export default function BlueprintEditor() {
         toast({
           title: "File Uploaded Successfully",
           description: `${file.name} is ready to use in your blueprint.`,
-          variant: "success",
+          variant: "default",
           duration: 4000,
           action: (
             <Button
