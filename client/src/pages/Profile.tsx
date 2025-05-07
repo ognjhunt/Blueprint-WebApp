@@ -39,6 +39,7 @@ export default function Profile() {
 
     async function fetchUserData() {
       try {
+        if (!currentUser) return;
         const docRef = doc(db, "users", currentUser.uid);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {

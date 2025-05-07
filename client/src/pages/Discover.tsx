@@ -521,7 +521,7 @@ export default function Discover() {
                         alt="Join Waitlist"
                         className="w-full aspect-video object-cover"
                         onError={(e) => {
-                          e.target.src = "/images/grocery-store.jpeg";
+                          (e.target as HTMLImageElement).src = "/images/grocery-store.jpeg";
                         }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-tr from-indigo-900/30 to-transparent" />
@@ -543,7 +543,7 @@ export default function Discover() {
                         alt="3D Mapping"
                         className="w-full aspect-video object-cover"
                         onError={(e) => {
-                          e.target.src = "/images/retail-ar.jpeg";
+                          (e.target as HTMLImageElement).src = "/images/retail-ar.jpeg";
                         }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-tr from-indigo-900/30 to-transparent" />
@@ -565,7 +565,7 @@ export default function Discover() {
                         alt="Customize"
                         className="w-full aspect-video object-cover"
                         onError={(e) => {
-                          e.target.src = "/images/hotel-ar.jpeg";
+                          (e.target as HTMLImageElement).src = "/images/hotel-ar.jpeg";
                         }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-tr from-indigo-900/30 to-transparent" />
@@ -587,7 +587,7 @@ export default function Discover() {
                         alt="Launch"
                         className="w-full aspect-video object-cover"
                         onError={(e) => {
-                          e.target.src = "/images/museum-ar.jpeg";
+                          (e.target as HTMLImageElement).src = "/images/museum-ar.jpeg";
                         }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-tr from-indigo-900/30 to-transparent" />
