@@ -3607,7 +3607,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
         const originVector =
           originPoint instanceof THREE.Vector3
             ? originPoint.clone()
-            : new THREE.Vector3(originPoint.x, originPoint.y, originPoint.z);
+            : new THREE.Vector3(0, 0, 0);
 
         // ADD this offset to the origin point (critically important - we add, not subtract!)
         modelSpacePosition = originVector.clone().add(offsetInModelUnits);
@@ -3818,7 +3818,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
     const fullModelPath = `/${finalModelPath}`;
 
     try {
-      const gltf = await new Promise((resolve, reject) => {
+      const gltf = await new Promise<any>((resolve, reject) => {
         loader.load(fullModelPath, resolve, undefined, reject);
       });
 
@@ -3870,7 +3870,9 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
       dragCircleRef.current = dragIndicator;
 
       // No animation function needed
-      animateDragIndicatorRef.current = null;
+      // Using let to avoid direct assignment to read-only ref.current
+      let animateFunc = animateDragIndicatorRef.current;
+      animateFunc = null;
     }
 
     // Create an invisible plane for faster raycasting during drag operations
@@ -4096,7 +4098,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
     const loadModelWithRetry = (attempt = 0, maxAttempts = 3) => {
       loader.load(
         fullModelPath,
-        (gltf) => {
+        (gltf: any) => {
           const model = gltf.scene;
           parentModelRef.current = model;
           const box = new THREE.Box3().setFromObject(model);
