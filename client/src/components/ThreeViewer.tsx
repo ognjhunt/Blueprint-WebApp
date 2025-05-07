@@ -4290,18 +4290,19 @@ const ThreeViewer = React.memo(
       };
       window.addEventListener("keydown", handleTransformKeyDown);
 
-      transformControls.addEventListener("dragging-changed", (event) => {
+      // Use transformControlsRef.current instead of transformControls
+      transformControlsRef.current!.addEventListener("dragging-changed", (event) => {
         orbitControls.enabled = !event.value;
       });
 
-      transformControls.addEventListener("mouseUp", () => {
+      transformControlsRef.current!.addEventListener("mouseUp", () => {
         if (orbitControlsRef.current && !isMarkerSelectedRef.current) {
           orbitControlsRef.current.enabled = true;
         }
       });
 
-      transformControls.addEventListener("objectChange", () => {
-        const controlledObject = transformControls.object;
+      transformControlsRef.current!.addEventListener("objectChange", () => {
+        const controlledObject = transformControlsRef.current!.object;
         if (controlledObject && controlledObject instanceof THREE.Mesh) {
           const draggedPointLabel = controlledObject.userData.label;
           if (draggedPointLabel && setReferencePoints3D) {
@@ -4465,7 +4466,7 @@ const ThreeViewer = React.memo(
             clickMarkerRef.current.visible = true;
             setSelectedPoint(hitPoint.clone());
             setShowSidePanel(true);
-            transformControls.detach();
+            transformControlsRef.current?.detach();
             isMarkerSelectedRef.current = false;
           }
         }
@@ -6375,7 +6376,7 @@ const ThreeViewer = React.memo(
             mountRef.current.removeChild(cssRenderer.domElement);
           }
         }
-        transformControls.dispose();
+        transformControlsRef.current?.dispose();
         scene.clear();
         if (renderer) {
           renderer.dispose();
