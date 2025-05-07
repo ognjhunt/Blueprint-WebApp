@@ -750,7 +750,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
       btn.addEventListener("click", (e) => {
         /* ... play/pause logic ... */
       });
-      const cssObj = new CSS3DObject(wrapper);
+      const cssObj = createCSS3DObject(wrapper);
       cssObj.scale.set(0.0015, 0.0015, 0.0015);
       cssObj.position.copy(modelSpacePosition);
       cssObj.userData = { anchorId: anchor.id, type: "file-audio-content" };
@@ -825,7 +825,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
                 document.createElement("div"); /* ... style labelDiv ... */
               labelDiv.textContent =
                 anchor.fileName || determinedFileType.toUpperCase();
-              labelObject = new CSS3DObject(labelDiv);
+              labelObject = createCSS3DObject(labelDiv);
               labelObject.scale.set(0.001, 0.001, 0.001);
               labelObject.position
                 .copy(iconPlane.position)
@@ -1466,7 +1466,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
       //   labelDiv.style.whiteSpace = "nowrap";
       //   labelDiv.style.pointerEvents = "none";
 
-      //   const labelObject = new CSS3DObject(labelDiv);
+      //   const labelObject = createCSS3DObject(labelDiv);
       //   labelObject.scale.set(0.003, 0.003, 0.003);
       //   labelObject.position
       //     .copy(modelSpacePosition)
@@ -1739,7 +1739,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
         });
 
         // 4.  turn the wrapper into a CSS3DObject
-        const cssObj = new CSS3DObject(wrapper);
+        const cssObj = createCSS3DObject(wrapper);
         cssObj.scale.set(0.0015, 0.0015, 0.0015); // same size as textAnchor
         cssObj.position.copy(modelSpacePosition);
         cssObj.userData.anchorId = anchor.id;
@@ -2131,7 +2131,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
             labelDiv.style.textAlign = "center";
             labelDiv.style.pointerEvents = "none";
 
-            const labelObject = new CSS3DObject(labelDiv);
+            const labelObject = createCSS3DObject(labelDiv);
             labelObject.scale.set(0.001, 0.001, 0.001); // Adjust scale
             const labelOffset = new THREE.Vector3(
               0,
@@ -2240,7 +2240,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
             labelDiv.style.textAlign = "center";
             labelDiv.style.pointerEvents = "none";
 
-            const labelObject = new CSS3DObject(labelDiv);
+            const labelObject = createCSS3DObject(labelDiv);
             labelObject.scale.set(0.001, 0.001, 0.001);
             const labelOffset = new THREE.Vector3(
               0,
@@ -2346,7 +2346,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
             labelDiv.style.textAlign = "center";
             labelDiv.style.pointerEvents = "none";
 
-            const labelObject = new CSS3DObject(labelDiv);
+            const labelObject = createCSS3DObject(labelDiv);
             labelObject.scale.set(0.001, 0.001, 0.001);
             const labelOffset = new THREE.Vector3(
               0,
@@ -2662,7 +2662,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
       labelDiv.style.borderRadius = "4px";
       labelDiv.style.whiteSpace = "nowrap";
 
-      const labelObject = new CSS3DObject(labelDiv);
+      const labelObject = createCSS3DObject(labelDiv);
       // Scale the label down (adjust 0.01 as needed)
       labelObject.scale.set(0.005, 0.005, 0.005);
 
@@ -3153,7 +3153,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
       labelDiv.style.fontWeight = "400";
       labelDiv.style.letterSpacing = "0.2px";
 
-      const labelObject = new CSS3DObject(labelDiv); // Define labelObject here
+      const labelObject = createCSS3DObject(labelDiv); // Define labelObject here
       labelObject.scale.set(0.0015, 0.0015, 0.0015);
       labelObject.position.copy(modelSpacePosition);
       labelObject.userData.anchorId = anchor.id;
@@ -3615,7 +3615,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
     };
 
     // Create the CSS3DObject with the container
-    const css3dObject = new CSS3DObject(container);
+    const css3dObject = createCSS3DObject(container);
     css3dObject.position.copy(position); // Position directly at the anchor point
 
     // Adjust scale
@@ -3798,7 +3798,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
           labelDiv.style.backgroundColor = "rgba(255,220,220,0.8)";
           labelDiv.style.borderRadius = "4px";
           labelDiv.style.whiteSpace = "nowrap";
-          const labelObject = new CSS3DObject(labelDiv);
+          const labelObject = createCSS3DObject(labelDiv);
           labelObject.scale.set(0.005, 0.005, 0.005);
           labelObject.position.copy(modelSpacePosition); // Position at the anchor point
           sceneRef.current?.add(labelObject);
@@ -4593,7 +4593,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
     //     labelDiv.style.borderRadius = "4px";
     //     labelDiv.style.whiteSpace = "nowrap";
 
-    //     const labelObject = new CSS3DObject(labelDiv);
+    //     const labelObject = createCSS3DObject(labelDiv);
     //     labelObject.scale.set(0.005, 0.005, 0.005);
     //     labelObject.position.copy(
     //       hitPoint.clone().add(new THREE.Vector3(0, 0.05, 0)),
@@ -6028,7 +6028,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
       labelDiv.style.boxShadow = "0 2px 5px rgba(0,0,0,0.1)";
       labelDiv.style.fontWeight = "500";
 
-      const labelObject = new CSS3DObject(labelDiv);
+      const labelObject = createCSS3DObject(labelDiv);
       labelObject.scale.set(0.005, 0.005, 0.005);
       labelObject.position.copy(
         position.clone().add(new THREE.Vector3(0, 0.15, 0)),
