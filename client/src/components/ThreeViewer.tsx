@@ -69,6 +69,25 @@ interface FileAnchorElements {
   isLoadingContent?: boolean; // Prevent multiple load attempts
 }
 
+// Define missing interfaces to fix type errors
+interface ReferencePoint {
+  id: string;
+  x: number; 
+  y: number;
+  z: number;
+  x3D?: number; // Optional legacy properties that might be used elsewhere
+  y3D?: number;
+  z3D?: number;
+  label: "A" | "B" | "C";
+}
+
+interface MarkedArea {
+  id: string;
+  name: string;
+  min: { x: number; y: number; z: number };
+  max: { x: number; y: number; z: number };
+}
+
 // Define FileAnchor interface to fix duplicate definition errors
 interface FileAnchor {
   id: string;
@@ -542,32 +561,43 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
               type: "file-image-content",
             };
 
-            imagePlane.addEventListener("pointerdown", (e) => {
-              e.stopPropagation();
-              const helper = imagePlane.userData.helperMesh as THREE.Mesh;
-              const faData = fileAnchorsProp?.find((f) => f.id === anchor.id);
-              if (onFileAnchorClickHandler && faData)
-                onFileAnchorClickHandler(anchor.id, faData);
-              handleAnchorSelectHandler(
-                anchor.id,
-                helper || imagePlane,
-                "file",
-              );
-            });
+            // Use THREE.Mesh.onPointerDown instead of addEventListener due to TypeScript issues
+            const mesh = new THREE.Mesh(
+              new THREE.PlaneGeometry(planeWidth, planeHeight),
+              material
+            );
+            mesh.position.copy(modelSpacePosition);
+            mesh.userData = {
+              anchorId: anchor.id,
+              type: "file-image-content",
+              onPointerDown: (e: any) => {
+                e.stopPropagation();
+                const helper = mesh.userData.helperMesh as THREE.Mesh;
+                const faData = fileAnchorsProp?.find((f) => f.id === anchor.id);
+                if (onFileAnchorClickHandler && faData)
+                  onFileAnchorClickHandler(anchor.id, faData);
+                handleAnchorSelectHandler(
+                  anchor.id,
+                  helper || mesh,
+                  "file"
+                );
+              }
+            };
 
             const helperGeo = new THREE.BoxGeometry(0.01, 0.01, 0.01);
             const helperMat = new THREE.MeshBasicMaterial({ visible: false });
             const helperMesh = new THREE.Mesh(helperGeo, helperMat);
-            helperMesh.position.copy(imagePlane.position);
-            helperMesh.rotation.copy(imagePlane.rotation);
-            imagePlane.userData.helperMesh = helperMesh;
+            helperMesh.position.copy(mesh.position);
+            helperMesh.rotation.copy(mesh.rotation);
+            mesh.userData.helperMesh = helperMesh;
             helperMesh.userData = {
-              visualObject: imagePlane,
+              visualObject: mesh,
               anchorId: anchor.id,
               type: "file-helper",
             };
             scene.add(helperMesh);
-            resolve(imagePlane);
+            scene.add(mesh);
+            resolve(mesh);
           } catch (err) {
             console.error("Error creating image content:", err);
             resolve(null);
@@ -671,7 +701,8 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
       const label = document.createElement("span");
       /* ... style label ... */ wrapper.appendChild(label);
       const audioEl = new Audio(anchor.fileUrl);
-      wrapper.userData = { audioEl };
+      // Store audio element reference in a local variable instead of using HTMLElement.userData
+      const audioElRef = audioEl;
       btn.addEventListener("click", (e) => {
         /* ... play/pause logic ... */
       });
@@ -5149,10 +5180,14 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
           setReferencePoints3D((oldPoints) => [
             ...oldPoints,
             {
-              label: activeLabelRef.current!,
-              x3D: hitPoint.x,
+              id: `point-${Date.now()}`, // Generate a unique ID
+              x: hitPoint.x,
+              y: hitPoint.y,
+              z: hitPoint.z,
+              x3D: hitPoint.x, // Also include the legacy properties
               y3D: hitPoint.y,
               z3D: hitPoint.z,
+              label: activeLabelRef.current!,
             },
           ]);
 
