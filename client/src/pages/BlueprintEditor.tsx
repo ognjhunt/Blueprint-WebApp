@@ -13,6 +13,19 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import FeatureConfigHub from "@/components/FeatureConfigScreens";
 import { Switch } from "@/components/ui/switch";
+
+// Helper component for audience type effect
+function AudienceTypeEffect({ goal, audienceType, updateOnboardingData }) {
+  useEffect(() => {
+    if (goal === "customerEngagement" && !audienceType) {
+      updateOnboardingData("audienceType", "customers");
+    } else if (goal === "staffTraining" && !audienceType) {
+      updateOnboardingData("audienceType", "staff");
+    }
+  }, [goal, audienceType, updateOnboardingData]);
+  
+  return null;
+}
 // Firebase
 import {
   doc,
@@ -2348,9 +2361,9 @@ export default function BlueprintEditor() {
                             Key Areas
                           </h4>
                           <div className="flex flex-wrap gap-1.5 mt-0.5">
-                            {onboardingData.keyAreas.map((area) => (
+                            {onboardingData.keyAreas.map((area, index) => (
                               <Badge
-                                key={area}
+                                key={index} // Using index as a fallback key
                                 className="bg-white py-0.5 px-1.5 text-xs"
                               >
                                 {getAreaLabel(area, prefillData.industry)}
