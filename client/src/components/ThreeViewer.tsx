@@ -9,6 +9,7 @@ import * as THREE from "three";
 // Removed CSS3DRenderer import - we'll use our own interface
 // Updated import to use modern THREE.SRGBColorSpace instead of deprecated sRGBEncoding
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
+import { TransformControls } from "three-transform-controls";
 
 // TypeScript interface declarations for TransformControls and DragControls to avoid import errors
 interface TransformControls extends THREE.Object3D {
@@ -4234,45 +4235,8 @@ const ThreeViewer = React.memo(
       orbitControls.enableDamping = true;
       orbitControlsRef.current = orbitControls;
 
-      // Use our own implementation instead of dynamic import to avoid build issues
-      class MockTransformControls {
-        constructor(camera: THREE.Camera, domElement: HTMLElement) {
-          this.visible = true;
-          this.enabled = true;
-          this.mode = "translate";
-          this.space = "world";
-          this.object = null;
-          this.showX = true;
-          this.showY = true;
-          this.showZ = true;
-          this.dragging = false;
-        }
-        
-        visible: boolean;
-        enabled: boolean;
-        mode: string;
-        space: string;
-        object: THREE.Object3D | null;
-        showX: boolean;
-        showY: boolean;
-        showZ: boolean;
-        dragging: boolean;
-        
-        attach(object: THREE.Object3D) { this.object = object; return this as any; }
-        detach() { this.object = null; }
-        dispose() {}
-        setMode(mode: string) { this.mode = mode; }
-        setSpace(space: string) { this.space = space; }
-        setSize(size: number) {}
-        setTranslationSnap(translationSnap: number) {}
-        setRotationSnap(rotationSnap: number) {}
-        setScaleSnap(scaleSnap: number) {}
-        addEventListener(type: string, listener: (event: any) => void) {}
-        removeEventListener(type: string, listener: (event: any) => void) {}
-      }
-      
-      // Create mock transform controls
-      const transformControls = new MockTransformControls(camera, renderer.domElement) as unknown as TransformControls;
+      // Create the transform controls directly using the imported module
+      const transformControls = new TransformControls(camera, renderer.domElement);
       transformControlsRef.current = transformControls;
       scene.add(transformControls);
       

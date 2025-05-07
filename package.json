@@ -87,6 +87,7 @@
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.158.0",
+    "three-transform-controls": "^1.0.4",
     "uuid": "^11.1.0",
     "vaul": "^1.1.0",
     "wouter": "^3.3.5",
