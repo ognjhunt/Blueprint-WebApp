@@ -1000,7 +1000,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
         const originVector =
           originPoint instanceof THREE.Vector3
             ? originPoint.clone()
-            : new THREE.Vector3(0, 0, 0);
+            : new THREE.Vector3(originPoint.x, originPoint.y, originPoint.z);
         modelSpacePosition = originVector.clone().add(offsetInModelUnits);
       } else {
         modelSpacePosition = realWorldPosition.clone().divideScalar(45.64);
@@ -1088,7 +1088,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
     if (!sceneRef.current || !markedAreas || !selectedArea) {
       // If no area is selected, remove any existing highlight
       if (highlightedAreaMeshRef.current && sceneRef.current) {
-        sceneRef.current?.remove(highlightedAreaMeshRef.current);
+        sceneRef.current.remove(highlightedAreaMeshRef.current);
         highlightedAreaMeshRef.current = null;
       }
       return;
@@ -1100,7 +1100,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
 
     // Remove any existing highlight
     if (highlightedAreaMeshRef.current) {
-      sceneRef.current?.remove(highlightedAreaMeshRef.current);
+      sceneRef.current.remove(highlightedAreaMeshRef.current);
       highlightedAreaMeshRef.current = null;
     }
 
@@ -1129,7 +1129,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
     highlightMesh.renderOrder = 10000; // Ensure it renders on top
 
     // Add to scene
-    sceneRef.current?.add(highlightMesh);
+    sceneRef.current.add(highlightMesh);
     highlightedAreaMeshRef.current = highlightMesh;
 
     // Add a pulse animation effect
@@ -1282,7 +1282,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
         }
         // Remove helper mesh if it exists
         if (object.userData.helperMesh && sceneRef.current) {
-          sceneRef.current?.remove(object.userData.helperMesh);
+          sceneRef.current.remove(object.userData.helperMesh);
         }
       });
       fileAnchorsRef.current.clear();
@@ -1322,7 +1322,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
         const originVector =
           originPoint instanceof THREE.Vector3
             ? originPoint.clone()
-            : new THREE.Vector3(0, 0, 0);
+            : new THREE.Vector3(originPoint.x, originPoint.y, originPoint.z);
         modelSpacePosition = originVector.clone().add(offsetInModelUnits);
       } else {
         modelSpacePosition = realWorldPosition.clone().divideScalar(45.6);
@@ -2421,14 +2421,14 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
           `[ThreeViewer Model Effect] Removing model anchor ${id} due to visibility toggle.`,
         );
         if (sceneRef.current) {
-          sceneRef.current?.remove(modelObject);
+          sceneRef.current.remove(modelObject);
           // Remove associated label if it exists
           const labelToRemove = sceneRef.current.children.find(
             (child) =>
               child instanceof CSS3DObject && child.userData.anchorId === id,
           );
           if (labelToRemove) {
-            sceneRef.current?.remove(labelToRemove);
+            sceneRef.current.remove(labelToRemove);
           }
         }
       });
@@ -2492,7 +2492,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
       });
       const tempMarker = new THREE.Mesh(tempMarkerGeometry, tempMarkerMaterial);
       tempMarker.position.copy(anchorPosition);
-      sceneRef.current?.add(tempMarker);
+      sceneRef.current.add(tempMarker);
 
       // Load the actual model
       // Load the actual model
@@ -2541,10 +2541,10 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
           model.position.copy(anchorPosition);
 
           // Add the model to the scene
-          sceneRef.current?.add(model);
+          sceneRef.current.add(model);
 
           // Remove temporary marker
-          sceneRef.current?.remove(tempMarker);
+          sceneRef.current.remove(tempMarker);
 
           // Store reference to the model
           anchorModelsRef.current.set(anchor.id, model);
@@ -2591,7 +2591,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
         .add(new THREE.Vector3(0, 0.15, 0)); // Increased Y offset for models
 
       // Add label to scene
-      sceneRef.current?.add(labelObject);
+      sceneRef.current.add(labelObject);
     });
   }, [modelAnchors, originPoint, showModelAnchors]);
 
@@ -2932,9 +2932,9 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
     if (!showTextAnchors) {
       textAnchorsRef.current.forEach((labelObject, anchorId) => {
         if (labelObject && sceneRef.current) {
-          sceneRef.current?.remove(labelObject);
+          sceneRef.current.remove(labelObject);
           if (labelObject.userData.helperMesh && sceneRef.current) {
-            sceneRef.current?.remove(labelObject.userData.helperMesh);
+            sceneRef.current.remove(labelObject.userData.helperMesh);
           }
         }
       });
@@ -3013,7 +3013,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
         const originVector =
           originPoint instanceof THREE.Vector3
             ? originPoint.clone()
-            : new THREE.Vector3(0, 0, 0);
+            : new THREE.Vector3(originPoint.x, originPoint.y, originPoint.z);
         modelSpacePosition = originVector.clone().add(offsetInModelUnits);
         // console.log(`Text anchor ${anchor.id} positioning calculation:`, { // Keep commented unless debugging position
         //   originalPosition: anchorPosition,
@@ -3102,8 +3102,8 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
       });
 
       // Add both to the scene:
-      sceneRef.current?.add(labelObject); // CSS layer
-      sceneRef.current?.add(helperMesh); // WebGL layer
+      sceneRef.current.add(labelObject); // CSS layer
+      sceneRef.current.add(helperMesh); // WebGL layer
 
       // Store the label object in the ref
       textAnchorsRef.current.set(anchor.id, labelObject); // Store the CSS3DObject directly
@@ -3115,10 +3115,10 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
         // This anchor is no longer in the props, remove it from the scene
         console.log(`Removing text anchor ${anchorId} from scene.`);
         if (labelObject && sceneRef.current) {
-          sceneRef.current?.remove(labelObject);
+          sceneRef.current.remove(labelObject);
           // ALSO REMOVE THE HELPER MESH
           if (labelObject.userData.helperMesh && sceneRef.current) {
-            sceneRef.current?.remove(labelObject.userData.helperMesh);
+            sceneRef.current.remove(labelObject.userData.helperMesh);
             console.log(`Removing helper mesh for text anchor ${anchorId}.`);
           }
         }
@@ -3281,7 +3281,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
         const originVector =
           originPoint instanceof THREE.Vector3
             ? originPoint.clone()
-            : new THREE.Vector3(0, 0, 0);
+            : new THREE.Vector3(originPoint.x, originPoint.y, originPoint.z);
         modelSpacePosition = originVector.clone().add(offsetInModelUnits);
       } else {
         modelSpacePosition = realWorldPosition.clone().divideScalar(45.64);
@@ -3306,7 +3306,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
       markerMesh.renderOrder = 9999;
       markerMesh.userData.anchorId = anchor.id;
       markerMesh.userData.type = "qrCode";
-      sceneRef.current?.add(markerMesh);
+      sceneRef.current.add(markerMesh);
       console.log(
         `%c[ThreeViewer qrCodeAnchors] Successfully ADDED marker mesh to scene for ${anchor.id}`,
         "color: green;",
@@ -3319,7 +3319,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
         console.log(
           `[ThreeViewer qrCodeAnchors] Cleaning up marker for anchor ${id}`,
         );
-        sceneRef.current?.remove(marker);
+        sceneRef.current.remove(marker);
         qrCodeMarkersRef.current.delete(id);
       }
     });
@@ -3510,7 +3510,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
     // css3dObject.position.y += 0.1; // <-- Line removed or commented out
     css3dObject.userData.anchorId = anchorId;
     // Add to scene
-    sceneRef.current?.add(css3dObject);
+    sceneRef.current.add(css3dObject);
 
     // Animate the appearance
     new TWEEN.Tween(css3dObject.scale)
@@ -3532,10 +3532,10 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
           `[ThreeViewer Webpage Effect] Removing webpage anchor ${id} due to visibility toggle.`,
         );
         if (sceneRef.current) {
-          sceneRef.current?.remove(webpageObject);
+          sceneRef.current.remove(webpageObject);
           const helperMesh = webpageObject.userData.helperMesh;
           if (helperMesh && sceneRef.current.getObjectById(helperMesh.id)) {
-            sceneRef.current?.remove(helperMesh);
+            sceneRef.current.remove(helperMesh);
           }
         }
       });
@@ -3577,7 +3577,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
           helperMesh.userData.type = "webpage-helper";
           helperMesh.userData.cssObject = existingWebpageObject;
           existingWebpageObject.userData.helperMesh = helperMesh;
-          sceneRef.current?.add(helperMesh);
+          sceneRef.current.add(helperMesh);
         } else {
           console.log(
             `Anchor ${anchor.id} already exists in scene (with helper), skipping`,
@@ -3688,7 +3688,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
           const labelObject = new CSS3DObject(labelDiv);
           labelObject.scale.set(0.005, 0.005, 0.005);
           labelObject.position.copy(modelSpacePosition); // Position at the anchor point
-          sceneRef.current?.add(labelObject);
+          sceneRef.current.add(labelObject);
         }
       }
 
@@ -3703,11 +3703,11 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
       if (!webpageAnchors.some((a) => a.id === id)) {
         console.log(`Cleaning up webpage anchor ${id}`);
         if (sceneRef.current) {
-          sceneRef.current?.remove(webpageObject);
+          sceneRef.current.remove(webpageObject);
           // Also remove the helper mesh
           const helperMesh = webpageObject.userData.helperMesh;
           if (helperMesh && sceneRef.current.getObjectById(helperMesh.id)) {
-            sceneRef.current?.remove(helperMesh);
+            sceneRef.current.remove(helperMesh);
             console.log(`Removed helper mesh for webpage anchor ${id}`);
           }
         }
@@ -3846,7 +3846,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
       // Position the model at the clicked point
       model.position.copy(position);
 
-      sceneRef.current?.add(model);
+      sceneRef.current.add(model);
       return model;
     } catch (error) {
       console.error("Error loading model:", error);
@@ -5024,7 +5024,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
             .onComplete(() => {
               // Clean up temporary marker after animation
               if (sceneRef.current && markerMesh.parent) {
-                sceneRef.current?.remove(markerMesh);
+                sceneRef.current.remove(markerMesh);
               }
             })
             .start();
@@ -5601,7 +5601,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
           const existingLoadingIndicator =
             sceneRef.current.getObjectByName("loadingIndicator");
           if (existingLoadingIndicator)
-            sceneRef.current?.remove(existingLoadingIndicator);
+            sceneRef.current.remove(existingLoadingIndicator);
           return;
         }
 
@@ -5611,7 +5611,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
         const loadingIndicator = createLoadingIndicator(dropPoint);
         // Add a name to easily find and remove it
         loadingIndicator.name = "loadingIndicator";
-        sceneRef.current?.add(loadingIndicator);
+        sceneRef.current.add(loadingIndicator);
 
         if (modelDataString) {
           try {
@@ -5667,7 +5667,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
                   model.userData.anchorId = newAnchorId;
 
                   if (loadingIndicator.parent && sceneRef.current)
-                    sceneRef.current?.remove(loadingIndicator);
+                    sceneRef.current.remove(loadingIndicator);
 
                   // Calculate offset from origin if it exists
                   let scaledX = dropPoint.x * 45.64;
@@ -5744,7 +5744,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
                 (error) => {
                   console.error("Error loading model:", error);
                   if (sceneRef.current) {
-                    sceneRef.current?.remove(loadingIndicator);
+                    sceneRef.current.remove(loadingIndicator);
                   }
                   showErrorIndicator(dropPoint);
                 },
@@ -5752,14 +5752,14 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
             } catch (error) {
               console.error("Error processing model:", error);
               if (sceneRef.current) {
-                sceneRef.current?.remove(loadingIndicator);
+                sceneRef.current.remove(loadingIndicator);
               }
               showErrorIndicator(dropPoint);
             }
           } catch (error) {
             console.error("Error parsing model data:", error);
             if (sceneRef.current) {
-              sceneRef.current?.remove(loadingIndicator);
+              sceneRef.current.remove(loadingIndicator);
             }
             showErrorIndicator(dropPoint);
           }
@@ -6439,7 +6439,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
         originMarkerMaterial,
       );
       originMarker.position.copy(originPoint);
-      sceneRef.current?.add(originMarker);
+      sceneRef.current.add(originMarker);
 
       originMarkerRef.current = originMarker;
     } else {
