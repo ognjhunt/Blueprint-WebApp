@@ -15,7 +15,13 @@ import FeatureConfigHub from "@/components/FeatureConfigScreens";
 import { Switch } from "@/components/ui/switch";
 
 // Helper component for audience type effect
-function AudienceTypeEffect({ goal, audienceType, updateOnboardingData }) {
+interface AudienceTypeEffectProps {
+  goal: string;
+  audienceType: string | null;
+  updateOnboardingData: (field: keyof OnboardingData, value: any) => void;
+}
+
+function AudienceTypeEffect({ goal, audienceType, updateOnboardingData }: AudienceTypeEffectProps) {
   useEffect(() => {
     if (goal === "customerEngagement" && !audienceType) {
       updateOnboardingData("audienceType", "customers");
@@ -1837,8 +1843,7 @@ export default function BlueprintEditor() {
     };
 
     // New helper function to prepare an area for marking
-    // New helper function to prepare an area for marking
-    const prepareAreaForMarking = (area) => {
+    const prepareAreaForMarking = (area: string | AreaItem) => {
       // Set as the active area to mark
       setActiveAreaToMark(area);
 
@@ -1849,7 +1854,7 @@ export default function BlueprintEditor() {
         // Get area name based on the type
         const areaName =
           typeof area === "string"
-            ? getAreaLabel(area, prefillData.industry)
+            ? getAreaLabel(area, prefillData?.industry || '')
             : area.name;
 
         toast({
@@ -1859,8 +1864,15 @@ export default function BlueprintEditor() {
       }
     };
 
+    // Interface for AreaProgressList props
+    interface AreaProgressListProps {
+      keyAreas: (string | AreaItem)[];
+      markedAreas: MarkedArea[];
+      onSelectArea: (area: string | AreaItem) => void;
+    }
+
     // New component for area progress list
-    const AreaProgressList = ({ keyAreas, markedAreas, onSelectArea }) => {
+    const AreaProgressList = ({ keyAreas, markedAreas, onSelectArea }: AreaProgressListProps) => {
       // Get marked area names for comparison
       const markedAreaNames = markedAreas.map((area) =>
         area.name.toLowerCase(),
@@ -1878,9 +1890,10 @@ export default function BlueprintEditor() {
           <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
             {keyAreas.map((area, index) => {
               // Now using the name directly from the area object
-              const areaName =
-                area.name ||
-                (typeof area === "string" ? area : `area-${index + 1}`);
+              const areaName = 
+                typeof area === "string" 
+                ? area 
+                : area.name || `area-${index + 1}`;
               const isMarked = markedAreaNames.includes(areaName.toLowerCase());
 
               return (
@@ -3132,7 +3145,8 @@ export default function BlueprintEditor() {
     setOnboardingStep((prev) => prev - 1);
   };
 
-  const updateOnboardingData = (key, value) => {
+  // Type-safe function for updating onboarding data
+  const updateOnboardingData = (key: keyof OnboardingData, value: any) => {
     // Save current scroll position
     const scrollPosition = window.scrollY;
 
