@@ -255,7 +255,7 @@ export default function CreateAccount() {
 
                 <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
                   <GoogleLogin
-                    onSuccess={handleGoogleSignIn}
+                    onSuccess={(credentialResponse) => handleGoogleSignIn(credentialResponse)}
                     onError={() => {
                       toast({
                         title: "Error",
