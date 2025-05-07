@@ -62,11 +62,16 @@ declare module "three" {
   }
 }
 
-// Extend CSS3DObject with element typings
-declare module "three/examples/jsm/renderers/CSS3DRenderer" {
-  interface CSS3DObject {
-    element: HTMLElement;
-  }
+// Create local interfaces for the missing CSS3DRenderer classes
+// This avoids the need for the module import that's causing errors
+interface CSS3DObject {
+  element: HTMLElement;
+  position: THREE.Vector3;
+  rotation: THREE.Euler;
+  scale: THREE.Vector3;
+  userData: any;
+  copy(source: CSS3DObject): CSS3DObject;
+  lookAt(position: THREE.Vector3): void;
 }
 
 // Extend THREE.Object3D prototype with the isDescendantOf method
