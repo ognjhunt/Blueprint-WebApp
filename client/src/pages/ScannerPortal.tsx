@@ -163,9 +163,18 @@ export default function ScannerPortal() {
   const [referencePoints2D, setReferencePoints2D] = useState<
     Array<{ label: string; x: number; y: number }>
   >([]);
-  const [referencePoints3D, setReferencePoints3D] = useState<
-    Array<{ label: string; x3D?: number; y3D?: number; z3D?: number }>
-  >([]);
+  interface ReferencePoint {
+    id: string;
+    x: number;
+    y: number;
+    z: number;
+    x3D?: number;
+    y3D?: number;
+    z3D?: number;
+    label: "A" | "B" | "C";
+  }
+  
+  const [referencePoints3D, setReferencePoints3D] = useState<ReferencePoint[]>([]);
   const [activeLabel, setActiveLabel] = useState<"A" | "B" | "C" | null>(null);
   const [awaiting3D, setAwaiting3D] = useState(false);
   const [realDistance, setRealDistance] = useState<number>(10); // Default in feet

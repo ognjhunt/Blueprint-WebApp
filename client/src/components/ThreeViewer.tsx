@@ -65,15 +65,16 @@ declare module "three" {
 // Create local interfaces for the missing CSS3DRenderer classes
 // This avoids the need for the module import that's causing errors
 // Interface for CSS3DObject
-interface CSS3DObject {
+interface CSS3DObjectUserData {
   element: HTMLElement;
-  position: THREE.Vector3;
-  rotation: THREE.Euler;
-  scale: THREE.Vector3;
-  userData: any;
-  copy(source: CSS3DObject): CSS3DObject;
-  lookAt(position: THREE.Vector3): void;
+  isCSS3DObject: boolean;
+  textContent?: string;
+  anchorId?: string;
+  [key: string]: any;
 }
+
+// Define CSS3DObject type alias to avoid errors
+type CSS3DObject = THREE.Object3D;
 
 // Factory function to create CSS3DObject-like objects
 function createCSS3DObject(element: HTMLElement): THREE.Object3D {
@@ -85,9 +86,17 @@ function createCSS3DObject(element: HTMLElement): THREE.Object3D {
     element: element,
     isCSS3DObject: true,
     textContent: element.textContent || ''
-  };
+  } as CSS3DObjectUserData;
   
   return cssObj;
+}
+
+// Helper to get the element of a CSS3DObject
+function getElement(object: THREE.Object3D): HTMLElement | null {
+  if (object && object.userData && object.userData.isCSS3DObject) {
+    return object.userData.element || null;
+  }
+  return null;
 }
 
 // Extend THREE.Object3D prototype with the isDescendantOf method
@@ -105,11 +114,11 @@ if (typeof THREE !== "undefined" && THREE.Object3D) {
 }
 
 interface FileAnchorElements {
-  marker: CSS3DObject | null;
+  marker: THREE.Object3D | null;
   contentObject: THREE.Object3D | null;
-  closeButton?: CSS3DObject;
+  closeButton?: THREE.Object3D;
   helperMesh?: THREE.Mesh; // If your content relies on a separate helper for transforms
-  labelObject?: CSS3DObject; // For icons with text labels
+  labelObject?: THREE.Object3D; // For icons with text labels
   isLoadingContent?: boolean; // Prevent multiple load attempts
 }
 
