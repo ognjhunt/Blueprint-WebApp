@@ -5,6 +5,7 @@ import * as THREE from "three";
 import ThreeViewer from "@/components/ThreeViewer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import ViewModeToggle from "@/components/ViewModeToggle";
 //import WorkflowEditor from "@/components/WorkflowEditor";
 import { QRCodeCanvas } from "qrcode.react";
@@ -6335,7 +6336,7 @@ export default function BlueprintEditor() {
                 toast({
                   title: "Origin Set",
                   description: "Origin point has been set successfully.",
-                  variant: "success",
+                  variant: "default",
                 });
               }}
               onLoad={() => {
@@ -6504,7 +6505,7 @@ export default function BlueprintEditor() {
 
               {/* Origin Point */}
               <Button
-                variant={isChoosingOrigin ? "subtle" : "ghost"}
+                variant={isChoosingOrigin ? "secondary" : "ghost"}
                 size="sm"
                 onClick={() => setIsChoosingOrigin(!isChoosingOrigin)}
                 className="h-8 p-0"
@@ -6534,7 +6535,7 @@ export default function BlueprintEditor() {
 
               {/* Area Marking */}
               <Button
-                variant={isMarkingArea ? "subtle" : "ghost"}
+                variant={isMarkingArea ? "secondary" : "ghost"}
                 size="sm"
                 onClick={() => setIsMarkingArea(!isMarkingArea)}
               >
@@ -6544,7 +6545,7 @@ export default function BlueprintEditor() {
 
               {/* QR Code */}
               <Button
-                variant={qrPlacementMode ? "subtle" : "ghost"}
+                variant={qrPlacementMode ? "secondary" : "ghost"}
                 size="sm"
                 onClick={() => setQrPlacementMode(!qrPlacementMode)}
               >
@@ -7160,8 +7161,8 @@ export default function BlueprintEditor() {
                         areaName = getAreaLabel(area, prefillData.industry);
                         areaId = area;
                       } else if (area && typeof area === "object") {
-                        areaName = area.name || "";
-                        areaId = area.id || `area-${index}`;
+                        areaName = (area as AreaItem).name || "";
+                        areaId = (area as AreaItem).id || `area-${index}`;
                       } else {
                         return null; // Skip invalid areas
                       }
