@@ -18,7 +18,7 @@ import { useLocation } from "wouter";
 import { db } from "@/lib/firebase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Box, CircleDot, Square, LayoutGrid, X } from "lucide-react";
+import { Box, CircleDot, Square, LayoutGrid, X, CheckCircle, AlertCircle } from "lucide-react";
 import { doc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import * as TWEEN from "@tweenjs/tween.js";
 import { CSS3DObject } from "three/examples/jsm/renderers/CSS3DRenderer"; // NEW: Import CSS3DObject
@@ -5923,7 +5923,7 @@ const ThreeViewer = forwardRef(function ThreeViewer(
       }, 2000);
     }
 
-    function showErrorIndicator(position) {
+    function showErrorIndicator(position, message?: string) {
       // Create error indicator (red cross)
       const crossGroup = new THREE.Group();
       crossGroup.position.copy(position);
