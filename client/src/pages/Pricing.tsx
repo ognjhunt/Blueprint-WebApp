@@ -39,7 +39,7 @@ import { useAuth } from "@/contexts/AuthContext"; // Needed to get current user 
 import { doc, getDoc } from "firebase/firestore"; // Needed to get user data
 import { db } from "@/lib/firebase"; // Needed for db access
 import { motion } from "framer-motion"; // Needed for motion divs
-import { useRouter } from "next/navigation"; // Needed if buttons navigate
+import { useNavigate } from "react-router-dom"; // Needed if buttons navigate
 
 // Stripe Checkout Route - Keep original functionality
 export const dynamic = "force-static";
@@ -359,10 +359,13 @@ export default function PricingPage() {
 
     // Scroll back up to see pricing changes - add a slight delay to allow state to update
     setTimeout(() => {
-      document.getElementById("pricing-tiers").scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
+      const pricingTiers = document.getElementById("pricing-tiers");
+      if (pricingTiers) {
+        pricingTiers.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }
     }, 100);
   }
 
@@ -722,12 +725,13 @@ export default function PricingPage() {
             className="cursor-pointer hover:-translate-y-1 transition-transform duration-200 h-full"
             onClick={(e) => {
               // Select this plan if clicking outside interactive elements
+              const target = e.target as HTMLElement;
               if (
-                e.target.tagName !== "INPUT" &&
-                e.target.tagName !== "SELECT" &&
-                e.target.tagName !== "BUTTON" &&
-                !e.target.closest("button") &&
-                !e.target.closest("input[type='number']") && // Ignore number input clicks
+                target.tagName !== "INPUT" &&
+                target.tagName !== "SELECT" &&
+                target.tagName !== "BUTTON" &&
+                !target.closest("button") &&
+                !target.closest("input[type='number']") && // Ignore number input clicks
                 selectedPlan !== "plus"
               ) {
                 setSelectedPlan("plus");
@@ -855,8 +859,8 @@ export default function PricingPage() {
                         Minimum 2 seats if adding team.
                       </p>
                     )}
-                    {teamSeats === 1 && setTeamSeats(2)}{" "}
-                    {/* Auto-adjust to minimum 2 if 1 is entered/clicked */}
+                    {/* Auto-adjust to minimum 2 if 1 is entered */}
+                    {teamSeats === 1 ? (() => { setTeamSeats(2); return null; })() : null}{" "}
                   </div>
                 </div>
               </CardHeader>
@@ -1003,7 +1007,7 @@ export default function PricingPage() {
                       e.stopPropagation();
                       setSelectedPlan("plus");
                     }}
-                    aria-pressed={selectedPlan === "plus"}
+                    aria-pressed={selectedPlan === "plus" ? "true" : "false"}
                   >
                     Configure Plan
                   </Button>
