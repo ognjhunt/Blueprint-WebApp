@@ -14,6 +14,24 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import FeatureConfigHub from "@/components/FeatureConfigScreens";
 import { Switch } from "@/components/ui/switch";
 
+// Define interfaces for onboarding data
+interface AreaItem {
+  id: string;
+  name: string;
+}
+
+// Define typings for onboarding data
+interface OnboardingData {
+  goal: string;
+  useCases: string[]; // Array of use case identifiers
+  audienceType: string;
+  keyAreas: (string | AreaItem)[]; // Can be either strings or objects with id and name
+  expectedVisitors: string;
+  techComfort: string;
+  preferredStyle: string;
+  specialFeatures: string[]; // Array of special feature identifiers
+}
+
 // Helper component for audience type effect
 interface AudienceTypeEffectProps {
   goal: string;
