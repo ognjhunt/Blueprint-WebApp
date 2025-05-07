@@ -838,7 +838,7 @@ export default function OffWaitlistSignUpFlow() {
     }, []);
 
     // Helper to format 24-hr "HH:MM" into "h:MM AM/PM"
-    const formatSlot = (time) => {
+    const formatSlot = (time: string): string => {
       const [hh, mm] = time.split(":");
       let hour = parseInt(hh, 10);
       const isAM = hour < 12;
