@@ -9,8 +9,41 @@ import * as THREE from "three";
 // Removed CSS3DRenderer import - we'll use our own interface
 // Updated import to use modern THREE.SRGBColorSpace instead of deprecated sRGBEncoding
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
-import { TransformControls } from "three/examples/jsm/controls/TransformControls";
-import { DragControls } from "three/examples/jsm/controls/DragControls";
+
+// TypeScript interface declarations for TransformControls and DragControls to avoid import errors
+interface TransformControls extends THREE.Object3D {
+  visible: boolean;
+  enabled: boolean;
+  mode: string;
+  object: THREE.Object3D | null;
+  space: string;
+  dragging: boolean;
+  setMode(mode: string): void;
+  attach(object: THREE.Object3D): void;
+  detach(): void;
+  setSpace(space: string): void;
+  setSize(size: number): void;
+  setTranslationSnap(translationSnap: number): void;
+  setRotationSnap(rotationSnap: number): void;
+  setScaleSnap(scaleSnap: number): void;
+  addEventListener(type: string, listener: (event: any) => void): void;
+  removeEventListener(type: string, listener: (event: any) => void): void;
+  showX: boolean;
+  showY: boolean;
+  showZ: boolean;
+}
+
+interface DragControls {
+  enabled: boolean;
+  transformGroup: boolean;
+  activate(): void;
+  deactivate(): void;
+  dispose(): void;
+  addEventListener(type: string, listener: (event: any) => void): void;
+  removeEventListener(type: string, listener: (event: any) => void): void;
+  getObjects(): THREE.Object3D[];
+  getDraggableObjects(): THREE.Object3D[];
+}
 
 // Add extended OrbitControls interface to fix TypeScript errors
 declare module "three/examples/jsm/controls/OrbitControls" {
@@ -2880,7 +2913,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
         helperMesh.userData.cssObject) as CSS3DObject | undefined; // For webpages
 
       if (visualObject && visualObject.userData && visualObject.userData.isCSS3DObject) {
-        const element = visualObject.element as HTMLElement;
+        const element = visualObject.userData.element as HTMLElement;
         if (element) {
           const originalStyle = {
             outline: element.style.outline || "",
@@ -2946,7 +2979,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
       }
     } else if (objectToHighlight && objectToHighlight.userData && objectToHighlight.userData.isCSS3DObject) {
       // This is a directly selected CSS3DObject (e.g., a webpage anchor's iframe container)
-      const element = (objectToHighlight as any).element as HTMLElement;
+      const element = objectToHighlight.userData.element as HTMLElement;
       if (element) {
         const originalStyle = {
           outline: element.style.outline || "",
@@ -3069,7 +3102,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
 
       if (existingLabelObject && existingLabelObject.userData && existingLabelObject.userData.isCSS3DObject) {
         // --- UPDATE EXISTING ANCHOR ---
-        const element = (existingLabelObject as any).element as HTMLElement;
+        const element = existingLabelObject.userData.element as HTMLElement;
         const currentVisualText = element.textContent;
         const newText = anchor.textContent;
 
@@ -4107,12 +4140,22 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
     orbitControls.enableDamping = true;
     orbitControlsRef.current = orbitControls;
 
-    const transformControls = new TransformControls(
-      camera,
-      renderer.domElement,
-    );
-    transformControlsRef.current = transformControls;
-    scene.add(transformControls);
+    // Dynamically import and use TransformControls from Three.js
+    import("three/examples/jsm/controls/TransformControls").then(({ TransformControls }) => {
+      const transformControls = new TransformControls(
+        camera,
+        renderer.domElement,
+      );
+      transformControlsRef.current = transformControls as unknown as TransformControls;
+      scene.add(transformControls);
+      
+      // Configure the controls now that they are loaded
+      if (transformControlsRef.current) {
+        configureTransformControls(transformControlsRef.current);
+      }
+    }).catch(error => {
+      console.error("Failed to load TransformControls:", error);
+    });
 
     // Configure gizmo appearance
     configureTransformControls(transformControls);
