@@ -285,7 +285,7 @@ export default function BlueprintEditor() {
   });
 
   // Onboarding pre-filled data - ADD THIS
-  const [prefillData, setPrefillData] = useState(null);
+  const [prefillData, setPrefillData] = useState<any | null>(null);
 
   // Core view states
   const [viewMode, setViewMode] = useState("3D");
@@ -302,32 +302,32 @@ export default function BlueprintEditor() {
   };
   // 3D viewer states
   const [model3DPath, setModel3DPath] = useState("");
-  const [originPoint, setOriginPoint] = useState(null);
+  const [originPoint, setOriginPoint] = useState<any | null>(null);
   const [isChoosingOrigin, setIsChoosingOrigin] = useState(false);
   const [scaleFactor, setScaleFactor] = useState(1);
-  const [referencePoints2D, setReferencePoints2D] = useState([]);
-  const [referencePoints3D, setReferencePoints3D] = useState([]);
+  const [referencePoints2D, setReferencePoints2D] = useState<any[]>([]);
+  const [referencePoints3D, setReferencePoints3D] = useState<any[]>([]);
   const [floorPlanImage, setFloorPlanImage] = useState("");
   const [showGrid, setShowGrid] = useState(true);
-  const [markedAreas, setMarkedAreas] = useState([]);
-  const [selectedArea, setSelectedArea] = useState(null); // Add this new state
+  const [markedAreas, setMarkedAreas] = useState<any[]>([]);
+  const [selectedArea, setSelectedArea] = useState<any | null>(null); // Add this new state
 
   const [isMarkingArea, setIsMarkingArea] = useState(false);
-  const [pendingArea, setPendingArea] = useState(null);
+  const [pendingArea, setPendingArea] = useState<any | null>(null);
   const [areaName, setAreaName] = useState("");
   const [areaNameDialogOpen, setAreaNameDialogOpen] = useState(false);
-  const [remarkingAreaId, setRemarkingAreaId] = useState(null);
+  const [remarkingAreaId, setRemarkingAreaId] = useState<string | null>(null);
   // const corner1Ref = useRef(null);
   const [onboardingMode, setOnboardingMode] = useState("fullscreen"); // "fullscreen" or "sidebar"
 
   // Element states
   // const [activeSection, setActiveSection] = useState(null); // ADDED - Tracks the open Canva-style panel ('text', 'media', '3d', 'uploads', 'webpages', 'areas', 'settings', or null)
-  const [elements, setElements] = useState([]);
+  const [elements, setElements] = useState<any[]>([]);
   const [panelWidth, setPanelWidth] = useState(360); // RENAMED from sidebarWidth
-  const [selectedElement, setSelectedElement] = useState(null);
-  const [hoveredElement, setHoveredElement] = useState(null);
+  const [selectedElement, setSelectedElement] = useState<any | null>(null);
+  const [hoveredElement, setHoveredElement] = useState<any | null>(null);
 
-  const [selectedAnchorData, setSelectedAnchorData] = useState(null);
+  const [selectedAnchorData, setSelectedAnchorData] = useState<any | null>(null);
 
   // Helper once at top of the file (reuse in the other two fixes)
   const getSimpleType = (mime: string) =>
@@ -415,8 +415,8 @@ export default function BlueprintEditor() {
   ];
 
   // Models and assets states
-  const [modelAnchors, setModelAnchors] = useState([]);
-  const [webpageAnchors, setWebpageAnchors] = useState([]);
+  const [modelAnchors, setModelAnchors] = useState<any[]>([]);
+  const [webpageAnchors, setWebpageAnchors] = useState<any[]>([]);
   const [textAnchors, setTextAnchors] = useState<TextAnchor[]>([]);
   const [textContent, setTextContent] = useState("");
   const [activeSection, setActiveSection] = useState<string | null>(null); // Explicitly type state
@@ -430,11 +430,11 @@ export default function BlueprintEditor() {
     null,
   );
   const isPanelOpen = activeSection !== null;
-  const [fileAnchors, setFileAnchors] = useState([]);
-  const [qrCodeAnchors, setQrCodeAnchors] = useState([]); // <<< ADD THIS LINE
-  const [featuredModels, setFeaturedModels] = useState([]);
+  const [fileAnchors, setFileAnchors] = useState<any[]>([]);
+  const [qrCodeAnchors, setQrCodeAnchors] = useState<any[]>([]); // <<< ADD THIS LINE
+  const [featuredModels, setFeaturedModels] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
   const [externalUrl, setExternalUrl] = useState("");
 
   // Text editing states
@@ -445,9 +445,9 @@ export default function BlueprintEditor() {
   const [qrPlacementMode, setQrPlacementMode] = useState(false);
   const [qrGenerationActive, setQrGenerationActive] = useState(false);
   const [qrGenerationStep, setQrGenerationStep] = useState(0);
-  const [qrLocations, setQrLocations] = useState([]);
-  const [qrAnchorIds, setQrAnchorIds] = useState([]);
-  const [qrCodeStrings, setQrCodeStrings] = useState([]);
+  const [qrLocations, setQrLocations] = useState<any[]>([]);
+  const [qrAnchorIds, setQrAnchorIds] = useState<string[]>([]);
+  const [qrCodeStrings, setQrCodeStrings] = useState<string[]>([]);
   const [currentPlacingIndex, setCurrentPlacingIndex] = useState(0);
   const [qrCodeModalOpen, setQrCodeModalOpen] = useState(false);
   const [qrCodeValue, setQrCodeValue] = useState("");
@@ -464,15 +464,15 @@ export default function BlueprintEditor() {
 
   // Interactive states
   const [isDragging, setIsDragging] = useState(false);
-  const [placementMode, setPlacementMode] = useState(null);
+  const [placementMode, setPlacementMode] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [activeLabel, setActiveLabel] = useState(null);
+  const [activeLabel, setActiveLabel] = useState<string | null>(null);
   const [awaiting3D, setAwaiting3D] = useState(false);
   const [showAlignmentWizard, setShowAlignmentWizard] = useState(false);
   const [showDistanceDialog, setShowDistanceDialog] = useState(false);
   const [realDistance, setRealDistance] = useState(10);
-  const [activeAreaToMark, setActiveAreaToMark] = useState(null);
+  const [activeAreaToMark, setActiveAreaToMark] = useState<any | null>(null);
   // Refs
   const containerRef = useRef(null);
   const threeViewerRef = useRef<ThreeViewerRef>(null);
