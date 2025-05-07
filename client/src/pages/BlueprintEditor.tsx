@@ -6451,12 +6451,10 @@ export default function BlueprintEditor() {
                 handleLoadExternalLink(url, position);
               }}*/
               onPlacementComplete={handlePlacementComplete}
-              blueprintId={blueprintId}
               setReferencePoints3D={setReferencePoints3D}
               setAwaiting3D={setAwaiting3D}
               setActiveLabel={setActiveLabel}
               scaleFactor={scaleFactor}
-              showGrid={showGrid}
               onFileDropped={handleFileAnchorPlaced}
               onTextAnchorClick={handleTextAnchorClicked}
               onWebpageAnchorClick={handleWebpageAnchorClicked}
@@ -6997,7 +6995,6 @@ export default function BlueprintEditor() {
                       fileAnchors={fileAnchors}
                       setAwaiting3D={setAwaiting3D}
                       setActiveLabel={setActiveLabel}
-                      showGrid={showGrid}
                       selectedArea={selectedArea}
                       placementMode={null}
                       webpageAnchors={[]}
