@@ -1073,7 +1073,7 @@ export default function ScannerPortal() {
       }
 
       // Initialize a variable to store the blueprint ID
-      const finalBlueprintId = selectedBooking.blueprintId || (typeof blueprintId !== 'undefined' ? blueprintId : '');
+      const finalBlueprintId = selectedBooking.blueprintId || '';
       
       try {
         await fetch(
