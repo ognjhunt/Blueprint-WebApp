@@ -4171,7 +4171,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
 
         if (originPoint) {
           const offset = hitPoint.clone().sub(originPoint);
-          const msg = `Relative to origin: X:${offset.x.toFixed(2) * 45.64}, Y:${offset.y.toFixed(2) * 45.64}, Z:${offset.z.toFixed(2) * 45.64}`;
+          const msg = `Relative to origin: X:${(offset.x * 45.64).toFixed(2)}, Y:${(offset.y * 45.64).toFixed(2)}, Z:${(offset.z * 45.64).toFixed(2)}`;
           setDistanceDisplay(msg);
         }
 
@@ -4992,7 +4992,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
 
           // Call onPlacementComplete. BlueprintEditor will handle creation.
           // For a NEW link, there's no anchorIdToUpdate yet.
-          onPlacementComplete(hitPoint, undefined, placementModeRef.current);
+          onPlacementComplete(hitPoint, undefined);
 
           // Optional: Visual feedback for the click (can be kept)
           const markerGeometry = new THREE.SphereGeometry(0.02, 16, 16);
@@ -5135,7 +5135,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
             currentObj.userData.isTextLabel === true // Check our custom flag
           ) {
             const anchorId = currentObj.userData.anchorId;
-            const currentText = currentObj.element.textContent || "";
+            const currentText = (currentObj as CSS3DObject).element.textContent || "";
             const helperMesh = currentObj.userData.helperMesh as THREE.Mesh; // Get the helper mesh
 
             console.log(
@@ -5169,7 +5169,9 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
 
           // Check Models (only if text anchor wasn't found yet)
           if (!foundAnchor) {
-            for (const [id, model] of anchorModelsRef.current.entries()) {
+            // Convert to array before iterating to avoid TypeScript errors with Map.entries()
+            const modelEntries = Array.from(anchorModelsRef.current.entries());
+            for (const [id, model] of modelEntries) {
               // Make sure to check descendants as well for complex models
               if (currentObj === model || currentObj.isDescendantOf?.(model)) {
                 handleAnchorSelect(id, model, "model");
