@@ -5639,7 +5639,7 @@ const ThreeViewer = forwardRef(function ThreeViewer(
                   model.position.copy(dropPoint);
 
                   // Add to scene
-                  sceneRef.current.add(model);
+                  sceneRef.current?.add(model);
 
                   // Store reference to the model
                   anchorModelsRef.current.set(newAnchorId, model);
@@ -5647,7 +5647,7 @@ const ThreeViewer = forwardRef(function ThreeViewer(
                   // Add user data to identify it later
                   model.userData.anchorId = newAnchorId;
 
-                  if (loadingIndicator.parent)
+                  if (loadingIndicator.parent && sceneRef.current)
                     sceneRef.current.remove(loadingIndicator);
 
                   // Calculate offset from origin if it exists
@@ -5724,18 +5724,24 @@ const ThreeViewer = forwardRef(function ThreeViewer(
                 },
                 (error) => {
                   console.error("Error loading model:", error);
-                  sceneRef.current.remove(loadingIndicator);
+                  if (sceneRef.current) {
+                    sceneRef.current.remove(loadingIndicator);
+                  }
                   showErrorIndicator(dropPoint);
                 },
               );
             } catch (error) {
               console.error("Error processing model:", error);
-              sceneRef.current.remove(loadingIndicator);
+              if (sceneRef.current) {
+                sceneRef.current.remove(loadingIndicator);
+              }
               showErrorIndicator(dropPoint);
             }
           } catch (error) {
             console.error("Error parsing model data:", error);
-            sceneRef.current.remove(loadingIndicator);
+            if (sceneRef.current) {
+              sceneRef.current.remove(loadingIndicator);
+            }
             showErrorIndicator(dropPoint);
           }
         } else if (fileDataString) {
