@@ -5,7 +5,7 @@ import * as THREE from "three";
 import ThreeViewer from "@/components/ThreeViewer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import ViewModeToggle from "@/componentsSTATE MANAGEMENT/ViewModeToggle";
+import ViewModeToggle from "@/components/ViewModeToggle";
 //import WorkflowEditor from "@/components/WorkflowEditor";
 import { QRCodeCanvas } from "qrcode.react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -191,6 +191,13 @@ import {
 
 // Types
 import { MarkedArea } from "@/types/AreaMarkingStyles";
+
+// Define ThreeViewerRef type for ref usage
+interface ThreeViewerRef {
+  zoomIn: () => void;
+  zoomOut: () => void;
+  resetView: () => void;
+}
 
 // Define TextAnchor type (if not already defined/imported)
 interface TextAnchor {
@@ -6456,13 +6463,12 @@ export default function BlueprintEditor() {
               onWebpageAnchorClick={handleWebpageAnchorClicked}
               onBackgroundClick={handleViewerBackgroundClick}
               onFileAnchorClick={handleFileAnchorClicked}
-              // Anchor data
+              // Anchor data and visibility states
               qrCodeAnchors={qrCodeAnchors}
               textAnchors={textAnchors}
               fileAnchors={fileAnchors}
               webpageAnchors={webpageAnchors}
               modelAnchors={modelAnchors}
-              // Visibility states
               showQrCodes={showQrCodes}
               showTextAnchors={showTextAnchors}
               showFileAnchors={showFileAnchors}
