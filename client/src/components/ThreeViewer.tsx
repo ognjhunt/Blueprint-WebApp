@@ -4109,6 +4109,9 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
             if (idx !== -1) {
               updatedPoints[idx] = {
                 ...updatedPoints[idx],
+                x: controlledObject.position.x,
+                y: controlledObject.position.y,
+                z: controlledObject.position.z,
                 x3D: controlledObject.position.x,
                 y3D: controlledObject.position.y,
                 z3D: controlledObject.position.z,
