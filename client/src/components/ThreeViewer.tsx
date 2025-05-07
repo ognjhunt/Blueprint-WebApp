@@ -64,6 +64,7 @@ declare module "three" {
 
 // Create local interfaces for the missing CSS3DRenderer classes
 // This avoids the need for the module import that's causing errors
+// Interface for CSS3DObject
 interface CSS3DObject {
   element: HTMLElement;
   position: THREE.Vector3;
@@ -72,6 +73,21 @@ interface CSS3DObject {
   userData: any;
   copy(source: CSS3DObject): CSS3DObject;
   lookAt(position: THREE.Vector3): void;
+}
+
+// Factory function to create CSS3DObject-like objects
+function createCSS3DObject(element: HTMLElement): THREE.Object3D {
+  // Create a Three.js Object3D to act as our CSS3DObject replacement
+  const cssObj = new THREE.Object3D();
+  
+  // Attach the element and set a flag that we can check later
+  cssObj.userData = {
+    element: element,
+    isCSS3DObject: true,
+    textContent: element.textContent || ''
+  };
+  
+  return cssObj;
 }
 
 // Extend THREE.Object3D prototype with the isDescendantOf method
@@ -468,7 +484,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
       markerDiv.style.transform = "scale(1.0)";
     });
 
-    const css3DObject = new CSS3DObject(markerDiv);
+    const css3DObject = createCSS3DObject(markerDiv);
     css3DObject.userData.isMarker = true;
     css3DObject.userData.anchorId = anchorId;
     return css3DObject;
@@ -503,7 +519,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
       onClick();
     });
 
-    const cssObj = new CSS3DObject(buttonDiv);
+    const cssObj = createCSS3DObject(buttonDiv);
     cssObj.userData.isCloseButton = true;
     return cssObj;
   };
@@ -5247,11 +5263,12 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
         while (currentObj && !foundAnchor) {
           // Check Text Anchors FIRST
           if (
-            currentObj instanceof CSS3DObject &&
-            currentObj.userData.isTextLabel === true // Check our custom flag
+            currentObj.userData && 
+            currentObj.userData.isTextLabel === true // Check our custom flag without instanceof
           ) {
             const anchorId = currentObj.userData.anchorId;
-            const currentText = (currentObj as CSS3DObject).element.textContent || "";
+            // Access textContent safely without casting to CSS3DObject
+            const currentText = currentObj.userData?.textContent || "";
             const helperMesh = currentObj.userData.helperMesh as THREE.Mesh; // Get the helper mesh
 
             console.log(
@@ -6255,14 +6272,14 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
       if (isHelper) {
         let visualCssObject: CSS3DObject | undefined = undefined;
 
-        if (transformedObject.userData.cssObject instanceof CSS3DObject) {
+        if (transformedObject.userData.cssObject && transformedObject.userData.cssObject.userData?.isCSS3DObject) {
           visualCssObject = transformedObject.userData.cssObject; // For Webpage anchors
         } else if (
-          transformedObject.userData.labelObject instanceof CSS3DObject
+          transformedObject.userData.labelObject && transformedObject.userData.labelObject.userData?.isCSS3DObject
         ) {
           visualCssObject = transformedObject.userData.labelObject; // For Text anchors
         } else if (
-          transformedObject.userData.visualObject instanceof CSS3DObject
+          transformedObject.userData.visualObject && transformedObject.userData.visualObject.userData?.isCSS3DObject
         ) {
           visualCssObject = transformedObject.userData.visualObject; // For File anchors (e.g., audio player)
         }
