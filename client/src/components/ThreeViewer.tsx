@@ -6,7 +6,7 @@ import React, {
   useImperativeHandle,
 } from "react"; // Added forwardRef, useImperativeHandle
 import * as THREE from "three";
-import { CSS3DRenderer } from "three/examples/jsm/renderers/CSS3DRenderer";
+// Removed CSS3DRenderer import - we'll use our own interface
 // Updated import to use modern THREE.SRGBColorSpace instead of deprecated sRGBEncoding
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls";
@@ -48,7 +48,7 @@ import { Input } from "@/components/ui/input";
 import { Box, CircleDot, Square, LayoutGrid, X, CheckCircle, AlertCircle } from "lucide-react";
 import { doc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import * as TWEEN from "@tweenjs/tween.js";
-import { CSS3DObject } from "three/examples/jsm/renderers/CSS3DRenderer"; // NEW: Import CSS3DObject
+// Removed CSS3DObject import - we'll use our own interface
 
 declare module "three" {
   interface Object3D {
@@ -2048,7 +2048,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
             helperMesh.position.copy(imagePlane.position);
             helperMesh.rotation.copy(imagePlane.rotation);
             imagePlane.userData.helperMesh = helperMesh;
-            helperMesh.userData.visualObject = videoPlane;
+            helperMesh.userData.visualObject = imagePlane; // Changed from videoPlane to imagePlane
             helperMesh.userData.anchorId = anchor.id;
             helperMesh.userData.type = "file-helper";
             sceneRef.current!.add(helperMesh);
