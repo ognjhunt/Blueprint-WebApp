@@ -206,13 +206,56 @@ export default function Dashboard() {
     });
   };
 
-  const [userData, setUserData] = useState(null);
+  // Define type for Firestore timestamp that may have a toDate() method
+  interface FirestoreTimestamp {
+    toDate(): Date;
+  }
+  
+  // Define the activity interface with all needed properties
+  interface Activity {
+    id: string;
+    type: string;
+    title: string;
+    description: string;
+    timestamp: Date | FirestoreTimestamp;
+    icon?: string;
+    event?: string;
+    time?: string;
+    blueprintName?: string;
+  }
+  
+  // Define the user data interface
+  interface UserData {
+    averageRating?: number;
+    totalReviews?: number;
+    recentActivities?: Activity[];
+    mappingScheduleDate?: Date | FirestoreTimestamp;
+    mappingScheduleTime?: string;
+    finishedOnboarding?: boolean;
+    createdBlueprintIDs?: string[];
+    planType?: string;
+    planExpiryDate?: Date | FirestoreTimestamp | null;
+    planUsage?: number;
+    activeBlueprintsPercentage?: number;
+    totalCustomers?: number;
+    customerGrowth?: number;
+    newCustomersThisMonth?: number;
+    numSessions?: number;
+    sessionGrowth?: number;
+    newSessionsThisMonth?: number;
+    ratingGrowth?: number;
+    [key: string]: any; // Allow for additional properties
+  }
+
+  const [userData, setUserData] = useState<UserData | null>(null);
 
   // Helper function to format timestamp as "time ago"
-  const formatTimeAgo = (date) => {
+  const formatTimeAgo = (date: Date): string => {
     if (!date) return "Recently";
 
-    const seconds = Math.floor((new Date() - date) / 1000);
+    const now = new Date();
+    const dateObj = date instanceof Date ? date : new Date(date);
+    const seconds = Math.floor((now.getTime() - dateObj.getTime()) / 1000);
 
     let interval = Math.floor(seconds / 31536000);
     if (interval >= 1) {
