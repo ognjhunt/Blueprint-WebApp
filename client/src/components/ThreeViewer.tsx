@@ -192,6 +192,9 @@ interface ModelAnchor {
   z: number;
   contentType?: string;
   textContent?: string;
+  scaleX?: number;
+  scaleY?: number;
+  scaleZ?: number;
   // Add any other fields if needed
 }
 
@@ -2693,7 +2696,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
     if (
       !(objectToTransform instanceof CSS3DObject) &&
       !objectToTransform.userData?.type?.includes("helper") && // Avoid pulsing helpers directly
-      !objectToHighlight.userData?.visualObject // Also avoid if it's a helper whose visual part is pulsed by highlightObject
+      !objectToTransform.userData?.visualObject // Also avoid if it's a helper whose visual part is pulsed by highlightObject
     ) {
       const originalScale = objectToTransform.scale.clone();
       const targetScale = originalScale.clone().multiplyScalar(1.05);
