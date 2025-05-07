@@ -461,7 +461,7 @@ export default function Dashboard() {
                   }
 
                   // --- Caching Logic ---
-                  let imageUrl = null;
+                  let imageUrl: string | null = null;
                   const fallbackImage = `/images/${blueprintData.locationType?.toLowerCase() || "retail"}.jpeg`;
                   let needsFirestoreUpdate = false; // Flag to update Firestore later
 
@@ -647,7 +647,7 @@ export default function Dashboard() {
   // Modified blueprint initialization to use the new image fetching logic
   const initializeBlueprint = async (blueprintData) => {
     // Get image URL with fallbacks
-    let imageUrl = null;
+    let imageUrl: string | null = null;
 
     try {
       imageUrl = await getLocationImageUrl(
@@ -780,7 +780,7 @@ export default function Dashboard() {
 
       const calculateTimeRemaining = () => {
         const now = new Date();
-        const difference = targetDateTime - now;
+        const difference = targetDateTime.getTime() - now.getTime();
 
         // If the date has passed, don't show negative numbers
         if (difference <= 0) {
@@ -1354,13 +1354,19 @@ export default function Dashboard() {
                           <p className="text-xs text-indigo-100 mt-1 mb-3">
                             Valid until{" "}
                             {userData?.planExpiryDate
-                              ? new Date(
-                                  userData.planExpiryDate.toDate(),
-                                ).toLocaleDateString("en-US", {
-                                  month: "short",
-                                  day: "numeric",
-                                  year: "numeric",
-                                })
+                              ? ('toDate' in userData.planExpiryDate)
+                                ? new Date(
+                                    userData.planExpiryDate.toDate()
+                                  ).toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  })
+                                : new Date(userData.planExpiryDate).toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  })
                               : "N/A"}
                           </p>
                           <div className="flex justify-between items-center">
@@ -1496,9 +1502,9 @@ export default function Dashboard() {
                                 <div className="text-3xl font-bold text-gray-900">
                                   {userData?.totalCustomers || 0}
                                 </div>
-                                {userData?.customerGrowth > 0 && (
+                                {userData?.customerGrowth && userData.customerGrowth > 0 && (
                                   <div className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-800">
-                                    +{userData?.customerGrowth || 0}%
+                                    +{userData.customerGrowth}%
                                   </div>
                                 )}
                               </div>
@@ -1752,13 +1758,11 @@ export default function Dashboard() {
                                               {activity.event}
                                             </h4>
                                             <span className="text-xs text-gray-500">
-                                              {typeof activity.timestamp ===
-                                                "object" &&
-                                              activity.timestamp.toDate
-                                                ? formatTimeAgo(
-                                                    activity.timestamp.toDate(),
-                                                  )
-                                                : activity.time || "Recently"}
+                                              {activity.timestamp && 'toDate' in activity.timestamp
+                                                ? formatTimeAgo(activity.timestamp.toDate())
+                                                : activity.timestamp 
+                                                  ? formatTimeAgo(activity.timestamp as Date)
+                                                  : activity.time || "Recently"}
                                             </span>
                                           </div>
                                           <p className="text-sm text-gray-500 truncate">
