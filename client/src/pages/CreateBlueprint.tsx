@@ -4,7 +4,13 @@ import { doc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
-import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  SetStateAction,
+} from "react";
 import { Loader } from "@googlemaps/js-api-loader";
 import { ScanningSetup } from "@/components/ScanningSetup";
 import ScreenShareButton from "@/components/ScreenShareButton";
@@ -179,7 +185,7 @@ export default function CreateBlueprint() {
   const { currentUser } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [bookedTimes, setBookedTimes] = useState([]);
+  const [bookedTimes, setBookedTimes] = useState<string[]>([]); // Specify the type here
   const [isTimeSlotsLoading, setIsTimeSlotsLoading] = useState(false);
 
   const [formData, setFormData] = useState<FormData & { blueprintId?: string }>(
@@ -686,7 +692,10 @@ export default function CreateBlueprint() {
         const times: string[] = [];
         querySnapshot.forEach((doc) => {
           const data = doc.data();
-          if (data.time) times.push(data.time);
+          if (data.time && typeof data.time === "string") {
+            // Added a type check for robustness
+            times.push(data.time);
+          }
         });
 
         setBookedTimes(times);
@@ -707,7 +716,7 @@ export default function CreateBlueprint() {
 
   // Generate time slots for the selected date
   const generateTimeSlots = useCallback(() => {
-    const slots = [];
+    const slots: string[] = []; // Explicitly type as string[]
     // Generate time slots from 8 AM to 8 PM in 30-minute increments
     for (let hour = 8; hour < 20; hour++) {
       slots.push(`${hour.toString().padStart(2, "0")}:00`);
@@ -1120,7 +1129,17 @@ export default function CreateBlueprint() {
                     </div>
                     <DatePicker
                       selected={scheduleDate}
-                      onChange={setScheduleDate}
+                      onChange={(date: Date | null) => {
+                        // Define the handler explicitly
+                        if (date) {
+                          // Only update if date is not null
+                          setScheduleDate(date);
+                        }
+                        // If you need to handle the case where date is null (e.g., clear the date),
+                        // you would need to change your scheduleDate state to allow null:
+                        // const [scheduleDate, setScheduleDate] = useState<Date | null>(new Date());
+                        // And then you could do: setScheduleDate(date);
+                      }}
                       inline
                       minDate={new Date()}
                       maxDate={maxDate()}
