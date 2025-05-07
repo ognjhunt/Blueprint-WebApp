@@ -380,7 +380,7 @@ export default function BlueprintEditor() {
               toast({
                 title: "Anchor Deleted",
                 description: "This anchor has been permanently removed.",
-                variant: "success",
+                variant: "default",
               });
             } catch (error) {
               console.error("Error deleting anchor:", error);
@@ -565,7 +565,7 @@ export default function BlueprintEditor() {
     toast({
       title: "Area Marked Successfully",
       description: `${areaName} has been added to your navigation`,
-      variant: "success",
+      variant: "default",
     });
 
     // Update progress and check if all required areas are marked
@@ -2981,7 +2981,7 @@ export default function BlueprintEditor() {
         toast({
           title: "Blueprint Activated!",
           description: "Your Blueprint is now live and ready to use.",
-          variant: "success",
+          variant: "default",
         });
 
         // Finally set the state to hide the onboarding after animation finishes
@@ -3303,7 +3303,7 @@ export default function BlueprintEditor() {
         updatedAt: serverTimestamp(), // Optional: track updates
       });
       console.log(`Successfully updated URL for webpage anchor ${anchorId}`);
-      toast({ title: "Webpage URL Updated", variant: "success" });
+      toast({ title: "Webpage URL Updated", variant: "default" });
 
       // Clear editing state after successful update
       setEditingWebpageAnchorId(null);
