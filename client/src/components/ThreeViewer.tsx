@@ -11,6 +11,16 @@ import { CSS3DRenderer } from "three/examples/jsm/renderers/CSS3DRenderer";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls";
 import { DragControls } from "three/examples/jsm/controls/DragControls";
+
+// Add extended OrbitControls interface to fix TypeScript errors
+declare module "three/examples/jsm/controls/OrbitControls" {
+  interface OrbitControls {
+    panLeft(distance: number, objectMatrix?: THREE.Matrix4): void;
+    panUp(distance: number, objectMatrix?: THREE.Matrix4): void;
+    dollyIn(dollyScale: number): void;
+    dollyOut(dollyScale: number): void;
+  }
+}
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
