@@ -4992,7 +4992,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
 
           // Call onPlacementComplete. BlueprintEditor will handle creation.
           // For a NEW link, there's no anchorIdToUpdate yet.
-          onPlacementComplete(hitPoint, undefined);
+          onPlacementComplete(hitPoint, null);
 
           // Optional: Visual feedback for the click (can be kept)
           const markerGeometry = new THREE.SphereGeometry(0.02, 16, 16);
@@ -5247,10 +5247,12 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
 
           // Check Webpage Anchors (only if not found yet)
           if (!foundAnchor) {
+            // Convert to array before iterating to avoid TypeScript errors with Map.entries()
+            const webpageEntries = Array.from(anchorWebpagesRef.current.entries());
             for (const [
               id,
               webpageObj, // This is the CSS3DObject (iframe container)
-            ] of anchorWebpagesRef.current.entries()) {
+            ] of webpageEntries) {
               // Check if the clicked object IS the webpage object itself OR its helper
               const helperMesh = webpageObj.userData.helperMesh as THREE.Mesh;
               if (
