@@ -1731,8 +1731,8 @@ export default function BlueprintEditor() {
   };
 
   // Helper functions for labels
-  function getGoalLabel(goal) {
-    const goals = {
+  function getGoalLabel(goal: string): string {
+    const goals: Record<string, string> = {
       customerEngagement: "Drive Customer Engagement & Sales",
       staffTraining: "Empower Your Team",
       //    partnerShowcase: "Make Your Space Your Own",
@@ -1741,10 +1741,10 @@ export default function BlueprintEditor() {
     return goals[goal] || goal;
   }
 
-  function getUseCaseLabel(useCases) {
+  function getUseCaseLabel(useCases: string[]): string {
     if (!useCases || useCases.length === 0) return "None selected";
 
-    const useCaseLabels = {
+    const useCaseLabels: Record<string, string> = {
       navigation: "Navigation & Wayfinding",
       information: "Product Information",
       engagement: "Interactive Experiences",
@@ -1766,16 +1766,23 @@ export default function BlueprintEditor() {
     return `${useCases.length} use cases selected`;
   }
 
-  function getAreaLabel(area, industry) {
+  function getAreaLabel(area: string | AreaItem, industry: string): string {
     if (!area) return "";
 
+    // If area is an object with name property, return the name
+    if (typeof area !== 'string' && area.name) {
+      return area.name;
+    }
+
+    // Otherwise treat it as a string key and look it up
     const areas = getAreasByIndustry(industry);
-    const foundArea = areas.find((a) => a.value === area);
-    return foundArea ? foundArea.label : String(area);
+    const areaKey = typeof area === 'string' ? area : area.id;
+    const foundArea = areas.find((a) => a.value === areaKey);
+    return foundArea ? foundArea.label : String(areaKey);
   }
 
-  function getFeatureLabel(feature) {
-    const features = {
+  function getFeatureLabel(feature: string): string {
+    const features: Record<string, string> = {
       audioGuide: "Audio Guide",
       virtualTour: "Virtual Tour",
       socialSharing: "Social Sharing",
