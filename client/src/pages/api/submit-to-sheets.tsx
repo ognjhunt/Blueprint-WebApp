@@ -2,12 +2,12 @@
 // lines above remain unchanged
 // --------------------------
 
-import type { NextApiRequest, NextApiResponse } from "next";
+import { Request, Response } from "express";
 import { google } from "googleapis";
 
 export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
+  req: Request,
+  res: Response,
 ) {
   if (req.method !== "POST") {
     res.status(405).end("Method Not Allowed");

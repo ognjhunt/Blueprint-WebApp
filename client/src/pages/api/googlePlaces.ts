@@ -1,13 +1,13 @@
-import type { NextApiRequest, NextApiResponse } from "next";
+import { Request, Response } from "express";
 
 // NOTE: Move your real Google API key into an environment variable in .env
 // e.g. process.env.GOOGLE_PLACES_API_KEY
 // For demonstration, we'll keep it inline here so you can see the code changes.
-const apiKey = "AIzaSyCV9o30LkToSWZwoyz_65iQ3WOOMaCHeEI";
+const apiKey = process.env.GOOGLE_PLACES_API_KEY || "API_KEY";
 
 export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
+  req: Request,
+  res: Response,
 ) {
   try {
     const { address, businessName } = req.query;

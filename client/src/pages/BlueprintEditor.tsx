@@ -6348,10 +6348,6 @@ export default function BlueprintEditor() {
               qrPlacementMode={qrPlacementMode}
               onQRPlaced={handlePlaceQRCode}
               selectedArea={selectedArea}
-              modelAnchors={modelAnchors}
-              webpageAnchors={webpageAnchors}
-              fileAnchors={fileAnchors}
-              textAnchors={textAnchors}
               pendingLabelTextRef={pendingLabelTextRef}
               showTextBoxInputRef={showTextBoxInputRef}
               onTextPlaced={() => {

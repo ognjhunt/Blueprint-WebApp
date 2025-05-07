@@ -46,8 +46,9 @@ export default async function handler(req: Request, res: Response) {
     return res.json({ sessionId: session.id });
   } catch (error) {
     console.error("Error creating Stripe session:", error);
+    const errorMessage = error instanceof Error ? error.message : "Internal Server Error";
     return res.status(500).json({ 
-      error: error.message || "Internal Server Error" 
+      error: errorMessage 
     });
   }
 }
