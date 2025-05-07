@@ -43,6 +43,15 @@ if (typeof THREE !== "undefined" && THREE.Object3D) {
   };
 }
 
+interface FileAnchorElements {
+  marker: CSS3DObject | null;
+  contentObject: THREE.Object3D | null;
+  closeButton?: CSS3DObject;
+  helperMesh?: THREE.Mesh; // If your content relies on a separate helper for transforms
+  labelObject?: CSS3DObject; // For icons with text labels
+  isLoadingContent?: boolean; // Prevent multiple load attempts
+}
+
 interface ThreeViewerProps {
   modelPath: string;
   originPoint?: THREE.Vector3 | null;
@@ -115,6 +124,7 @@ interface ThreeViewerProps {
     z: number;
     [key: string]: any;
   }>;
+  onBackgroundClick?: () => void;
   textAnchors?: TextAnchor[];
   fileAnchors?: Array<{
     id: string;
@@ -183,6 +193,7 @@ const ThreeViewer = forwardRef(function ThreeViewer(
     onWebpageAnchorClick,
     qrCodeAnchors,
     onFileAnchorClick,
+    onBackgroundClick,
     onFileDropped,
     activeLabel,
     awaiting3D,
@@ -226,7 +237,12 @@ const ThreeViewer = forwardRef(function ThreeViewer(
   useEffect(() => {
     qrPlacementModeRef.current = qrPlacementMode;
   }, [qrPlacementMode]);
-
+  const [activeFileAnchorId, setActiveFileAnchorId] = useState<string | null>(
+    null,
+  );
+  const fileAnchorElementsRef = useRef<Map<string, FileAnchorElements>>(
+    new Map(),
+  );
   const textAnchorsRef = useRef<Map<string, THREE.Object3D>>(new Map());
   const fileAnchorsRef = useRef<Map<string, THREE.Object3D>>(new Map());
   const raycasterRef = useRef<THREE.Raycaster>(new THREE.Raycaster());
@@ -237,6 +253,9 @@ const ThreeViewer = forwardRef(function ThreeViewer(
   const transformControlsRef = useRef<TransformControls | null>(null);
   const orbitControlsRef = useRef<OrbitControls | null>(null);
   const dragControlsRef = useRef<DragControls | null>(null);
+  const PDF_THUMBNAIL_URL = "/images/PDF_file_icon.svg";
+  const DOCX_THUMBNAIL_URL = "/images/docx_icon.svg.png";
+  const PPTX_THUMBNAIL_URL = "/images/pptx_thumbnail.png";
 
   useImperativeHandle(ref, () => ({
     zoomIn() {
@@ -347,6 +366,449 @@ const ThreeViewer = forwardRef(function ThreeViewer(
   const [tempBoxHelper, setTempBoxHelper] = useState<THREE.Box3Helper | null>(
     null,
   );
+
+  const createCircularFileMarker = (
+    anchorId: string,
+    onClick: () => void,
+  ): CSS3DObject => {
+    const markerDiv = document.createElement("div");
+    markerDiv.style.width = "30px"; // Adjust size as needed
+    markerDiv.style.height = "30px";
+    markerDiv.style.borderRadius = "50%";
+    markerDiv.style.backgroundColor = "#f0f0f0"; // Light gray, similar to example
+    markerDiv.style.border = "1px solid #b0b0b0"; // Slightly darker border
+    markerDiv.style.boxShadow =
+      "inset 1px 1px 3px rgba(0,0,0,0.15), 0px 1px 2px rgba(0,0,0,0.1)";
+    markerDiv.style.cursor = "pointer";
+    markerDiv.style.display = "flex";
+    markerDiv.style.alignItems = "center";
+    markerDiv.style.justifyContent = "center";
+    markerDiv.style.transition = "transform 0.1s ease-out";
+    markerDiv.style.pointerEvents = "auto"; // Ensure it's clickable
+
+    // Optional: add a subtle inner element or icon if desired
+    // const innerDot = document.createElement('div');
+    // innerDot.style.width = '8px';
+    // innerDot.style.height = '8px';
+    // innerDot.style.borderRadius = '50%';
+    // innerDot.style.backgroundColor = '#c0c0c0';
+    // markerDiv.appendChild(innerDot);
+
+    markerDiv.addEventListener("pointerdown", (e) => {
+      e.stopPropagation();
+      onClick();
+    });
+    markerDiv.addEventListener("mouseenter", () => {
+      markerDiv.style.transform = "scale(1.1)";
+    });
+    markerDiv.addEventListener("mouseleave", () => {
+      markerDiv.style.transform = "scale(1.0)";
+    });
+
+    const css3DObject = new CSS3DObject(markerDiv);
+    css3DObject.userData.isMarker = true;
+    css3DObject.userData.anchorId = anchorId;
+    return css3DObject;
+  };
+
+  // Helper function to create the close button
+  const createCloseButton = (onClick: () => void): CSS3DObject => {
+    const buttonDiv = document.createElement("button");
+    buttonDiv.innerHTML = "×"; // X symbol for close
+    buttonDiv.style.width = "24px";
+    buttonDiv.style.height = "24px";
+    buttonDiv.style.position = "absolute"; // Positioned by CSS3DObject's transform
+    buttonDiv.style.top = "-12px"; // Adjust for visual placement relative to content corner
+    buttonDiv.style.right = "-12px";
+    buttonDiv.style.padding = "0";
+    buttonDiv.style.backgroundColor = "rgba(40, 40, 40, 0.8)";
+    buttonDiv.style.color = "white";
+    buttonDiv.style.border = "1px solid rgba(255,255,255,0.3)";
+    buttonDiv.style.borderRadius = "50%";
+    buttonDiv.style.cursor = "pointer";
+    buttonDiv.style.zIndex = "20"; // Ensure on top
+    buttonDiv.style.pointerEvents = "auto";
+    buttonDiv.style.fontSize = "16px";
+    buttonDiv.style.lineHeight = "22px";
+    buttonDiv.style.textAlign = "center";
+    buttonDiv.style.display = "flex";
+    buttonDiv.style.alignItems = "center";
+    buttonDiv.style.justifyContent = "center";
+
+    buttonDiv.addEventListener("pointerdown", (e) => {
+      e.stopPropagation(); // Important
+      onClick();
+    });
+
+    const cssObj = new CSS3DObject(buttonDiv);
+    cssObj.userData.isCloseButton = true;
+    return cssObj;
+  };
+
+  // Helper function to create the actual file content (refactored from your existing logic)
+  // IMPORTANT: This function will be long, containing your existing file-type handling.
+  // It needs to be adapted to return a Promise<THREE.Object3D | null>.
+  // Helper meshes and CSS Labels (for icons) ARE ADDED to the scene within this function.
+  // The main visual object (imagePlane, videoPlane) is RETURNED.
+  const createActualFileContent = async (
+    anchor: any, // Use your FileAnchor type
+    modelSpacePosition: THREE.Vector3,
+    camera: THREE.Camera,
+    scene: THREE.Scene,
+    fileAnchorsProp: any[], // Pass the full fileAnchors prop for data lookup if needed
+    onFileAnchorClickHandler: typeof onFileAnchorClick, // Pass callbacks
+    handleAnchorSelectHandler: typeof handleAnchorSelect, // Pass callbacks
+  ): Promise<THREE.Object3D | null> => {
+    // --- Determine fileType (copy your logic) ---
+    const fileNameLower = anchor.fileName?.toLowerCase() || "";
+    let determinedFileType = anchor.fileType;
+    if (!determinedFileType) {
+      if (fileNameLower.endsWith(".pdf")) determinedFileType = "pdf";
+      else if (
+        fileNameLower.endsWith(".docx") ||
+        fileNameLower.endsWith(".doc")
+      )
+        determinedFileType = "docx";
+      else if (
+        fileNameLower.endsWith(".pptx") ||
+        fileNameLower.endsWith(".ppt")
+      )
+        determinedFileType = "pptx";
+      else if (fileNameLower.match(/\.(jpg|jpeg|png|gif|webp)$/i))
+        determinedFileType = "image";
+      else if (fileNameLower.match(/\.(mp4|mov|webm)$/i))
+        determinedFileType = "video";
+      else if (fileNameLower.match(/\.(mp3|wav|ogg)$/i))
+        determinedFileType = "audio";
+      else determinedFileType = "document"; // Fallback
+    }
+
+    let visualObject: THREE.Object3D | null = null;
+
+    // --- IMAGE ---
+    if (determinedFileType === "image") {
+      visualObject = await new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = () => {
+          try {
+            const aspect = img.width / img.height;
+            const planeWidth = 0.15; // Adjust as needed
+            const planeHeight = planeWidth / aspect;
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d")!;
+            const r = Math.min(110, canvas.width / 2, canvas.height / 2); // Rounded corners
+            ctx.beginPath();
+            ctx.moveTo(r, 0);
+            /* ... your rounded rect path ... */ ctx.lineTo(0, r);
+            ctx.quadraticCurveTo(0, 0, r, 0);
+            ctx.closePath();
+            ctx.clip();
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.colorSpace = THREE.SRGBColorSpace;
+            const material = new THREE.MeshBasicMaterial({
+              map: texture,
+              side: THREE.DoubleSide,
+              transparent: true,
+              depthWrite: false,
+              alphaTest: 0.1,
+            });
+            const imagePlane = new THREE.Mesh(
+              new THREE.PlaneGeometry(planeWidth, planeHeight),
+              material,
+            );
+            imagePlane.position.copy(modelSpacePosition);
+            imagePlane.userData = {
+              anchorId: anchor.id,
+              type: "file-image-content",
+            };
+
+            imagePlane.addEventListener("pointerdown", (e) => {
+              e.stopPropagation();
+              const helper = imagePlane.userData.helperMesh as THREE.Mesh;
+              const faData = fileAnchorsProp?.find((f) => f.id === anchor.id);
+              if (onFileAnchorClickHandler && faData)
+                onFileAnchorClickHandler(anchor.id, faData);
+              handleAnchorSelectHandler(
+                anchor.id,
+                helper || imagePlane,
+                "file",
+              );
+            });
+
+            const helperGeo = new THREE.BoxGeometry(0.01, 0.01, 0.01);
+            const helperMat = new THREE.MeshBasicMaterial({ visible: false });
+            const helperMesh = new THREE.Mesh(helperGeo, helperMat);
+            helperMesh.position.copy(imagePlane.position);
+            helperMesh.rotation.copy(imagePlane.rotation);
+            imagePlane.userData.helperMesh = helperMesh;
+            helperMesh.userData = {
+              visualObject: imagePlane,
+              anchorId: anchor.id,
+              type: "file-helper",
+            };
+            scene.add(helperMesh);
+            resolve(imagePlane);
+          } catch (err) {
+            console.error("Error creating image content:", err);
+            resolve(null);
+          }
+        };
+        img.onerror = (err) => {
+          console.error("Error loading image for content:", err);
+          resolve(null);
+        };
+        img.src =
+          anchor.fileUrl ||
+          "https://f005.backblazeb2.com/file/uploadedFiles-dev/083B81B6-F5EB-4AF3-B491-1DE40976280F_Asset0017.jpg"; // Fallback for testing
+      });
+    }
+    // --- VIDEO ---
+    else if (determinedFileType === "video") {
+      visualObject = await new Promise((resolve) => {
+        const video = document.createElement("video");
+        video.crossOrigin = "Anonymous";
+        video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.preload = "auto";
+        video.onloadeddata = () => {
+          try {
+            const aspect = video.videoWidth / video.videoHeight;
+            const planeWidth = 0.25;
+            const planeHeight = planeWidth / aspect;
+            const videoTexture = new THREE.VideoTexture(video);
+            videoTexture.colorSpace = THREE.SRGBColorSpace;
+            // Rounded corners for video (alphaMap)
+            const alphaCanvas =
+              document.createElement(
+                "canvas",
+              ); /* ... setup alphaCanvas for rounded rect ... */
+            // ... (draw white rounded rect on black background for alphaMap) ...
+            const alphaTexture = new THREE.CanvasTexture(alphaCanvas);
+            const material = new THREE.MeshBasicMaterial({
+              map: videoTexture,
+              alphaMap: alphaTexture,
+              transparent: true,
+              side: THREE.DoubleSide,
+              depthWrite: false,
+            });
+            const videoPlane = new THREE.Mesh(
+              new THREE.PlaneGeometry(planeWidth, planeHeight),
+              material,
+            );
+            videoPlane.position.copy(modelSpacePosition);
+            videoPlane.userData = {
+              anchorId: anchor.id,
+              type: "file-video-content",
+              videoElement: video,
+            };
+
+            videoPlane.addEventListener("pointerdown", (e) => {
+              /* ... your listener ... */
+            });
+
+            const helperGeo = new THREE.BoxGeometry(
+              0.01,
+              0.01,
+              0.01,
+            ); /* ... create helper ... */
+            const helperMesh = new THREE.Mesh(
+              helperGeo,
+              new THREE.MeshBasicMaterial({ visible: false }),
+            );
+            helperMesh.position.copy(videoPlane.position);
+            videoPlane.userData.helperMesh = helperMesh;
+            helperMesh.userData = {
+              visualObject: videoPlane,
+              anchorId: anchor.id,
+              type: "file-helper",
+            };
+            scene.add(helperMesh);
+            video
+              .play()
+              .catch((e) => console.warn("Video autoplay prevented", e));
+            resolve(videoPlane);
+          } catch (err) {
+            console.error("Error creating video content:", err);
+            resolve(null);
+          }
+        };
+        video.onerror = (err) => {
+          console.error("Error loading video for content:", err);
+          resolve(null);
+        };
+        video.src =
+          anchor.fileUrl ||
+          "https://f005.backblazeb2.com/file/uploadedFiles-dev/24406E68-8FBD-4BAC-B773-E09EE0497599_Blueprint++In+Shared+Space+-+With+Explanations.mp4"; // Fallback
+      });
+    }
+    // --- AUDIO ---
+    else if (determinedFileType === "audio") {
+      // Your existing audio CSS3DObject creation
+      const wrapper = document.createElement("div"); /* ... style wrapper ... */
+      const btn = document.createElement("button");
+      /* ... style button ... */ wrapper.appendChild(btn);
+      const label = document.createElement("span");
+      /* ... style label ... */ wrapper.appendChild(label);
+      const audioEl = new Audio(anchor.fileUrl);
+      wrapper.userData = { audioEl };
+      btn.addEventListener("click", (e) => {
+        /* ... play/pause logic ... */
+      });
+      const cssObj = new CSS3DObject(wrapper);
+      cssObj.scale.set(0.0015, 0.0015, 0.0015);
+      cssObj.position.copy(modelSpacePosition);
+      cssObj.userData = { anchorId: anchor.id, type: "file-audio-content" };
+
+      const helperGeo = new THREE.BoxGeometry(
+        0.01,
+        0.01,
+        0.01,
+      ); /* ... create helper ... */
+      const helperMesh = new THREE.Mesh(
+        helperGeo,
+        new THREE.MeshBasicMaterial({ visible: false }),
+      );
+      helperMesh.position.copy(cssObj.position);
+      cssObj.userData.helperMesh = helperMesh;
+      helperMesh.userData = {
+        visualObject: cssObj,
+        anchorId: anchor.id,
+        type: "file-helper",
+      };
+      scene.add(helperMesh); // Add helper to WebGL scene
+      // CSS3DObject is added by the caller, so we just return it.
+      wrapper.addEventListener("pointerdown", (ev) => {
+        /* your listener */
+      });
+      visualObject = cssObj; // Synchronous
+    }
+    // --- PDF, DOCX, PPTX ICONS (or thumbnail if available) ---
+    else if (
+      anchor.thumbnailUrl ||
+      ["pdf", "docx", "pptx"].includes(determinedFileType)
+    ) {
+      visualObject = await new Promise((resolve) => {
+        const imgSrc =
+          anchor.thumbnailUrl ||
+          (determinedFileType === "pdf"
+            ? PDF_THUMBNAIL_URL
+            : determinedFileType === "docx"
+              ? DOCX_THUMBNAIL_URL
+              : PPTX_THUMBNAIL_URL);
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = () => {
+          try {
+            const aspect = img.width / img.height;
+            const planeWidth = 0.1;
+            const planeHeight = planeWidth / aspect;
+            const texture = new THREE.Texture(img);
+            texture.needsUpdate = true;
+            texture.colorSpace = THREE.SRGBColorSpace;
+            const material = new THREE.MeshBasicMaterial({
+              map: texture,
+              side: THREE.DoubleSide,
+              transparent: true,
+              alphaTest: 0.1,
+            });
+            const iconPlane = new THREE.Mesh(
+              new THREE.PlaneGeometry(planeWidth, planeHeight),
+              material,
+            );
+            iconPlane.position.copy(modelSpacePosition);
+            iconPlane.userData = {
+              anchorId: anchor.id,
+              type: `file-${determinedFileType}-icon-content`,
+            };
+
+            // Add CSS Label if it's an icon (not just a thumbnail preview)
+            let labelObject;
+            if (!anchor.thumbnailUrl) {
+              // Only add label for specific icons, not generic thumbnails
+              const labelDiv =
+                document.createElement("div"); /* ... style labelDiv ... */
+              labelDiv.textContent =
+                anchor.fileName || determinedFileType.toUpperCase();
+              labelObject = new CSS3DObject(labelDiv);
+              labelObject.scale.set(0.001, 0.001, 0.001);
+              labelObject.position
+                .copy(iconPlane.position)
+                .add(new THREE.Vector3(0, -planeHeight / 2 - 0.015, 0));
+              scene.add(labelObject); // Add CSS Label to CSS3D scene here
+              iconPlane.userData.labelObject = labelObject;
+            }
+
+            iconPlane.addEventListener("pointerdown", (e) => {
+              /* ... your listener ... */
+            });
+
+            const helperGeo = new THREE.BoxGeometry(
+              0.01,
+              0.01,
+              0.01,
+            ); /* ... create helper ... */
+            const helperMesh = new THREE.Mesh(
+              helperGeo,
+              new THREE.MeshBasicMaterial({ visible: false }),
+            );
+            helperMesh.position.copy(iconPlane.position);
+            iconPlane.userData.helperMesh = helperMesh;
+            helperMesh.userData = {
+              visualObject: iconPlane,
+              anchorId: anchor.id,
+              type: "file-helper",
+            };
+            scene.add(helperMesh);
+            resolve(iconPlane);
+          } catch (err) {
+            console.error("Error creating icon content:", err);
+            resolve(null);
+          }
+        };
+        img.onerror = (err) => {
+          console.error("Error loading icon image for content:", err);
+          resolve(null);
+        };
+        img.src = imgSrc;
+      });
+    }
+    // --- DEFAULT DOCUMENT PLACEHOLDER ---
+    else {
+      const docGeometry = new THREE.BoxGeometry(0.15, 0.2, 0.02);
+      const docMaterial = new THREE.MeshBasicMaterial({ color: 0x60a5fa });
+      const docIcon = new THREE.Mesh(docGeometry, docMaterial);
+      docIcon.position.copy(modelSpacePosition);
+      docIcon.userData = { anchorId: anchor.id, type: "file-document-content" };
+      docIcon.addEventListener("pointerdown", (e) => {
+        /* ... your listener ... */
+      });
+
+      const helperGeo = new THREE.BoxGeometry(
+        0.01,
+        0.01,
+        0.01,
+      ); /* ... create helper ... */
+      const helperMesh = new THREE.Mesh(
+        helperGeo,
+        new THREE.MeshBasicMaterial({ visible: false }),
+      );
+      helperMesh.position.copy(docIcon.position);
+      docIcon.userData.helperMesh = helperMesh;
+      helperMesh.userData = {
+        visualObject: docIcon,
+        anchorId: anchor.id,
+        type: "file-helper",
+      };
+      scene.add(helperMesh);
+      visualObject = docIcon; // Synchronous
+    }
+    return visualObject;
+  };
 
   const convertToRealWorldCoords = (modelPosition: THREE.Vector3) => {
     if (!originPoint) return modelPosition.clone().multiplyScalar(45.6);
@@ -860,33 +1322,70 @@ const ThreeViewer = forwardRef(function ThreeViewer(
         modelSpacePosition,
       );
 
+      const fileNameLower = anchor.fileName?.toLowerCase() || "";
+      let determinedFileType = anchor.fileType;
+
+      if (!determinedFileType) {
+        if (fileNameLower.endsWith(".pdf")) determinedFileType = "pdf";
+        else if (fileNameLower.endsWith(".docx")) determinedFileType = "docx";
+        else if (fileNameLower.endsWith(".doc"))
+          determinedFileType = "docx"; // Treat .doc as docx for icon
+        else if (fileNameLower.endsWith(".pptx")) determinedFileType = "pptx";
+        else if (fileNameLower.endsWith(".ppt"))
+          determinedFileType = "pptx"; // Treat .ppt as pptx for icon
+        else if (
+          fileNameLower.endsWith(".jpg") ||
+          fileNameLower.endsWith(".jpeg") ||
+          fileNameLower.endsWith(".png") ||
+          fileNameLower.endsWith(".gif") ||
+          fileNameLower.endsWith(".webp")
+        )
+          determinedFileType = "image";
+        else if (
+          fileNameLower.endsWith(".mp4") ||
+          fileNameLower.endsWith(".mov") ||
+          fileNameLower.endsWith(".webm")
+        )
+          determinedFileType = "video";
+        else if (
+          fileNameLower.endsWith(".mp3") ||
+          fileNameLower.endsWith(".wav") ||
+          fileNameLower.endsWith(".ogg")
+        )
+          determinedFileType = "audio";
+      }
+
       // --- 2. Create Visual based on fileType ---
       let anchorObject: THREE.Object3D | null = null;
 
       // --- Create Label --- (Keep existing logic)
-      if (anchor.fileType !== "image" && anchor.fileType !== "video") {
-        const labelDiv = document.createElement("div");
-        labelDiv.textContent = anchor.fileName || "File";
-        labelDiv.style.padding = "2px 5px";
-        labelDiv.style.fontSize = "10px";
-        labelDiv.style.color = "#333";
-        labelDiv.style.backgroundColor = "rgba(255, 255, 255, 0.85)";
-        labelDiv.style.borderRadius = "3px";
-        labelDiv.style.border = "1px solid #ccc";
-        labelDiv.style.whiteSpace = "nowrap";
-        labelDiv.style.pointerEvents = "none";
+      // if (
+      //   anchor.fileType !== "image" &&
+      //   anchor.fileType !== "video" &&
+      //   anchor.fileType !== "audio"
+      // ) {
+      //   const labelDiv = document.createElement("div");
+      //   labelDiv.textContent = anchor.fileName || "File";
+      //   labelDiv.style.padding = "2px 5px";
+      //   labelDiv.style.fontSize = "10px";
+      //   labelDiv.style.color = "#333";
+      //   labelDiv.style.backgroundColor = "rgba(255, 255, 255, 0.85)";
+      //   labelDiv.style.borderRadius = "3px";
+      //   labelDiv.style.border = "1px solid #ccc";
+      //   labelDiv.style.whiteSpace = "nowrap";
+      //   labelDiv.style.pointerEvents = "none";
 
-        const labelObject = new CSS3DObject(labelDiv);
-        labelObject.scale.set(0.003, 0.003, 0.003);
-        labelObject.position
-          .copy(modelSpacePosition)
-          .add(new THREE.Vector3(0, 0.15, 0));
-        labelObject.userData.isLabel = true;
-        labelObject.userData.anchorId = anchor.id;
-        sceneRef.current!.add(labelObject);
-      }
+      //   const labelObject = new CSS3DObject(labelDiv);
+      //   labelObject.scale.set(0.003, 0.003, 0.003);
+      //   labelObject.position
+      //     .copy(modelSpacePosition)
+      //     .add(new THREE.Vector3(0, 0.15, 0));
+      //   labelObject.userData.isLabel = true;
+      //   labelObject.userData.anchorId = anchor.id;
+      //   sceneRef.current!.add(labelObject);
+      // }
       // --- Handle Media Types ---
-      if (anchor.fileType === "image") {
+      if (determinedFileType === "image") {
         console.log(
           `[ThreeViewer fileAnchors] Attempting to create image plane for ${anchor.id} (${anchor.fileName}) using Backblaze URL`,
         );
@@ -908,7 +1407,44 @@ const ThreeViewer = forwardRef(function ThreeViewer(
             const aspect = img.width / img.height;
             const planeWidth = 0.15;
             const planeHeight = planeWidth / aspect;
-            const texture = new THREE.Texture(img);
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d");
+
+            // 2) Define your corner radius in pixels
+            const desiredRadius = 110; // Increased for more pronounced rounding
+            // Ensure radius is not larger than half the canvas dimensions
+            const r = Math.min(
+              desiredRadius,
+              canvas.width / 2,
+              canvas.height / 2,
+            );
+
+            // 3) Build a rounded‐rect clipping path using the calculated radius 'r'
+            ctx.beginPath();
+            ctx.moveTo(r, 0);
+            ctx.lineTo(canvas.width - r, 0);
+            ctx.quadraticCurveTo(canvas.width, 0, canvas.width, r);
+            ctx.lineTo(canvas.width, canvas.height - r);
+            ctx.quadraticCurveTo(
+              canvas.width,
+              canvas.height,
+              canvas.width - r,
+              canvas.height,
+            );
+            ctx.lineTo(r, canvas.height);
+            ctx.quadraticCurveTo(0, canvas.height, 0, canvas.height - r);
+            ctx.lineTo(0, r);
+            ctx.quadraticCurveTo(0, 0, r, 0);
+            ctx.closePath();
+            ctx.clip();
+
+            // 4) Draw the image into the clipped area
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            // 5) Use the canvas as your texture
+            const texture = new THREE.CanvasTexture(canvas);
             texture.needsUpdate = true;
             texture.colorSpace = THREE.SRGBColorSpace;
 
@@ -919,6 +1455,8 @@ const ThreeViewer = forwardRef(function ThreeViewer(
               depthWrite: false,
               alphaTest: 0.1,
             });
+
+            // 6) Same PlaneGeometry—UVs stay perfect
             const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
             const imagePlane = new THREE.Mesh(geometry, material);
 
@@ -938,7 +1476,7 @@ const ThreeViewer = forwardRef(function ThreeViewer(
               const anchorId = imagePlane.userData.anchorId;
               const fileAnchorData = fileAnchors?.find(
                 (a) => a.id === anchorId,
-              ); // Get full anchor data
+              );
 
               console.log(
                 `Image plane clicked for ${anchorId}. Helper found: ${!!helper}`,
@@ -946,7 +1484,7 @@ const ThreeViewer = forwardRef(function ThreeViewer(
 
               // 1. Notify BlueprintEditor
               if (onFileAnchorClick && fileAnchorData) {
-                onFileAnchorClick(anchorId, fileAnchorData); // Pass anchor data too
+                onFileAnchorClick(anchorId, fileAnchorData); // This is correct
               } else {
                 console.warn(
                   `onFileAnchorClick callback missing or anchor data not found for ${anchorId}`,
@@ -955,13 +1493,12 @@ const ThreeViewer = forwardRef(function ThreeViewer(
 
               // 2. Select the HELPER mesh for 3D interaction
               if (helper) {
-                handleAnchorSelect(anchorId, helper, "file"); // Pass the HELPER mesh
+                handleAnchorSelect(anchorId, helper, "file"); // This is correct
               } else {
                 console.warn(
                   `Helper mesh not found for file anchor ${anchorId} on click.`,
                 );
-                // Fallback: Maybe select the visual object, but highlight might be weird
-                // handleAnchorSelect(anchorId, imagePlane, "file");
+                handleAnchorSelect(anchorId, imagePlane, "file"); // Fallback
               }
             });
 
@@ -1028,7 +1565,118 @@ const ThreeViewer = forwardRef(function ThreeViewer(
           `[ThreeViewer fileAnchors] Setting img.src for ${anchor.id} to Backblaze URL: ${backblazeImageUrl}`,
         );
         img.src = backblazeImageUrl;
-      } else if (anchor.fileType === "video") {
+      } else if (
+        determinedFileType === "audio" || // ← Firestore flag
+        anchor.fileName?.toLowerCase().endsWith(".mp3") // ← fallback detection
+      ) {
+        /* ---------- AUDIO PREVIEW ---------- */
+        // 1.  build a tiny audio player UI (CSS3D)
+        const wrapper = document.createElement("div");
+        wrapper.style.pointerEvents = "auto";
+        Object.assign(wrapper.style, {
+          padding: "10px 14px",
+          fontSize: "14px",
+          color: "#fff",
+          background: "rgba(120,120,130,0.82)",
+          borderRadius: "12px",
+          maxWidth: "180px", // Keep this
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          backdropFilter: "blur(10px)",
+          boxShadow: "0 4px 10px rgba(0,0,0,.20)",
+          border: "1px solid rgba(255,255,255,.10)",
+          fontFamily:
+            "'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif",
+          boxSizing: "border-box", // Keep this
+        });
+
+        // ▸ / ❚❚  toggle button
+        const btn = document.createElement("button");
+        btn.textContent = "►";
+        Object.assign(btn.style, {
+          width: "22px",
+          height: "22px",
+          borderRadius: "50%",
+          border: "none",
+          background: "#4f46e5",
+          color: "#fff",
+          cursor: "pointer",
+          flexShrink: "0", // Keep this: Prevent button from shrinking
+        });
+        wrapper.appendChild(btn);
+
+        // file label
+        const label = document.createElement("span");
+        label.textContent = anchor.fileName || "audio.mp3";
+
+        // Calculated width for the label:
+        // Wrapper content box width = 180px (wrapper.maxWidth) - 28px (wrapper L/R padding) = 152px
+        // Space taken by button + gap = 22px (button.width) + 8px (gap) = 30px
+        // Available width for label = 152px - 30px = 122px
+        const labelAvailableWidth = "162px";
+
+        Object.assign(label.style, {
+          display: "block", // ADDED: Treat as a block for width/overflow
+          width: labelAvailableWidth, // MODIFIED: Set explicit width
+          // maxWidth: labelAvailableWidth, // Redundant if width is set, but harmless
+          minWidth: "0", // Keep this: Crucial for allowing shrinkage for ellipsis
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        });
+        wrapper.appendChild(label);
+
+        // 2.  create the Audio element (kept off‑screen)
+        const audioEl = new Audio(anchor.fileUrl);
+        audioEl.preload = "auto";
+        wrapper.userData = { audioEl }; // stash a ref for later
+
+        // 3.  play / pause logic
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (audioEl.paused) {
+            audioEl.play();
+            btn.textContent = "❚❚";
+          } else {
+            audioEl.pause();
+            btn.textContent = "►";
+          }
+        });
+
+        // 4.  turn the wrapper into a CSS3DObject
+        const cssObj = new CSS3DObject(wrapper);
+        cssObj.scale.set(0.0015, 0.0015, 0.0015); // same size as textAnchor
+        cssObj.position.copy(modelSpacePosition);
+        cssObj.userData.anchorId = anchor.id;
+        cssObj.userData.type = "file-audio";
+
+        // 5.  helper mesh (for transforms / selection)
+        const helperGeo = new THREE.BoxGeometry(0.01, 0.01, 0.01);
+        const helperMat = new THREE.MeshBasicMaterial({ visible: false });
+        const helperMesh = new THREE.Mesh(helperGeo, helperMat);
+        helperMesh.position.copy(cssObj.position);
+        helperMesh.userData.visualObject = cssObj;
+        helperMesh.userData.anchorId = anchor.id;
+        helperMesh.userData.type = "file-helper";
+        cssObj.userData.helperMesh = helperMesh;
+
+        // 6.  click‑through → choose + open side‑panel
+        wrapper.addEventListener("pointerdown", (ev) => {
+          ev.stopPropagation();
+          ev.preventDefault(); // <<<< ADD THIS LINE
+          if (onFileAnchorClick) {
+            const data = fileAnchors?.find((a) => a.id === anchor.id);
+            if (data) onFileAnchorClick(anchor.id, data);
+          }
+          handleAnchorSelect(anchor.id, helperMesh, "file");
+        });
+
+        sceneRef.current!.add(cssObj);
+        sceneRef.current!.add(helperMesh);
+        fileAnchorsRef.current.set(anchor.id, cssObj);
+        /* ---------- END AUDIO PREVIEW ---------- */
+      } else if (determinedFileType === "video") {
         console.log(
           `[ThreeViewer fileAnchors] Attempting to create video plane for ${anchor.id} (${anchor.fileName}) using Backblaze URL`,
         );
@@ -1056,17 +1704,80 @@ const ThreeViewer = forwardRef(function ThreeViewer(
             const planeHeight = planeWidth / aspect;
 
             const videoTexture = new THREE.VideoTexture(video);
-            videoTexture.needsUpdate = true;
+            videoTexture.needsUpdate = true; // VideoTexture itself handles frame updates
             videoTexture.colorSpace = THREE.SRGBColorSpace;
+
+            // --- Create Alpha Map for Rounded Corners ---
+            const alphaCanvas = document.createElement("canvas");
+            alphaCanvas.width = video.videoWidth; // Match video dimensions for UV alignment
+            alphaCanvas.height = video.videoHeight;
+            const alphaCtx = alphaCanvas.getContext("2d");
+
+            if (alphaCtx) {
+              const desiredRadiusVideo = 70; // Desired radius in pixels of the source video
+              // Ensure radius is not larger than half the canvas dimensions
+              const rVideo = Math.min(
+                desiredRadiusVideo,
+                alphaCanvas.width / 2,
+                alphaCanvas.height / 2,
+              );
+
+              // Fill canvas with black (this will be the transparent parts)
+              alphaCtx.fillStyle = "black";
+              alphaCtx.fillRect(0, 0, alphaCanvas.width, alphaCanvas.height);
+
+              // Draw a white rounded rectangle (this will be the opaque parts)
+              alphaCtx.fillStyle = "white";
+              alphaCtx.beginPath();
+              alphaCtx.moveTo(rVideo, 0);
+              alphaCtx.lineTo(alphaCanvas.width - rVideo, 0);
+              alphaCtx.quadraticCurveTo(
+                alphaCanvas.width,
+                0,
+                alphaCanvas.width,
+                rVideo,
+              );
+              alphaCtx.lineTo(alphaCanvas.width, alphaCanvas.height - rVideo);
+              alphaCtx.quadraticCurveTo(
+                alphaCanvas.width,
+                alphaCanvas.height,
+                alphaCanvas.width - rVideo,
+                alphaCanvas.height,
+              );
+              alphaCtx.lineTo(rVideo, alphaCanvas.height);
+              alphaCtx.quadraticCurveTo(
+                0,
+                alphaCanvas.height,
+                0,
+                alphaCanvas.height - rVideo,
+              );
+              alphaCtx.lineTo(0, rVideo);
+              alphaCtx.quadraticCurveTo(0, 0, rVideo, 0);
+              alphaCtx.closePath();
+              alphaCtx.fill();
+            } else {
+              console.error(
+                "[ThreeViewer fileAnchors] Could not get 2D context for video alphaMap canvas",
+              );
+            }
+
+            const roundedRectAlphaTexture = new THREE.CanvasTexture(
+              alphaCanvas,
+            );
+            roundedRectAlphaTexture.needsUpdate = true; // Update once after drawing
+            // Alpha map doesn't need SRGB, it's grayscale data.
+            // roundedRectAlphaTexture.colorSpace = THREE.SRGBColorSpace; // Not needed for alphaMap
 
             const material = new THREE.MeshBasicMaterial({
               map: videoTexture,
+              alphaMap: roundedRectAlphaTexture, // Apply the alpha map
+              transparent: true, // IMPORTANT: Material must be transparent for alphaMap
               side: THREE.DoubleSide,
-              toneMapped: false,
-              depthWrite: false,
-              depthTest: false,
+              toneMapped: false, // Keep existing property
+              depthWrite: false, // Keep existing property
+              depthTest: false, // Keep existing property
             });
-            const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
+            const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight); // Geometry remains the same
             const videoPlane = new THREE.Mesh(geometry, material);
 
             videoPlane.renderOrder = 1;
@@ -1080,12 +1791,35 @@ const ThreeViewer = forwardRef(function ThreeViewer(
             // Add a pointerdown event listener to select the video anchor
             videoPlane.addEventListener("pointerdown", (e) => {
               e.stopPropagation();
-              // Try to get a helper mesh if it was created (if not, fall back to videoPlane itself)
+              e.preventDefault(); // Prevent default browser actions
+
               const helper = videoPlane.userData.helperMesh as THREE.Mesh;
-              if (helper) {
-                handleAnchorSelect(anchor.id, helper, "file");
+              const currentAnchorId = anchor.id; // Use anchor.id from the loop's current scope
+              const fileAnchorData = fileAnchors?.find(
+                (a) => a.id === currentAnchorId,
+              );
+
+              console.log(
+                `Video plane directly clicked for ${currentAnchorId}. Helper found: ${!!helper}. Anchor data found: ${!!fileAnchorData}`,
+              );
+
+              // 1. Notify BlueprintEditor to show the info panel
+              if (onFileAnchorClick && fileAnchorData) {
+                onFileAnchorClick(currentAnchorId, fileAnchorData);
               } else {
-                handleAnchorSelect(anchor.id, videoPlane, "file");
+                console.warn(
+                  `onFileAnchorClick callback missing or file anchor data not found for video ${currentAnchorId}`,
+                );
+              }
+
+              // 2. Select the HELPER mesh (or videoPlane as fallback) for 3D interaction
+              if (helper) {
+                handleAnchorSelect(currentAnchorId, helper, "file");
+              } else {
+                console.warn(
+                  `Helper mesh not found for video anchor ${currentAnchorId} on direct click. Selecting video plane.`,
+                );
+                handleAnchorSelect(currentAnchorId, videoPlane, "file");
               }
             });
 
@@ -1259,70 +1993,323 @@ const ThreeViewer = forwardRef(function ThreeViewer(
         img.src = anchor.thumbnailUrl; // Use the thumbnail URL from Firestore
 
         // --- Keep existing PDF iframe logic if fileType is explicitly "pdf" AND no thumbnail exists ---
-      } else if (anchor.fileType === "pdf") {
-        //if (anchor.fileType === "pdf")
+      } else if (determinedFileType === "pdf") {
         console.log(
-          `[ThreeViewer fileAnchors] Attempting to create PDF viewer for ${anchor.id} (${anchor.fileName}) using Backblaze URL`,
+          `[ThreeViewer fileAnchors] Creating PDF icon for ${anchor.id} from ${PDF_THUMBNAIL_URL}`,
         );
-        // Create an iframe to display the PDF file
-        const iframe = document.createElement("iframe");
-        iframe.crossOrigin = "Anonymous";
-        iframe.style.width = "0.8"; // Adjust as needed for your scene
-        iframe.style.height = "1";
-        iframe.style.border = "none";
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = () => {
+          try {
+            const aspect = img.width / img.height;
+            const planeWidth = 0.1; // Smaller for icons
+            const planeHeight = planeWidth / aspect;
+            const texture = new THREE.Texture(img);
+            texture.needsUpdate = true;
+            texture.colorSpace = THREE.SRGBColorSpace;
 
-        // Use hardcoded Backblaze URL for PDFs
-        const backblazePdfUrl =
-          "https://f005.backblazeb2.com/file/uploadedFiles-dev/00225FF2-0FE0-4B55-88E6-94F21ADE5512_Bio+Exam+1+Study+Notes.pdf";
+            const material = new THREE.MeshBasicMaterial({
+              map: texture,
+              side: THREE.DoubleSide,
+              transparent: true,
+              depthWrite: false,
+              alphaTest: 0.1,
+            });
+            const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
+            const pdfIconPlane = new THREE.Mesh(geometry, material);
+            pdfIconPlane.position.copy(modelSpacePosition);
+            pdfIconPlane.userData.anchorId = anchor.id;
+            pdfIconPlane.userData.type = "file-pdf-icon";
+
+            const labelDiv = document.createElement("div");
+            labelDiv.textContent = anchor.fileName || "PDF Document";
+            // Apply consistent styling
+            labelDiv.style.padding = "2px 4px";
+            labelDiv.style.fontSize = "10px";
+            labelDiv.style.color = "#333";
+            labelDiv.style.backgroundColor = "rgba(255, 255, 255, 0.88)";
+            labelDiv.style.borderRadius = "3px";
+            labelDiv.style.border = "1px solid #ddd";
+            labelDiv.style.whiteSpace = "nowrap";
+            labelDiv.style.maxWidth = "120px";
+            labelDiv.style.overflow = "hidden";
+            labelDiv.style.textOverflow = "ellipsis";
+            labelDiv.style.textAlign = "center";
+            labelDiv.style.pointerEvents = "none";
+
+            const labelObject = new CSS3DObject(labelDiv);
+            labelObject.scale.set(0.001, 0.001, 0.001); // Adjust scale
+            const labelOffset = new THREE.Vector3(
+              0,
+              -planeHeight / 2 - 0.015,
+              0,
+            ); // Below icon
+            labelObject.position.copy(pdfIconPlane.position).add(labelOffset);
+            labelObject.userData.isLabel = true;
+            labelObject.userData.anchorId = anchor.id;
+            sceneRef.current!.add(labelObject);
+            pdfIconPlane.userData.labelObject = labelObject;
+
+            pdfIconPlane.addEventListener("pointerdown", (e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              const helper = pdfIconPlane.userData.helperMesh as THREE.Mesh;
+              const anchorId = pdfIconPlane.userData.anchorId;
+              const fileAnchorData =
+                fileAnchors?.find((a) => a.id === anchorId) || anchor;
+              if (onFileAnchorClick && fileAnchorData)
+                onFileAnchorClick(anchorId, fileAnchorData);
+              if (helper) handleAnchorSelect(anchorId, helper, "file");
+              else handleAnchorSelect(anchorId, pdfIconPlane, "file");
+            });
+            sceneRef.current!.add(pdfIconPlane);
+            fileAnchorsRef.current.set(anchor.id, pdfIconPlane);
+
+            const helperGeometry = new THREE.BoxGeometry(0.01, 0.01, 0.01);
+            const helperMaterial = new THREE.MeshBasicMaterial({
+              visible: false,
+              depthTest: false,
+              transparent: true,
+              opacity: 0,
+            });
+            const helperMesh = new THREE.Mesh(helperGeometry, helperMaterial);
+            helperMesh.position.copy(pdfIconPlane.position);
+            helperMesh.rotation.copy(pdfIconPlane.rotation);
+            pdfIconPlane.userData.helperMesh = helperMesh;
+            helperMesh.userData.visualObject = pdfIconPlane;
+            helperMesh.userData.anchorId = anchor.id;
+            helperMesh.userData.type = "file-helper";
+            sceneRef.current!.add(helperMesh);
+            console.log(
+              `%c[ThreeViewer fileAnchors] Added PDF icon for ${anchor.id}`,
+              "color: teal;",
+            );
+          } catch (loadError) {
+            console.error(
+              `Error creating PDF icon for ${anchor.id}:`,
+              loadError,
+            );
+          }
+        };
+        img.onerror = (err) => {
+          console.error(
+            `Error loading PDF icon ${PDF_THUMBNAIL_URL}:`,
+            err,
+          ); /* Add fallback blue box here if needed */
+        };
+        img.src = PDF_THUMBNAIL_URL;
+      }
+      // --- END NEW LOGIC FOR PDF ICON ---
+
+      // --- START NEW LOGIC FOR DOCX ICON ---
+      else if (determinedFileType === "docx") {
+        // .doc already mapped to "docx"
         console.log(
-          `[ThreeViewer fileAnchors] Setting iframe.src for ${anchor.id} to Backblaze URL: ${backblazePdfUrl}`,
+          `[ThreeViewer fileAnchors] Creating DOCX icon for ${anchor.id} from ${DOCX_THUMBNAIL_URL}`,
         );
-        iframe.src = backblazePdfUrl;
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = () => {
+          try {
+            const aspect = img.width / img.height;
+            const planeWidth = 0.1;
+            const planeHeight = planeWidth / aspect;
+            const texture = new THREE.Texture(img);
+            texture.needsUpdate = true;
+            texture.colorSpace = THREE.SRGBColorSpace;
+            const material = new THREE.MeshBasicMaterial({
+              map: texture,
+              side: THREE.DoubleSide,
+              transparent: true,
+              depthWrite: false,
+              alphaTest: 0.1,
+            });
+            const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
+            const docxIconPlane = new THREE.Mesh(geometry, material);
+            docxIconPlane.position.copy(modelSpacePosition);
+            docxIconPlane.userData.anchorId = anchor.id;
+            docxIconPlane.userData.type = "file-docx-icon";
 
-        // Wrap the iframe in a CSS3DObject so it can be positioned in the scene
-        const pdfObject = new CSS3DObject(iframe);
-        pdfObject.scale.set(0.001, 0.001, 0.001);
-        pdfObject.position.copy(modelSpacePosition);
-        pdfObject.userData.anchorId = anchor.id;
-        pdfObject.userData.type = "file-pdf";
-        // --- ADD HELPER MESH FOR PDF ANCHOR ---
-        const helperGeometry = new THREE.BoxGeometry(0.01, 0.01, 0.01);
-        const helperMaterial = new THREE.MeshBasicMaterial({
-          visible: false,
-          depthTest: false,
-          transparent: true,
-          opacity: 0,
-        });
-        const helperMesh = new THREE.Mesh(helperGeometry, helperMaterial);
-        helperMesh.position.copy(pdfObject.position);
-        pdfObject.userData.helperMesh = helperMesh;
-        helperMesh.userData.anchorId = anchor.id;
-        helperMesh.userData.type = "file-helper";
-        sceneRef.current!.add(helperMesh);
-        // --- END HELPER MESH ---
+            const labelDiv = document.createElement("div");
+            labelDiv.textContent = anchor.fileName || "Word Document";
+            // Apply consistent styling (same as PDF label)
+            labelDiv.style.padding = "2px 4px";
+            labelDiv.style.fontSize = "10px";
+            labelDiv.style.color = "#333";
+            labelDiv.style.backgroundColor = "rgba(255, 255, 255, 0.88)";
+            labelDiv.style.borderRadius = "3px";
+            labelDiv.style.border = "1px solid #ddd";
+            labelDiv.style.whiteSpace = "nowrap";
+            labelDiv.style.maxWidth = "120px";
+            labelDiv.style.overflow = "hidden";
+            labelDiv.style.textOverflow = "ellipsis";
+            labelDiv.style.textAlign = "center";
+            labelDiv.style.pointerEvents = "none";
 
-        // Modify pointerdown listener to select the helper mesh
-        if (onFileAnchorClick) {
-          pdfObject.addEventListener("pointerdown", (e) => {
-            e.stopPropagation();
-            const helper = pdfObject.userData.helperMesh as THREE.Mesh;
-            if (helper) {
-              console.log(
-                `PDF object clicked for ${anchor.id}, selecting helper mesh.`,
-              );
-              handleAnchorSelect(anchor.id, helper, "file");
-            } else {
-              console.warn(`Helper mesh not found for PDF anchor ${anchor.id}`);
-            }
-            onFileAnchorClick(anchor.id, anchor);
-          });
-        }
+            const labelObject = new CSS3DObject(labelDiv);
+            labelObject.scale.set(0.001, 0.001, 0.001);
+            const labelOffset = new THREE.Vector3(
+              0,
+              -planeHeight / 2 - 0.015,
+              0,
+            );
+            labelObject.position.copy(docxIconPlane.position).add(labelOffset);
+            labelObject.userData.isLabel = true;
+            labelObject.userData.anchorId = anchor.id;
+            sceneRef.current!.add(labelObject);
+            docxIconPlane.userData.labelObject = labelObject;
 
-        sceneRef.current!.add(pdfObject);
+            docxIconPlane.addEventListener("pointerdown", (e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              const helper = docxIconPlane.userData.helperMesh as THREE.Mesh;
+              const anchorId = docxIconPlane.userData.anchorId;
+              const fileAnchorData =
+                fileAnchors?.find((a) => a.id === anchorId) || anchor;
+              if (onFileAnchorClick && fileAnchorData)
+                onFileAnchorClick(anchorId, fileAnchorData);
+              if (helper) handleAnchorSelect(anchorId, helper, "file");
+              else handleAnchorSelect(anchorId, docxIconPlane, "file");
+            });
+            sceneRef.current!.add(docxIconPlane);
+            fileAnchorsRef.current.set(anchor.id, docxIconPlane);
+
+            const helperGeometry = new THREE.BoxGeometry(0.01, 0.01, 0.01);
+            const helperMaterial = new THREE.MeshBasicMaterial({
+              visible: false,
+              depthTest: false,
+              transparent: true,
+              opacity: 0,
+            });
+            const helperMesh = new THREE.Mesh(helperGeometry, helperMaterial);
+            helperMesh.position.copy(docxIconPlane.position);
+            helperMesh.rotation.copy(docxIconPlane.rotation);
+            docxIconPlane.userData.helperMesh = helperMesh;
+            helperMesh.userData.visualObject = docxIconPlane;
+            helperMesh.userData.anchorId = anchor.id;
+            helperMesh.userData.type = "file-helper";
+            sceneRef.current!.add(helperMesh);
+            console.log(
+              `%c[ThreeViewer fileAnchors] Added DOCX icon for ${anchor.id}`,
+              "color: teal;",
+            );
+          } catch (loadError) {
+            console.error(
+              `Error creating DOCX icon for ${anchor.id}:`,
+              loadError,
+            );
+          }
+        };
+        img.onerror = (err) => {
+          console.error(`Error loading DOCX icon ${DOCX_THUMBNAIL_URL}:`, err);
+        };
+        img.src = DOCX_THUMBNAIL_URL;
+      }
+      // --- END NEW LOGIC FOR DOCX ICON ---
+
+      // --- START NEW LOGIC FOR PPTX ICON ---
+      else if (determinedFileType === "pptx") {
+        // .ppt already mapped to "pptx"
         console.log(
-          `[ThreeViewer fileAnchors] Successfully added PDF viewer for ${anchor.id}`,
+          `[ThreeViewer fileAnchors] Creating PPTX icon for ${anchor.id} from ${PPTX_THUMBNAIL_URL}`,
         );
-        fileAnchorsRef.current.set(anchor.id, pdfObject);
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = () => {
+          try {
+            const aspect = img.width / img.height;
+            const planeWidth = 0.1;
+            const planeHeight = planeWidth / aspect;
+            const texture = new THREE.Texture(img);
+            texture.needsUpdate = true;
+            texture.colorSpace = THREE.SRGBColorSpace;
+            const material = new THREE.MeshBasicMaterial({
+              map: texture,
+              side: THREE.DoubleSide,
+              transparent: true,
+              depthWrite: false,
+              alphaTest: 0.1,
+            });
+            const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
+            const pptxIconPlane = new THREE.Mesh(geometry, material);
+            pptxIconPlane.position.copy(modelSpacePosition);
+            pptxIconPlane.userData.anchorId = anchor.id;
+            pptxIconPlane.userData.type = "file-pptx-icon";
+
+            const labelDiv = document.createElement("div");
+            labelDiv.textContent = anchor.fileName || "PowerPoint Document";
+            // Apply consistent styling (same as PDF label)
+            labelDiv.style.padding = "2px 4px";
+            labelDiv.style.fontSize = "10px";
+            labelDiv.style.color = "#333";
+            labelDiv.style.backgroundColor = "rgba(255, 255, 255, 0.88)";
+            labelDiv.style.borderRadius = "3px";
+            labelDiv.style.border = "1px solid #ddd";
+            labelDiv.style.whiteSpace = "nowrap";
+            labelDiv.style.maxWidth = "120px";
+            labelDiv.style.overflow = "hidden";
+            labelDiv.style.textOverflow = "ellipsis";
+            labelDiv.style.textAlign = "center";
+            labelDiv.style.pointerEvents = "none";
+
+            const labelObject = new CSS3DObject(labelDiv);
+            labelObject.scale.set(0.001, 0.001, 0.001);
+            const labelOffset = new THREE.Vector3(
+              0,
+              -planeHeight / 2 - 0.015,
+              0,
+            );
+            labelObject.position.copy(pptxIconPlane.position).add(labelOffset);
+            labelObject.userData.isLabel = true;
+            labelObject.userData.anchorId = anchor.id;
+            sceneRef.current!.add(labelObject);
+            pptxIconPlane.userData.labelObject = labelObject;
+
+            pptxIconPlane.addEventListener("pointerdown", (e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              const helper = pptxIconPlane.userData.helperMesh as THREE.Mesh;
+              const anchorId = pptxIconPlane.userData.anchorId;
+              const fileAnchorData =
+                fileAnchors?.find((a) => a.id === anchorId) || anchor;
+              if (onFileAnchorClick && fileAnchorData)
+                onFileAnchorClick(anchorId, fileAnchorData);
+              if (helper) handleAnchorSelect(anchorId, helper, "file");
+              else handleAnchorSelect(anchorId, pptxIconPlane, "file");
+            });
+            sceneRef.current!.add(pptxIconPlane);
+            fileAnchorsRef.current.set(anchor.id, pptxIconPlane);
+
+            const helperGeometry = new THREE.BoxGeometry(0.01, 0.01, 0.01);
+            const helperMaterial = new THREE.MeshBasicMaterial({
+              visible: false,
+              depthTest: false,
+              transparent: true,
+              opacity: 0,
+            });
+            const helperMesh = new THREE.Mesh(helperGeometry, helperMaterial);
+            helperMesh.position.copy(pptxIconPlane.position);
+            helperMesh.rotation.copy(pptxIconPlane.rotation);
+            pptxIconPlane.userData.helperMesh = helperMesh;
+            helperMesh.userData.visualObject = pptxIconPlane;
+            helperMesh.userData.anchorId = anchor.id;
+            helperMesh.userData.type = "file-helper";
+            sceneRef.current!.add(helperMesh);
+            console.log(
+              `%c[ThreeViewer fileAnchors] Added PPTX icon for ${anchor.id}`,
+              "color: teal;",
+            );
+          } catch (loadError) {
+            console.error(
+              `Error creating PPTX icon for ${anchor.id}:`,
+              loadError,
+            );
+          }
+        };
+        img.onerror = (err) => {
+          console.error(`Error loading PPTX icon ${PPTX_THUMBNAIL_URL}:`, err);
+        };
+        img.src = PPTX_THUMBNAIL_URL;
       } else {
         console.log(
           `[ThreeViewer fileAnchors] Creating document placeholder for ${anchor.id} (${anchor.fileName})`,
@@ -1596,29 +2583,52 @@ const ThreeViewer = forwardRef(function ThreeViewer(
   }, [modelAnchors, originPoint, showModelAnchors]);
 
   // NEW: Centralized selection handler for ALL anchor types
-  // NEW: Centralized selection handler for ALL anchor types
   const handleAnchorSelect = (
     anchorId: string,
     objectToTransform: THREE.Object3D, // This is the object to attach controls to (often the helper)
     anchorType: "model" | "text" | "file" | "webpage",
   ) => {
     console.log(
-      `Selecting ${anchorType} anchor: ${anchorId}`,
+      `[handleAnchorSelect] Called for ${anchorType} anchor: ${anchorId}. Object:`,
       objectToTransform,
+      `Current selection: ${selectedAnchorId} (${selectedAnchorType})`,
     );
 
-    // --- ADD LOGGING ---
-    console.log(
-      `[handleAnchorSelect] Called for ${anchorType} anchor: ${anchorId}`,
-    );
-    console.log(`[handleAnchorSelect] Object to transform:`, objectToTransform);
-    console.log(
-      `[handleAnchorSelect] Object type: ${objectToTransform.type}, name: ${objectToTransform.name}, userData:`,
-      objectToTransform.userData,
-    );
-    // --- END LOGGING ---
+    // If the same anchor is already selected, ensure its state and avoid full deselect/reselect
+    if (selectedAnchorId === anchorId && selectedAnchorType === anchorType) {
+      console.log(
+        `[handleAnchorSelect] Anchor ${anchorId} (${anchorType}) is already selected. Ensuring state.`,
+      );
+      // Ensure transform controls are attached to the correct object
+      if (
+        transformControlsRef.current &&
+        transformControlsRef.current.object !== objectToTransform
+      ) {
+        transformControlsRef.current.attach(objectToTransform);
+        // Re-apply the current transform mode if needed, or default
+        transformControlsRef.current.setMode(transformMode || "translate");
+        transformControlsRef.current.visible = true;
+        transformControlsRef.current.enabled = true;
+      } else if (
+        transformControlsRef.current &&
+        !transformControlsRef.current.visible
+      ) {
+        // If controls were hidden for the same object, make them visible
+        transformControlsRef.current.visible = true;
+        transformControlsRef.current.enabled = true;
+      }
+      // Ensure the object is highlighted
+      highlightObject(objectToTransform, sceneRef.current);
+      // Ensure OrbitControls are correctly enabled/disabled
+      if (orbitControlsRef.current && transformControlsRef.current) {
+        orbitControlsRef.current.enabled =
+          !transformControlsRef.current.dragging;
+      }
+      return; // Exit early
+    }
 
-    handleDeselect(); // Deselect previous first
+    handleDeselect(); // Deselect previous (different) anchor first
+
     // 1. Update State
     setSelectedAnchorId(anchorId);
     setSelectedAnchorType(anchorType);
@@ -1632,55 +2642,52 @@ const ThreeViewer = forwardRef(function ThreeViewer(
 
     // 3. Attach Transform Controls
     if (transformControlsRef.current) {
-      console.log(`[handleAnchorSelect] Attaching TransformControls...`); // ADD LOG
-      transformControlsRef.current.attach(objectToTransform);
       console.log(
-        `[handleAnchorSelect] Controls attached. Current object:`,
-        transformControlsRef.current.object,
+        `[handleAnchorSelect] Attaching TransformControls to:`,
+        objectToTransform,
       );
-      // Default to translate mode on new selection
-      transformControlsRef.current.setMode("translate");
-      setTransformMode("translate"); // Update state
+      transformControlsRef.current.attach(objectToTransform);
+      const currentMode = transformMode || "translate"; // Use existing mode or default
+      transformControlsRef.current.setMode(currentMode);
+      setTransformMode(currentMode); // Ensure state is in sync
 
-      transformControlsRef.current.enabled = true; // Ensure controls are enabled
-      // Make controls visible
+      transformControlsRef.current.enabled = true;
       transformControlsRef.current.visible = true;
       console.log(
-        `[handleAnchorSelect] Controls enabled: ${transformControlsRef.current.enabled}, visible: ${transformControlsRef.current.visible}`,
+        `[handleAnchorSelect] Controls attached. Mode: ${currentMode}, Enabled: ${transformControlsRef.current.enabled}, Visible: ${transformControlsRef.current.visible}`,
       );
     } else {
-      console.error("TransformControls ref is not available!");
-      return; // Cannot proceed without transform controls
+      console.error(
+        "[handleAnchorSelect] TransformControls ref is not available!",
+      );
+      return;
     }
 
-    // 4. Show Transform UI Indicator (We removed the UI, but keep state for logic)
+    // 4. Show Transform UI Indicator (State update, actual UI might be removed)
     setShowTransformUI(true);
 
     // 5. Apply Highlighting
-    highlightObject(objectToTransform, sceneRef.current); // Highlight the object attached to controls
+    highlightObject(objectToTransform, sceneRef.current);
 
     // 6. Visual Feedback Animation (Subtle scale pulse)
-    // Avoid scaling CSS3D objects directly as it affects layout/size
-    // Don't pulse helpers either
     if (
       !(objectToTransform instanceof CSS3DObject) &&
-      !objectToTransform.userData?.type?.includes("helper")
+      !objectToTransform.userData?.type?.includes("helper") && // Avoid pulsing helpers directly
+      !objectToHighlight.userData?.visualObject // Also avoid if it's a helper whose visual part is pulsed by highlightObject
     ) {
       const originalScale = objectToTransform.scale.clone();
-      const targetScale = originalScale.clone().multiplyScalar(1.05); // Slightly larger
+      const targetScale = originalScale.clone().multiplyScalar(1.05);
 
       new TWEEN.Tween(objectToTransform.scale)
         .to({ x: targetScale.x, y: targetScale.y, z: targetScale.z }, 150)
         .easing(TWEEN.Easing.Cubic.Out)
-        .yoyo(true) // Go back to original size
+        .yoyo(true)
         .repeat(1)
         .start();
     }
 
-    // 7. Ensure OrbitControls are handled (disabled during drag via listeners)
+    // 7. Ensure OrbitControls are handled
     if (orbitControlsRef.current && transformControlsRef.current) {
-      // Orbit controls will be disabled by the 'dragging-changed' listener
-      // on TransformControls, so ensure they are enabled when *not* dragging.
       orbitControlsRef.current.enabled = !transformControlsRef.current.dragging;
     }
   };
@@ -1702,113 +2709,131 @@ const ThreeViewer = forwardRef(function ThreeViewer(
         orbitControlsRef.current.enabled = true; // Ensure orbit controls are re-enabled
       }
     }
+    //  if (onBackgroundClick) onBackgroundClick();
   };
 
   const highlightObject = (
-    object: THREE.Object3D | null,
+    objectToHighlight: THREE.Object3D | null,
     scene: THREE.Scene | null,
   ) => {
     if (!scene) return;
 
-    // Remove any existing highlight
-    const existingHighlight = scene.getObjectByName("selection-highlight");
-    if (existingHighlight) {
-      // If it was a CSS highlight, revert styles
-      if (
-        existingHighlight.userData.originalStyle &&
-        existingHighlight.userData.targetElement
-      ) {
-        Object.assign(
-          existingHighlight.userData.targetElement.style,
-          existingHighlight.userData.originalStyle,
-        );
-      }
-      scene.remove(existingHighlight);
+    // --- 1. Remove ALL previous highlights ---
+    const prevBoxHighlightPrimary = scene.getObjectByName(
+      "highlight-box3-primary",
+    );
+    if (prevBoxHighlightPrimary) scene.remove(prevBoxHighlightPrimary);
+
+    const prevCSSHighlightPrimaryDummy = scene.getObjectByName(
+      "highlight-css-primary-dummy",
+    );
+    if (
+      prevCSSHighlightPrimaryDummy &&
+      prevCSSHighlightPrimaryDummy.userData.isCSSHighlight &&
+      prevCSSHighlightPrimaryDummy.userData.targetElement &&
+      prevCSSHighlightPrimaryDummy.userData.originalStyle
+    ) {
+      Object.assign(
+        prevCSSHighlightPrimaryDummy.userData.targetElement.style,
+        prevCSSHighlightPrimaryDummy.userData.originalStyle,
+      );
+      scene.remove(prevCSSHighlightPrimaryDummy);
     }
 
-    if (!object) return; // If null, we just wanted to remove the highlight
+    const prevHelperBoxHighlight = scene.getObjectByName(
+      "highlight-box3-helper",
+    );
+    if (prevHelperBoxHighlight) scene.remove(prevHelperBoxHighlight);
 
-    // ***** START CHANGE: Check if it's our text helper mesh *****
+    const prevHelperCSSHighlightDummy = scene.getObjectByName(
+      "highlight-css-helper-visual-dummy",
+    );
     if (
-      object.userData?.type === "text-helper" &&
-      object.userData?.labelObject
+      prevHelperCSSHighlightDummy &&
+      prevHelperCSSHighlightDummy.userData.isCSSHighlight &&
+      prevHelperCSSHighlightDummy.userData.targetElement &&
+      prevHelperCSSHighlightDummy.userData.originalStyle
     ) {
-      // Option 1: Highlight the CSS element via the labelObject reference
-      const labelObject = object.userData.labelObject as CSS3DObject;
-      const element = labelObject.element as HTMLElement;
-      if (element) {
-        const originalStyle = {
-          outline: element.style.outline || "",
-          outlineOffset: element.style.outlineOffset || "",
-          boxShadow: element.style.boxShadow || "",
-          transition: element.style.transition || "",
-        };
+      Object.assign(
+        prevHelperCSSHighlightDummy.userData.targetElement.style,
+        prevHelperCSSHighlightDummy.userData.originalStyle,
+      );
+      scene.remove(prevHelperCSSHighlightDummy);
+    }
 
-        element.style.outline = "3px solid #00ffff"; // Cyan outline
-        element.style.outlineOffset = "2px";
-        element.style.boxShadow = "0 0 15px rgba(0, 255, 255, 0.7)";
-        element.style.transition =
-          "outline 0.1s ease-in-out, box-shadow 0.1s ease-in-out";
+    // If objectToHighlight is null, we just wanted to remove existing highlights
+    if (!objectToHighlight) return;
 
-        // Store original style and target element in a dummy object added to the scene
-        const dummyObject = new THREE.Object3D();
-        dummyObject.name = "selection-highlight"; // Use same name for easy removal
-        dummyObject.userData.isCSSHighlight = true;
-        dummyObject.userData.targetElement = element;
-        dummyObject.userData.originalStyle = originalStyle;
-        scene.add(dummyObject);
+    // --- 2. Apply new highlight(s) based on the type of objectToHighlight ---
+
+    if (objectToHighlight.userData?.type?.endsWith("-helper")) {
+      // This is a helper mesh (e.g., for text, file, webpage anchors)
+      const helperMesh = objectToHighlight;
+
+      // Highlight Effect 1: Apply CSS styling to the helper's visual part if it's a CSS3DObject
+      // (e.g., style the text label div or the audio player div)
+      const visualObject = (helperMesh.userData.visualObject || // For files/icons
+        helperMesh.userData.labelObject || // For text labels
+        helperMesh.userData.cssObject) as CSS3DObject | undefined; // For webpages
+
+      if (visualObject && visualObject instanceof CSS3DObject) {
+        const element = visualObject.element as HTMLElement;
+        if (element) {
+          const originalStyle = {
+            outline: element.style.outline || "",
+            outlineOffset: element.style.outlineOffset || "",
+            boxShadow: element.style.boxShadow || "",
+            transition: element.style.transition || "",
+            transform: element.style.transform || "", // For potential scale pulse
+          };
+
+          element.style.outline = "3px solid #00ffff"; // Cyan outline
+          element.style.outlineOffset = "2px";
+          element.style.boxShadow = "0 0 15px rgba(0, 255, 255, 0.7)";
+          element.style.transition =
+            "outline 0.1s ease-in-out, box-shadow 0.1s ease-in-out, transform 0.1s ease-in-out";
+          // element.style.transform = "scale(1.03)"; // Optional subtle scale
+
+          const dummy = new THREE.Object3D();
+          dummy.name = "highlight-css-helper-visual-dummy";
+          dummy.userData.isCSSHighlight = true;
+          dummy.userData.targetElement = element;
+          dummy.userData.originalStyle = originalStyle;
+          scene.add(dummy);
+        }
       }
 
-      // Option 2 (Alternative/Additional): Highlight the helper mesh itself using Box3Helper
-      // This provides a 3D bounding box highlight around the invisible helper
+      // Highlight Effect 2: Add a 3D Box3Helper around the helper mesh itself
       try {
-        // Since the helper is tiny, create a slightly larger box around its position
-        const helperPos = object.position;
-        const size = 0.05; // Adjust size of highlight box as needed
-        const min = helperPos.clone().subScalar(size / 2);
-        const max = helperPos.clone().addScalar(size / 2);
-        const bbox = new THREE.Box3(min, max);
-
-        // --- MODIFIED CHECK ---
-        // For helper meshes, assume the position is valid and skip the potentially problematic isFinite check
-        // Just ensure the box isn't empty (which it shouldn't be if size > 0)
-        if (!bbox.isEmpty()) {
-          // --- END MODIFIED CHECK ---
+        const bbox = new THREE.Box3().setFromObject(helperMesh);
+        if (!bbox.isEmpty() && bbox.min.isFinite() && bbox.max.isFinite()) {
           const boxHelper = new THREE.Box3Helper(bbox, 0x00ffff); // Cyan color
-          boxHelper.name = "selection-highlight"; // Use same name
+          boxHelper.name = "highlight-box3-helper";
           boxHelper.material.depthTest = false;
           boxHelper.material.transparent = true;
           boxHelper.material.opacity = 0.9;
           boxHelper.renderOrder = 10001;
           scene.add(boxHelper);
 
-          // Optional pulse animation for BoxHelper
           const animatePulse = () => {
             if (!boxHelper.parent) return;
             requestAnimationFrame(animatePulse);
             const time = Date.now() * 0.002;
-            boxHelper.material.opacity = 0.6 + Math.sin(time * 5) * 0.3;
+            (boxHelper.material as THREE.Material).opacity =
+              0.6 + Math.sin(time * 5) * 0.3;
           };
           animatePulse();
-        } else {
-          console.warn(
-            "[highlightObject] Bounding box for helper mesh is empty.",
-            object,
-          );
         }
       } catch (error) {
         console.error(
-          "Error creating bounding box highlight for helper:",
+          "Error creating Box3Helper for helper mesh:",
           error,
-          object,
+          helperMesh,
         );
       }
-    }
-    // ***** END CHANGE *****
-    else if (object instanceof CSS3DObject) {
-      // Original CSS3DObject handling (for webpages etc.)
-      // Highlight CSS3DObject (Webpage iframe container)
-      const element = object.element as HTMLElement;
+    } else if (objectToHighlight instanceof CSS3DObject) {
+      // This is a directly selected CSS3DObject (e.g., a webpage anchor's iframe container)
+      const element = objectToHighlight.element as HTMLElement;
       if (element) {
         const originalStyle = {
           outline: element.style.outline || "",
@@ -1823,46 +2848,66 @@ const ThreeViewer = forwardRef(function ThreeViewer(
         element.style.transition =
           "outline 0.1s ease-in-out, box-shadow 0.1s ease-in-out";
 
-        // Store original style and target element in a dummy object added to the scene
-        const dummyObject = new THREE.Object3D();
-        dummyObject.name = "selection-highlight";
-        dummyObject.userData.isCSSHighlight = true;
-        dummyObject.userData.targetElement = element;
-        dummyObject.userData.originalStyle = originalStyle;
-        scene.add(dummyObject);
+        const dummy = new THREE.Object3D();
+        dummy.name = "highlight-css-primary-dummy";
+        dummy.userData.isCSSHighlight = true;
+        dummy.userData.targetElement = element;
+        dummy.userData.originalStyle = originalStyle;
+        scene.add(dummy);
       }
-    } else if (object instanceof THREE.Mesh || object instanceof THREE.Group) {
-      // Handle other Meshes/Groups (Models, File Planes)
-      // Highlight Meshes or Groups (Models, File Planes) using Box3Helper
+    } else if (
+      objectToHighlight instanceof THREE.Mesh ||
+      objectToHighlight instanceof THREE.Group
+    ) {
+      // This is a directly selected WebGL mesh or group (e.g., a 3D model anchor)
       try {
-        const bbox = new THREE.Box3().setFromObject(object);
-        // Check if bounding box is valid (not empty or infinite)
+        if (
+          objectToHighlight instanceof THREE.Mesh &&
+          objectToHighlight.geometry
+        ) {
+          objectToHighlight.geometry.computeBoundingBox();
+        } else if (objectToHighlight instanceof THREE.Group) {
+          objectToHighlight.updateMatrixWorld(true);
+        }
+
+        const bbox = new THREE.Box3().setFromObject(objectToHighlight);
         if (!bbox.isEmpty() && bbox.min.isFinite() && bbox.max.isFinite()) {
           const boxHelper = new THREE.Box3Helper(bbox, 0x00ffff); // Cyan color
-          boxHelper.name = "selection-highlight";
+          boxHelper.name = "highlight-box3-primary";
           boxHelper.material.depthTest = false;
           boxHelper.material.transparent = true;
           boxHelper.material.opacity = 0.9;
-          boxHelper.renderOrder = 10001; // Ensure it renders on top
+          boxHelper.renderOrder = 10001;
           scene.add(boxHelper);
 
-          // Optional: Add subtle pulse animation to BoxHelper
           const animatePulse = () => {
-            if (!boxHelper.parent) return; // Stop if removed
+            if (!boxHelper.parent) return;
             requestAnimationFrame(animatePulse);
             const time = Date.now() * 0.002;
-            boxHelper.material.opacity = 0.6 + Math.sin(time * 5) * 0.3;
+            (boxHelper.material as THREE.Material).opacity =
+              0.6 + Math.sin(time * 5) * 0.3;
           };
           animatePulse();
         } else {
           console.warn(
-            "Cannot create highlight: Invalid bounding box for object",
-            object,
+            "Cannot create highlight: Invalid bounding box for Mesh/Group.",
+            objectToHighlight,
+            bbox,
           );
         }
       } catch (error) {
-        console.error("Error creating bounding box highlight:", error, object);
+        console.error(
+          "Error creating Box3Helper for Mesh/Group:",
+          error,
+          objectToHighlight,
+        );
       }
+    } else {
+      console.warn(
+        "[highlightObject] Unhandled object type for highlighting:",
+        objectToHighlight.type,
+        objectToHighlight,
+      );
     }
   };
 
@@ -2122,6 +3167,60 @@ const ThreeViewer = forwardRef(function ThreeViewer(
     // Dependency uses selectedAnchorId
   }, [selectedAnchorId, showTransformUI, handleDeselect]); // Add handleDeselect dependency
 
+  // ⬇⬇⬇ NEW: Pan camera with the arrow keys ⬇⬇⬇
+  useEffect(() => {
+    const handleArrowNavigate = (e: KeyboardEvent) => {
+      // Get the current value of the ref *inside* the handler
+      const controls = orbitControlsRef.current;
+
+      // *** MORE ROBUST CHECK ***
+      // Check if controls exist AND if the necessary methods are functions
+      if (
+        !controls ||
+        typeof controls.panLeft !== "function" ||
+        typeof controls.dollyIn !== "function" ||
+        typeof controls.dollyOut !== "function" ||
+        typeof controls.update !== "function"
+      ) {
+        // Log a warning if controls aren't fully ready
+        console.warn(
+          "Arrow key navigation skipped: OrbitControls not fully initialized yet.",
+        );
+        return; // Exit if controls are not valid
+      }
+
+      // Define movement amounts
+      const panSpeed = 0.02;
+      const dollySpeed = 0.98;
+
+      // Now we can safely use 'controls'
+      switch (e.key) {
+        case "ArrowLeft":
+          controls.panLeft(panSpeed, controls.object.matrix);
+          controls.update();
+          break;
+        case "ArrowRight":
+          controls.panLeft(-panSpeed, controls.object.matrix);
+          controls.update();
+          break;
+        case "ArrowUp":
+          controls.dollyIn(1 / dollySpeed); // Should now work
+          controls.update();
+          break;
+        case "ArrowDown":
+          controls.dollyOut(1 / dollySpeed); // Should now work
+          controls.update();
+          break;
+        default:
+          return; // Ignore other keys
+      }
+    };
+
+    window.addEventListener("keydown", handleArrowNavigate);
+    return () => window.removeEventListener("keydown", handleArrowNavigate);
+  }, []); // Keep empty dependency array, the check inside handles the timing
+  // ⬆⬆⬆ END ARROW-KEY PANNING ⬆⬆⬆
+
   useEffect(() => {
     if (!showQrCodes) {
       // If hidden, remove all existing QR markers and clear the map
@@ -2244,37 +3343,48 @@ const ThreeViewer = forwardRef(function ThreeViewer(
     overlay.style.width = "100%";
     overlay.style.height = "100%";
     overlay.style.zIndex = "100"; // Ensure the overlay is on top of the iframe
-    overlay.style.backgroundColor = "transparent";
-    overlay.style.pointerEvents = "auto";
+    overlay.style.backgroundColor = "transparent"; // Make overlay invisible but clickable
+    overlay.style.pointerEvents = "auto"; // Allow pointer events on the overlay
+
     overlay.addEventListener("pointerdown", (ev) => {
       ev.stopPropagation();
-      ev.preventDefault(); // Prevent default actions
+      ev.preventDefault(); // Prevent default browser actions like text selection
 
-      // Find the associated helper mesh via the css3dObject
-      const helper = css3dObject.userData.helperMesh as THREE.Mesh;
-      const anchorId = css3dObject.userData.anchorId; // Get ID from CSS object
-      const fileAnchorData = fileAnchors?.find((a) => a.id === anchorId); // Get full anchor data
+      const helper = css3dObject.userData.helperMesh as THREE.Mesh; // css3dObject is the webpage container (CSS3DObject)
+      const anchorId = css3dObject.userData.anchorId;
+
+      // Find the webpage anchor data from the webpageAnchors prop
+      const webpageAnchorData = webpageAnchors?.find((a) => a.id === anchorId);
 
       console.log(
-        `PDF overlay clicked for ${anchorId}. Helper found: ${!!helper}`,
+        `Webpage overlay clicked for ${anchorId}. Helper found: ${!!helper}. Webpage data found: ${!!webpageAnchorData}`,
       );
 
-      // 1. Notify BlueprintEditor
-      if (onFileAnchorClick && fileAnchorData) {
-        onFileAnchorClick(anchorId, fileAnchorData); // Pass anchor data
+      // 1. Notify BlueprintEditor by calling onWebpageAnchorClick
+      if (onWebpageAnchorClick && webpageAnchorData) {
+        onWebpageAnchorClick(anchorId, webpageAnchorData.webpageUrl); // Pass anchorId and URL
       } else {
         console.warn(
-          `onFileAnchorClick callback missing or anchor data not found for PDF ${anchorId}`,
+          `onWebpageAnchorClick callback missing or webpage anchor data not found for ${anchorId}`,
         );
       }
 
-      // 2. Select the HELPER mesh
+      // 2. Select the HELPER mesh with the correct anchor type "webpage"
       if (helper) {
-        handleAnchorSelect(anchorId, helper, "file"); // Select the HELPER
+        handleAnchorSelect(anchorId, helper, "webpage"); // Correctly select as "webpage"
       } else {
         console.warn(
-          `Helper mesh not found for PDF anchor ${anchorId} on click.`,
+          `Helper mesh not found for webpage anchor ${anchorId} on click.`,
         );
+        // As a fallback, if no helper, you might still want to trigger the panel
+        // by calling onWebpageAnchorClick (already done above) and potentially
+        // selecting the css3dObject itself if that's handled by handleAnchorSelect,
+        // though transforming CSS3DObjects directly can be tricky.
+        // For now, ensuring the callback and correct type for handleAnchorSelect is key.
+        if (webpageAnchorData) {
+          // If we have data, but no helper, still try to select the main object
+          handleAnchorSelect(anchorId, css3dObject, "webpage");
+        }
       }
     });
     container.appendChild(overlay);
@@ -2781,7 +3891,7 @@ const ThreeViewer = forwardRef(function ThreeViewer(
       1000,
     );
     cameraRef.current = camera;
-    camera.position.set(0.85, 0.85, 0.85);
+    camera.position.set(0.55, 0.55, 0.55);
 
     // Add checks and error handling for WebGL renderer creation
     let renderer;
@@ -3000,7 +4110,7 @@ const ThreeViewer = forwardRef(function ThreeViewer(
           setModelLoaded(true);
 
           onLoad?.();
-          camera.position.set(0.85, 0.85, 0.85);
+          camera.position.set(0.55, 0.55, 0.55);
           orbitControls.target.set(0, 0, 0);
           orbitControls.update();
         },
@@ -3762,20 +4872,35 @@ const ThreeViewer = forwardRef(function ThreeViewer(
       const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       const mouse = new THREE.Vector2(x, y);
 
-      // 2) Perform the raycast
+      // 2a) First check: did we hit the base GLTF model at all?
       raycasterRef.current.setFromCamera(mouse, cameraRef.current);
+      if (parentModelRef.current) {
+        const modelHits = raycasterRef.current.intersectObject(
+          parentModelRef.current,
+          true,
+        );
+        if (modelHits.length === 0) {
+          // clicked empty space (or background) — ignore this click for anchors/transforms
+          return;
+        }
+      }
+
+      // 2b) Now do your normal full‐scene raycast for anchors, helpers, etc.
       const allIntersects = raycasterRef.current.intersectObjects(
         sceneRef.current.children,
-        true, // Check descendants
+        true,
       );
 
-      // Filter out non-visible objects and helpers like the highlight itself
+      // 3) Filter out helpers, highlights, dragPlane, originMarker…
       const visibleIntersects = allIntersects.filter(
         (intersect) =>
           intersect.object.visible &&
-          intersect.object.name !== "selection-highlight" &&
-          !intersect.object.name.includes("Helper") &&
-          // IMPORTANT: Also filter out the origin marker itself if it exists
+          intersect.object.name !== "selection-highlight" && // Exclude main CSS highlight tracker
+          intersect.object.name !== "selection-highlight-helper" && // Exclude 3D box highlight for helpers
+          intersect.object.name !== "dragPlane" &&
+          // Helper meshes (e.g., "text-helper", "file-helper") ARE valid click targets
+          // for initiating selection, so they should NOT be filtered out here.
+          // The subsequent logic will determine if a clicked helper corresponds to an anchor.
           (!originMarkerRef.current ||
             intersect.object !== originMarkerRef.current),
       );
@@ -3835,20 +4960,67 @@ const ThreeViewer = forwardRef(function ThreeViewer(
           console.log("[handleClick] QR placement click missed model.");
         }
         return; // Handled QR placement
-      }
-
-      if (placementModeRef.current?.type === "link" && onLinkPlaced) {
-        console.log("[handleClick] Link placement mode.");
+      } else if (
+        placementModeRef.current?.type === "link" &&
+        onPlacementComplete
+      ) {
+        // MODIFIED: Check for onPlacementComplete
+        console.log("[ThreeViewer handleClick] Link placement mode active.");
         if (visibleIntersects.length > 0) {
           const hitPoint = visibleIntersects[0].point.clone();
-          const url = placementModeRef.current.data;
-          console.log("[handleClick] Placing link at:", hitPoint, "URL:", url);
-          onLinkPlaced(hitPoint); // Callback to parent
-          if (url && typeof url === "string") {
-            loadAndAddWebpage(url, hitPoint); // Attempt to show preview
+          // Ensure data and url exist. In BlueprintEditor, we store { url: externalUrl } in data.
+          const urlData = placementModeRef.current.data?.url;
+
+          if (!urlData) {
+            console.error(
+              "[ThreeViewer handleClick] URL data missing in placementMode for link.",
+            );
+            // Optionally, reset placement mode if URL is missing to prevent further issues
+            // if (placementModeRef.current) placementModeRef.current = null;
+            return; // Cannot proceed without URL
           }
+
+          console.log(
+            "[ThreeViewer handleClick] Placing link at:",
+            hitPoint,
+            "for URL:",
+            urlData,
+          );
+
+          // Call onPlacementComplete. BlueprintEditor will handle creation.
+          // For a NEW link, there's no anchorIdToUpdate yet.
+          onPlacementComplete(hitPoint, undefined, placementModeRef.current);
+
+          // Optional: Visual feedback for the click (can be kept)
+          const markerGeometry = new THREE.SphereGeometry(0.02, 16, 16);
+          const markerMaterial = new THREE.MeshBasicMaterial({
+            color: 0x0066ff,
+          }); // Blue color
+          const markerMesh = new THREE.Mesh(markerGeometry, markerMaterial);
+          markerMesh.position.copy(hitPoint);
+          sceneRef.current?.add(markerMesh); // Add to scene if sceneRef is valid
+
+          // Animation for feedback
+          new TWEEN.Tween(markerMesh.scale)
+            .to({ x: 1.5, y: 1.5, z: 1.5 }, 300)
+            .easing(TWEEN.Easing.Elastic.Out)
+            .yoyo(true)
+            .repeat(1)
+            .onComplete(() => {
+              // Clean up temporary marker after animation
+              if (sceneRef.current && markerMesh.parent) {
+                sceneRef.current.remove(markerMesh);
+              }
+            })
+            .start();
+
+          // Preview loading (loadAndAddWebpage) is now handled by BlueprintEditor's state update
+          // triggering the useEffect for webpageAnchors in ThreeViewer.
+          // So, no direct call to loadAndAddWebpage here for NEW links.
         } else {
-          console.log("[handleClick] Link placement click missed model.");
+          console.log(
+            "[ThreeViewer handleClick] Link placement click missed the model or valid surface.",
+          );
         }
         return; // Handled link placement
       }
@@ -4008,31 +5180,64 @@ const ThreeViewer = forwardRef(function ThreeViewer(
 
           // Check File Anchors (only if not found yet)
           if (!foundAnchor) {
-            for (const [id, fileObject] of fileAnchorsRef.current.entries()) {
-              // Check the main object OR its helper mesh
-              const helperMesh = fileObject.userData.helperMesh as THREE.Mesh;
-              if (
-                currentObj === fileObject ||
-                (helperMesh && currentObj === helperMesh)
-              ) {
-                const objectToSelect = helperMesh || fileObject; // Prefer helper if it exists
-                console.log(
-                  `File anchor clicked: ${id}, selecting ${objectToSelect === helperMesh ? "helper" : "main object"}`,
-                );
-                handleAnchorSelect(id, objectToSelect, "file");
-                foundAnchor = true;
-                selectedAnchorObjectForHighlight = objectToSelect;
-                // Also trigger the specific file click handler if needed
-                if (onFileAnchorClick) {
-                  const fileAnchorData = fileAnchors?.find((a) => a.id === id);
-                  if (fileAnchorData) {
-                    onFileAnchorClick(id, fileAnchorData);
-                  }
+            // Iterate through the fileAnchors prop directly to ensure we have the latest data
+            if (fileAnchors) {
+              // Ensure fileAnchors prop exists
+              for (const anchorData of fileAnchors) {
+                // Iterate over the data array
+                const fileObject = fileAnchorsRef.current.get(anchorData.id); // Get the 3D object from our ref
+                if (!fileObject) continue; // If no 3D object for this data, skip
+
+                const helperMesh = fileObject.userData.helperMesh as THREE.Mesh;
+
+                // Check if currentObj (the clicked object) is the visual object, its helper, or a child of the visual object
+                let isThisAnchor = false;
+                if (
+                  currentObj === fileObject ||
+                  (helperMesh && currentObj === helperMesh)
+                ) {
+                  isThisAnchor = true;
+                } else if (
+                  fileObject.children.length > 0 &&
+                  currentObj.isDescendantOf?.(fileObject)
+                ) {
+                  // This handles cases where the visual object is a Group and a child mesh was clicked
+                  isThisAnchor = true;
+                } else if (
+                  fileObject.userData.type === "file-audio" &&
+                  currentObj.isDescendantOf?.(fileObject)
+                ) {
+                  // Specific check for audio wrapper which is a CSS3DObject
+                  isThisAnchor = true;
                 }
-                break; // Exit inner loop
+
+                if (isThisAnchor) {
+                  const objectToSelect = helperMesh || fileObject; // Prefer helper for transform controls
+
+                  console.log(
+                    `[handleClick] Identified File Anchor: ${anchorData.id}, Object to select:`,
+                    objectToSelect,
+                  );
+
+                  // 1. Call onFileAnchorClick with the anchorData from the prop
+                  if (onFileAnchorClick) {
+                    onFileAnchorClick(anchorData.id, anchorData); // Pass the full anchorData
+                  } else {
+                    console.warn(
+                      `[handleClick] onFileAnchorClick callback is missing for file anchor ${anchorData.id}`,
+                    );
+                  }
+
+                  // 2. Select the anchor for 3D interaction
+                  handleAnchorSelect(anchorData.id, objectToSelect, "file");
+
+                  foundAnchor = true;
+                  selectedAnchorObjectForHighlight = objectToSelect;
+                  break; // Exit the loop once the anchor is found and processed
+                }
               }
             }
-            if (foundAnchor) break; // Exit outer loop if file found
+            if (foundAnchor) break; // Exit the while(currentObj) loop
           }
 
           // Check Webpage Anchors (only if not found yet)
@@ -4123,47 +5328,59 @@ const ThreeViewer = forwardRef(function ThreeViewer(
         // ***** END CONFIRMATION LOGGING *****
 
         // If an anchor was found and selected/handled, apply highlight and return
+        // After the main anchor checking loop (while (currentObj && !foundAnchor)...)
+        // Check if an anchor was successfully found and selected during the loop
         if (foundAnchor) {
-          console.log("Anchor found, preventing distance display.");
-          // Apply highlight to the object identified during the loop
-          if (selectedAnchorObjectForHighlight) {
-            highlightObject(selectedAnchorObjectForHighlight, sceneRef.current);
-          } else {
-            // Clear highlight if somehow no object was stored but anchor was found
-            highlightObject(null, sceneRef.current);
-          }
-          return; // <-- IMPORTANT: Prevent fall-through to distance calculation
+          // If an anchor was found and selected, its specific handler (e.g., handleAnchorSelect)
+          // would have already managed its highlighting and selection state.
+          // We simply return to prevent falling through to deselection or distance display logic.
+          console.log(
+            "[handleClick] Anchor selection processed. Click handling complete.",
+          );
+          return;
         }
-      } // End if (visibleIntersects.length > 0)
 
-      // --- Deselection or Background Click ---
-      // This part only runs if NO anchor was found OR click missed everything
-      console.log(
-        "[handleClick] No anchor found or click missed. Deselecting.",
-      );
-
-      handleDeselect(); // Deselect any currently selected anchor
-
-      // --- DISTANCE CALCULATION (The part you want to AVOID for anchors) ---
-      // Only show distance if the click hit *something* (but not a selectable anchor)
-      // and the origin point is set.
-      if (visibleIntersects.length > 0 && originPoint) {
-        const hitPoint = visibleIntersects[0].point.clone();
-        const offset = hitPoint.clone().sub(originPoint);
-        const distanceInFeet = offset.length() * 45.64; // Assuming 45.64 is your scale factor
-        const msg = `X: ${(offset.x * 45.64).toFixed(2)}, Y: ${(offset.y * 45.64).toFixed(2)}, Z: ${(offset.z * 45.64).toFixed(2)}
-          distance = ${distanceInFeet.toFixed(2)} ft from origin`;
-        console.log("Coordinate display:", msg);
-        setDistanceDisplay(msg); // Update the distance display state
-      } else if (visibleIntersects.length > 0) {
-        // Hit something, but origin not set
-        setDistanceDisplay(
-          "Origin not set. Cannot calculate relative coordinates.",
+        // If we've reached this point, it means the click either:
+        // 1. Hit empty space (nothing in visibleIntersects relevant to anchors after filtering).
+        // 2. Hit an object (like the base model floor/wall) that isn't a registered selectable anchor.
+        // In either of these scenarios, any currently selected anchor should be deselected.
+        console.log(
+          "[handleClick] Click did not result in selecting a new anchor. Proceeding with deselection.",
         );
-      } else {
-        // Clicked empty space
-        setDistanceDisplay(""); // Clear distance display
-      }
+        handleDeselect(); // This will clear selection state and remove highlights.
+
+        if (onBackgroundClick) {
+          // Call onBackgroundClick if it's provided
+          onBackgroundClick();
+        }
+
+        // After deselection, handle the distance display if the click hit something tangible
+        // and was not an empty space click that should solely trigger deselection.
+        if (visibleIntersects.length > 0) {
+          // Check if the click actually hit something in the scene
+          if (originPoint) {
+            const hitPoint = visibleIntersects[0].point.clone();
+            const offset = hitPoint.clone().sub(originPoint);
+            const distanceInFeet = offset.length() * 45.64; // Assuming 45.64 is your scale factor
+            const msg = `X: ${(offset.x * 45.64).toFixed(2)}, Y: ${(offset.y * 45.64).toFixed(2)}, Z: ${(offset.z * 45.64).toFixed(2)}
+          distance = ${distanceInFeet.toFixed(2)} ft from origin`;
+            console.log("[handleClick] Displaying coordinates:", msg);
+            setDistanceDisplay(msg);
+          } else {
+            // Clicked something, but origin is not set
+            setDistanceDisplay(
+              "Origin not set. Cannot calculate relative coordinates.",
+            );
+          }
+        } else {
+          // Clicked completely empty space (no intersections at all, or only non-relevant ones filtered out earlier)
+          setDistanceDisplay(""); // Clear any previous distance display
+        }
+      } // End of if (visibleIntersects.length > 0 || !foundAnchor) block from anchor selection logic
+      // Note: The parent if (visibleIntersects.length > 0) from original code might need adjustment
+      // depending on how `foundAnchor` interacts with it. The logic here assumes `handleClick` continues
+      // if `visibleIntersects.length > 0` but no specific anchor is found.
+      // If the click was outside the model entirely (`visibleIntersects.length == 0`), this new logic also correctly calls `handleDeselect`.
     } // End of handleClick
 
     function getNDCCoords(event: MouseEvent, container: HTMLDivElement) {
@@ -4559,6 +5776,12 @@ const ThreeViewer = forwardRef(function ThreeViewer(
               sceneRef.current?.remove(loadingIndicator);
               // Show temporary success feedback (optional)
               showSuccessIndicator(dropPoint, fileInfo.name || "File");
+
+              // ── HIDE the green “drop” marker ──
+              if (dragCircleRef.current) {
+                dragCircleRef.current.visible = false;
+                dragCircleRef.current.scale.set(1, 1, 1);
+              }
             } else {
               console.error(
                 "[ThreeViewer] Cannot place file anchor: Origin point not set.",
@@ -4842,112 +6065,126 @@ const ThreeViewer = forwardRef(function ThreeViewer(
     if (!transformControlsRef.current) return;
 
     const handleTransformChange = () => {
-      // Use the new unified state variables
+      if (!transformControlsRef.current?.object) return;
+
+      const transformedObject = transformControlsRef.current.object; // This is the object attached to the gizmo
+
+      // Handle alignment markers ("A", "B", "C") separately (no DB save for these)
       if (
-        !selectedAnchorId ||
-        !selectedAnchorType || // Need type to know it's a data anchor
-        !transformControlsRef.current?.object
+        transformedObject.userData.label &&
+        ["A", "B", "C"].includes(transformedObject.userData.label)
       ) {
-        // Also check if the currently attached object is an alignment marker (A, B, C)
-        // If so, we don't want to save it via updateAnchorTransform
-        const attachedObj = transformControlsRef.current?.object;
-        if (
-          attachedObj &&
-          attachedObj.userData.label &&
-          ["A", "B", "C"].includes(attachedObj.userData.label)
-        ) {
-          console.log(
-            "Transform changed for alignment marker, not saving to DB.",
-          );
-          // Update the reference points state directly if needed
-          if (setReferencePoints3D) {
-            setReferencePoints3D((prevPoints) =>
-              prevPoints.map((p) => {
-                if (p.label === attachedObj.userData.label) {
-                  return {
+        console.log(
+          "Transform changed for alignment marker, updating local state only.",
+        );
+        if (setReferencePoints3D) {
+          setReferencePoints3D((prevPoints) =>
+            prevPoints.map((p) =>
+              p.label === transformedObject.userData.label
+                ? {
                     ...p,
-                    x3D: attachedObj.position.x,
-                    y3D: attachedObj.position.y,
-                    z3D: attachedObj.position.z,
-                  };
-                }
-                return p;
-              }),
-            );
-          }
-          return; // Don't proceed to save anchor data
+                    x3D: transformedObject.position.x,
+                    y3D: transformedObject.position.y,
+                    z3D: transformedObject.position.z,
+                  }
+                : p,
+            ),
+          );
         }
-        // If no anchor selected, or it's not a data anchor, do nothing
         return;
       }
 
-      const transformedObject = transformControlsRef.current.object;
+      // Proceed only if a data anchor is selected
+      if (!selectedAnchorId || !selectedAnchorType) {
+        return;
+      }
+
       const isHelper = transformedObject.userData?.type?.includes("helper");
 
-      // Get the current world position/rotation/scale from the transformed object
-      const currentPosition = transformedObject.position.clone();
-      const currentRotation = transformedObject.rotation.clone();
-      const currentScale = transformedObject.scale.clone();
+      // Get current WORLD transform of the object being manipulated by the gizmo
+      const worldPosition = new THREE.Vector3();
+      const worldQuaternion = new THREE.Quaternion();
+      const worldScale = new THREE.Vector3();
 
-      // Store the last transform state locally (useful for immediate feedback or potential undo)
+      transformedObject.getWorldPosition(worldPosition);
+      transformedObject.getWorldQuaternion(worldQuaternion);
+      transformedObject.getWorldScale(worldScale);
+
+      const worldRotation = new THREE.Euler().setFromQuaternion(
+        worldQuaternion,
+        transformedObject.rotation.order,
+      );
+
+      // Store the latest world transform locally
       setLastTransform({
-        position: currentPosition,
-        rotation: currentRotation,
-        scale: currentScale,
+        position: worldPosition.clone(),
+        rotation: worldRotation.clone(),
+        scale: worldScale.clone(),
       });
 
-      // ***** START CHANGE: Link helper transform to CSS3DObject *****
-      // If the transformed object is a helper, update its corresponding CSS object
-      if (isHelper && transformedObject.userData?.cssObject) {
-        // General case (e.g., webpage)
-        const cssObject = transformedObject.userData.cssObject as CSS3DObject;
-        cssObject.position.copy(currentPosition);
-        cssObject.rotation.copy(currentRotation);
-        // cssObject.scale.copy(currentScale); // Apply scale cautiously
-      } else if (isHelper && transformedObject.userData?.labelObject) {
-        // Specific case for text labels
-        const labelObject = transformedObject.userData
-          .labelObject as CSS3DObject;
-        labelObject.position.copy(currentPosition);
-        labelObject.rotation.copy(currentRotation);
-        // labelObject.scale.copy(currentScale); // Apply scale cautiously
-      }
-      // ***** END CHANGE *****
+      // If the transformed object is a helper, update its corresponding visual CSS3DObject
+      if (isHelper) {
+        let visualCssObject: CSS3DObject | undefined = undefined;
 
-      // Debounce the Firebase update to avoid excessive writes during drag
+        if (transformedObject.userData.cssObject instanceof CSS3DObject) {
+          visualCssObject = transformedObject.userData.cssObject; // For Webpage anchors
+        } else if (
+          transformedObject.userData.labelObject instanceof CSS3DObject
+        ) {
+          visualCssObject = transformedObject.userData.labelObject; // For Text anchors
+        } else if (
+          transformedObject.userData.visualObject instanceof CSS3DObject
+        ) {
+          visualCssObject = transformedObject.userData.visualObject; // For File anchors (e.g., audio player)
+        }
+
+        if (visualCssObject) {
+          // CSS3DObjects are positioned in world space relative to the CSS3DRenderer's camera.
+          // To make them follow a helper mesh (which is in the WebGL scene),
+          // their position and rotation should generally match the helper's world position and rotation.
+          visualCssObject.position.copy(worldPosition);
+          visualCssObject.rotation.copy(worldRotation);
+          // IMPORTANT: Directly applying gizmo-driven scale to CSS3DObject.scale can lead to
+          // extreme visual scaling. CSS3DObject scale is usually set once (e.g., 0.0015)
+          // to map pixels to world units. If conceptual scaling is needed, it should affect
+          // the HTML element's dimensions, not typically CSS3DObject.scale from the gizmo.
+          // visualCssObject.scale.copy(worldScale); // Generally AVOID for CSS3DObject visuals.
+        }
+      }
+
+      // Debounce the Firebase update
       if (transformUpdateTimeout.current) {
         clearTimeout(transformUpdateTimeout.current);
       }
 
       transformUpdateTimeout.current = setTimeout(() => {
-        if (!selectedAnchorId) return; // Check again inside timeout
+        // Re-check selectedAnchorId in case it changed during timeout
+        if (!selectedAnchorId || !transformControlsRef.current?.object) return;
 
-        // Convert the TRANSFORMED object's world position to real-world coordinates relative to origin
-        // This works whether it's the model itself or a helper mesh
-        const realWorldPos = convertToRealWorldCoords(currentPosition);
+        // Use the world transform captured at the start of this debounced call for consistency
+        const realWorldPos = convertToRealWorldCoords(worldPosition); // worldPosition from the gizmo-controlled object
 
         console.log(
           `Debounced Save for ${selectedAnchorType} anchor ${selectedAnchorId}:`,
-          { realWorldPos, currentRotation, currentScale },
+          { realWorldPos, rotation: worldRotation, scale: worldScale },
         );
 
-        // Call the existing function to update Firebase
-        // This function needs to handle updating the correct fields (x, y, z, rotation, scale)
-        // Note: You might not want to save scale for text/webpage anchors unless you explicitly handle it
         updateAnchorTransform(selectedAnchorId, {
           x: realWorldPos.x,
           y: realWorldPos.y,
           z: realWorldPos.z,
-          rotationX: currentRotation.x,
-          rotationY: currentRotation.y,
-          rotationZ: currentRotation.z,
-          // Only include scale if you intend to save/restore it for this anchor type
-          // Avoid saving scale for helper-controlled anchors unless intended
-          scaleX: isHelper ? (lastTransform.scale?.x ?? 1) : currentScale.x, // Use previous scale for helpers or 1 if null
-          scaleY: isHelper ? (lastTransform.scale?.y ?? 1) : currentScale.y,
-          scaleZ: isHelper ? (lastTransform.scale?.z ?? 1) : currentScale.z,
+          rotationX: worldRotation.x,
+          rotationY: worldRotation.y,
+          rotationZ: worldRotation.z,
+          // Save the world scale of the object manipulated by the gizmo.
+          // If scaling specific anchor types (like CSS3D/helpers) is undesirable,
+          // prevent `TransformControls` from entering "scale" mode for them,
+          // or reset their scale if manipulated.
+          scaleX: worldScale.x,
+          scaleY: worldScale.y,
+          scaleZ: worldScale.z,
         });
-      }, 500); // Wait 500ms after the last transform change before saving
+      }, 500); // 500ms debounce
     };
 
     // Add listener when component mounts or controls/selection changes

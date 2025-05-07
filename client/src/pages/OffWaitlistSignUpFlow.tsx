@@ -252,6 +252,7 @@ export default function OffWaitlistSignUpFlow() {
             company_name: cName,
             contact_name: personName,
             contact_phone_number: contactPhone,
+            estimated_square_footage: squareFootage,
           }),
         };
 

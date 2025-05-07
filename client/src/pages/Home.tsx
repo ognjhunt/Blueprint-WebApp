@@ -4,23 +4,88 @@ import { useAuth } from "@/contexts/AuthContext";
 import Nav from "@/components/Nav";
 import Hero from "@/components/sections/Hero";
 import Features from "@/components/sections/Features";
+import { Button } from "@/components/ui/button";
 import ContactForm from "@/components/sections/ContactForm";
+import { Card, CardContent } from "@/components/ui/card";
 import Footer from "@/components/Footer";
 import AIChatButton from "@/components/AIChatButton";
 import Testimonials from "@/components/sections/Testimonials";
 import LocationShowcase from "@/components/sections/LocationShowcase";
 import { motion, useScroll, useTransform } from "framer-motion";
+import {
+  ShieldCheck,
+  Rocket,
+  Sparkle,
+  Zap,
+  MapPin,
+  Edit,
+  Wand2,
+  PlayCircle,
+  ArrowRight,
+  CheckCircle2,
+  ArrowDown,
+  Info,
+  Layers,
+  Code,
+  Globe,
+  Users,
+  PenTool,
+  Activity,
+} from "lucide-react";
 
 export default function Home() {
   const { currentUser } = useAuth();
   const [, setLocation] = useLocation();
   const mainRef = useRef(null);
+  const contactFormRef = useRef(null);
+
+  const steps = [
+    {
+      icon: <MapPin className="w-8 h-8" />,
+      title: "Join Waitlist",
+      description:
+        "Provide your business details to secure early access to Blueprint.",
+      benefits: ["Priority access", "Early adopter pricing", "Direct support"],
+      color: "from-indigo-500 to-blue-600",
+    },
+    {
+      icon: <Edit className="w-8 h-8" />,
+      title: "Schedule 3D Mapping",
+      description:
+        "Once off the waitlist, you'll receive an email that contains a link to schedule a convenient time for us to map your location.",
+      benefits: ["Flexible scheduling", "Professional team", "Quick process"],
+      color: "from-blue-500 to-cyan-500",
+    },
+    {
+      icon: <Wand2 className="w-8 h-8" />,
+      title: "Customize & Preview",
+      description:
+        "After mapping, our AI generates a customized AR solution for the digital twin of your space, which you can preview in real-time.",
+      benefits: ["AI-powered setup", "Real-time preview", "Custom features"],
+      color: "from-violet-500 to-purple-600",
+    },
+    {
+      icon: <PlayCircle className="w-8 h-8" />,
+      title: "Launch & Engage",
+      description:
+        "Go live with your AR experience and track customer engagement with your strategically placed QR codes.",
+      benefits: ["Instant deployment", "Usage analytics", "Customer insights"],
+      color: "from-fuchsia-500 to-pink-600",
+    },
+  ];
 
   // Parallax scrolling effect
   const { scrollYProgress } = useScroll({
     target: mainRef,
     offset: ["start start", "end start"],
   });
+
+  const handleScrollToContactForm = () => {
+    const contactFormElement = document.getElementById("contactForm");
+    if (contactFormElement) {
+      contactFormElement.scrollIntoView({ behavior: "smooth" });
+    }
+  };
 
   const backgroundY = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
 
@@ -112,7 +177,82 @@ export default function Home() {
         </div>
 
         <LocationShowcase />
-        <Features />
+        {/* <Features /> */}
+        {/* Process Overview */}
+        <section className="py-20 px-4 relative">
+          <div className="container mx-auto max-w-7xl text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="max-w-3xl mx-auto mb-16"
+            >
+              <h2 className="text-3xl md:text-4xl font-bold mb-6 text-gray-800">
+                The Implementation Process
+              </h2>
+              <p className="text-xl text-gray-600">
+                Our streamlined approach makes adopting AR technology simple and
+                stress-free. Here's how we transform your physical space into an
+                interactive AR experience.
+              </p>
+            </motion.div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 relative mb-20">
+              {/* Connection line */}
+              <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-1 bg-gradient-to-r from-indigo-300 via-blue-300 to-violet-300 transform -translate-y-1/2" />
+
+              {steps.map((step, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: idx * 0.1 }}
+                  whileHover={{ y: -5 }}
+                  className="relative z-10"
+                >
+                  <Card className="h-full border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+                    <CardContent className="p-6 text-left">
+                      <div className="flex flex-col items-center mb-4">
+                        <div
+                          className={`w-16 h-16 rounded-full mb-6 flex items-center justify-center text-white bg-gradient-to-br ${step.color}`}
+                        >
+                          {step.icon}
+                        </div>
+                        <h3 className="text-xl font-semibold mb-2 text-gray-800">
+                          {idx + 1}. {step.title}
+                        </h3>
+                        <p className="text-gray-600 mb-4 text-center">
+                          {step.description}
+                        </p>
+                      </div>
+                      <ul className="space-y-2">
+                        {step.benefits.map((benefit, bidx) => (
+                          <li
+                            key={bidx}
+                            className="flex items-center text-gray-600"
+                          >
+                            <CheckCircle2 className="w-5 h-5 text-green-500 mr-2 flex-shrink-0" />
+                            <span className="text-sm">{benefit}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      {idx === 0 && (
+                        <Button
+                          className="w-full mt-6 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white"
+                          onClick={handleScrollToContactForm}
+                        >
+                          Join Waitlist
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
         {/* <Testimonials /> */}
         <ContactForm />
       </main>

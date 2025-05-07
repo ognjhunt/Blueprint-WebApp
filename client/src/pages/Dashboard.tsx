@@ -844,7 +844,7 @@ export default function Dashboard() {
       {
         question: "How long does it take to get my Blueprint after scanning?",
         answer:
-          "Processing typically takes 24-48 hours after your mapping session. You'll receive an email notification when your Blueprint is ready.",
+          "Processing typically takes 1-2 hours after your mapping session. You'll receive an email notification when your Blueprint is ready.",
       },
     ];
 
@@ -1040,7 +1040,7 @@ export default function Dashboard() {
                         <li className="flex items-start">
                           <div className="mr-2 mt-1 text-green-500">✓</div>
                           <span>
-                            Processing takes approximately 24-48 hours
+                            Processing takes approximately 1-2 hours
                           </span>
                         </li>
                         <li className="flex items-start">

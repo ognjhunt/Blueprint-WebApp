@@ -168,7 +168,7 @@ const steps = [
     icon: <Edit className="w-8 h-8" />,
     title: "Schedule 3D Mapping",
     description:
-      "Once off the waitlist, you'll receive an email to schedule a convenient time for us to map your location.",
+      "Once off the waitlist, you'll receive an email that contains a link to schedule a convenient time for us to map your location.",
     benefits: ["Flexible scheduling", "Professional team", "Quick process"],
     color: "from-blue-500 to-cyan-500",
   },
@@ -176,7 +176,7 @@ const steps = [
     icon: <Wand2 className="w-8 h-8" />,
     title: "Customize & Preview",
     description:
-      "After mapping, our AI generates a digital twin of your space. Add interactive AR features and preview your space in real-time.",
+      "After mapping, our AI generates a customized AR solution for the digital twin of your space, which you can preview in real-time.",
     benefits: ["AI-powered setup", "Real-time preview", "Custom features"],
     color: "from-violet-500 to-purple-600",
   },

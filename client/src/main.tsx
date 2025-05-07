@@ -21,7 +21,7 @@ import Discover from "./pages/Discover";
 import HowItWorks from "./pages/HowItWorks";
 import OffWaitlistSignUpFlow from "./pages/OffWaitlistSignUpFlow";
 import WorkflowHub from "@/components/WorkflowHub";
-import WorkflowEditor from "@/components/WorkflowEditor";
+//import WorkflowEditor from "@/components/WorkflowEditor";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import WorkspacePage from "./pages/Workspace"; // or wherever you placed workspace.tsx
 import Help from "./pages/Help";
@@ -30,6 +30,7 @@ import TeamMembers from "./pages/TeamMembers";
 import Settings from "./pages/Settings";
 import ScannerPortal from "./pages/ScannerPortal";
 import AcceptInvite from "./pages/AcceptInvite";
+import PilotProgram from "./pages/PilotProgram";
 
 function Router() {
   return (
@@ -49,6 +50,7 @@ function Router() {
       <Route path="/settings" component={Settings} />
       <Route path="/scanner-portal" component={ScannerPortal} />
       <Route path="/accept-invite" component={AcceptInvite} />
+      <Route path="/pilot-program" component={PilotProgram} />
 
       {/* Protected Routes */}
       <Route path="/create-blueprint">
@@ -79,11 +81,11 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      <Route path="/workflow-editor/:flowId">
+      {/* <Route path="/workflow-editor/:flowId">
         <ProtectedRoute>
           <WorkflowEditor />
         </ProtectedRoute>
-      </Route>
+      </Route> */}
 
       <Route>404 Page Not Found</Route>
     </Switch>

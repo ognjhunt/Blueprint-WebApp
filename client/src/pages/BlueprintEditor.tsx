@@ -6,7 +6,7 @@ import ThreeViewer from "@/components/ThreeViewer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import ViewModeToggle from "@/componentsSTATE MANAGEMENT/ViewModeToggle";
-import WorkflowEditor from "@/components/WorkflowEditor";
+//import WorkflowEditor from "@/components/WorkflowEditor";
 import { QRCodeCanvas } from "qrcode.react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -207,6 +207,42 @@ interface TextAnchor {
   position?: { x: number; y: number; z: number }; // Handle potential nested position
 }
 
+// 🔧 NEW util ---------------------------------------------------------------
+/**
+ * Returns a normalised file‑type keyword the rest of your code can count on.
+ * Looks at `fileInfo.fileType` first (what you saved in Firestore on upload),
+ * then falls back to MIME‑type or extension sniffing when that’s missing.
+ */
+export function getSimpleFileType(fileInfo: {
+  fileType?: string;
+  type?: string; // MIME
+  name?: string; // original filename
+}): "image" | "video" | "audio" | "pdf" | "document" {
+  // 1️⃣ already classified during upload?
+  if (
+    fileInfo.fileType &&
+    ["image", "video", "audio", "pdf"].includes(fileInfo.fileType)
+  )
+    return fileInfo.fileType as any;
+
+  // 2️⃣ MIME or extension fallback (covers mp3 ⇒ audio/mpeg, mp4 ⇒ video/mp4 …)
+  const mime = fileInfo.type ?? "";
+  if (mime.startsWith("image/")) return "image";
+  if (mime.startsWith("video/")) return "video";
+  if (mime.startsWith("audio/"))
+    return "audio"; /* :contentReference[oaicite:0]{index=0} */
+  if (mime === "application/pdf") return "pdf";
+
+  // 3️⃣ bare‑bones extension sniff (for cases where browsers drop MIME on drag)
+  const ext = (fileInfo.name ?? "").split(".").pop()?.toLowerCase() ?? "";
+  if (["png", "jpg", "jpeg", "gif", "webp"].includes(ext)) return "image";
+  if (["mp4", "mov", "webm"].includes(ext)) return "video";
+  if (["mp3", "wav", "aac", "flac"].includes(ext)) return "audio";
+  if (ext === "pdf") return "pdf";
+
+  return "document"; // ← sensible catch‑all
+}
+
 /**
  * Main component for the Blueprint Editor
  * A complete rewrite focused on modern UI/UX and seamless integration with ThreeViewer
@@ -286,6 +322,18 @@ export default function BlueprintEditor() {
   const [hoveredElement, setHoveredElement] = useState(null);
 
   const [selectedAnchorData, setSelectedAnchorData] = useState(null);
+
+  // Helper once at top of the file (reuse in the other two fixes)
+  const getSimpleType = (mime: string) =>
+    mime.includes("image")
+      ? "image"
+      : mime.includes("video")
+        ? "video"
+        : mime.includes("audio")
+          ? "audio"
+          : mime.includes("pdf")
+            ? "pdf"
+            : "document";
 
   const handleDeleteAnchor = async (anchorId: string, blueprintId: string) => {
     toast({
@@ -3125,32 +3173,29 @@ export default function BlueprintEditor() {
 
   // NEW: Handler for file anchors
   const handleFileAnchorClicked = async (anchorId: string, anchorData: any) => {
-    // Accept anchorData passed from ThreeViewer
     console.log(`File anchor clicked in editor: ${anchorId}`, anchorData);
 
-    // 1. Open the 'uploads' panel (or your designated file panel)
+    // 1. Open your “uploads” (media) panel
     setActiveSection("uploads");
 
-    // 2. Set the editing state for this file anchor
-    setEditingFileAnchorId(anchorId); // Make sure this state exists and is used in your 'uploads' panel logic
+    // 2. Highlight which anchor we're editing
+    setEditingFileAnchorId(anchorId);
 
-    // 3. Set the selected anchor data for the settings card
-    //    Use the data passed from ThreeViewer if available, otherwise fetch
+    // 3. Populate the right-hand info card
     if (anchorData) {
-      setSelectedAnchorData({ id: anchorId, ...anchorData }); // Ensure ID is included
+      setSelectedAnchorData({ id: anchorId, ...anchorData });
     } else {
-      // Fallback to fetching if data wasn't passed (though passing is better)
+      // Fallback: fetch from Firestore if not passed
       try {
-        const anchorRef = doc(db, "anchors", anchorId);
-        const anchorSnap = await getDoc(anchorRef);
-        if (anchorSnap.exists()) {
-          setSelectedAnchorData({ id: anchorId, ...anchorSnap.data() }); // Ensure ID is included
+        const refDoc = doc(db, "anchors", anchorId);
+        const snap = await getDoc(refDoc);
+        if (snap.exists()) {
+          setSelectedAnchorData({ id: anchorId, ...snap.data() });
         } else {
-          console.warn("File anchor not found in Firestore:", anchorId);
           setSelectedAnchorData(null);
         }
-      } catch (error) {
-        console.error("Error fetching file anchor data:", error);
+      } catch (err) {
+        console.error("Error fetching file anchor data:", err);
         setSelectedAnchorData(null);
       }
     }
@@ -3721,13 +3766,7 @@ export default function BlueprintEditor() {
     const newContentId = `file-${Date.now()}`; // Use a consistent prefix
 
     // 2. Determine file type for the anchor
-    const fileTypeStr =
-      fileInfo.fileType ||
-      (fileInfo.type?.includes("image")
-        ? "image"
-        : fileInfo.type?.includes("video")
-          ? "video"
-          : "document");
+    const fileTypeStr = getSimpleFileType(fileInfo);
 
     // 3. Create the new anchor object for local state
     const newAnchor = {
@@ -4505,16 +4544,18 @@ export default function BlueprintEditor() {
           variant: "success",
         });
 
-        // Create file metadata with additional fields for better handling
+        const simpleType = getSimpleFileType(fileType); // <—
+
         const newFile = {
           id: Date.now().toString(),
           name: file.name,
           url: downloadURL,
-          type: file.type,
+          mimeType: file.type, // keep the raw MIME
+          fileType: simpleType, // add the simplified label
           uploadDate: new Date(),
           fileSize: file.size,
-          fileCategory: fileCategory,
-          thumbnailUrl: fileType.includes("image") ? downloadURL : null,
+          fileCategory,
+          thumbnailUrl: simpleType === "image" ? downloadURL : null,
           storageLocation: snapshot.ref.fullPath,
         };
 
@@ -4721,7 +4762,16 @@ export default function BlueprintEditor() {
     }
   };
 
-  // Handle external link
+  const handleViewerBackgroundClick = () => {
+    setActiveSection(null); // close left panel
+    setSelectedAnchorData(null); // hide right card
+    setEditingTextAnchorId(null); // clear any per‑type editing state
+    setEditingFileAnchorId(null);
+    setEditingWebpageAnchorId(null);
+  };
+
+  // BlueprintEditor.tsx
+
   const handleLoadExternalLink = async () => {
     if (!externalUrl.trim().startsWith("http")) {
       toast({
@@ -4732,100 +4782,151 @@ export default function BlueprintEditor() {
       return;
     }
 
+    // Ensure origin point is set, as it's needed for eventual coordinate calculation
     if (!originPoint || !blueprintId) {
       toast({
         title: "Origin Not Set",
-        description: "Please set the origin point first.",
+        description: "Please set the origin point first before placing links.",
         variant: "destructive",
       });
       return;
     }
 
-    try {
-      // Create anchor ID
-      const newAnchorId = `anchor-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    // Enter placement mode with only the URL. Anchor creation is deferred.
+    setPlacementMode({
+      type: "link",
+      data: { url: externalUrl }, // No anchorId here for new links
+    });
 
-      // Create anchor in Firestore
-      await setDoc(doc(db, "anchors", newAnchorId), {
-        id: newAnchorId,
-        createdDate: new Date(),
-        contentID: `element-${Date.now()}`,
-        contentType: "webpage",
-        webpageUrl: externalUrl,
-        host: currentUser?.uid || "anonymous",
-        blueprintID: blueprintId,
-        x: 0,
-        y: 0,
-        z: 0, // Default position at origin
-        isPrivate: false,
-      });
+    toast({
+      title: "Webpage Placement Mode",
+      description: "Click in the 3D view to place your link anchor.",
+    });
 
-      // Add to blueprint
-      await updateDoc(doc(db, "blueprints", blueprintId), {
-        anchorIDs: arrayUnion(newAnchorId),
-      });
-
-      // Add to local state
-      setWebpageAnchors((prev) => [
-        ...prev,
-        {
-          id: newAnchorId,
-          webpageUrl: externalUrl,
-          x: 0,
-          y: 0,
-          z: 0,
-          contentType: "webpage",
-        },
-      ]);
-
-      // Enter placement mode
-      setPlacementMode({
-        type: "link",
-        data: externalUrl,
-      });
-
-      toast({
-        title: "Placement Mode",
-        description: "Click in the 3D view to place your link anchor.",
-      });
-
-      // Reset input
-      setExternalUrl("");
-    } catch (error) {
-      console.error("Error adding link:", error);
-      toast({
-        title: "Error",
-        description: "Failed to add link. Please try again.",
-        variant: "destructive",
-      });
-    }
+    // Reset input field
+    setExternalUrl("");
   };
 
-  // Handle placement completion
-  const handlePlacementComplete = async (position, anchorId) => {
-    if (!originPoint || !placementMode || !blueprintId) return;
+  // Handle external link
+  // const handleLoadExternalLink = async () => {
+  //   if (!externalUrl.trim().startsWith("http")) {
+  //     toast({
+  //       title: "Invalid URL",
+  //       description: "Please include https:// in the link",
+  //       variant: "destructive",
+  //     });
+  //     return;
+  //   }
 
+  //   if (!originPoint || !blueprintId) {
+  //     toast({
+  //       title: "Origin Not Set",
+  //       description: "Please set the origin point first.",
+  //       variant: "destructive",
+  //     });
+  //     return;
+  //   }
+
+  //   try {
+  //     // Create anchor ID
+  //     const newAnchorId = `anchor-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+
+  //     // Create anchor in Firestore
+  //     await setDoc(doc(db, "anchors", newAnchorId), {
+  //       id: newAnchorId,
+  //       createdDate: new Date(),
+  //       contentID: `element-${Date.now()}`,
+  //       contentType: "webpage",
+  //       webpageUrl: externalUrl,
+  //       host: currentUser?.uid || "anonymous",
+  //       blueprintID: blueprintId,
+  //       x: 0,
+  //       y: 0,
+  //       z: 0, // Default position at origin
+  //       isPrivate: false,
+  //     });
+
+  //     // Add to blueprint
+  //     await updateDoc(doc(db, "blueprints", blueprintId), {
+  //       anchorIDs: arrayUnion(newAnchorId),
+  //     });
+
+  //     // Add to local state
+  //     setWebpageAnchors((prev) => [
+  //       ...prev,
+  //       {
+  //         id: newAnchorId,
+  //         webpageUrl: externalUrl,
+  //         x: 0,
+  //         y: 0,
+  //         z: 0,
+  //         contentType: "webpage",
+  //       },
+  //     ]);
+
+  //     // Enter placement mode
+  //     setPlacementMode({
+  //       type: "link",
+  //       data: { url: externalUrl, anchorId: newAnchorId }, // Pass anchorId here
+  //     });
+
+  //     toast({
+  //       title: "Placement Mode",
+  //       description: "Click in the 3D view to place your link anchor.",
+  //     });
+
+  //     // Reset input
+  //     setExternalUrl("");
+  //   } catch (error) {
+  //     console.error("Error adding link:", error);
+  //     toast({
+  //       title: "Error",
+  //       description: "Failed to add link. Please try again.",
+  //       variant: "destructive",
+  //     });
+  //   }
+  // };
+
+  // BlueprintEditor.tsx
+
+  const handlePlacementComplete = async (
+    position: THREE.Vector3,
+    anchorIdToUpdate?: string,
+    activePlacementMode?: typeof placementMode,
+  ) => {
+    console.log(
+      "[BlueprintEditor handlePlacementComplete] Checking prerequisites:",
+    );
+    console.log("  originPoint:", !!originPoint);
+    console.log("  activePlacementMode:", activePlacementMode); // Log the received mode
+    console.log("  blueprintId:", !!blueprintId);
+    console.log("  currentUser:", !!currentUser);
+
+    if (!originPoint || !activePlacementMode || !blueprintId || !currentUser) {
+      console.warn(
+        "Placement incomplete: One or more prerequisites are missing. See logs above.",
+      );
+      // setPlacementMode(null) is already called in finally/catch, so no need here if it returns.
+      return;
+    }
     try {
-      // Calculate offset from origin
       const offset = new THREE.Vector3().subVectors(position, originPoint);
       const scaledOffset = {
-        x: offset.x * 45.64,
+        x: offset.x * 45.64, // Assuming 45.64 is your scale factor
         y: offset.y * 45.64,
         z: offset.z * 45.64,
       };
 
-      if (placementMode.type === "model" && anchorId) {
-        // Update model anchor
-        await updateDoc(doc(db, "anchors", anchorId), {
+      if (activePlacementMode.type === "model" && anchorIdToUpdate) {
+        // Existing logic for updating a model anchor's position
+        await updateDoc(doc(db, "anchors", anchorIdToUpdate), {
           x: scaledOffset.x,
           y: scaledOffset.y,
           z: scaledOffset.z,
         });
-
-        // Update local state
         setModelAnchors((prev) =>
           prev.map((anchor) =>
-            anchor.id === anchorId
+            anchor.id === anchorIdToUpdate
               ? {
                   ...anchor,
                   x: scaledOffset.x,
@@ -4835,106 +4936,81 @@ export default function BlueprintEditor() {
               : anchor,
           ),
         );
-      } else if (placementMode.type === "link" && placementMode.data) {
-        // Find the anchor to update (most recently added)
-        const anchor = webpageAnchors[webpageAnchors.length - 1];
-
-        if (anchor && anchor.id) {
-          // Update webpage anchor
-          await updateDoc(doc(db, "anchors", anchor.id), {
-            x: scaledOffset.x,
-            y: scaledOffset.y,
-            z: scaledOffset.z,
-          });
-
-          // Update local state
-          setWebpageAnchors((prev) =>
-            prev.map((a) =>
-              a.id === anchor.id
-                ? {
-                    ...a,
-                    x: scaledOffset.x,
-                    y: scaledOffset.y,
-                    z: scaledOffset.z,
-                  }
-                : a,
-            ),
-          );
-        }
-      } else if (placementMode.type === "element" && placementMode.data) {
-        const element = placementMode.data;
-
-        // Update element position in Firestore
-        if (element.anchorId) {
-          await updateDoc(doc(db, "anchors", element.anchorId), {
-            x: scaledOffset.x,
-            y: scaledOffset.y,
-            z: scaledOffset.z,
-          });
-        }
-
-        // Update local state
-        updateElementPosition(element.id, {
-          x: position.x,
-          y: position.y,
-          z: position.z,
+        toast({
+          title: "Model Placed",
+          description: "The model has been placed successfully.",
         });
-      } else if (placementMode.type === "file" && placementMode.data) {
-        // Handle file placement
-        const fileData = placementMode.data;
+      } else if (
+        activePlacementMode.type === "link" &&
+        activePlacementMode.data.url &&
+        !anchorIdToUpdate
+      ) {
+        // Logic for CREATING a NEW webpage anchor
+        const urlToPlace = activePlacementMode.data.url;
+        const newAnchorId = `anchor-webpage-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
-        // Create a unique anchor ID for the file
-        const newAnchorId = `anchor-file-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-
-        // Create the file anchor in Firestore
         await setDoc(doc(db, "anchors", newAnchorId), {
           id: newAnchorId,
           createdDate: new Date(),
-          contentID: `file-${Date.now()}`,
-          contentType: "file",
-          fileType: fileData.fileType,
-          fileName: fileData.name,
-          fileUrl: fileData.url,
+          contentID: `element-webpage-${Date.now()}`, // Or a more specific contentID
+          contentType: "webpage",
+          webpageUrl: urlToPlace,
           host: currentUser?.uid || "anonymous",
           blueprintID: blueprintId,
           x: scaledOffset.x,
           y: scaledOffset.y,
           z: scaledOffset.z,
           isPrivate: false,
+          // Add default rotation/scale if needed by ThreeViewer's webpage rendering
+          rotationX: 0,
+          rotationY: 0,
+          rotationZ: 0,
+          scaleX: 1,
+          scaleY: 1,
+          scaleZ: 1,
         });
 
-        // Add anchor ID to blueprint
         await updateDoc(doc(db, "blueprints", blueprintId), {
           anchorIDs: arrayUnion(newAnchorId),
         });
 
-        // Add to local state (assuming you'd want a fileAnchors state)
-        // If you don't have this state yet, you may need to create it
-        // or you can add it to an existing anchor array based on your implementation
+        const newWebpageAnchor = {
+          id: newAnchorId,
+          webpageUrl: urlToPlace,
+          x: scaledOffset.x,
+          y: scaledOffset.y,
+          z: scaledOffset.z,
+          contentType: "webpage",
+          // Include rotation/scale if your ThreeViewer effect uses them
+          rotationX: 0,
+          rotationY: 0,
+          rotationZ: 0,
+          scaleX: 1,
+          scaleY: 1,
+          scaleZ: 1,
+        };
 
-        // For now, we'll add it to modelAnchors to make it visible
-        // (You might want to create a dedicated fileAnchors state in a real implementation)
-        setModelAnchors((prev) => [
-          ...prev,
-          {
-            id: newAnchorId,
-            contentType: "file",
-            fileType: fileData.fileType,
-            fileName: fileData.name,
-            x: scaledOffset.x,
-            y: scaledOffset.y,
-            z: scaledOffset.z,
-          },
-        ]);
+        setWebpageAnchors((prev) => [...prev, newWebpageAnchor as any]); // Cast to any if type mismatch temp
+
+        toast({
+          title: "Webpage Link Placed",
+          description: `Link to ${urlToPlace} added successfully.`,
+        });
+      } else if (
+        activePlacementMode.type === "file" &&
+        activePlacementMode.data &&
+        !anchorIdToUpdate
+      ) {
+        // This case should ideally be handled by `handleFileAnchorPlaced` or similar.
+        // If `onPlacementComplete` is also used for new files, the logic would be similar to new links.
+        // For now, assuming `handleFileAnchorPlaced` handles new files.
+        console.log(
+          "File placement completion via onPlacementComplete - review if this is intended path for NEW files.",
+        );
       }
+      // Add other element type handling if necessary
 
-      // Reset placement mode
-      setPlacementMode(null);
-
-      toast({
-        title: "Placement Complete",
-        description: "The item has been placed successfully.",
-      });
+      setPlacementMode(null); // Reset placement mode AFTER successful operation
     } catch (error) {
       console.error("Error completing placement:", error);
       toast({
@@ -4942,8 +5018,153 @@ export default function BlueprintEditor() {
         description: "Failed to complete placement. Please try again.",
         variant: "destructive",
       });
+      setPlacementMode(null); // Also reset on error
     }
   };
+
+  // Handle placement completion
+  // const handlePlacementComplete = async (position, anchorId) => {
+  //   if (!originPoint || !placementMode || !blueprintId) return;
+
+  //   try {
+  //     // Calculate offset from origin
+  //     const offset = new THREE.Vector3().subVectors(position, originPoint);
+  //     const scaledOffset = {
+  //       x: offset.x * 45.64,
+  //       y: offset.y * 45.64,
+  //       z: offset.z * 45.64,
+  //     };
+
+  //     if (placementMode.type === "model" && anchorId) {
+  //       // Update model anchor
+  //       await updateDoc(doc(db, "anchors", anchorId), {
+  //         x: scaledOffset.x,
+  //         y: scaledOffset.y,
+  //         z: scaledOffset.z,
+  //       });
+
+  //       // Update local state
+  //       setModelAnchors((prev) =>
+  //         prev.map((anchor) =>
+  //           anchor.id === anchorId
+  //             ? {
+  //                 ...anchor,
+  //                 x: scaledOffset.x,
+  //                 y: scaledOffset.y,
+  //                 z: scaledOffset.z,
+  //               }
+  //             : anchor,
+  //         ),
+  //       );
+  //     } else if (placementMode.type === "link" && placementMode.data) {
+  //       // Find the anchor to update (most recently added)
+  //       const anchor = webpageAnchors[webpageAnchors.length - 1];
+
+  //       if (anchor && anchor.id) {
+  //         // Update webpage anchor
+  //         await updateDoc(doc(db, "anchors", anchor.id), {
+  //           x: scaledOffset.x,
+  //           y: scaledOffset.y,
+  //           z: scaledOffset.z,
+  //         });
+
+  //         // Update local state
+  //         setWebpageAnchors((prev) =>
+  //           prev.map((a) =>
+  //             a.id === anchor.id
+  //               ? {
+  //                   ...a,
+  //                   x: scaledOffset.x,
+  //                   y: scaledOffset.y,
+  //                   z: scaledOffset.z,
+  //                 }
+  //               : a,
+  //           ),
+  //         );
+  //       }
+  //     } else if (placementMode.type === "element" && placementMode.data) {
+  //       const element = placementMode.data;
+
+  //       // Update element position in Firestore
+  //       if (element.anchorId) {
+  //         await updateDoc(doc(db, "anchors", element.anchorId), {
+  //           x: scaledOffset.x,
+  //           y: scaledOffset.y,
+  //           z: scaledOffset.z,
+  //         });
+  //       }
+
+  //       // Update local state
+  //       updateElementPosition(element.id, {
+  //         x: position.x,
+  //         y: position.y,
+  //         z: position.z,
+  //       });
+  //     } else if (placementMode.type === "file" && placementMode.data) {
+  //       // Handle file placement
+  //       const fileData = placementMode.data;
+
+  //       // Create a unique anchor ID for the file
+  //       const newAnchorId = `anchor-file-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+
+  //       // Create the file anchor in Firestore
+  //       await setDoc(doc(db, "anchors", newAnchorId), {
+  //         id: newAnchorId,
+  //         createdDate: new Date(),
+  //         contentID: `file-${Date.now()}`,
+  //         contentType: "file",
+  //         fileType: fileData.fileType,
+  //         fileName: fileData.name,
+  //         fileUrl: fileData.url,
+  //         host: currentUser?.uid || "anonymous",
+  //         blueprintID: blueprintId,
+  //         x: scaledOffset.x,
+  //         y: scaledOffset.y,
+  //         z: scaledOffset.z,
+  //         isPrivate: false,
+  //       });
+
+  //       // Add anchor ID to blueprint
+  //       await updateDoc(doc(db, "blueprints", blueprintId), {
+  //         anchorIDs: arrayUnion(newAnchorId),
+  //       });
+
+  //       // Add to local state (assuming you'd want a fileAnchors state)
+  //       // If you don't have this state yet, you may need to create it
+  //       // or you can add it to an existing anchor array based on your implementation
+
+  //       // For now, we'll add it to modelAnchors to make it visible
+  //       // (You might want to create a dedicated fileAnchors state in a real implementation)
+  //       setModelAnchors((prev) => [
+  //         ...prev,
+  //         {
+  //           id: newAnchorId,
+  //           contentType: "file",
+  //           fileType: fileData.fileType,
+  //           fileName: fileData.name,
+  //           x: scaledOffset.x,
+  //           y: scaledOffset.y,
+  //           z: scaledOffset.z,
+  //         },
+  //       ]);
+  //     }
+
+  //     // Reset placement mode
+  //     setPlacementMode(null);
+
+  //     toast({
+  //       title: "Placement Complete",
+  //       description: "The item has been placed successfully.",
+  //     });
+  //   } catch (error) {
+  //     console.error("Error completing placement:", error);
+  //     toast({
+  //       title: "Error",
+  //       description: "Failed to complete placement. Please try again.",
+  //       variant: "destructive",
+  //     });
+  //   }
+  // };
 
   // ========================
   // TEXT LABEL HANDLING
@@ -6020,7 +6241,31 @@ export default function BlueprintEditor() {
 
           {/* Content based on view mode */}
           {viewMode === "WORKFLOW" ? (
-            <WorkflowEditor blueprintId={blueprintId} />
+            //     <WorkflowEditor blueprintId={blueprintId} />
+            <div className="w-full h-full flex items-center justify-center">
+              {floorPlanImage ? (
+                <img
+                  src={floorPlanImage}
+                  alt="Floor Plan"
+                  className="max-w-full max-h-full object-contain"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center p-8 text-center">
+                  <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-4">
+                    <Map className="h-10 w-10 text-muted-foreground opacity-60" />
+                  </div>
+                  <h3 className="text-lg font-medium mb-2">No Floor Plan</h3>
+                  <p className="text-muted-foreground mb-4 max-w-md">
+                    Upload a floor plan image to get started with your blueprint
+                    design.
+                  </p>
+                  <Button onClick={() => fileInputRef.current?.click()}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Floor Plan
+                  </Button>
+                </div>
+              )}
+            </div>
           ) : viewMode === "2D" ? (
             <div className="w-full h-full flex items-center justify-center">
               {floorPlanImage ? (
@@ -6189,7 +6434,7 @@ export default function BlueprintEditor() {
               activeLabel={activeLabel}
               awaiting3D={awaiting3D}
               placementMode={placementMode}
-              onLinkPlaced={(position) => {
+              /*onLinkPlaced={(position) => {
                 // Store the external URL that was submitted
                 const url = externalUrl;
                 // Reset state immediately to avoid duplicate placements
@@ -6198,7 +6443,7 @@ export default function BlueprintEditor() {
 
                 // Handle the placement
                 handleLoadExternalLink(url, position);
-              }}
+              }}*/
               onPlacementComplete={handlePlacementComplete}
               blueprintId={blueprintId}
               setReferencePoints3D={setReferencePoints3D}
@@ -6209,6 +6454,7 @@ export default function BlueprintEditor() {
               onFileDropped={handleFileAnchorPlaced}
               onTextAnchorClick={handleTextAnchorClicked}
               onWebpageAnchorClick={handleWebpageAnchorClicked}
+              onBackgroundClick={handleViewerBackgroundClick}
               onFileAnchorClick={handleFileAnchorClicked}
               // Anchor data
               qrCodeAnchors={qrCodeAnchors}
