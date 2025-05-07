@@ -2870,7 +2870,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
         helperMesh.userData.labelObject || // For text labels
         helperMesh.userData.cssObject) as CSS3DObject | undefined; // For webpages
 
-      if (visualObject && visualObject && object.userData && object.userData.isCSS3DObject) {
+      if (visualObject && visualObject.userData && visualObject.userData.isCSS3DObject) {
         const element = visualObject.element as HTMLElement;
         if (element) {
           const originalStyle = {
