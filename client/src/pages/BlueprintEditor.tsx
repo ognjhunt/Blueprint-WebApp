@@ -3712,6 +3712,11 @@ export default function BlueprintEditor() {
       });
 
       // Add anchor ID to blueprint
+      if (!blueprintId) {
+        console.error("Missing blueprintId when adding anchor to blueprint");
+        return;
+      }
+      
       await updateDoc(doc(db, "blueprints", blueprintId), {
         anchorIDs: arrayUnion(newAnchorId),
       });
