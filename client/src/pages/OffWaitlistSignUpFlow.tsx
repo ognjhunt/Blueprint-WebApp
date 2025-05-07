@@ -43,7 +43,17 @@ export default function OffWaitlistSignUpFlow() {
   const [isAddressFocused, setIsAddressFocused] = useState(false);
   const [isValidToken, setIsValidToken] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [tokenData, setTokenData] = useState(null);
+  
+  // Define a type for the token data
+  type TokenData = {
+    id: string;
+    email?: string;
+    businessName?: string;
+    status?: string;
+    [key: string]: any; // For any other properties in the token data
+  };
+  
+  const [tokenData, setTokenData] = useState<TokenData | null>(null);
 
   // ------------------------------
   // STEP STATE
@@ -136,9 +146,10 @@ export default function OffWaitlistSignUpFlow() {
           usedAt: serverTimestamp(),
           usedBy: userId,
         });
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Error creating user:", error);
-        setErrorMessage("Error creating user: " + error.message);
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        setErrorMessage("Error creating user: " + errorMessage);
         return; // Stop here if there's an error
       }
     } else if (step === 2) {
@@ -162,9 +173,10 @@ export default function OffWaitlistSignUpFlow() {
           address: address.trim(),
           mappingAreaSqFt: squareFootage,
         });
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Error updating contact info:", error);
-        setErrorMessage("Error updating contact info: " + error.message);
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        setErrorMessage("Error updating contact info: " + errorMessage);
         return; // Stop here if there's an error
       }
     } else if (step === 3) {
@@ -263,9 +275,10 @@ export default function OffWaitlistSignUpFlow() {
           .then((res) => res.json())
           .then((data) => console.log("Lindy response:", data))
           .catch((err) => console.error("Lindy error:", err));
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Error updating scheduling info:", error);
-        setErrorMessage("Error updating scheduling info: " + error.message);
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        setErrorMessage("Error updating scheduling info: " + errorMessage);
         return; // Stop here if there's an error
       }
     }
@@ -490,15 +503,18 @@ export default function OffWaitlistSignUpFlow() {
           }
           if (data.email) setEmail(data.email);
 
-          setTokenData({
+          // Create properly typed token data
+          const typedTokenData: TokenData = {
             id: tokenDoc.id,
-            ...data,
-          });
+            ...data
+          };
+          setTokenData(typedTokenData);
           setIsValidToken(true);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Error validating token:", error);
-        setErrorMessage("Error validating your access token");
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        setErrorMessage("Error validating your access token: " + errorMessage);
         setIsValidToken(false);
       } finally {
         setIsLoading(false);
@@ -812,7 +828,7 @@ export default function OffWaitlistSignUpFlow() {
   }
 
   const Step3 = () => {
-    const [bookedTimes, setBookedTimes] = useState([]);
+    const [bookedTimes, setBookedTimes] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     const maxDate = useCallback(() => {
