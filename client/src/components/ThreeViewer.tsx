@@ -5396,7 +5396,7 @@ const ThreeViewer = forwardRef(function ThreeViewer(
       camera: THREE.Camera,
       scene: THREE.Scene,
     ) {
-      raycasterRef.current.setFromCamera({ x, y }, camera);
+      raycasterRef.current.setFromCamera(new THREE.Vector2(x, y), camera);
       return raycasterRef.current.intersectObjects(scene.children, true);
     }
 
@@ -5526,7 +5526,7 @@ const ThreeViewer = forwardRef(function ThreeViewer(
 
       console.log(
         "[ThreeViewer] handleDrop fired with dataTransfer items:",
-        e.dataTransfer.items,
+        e.dataTransfer?.items || "No dataTransfer items",
       );
 
       const modelDataString = e.dataTransfer?.getData("application/model");
@@ -5664,8 +5664,8 @@ const ThreeViewer = forwardRef(function ThreeViewer(
 
                   // Create anchor in Firestore
                   if (blueprintId) {
-                    // Ensure currentUser is available before accessing uid
-                    const userId = currentUser?.uid || "anonymous"; // Use optional chaining and provide a fallback
+                    // Since we don't have access to currentUser, just use "anonymous" as the user ID
+                    const userId = "anonymous"; // Fixed: removed reference to currentUser
 
                     setDoc(doc(db, "anchors", newAnchorId), {
                       id: newAnchorId,
@@ -5966,7 +5966,7 @@ const ThreeViewer = forwardRef(function ThreeViewer(
 
     const handleFileDrop = (e: DragEvent) => {
       e.preventDefault();
-      const data = e.dataTransfer.getData("application/json");
+      const data = e.dataTransfer?.getData("application/json") || "";
       if (!data) return;
       try {
         const fileData = JSON.parse(data);
