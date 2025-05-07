@@ -1583,7 +1583,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
 
             // AFTER (Inside the fileAnchors.forEach loop, AFTER creating imagePlane/videoPlane/pdfObject/docIcon):
             // --- ADD HELPER MESH FOR ALL FILE ANCHOR TYPES ---
-            const visualObject = imagePlane; // or videoPlane, pdfObject, docIcon (use the correct variable name)
+            const visualObject = anchor.id ? sceneRef.current!.getObjectByName(anchor.id) || new THREE.Object3D() : new THREE.Object3D(); // or videoPlane, pdfObject, docIcon (use the correct variable name)
             const helperGeometry = new THREE.BoxGeometry(0.01, 0.01, 0.01); // Small invisible box
             const helperMaterial = new THREE.MeshBasicMaterial({
               visible: false,
@@ -1919,7 +1919,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
 
             // AFTER (Inside the fileAnchors.forEach loop, AFTER creating imagePlane/videoPlane/pdfObject/docIcon):
             // --- ADD HELPER MESH FOR ALL FILE ANCHOR TYPES ---
-            const visualObject = imagePlane; // or videoPlane, pdfObject, docIcon (use the correct variable name)
+            const visualObject = videoPlane; // or videoPlane, pdfObject, docIcon (use the correct variable name)
             const helperGeometry = new THREE.BoxGeometry(0.01, 0.01, 0.01); // Small invisible box
             const helperMaterial = new THREE.MeshBasicMaterial({
               visible: false,
@@ -2043,7 +2043,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
             helperMesh.position.copy(imagePlane.position);
             helperMesh.rotation.copy(imagePlane.rotation);
             imagePlane.userData.helperMesh = helperMesh;
-            helperMesh.userData.visualObject = imagePlane;
+            helperMesh.userData.visualObject = videoPlane;
             helperMesh.userData.anchorId = anchor.id;
             helperMesh.userData.type = "file-helper";
             sceneRef.current!.add(helperMesh);
