@@ -1530,9 +1530,9 @@ export default function Dashboard() {
                                 <div className="text-3xl font-bold text-gray-900">
                                   {userData?.numSessions || 0}
                                 </div>
-                                {userData?.sessionGrowth > 0 && (
+                                {userData?.sessionGrowth && userData.sessionGrowth > 0 && (
                                   <div className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-800">
-                                    +{userData?.sessionGrowth || 0}%
+                                    +{userData.sessionGrowth}%
                                   </div>
                                 )}
                               </div>
@@ -1558,9 +1558,9 @@ export default function Dashboard() {
                                 <div className="text-3xl font-bold text-gray-900">
                                   {userData?.averageRating?.toFixed(1) || "N/A"}
                                 </div>
-                                {userData?.ratingGrowth > 0 && (
+                                {userData?.ratingGrowth !== undefined && userData.ratingGrowth > 0 && (
                                   <div className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-800">
-                                    +{userData?.ratingGrowth?.toFixed(1) || 0}
+                                    +{userData.ratingGrowth.toFixed(1)}
                                   </div>
                                 )}
                               </div>
@@ -1716,7 +1716,7 @@ export default function Dashboard() {
                                     updates
                                   </CardDescription>
                                 </div>
-                                {userData?.recentActivities?.length > 0 && (
+                                {Array.isArray(userData?.recentActivities) && userData.recentActivities.length > 0 && (
                                   <Link href="#">
                                     <Button
                                       variant="ghost"
@@ -1732,7 +1732,7 @@ export default function Dashboard() {
                             </CardHeader>
                             <CardContent>
                               <div className="space-y-4">
-                                {userData?.recentActivities &&
+                                {Array.isArray(userData?.recentActivities) && 
                                 userData.recentActivities.length > 0 ? (
                                   userData.recentActivities
                                     .slice(0, 3)
