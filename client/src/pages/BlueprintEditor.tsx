@@ -3486,7 +3486,15 @@ export default function BlueprintEditor() {
       );
       const snapshot = await getDocs(q);
 
-      const tempModels = [];
+      // Define type for model items
+      interface FeaturedModel {
+        id: string;
+        name: string;
+        thumbnail: string;
+        description: string;
+      }
+
+      const tempModels: FeaturedModel[] = [];
       for (const docSnap of snapshot.docs) {
         const data = docSnap.data();
 
@@ -5000,6 +5008,11 @@ export default function BlueprintEditor() {
           scaleZ: 1,
         });
 
+        if (!blueprintId) {
+          console.error("Missing blueprintId when adding webpage anchor");
+          return;
+        }
+        
         await updateDoc(doc(db, "blueprints", blueprintId), {
           anchorIDs: arrayUnion(newAnchorId),
         });
