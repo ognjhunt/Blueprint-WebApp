@@ -273,11 +273,17 @@ export default function BlueprintEditor() {
   // Onboarding states - ADD THESE
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [onboardingStep, setOnboardingStep] = useState(1);
+  // Define interfaces for onboarding data
+  interface AreaItem {
+    id: string;
+    name: string;
+  }
+
   const [onboardingData, setOnboardingData] = useState({
     goal: "",
     useCases: [], // Changed from primaryUseCase (string) to useCases (array)
     audienceType: "",
-    keyAreas: [],
+    keyAreas: [] as (string | AreaItem)[], // Can be either strings or objects with id and name
     expectedVisitors: "",
     techComfort: "moderate",
     preferredStyle: "professional",
@@ -467,7 +473,7 @@ export default function BlueprintEditor() {
   const [placementMode, setPlacementMode] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [activeLabel, setActiveLabel] = useState<string | null>(null);
+  const [activeLabel, setActiveLabel] = useState<"A" | "B" | "C" | null>(null);
   const [awaiting3D, setAwaiting3D] = useState(false);
   const [showAlignmentWizard, setShowAlignmentWizard] = useState(false);
   const [showDistanceDialog, setShowDistanceDialog] = useState(false);
@@ -477,8 +483,8 @@ export default function BlueprintEditor() {
   const containerRef = useRef(null);
   const threeViewerRef = useRef<ThreeViewerRef>(null);
   const sidebarRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const modelFileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const modelFileInputRef = useRef<HTMLInputElement>(null);
   const corner1Ref = useRef(null);
   const storage = getStorage();
 
@@ -567,7 +573,7 @@ export default function BlueprintEditor() {
 
   // Add this function to check if a specific area has been marked
   // Add this function to check if a specific area has been marked
-  const isAreaMarked = (area) => {
+  const isAreaMarked = (area: string | AreaItem) => {
     // Get the area name - handle both string IDs and area objects
     let areaName;
     if (typeof area === "string") {
@@ -592,7 +598,7 @@ export default function BlueprintEditor() {
 
     return markedAreas.filter((markedArea) => {
       // Only include areas that match names in the navigation configuration
-      return onboardingData.keyAreas.some((area) => {
+      return onboardingData.keyAreas.some((area: string | AreaItem) => {
         let areaName;
         if (typeof area === "string") {
           areaName = getAreaLabel(area, prefillData?.industry);
@@ -7112,7 +7118,7 @@ export default function BlueprintEditor() {
                             onboardingData.keyAreas[0],
                             prefillData.industry,
                           )
-                        : onboardingData.keyAreas[0]?.name || "Area Name"
+                        : (onboardingData.keyAreas[0] as AreaItem)?.name || "Area Name"
                     }`
                   : "e.g. Kitchen, Living Room, Office"
               }
@@ -7136,7 +7142,7 @@ export default function BlueprintEditor() {
                           prefillData.industry,
                         ).toLowerCase();
                       } else if (area && typeof area === "object") {
-                        areaLabel = (area.name || "").toLowerCase();
+                        areaLabel = ((area as AreaItem).name || "").toLowerCase();
                       } else {
                         return false; // Skip invalid areas
                       }
