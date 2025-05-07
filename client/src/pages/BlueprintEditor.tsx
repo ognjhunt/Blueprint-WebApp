@@ -6359,10 +6359,6 @@ export default function BlueprintEditor() {
               selectedArea={selectedArea}
               pendingLabelTextRef={pendingLabelTextRef}
               showTextBoxInputRef={showTextBoxInputRef}
-              onTextPlaced={() => {
-                showTextBoxInputRef.current = false;
-                setTextContent("");
-              }}
               onTextBoxSubmit={handleTextAnchorPlaced}
               onModelDropped={async (model, position) => {
                 // Check if we have a valid origin point
@@ -6440,7 +6436,6 @@ export default function BlueprintEditor() {
               }}
               isMarkingArea={isMarkingArea}
               onAreaMarked={handleAreaMarked}
-              corner1Ref={corner1Ref}
               markedAreas={markedAreas}
               activeLabel={activeLabel}
               awaiting3D={awaiting3D}
@@ -6998,7 +6993,6 @@ export default function BlueprintEditor() {
                       setReferencePoints3D={setReferencePoints3D}
                       isMarkingArea={isMarkingArea}
                       onAreaMarked={handleAreaMarked}
-                      corner1Ref={corner1Ref}
                       markedAreas={markedAreas}
                       fileAnchors={fileAnchors}
                       setAwaiting3D={setAwaiting3D}
