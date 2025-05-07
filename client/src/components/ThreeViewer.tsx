@@ -28,6 +28,15 @@ declare module "three" {
     preventDefault: () => void;
     stopPropagation: () => void;
   }
+  
+  // Add missing event types to Object3DEventMap
+  interface Object3DEventMap {
+    'pointerdown': Event;
+    'pointerup': Event;
+    'pointermove': Event;
+    'click': Event;
+    [key: string]: Event; // Allow any string key for event types
+  }
 }
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { motion, AnimatePresence } from "framer-motion";
@@ -44,6 +53,12 @@ import { CSS3DObject } from "three/examples/jsm/renderers/CSS3DRenderer"; // NEW
 declare module "three" {
   interface Object3D {
     isDescendantOf?(obj: Object3D): boolean;
+    addEventListener(type: string, listener: (event: any) => void): void;
+  }
+  
+  // Fix for Mesh objects
+  interface Mesh {
+    addEventListener(type: string, listener: (event: any) => void): void;
   }
 }
 
@@ -1477,26 +1492,28 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
             );
 
             // 3) Build a rounded‐rect clipping path using the calculated radius 'r'
-            ctx.beginPath();
-            ctx.moveTo(r, 0);
-            ctx.lineTo(canvas.width - r, 0);
-            ctx.quadraticCurveTo(canvas.width, 0, canvas.width, r);
-            ctx.lineTo(canvas.width, canvas.height - r);
-            ctx.quadraticCurveTo(
-              canvas.width,
-              canvas.height,
-              canvas.width - r,
-              canvas.height,
-            );
-            ctx.lineTo(r, canvas.height);
-            ctx.quadraticCurveTo(0, canvas.height, 0, canvas.height - r);
-            ctx.lineTo(0, r);
-            ctx.quadraticCurveTo(0, 0, r, 0);
-            ctx.closePath();
-            ctx.clip();
+            if (ctx) {
+              ctx.beginPath();
+              ctx.moveTo(r, 0);
+              ctx.lineTo(canvas.width - r, 0);
+              ctx.quadraticCurveTo(canvas.width, 0, canvas.width, r);
+              ctx.lineTo(canvas.width, canvas.height - r);
+              ctx.quadraticCurveTo(
+                canvas.width,
+                canvas.height,
+                canvas.width - r,
+                canvas.height,
+              );
+              ctx.lineTo(r, canvas.height);
+              ctx.quadraticCurveTo(0, canvas.height, 0, canvas.height - r);
+              ctx.lineTo(0, r);
+              ctx.quadraticCurveTo(0, 0, r, 0);
+              ctx.closePath();
+              ctx.clip();
 
-            // 4) Draw the image into the clipped area
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              // 4) Draw the image into the clipped area
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            }
 
             // 5) Use the canvas as your texture
             const texture = new THREE.CanvasTexture(canvas);
@@ -1685,7 +1702,8 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
         // 2.  create the Audio element (kept off‑screen)
         const audioEl = new Audio(anchor.fileUrl);
         audioEl.preload = "auto";
-        wrapper.userData = { audioEl }; // stash a ref for later
+        // Use a property rather than userData which doesn't exist on HTMLDivElement
+        (wrapper as any).audioEl = audioEl; // stash a ref for later
 
         // 3.  play / pause logic
         btn.addEventListener("click", (e) => {
