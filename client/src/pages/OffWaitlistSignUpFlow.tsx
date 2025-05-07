@@ -851,9 +851,12 @@ export default function OffWaitlistSignUpFlow() {
           const querySnapshot = await getDocs(q);
 
           // Extract the booked times
-          const times = [];
+          const times: string[] = [];
           querySnapshot.forEach((doc) => {
-            times.push(doc.data().time);
+            const data = doc.data();
+            if (data && data.time) {
+              times.push(data.time as string);
+            }
           });
 
           setBookedTimes(times);
@@ -896,7 +899,7 @@ export default function OffWaitlistSignUpFlow() {
     );
 
     const generateTimeSlots = useCallback(() => {
-      const slots = [];
+      const slots: string[] = [];
       for (let hour = 8; hour < 20; hour++) {
         slots.push(`${hour.toString().padStart(2, "0")}:00`);
         slots.push(`${hour.toString().padStart(2, "0")}:30`);
@@ -949,7 +952,7 @@ export default function OffWaitlistSignUpFlow() {
             </div>
             <DatePicker
               selected={scheduleDate}
-              onChange={setScheduleDate}
+              onChange={(date: Date | null) => date && setScheduleDate(date)}
               inline
               minDate={new Date()}
               maxDate={maxDate()}
