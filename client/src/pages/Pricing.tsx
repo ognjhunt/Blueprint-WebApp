@@ -78,14 +78,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2023-10-16" });
+    // @ts-ignore - Updating apiVersion to match library requirements
+    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2024-12-18.acacia" });
 
     const successBaseUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/pricing?success=true&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/pricing?canceled=true`;
 
     // --- Logic to get cost per hour (MUST match frontend logic) ---
     // IMPORTANT: Duplicate or share this logic reliably between frontend and backend
-    function getCostPerHourForPlusBackend(h: number): number {
+    // Using an arrow function to avoid strict mode function declaration issues
+    const getCostPerHourForPlusBackend = (h: number): number => {
       const pricePerHourTiers = {
         100: 1.0,
         250: 0.97,
@@ -1008,7 +1010,7 @@ export default function PricingPage() {
                       e.stopPropagation();
                       setSelectedPlan("plus");
                     }}
-                    aria-pressed={selectedPlan === "plus" ? "true" : "false"}
+                    aria-pressed={(selectedPlan as PlanType) === "plus" ? "true" : "false"}
                   >
                     Configure Plan
                   </Button>
