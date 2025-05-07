@@ -199,6 +199,7 @@ export default function TeamMembersPage() {
         id: doc.id,
         ...doc.data(),
         sentDate: doc.data().createdAt || new Date(),
+        status: doc.data().status || "pending", // Ensure status exists
       }));
       setPendingInvites(invites.filter((inv) => inv.status === "pending"));
     });

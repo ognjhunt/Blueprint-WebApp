@@ -27,6 +27,7 @@ import {
 
 export default function WorkspacePage() {
   const { currentUser } = useAuth();
+  const { toast } = useToast();
   const [inviteEmail, setInviteEmail] = useState("");
   const [teamMembers, setTeamMembers] = useState<DocumentData[]>([]);
   const [pendingInvites, setPendingInvites] = useState<DocumentData[]>([]);
@@ -50,6 +51,7 @@ export default function WorkspacePage() {
       const invites = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
+        status: doc.data().status || "pending", // Ensure status exists
       }));
       setPendingInvites(invites.filter((inv) => inv.status === "pending"));
     });
