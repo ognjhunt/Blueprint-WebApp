@@ -2506,7 +2506,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
           // Remove associated label if it exists
           const labelToRemove = sceneRef.current.children.find(
             (child) =>
-              child && object.userData && object.userData.isCSS3DObject && child.userData.anchorId === id,
+              child && child.userData && child.userData.isCSS3DObject && child.userData.anchorId === id,
           );
           if (labelToRemove) {
             sceneRef.current?.remove(labelToRemove);
@@ -2765,7 +2765,7 @@ const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeView
 
     // 6. Visual Feedback Animation (Subtle scale pulse)
     if (
-      !(objectToTransform && object.userData && object.userData.isCSS3DObject) &&
+      !(objectToTransform && objectToTransform.userData && objectToTransform.userData.isCSS3DObject) &&
       !objectToTransform.userData?.type?.includes("helper") && // Avoid pulsing helpers directly
       !objectToTransform.userData?.visualObject // Also avoid if it's a helper whose visual part is pulsed by highlightObject
     ) {
