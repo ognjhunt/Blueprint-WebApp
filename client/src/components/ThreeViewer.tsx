@@ -184,8 +184,13 @@ const labelColors: Record<"A" | "B" | "C", number> = {
   C: 0x0000ff,
 };
 
-const ThreeViewer = forwardRef(function ThreeViewer(
-  {
+interface ThreeViewerImperativeHandle {
+  zoomIn: () => void;
+  zoomOut: () => void;
+}
+
+const ThreeViewer = React.memo(forwardRef<ThreeViewerImperativeHandle, ThreeViewerProps>((props, ref) => {
+  const {
     modelPath,
     onLoad,
     onError,
@@ -228,9 +233,7 @@ const ThreeViewer = forwardRef(function ThreeViewer(
     showFileAnchors,
     showWebpageAnchors,
     showModelAnchors,
-  }: ThreeViewerProps,
-  ref, // <-- Removed extra comma here
-) {
+  } = props;
   console.log("ThreeViewer - modelPath prop:", modelPath); // ADD THIS LINE
   const mountRef = useRef<HTMLDivElement>(null);
   const qrPlacementModeRef = useRef(qrPlacementMode);
@@ -6480,9 +6483,11 @@ const ThreeViewer = forwardRef(function ThreeViewer(
         });
 
         // 3) Add this anchor ID to the blueprint’s anchorIDs array
-        await updateDoc(doc(db, "blueprints", blueprintId), {
-          anchorIDs: arrayUnion(newAnchorId),
-        });
+        if (typeof blueprintId === 'string') {
+          await updateDoc(doc(db, "blueprints", blueprintId), {
+            anchorIDs: arrayUnion(newAnchorId),
+          });
+        }
 
         // done!
       }
@@ -6666,6 +6671,7 @@ const ThreeViewer = forwardRef(function ThreeViewer(
       )}
     </>
   );
-});
+}));
 
-export default React.memo(ThreeViewer);
+// Using a separate export statement to avoid double memo
+export default ThreeViewer;
