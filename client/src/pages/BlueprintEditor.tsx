@@ -4684,7 +4684,7 @@ export default function BlueprintEditor() {
       console.error("File upload error:", error);
       toast({
         title: "Upload Failed",
-        description: `Could not upload ${file.name}. ${error.message || "Please try again."}`,
+        description: `Could not upload ${file.name}. ${error instanceof Error ? error.message : "Please try again."}`,
         variant: "destructive",
       });
     } finally {
@@ -4694,6 +4694,11 @@ export default function BlueprintEditor() {
 
   // Add this new function to refresh files from Firestore
   const refreshUploadedFiles = async () => {
+    if (!blueprintId) {
+      console.error("Missing blueprintId for refreshUploadedFiles");
+      return;
+    }
+    
     try {
       const blueprintRef = doc(db, "blueprints", blueprintId);
       const blueprintSnap = await getDoc(blueprintRef);
@@ -4756,6 +4761,11 @@ export default function BlueprintEditor() {
       });
 
       // Add the anchor ID to the blueprint
+      if (!blueprintId) {
+        console.error("Missing blueprintId for anchor addition");
+        return;
+      }
+      
       await updateDoc(doc(db, "blueprints", blueprintId), {
         anchorIDs: arrayUnion(newAnchorId),
       });
