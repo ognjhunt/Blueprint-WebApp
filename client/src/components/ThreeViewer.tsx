@@ -21,6 +21,14 @@ declare module "three/examples/jsm/controls/OrbitControls" {
     dollyOut(dollyScale: number): void;
   }
 }
+
+// Add extended event interface for THREE.js events to include browser-like methods
+declare module "three" {
+  interface Event {
+    preventDefault: () => void;
+    stopPropagation: () => void;
+  }
+}
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
