@@ -240,10 +240,11 @@ const FeatureItem = ({
 );
 
 export default function PricingPage() {
+  const navigate = useNavigate();
   // State for plan selection
-  const [selectedPlan, setSelectedPlan] = useState<"free" | "starter" | "plus">(
-    "free",
-  );
+  // Define a type for the plans to ensure consistency
+  type PlanType = "free" | "starter" | "plus";
+  const [selectedPlan, setSelectedPlan] = useState<PlanType>("free");
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -638,7 +639,7 @@ export default function PricingPage() {
                     e.stopPropagation();
                     setSelectedPlan("free");
                   }} // Prevent card click propagation if needed
-                  aria-pressed={selectedPlan === "free"}
+                  aria-pressed={selectedPlan === "free" ? "true" : "false"}
                 >
                   {selectedPlan === "free" ? "Current Plan" : "Choose Free"}
                 </Button>
@@ -710,7 +711,7 @@ export default function PricingPage() {
                     e.stopPropagation();
                     setSelectedPlan("starter");
                   }}
-                  aria-pressed={selectedPlan === "starter"}
+                  aria-pressed={selectedPlan === "starter" ? "true" : "false"}
                 >
                   {selectedPlan === "starter"
                     ? "Current Plan"
