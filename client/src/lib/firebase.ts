@@ -270,4 +270,4 @@ export const logOut = async () => {
 };
 
 export { auth, db, onAuthStateChanged, storage };
-export type { FirebaseUser as User };
+export type { FirebaseUser };

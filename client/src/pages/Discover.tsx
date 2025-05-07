@@ -75,7 +75,7 @@ const ImageCarousel = () => {
   ];
 
   const [activeIndex, setActiveIndex] = useState(0);
-  const timeoutRef = useRef(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const delay = 6000; // slide duration in milliseconds
 
   // Clear timeout before starting a new one
@@ -231,8 +231,8 @@ const techSections = [
 ];
 
 export default function Discover() {
-  const contactFormRef = useRef(null);
-  const processRef = useRef(null);
+  const contactFormRef = useRef<HTMLDivElement>(null);
+  const processRef = useRef<HTMLDivElement>(null);
   const [activeStep, setActiveStep] = useState(0);
 
   const { scrollYProgress } = useScroll({

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { useLocation } from "wouter";
+import { browserLocalPersistence, setPersistence as firebasePersistence } from "firebase/auth";
 import {
   auth,
   loginWithEmailAndPassword,
@@ -9,8 +10,8 @@ import {
   onAuthStateChanged,
   getUserData,
   UserData,
-  FirebaseUser,
 } from "@/lib/firebase";
+import { User as FirebaseUser } from "firebase/auth";
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -35,14 +36,14 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Set persistence to LOCAL
   useEffect(() => {
-    const setPersistence = async () => {
+    const initPersistence = async () => {
       try {
-        await setPersistence(auth, browserLocalPersistence);
+        await firebasePersistence(auth, browserLocalPersistence);
       } catch (error) {
         console.error("Error setting persistence:", error);
       }
     };
-    setPersistence();
+    initPersistence();
   }, []);
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);

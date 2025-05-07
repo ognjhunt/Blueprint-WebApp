@@ -59,21 +59,24 @@ const formSchema = z.object({
   path: ["confirmPassword"],
 })
 
+type FormValues = z.infer<typeof formSchema>;
+type CompanyFormValues = z.infer<typeof companyFormSchema>;
+
 export default function CreateAccount() {
-  const [isLoading, setIsLoading] = useState(false)
-  const [showCompanyDialog, setShowCompanyDialog] = useState(false)
+  const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [showCompanyDialog, setShowCompanyDialog] = useState<boolean>(false)
   const [googleCredentials, setGoogleCredentials] = useState<any>(null)
   const { toast } = useToast()
   const [_, setLocation] = useLocation()
 
-  const companyForm = useForm<z.infer<typeof companyFormSchema>>({
+  const companyForm = useForm<CompanyFormValues>({
     resolver: zodResolver(companyFormSchema),
     defaultValues: {
       company: "",
     },
   });
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
@@ -86,7 +89,7 @@ export default function CreateAccount() {
 
   const { signUp, signInWithGoogle } = useAuth();
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: FormValues) {
     setIsLoading(true)
     try {
       await signUp(values.email, values.password);
@@ -263,11 +266,12 @@ export default function CreateAccount() {
                         variant: "destructive",
                       });
                     }}
-                    theme="outline"
-                    shape="rectangular"
-                    width="360"
-                    useOneTap={false}
-                    style={{ width: '100%', maxWidth: '360px' }}
+                    width="100%"
+                    theme="filled_black"
+                    text="continue_with"
+                    shape="pill"
+                    locale="en"
+                    logo_alignment="center"
                   />
                 </GoogleOAuthProvider>
 

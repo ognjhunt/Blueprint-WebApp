@@ -951,8 +951,12 @@ export default function ScannerPortal() {
         status: "processing",
       });
 
+      // Declare blueprintId variable to be used in both branches
+      let blueprintId: string | undefined;
+      
       // Update blueprints collection if a blueprintId exists
       if (selectedBooking.blueprintId) {
+        blueprintId = selectedBooking.blueprintId;
         await updateDoc(doc(db, "blueprints", selectedBooking.blueprintId), {
           floorPlan3DUrl: modelUrl,
           floorPlanUrl: floorplanUrl,
@@ -1015,7 +1019,7 @@ export default function ScannerPortal() {
         }
       } else {
         // If no blueprintId exists, create a new blueprint document
-        const blueprintId = crypto.randomUUID();
+        blueprintId = crypto.randomUUID();
         const businessName =
           customerData.organizationName || customerData.company || "Unknown";
         const address = customerData.address || selectedBooking.address || "";
@@ -1073,7 +1077,7 @@ export default function ScannerPortal() {
       }
 
       // Initialize a variable to store the blueprint ID
-      const finalBlueprintId = selectedBooking.blueprintId || '';
+      const finalBlueprintId = selectedBooking.blueprintId || blueprintId || '';
       
       try {
         await fetch(
