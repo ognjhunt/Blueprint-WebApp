@@ -4747,7 +4747,7 @@ export default function BlueprintEditor() {
         contentID: `element-${Date.now()}`,
         contentType: "model",
         modelName: model.name,
-        host: currentUserUID || "anonymous", // Use your auth context
+        host: currentUser?.uid || "anonymous", // Use your auth context
         blueprintID: blueprintId,
         x: 0, // Default offset (origin)
         y: 0,
@@ -4904,9 +4904,11 @@ export default function BlueprintEditor() {
 
   const handlePlacementComplete = async (
     position: THREE.Vector3,
-    anchorIdToUpdate?: string,
-    activePlacementMode?: { type: "link" | "file" | "model"; data?: any } | null,
+    anchorId: string | null
   ) => {
+    // We'll use the current placement mode from state instead of receiving it as param
+    const activePlacementMode = placementMode;
+    const anchorIdToUpdate = anchorId;
     console.log(
       "[BlueprintEditor handlePlacementComplete] Checking prerequisites:",
     );
