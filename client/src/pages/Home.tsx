@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import ContactForm from "@/components/sections/ContactForm";
 import { Card, CardContent } from "@/components/ui/card";
 import Footer from "@/components/Footer";
-import AIChatButton from "@/components/AIChatButton";
+//import AIChatButton from "@/components/AIChatButton";
 import Testimonials from "@/components/sections/Testimonials";
 import LocationShowcase from "@/components/sections/LocationShowcase";
 import { motion, useScroll, useTransform } from "framer-motion";
@@ -94,6 +94,33 @@ export default function Home() {
       setLocation("/dashboard");
     }
   }, [currentUser, setLocation]);
+
+  useEffect(() => {
+    // Check if the Lindy script is already added to prevent duplicates
+    const lindyScriptId = "lindy-embed-script";
+    if (document.getElementById(lindyScriptId)) {
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = lindyScriptId;
+    script.src =
+      "https://api.lindy.ai/api/lindyEmbed/lindyEmbed.js?a=9620fed7-bdfb-4329-ada0-b60963170c59";
+    script.async = true;
+    script.crossOrigin = "use-credentials"; // In JS, HTML 'crossorigin' attribute is 'crossOrigin'
+
+    document.body.appendChild(script);
+
+    // Optional: Cleanup function to remove the script when the component unmounts
+    // This might be desired if Home component can unmount and you want to clean up.
+    // For a chatbot that should persist, you might omit the cleanup or make it conditional.
+    return () => {
+      const existingScript = document.getElementById(lindyScriptId);
+      if (existingScript && existingScript.parentNode) {
+        existingScript.parentNode.removeChild(existingScript);
+      }
+    };
+  }, []); // Empty dependency array ensures this effect runs only once on mount and cleans up on unmount
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden bg-gradient-to-b from-indigo-50 via-white to-blue-50">
@@ -258,7 +285,6 @@ export default function Home() {
       </main>
 
       <Footer />
-      <AIChatButton />
     </div>
   );
 }

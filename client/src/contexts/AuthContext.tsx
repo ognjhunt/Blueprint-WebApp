@@ -1,6 +1,10 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import * as React from "react"; // Import all of React as React
+import { createContext, useContext } from "react"; // Keep these as is, or change to React.createContext etc. later if needed
 import { useLocation } from "wouter";
-import { browserLocalPersistence, setPersistence as firebasePersistence } from "firebase/auth";
+import {
+  browserLocalPersistence,
+  setPersistence as firebasePersistence,
+} from "firebase/auth";
 import {
   auth,
   loginWithEmailAndPassword,
@@ -23,10 +27,10 @@ interface AuthContextType {
   logout: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext = React.createContext<AuthContextType | null>(null);
 
 export function useAuth() {
-  const context = useContext(AuthContext);
+  const context = React.useContext(AuthContext);
   if (!context) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
@@ -35,7 +39,7 @@ export function useAuth() {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Set persistence to LOCAL
-  useEffect(() => {
+  React.useEffect(() => {
     const initPersistence = async () => {
       try {
         await firebasePersistence(auth, browserLocalPersistence);
@@ -45,12 +49,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     initPersistence();
   }, []);
-  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = React.useState<FirebaseUser | null>(
+    null,
+  );
+  const [userData, setUserData] = React.useState<UserData | null>(null);
+  const [loading, setLoading] = React.useState(true);
   const [, setLocation] = useLocation();
 
-  useEffect(() => {
+  React.useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {

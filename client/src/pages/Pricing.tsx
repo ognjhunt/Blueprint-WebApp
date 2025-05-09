@@ -39,7 +39,8 @@ import { useAuth } from "@/contexts/AuthContext"; // Needed to get current user 
 import { doc, getDoc } from "firebase/firestore"; // Needed to get user data
 import { db } from "@/lib/firebase"; // Needed for db access
 import { motion } from "framer-motion"; // Needed for motion divs
-import { useNavigate } from "react-router-dom"; // Needed if buttons navigate
+import { useLocation } from "wouter"; // <--- ADD THIS IMPORT for wouter
+import { useRouter } from "next/router"; // ADD THIS LINE for Next.js Pages Router
 
 // Stripe Checkout Route - Keep original functionality
 export const dynamic = "force-static";
@@ -79,7 +80,9 @@ export async function POST(request: Request) {
     }
 
     // @ts-ignore - Updating apiVersion to match library requirements
-    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2024-12-18.acacia" });
+    const stripe = new Stripe(stripeSecretKey, {
+      apiVersion: "2024-12-18.acacia",
+    });
 
     const successBaseUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/pricing?success=true&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/pricing?canceled=true`;
@@ -114,7 +117,7 @@ export async function POST(request: Request) {
         else break;
       }
       return pricePerHourTiers[lowerTier];
-    }
+    };
     // --- End cost per hour logic ---
 
     const costPerHour = getCostPerHourForPlusBackend(hours);
@@ -242,7 +245,7 @@ const FeatureItem = ({
 );
 
 export default function PricingPage() {
-  const navigate = useNavigate();
+  const router = useLocation();
   // State for plan selection
   // Define a type for the plans to ensure consistency
   type PlanType = "free" | "starter" | "plus";
@@ -863,7 +866,12 @@ export default function PricingPage() {
                       </p>
                     )}
                     {/* Auto-adjust to minimum 2 if 1 is entered */}
-                    {teamSeats === 1 ? (() => { setTeamSeats(2); return null; })() : null}{" "}
+                    {teamSeats === 1
+                      ? (() => {
+                          setTeamSeats(2);
+                          return null;
+                        })()
+                      : null}{" "}
                   </div>
                 </div>
               </CardHeader>
@@ -882,7 +890,8 @@ export default function PricingPage() {
                       Sliding discount on customer hours
                     </FeatureItem>
                     <FeatureItem highlight={true}>
-                      Blueprint continuously refines your space with data & feedback for a streamlined experience.
+                      Blueprint continuously refines your space with data &
+                      feedback for a streamlined experience.
                     </FeatureItem>
                   </ul>
 
@@ -1010,7 +1019,9 @@ export default function PricingPage() {
                       e.stopPropagation();
                       setSelectedPlan("plus");
                     }}
-                    aria-pressed={(selectedPlan as PlanType) === "plus" ? "true" : "false"}
+                    aria-pressed={
+                      (selectedPlan as PlanType) === "plus" ? "true" : "false"
+                    }
                   >
                     Configure Plan
                   </Button>

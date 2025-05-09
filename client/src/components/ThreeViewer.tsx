@@ -9,31 +9,35 @@ import * as THREE from "three";
 // Removed CSS3DRenderer import - we'll use our own interface
 // Updated import to use modern THREE.SRGBColorSpace instead of deprecated sRGBEncoding
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
-import { TransformControls } from "three-transform-controls";
+import { TransformControls } from "three/examples/jsm/controls/TransformControls.js"; // <<< This is the one you want to use
+import {
+  CSS3DRenderer,
+  CSS3DObject,
+} from "three/examples/jsm/renderers/CSS3DRenderer.js";
 
 // TypeScript interface declarations for TransformControls and DragControls to avoid import errors
-interface TransformControls extends THREE.Object3D {
-  visible: boolean;
-  enabled: boolean;
-  mode: string;
-  object: THREE.Object3D | null;
-  space: string;
-  dragging: boolean;
-  setMode(mode: string): void;
-  attach(object: THREE.Object3D): this;
-  detach(): void;
-  setSpace(space: string): void;
-  setSize(size: number): void;
-  setTranslationSnap(translationSnap: number): void;
-  setRotationSnap(rotationSnap: number): void;
-  setScaleSnap(scaleSnap: number): void;
-  addEventListener(type: string, listener: (event: any) => void): void;
-  removeEventListener(type: string, listener: (event: any) => void): void;
-  showX: boolean;
-  showY: boolean;
-  showZ: boolean;
-  dispose(): void;  // Add dispose method
-}
+// interface TransformControls extends THREE.Object3D {
+//   visible: boolean;
+//   enabled: boolean;
+//   mode: string;
+//   object: THREE.Object3D | null;
+//   space: string;
+//   dragging: boolean;
+//   setMode(mode: string): void;
+//   attach(object: THREE.Object3D): this;
+//   detach(): void;
+//   setSpace(space: string): void;
+//   setSize(size: number): void;
+//   setTranslationSnap(translationSnap: number): void;
+//   setRotationSnap(rotationSnap: number): void;
+//   setScaleSnap(scaleSnap: number): void;
+//   addEventListener(type: string, listener: (event: any) => void): void;
+//   removeEventListener(type: string, listener: (event: any) => void): void;
+//   showX: boolean;
+//   showY: boolean;
+//   showZ: boolean;
+//   dispose(): void; // Add dispose method
+// }
 
 interface DragControls {
   enabled: boolean;
@@ -108,39 +112,39 @@ declare module "three" {
 // Create local interfaces for the missing CSS3DRenderer classes
 // This avoids the need for the module import that's causing errors
 // Interface for CSS3DObject
-interface CSS3DObjectUserData {
-  element: HTMLElement;
-  isCSS3DObject: boolean;
-  textContent?: string;
-  anchorId?: string;
-  [key: string]: any;
-}
+// interface CSS3DObjectUserData {
+//   element: HTMLElement;
+//   isCSS3DObject: boolean;
+//   textContent?: string;
+//   anchorId?: string;
+//   [key: string]: any;
+// }
 
 // Define CSS3DObject type alias to avoid errors
-type CSS3DObject = THREE.Object3D;
+//type CSS3DObject = THREE.Object3D;
 
 // Factory function to create CSS3DObject-like objects
-function createCSS3DObject(element: HTMLElement): THREE.Object3D {
-  // Create a Three.js Object3D to act as our CSS3DObject replacement
-  const cssObj = new THREE.Object3D();
+// function createCSS3DObject(element: HTMLElement): THREE.Object3D {
+//   // Create a Three.js Object3D to act as our CSS3DObject replacement
+//   const cssObj = new THREE.Object3D();
 
-  // Attach the element and set a flag that we can check later
-  cssObj.userData = {
-    element: element,
-    isCSS3DObject: true,
-    textContent: element.textContent || "",
-  } as CSS3DObjectUserData;
+//   // Attach the element and set a flag that we can check later
+//   cssObj.userData = {
+//     element: element,
+//     isCSS3DObject: true,
+//     textContent: element.textContent || "",
+//   } as CSS3DObjectUserData;
 
-  return cssObj;
-}
+//   return cssObj;
+// }
 
-// Helper to get the element of a CSS3DObject
-function getElement(object: THREE.Object3D): HTMLElement | null {
-  if (object && object.userData && object.userData.isCSS3DObject) {
-    return object.userData.element || null;
-  }
-  return null;
-}
+// // Helper to get the element of a CSS3DObject
+// function getElement(object: THREE.Object3D): HTMLElement | null {
+//   if (object && object.userData && object.userData.isCSS3DObject) {
+//     return object.userData.element || null;
+//   }
+//   return null;
+// }
 
 // Extend THREE.Object3D prototype with the isDescendantOf method
 if (typeof THREE !== "undefined" && THREE.Object3D) {
@@ -371,7 +375,8 @@ const ThreeViewer = React.memo(
     const fileAnchorElementsRef = useRef<Map<string, FileAnchorElements>>(
       new Map(),
     );
-    const textAnchorsRef = useRef<Map<string, THREE.Object3D>>(new Map());
+    // const textAnchorsRef = useRef<Map<string, THREE.Object3D>>(new Map());
+    const textAnchorsRef = useRef<Map<string, CSS3DObject>>(new Map());
     const fileAnchorsRef = useRef<Map<string, THREE.Object3D>>(new Map());
     const raycasterRef = useRef<THREE.Raycaster>(new THREE.Raycaster());
     const clickMarkerRef = useRef<THREE.Mesh | null>(null);
@@ -539,7 +544,7 @@ const ThreeViewer = React.memo(
         markerDiv.style.transform = "scale(1.0)";
       });
 
-      const css3DObject = createCSS3DObject(markerDiv);
+      const css3DObject = new CSS3DObject(markerDiv);
       css3DObject.userData.isMarker = true;
       css3DObject.userData.anchorId = anchorId;
       return css3DObject;
@@ -574,7 +579,7 @@ const ThreeViewer = React.memo(
         onClick();
       });
 
-      const cssObj = createCSS3DObject(buttonDiv);
+      const cssObj = new CSS3DObject(buttonDiv);
       cssObj.userData.isCloseButton = true;
       return cssObj;
     };
@@ -804,7 +809,7 @@ const ThreeViewer = React.memo(
         btn.addEventListener("click", (e) => {
           /* ... play/pause logic ... */
         });
-        const cssObj = createCSS3DObject(wrapper);
+        const cssObj = new CSS3DObject(wrapper);
         cssObj.scale.set(0.0015, 0.0015, 0.0015);
         cssObj.position.copy(modelSpacePosition);
         cssObj.userData = { anchorId: anchor.id, type: "file-audio-content" };
@@ -879,7 +884,7 @@ const ThreeViewer = React.memo(
                   document.createElement("div"); /* ... style labelDiv ... */
                 labelDiv.textContent =
                   anchor.fileName || determinedFileType.toUpperCase();
-                labelObject = createCSS3DObject(labelDiv);
+                labelObject = new CSS3DObject(labelDiv);
                 labelObject.scale.set(0.001, 0.001, 0.001);
                 labelObject.position
                   .copy(iconPlane.position)
@@ -1811,7 +1816,7 @@ const ThreeViewer = React.memo(
           });
 
           // 4.  turn the wrapper into a CSS3DObject
-          const cssObj = createCSS3DObject(wrapper);
+          const cssObj = new CSS3DObject(wrapper);
           cssObj.scale.set(0.0015, 0.0015, 0.0015); // same size as textAnchor
           cssObj.position.copy(modelSpacePosition);
           cssObj.userData.anchorId = anchor.id;
@@ -2203,7 +2208,7 @@ const ThreeViewer = React.memo(
               labelDiv.style.textAlign = "center";
               labelDiv.style.pointerEvents = "none";
 
-              const labelObject = createCSS3DObject(labelDiv);
+              const labelObject = new CSS3DObject(labelDiv);
               labelObject.scale.set(0.001, 0.001, 0.001); // Adjust scale
               const labelOffset = new THREE.Vector3(
                 0,
@@ -2312,7 +2317,7 @@ const ThreeViewer = React.memo(
               labelDiv.style.textAlign = "center";
               labelDiv.style.pointerEvents = "none";
 
-              const labelObject = createCSS3DObject(labelDiv);
+              const labelObject = new CSS3DObject(labelDiv);
               labelObject.scale.set(0.001, 0.001, 0.001);
               const labelOffset = new THREE.Vector3(
                 0,
@@ -2423,7 +2428,7 @@ const ThreeViewer = React.memo(
               labelDiv.style.textAlign = "center";
               labelDiv.style.pointerEvents = "none";
 
-              const labelObject = createCSS3DObject(labelDiv);
+              const labelObject = new CSS3DObject(labelDiv);
               labelObject.scale.set(0.001, 0.001, 0.001);
               const labelOffset = new THREE.Vector3(
                 0,
@@ -2756,7 +2761,7 @@ const ThreeViewer = React.memo(
         labelDiv.style.borderRadius = "4px";
         labelDiv.style.whiteSpace = "nowrap";
 
-        const labelObject = createCSS3DObject(labelDiv);
+        const labelObject = new CSS3DObject(labelDiv);
         // Scale the label down (adjust 0.01 as needed)
         labelObject.scale.set(0.005, 0.005, 0.005);
 
@@ -3179,13 +3184,9 @@ const ThreeViewer = React.memo(
         // Check if this anchor already exists visually
         const existingLabelObject = textAnchorsRef.current.get(anchor.id);
 
-        if (
-          existingLabelObject &&
-          existingLabelObject.userData &&
-          existingLabelObject.userData.isCSS3DObject
-        ) {
+        if (existingLabelObject instanceof CSS3DObject) {
           // --- UPDATE EXISTING ANCHOR ---
-          const element = existingLabelObject.userData.element as HTMLElement;
+          const element = existingLabelObject.element as HTMLElement;
           const currentVisualText = element.textContent;
           const newText = anchor.textContent;
 
@@ -3278,7 +3279,7 @@ const ThreeViewer = React.memo(
         labelDiv.style.fontWeight = "400";
         labelDiv.style.letterSpacing = "0.2px";
 
-        const labelObject = createCSS3DObject(labelDiv); // Define labelObject here
+        const labelObject = new CSS3DObject(labelDiv); // Define labelObject here
         labelObject.scale.set(0.0015, 0.0015, 0.0015);
         labelObject.position.copy(modelSpacePosition);
         labelObject.userData.anchorId = anchor.id;
@@ -3750,7 +3751,7 @@ const ThreeViewer = React.memo(
       };
 
       // Create the CSS3DObject with the container
-      const css3dObject = createCSS3DObject(container);
+      const css3dObject = new CSS3DObject(container);
       css3dObject.position.copy(position); // Position directly at the anchor point
 
       // Adjust scale
@@ -3935,7 +3936,7 @@ const ThreeViewer = React.memo(
             labelDiv.style.backgroundColor = "rgba(255,220,220,0.8)";
             labelDiv.style.borderRadius = "4px";
             labelDiv.style.whiteSpace = "nowrap";
-            const labelObject = createCSS3DObject(labelDiv);
+            const labelObject = new CSS3DObject(labelDiv);
             labelObject.scale.set(0.005, 0.005, 0.005);
             labelObject.position.copy(modelSpacePosition); // Position at the anchor point
             sceneRef.current?.add(labelObject);
@@ -4206,26 +4207,18 @@ const ThreeViewer = React.memo(
 
       // --- Begin CSS3DRenderer Setup ---
       // Create a CSS3DRenderer for HTML/CSS elements (such as your webpage iframe)
-      let cssRenderer;
+      let cssRenderer: CSS3DRenderer | undefined; // Add type for clarity
       if (typeof window !== "undefined" && mountRef.current) {
-        // Simple CSS3DRenderer implementation
-        cssRenderer = {
-          domElement: document.createElement("div"),
-          setSize: (width: number, height: number) => {
-            cssRenderer.domElement.style.width = `${width}px`;
-            cssRenderer.domElement.style.height = `${height}px`;
-          },
-          render: (scene: THREE.Scene, camera: THREE.Camera) => {
-            // Simple implementation to add CSS elements to DOM
-            // Actual positioning would need camera projection calculation
-          },
-        };
+        cssRenderer = new CSS3DRenderer(); // <<< USE THE IMPORTED RENDERER
         cssRenderer.setSize(
           mountRef.current.clientWidth,
           mountRef.current.clientHeight,
         );
         cssRenderer.domElement.style.position = "absolute";
         cssRenderer.domElement.style.top = "0px";
+        // Crucial: The main CSS3DRenderer overlay should not intercept pointer events,
+        // allowing clicks to reach the WebGL canvas. Individual HTML elements
+        // within CSS3DObjects can have 'pointer-events: auto'.
         cssRenderer.domElement.style.pointerEvents = "none";
         mountRef.current.appendChild(cssRenderer.domElement);
       }
@@ -4236,11 +4229,14 @@ const ThreeViewer = React.memo(
       orbitControlsRef.current = orbitControls;
 
       // Create the transform controls directly using the imported module
-      const transformControls = new TransformControls(camera, renderer.domElement);
+      const transformControls = new TransformControls(
+        camera,
+        renderer.domElement,
+      );
       transformControlsRef.current = transformControls;
       scene.add(transformControls);
-      
-      // Configure the controls 
+
+      // Configure the controls
       if (transformControlsRef.current) {
         configureTransformControls(transformControlsRef.current);
       }
@@ -4283,9 +4279,12 @@ const ThreeViewer = React.memo(
       window.addEventListener("keydown", handleTransformKeyDown);
 
       // Use transformControlsRef.current instead of transformControls
-      transformControlsRef.current!.addEventListener("dragging-changed", (event) => {
-        orbitControls.enabled = !event.value;
-      });
+      transformControlsRef.current!.addEventListener(
+        "dragging-changed",
+        (event) => {
+          orbitControls.enabled = !event.value;
+        },
+      );
 
       transformControlsRef.current!.addEventListener("mouseUp", () => {
         if (orbitControlsRef.current && !isMarkerSelectedRef.current) {
@@ -6205,7 +6204,7 @@ const ThreeViewer = React.memo(
         labelDiv.style.boxShadow = "0 2px 5px rgba(0,0,0,0.1)";
         labelDiv.style.fontWeight = "500";
 
-        const labelObject = createCSS3DObject(labelDiv);
+        const labelObject = new CSS3DObject(labelDiv);
         labelObject.scale.set(0.005, 0.005, 0.005);
         labelObject.position.copy(
           position.clone().add(new THREE.Vector3(0, 0.15, 0)),
@@ -6383,22 +6382,67 @@ const ThreeViewer = React.memo(
     }, [modelPath]);
 
     // UPDATED: useEffect for saving transform changes for ANY selected anchor
-    // UPDATED: useEffect for saving transform changes for ANY selected anchor
     useEffect(() => {
       if (!transformControlsRef.current) return;
 
-      const handleTransformChange = () => {
-        if (!transformControlsRef.current?.object) return;
+      const controls = transformControlsRef.current;
 
-        const transformedObject = transformControlsRef.current.object; // This is the object attached to the gizmo
+      // Function to handle live visual updates of linked objects during drag
+      const handleLiveVisualUpdateDuringDrag = () => {
+        if (!controls.object || !controls.dragging) return;
 
-        // Handle alignment markers ("A", "B", "C") separately (no DB save for these)
+        const transformedObject = controls.object;
+        const isHelper = transformedObject.userData?.type?.includes("helper");
+
+        if (isHelper) {
+          const visualLinkedToHelper =
+            transformedObject.userData.visualObject || // For WebGL file visuals
+            transformedObject.userData.cssObject || // For Webpage CSS3D visuals
+            transformedObject.userData.labelObject; // For Text CSS3D visuals
+
+          if (
+            visualLinkedToHelper &&
+            visualLinkedToHelper !== transformedObject
+          ) {
+            const currentWorldPosition = new THREE.Vector3();
+            const currentWorldQuaternion = new THREE.Quaternion();
+            // Get current transform of the helper being dragged
+            transformedObject.getWorldPosition(currentWorldPosition);
+            transformedObject.getWorldQuaternion(currentWorldQuaternion);
+
+            // Update linked visual's position and rotation
+            visualLinkedToHelper.position.copy(currentWorldPosition);
+            visualLinkedToHelper.rotation.setFromQuaternion(
+              currentWorldQuaternion,
+            );
+
+            // For WebGL visual objects (not CSS3D), also update scale live if needed
+            if (!visualLinkedToHelper.isCSS3DObject) {
+              const currentWorldScale = new THREE.Vector3();
+              transformedObject.getWorldScale(currentWorldScale);
+              visualLinkedToHelper.scale.copy(currentWorldScale);
+            }
+            // Note: CSS3DObject.scale is for pixel-to-unit conversion, not typically changed by gizmo scale.
+          }
+        }
+      };
+
+      // Function to handle the final save operation on mouseUp
+      const handleFinalTransformSave = () => {
+        if (!controls.object) {
+          console.log("[Final Save] Aborted: No object on transformControls.");
+          return;
+        }
+
+        const transformedObject = controls.object;
+
+        // Handle alignment markers ("A", "B", "C") separately (local update, no DB save)
         if (
           transformedObject.userData.label &&
           ["A", "B", "C"].includes(transformedObject.userData.label)
         ) {
           console.log(
-            "Transform changed for alignment marker, updating local state only.",
+            "Transform finalized for alignment marker, updating local state only.",
           );
           if (setReferencePoints3D) {
             setReferencePoints3D((prevPoints) =>
@@ -6406,7 +6450,7 @@ const ThreeViewer = React.memo(
                 p.label === transformedObject.userData.label
                   ? {
                       ...p,
-                      x3D: transformedObject.position.x,
+                      x3D: transformedObject.position.x, // Local position is fine for these simple markers
                       y3D: transformedObject.position.y,
                       z3D: transformedObject.position.z,
                     }
@@ -6417,132 +6461,99 @@ const ThreeViewer = React.memo(
           return;
         }
 
-        // Proceed only if a data anchor is selected
+        // Proceed only if a data anchor was actually selected
         if (!selectedAnchorId || !selectedAnchorType) {
+          console.log(
+            "[Final Save] Aborted: No selectedAnchorId or selectedAnchorType from component state.",
+          );
+          // It's possible the anchor was deselected before mouseUp if not dragging.
+          // If controls.object.userData.anchorId exists, we might be able to use it,
+          // but relying on selectedAnchorId from state is safer to ensure context.
           return;
         }
 
-        const isHelper = transformedObject.userData?.type?.includes("helper");
+        // Ensure the currently selected anchor matches the one on the transform controls
+        if (selectedAnchorId !== transformedObject.userData.anchorId) {
+          console.warn(
+            `[Final Save] Mismatch: selectedAnchorId is ${selectedAnchorId}, but gizmo object anchorId is ${transformedObject.userData.anchorId}. Aborting save.`,
+          );
+          return;
+        }
 
-        // Get current WORLD transform of the object being manipulated by the gizmo
         const worldPosition = new THREE.Vector3();
         const worldQuaternion = new THREE.Quaternion();
         const worldScale = new THREE.Vector3();
 
         transformedObject.getWorldPosition(worldPosition);
         transformedObject.getWorldQuaternion(worldQuaternion);
-        transformedObject.getWorldScale(worldScale);
+        transformedObject.getWorldScale(worldScale); // This is the scale of the gizmo-controlled object (e.g., helper)
 
         const worldRotation = new THREE.Euler().setFromQuaternion(
           worldQuaternion,
-          transformedObject.rotation.order,
+          transformedObject.rotation.order, // Use the rotation order of the object itself
         );
 
-        // Store the latest world transform locally
+        // If the transformed object was a helper, its linked visual was already updated by handleLiveVisualUpdateDuringDrag.
+        // Here, we just need to ensure the final state is consistent for setLastTransform.
+
         setLastTransform({
+          // Store the final world transform of the gizmo-controlled object
           position: worldPosition.clone(),
           rotation: worldRotation.clone(),
           scale: worldScale.clone(),
         });
 
-        // If the transformed object is a helper, update its corresponding visual CSS3DObject
-        if (isHelper) {
-          let visualCssObject: CSS3DObject | undefined = undefined;
+        const realWorldPos = convertToRealWorldCoords(worldPosition);
 
-          if (
-            transformedObject.userData.cssObject &&
-            transformedObject.userData.cssObject.userData?.isCSS3DObject
-          ) {
-            visualCssObject = transformedObject.userData.cssObject; // For Webpage anchors
-          } else if (
-            transformedObject.userData.labelObject &&
-            transformedObject.userData.labelObject.userData?.isCSS3DObject
-          ) {
-            visualCssObject = transformedObject.userData.labelObject; // For Text anchors
-          } else if (
-            transformedObject.userData.visualObject &&
-            transformedObject.userData.visualObject.userData?.isCSS3DObject
-          ) {
-            visualCssObject = transformedObject.userData.visualObject; // For File anchors (e.g., audio player)
-          }
-
-          if (visualCssObject) {
-            // CSS3DObjects are positioned in world space relative to the CSS3DRenderer's camera.
-            // To make them follow a helper mesh (which is in the WebGL scene),
-            // their position and rotation should generally match the helper's world position and rotation.
-            visualCssObject.position.copy(worldPosition);
-            visualCssObject.rotation.copy(worldRotation);
-            // IMPORTANT: Directly applying gizmo-driven scale to CSS3DObject.scale can lead to
-            // extreme visual scaling. CSS3DObject scale is usually set once (e.g., 0.0015)
-            // to map pixels to world units. If conceptual scaling is needed, it should affect
-            // the HTML element's dimensions, not typically CSS3DObject.scale from the gizmo.
-            // visualCssObject.scale.copy(worldScale); // Generally AVOID for CSS3DObject visuals.
-          }
-        }
-
-        // Debounce the Firebase update
-        if (transformUpdateTimeout.current) {
-          clearTimeout(transformUpdateTimeout.current);
-        }
-
-        transformUpdateTimeout.current = setTimeout(() => {
-          // Re-check selectedAnchorId in case it changed during timeout
-          if (!selectedAnchorId || !transformControlsRef.current?.object)
-            return;
-
-          // Use the world transform captured at the start of this debounced call for consistency
-          const realWorldPos = convertToRealWorldCoords(worldPosition); // worldPosition from the gizmo-controlled object
-
-          console.log(
-            `Debounced Save for ${selectedAnchorType} anchor ${selectedAnchorId}:`,
-            { realWorldPos, rotation: worldRotation, scale: worldScale },
-          );
-
-          updateAnchorTransform(selectedAnchorId, {
-            x: realWorldPos.x,
-            y: realWorldPos.y,
-            z: realWorldPos.z,
-            rotationX: worldRotation.x,
-            rotationY: worldRotation.y,
-            rotationZ: worldRotation.z,
-            // Save the world scale of the object manipulated by the gizmo.
-            // If scaling specific anchor types (like CSS3D/helpers) is undesirable,
-            // prevent `TransformControls` from entering "scale" mode for them,
-            // or reset their scale if manipulated.
-            scaleX: worldScale.x,
-            scaleY: worldScale.y,
-            scaleZ: worldScale.z,
-          });
-        }, 500); // 500ms debounce
-      };
-
-      // Add listener when component mounts or controls/selection changes
-      transformControlsRef.current.addEventListener(
-        "objectChange",
-        handleTransformChange,
-      );
-
-      // Cleanup listener when component unmounts or dependencies change
-      return () => {
-        transformControlsRef.current?.removeEventListener(
-          "objectChange",
-          handleTransformChange,
+        console.log(
+          `[Final Save] Saving for ${selectedAnchorType} anchor ${selectedAnchorId}:`,
+          {
+            realWorldPos: realWorldPos.toArray(),
+            rotation: worldRotation.toArray().slice(0, 3),
+            scale: worldScale.toArray(),
+          },
         );
-        // Clear any pending timeout on cleanup
-        if (transformUpdateTimeout.current) {
-          clearTimeout(transformUpdateTimeout.current);
-        }
+        console.log(
+          "[Final Save] Using originPoint for conversion:",
+          originPoint ? originPoint.toArray() : null,
+        );
+
+        updateAnchorTransform(selectedAnchorId, {
+          x: realWorldPos.x,
+          y: realWorldPos.y,
+          z: realWorldPos.z,
+          rotationX: worldRotation.x,
+          rotationY: worldRotation.y,
+          rotationZ: worldRotation.z,
+          scaleX: worldScale.x, // Save the scale of the object that was transformed by the gizmo
+          scaleY: worldScale.y,
+          scaleZ: worldScale.z,
+        });
       };
-      // Dependencies: Listen for changes in selected anchor, controls, and origin (for coord conversion)
+
+      controls.addEventListener(
+        "objectChange",
+        handleLiveVisualUpdateDuringDrag,
+      );
+      controls.addEventListener("mouseUp", handleFinalTransformSave);
+
+      return () => {
+        controls.removeEventListener(
+          "objectChange",
+          handleLiveVisualUpdateDuringDrag,
+        );
+        controls.removeEventListener("mouseUp", handleFinalTransformSave);
+        // No need to clear transformUpdateTimeout.current as it's removed.
+      };
     }, [
       selectedAnchorId,
       selectedAnchorType,
-      transformControlsRef.current,
       originPoint,
-      convertToRealWorldCoords,
-      updateAnchorTransform,
-      setReferencePoints3D, // Added dependency
-      lastTransform, // Added dependency for scale fallback
+      convertToRealWorldCoords, // Assuming these are stable (useCallback if not)
+      updateAnchorTransform, // Assuming these are stable (useCallback if not)
+      setReferencePoints3D, // For alignment markers
+      setLastTransform, // To update the lastTransform state
+      // transformControlsRef.current is not needed as a dependency if the ref object itself doesn't change
     ]);
 
     useEffect(() => {
