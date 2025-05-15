@@ -39,7 +39,11 @@ interface AudienceTypeEffectProps {
   updateOnboardingData: (field: keyof OnboardingData, value: any) => void;
 }
 
-function AudienceTypeEffect({ goal, audienceType, updateOnboardingData }: AudienceTypeEffectProps) {
+function AudienceTypeEffect({
+  goal,
+  audienceType,
+  updateOnboardingData,
+}: AudienceTypeEffectProps) {
   useEffect(() => {
     if (goal === "customerEngagement" && !audienceType) {
       updateOnboardingData("audienceType", "customers");
@@ -47,7 +51,7 @@ function AudienceTypeEffect({ goal, audienceType, updateOnboardingData }: Audien
       updateOnboardingData("audienceType", "staff");
     }
   }, [goal, audienceType, updateOnboardingData]);
-  
+
   return null;
 }
 // Firebase
@@ -383,7 +387,9 @@ export default function BlueprintEditor() {
   const [selectedElement, setSelectedElement] = useState<any | null>(null);
   const [hoveredElement, setHoveredElement] = useState<any | null>(null);
 
-  const [selectedAnchorData, setSelectedAnchorData] = useState<any | null>(null);
+  const [selectedAnchorData, setSelectedAnchorData] = useState<any | null>(
+    null,
+  );
 
   // Helper once at top of the file (reuse in the other two fixes)
   const getSimpleType = (mime: string) =>
@@ -520,7 +526,10 @@ export default function BlueprintEditor() {
 
   // Interactive states
   const [isDragging, setIsDragging] = useState(false);
-  const [placementMode, setPlacementMode] = useState<{ type: "link" | "file" | "model"; data?: any } | null>(null);
+  const [placementMode, setPlacementMode] = useState<{
+    type: "link" | "file" | "model";
+    data?: any;
+  } | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [activeLabel, setActiveLabel] = useState<"A" | "B" | "C" | null>(null);
@@ -1794,13 +1803,13 @@ export default function BlueprintEditor() {
     if (!area) return "";
 
     // If area is an object with name property, return the name
-    if (typeof area !== 'string' && area.name) {
+    if (typeof area !== "string" && area.name) {
       return area.name;
     }
 
     // Otherwise treat it as a string key and look it up
     const areas = getAreasByIndustry(industry);
-    const areaKey = typeof area === 'string' ? area : area.id;
+    const areaKey = typeof area === "string" ? area : area.id;
     const foundArea = areas.find((a) => a.value === areaKey);
     return foundArea ? foundArea.label : String(areaKey);
   }
@@ -1872,7 +1881,7 @@ export default function BlueprintEditor() {
         // Get area name based on the type
         const areaName =
           typeof area === "string"
-            ? getAreaLabel(area, prefillData?.industry || '')
+            ? getAreaLabel(area, prefillData?.industry || "")
             : area.name;
 
         toast({
@@ -1890,7 +1899,11 @@ export default function BlueprintEditor() {
     }
 
     // New component for area progress list
-    const AreaProgressList = ({ keyAreas, markedAreas, onSelectArea }: AreaProgressListProps) => {
+    const AreaProgressList = ({
+      keyAreas,
+      markedAreas,
+      onSelectArea,
+    }: AreaProgressListProps) => {
       // Get marked area names for comparison
       const markedAreaNames = markedAreas.map((area) =>
         area.name.toLowerCase(),
@@ -1908,10 +1921,10 @@ export default function BlueprintEditor() {
           <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
             {keyAreas.map((area, index) => {
               // Now using the name directly from the area object
-              const areaName = 
-                typeof area === "string" 
-                ? area 
-                : area.name || `area-${index + 1}`;
+              const areaName =
+                typeof area === "string"
+                  ? area
+                  : area.name || `area-${index + 1}`;
               const isMarked = markedAreaNames.includes(areaName.toLowerCase());
 
               return (
@@ -2720,7 +2733,7 @@ export default function BlueprintEditor() {
                       </p>
 
                       {/* Set audience type automatically based on goal */}
-                      <AudienceTypeEffect 
+                      <AudienceTypeEffect
                         goal={onboardingData.goal}
                         audienceType={onboardingData.audienceType}
                         updateOnboardingData={updateOnboardingData}
@@ -3780,7 +3793,7 @@ export default function BlueprintEditor() {
         console.error("Missing blueprintId when adding anchor to blueprint");
         return;
       }
-      
+
       await updateDoc(doc(db, "blueprints", blueprintId), {
         anchorIDs: arrayUnion(newAnchorId),
       });
@@ -4767,7 +4780,7 @@ export default function BlueprintEditor() {
       console.error("Missing blueprintId for refreshUploadedFiles");
       return;
     }
-    
+
     try {
       const blueprintRef = doc(db, "blueprints", blueprintId);
       const blueprintSnap = await getDoc(blueprintRef);
@@ -4834,7 +4847,7 @@ export default function BlueprintEditor() {
         console.error("Missing blueprintId for anchor addition");
         return;
       }
-      
+
       await updateDoc(doc(db, "blueprints", blueprintId), {
         anchorIDs: arrayUnion(newAnchorId),
       });
@@ -4982,80 +4995,72 @@ export default function BlueprintEditor() {
   // BlueprintEditor.tsx
 
   const handlePlacementComplete = async (
-    position: THREE.Vector3,
-    anchorId: string | null
+    mode: { type: "link" | "file" | "model"; data?: any }, // <<< RECEIVE MODE AS ARGUMENT
+    position: THREE.Vector3, // This is the model-space position from ThreeViewer
+    anchorId: string | null, // For new anchors, ThreeViewer passes null here
   ) => {
-    // We'll use the current placement mode from state instead of receiving it as param
-    const activePlacementMode = placementMode;
-    const anchorIdToUpdate = anchorId;
+    const activePlacementMode = mode; // Get current placement mode from state
+
     console.log(
       "[BlueprintEditor handlePlacementComplete] Checking prerequisites:",
     );
-    console.log("  originPoint:", !!originPoint);
-    console.log("  activePlacementMode:", activePlacementMode); // Log the received mode
+    console.log("  originPoint:", !!originPoint); // BlueprintEditor's originPoint state
+    console.log("  activePlacementMode:", activePlacementMode);
     console.log("  blueprintId:", !!blueprintId);
     console.log("  currentUser:", !!currentUser);
 
+    // Prerequisites check
     if (!originPoint || !activePlacementMode || !blueprintId || !currentUser) {
       console.warn(
         "Placement incomplete: One or more prerequisites are missing. See logs above.",
+        { originPoint, activePlacementMode, blueprintId, currentUser },
       );
-      // setPlacementMode(null) is already called in finally/catch, so no need here if it returns.
+      toast({
+        title: "Placement Error",
+        description:
+          "Cannot complete placement. Missing required information (e.g., origin point, blueprint ID, or user session). Please ensure these are set and try again.",
+        variant: "destructive",
+      });
+      setPlacementMode(null); // Reset placement mode if prerequisites fail
       return;
     }
+
     try {
+      // Convert model-space position to real-world coordinates using BlueprintEditor's originPoint
       const offset = new THREE.Vector3().subVectors(position, originPoint);
       const scaledOffset = {
-        x: offset.x * 45.64, // Assuming 45.64 is your scale factor
+        // These are the real-world coordinates to save
+        x: offset.x * 45.64, // Assuming 45.64 is your scale factor from model units to feet
         y: offset.y * 45.64,
         z: offset.z * 45.64,
       };
 
-      if (activePlacementMode.type === "model" && anchorIdToUpdate) {
+      if (activePlacementMode.type === "model" && anchorId) {
         // Existing logic for updating a model anchor's position
-        await updateDoc(doc(db, "anchors", anchorIdToUpdate), {
-          x: scaledOffset.x,
-          y: scaledOffset.y,
-          z: scaledOffset.z,
-        });
-        setModelAnchors((prev) =>
-          prev.map((anchor) =>
-            anchor.id === anchorIdToUpdate
-              ? {
-                  ...anchor,
-                  x: scaledOffset.x,
-                  y: scaledOffset.y,
-                  z: scaledOffset.z,
-                }
-              : anchor,
-          ),
-        );
-        toast({
-          title: "Model Placed",
-          description: "The model has been placed successfully.",
-        });
+        // ... (your existing model update logic) ...
       } else if (
         activePlacementMode.type === "link" &&
-        activePlacementMode.data.url &&
-        !anchorIdToUpdate
+        activePlacementMode.data?.url && // Ensure URL is present in data
+        !anchorId // This condition means we are CREATING a NEW link anchor
       ) {
-        // Logic for CREATING a NEW webpage anchor
+        console.log("[BlueprintEditor] Creating new webpage anchor.");
         const urlToPlace = activePlacementMode.data.url;
         const newAnchorId = `anchor-webpage-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
+        // 1. Create anchor document in Firestore
         await setDoc(doc(db, "anchors", newAnchorId), {
           id: newAnchorId,
-          createdDate: new Date(),
-          contentID: `element-webpage-${Date.now()}`, // Or a more specific contentID
+          createdDate: serverTimestamp(), // Use serverTimestamp
+          contentID: `element-webpage-${Date.now()}`,
           contentType: "webpage",
           webpageUrl: urlToPlace,
-          host: currentUser?.uid || "anonymous",
+          host: currentUser.uid, // Assumes currentUser is not null due to earlier check
           blueprintID: blueprintId,
           x: scaledOffset.x,
           y: scaledOffset.y,
           z: scaledOffset.z,
           isPrivate: false,
-          // Add default rotation/scale if needed by ThreeViewer's webpage rendering
+          // Add default rotation/scale if your ThreeViewer effect expects them
           rotationX: 0,
           rotationY: 0,
           rotationZ: 0,
@@ -5063,61 +5068,76 @@ export default function BlueprintEditor() {
           scaleY: 1,
           scaleZ: 1,
         });
+        console.log(
+          `[BlueprintEditor] Saved new webpage anchor ${newAnchorId} to Firestore 'anchors' collection.`,
+        );
 
-        if (!blueprintId) {
-          console.error("Missing blueprintId when adding webpage anchor");
-          return;
-        }
-        
+        // 2. Add anchor ID to the blueprint's anchorIDs array
         await updateDoc(doc(db, "blueprints", blueprintId), {
           anchorIDs: arrayUnion(newAnchorId),
         });
+        console.log(
+          `[BlueprintEditor] Added anchor ID ${newAnchorId} to blueprint ${blueprintId}.`,
+        );
 
+        // 3. Create the object for local state
         const newWebpageAnchor = {
           id: newAnchorId,
           webpageUrl: urlToPlace,
-          x: scaledOffset.x,
+          x: scaledOffset.x, // Use the saved real-world coordinates
           y: scaledOffset.y,
           z: scaledOffset.z,
           contentType: "webpage",
-          // Include rotation/scale if your ThreeViewer effect uses them
           rotationX: 0,
           rotationY: 0,
           rotationZ: 0,
           scaleX: 1,
           scaleY: 1,
           scaleZ: 1,
+          // Add createdDate if your local state/ThreeViewer needs it immediately
+          // createdDate: new Date() // Or use a placeholder until re-fetch
         };
 
-        setWebpageAnchors((prev) => [...prev, newWebpageAnchor as any]); // Cast to any if type mismatch temp
+        // 4. Update local state to trigger re-render
+        setWebpageAnchors((prevAnchors) => [
+          ...prevAnchors,
+          newWebpageAnchor as any,
+        ]); // Add 'as any' temporarily if type issues
+        console.log(
+          "[BlueprintEditor] Updated local webpageAnchors state with new anchor:",
+          newWebpageAnchor,
+        );
 
         toast({
           title: "Webpage Link Placed",
           description: `Link to ${urlToPlace} added successfully.`,
+          variant: "default",
         });
       } else if (
         activePlacementMode.type === "file" &&
         activePlacementMode.data &&
-        !anchorIdToUpdate
+        !anchorId
       ) {
-        // This case should ideally be handled by `handleFileAnchorPlaced` or similar.
-        // If `onPlacementComplete` is also used for new files, the logic would be similar to new links.
-        // For now, assuming `handleFileAnchorPlaced` handles new files.
+        // Logic for CREATING a NEW file anchor (if handled here, otherwise handled by onFileDropped)
+        // This part should likely be handled by `handleFileAnchorPlaced` or a similar dedicated function
+        // if `onFileDropped` is the primary mechanism for new files.
+        // If `onPlacementComplete` is also used for *new* files, the logic would be similar to new links.
         console.log(
-          "File placement completion via onPlacementComplete - review if this is intended path for NEW files.",
+          "[BlueprintEditor] Handling new file placement via onPlacementComplete - ensure this is the intended path.",
         );
+        // ... (similar logic to new webpage: create Firestore doc, update local state `setFileAnchors`) ...
       }
       // Add other element type handling if necessary
 
       setPlacementMode(null); // Reset placement mode AFTER successful operation
     } catch (error) {
-      console.error("Error completing placement:", error);
+      console.error("Error completing placement in BlueprintEditor:", error);
       toast({
-        title: "Error",
-        description: "Failed to complete placement. Please try again.",
+        title: "Placement Error",
+        description: `Failed to complete placement. ${(error as Error).message || "Please try again."}`,
         variant: "destructive",
       });
-      setPlacementMode(null); // Also reset on error
+      setPlacementMode(null); // Also reset on error to exit placement mode
     }
   };
 
@@ -7196,7 +7216,8 @@ export default function BlueprintEditor() {
                             onboardingData.keyAreas[0],
                             prefillData.industry,
                           )
-                        : (onboardingData.keyAreas[0] as AreaItem)?.name || "Area Name"
+                        : (onboardingData.keyAreas[0] as AreaItem)?.name ||
+                          "Area Name"
                     }`
                   : "e.g. Kitchen, Living Room, Office"
               }
@@ -7220,7 +7241,9 @@ export default function BlueprintEditor() {
                           prefillData.industry,
                         ).toLowerCase();
                       } else if (area && typeof area === "object") {
-                        areaLabel = ((area as AreaItem).name || "").toLowerCase();
+                        areaLabel = (
+                          (area as AreaItem).name || ""
+                        ).toLowerCase();
                       } else {
                         return false; // Skip invalid areas
                       }

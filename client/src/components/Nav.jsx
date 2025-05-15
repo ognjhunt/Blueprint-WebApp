@@ -130,19 +130,6 @@ export default function Nav({ blueprintTitle }) {
 
         {/* RIGHT: Desktop menu and user profile */}
         <div className="hidden md:flex items-center">
-          {/* Pricing Link */}
-          <Link href="/pricing">
-            <motion.span
-              className={`text-sm font-medium transition-colors duration-300 relative group mr-6 ${
-                isScrolled ? "text-gray-700" : "text-gray-800"
-              }`}
-              whileHover={{ scale: 1.02 }}
-            >
-              Pricing
-              <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-indigo-500 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
-            </motion.span>
-          </Link>
-
           <Link href="/pilot-program">
             <motion.span
               className={`text-sm font-medium transition-colors duration-300 relative group mr-6 ${
@@ -167,6 +154,19 @@ export default function Nav({ blueprintTitle }) {
                   whileHover={{ scale: 1.02 }}
                 >
                   Scanner Portal
+                  <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-indigo-500 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
+                </motion.span>
+              </Link>
+
+              {/* Pricing Link */}
+              <Link href="/pricing">
+                <motion.span
+                  className={`text-sm font-medium transition-colors duration-300 relative group mr-6 ${
+                    isScrolled ? "text-gray-700" : "text-gray-800"
+                  }`}
+                  whileHover={{ scale: 1.02 }}
+                >
+                  Pricing
                   <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-indigo-500 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
                 </motion.span>
               </Link>
@@ -315,17 +315,6 @@ export default function Nav({ blueprintTitle }) {
                 </div>
               )}
 
-              {/* Mobile Menu Links/Buttons */}
-              <Link
-                href="/pricing"
-                className="w-full"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                <div className="text-gray-700 hover:text-indigo-600 text-sm font-medium py-3 px-4 hover:bg-indigo-50/50 rounded-xl transition-colors duration-200 text-center">
-                  Pricing
-                </div>
-              </Link>
-
               <Link href="/pilot-program">
                 <motion.span
                   className={`text-sm font-medium transition-colors duration-300 relative group mr-6 ${
@@ -349,6 +338,18 @@ export default function Nav({ blueprintTitle }) {
                       Scanner Portal
                     </div>
                   </Link>
+
+                  {/* Mobile Menu Links/Buttons */}
+                  <Link
+                    href="/pricing"
+                    className="w-full"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <div className="text-gray-700 hover:text-indigo-600 text-sm font-medium py-3 px-4 hover:bg-indigo-50/50 rounded-xl transition-colors duration-200 text-center">
+                      Pricing
+                    </div>
+                  </Link>
+
                   {/* Updated Invite button link to workspace */}
                   <Link
                     href="/workspace"
