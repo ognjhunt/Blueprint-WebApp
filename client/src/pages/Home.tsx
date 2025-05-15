@@ -2,15 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import Nav from "@/components/Nav";
-import Hero from "@/components/sections/Hero";
-import Features from "@/components/sections/Features";
 import { Button } from "@/components/ui/button";
-import ContactForm from "@/components/sections/ContactForm";
 import { Card, CardContent } from "@/components/ui/card";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import Footer from "@/components/Footer";
-//import AIChatButton from "@/components/AIChatButton";
-import Testimonials from "@/components/sections/Testimonials";
-import LocationShowcase from "@/components/sections/LocationShowcase";
 import { motion, useScroll, useTransform } from "framer-motion";
 import {
   ShieldCheck,
@@ -18,8 +13,8 @@ import {
   Sparkle,
   Zap,
   MapPin,
-  Edit,
-  Wand2,
+  Target,
+  Settings,
   PlayCircle,
   ArrowRight,
   CheckCircle2,
@@ -31,6 +26,8 @@ import {
   Users,
   PenTool,
   Activity,
+  ChevronDown,
+  Plus
 } from "lucide-react";
 
 export default function Home() {
@@ -39,39 +36,105 @@ export default function Home() {
   const mainRef = useRef(null);
   const contactFormRef = useRef(null);
 
-  const steps = [
+  // Services offered
+  const services = [
     {
-      icon: <MapPin className="w-8 h-8" />,
-      title: "Join Waitlist",
-      description:
-        "Provide your business details to secure early access to Blueprint.",
-      benefits: ["Priority access", "Early adopter pricing", "Direct support"],
-      color: "from-indigo-500 to-blue-600",
+      title: "Service 1",
+      description: "A detailed explanation of our first service and how it benefits your business.",
+      icon: <Target className="w-5 h-5" />,
     },
     {
-      icon: <Edit className="w-8 h-8" />,
-      title: "Schedule 3D Mapping",
-      description:
-        "Once off the waitlist, you'll receive an email that contains a link to schedule a convenient time for us to map your location.",
-      benefits: ["Flexible scheduling", "Professional team", "Quick process"],
-      color: "from-blue-500 to-cyan-500",
+      title: "Service 2",
+      description: "A detailed explanation of our second service and how it provides value.",
+      icon: <Rocket className="w-5 h-5" />,
     },
     {
-      icon: <Wand2 className="w-8 h-8" />,
-      title: "Customize & Preview",
-      description:
-        "After mapping, our AI generates a customized AR solution for the digital twin of your space, which you can preview in real-time.",
-      benefits: ["AI-powered setup", "Real-time preview", "Custom features"],
-      color: "from-violet-500 to-purple-600",
+      title: "Service 3",
+      description: "A comprehensive overview of our third service offering and its features.",
+      icon: <Sparkle className="w-5 h-5" />,
     },
     {
-      icon: <PlayCircle className="w-8 h-8" />,
-      title: "Launch & Engage",
-      description:
-        "Go live with your AR experience and track customer engagement with your strategically placed QR codes.",
-      benefits: ["Instant deployment", "Usage analytics", "Customer insights"],
-      color: "from-fuchsia-500 to-pink-600",
+      title: "Service 4",
+      description: "Everything you need to know about our fourth service and its capabilities.",
+      icon: <Settings className="w-5 h-5" />,
+    }
+  ];
+
+  // Process steps
+  const processSteps = [
+    {
+      title: "Step",
+      description: "First step of our process that helps your business succeed.",
+      icon: <MapPin className="w-5 h-5" />,
     },
+    {
+      title: "Step",
+      description: "Second step that builds on the first and adds additional value.",
+      icon: <Settings className="w-5 h-5" />,
+    },
+    {
+      title: "Step",
+      description: "Third critical step in delivering successful outcomes for your business.",
+      icon: <Sparkle className="w-5 h-5" />,
+    }
+  ];
+
+  // Company stats
+  const companyStats = [
+    { value: "55%", description: "Increase in conversion rate" },
+    { value: "55%", description: "Reduction in customer acquisition cost" },
+    { value: "55%", description: "Growth in recurring revenue" }
+  ];
+
+  // Testimonials
+  const testimonials = [
+    {
+      name: "Name",
+      role: "Position at Company",
+      content: "This is a testimonial praising our services and explaining how it helped their business."
+    },
+    {
+      name: "Name",
+      role: "Position at Company",
+      content: "Another positive testimonial from a satisfied customer sharing their experience."
+    },
+    {
+      name: "Name",
+      role: "Position at Company",
+      content: "A third glowing testimonial highlighting successful results achieved."
+    }
+  ];
+
+  // Why choose us points
+  const whyChooseUs = [
+    {
+      title: "What Makes Us Better",
+      points: ["First competitive advantage", "Second advantage over competitors", "Third reason we're the best choice"]
+    },
+    {
+      title: "What We Provide",
+      points: ["Primary service offering", "Secondary service benefit", "Additional value proposition"]
+    }
+  ];
+
+  // FAQ items
+  const faqItems = [
+    {
+      question: "Question 1",
+      answer: "Detailed answer to the first frequently asked question about our services."
+    },
+    {
+      question: "Question 2",
+      answer: "Comprehensive response to the second common question customers ask."
+    },
+    {
+      question: "Question 3",
+      answer: "Clear explanation addressing the third frequently asked question."
+    },
+    {
+      question: "Question 4",
+      answer: "Thorough answer to the fourth question potential customers often have."
+    }
   ];
 
   // Parallax scrolling effect
@@ -79,13 +142,6 @@ export default function Home() {
     target: mainRef,
     offset: ["start start", "end start"],
   });
-
-  const handleScrollToContactForm = () => {
-    const contactFormElement = document.getElementById("contactForm");
-    if (contactFormElement) {
-      contactFormElement.scrollIntoView({ behavior: "smooth" });
-    }
-  };
 
   const backgroundY = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
 
@@ -112,8 +168,6 @@ export default function Home() {
     document.body.appendChild(script);
 
     // Optional: Cleanup function to remove the script when the component unmounts
-    // This might be desired if Home component can unmount and you want to clean up.
-    // For a chatbot that should persist, you might omit the cleanup or make it conditional.
     return () => {
       const existingScript = document.getElementById(lindyScriptId);
       if (existingScript && existingScript.parentNode) {
@@ -123,168 +177,274 @@ export default function Home() {
   }, []); // Empty dependency array ensures this effect runs only once on mount and cleans up on unmount
 
   return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden bg-gradient-to-b from-indigo-50 via-white to-blue-50">
-      {/* Animated background patterns */}
-      <div className="fixed inset-0 z-[-2] opacity-70">
-        <motion.div
-          className="absolute w-[70vw] h-[70vw] rounded-full bg-gradient-to-r from-violet-300/30 to-fuchsia-300/30 blur-3xl"
-          style={{ top: "-35vw", right: "-20vw" }}
-          animate={{
-            y: [0, 10, 0],
-            scale: [1, 1.05, 1],
-          }}
-          transition={{
-            duration: 20,
-            repeat: Infinity,
-            repeatType: "reverse",
-          }}
-        />
-        <motion.div
-          className="absolute w-[50vw] h-[50vw] rounded-full bg-gradient-to-r from-blue-300/20 to-cyan-300/20 blur-3xl"
-          style={{ bottom: "-20vw", left: "-10vw" }}
-          animate={{
-            y: [0, -15, 0],
-            scale: [1, 1.08, 1],
-          }}
-          transition={{
-            duration: 25,
-            repeat: Infinity,
-            repeatType: "reverse",
-            delay: 1,
-          }}
-        />
-      </div>
-
-      {/* Subtle grid pattern overlay */}
-      <motion.div
-        className="fixed inset-0 z-[-1] opacity-[0.07] bg-[url('/images/grid-pattern.svg')] bg-repeat"
-        style={{ y: backgroundY }}
-      />
-
-      <Nav />
-
-      <main ref={mainRef} className="flex-1 relative z-10">
-        <Hero />
-
-        {/* Floating badges section */}
-        <div className="relative py-12 overflow-hidden">
-          <div className="container mx-auto px-4">
-            <motion.div
-              className="flex flex-wrap justify-center gap-3 py-6"
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true, amount: 0.8 }}
-              transition={{ staggerChildren: 0.1, delayChildren: 0.1 }}
-            >
-              {[
-                "Fast Setup",
-                "No App Required",
-                "Easy Integration",
-                "Real-time Analytics",
-                "Customizable",
-              ].map((badge, index) => (
-                <motion.div
-                  key={badge}
-                  className="bg-white/80 backdrop-blur-sm border border-indigo-100 rounded-full px-4 py-2 shadow-sm text-indigo-800 font-medium text-sm"
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{
-                    duration: 0.5,
-                    delay: index * 0.1,
-                    type: "spring",
-                    stiffness: 50,
-                  }}
-                >
-                  {badge}
-                </motion.div>
-              ))}
-            </motion.div>
+    <div className="min-h-screen flex flex-col bg-white">
+      {/* Navigation Bar */}
+      <header className="py-4 border-b border-gray-200">
+        <div className="container mx-auto flex items-center justify-between px-4">
+          <div className="flex items-center">
+            <div className="text-xl font-bold">High Converting Business Landing Page</div>
+          </div>
+          <div className="hidden md:flex items-center space-x-8">
+            <div className="text-sm space-x-6">
+              <a href="#" className="text-gray-600 hover:text-gray-900">Features</a>
+              <a href="#" className="text-gray-600 hover:text-gray-900">Our Process</a>
+              <a href="#" className="text-gray-600 hover:text-gray-900">Testimonials</a>
+              <a href="#" className="text-gray-600 hover:text-gray-900">Pricing</a>
+              <a href="#" className="text-gray-600 hover:text-gray-900">Contact</a>
+            </div>
+            <Button variant="default" size="sm" className="bg-black hover:bg-gray-800 text-white rounded-md">
+              Sign Up
+            </Button>
           </div>
         </div>
+      </header>
 
-        <LocationShowcase />
-        {/* <Features /> */}
-        {/* Process Overview */}
-        <section className="py-20 px-4 relative">
-          <div className="container mx-auto max-w-7xl text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="max-w-3xl mx-auto mb-16"
-            >
-              <h2 className="text-3xl md:text-4xl font-bold mb-6 text-gray-800">
-                The Implementation Process
-              </h2>
-              <p className="text-xl text-gray-600">
-                Our streamlined approach makes adopting AR technology simple and
-                stress-free. Here's how we transform your physical space into an
-                interactive AR experience.
-              </p>
-            </motion.div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 relative mb-20">
-              {/* Connection line */}
-              <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-1 bg-gradient-to-r from-indigo-300 via-blue-300 to-violet-300 transform -translate-y-1/2" />
-
-              {steps.map((step, idx) => (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: idx * 0.1 }}
-                  whileHover={{ y: -5 }}
-                  className="relative z-10"
-                >
-                  <Card className="h-full border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-                    <CardContent className="p-6 text-left">
-                      <div className="flex flex-col items-center mb-4">
-                        <div
-                          className={`w-16 h-16 rounded-full mb-6 flex items-center justify-center text-white bg-gradient-to-br ${step.color}`}
-                        >
+      <main ref={mainRef} className="flex-1">
+        {/* Hero Section */}
+        <section className="py-16">
+          <div className="container mx-auto px-4">
+            <div className="flex flex-col md:flex-row items-start">
+              {/* Left sidebar */}
+              <div className="w-full md:w-1/4 mb-8 md:mb-0">
+                <div className="flex items-center mb-12">
+                  <div className="h-px bg-gray-300 flex-grow mr-3"></div>
+                  <div className="text-sm text-gray-600">New Bar</div>
+                  <div className="h-4 w-4 bg-gray-900 rounded-full ml-2"></div>
+                </div>
+                
+                <div className="mb-12">
+                  <h3 className="text-lg font-semibold mb-2">Start with clarity and credibility.</h3>
+                  <p className="text-sm text-gray-600">
+                    First impressions matter. Your opening headline and copy should establish trust and clearly communicate your value proposition.
+                  </p>
+                </div>
+              </div>
+              
+              {/* Main content */}
+              <div className="w-full md:w-2/4 md:px-8">
+                <div className="text-center mb-12">
+                  <h1 className="text-3xl font-bold mb-4">High Converting Heading Comes Here</h1>
+                  <p className="text-gray-600 mb-8">A compelling subheading that explains your unique value proposition and what makes your offering special.</p>
+                  <Button className="bg-black hover:bg-gray-800 text-white px-6 py-2 rounded-md mb-2">
+                    Primary CTA
+                  </Button>
+                  <div>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 underline">Secondary Link</a>
+                  </div>
+                </div>
+                
+                <div className="mb-16 flex justify-center">
+                  <div className="flex space-x-12 items-center">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold">1,000+</div>
+                      <div className="text-sm text-gray-600">Customers</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold">4.9★</div>
+                      <div className="text-sm text-gray-600">Average Rating</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold">500+</div>
+                      <div className="text-sm text-gray-600">Reviews</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold">99%</div>
+                      <div className="text-sm text-gray-600">Satisfaction</div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Services Section */}
+                <div className="mb-16">
+                  <h2 className="text-xl font-bold mb-8 text-center">Services Section</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {services.map((service, index) => (
+                      <Card key={index} className="border shadow-sm hover:shadow-md transition-shadow">
+                        <CardContent className="p-6">
+                          <h3 className="text-lg font-medium mb-2">{service.title}</h3>
+                          <div className="h-24 bg-gray-100 rounded mb-4"></div>
+                          <Button variant="outline" className="w-full border border-gray-300 text-gray-700">Learn More</Button>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Process Section */}
+                <div className="mb-16">
+                  <h2 className="text-xl font-bold mb-8 text-center">Process Section</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {processSteps.map((step, index) => (
+                      <div key={index} className="text-center">
+                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full border border-gray-300 mb-4">
                           {step.icon}
                         </div>
-                        <h3 className="text-xl font-semibold mb-2 text-gray-800">
-                          {idx + 1}. {step.title}
-                        </h3>
-                        <p className="text-gray-600 mb-4 text-center">
-                          {step.description}
-                        </p>
+                        <h3 className="font-medium mb-1">{step.title}</h3>
+                        <p className="text-sm text-gray-600">{step.description}</p>
                       </div>
-                      <ul className="space-y-2">
-                        {step.benefits.map((benefit, bidx) => (
-                          <li
-                            key={bidx}
-                            className="flex items-center text-gray-600"
-                          >
-                            <CheckCircle2 className="w-5 h-5 text-green-500 mr-2 flex-shrink-0" />
-                            <span className="text-sm">{benefit}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      {idx === 0 && (
-                        <Button
-                          className="w-full mt-6 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white"
-                          onClick={handleScrollToContactForm}
-                        >
-                          Join Waitlist
-                        </Button>
-                      )}
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
+                    ))}
+                  </div>
+                </div>
+                
+                {/* About Company */}
+                <div className="mb-16">
+                  <h2 className="text-xl font-bold mb-8 text-center">About Company</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    {companyStats.map((stat, index) => (
+                      <div key={index} className="text-center">
+                        <div className="text-2xl font-bold mb-1">{stat.value}</div>
+                        <p className="text-sm text-gray-600">{stat.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Testimonial Section */}
+                <div className="mb-16">
+                  <h2 className="text-xl font-bold mb-8 text-center">Testimonial Section</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {testimonials.map((testimonial, index) => (
+                      <Card key={index} className="border shadow-sm hover:shadow-md transition-shadow">
+                        <CardContent className="p-6">
+                          <div className="flex justify-center mb-4">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-200">
+                              <PlayCircle className="w-4 h-4 text-gray-600" />
+                            </div>
+                          </div>
+                          <div className="h-24 bg-gray-100 rounded mb-4"></div>
+                          <div className="text-center">
+                            <h4 className="font-medium">{testimonial.name}</h4>
+                            <p className="text-sm text-gray-600">{testimonial.role}</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Why Choose Us Section */}
+                <div className="mb-16">
+                  <h2 className="text-xl font-bold mb-8 text-center">Why Choose Us Section</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                    {whyChooseUs.map((section, index) => (
+                      <div key={index}>
+                        <h3 className="text-lg font-medium mb-4">{section.title}</h3>
+                        <div className="h-24 bg-gray-100 rounded mb-4"></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* FAQ Section */}
+                <div className="mb-16">
+                  <h2 className="text-xl font-bold mb-8 text-center">FAQ Section</h2>
+                  <Accordion type="single" collapsible className="mb-4">
+                    {faqItems.map((faq, index) => (
+                      <AccordionItem key={index} value={`item-${index}`} className="border-b border-gray-200">
+                        <AccordionTrigger className="text-left font-medium py-4">
+                          {faq.question}
+                        </AccordionTrigger>
+                        <AccordionContent className="pb-4 text-gray-600">
+                          {faq.answer}
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                </div>
+                
+                {/* CTA Section */}
+                <div className="mb-16 text-center">
+                  <h2 className="text-xl font-bold mb-4">CTA Heading</h2>
+                  <Button className="bg-black hover:bg-gray-800 text-white px-6 py-2 rounded-md">
+                    Primary CTA
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Right sidebar */}
+              <div className="w-full md:w-1/4">
+                <div className="mb-12">
+                  <h3 className="text-lg font-semibold mb-2">Build trust through association.</h3>
+                  <p className="text-sm text-gray-600">
+                    Display testimonials, case studies, client logos and trust markers to establish credibility with your audience.
+                  </p>
+                </div>
+                
+                <div className="mb-12">
+                  <h3 className="text-lg font-semibold mb-2">Present what you offer — simply and directly.</h3>
+                  <p className="text-sm text-gray-600">
+                    Clearly explain your services or products without jargon or unnecessary complexity.
+                  </p>
+                </div>
+                
+                <div className="mb-12">
+                  <h3 className="text-lg font-semibold mb-2">Build confidence through transparency.</h3>
+                  <p className="text-sm text-gray-600">
+                    Outline your process, explain how you work, and set clear expectations for potential customers.
+                  </p>
+                </div>
+                
+                <div className="mb-12">
+                  <h3 className="text-lg font-semibold mb-2">Show who you are and why it matters.</h3>
+                  <p className="text-sm text-gray-600">
+                    Share your company story, values, and mission to connect with customers on a deeper level.
+                  </p>
+                </div>
+                
+                <div className="mb-12">
+                  <h3 className="text-lg font-semibold mb-2">Let your happy clients speak for you.</h3>
+                  <p className="text-sm text-gray-600">
+                    Feature authentic testimonials that address common objections and highlight your strengths.
+                  </p>
+                </div>
+                
+                <div className="mb-12">
+                  <h3 className="text-lg font-semibold mb-2">Stand out from the competition.</h3>
+                  <p className="text-sm text-gray-600">
+                    Clearly communicate your unique selling proposition and why customers should choose you.
+                  </p>
+                </div>
+                
+                <div className="mb-12">
+                  <h3 className="text-lg font-semibold mb-2">Overcome hesitations before they block conversion.</h3>
+                  <p className="text-sm text-gray-600">
+                    Address common objections proactively through an FAQ section to remove barriers to purchase.
+                  </p>
+                </div>
+                
+                <div className="mb-12">
+                  <h3 className="text-lg font-semibold mb-2">Close with confidence.</h3>
+                  <p className="text-sm text-gray-600">
+                    End with a clear, compelling call to action that makes the next step obvious and appealing.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </section>
-        {/* <Testimonials /> */}
-        <ContactForm />
       </main>
 
-      <Footer />
+      <footer className="py-10 border-t border-gray-200">
+        <div className="container mx-auto px-4">
+          <div className="mb-4 flex justify-center space-x-4">
+            <a href="#" className="text-gray-500 hover:text-gray-800">
+              <div className="h-6 w-6 rounded-full bg-gray-200"></div>
+            </a>
+            <a href="#" className="text-gray-500 hover:text-gray-800">
+              <div className="h-6 w-6 rounded-full bg-gray-200"></div>
+            </a>
+          </div>
+          <div className="mb-4 flex justify-center space-x-8 text-sm">
+            <a href="#" className="text-gray-600 hover:text-gray-900">Privacy</a>
+            <a href="#" className="text-gray-600 hover:text-gray-900">Terms</a>
+            <a href="#" className="text-gray-600 hover:text-gray-900">Contact</a>
+            <a href="#" className="text-gray-600 hover:text-gray-900">Support</a>
+          </div>
+          <div className="text-center text-xs text-gray-500">
+            © 2025 Company Name. All Rights Reserved.
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
