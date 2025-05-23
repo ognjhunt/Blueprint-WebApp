@@ -85,59 +85,16 @@ export default function Hero() {
       </div>
 
       {/* Floating grid pattern */}
-      <div className="absolute inset-0 opacity-60" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='rgb(99 102 241 / 0.03)' fill-rule='evenodd'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E")` }} />
-
-      {/* 3D Device Mock - Enhanced positioning */}
-      <motion.div
-        className="absolute right-0 top-1/2 -translate-y-1/2 w-[45%] max-w-lg z-10 hidden lg:block"
-        initial={{ opacity: 0, x: 100, rotateY: -15 }}
-        animate={{ 
-          opacity: isInView ? 1 : 0, 
-          x: isInView ? 0 : 100,
-          rotateY: isInView ? 0 : -15 
+      <div
+        className="absolute inset-0 opacity-10"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='rgb(99 102 241 / 0.03)' fill-rule='evenodd'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E")`,
         }}
-        transition={{ duration: 1.2, delay: 0.6 }}
-        style={{ transformStyle: "preserve-3d" }}
-      >
-        <div className="relative">
-
-          {/* Enhanced AR indicators */}
-          <motion.div
-            className="absolute top-[30%] left-[25%] w-14 h-14 rounded-full bg-white/95 backdrop-blur-sm border-2 border-indigo-400 shadow-lg flex items-center justify-center"
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: [0, 1.3, 1], opacity: [0, 0.9, 1] }}
-            transition={{ delay: 1.8, duration: 1 }}
-          >
-            <div className="w-4 h-4 rounded-full bg-indigo-500 animate-pulse" />
-          </motion.div>
-
-          <motion.div
-            className="absolute top-[26%] left-[20%] text-sm font-semibold bg-white/95 backdrop-blur-sm rounded-xl px-4 py-3 shadow-xl border border-indigo-100"
-            initial={{ opacity: 0, y: 20, scale: 0.8 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ delay: 2.1, duration: 0.8 }}
-          >
-            <span className="text-indigo-700 flex items-center gap-2">
-              <Sparkles className="w-4 h-4" />
-              Interactive Content
-            </span>
-          </motion.div>
-
-          {/* Additional floating elements */}
-          <motion.div
-            className="absolute top-[50%] right-[15%] text-xs bg-emerald-500 text-white rounded-full px-3 py-2 shadow-lg"
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 2.4, duration: 0.6 }}
-          >
-            Live AR
-          </motion.div>
-        </div>
-      </motion.div>
+      />
 
       <div className="container mx-auto px-6 relative z-20">
-        <div className="max-w-4xl mx-auto lg:max-w-none lg:grid lg:grid-cols-12 lg:gap-16 lg:items-center">
-          <div className="lg:col-span-7">
+        <div className="max-w-4xl mx-auto text-center">
+          <div>
             {/* Badge */}
             <motion.div
               className="inline-flex items-center gap-2 mb-6 bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-700 py-2 px-4 rounded-full text-sm font-semibold tracking-wide border border-indigo-100"
@@ -150,7 +107,7 @@ export default function Hero() {
             </motion.div>
 
             {/* Main headline container */}
-            <div className="min-h-[240px] mb-8">
+            <div className="min-h-[160px] sm:min-h-[180px] md:min-h-[220px] lg:min-h-[240px] mb-8">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={currentIndex}
@@ -160,14 +117,16 @@ export default function Hero() {
                   exit={{ opacity: 0, y: -30 }}
                   transition={{ duration: 0.8 }}
                 >
-                  <h1 className="text-5xl md:text-6xl lg:text-7xl font-black mb-6 leading-tight">
-                    <span className="text-slate-900">{headlines[currentIndex].text}</span>
+                  <h1 className="text-5xl md:text-6xl lg:text-7xl font-black mb-6 leading-tight line-clamp-2 overflow-hidden">
+                    <span className="text-slate-900">
+                      {headlines[currentIndex].text}
+                    </span>
                     <br />
                     <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 text-transparent bg-clip-text">
                       {headlines[currentIndex].highlight}
                     </span>
                   </h1>
-                  <p className="text-xl md:text-2xl text-slate-600 max-w-2xl leading-relaxed">
+                  <p className="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed line-clamp-2 overflow-hidden">
                     {headlines[currentIndex].description}
                   </p>
                 </motion.div>
@@ -176,7 +135,7 @@ export default function Hero() {
 
             {/* Feature badges */}
             <motion.div
-              className="flex flex-wrap gap-3 mb-10"
+              className="flex flex-wrap justify-center gap-3 mb-10"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 20 }}
               transition={{ duration: 0.8, delay: 0.3 }}
@@ -194,7 +153,7 @@ export default function Hero() {
 
             {/* Action buttons */}
             <motion.div
-              className="flex flex-col sm:flex-row gap-4"
+              className="flex flex-col sm:flex-row justify-center gap-4"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 20 }}
               transition={{ duration: 0.8, delay: 0.4 }}
@@ -222,7 +181,7 @@ export default function Hero() {
 
             {/* Social proof */}
             <motion.div
-              className="mt-12 flex items-center gap-8"
+              className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-8"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 20 }}
               transition={{ duration: 0.8, delay: 0.6 }}
@@ -248,23 +207,15 @@ export default function Hero() {
                   2K+
                 </div>
               </div>
-              <div className="text-sm">
-                <div className="font-bold text-slate-900 text-base">2,000+ businesses</div>
-                <div className="text-slate-600">already transforming customer experiences</div>
+              <div className="text-sm text-center sm:text-left">
+                <div className="font-bold text-slate-900 text-base">
+                  2,000+ businesses
+                </div>
+                <div className="text-slate-600">
+                  already transforming customer experiences
+                </div>
               </div>
             </motion.div>
-          </div>
-
-          {/* Mobile device mockup for smaller screens */}
-          <div className="lg:hidden mt-16 relative">
-            <motion.img
-              src="/images/grocerystoreafter2.png"
-              alt="AR Experience Preview"
-              className="w-full max-w-sm mx-auto drop-shadow-2xl"
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 50 }}
-              transition={{ duration: 1, delay: 0.4 }}
-            />
           </div>
         </div>
       </div>

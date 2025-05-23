@@ -306,7 +306,9 @@ const ThreeViewer = React.memo(
     } = props;
     console.log("ThreeViewer - modelPath prop:", modelPath); // ADD THIS LINE
     const mountRef = useRef<HTMLDivElement>(null);
-    const previousOriginPointRef = useRef<THREE.Vector3 | null>(originPoint || null); // Initialize with prop or null
+    const previousOriginPointRef = useRef<THREE.Vector3 | null>(
+      originPoint || null,
+    ); // Initialize with prop or null
     const qrPlacementModeRef = useRef(qrPlacementMode);
     useEffect(() => {
       qrPlacementModeRef.current = qrPlacementMode;
@@ -652,9 +654,14 @@ const ThreeViewer = React.memo(
             console.error("Error loading image for content:", err);
             resolve(null);
           };
-          img.src =
-            anchor.fileUrl ||
+          let imageUrl =
+            //   anchor.fileUrl ||
             "https://f005.backblazeb2.com/file/uploadedFiles-dev/083B81B6-F5EB-4AF3-B491-1DE40976280F_Asset0017.jpg"; // Fallback for testing
+
+          // Decode HTML entities in the URL
+          imageUrl = imageUrl.replace(/&amp;/g, "&");
+
+          img.src = imageUrl;
         });
       }
       // --- VIDEO ---
@@ -733,7 +740,7 @@ const ThreeViewer = React.memo(
             resolve(null);
           };
           video.src =
-            anchor.fileUrl ||
+            //      anchor.fileUrl ||
             "https://f005.backblazeb2.com/file/uploadedFiles-dev/24406E68-8FBD-4BAC-B773-E09EE0497599_Blueprint++In+Shared+Space+-+With+Explanations.mp4"; // Fallback
         });
       }
@@ -1795,12 +1802,17 @@ const ThreeViewer = React.memo(
           };
 
           // Use hardcoded Backblaze URL for images
-          const backblazeImageUrl =
-            "https://f005.backblazeb2.com/file/uploadedFiles-dev/083B81B6-F5EB-4AF3-B491-1DE40976280F_Asset0017.jpg";
+          let imageUrl =
+            // anchor.fileUrl ||
+            "https://f005.backblazeb2.com/file/uploadedFiles-dev/083B81B6-F5EB-4AF3-B491-1DE40976280F_Asset0017.jpg"; // Fallback only if fileUrl is missing
+
+          // Decode HTML entities in the URL (fixes &amp; to &)
+          imageUrl = imageUrl.replace(/&amp;/g, "&");
+
           console.log(
-            `[ThreeViewer fileAnchors] Setting img.src for ${anchor.id} to Backblaze URL: ${backblazeImageUrl}`,
+            `[ThreeViewer fileAnchors] Setting img.src for ${anchor.id} to: ${imageUrl}`,
           );
-          img.src = backblazeImageUrl;
+          img.src = imageUrl;
         } else if (
           determinedFileType === "audio" || // ← Firestore flag
           anchor.fileName?.toLowerCase().endsWith(".mp3") // ← fallback detection

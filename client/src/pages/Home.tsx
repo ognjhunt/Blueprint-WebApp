@@ -66,7 +66,7 @@ export default function Home() {
         "High-precision mapping",
       ],
       color: "from-blue-500 to-cyan-500",
-      duration: "2-3 hours",
+      duration: "1-2 hours",
     },
     {
       icon: <Brain className="w-6 h-6 md:w-8 md:h-8" />,
@@ -79,7 +79,7 @@ export default function Home() {
         "Brand integration",
       ],
       color: "from-violet-500 to-purple-600",
-      duration: "3-5 days",
+      duration: "30 minutes",
     },
     {
       icon: <Rocket className="w-6 h-6 md:w-8 md:h-8" />,
@@ -201,7 +201,7 @@ export default function Home() {
         <Hero />
 
         {/* Trust metrics section */}
-        <section className="py-12 md:py-16 bg-white/80 backdrop-blur-sm">
+        <section className="py-12 md:py-16 bg-gradient-to-b from-indigo-50/30 via-white/60 to-slate-50/40 backdrop-blur-sm">
           <div className="container mx-auto px-6">
             <motion.div
               className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto"
@@ -260,8 +260,8 @@ export default function Home() {
               </h2>
               <p className="text-xl text-slate-600 leading-relaxed">
                 Our streamlined approach makes implementing cutting-edge AR
-                technology effortless. Get your interactive experience live in
-                less than a week.
+                technology effortless. Get your interactive experience live in under
+                24 hours.
               </p>
             </motion.div>
 

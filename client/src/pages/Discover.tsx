@@ -365,52 +365,95 @@ export default function Discover() {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 relative mb-20">
-            {/* Connection line */}
-            <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-1 bg-gradient-to-r from-indigo-300 via-blue-300 to-violet-300 transform -translate-y-1/2" />
+      {/* Enhanced Process Overview */}
+      <section className="py-16 md:py-24 px-6 relative bg-gradient-to-b from-slate-50 to-white">
+        <div className="container mx-auto max-w-7xl">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+            className="max-w-4xl mx-auto text-center mb-16"
+          >
+            <div className="inline-flex items-center gap-2 mb-4 bg-indigo-50 text-indigo-700 py-2 px-4 rounded-full text-sm font-semibold">
+              <Zap className="w-4 h-4" />
+              Simple 4-Step Process
+            </div>
+            <h2 className="text-4xl md:text-5xl font-black mb-6 text-slate-900">
+              From Concept to{" "}
+              <span className="bg-gradient-to-r from-indigo-600 to-violet-600 text-transparent bg-clip-text">
+                Live AR Experience
+              </span>
+            </h2>
+            <p className="text-xl text-slate-600 leading-relaxed">
+              Our streamlined approach makes implementing cutting-edge AR
+              technology effortless. Get your interactive experience live in under
+              24 hours.
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 relative">
+            {/* Enhanced connection line */}
+            <div className="hidden lg:block absolute top-20 left-[12.5%] right-[12.5%] h-1 bg-gradient-to-r from-emerald-400 via-blue-400 via-violet-400 to-fuchsia-400 rounded-full shadow-lg" />
 
             {steps.map((step, idx) => (
               <motion.div
                 key={idx}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: idx * 0.1 }}
-                whileHover={{ y: -5 }}
+                transition={{ duration: 0.6, delay: idx * 0.15 }}
+                whileHover={{ y: -8 }}
                 className="relative z-10"
               >
-                <Card className="h-full border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-                  <CardContent className="p-6 text-left">
-                    <div className="flex flex-col items-center mb-4">
-                      <div
-                        className={`w-16 h-16 rounded-full mb-6 flex items-center justify-center text-white bg-gradient-to-br ${step.color}`}
-                      >
-                        {step.icon}
+                <Card className="h-full border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-white/90 backdrop-blur-sm overflow-hidden group">
+                  <CardContent className="p-6 md:p-8">
+                    <div className="flex flex-col items-center text-center mb-6">
+                      <div className="relative mb-6">
+                        <div
+                          className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center text-white bg-gradient-to-br ${step.color} shadow-xl group-hover:scale-110 transition-transform duration-300`}
+                        >
+                          {step.icon}
+                        </div>
+                        <div className="absolute -top-2 -right-2 bg-slate-900 text-white text-sm font-bold w-8 h-8 rounded-full flex items-center justify-center">
+                          {idx + 1}
+                        </div>
                       </div>
-                      <h3 className="text-xl font-semibold mb-2 text-gray-800">
-                        {idx + 1}. {step.title}
+
+                      <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                        {step.duration}
+                      </div>
+
+                      <h3 className="text-xl md:text-2xl font-bold mb-3 text-slate-900">
+                        {step.title}
                       </h3>
-                      <p className="text-gray-600 mb-4 text-center">
+
+                      <p className="text-slate-600 mb-6 leading-relaxed">
                         {step.description}
                       </p>
                     </div>
-                    <ul className="space-y-2">
+
+                    <div className="space-y-3">
                       {step.benefits.map((benefit, bidx) => (
-                        <li
+                        <div
                           key={bidx}
-                          className="flex items-center text-gray-600"
+                          className="flex items-center text-slate-700"
                         >
-                          <CheckCircle2 className="w-5 h-5 text-green-500 mr-2 flex-shrink-0" />
-                          <span className="text-sm">{benefit}</span>
-                        </li>
+                          <CheckCircle2 className="w-5 h-5 text-emerald-500 mr-3 flex-shrink-0" />
+                          <span className="text-sm font-medium">
+                            {benefit}
+                          </span>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
+
                     {idx === 0 && (
                       <Button
-                        className="w-full mt-6 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white"
-                        onClick={scrollToContact}
+                        className="w-full mt-8 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-base py-6 font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+                        onClick={handleScrollToContactForm}
                       >
-                        Join Waitlist
+                        Start Your AR Journey
+                        <ArrowRight className="w-5 h-5 ml-2" />
                       </Button>
                     )}
                   </CardContent>
@@ -418,6 +461,28 @@ export default function Discover() {
               </motion.div>
             ))}
           </div>
+
+          {/* Call-to-action below process */}
+          <motion.div
+            className="text-center mt-16"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+          >
+            <p className="text-lg text-slate-600 mb-6">
+              Ready to transform your customer experience?
+            </p>
+            <Button
+              size="lg"
+              variant="outline"
+              className="text-lg px-10 py-6 font-semibold border-2 border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-all duration-300"
+              onClick={handleScrollToContactForm}
+            >
+              See Pricing & Get Started
+              <ArrowDown className="w-5 h-5 ml-2" />
+            </Button>
+          </motion.div>
         </div>
       </section>
 

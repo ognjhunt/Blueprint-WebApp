@@ -4611,158 +4611,156 @@ export default function BlueprintEditor() {
         // Create unique filename to prevent collisions
         const uniqueFilename = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
 
+        // Create storage reference with organized path
+        const storageRef = ref(
+          storage,
+          `uploads/${blueprintId}/${fileCategory}/${uniqueFilename}`,
+        );
+
         // Show immediate toast for feedback
         toast({
           title: "Uploading File...",
           description: `Preparing ${file.name}`,
           variant: "default",
-          duration: 2000,
+          duration: 2000, // Auto-dismiss after 2 seconds
         });
 
+        // Upload with progress tracking
+        const uploadTask = uploadBytes(storageRef, file);
+
+        // After upload completes
+        const snapshot = await uploadTask;
+        const downloadURL = await getDownloadURL(snapshot.ref);
+
+        // Show a success toast
+        toast({
+          title: "Upload Complete",
+          description: `${file.name} has been uploaded successfully.`,
+          variant: "default",
+        });
+
+        const simpleType = getSimpleFileType(fileType); // <—
+
+        const newFile = {
+          id: Date.now().toString(),
+          name: file.name,
+          url: downloadURL,
+          mimeType: file.type, // keep the raw MIME
+          fileType: simpleType, // add the simplified label
+          uploadDate: new Date(),
+          fileSize: file.size,
+          fileCategory,
+          thumbnailUrl: simpleType === "image" ? downloadURL : null,
+          storageLocation: snapshot.ref.fullPath,
+        };
+
+        // Create more detailed file document in separate collection
+        await setDoc(doc(db, "files", newFile.id), {
+          id: newFile.id,
+          name: file.name,
+          fileType: file.type,
+          fileCategory: fileCategory,
+          url: downloadURL,
+          storageLocation: snapshot.ref.fullPath,
+          blueprintId: blueprintId,
+          uploadDate: new Date(),
+          uploadedBy: currentUser?.uid || "anonymous",
+          fileSize: file.size,
+          mimeType: file.type,
+          metadata: {
+            originalFilename: file.name,
+            contentType: file.type,
+            ...(file.lastModified
+              ? { lastModified: new Date(file.lastModified) }
+              : {}),
+          },
+        });
+
+        setUploadedFiles((prev) => {
+          // Check if this file already exists in the array (by URL or id)
+          const exists = prev.some(
+            (f) => f.id === newFile.id || f.url === newFile.url,
+          );
+          if (exists) return prev;
+
+          // Add new file at the beginning of the array (newest first)
+          return [newFile, ...prev];
+        });
+
+        // Get current uploadedFiles array, then update it properly
         try {
-          // Create FormData for upload
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('blueprintId', blueprintId);
-          formData.append('category', fileCategory);
-          formData.append('filename', uniqueFilename);
+          const blueprintRef = doc(db, "blueprints", blueprintId);
+          const blueprintSnap = await getDoc(blueprintRef);
 
-          // Upload to Backblaze B2 via your API endpoint
-          const uploadResponse = await fetch('/api/upload-to-b2', {
-            method: 'POST',
-            body: formData,
-          });
+          if (blueprintSnap.exists()) {
+            // Get current array or initialize empty array
+            const currentFiles = blueprintSnap.data().uploadedFiles || [];
 
-          if (!uploadResponse.ok) {
-            throw new Error('Upload failed');
-          }
-
-          const { url: downloadURL } = await uploadResponse.json();
-
-          // Show a success toast
-          toast({
-            title: "Upload Complete",
-            description: `${file.name} has been uploaded successfully.`,
-            variant: "default",
-          });
-
-          const simpleType = getSimpleFileType(file);
-
-          const newFile = {
-            id: Date.now().toString(),
-            name: file.name,
-            url: downloadURL, // This is now the Backblaze URL
-            mimeType: file.type,
-            fileType: simpleType,
-            uploadDate: new Date(),
-            fileSize: file.size,
-            fileCategory,
-            thumbnailUrl: simpleType === "image" ? downloadURL : null,
-            storageLocation: `uploads/${blueprintId}/${fileCategory}/${uniqueFilename}`, // B2 path
-          };
-
-          // Create more detailed file document in separate collection
-          await setDoc(doc(db, "files", newFile.id), {
-            id: newFile.id,
-            name: file.name,
-            fileType: file.type,
-            fileCategory: fileCategory,
-            url: downloadURL,
-            storageLocation: newFile.storageLocation,
-            blueprintId: blueprintId,
-            uploadDate: new Date(),
-            uploadedBy: currentUser?.uid || "anonymous",
-            fileSize: file.size,
-            mimeType: file.type,
-            metadata: {
-              originalFilename: file.name,
-              contentType: file.type,
-              ...(file.lastModified
-                ? { lastModified: new Date(file.lastModified) }
-                : {}),
-            },
-          });
-
-          setUploadedFiles((prev) => {
-            const exists = prev.some(
+            // Check if file already exists
+            const fileExists = currentFiles.some(
               (f) => f.id === newFile.id || f.url === newFile.url,
             );
-            if (exists) return prev;
-            return [newFile, ...prev];
-          });
 
-          // Update Firestore blueprint document
-          try {
-            const blueprintRef = doc(db, "blueprints", blueprintId);
-            const blueprintSnap = await getDoc(blueprintRef);
+            if (!fileExists) {
+              // Add new file to array
+              const updatedFiles = [newFile, ...currentFiles];
 
-            if (blueprintSnap.exists()) {
-              const currentFiles = blueprintSnap.data().uploadedFiles || [];
-              const fileExists = currentFiles.some(
-                (f) => f.id === newFile.id || f.url === newFile.url,
+              // Update Firestore with complete array
+              await updateDoc(blueprintRef, {
+                uploadedFiles: updatedFiles,
+              });
+
+              console.log(
+                "Upload successfully added to Firestore uploadedFiles array",
               );
-
-              if (!fileExists) {
-                const updatedFiles = [newFile, ...currentFiles];
-                await updateDoc(blueprintRef, {
-                  uploadedFiles: updatedFiles,
-                });
-                console.log("Upload successfully added to Firestore uploadedFiles array");
-              }
             }
-          } catch (error) {
-            console.error("Error updating uploadedFiles in Firestore:", error);
           }
-
-          // Success toast with action
-          toast({
-            title: "File Uploaded Successfully",
-            description: `${file.name} is ready to use in your blueprint.`,
-            variant: "default",
-            duration: 4000,
-            action: (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setViewMode("3D");
-                  setPlacementMode({
-                    type: fileType.includes("image")
-                      ? "file"
-                      : fileType.includes("video")
-                        ? "file"
-                        : "file",
-                    data: {
-                      file: newFile,
-                      fileType: fileType.includes("image")
-                        ? "image"
-                        : fileType.includes("video")
-                          ? "video"
-                          : "document",
-                      url: downloadURL,
-                      name: file.name,
-                    },
-                  });
-
-                  toast({
-                    title: "Ready to Place",
-                    description: "Click in the 3D view to place your file",
-                    duration: 5000,
-                  });
-                }}
-              >
-                Place Now
-              </Button>
-            ),
-          });
         } catch (error) {
-          console.error("File upload error:", error);
-          toast({
-            title: "Upload Failed",
-            description: `Could not upload ${file.name}. ${error instanceof Error ? error.message : "Please try again."}`,
-            variant: "destructive",
-          });
+          console.error("Error updating uploadedFiles in Firestore:", error);
         }
+
+        // Success toast
+        toast({
+          title: "File Uploaded Successfully",
+          description: `${file.name} is ready to use in your blueprint.`,
+          variant: "default",
+          duration: 4000,
+          action: (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // Set placement mode to simplify adding
+                setViewMode("3D");
+                setPlacementMode({
+                  type: fileType.includes("image")
+                    ? "file"
+                    : fileType.includes("video")
+                      ? "file"
+                      : "file",
+                  data: {
+                    file: newFile,
+                    fileType: fileType.includes("image")
+                      ? "image"
+                      : fileType.includes("video")
+                        ? "video"
+                        : "document",
+                    url: downloadURL,
+                    name: file.name,
+                  },
+                });
+
+                toast({
+                  title: "Ready to Place",
+                  description: "Click in the 3D view to place your file",
+                  duration: 5000,
+                });
+              }}
+            >
+              Place Now
+            </Button>
+          ),
+        });
       }
     } catch (error) {
       console.error("File upload error:", error);

@@ -1,9 +1,6 @@
 [
   {
-    "origin": [
-      "http://localhost:3000",
-      "https://7a08843a-3237-452f-a05d-0fbf373c7c46-00-1c1p64djqfosf.kirk.replit.dev"
-    ],
+    "origin": ["*"],
     "method": ["GET"],
     "maxAgeSeconds": 3600
   }

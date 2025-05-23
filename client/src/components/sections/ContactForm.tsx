@@ -68,7 +68,7 @@ export default function ContactForm() {
     {
       icon: <Clock className="w-5 h-5" />,
       title: "Fast Implementation",
-      description: "Live in 7 days or less",
+      description: "Go live in 1 day",
     },
     {
       icon: <Shield className="w-5 h-5" />,
@@ -83,7 +83,7 @@ export default function ContactForm() {
     {
       icon: <TrendingUp className="w-5 h-5" />,
       title: "Proven ROI",
-      description: "300% engagement increase",
+      description: "300%+ engagement increase",
     },
   ];
 
