@@ -4763,7 +4763,15 @@ export default function BlueprintEditor() {
             variant: "destructive",
           });
         }
-       finally {
+      }
+    } catch (error) {
+      console.error("File upload error:", error);
+      toast({
+        title: "Upload Failed",
+        description: `Could not upload ${file.name}. ${error instanceof Error ? error.message : "Please try again."}`,
+        variant: "destructive",
+      });
+    } finally {
       setUploadLoading(false);
     }
   };
