@@ -4763,7 +4763,10 @@ export default function BlueprintEditor() {
             variant: "destructive",
           });
         }
-      };
+       finally {
+      setUploadLoading(false);
+    }
+  };
 
   // Add this new function to refresh files from Firestore
   const refreshUploadedFiles = async () => {
