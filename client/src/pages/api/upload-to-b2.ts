@@ -1,6 +1,6 @@
 // /api/upload-to-b2.ts
 import B2 from "backblaze-b2";
-import * from "formidable";
+import { IncomingForm, File, Fields } from "formidable";
 import fs from "fs";
 
 const b2 = new B2({
@@ -8,14 +8,14 @@ const b2 = new B2({
   applicationKey: "K005uyFTIjJ2mxwupnkSdfl2UYt0tIU",
 });
 
-export default async function handler(req, res) {
+export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const form = formidable({ multiples: false });
+  const form = new IncomingForm({ multiples: false });
 
-  form.parse(req, async (err, fields, files) => {
+  form.parse(req, async (err, fields: Fields, files: {file?: File | File[]}) => {
     if (err) {
       return res.status(500).json({ error: "Failed to parse form data" });
     }
@@ -24,8 +24,13 @@ export default async function handler(req, res) {
       // Authorize with B2
       await b2.authorize();
 
-      const file = Array.isArray(files.file) ? files.file[0] : files.file;
-      const fileBuffer = fs.readFileSync(file.filepath);
+      if (!files.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const uploadedFile = Array.isArray(files.file) ? files.file[0] : files.file;
+      
+      const fileBuffer = fs.readFileSync(uploadedFile.filepath);
 
       // Get upload URL
       const response = await b2.getUploadUrl({
@@ -38,7 +43,7 @@ export default async function handler(req, res) {
         uploadAuthToken: response.data.authorizationToken,
         fileName: `uploads/${fields.blueprintId}/${fields.category}/${fields.filename}`,
         data: fileBuffer,
-        mime: file.mimetype,
+        mime: uploadedFile.mimetype,
       });
 
       // Construct the public URL
