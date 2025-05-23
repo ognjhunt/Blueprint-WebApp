@@ -371,6 +371,8 @@ export default function Discover() {
               interactive AR experience.
             </p>
           </motion.div>
+        </div>
+      </section>
 
       {/* Enhanced Process Overview */}
       <section className="py-16 md:py-24 px-6 relative bg-gradient-to-b from-slate-50 to-white">
@@ -428,7 +430,8 @@ export default function Discover() {
                       </div>
 
                       <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                        {step.duration}
+                        {/* Duration info - add step.duration to your steps array if needed */}
+                        {step.title}
                       </div>
 
                       <h3 className="text-xl md:text-2xl font-bold mb-3 text-slate-900">
