@@ -1,0 +1,236 @@
+
+// Define FileAnchor interface to fix duplicate definition errors
+interface FileAnchor {
+  id: string;
+  fileType: string;
+  fileName: string;
+  fileUrl: string;
+  x: number;
+  y: number;
+  z: number;
+  thumbnailUrl?: string;
+}
+
+interface ThreeViewerProps {
+  modelPath: string;
+  originPoint?: THREE.Vector3 | null;
+  onLoad?: () => void;
+  onError?: (error: string) => void;
+
+  // Add these to match what you pass in:
+  activeLabel?: "A" | "B" | "C" | null;
+  awaiting3D?: boolean;
+  setReferencePoints3D?: React.Dispatch<React.SetStateAction<ReferencePoint[]>>;
+  setAwaiting3D?: (value: boolean) => void;
+  setActiveLabel?: (label: "A" | "B" | "C" | null) => void;
+  scaleFactor?: number;
+  selectedArea?: string | null; // Add this prop
+  isChoosingOrigin?: boolean;
+  setIsChoosingOrigin?: React.Dispatch<React.SetStateAction<boolean>>; // Add this line
+  setOriginPoint?: React.Dispatch<React.SetStateAction<THREE.Vector3 | null>>; // Add this line
+  onOriginSet?: (point: THREE.Vector3) => void; // ADD THIS PROP
+  qrPlacementMode?: boolean; // new
+  placementMode?: { type: "link" | "model" | "file"; data?: any } | null;
+  onLinkPlaced?: (pos: THREE.Vector3) => void;
+  onQRPlaced?: (pos: THREE.Vector3) => void; // new
+  onModelDropped?: (model: any, pos: THREE.Vector3) => void;
+  onPlacementComplete?: (
+    mode: { type: "link" | "model" | "file"; data?: any },
+    position: THREE.Vector3,
+    anchorId: string | null,
+  ) => void; // Added this line
+  modelAnchors?: ModelAnchor[];
+  pendingLabelTextRef?: React.MutableRefObject<string>;
+  showTextBoxInputRef?: React.MutableRefObject<boolean>;
+  onTextBoxSubmit?: (
+    text: string,
+    realWorldCoords: { x: number; y: number; z: number },
+  ) => void;
+  isMarkingArea?: boolean;
+  onAreaMarked?: (areaData: {
+    min: { x: number; y: number; z: number };
+    max: { x: number; y: number; z: number };
+  }) => void;
+  markedAreas?: MarkedArea[];
+  fileAnchors?: FileAnchor[];
+  webpageAnchors?: Array<{
+    id: string;
+    webpageUrl: string;
+    x: number;
+    y: number;
+    z: number;
+  }>;
+  textAnchors?: TextAnchor[];
+  onFileDropped?: (
+    fileInfo: any,
+    realWorldCoords: { x: number; y: number; z: number },
+  ) => void;
+  onTextAnchorClick?: (anchorId: string, currentText: string) => void;
+  onWebpageAnchorClick?: (anchorId: string, anchorUrl: string) => void;
+  onFileAnchorClick?: (anchorId: string, anchorData: any) => void;
+  // Anchor Data Props (Keep these)
+  qrCodeAnchors?: Array<{
+    id: string;
+    x: number;
+    y: number;
+    z: number;
+    [key: string]: any;
+  }>;
+  onBackgroundClick?: () => void;
+
+  // NEW Visibility Props
+  showQrCodes?: boolean;
+  showTextAnchors?: boolean;
+  showFileAnchors?: boolean;
+  showWebpageAnchors?: boolean;
+  showModelAnchors?: boolean;
+}
+
+interface OriginMarkerConfig {
+  radius?: number;
+  color?: number;
+  opacity?: number;
+}
+
+interface TextAnchor {
+  id: string;
+  x: number;
+  y: number;
+  z: number;
+  textContent: string;
+}
+
+interface ModelAnchor {
+  id: string;
+  modelName?: string; // e.g. "Antique_Iron_Safe.glb"
+  x: number;
+  y: number;
+  z: number;
+  contentType?: string;
+  textContent?: string;
+  scaleX?: number;
+  scaleY?: number;
+  scaleZ?: number;
+  rotationX?: number;
+  rotationY?: number;
+  rotationZ?: number;
+  position?: any; // Allow position property for compatibility
+  // Add any other fields if needed
+}
+
+const labelColors: Record<"A" | "B" | "C", number> = {
+  A: 0xff0000,
+  B: 0x00ff00,
+  C: 0x0000ff,
+};
+
+interface ThreeViewerImperativeHandle {
+  zoomIn: () => void;
+  zoomOut: () => void;
+}
+
+const ThreeViewer = React.memo(
+  forwardRef<ThreeViewerImperativeHandle, ThreeViewerProps>((props, ref) => {
+    const {
+      modelPath,
+      onLoad,
+      onError,
+      onTextAnchorClick,
+      onWebpageAnchorClick,
+      qrCodeAnchors,
+      onFileAnchorClick,
+      onBackgroundClick,
+      onFileDropped,
+      activeLabel,
+      awaiting3D,
+      setReferencePoints3D,
+      setAwaiting3D,
+      setActiveLabel,
+      pendingLabelTextRef,
+      scaleFactor,
+      setIsChoosingOrigin,
+      isChoosingOrigin,
+      setOriginPoint,
+      onOriginSet,
+      qrPlacementMode, // new
+      onQRPlaced, // new
+      placementMode, // ADD THIS
+      onLinkPlaced, // ADD THIS
+      originPoint,
+      modelAnchors,
+      fileAnchors,
+      showTextBoxInputRef,
+      onTextBoxSubmit,
+      isMarkingArea,
+      onAreaMarked,
+      webpageAnchors,
+      textAnchors,
+      onModelDropped,
+      onPlacementComplete,
+      markedAreas,
+      selectedArea,
+      showQrCodes,
+      showTextAnchors,
+      showFileAnchors,
+      showWebpageAnchors,
+      showModelAnchors,
+    } = props;
+    console.log("ThreeViewer - modelPath prop:", modelPath); // ADD THIS LINE
+    const mountRef = useRef<HTMLDivElement>(null);
+    const previousOriginPointRef = useRef<THREE.Vector3 | null>(originPoint); // Initialize with prop
+    const qrPlacementModeRef = useRef(qrPlacementMode);
+    useEffect(() => {
+      qrPlacementModeRef.current = qrPlacementMode;
+    }, [qrPlacementMode]);
+    const [activeFileAnchorId, setActiveFileAnchorId] = useState<string | null>(
+      null,
+    );
+    const SCALE_FACTOR = 45.6;
+    const fileAnchorElementsRef = useRef<Map<string, FileAnchorElements>>(
+      new Map(),
+    );
+    // const textAnchorsRef = useRef<Map<string, THREE.Object3D>>(new Map());
+    const textAnchorsRef = useRef<Map<string, CSS3DObject>>(new Map());
+    const fileAnchorsRef = useRef<Map<string, THREE.Object3D>>(new Map());
+    const raycasterRef = useRef<THREE.Raycaster>(new THREE.Raycaster());
+    const clickMarkerRef = useRef<THREE.Mesh | null>(null);
+    const dragCircleRef = useRef<THREE.Mesh | null>(null);
+    const sceneRef = useRef<THREE.Scene | null>(null);
+    const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+    const transformControlsRef = useRef<TransformControls | null>(null);
+    const orbitControlsRef = useRef<OrbitControls | null>(null);
+    const dragControlsRef = useRef<DragControls | null>(null);
+    const PDF_THUMBNAIL_URL = "/images/PDF_file_icon.svg";
+    const DOCX_THUMBNAIL_URL = "/images/docx_icon.svg.png";
+    const PPTX_THUMBNAIL_URL = "/images/pptx_thumbnail.png";
+
+    useImperativeHandle(ref, () => ({
+      zoomIn() {
+        if (!orbitControlsRef.current) return;
+        // Example approach: move camera closer to target by ~10%
+        const controls = orbitControlsRef.current;
+        // Use the camera reference directly instead of controls.object
+        const cam = cameraRef.current;
+        if (!cam) return;
+        const direction = cam.position
+          .clone()
+          .sub(controls.target)
+          .multiplyScalar(0.9);
+        cam.position.copy(controls.target.clone().add(direction));
+        controls.update();
+      },
+      zoomOut() {
+        if (!orbitControlsRef.current) return;
+        // Move camera further from target by ~10%
+        const controls = orbitControlsRef.current;
+        // Use the camera reference directly instead of controls.object
+        const cam = cameraRef.current;
+        if (!cam) return;
+        const direction = cam.position
+          .clone()
+          .sub(controls.target)
+          .multiplyScalar(1.1);
+        cam.position.copy(controls.target.clone().add(direction));
+        controls.update();
+      },
+    }));
