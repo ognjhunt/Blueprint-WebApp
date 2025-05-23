@@ -5157,15 +5157,13 @@ const ThreeViewer = React.memo(
           const firstHit = visibleIntersects[0].object;
           console.log(`[handleClick] First Hit Object Name: ${firstHit.name}`);
           console.log(`[handleClick] First Hit Object Type: ${firstHit.type}`);
-          // Log userData directly without stringifying to avoid circular reference errors
           console.log(
             `[handleClick] First Hit Object userData:`,
-            firstHit.userData, // <--- FIXED LINE
+            firstHit.userData,
           );
           console.log(
             `[handleClick] First Hit Distance: ${visibleIntersects[0].distance}`,
           );
-          // Check if it's a CSS3DObject specifically
           if (
             firstHit &&
             firstHit.userData &&
@@ -5179,8 +5177,6 @@ const ThreeViewer = React.memo(
         // ***** END CONFIRMATION LOGGING *****
 
         // --- Early Exit for Special Modes ---
-        // (Keep your existing logic for origin, QR, link, file, text, alignment placement modes here)
-        // ... (Your existing code for placement modes) ...
         if (isChoosingOriginRef.current) {
           console.log("[handleClick] Origin selection mode.");
           if (parentModelRef.current && cameraRef.current) {
@@ -5772,56 +5768,84 @@ const ThreeViewer = React.memo(
           // After the main anchor checking loop (while (currentObj && !foundAnchor)...)
           // Check if an anchor was successfully found and selected during the loop
           if (foundAnchor) {
-            // If an anchor was found and selected, its specific handler (e.g., handleAnchorSelect)
-            // would have already managed its highlighting and selection state.
-            // We simply return to prevent falling through to deselection or distance display logic.
             console.log(
-              "[handleClick] Anchor selection processed. Click handling complete.",
+              "[handleClick] Anchor interaction detected and handled. Click processing complete.",
             );
             return;
           }
 
-          // If we've reached this point, it means the click either:
-          // 1. Hit empty space (nothing in visibleIntersects relevant to anchors after filtering).
-          // 2. Hit an object (like the base model floor/wall) that isn't a registered selectable anchor.
-          // In either of these scenarios, any currently selected anchor should be deselected.
+          // If no anchor interaction was found by this point, it's an "off-anchor" click.
+          // This includes clicks on empty space or on the main model itself (but not on an anchor part).
           console.log(
-            "[handleClick] Click did not result in selecting a new anchor. Proceeding with deselection.",
+            "[handleClick] No anchor interaction detected. Treating as off-anchor click.",
           );
-          handleDeselect(); // This will clear selection state and remove highlights.
 
-          if (onBackgroundClick) {
-            // Call onBackgroundClick if it's provided
-            onBackgroundClick();
+          if (selectedAnchorId) {
+            console.log(
+              `[handleClick] Anchor '${selectedAnchorId}' was selected. Deselecting now.`,
+            );
+            handleDeselect();
+            if (onBackgroundClick) {
+              console.log(
+                "[handleClick] Calling onBackgroundClick callback.",
+              );
+              onBackgroundClick();
+            }
+          } else {
+            console.log(
+              "[handleClick] No anchor was selected, so no deselection needed.",
+            );
+            // If nothing was selected, and it's a click on empty space/background,
+            // still call onBackgroundClick as per requirements.
+            if (onBackgroundClick) {
+              console.log(
+                "[handleClick] Calling onBackgroundClick for empty/model click even if nothing was selected.",
+              );
+              onBackgroundClick();
+            }
           }
 
-          // After deselection, handle the distance display if the click hit something tangible
-          // and was not an empty space click that should solely trigger deselection.
+          // After potential deselection, handle distance display for clicks on the model/scene.
+          // This should only happen if the click was on something tangible (visibleIntersects > 0)
+          // and not an anchor.
           if (visibleIntersects.length > 0) {
-            // Check if the click actually hit something in the scene
             if (originPoint) {
               const hitPoint = visibleIntersects[0].point.clone();
               const offset = hitPoint.clone().sub(originPoint);
-              const distanceInFeet = offset.length() * 45.64; // Assuming 45.64 is your scale factor
+              const distanceInFeet = offset.length() * 45.64;
               const msg = `X: ${(offset.x * 45.64).toFixed(2)}, Y: ${(offset.y * 45.64).toFixed(2)}, Z: ${(offset.z * 45.64).toFixed(2)}
           distance = ${distanceInFeet.toFixed(2)} ft from origin`;
               console.log("[handleClick] Displaying coordinates:", msg);
               setDistanceDisplay(msg);
             } else {
-              // Clicked something, but origin is not set
               setDistanceDisplay(
                 "Origin not set. Cannot calculate relative coordinates.",
               );
             }
           } else {
-            // Clicked completely empty space (no intersections at all, or only non-relevant ones filtered out earlier)
+            // Clicked completely empty space (no visible intersections after filtering)
             setDistanceDisplay(""); // Clear any previous distance display
           }
-        } // End of if (visibleIntersects.length > 0 || !foundAnchor) block from anchor selection logic
-        // Note: The parent if (visibleIntersects.length > 0) from original code might need adjustment
-        // depending on how `foundAnchor` interacts with it. The logic here assumes `handleClick` continues
-        // if `visibleIntersects.length > 0` but no specific anchor is found.
-        // If the click was outside the model entirely (`visibleIntersects.length == 0`), this new logic also correctly calls `handleDeselect`.
+          // End of new deselection and distance display logic
+        } else {
+          // visibleIntersects.length === 0 (clicked empty space)
+          console.log(
+            "[handleClick] Clicked empty space (no visible intersections after filtering).",
+          );
+          if (selectedAnchorId) {
+            console.log(
+              `[handleClick] Anchor '${selectedAnchorId}' was selected. Deselecting.`,
+            );
+            handleDeselect();
+          }
+          if (onBackgroundClick) {
+            console.log(
+              "[handleClick] Calling onBackgroundClick for empty space click.",
+            );
+            onBackgroundClick();
+          }
+          setDistanceDisplay(""); // Clear distance display
+        }
       } // End of handleClick
 
       function getNDCCoords(event: MouseEvent, container: HTMLDivElement) {
