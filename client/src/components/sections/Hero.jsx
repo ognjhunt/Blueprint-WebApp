@@ -85,7 +85,7 @@ export default function Hero() {
       </div>
 
       {/* Floating grid pattern */}
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=%2240%22 height=%2240%22 viewBox=%220 0 40 40%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cg fill=%22rgb(99 102 241 / 0.03)%22 fill-rule=%22evenodd%22%3E%3Cpath d=%22M0 40L40 0H20L0 20M40 40V20L20 40%22/%3E%3C/g%3E%3C/svg%3E')] opacity-60" />
+      <div className="absolute inset-0 opacity-60" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='rgb(99 102 241 / 0.03)' fill-rule='evenodd'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E")` }} />
 
       {/* 3D Device Mock - Enhanced positioning */}
       <motion.div
@@ -100,11 +100,6 @@ export default function Hero() {
         style={{ transformStyle: "preserve-3d" }}
       >
         <div className="relative">
-          <img
-            src="/images/grocerystoreafter2.png"
-            alt="AR Experience on Mobile"
-            className="w-full h-auto object-contain drop-shadow-2xl"
-          />
 
           {/* Enhanced AR indicators */}
           <motion.div
