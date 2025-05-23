@@ -1,6 +1,6 @@
 // /api/upload-to-b2.ts
 import B2 from "backblaze-b2";
-import * as formidable from "formidable";
+import * from "formidable";
 import fs from "fs";
 
 const b2 = new B2({
