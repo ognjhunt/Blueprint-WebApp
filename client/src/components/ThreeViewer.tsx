@@ -306,7 +306,7 @@ const ThreeViewer = React.memo(
     } = props;
     console.log("ThreeViewer - modelPath prop:", modelPath); // ADD THIS LINE
     const mountRef = useRef<HTMLDivElement>(null);
-    const previousOriginPointRef = useRef<THREE.Vector3 | null>(originPoint); // Initialize with prop
+    const previousOriginPointRef = useRef<THREE.Vector3 | null>(originPoint || null); // Initialize with prop or null
     const qrPlacementModeRef = useRef(qrPlacementMode);
     useEffect(() => {
       qrPlacementModeRef.current = qrPlacementMode;
