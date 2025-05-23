@@ -364,6 +364,8 @@ export default function Discover() {
               interactive AR experience.
             </p>
           </motion.div>
+        </div>
+      </section>
 
       {/* Enhanced Process Overview */}
       <section className="py-16 md:py-24 px-6 relative bg-gradient-to-b from-slate-50 to-white">
