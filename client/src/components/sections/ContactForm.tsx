@@ -12,11 +12,19 @@ import {
   EnvelopeIcon,
   UserIcon,
   ChatBubbleBottomCenterTextIcon,
+  PhoneIcon,
+  ClockIcon,
+  CheckCircleIcon,
 } from "@heroicons/react/24/outline";
-import { SparklesIcon } from "@heroicons/react/24/solid";
+import {
+  SparklesIcon,
+  RocketLaunchIcon,
+  StarIcon,
+} from "@heroicons/react/24/solid";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { v4 as uuidv4 } from "uuid";
+import { Shield, Zap, Users, Award, Clock, TrendingUp } from "lucide-react";
 
 interface FormData {
   name: string;
@@ -40,12 +48,10 @@ export default function ContactForm() {
     message: "",
   });
 
-  // Form submission state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const wasSelection = useRef(false);
 
-  // NEW: Company website and autocomplete
   const [companyWebsite, setCompanyWebsite] = useState("");
   const [companyAutocomplete, setCompanyAutocomplete] =
     useState<google.maps.places.AutocompleteService | null>(null);
@@ -55,9 +61,46 @@ export default function ContactForm() {
     google.maps.places.AutocompletePrediction[]
   >([]);
 
+  const [errors, setErrors] = useState<Partial<FormData>>({});
+
+  // Enhanced trust indicators and benefits
+  const benefits = [
+    {
+      icon: <Clock className="w-5 h-5" />,
+      title: "Fast Implementation",
+      description: "Live in 7 days or less",
+    },
+    {
+      icon: <Shield className="w-5 h-5" />,
+      title: "Enterprise Security",
+      description: "Bank-level data protection",
+    },
+    {
+      icon: <Users className="w-5 h-5" />,
+      title: "Dedicated Support",
+      description: "Personal success manager",
+    },
+    {
+      icon: <TrendingUp className="w-5 h-5" />,
+      title: "Proven ROI",
+      description: "300% engagement increase",
+    },
+  ];
+
+  const priorityMarkets = [
+    "Los Angeles",
+    "San Francisco",
+    "New York",
+    "Miami",
+    "Chicago",
+    "Austin",
+    "Seattle",
+    "Boston",
+  ];
+
   useEffect(() => {
     const loader = new Loader({
-      apiKey: "AIzaSyBgxzzgcT_9nyhz1D_JtfG7gevRUKQ5Vbs", // Replace with your actual API key
+      apiKey: "AIzaSyBgxzzgcT_9nyhz1D_JtfG7gevRUKQ5Vbs",
       version: "weekly",
       libraries: ["places"],
     });
@@ -78,8 +121,8 @@ export default function ContactForm() {
 
   useEffect(() => {
     if (wasSelection.current) {
-      wasSelection.current = false; // Reset the flag
-      return; // Exit the effect early
+      wasSelection.current = false;
+      return;
     }
 
     const timer = setTimeout(() => {
@@ -98,20 +141,15 @@ export default function ContactForm() {
               setCompanyPredictions([]);
               return;
             }
-            // Only update predictions if the input hasn't changed *during* the fetch
-            // (This check might be redundant now with the wasSelection flag, but good practice)
-            // No, removing this check as the flag handles the primary issue.
             setCompanyPredictions(predictions);
           },
         );
       } else {
         setCompanyPredictions([]);
       }
-    }, 300); // 300ms debounce
+    }, 300);
     return () => clearTimeout(timer);
   }, [formData.company, companyAutocomplete]);
-
-  const [errors, setErrors] = useState<Partial<FormData>>({});
 
   const validateForm = () => {
     const newErrors: Partial<FormData> = {};
@@ -136,93 +174,16 @@ export default function ContactForm() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // const handleSubmit = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   if (!validateForm()) return;
-
-  //   setIsSubmitting(true);
-
-  //   try {
-  //     // Generate a unique token
-  //     const token = uuidv4();
-  //     const baseUrl = window.location.origin;
-  //     const offWaitlistUrl = `${baseUrl}/off-waitlist-signup?token=${token}`;
-
-  //     // Store token in Firebase
-  //     await addDoc(collection(db, "waitlistTokens"), {
-  //       token: token,
-  //       email: formData.email,
-  //       company: formData.company,
-  //       status: "unused",
-  //       createdAt: serverTimestamp(),
-  //     });
-
-  //     const options = {
-  //       method: "POST",
-  //       headers: {
-  //         Authorization: "Bearer c4dc7fe399094cd3819c96e51dded30c",
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify({
-  //         user_id: "Hs4h5E9hjnVCNcbF4ns2puDi3oR2",
-  //         saved_item_id: "oxcGGr2mxAXaZTg6o1hJaN",
-  //         pipeline_inputs: [
-  //           { input_name: "contact_name", value: formData.name },
-  //           { input_name: "email", value: formData.email },
-  //           { input_name: "company", value: formData.company },
-  //           { input_name: "company_url", value: companyWebsite },
-  //           {
-  //             input_name: "location",
-  //             value: `${formData.city}, ${formData.state}`,
-  //           },
-  //           { input_name: "message", value: formData.message },
-  //           { input_name: "signup_link", value: offWaitlistUrl }, // Keep this
-  //           { input_name: "token", value: token }, // Add the token explicitly
-  //           { input_name: "base_url", value: baseUrl }, // Add base URL for flexibility
-  //         ],
-  //       }),
-  //     };
-
-  //     console.log("Sending request to Gumloop with options:", options);
-  //     const response = await fetch(
-  //       "https://api.gumloop.com/api/v1/start_pipeline",
-  //       options,
-  //     );
-  //     console.log("Gumloop API response status:", response.status);
-  //     const gumloopResponse = await response.json();
-  //     console.log("Gumloop API response:", gumloopResponse);
-
-  //     if (!response.ok) {
-  //       throw new Error("Failed to submit form");
-  //     }
-
-  //     setIsSuccess(true);
-  //     setFormData({
-  //       name: "",
-  //       email: "",
-  //       company: "",
-  //       city: "",
-  //       state: "",
-  //       message: "",
-  //     });
-  //   } catch (error) {
-  //     console.error("Error submitting form:", error);
-  //     alert("There was an error submitting your form. Please try again.");
-  //   } finally {
-  //     setIsSubmitting(false);
-  //   }
-  // };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
     setIsSubmitting(true);
+
     try {
-      // Generate a unique token
       const token = uuidv4();
       const baseUrl = window.location.origin;
       const offWaitlistUrl = `${baseUrl}/off-waitlist-signup?token=${token}`;
-      // Store token in Firebase
+
       await addDoc(collection(db, "waitlistTokens"), {
         token: token,
         email: formData.email,
@@ -231,7 +192,6 @@ export default function ContactForm() {
         createdAt: serverTimestamp(),
       });
 
-      // New Lindy webhook implementation
       const lindyOptions = {
         method: "POST",
         headers: {
@@ -252,14 +212,10 @@ export default function ContactForm() {
         }),
       };
 
-      console.log("Sending request to Lindy with options:", lindyOptions);
       const response = await fetch(
         "https://public.lindy.ai/api/v1/webhooks/lindy/163b37c0-2f5c-4969-9b2e-0d5ec61afb52",
         lindyOptions,
       );
-      console.log("Lindy API response status:", response.status);
-      const lindyResponse = await response.json();
-      console.log("Lindy API response:", lindyResponse);
 
       if (!response.ok) {
         throw new Error("Failed to submit form");
@@ -289,198 +245,239 @@ export default function ContactForm() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Animation variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.2,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: {
-        type: "spring",
-        stiffness: 50,
-      },
-    },
-  };
+  const isPriorityMarket = priorityMarkets.some((market) =>
+    formData.city.toLowerCase().includes(market.toLowerCase()),
+  );
 
   return (
     <motion.section
       ref={formRef}
       id="contactForm"
-      className="py-24 relative overflow-hidden"
+      className="py-20 md:py-28 relative overflow-hidden bg-gradient-to-b from-slate-50 via-white to-slate-50"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 1 }}
     >
-      {/* Background gradient and decorative elements */}
-      <div className="absolute inset-0 bg-gradient-to-b from-indigo-50 to-white -z-10" />
+      {/* Enhanced background elements */}
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/80 via-transparent to-violet-50/60 -z-10" />
       <motion.div
-        className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-indigo-50 to-transparent -z-10"
-        initial={{ opacity: 0, x: 100 }}
-        animate={{ opacity: isInView ? 1 : 0, x: isInView ? 0 : 100 }}
-        transition={{ duration: 1.2 }}
-      />
-      <motion.div
-        className="absolute -top-40 -left-40 w-80 h-80 bg-gradient-to-br from-violet-200 to-fuchsia-200 rounded-full blur-3xl opacity-30 -z-10"
+        className="absolute -top-60 -right-60 w-96 h-96 bg-gradient-to-br from-violet-200/40 to-fuchsia-200/30 rounded-full blur-3xl opacity-70 -z-10"
         animate={{
-          scale: [1, 1.2, 1],
-          opacity: [0.3, 0.2, 0.3],
+          scale: [1, 1.3, 1],
+          opacity: [0.7, 0.4, 0.7],
+          rotate: [0, 180, 360],
         }}
         transition={{
-          duration: 15,
+          duration: 20,
           repeat: Infinity,
           repeatType: "reverse",
         }}
       />
 
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-6 relative z-10">
+        {/* Enhanced header */}
         <motion.div
-          className="max-w-3xl mx-auto mb-16 text-center"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 20 }}
+          className="max-w-4xl mx-auto mb-20 text-center"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 30 }}
           transition={{ duration: 0.8 }}
         >
-          <div className="inline-flex items-center justify-center mb-4">
-            <SparklesIcon className="w-6 h-6 text-indigo-500 mr-2" />
-            <span className="text-sm font-medium text-indigo-600 uppercase tracking-wider">
-              Limited Early Access
+          <div className="inline-flex items-center justify-center gap-2 mb-6 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 py-3 px-6 rounded-full border border-emerald-200">
+            <RocketLaunchIcon className="w-5 h-5" />
+            <span className="text-sm font-bold uppercase tracking-wider">
+              Limited Early Access Program
             </span>
           </div>
-          <h2 className="text-4xl font-bold mb-5 leading-tight text-gray-900">
-            Join the waitlist and transform your{" "}
-            <span className="bg-gradient-to-r from-indigo-600 to-violet-600 text-transparent bg-clip-text">
-              customer experience
+
+          <h2 className="text-4xl md:text-6xl font-black mb-8 leading-tight text-slate-900">
+            Ready to Transform Your{" "}
+            <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 text-transparent bg-clip-text">
+              Customer Experience?
             </span>
           </h2>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Be among the first to leverage our groundbreaking AR technology.
-            Early access members receive premium onboarding support and
-            exclusive pricing.
+
+          <p className="text-xl md:text-2xl text-slate-600 max-w-3xl mx-auto leading-relaxed mb-8">
+            Join industry leaders who are already revolutionizing customer
+            engagement with our cutting-edge AR technology platform.
           </p>
+
+          {/* Enhanced benefits grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
+            {benefits.map((benefit, index) => (
+              <motion.div
+                key={benefit.title}
+                className="text-center p-4 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 20 }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+              >
+                <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-xl flex items-center justify-center text-white mx-auto mb-3">
+                  {benefit.icon}
+                </div>
+                <h4 className="font-bold text-sm text-slate-900 mb-1">
+                  {benefit.title}
+                </h4>
+                <p className="text-xs text-slate-600">{benefit.description}</p>
+              </motion.div>
+            ))}
+          </div>
         </motion.div>
 
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <motion.div
-            className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-indigo-100"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 30 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
+            className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl overflow-hidden border border-slate-200"
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 40 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
           >
             <div className="grid grid-cols-1 lg:grid-cols-5">
-              {/* Left sidebar */}
-              <div className="lg:col-span-2 bg-gradient-to-br from-indigo-600 to-violet-700 text-white p-10 relative overflow-hidden">
+              {/* Enhanced left sidebar */}
+              <div className="lg:col-span-2 bg-gradient-to-br from-slate-900 via-indigo-900 to-violet-900 text-white p-8 md:p-12 relative overflow-hidden">
                 <div className="relative z-10">
-                  <h3 className="font-bold text-2xl mb-6">
-                    Delight your customers with personalized visits
+                  <div className="flex items-center gap-2 mb-4">
+                    <SparklesIcon className="w-6 h-6 text-yellow-400" />
+                    <span className="text-sm font-bold uppercase tracking-wider text-yellow-400">
+                      Early Access
+                    </span>
+                  </div>
+
+                  <h3 className="font-black text-3xl mb-6 leading-tight">
+                    Be Among the First to Launch AR Experiences
                   </h3>
-                  <p className="mb-8 opacity-90">
-                    Blueprint is trusted by forward-thinking businesses across
-                    retail, hospitality, and commercial real estate.
+
+                  <p className="mb-8 text-lg opacity-90 leading-relaxed">
+                    Blueprint is transforming how businesses engage customers
+                    across retail, hospitality, and commercial spaces. Join our
+                    exclusive early access program.
                   </p>
 
                   <div className="space-y-6">
                     <div className="flex items-start space-x-4">
-                      <div className="bg-white/20 rounded-full p-2 mt-1">
-                        <BuildingOfficeIcon className="w-5 h-5" />
+                      <div className="bg-white/20 rounded-2xl p-3 mt-1">
+                        <Award className="w-6 h-6" />
                       </div>
                       <div>
-                        <h4 className="font-semibold">Enterprise Ready</h4>
-                        <p className="text-sm opacity-80">
-                          Scalable solutions for businesses of all sizes
+                        <h4 className="font-bold text-lg">
+                          Industry Leader Pricing
+                        </h4>
+                        <p className="text-sm opacity-80 leading-relaxed">
+                          Lock in exclusive early adopter rates before our
+                          public launch
                         </p>
                       </div>
                     </div>
 
                     <div className="flex items-start space-x-4">
-                      <div className="bg-white/20 rounded-full p-2 mt-1">
-                        <MapPinIcon className="w-5 h-5" />
+                      <div className="bg-white/20 rounded-2xl p-3 mt-1">
+                        <Users className="w-6 h-6" />
                       </div>
                       <div>
-                        <h4 className="font-semibold">Priority Markets</h4>
-                        <p className="text-sm opacity-80">
-                          Some cities qualify for immediate onboarding with no
+                        <h4 className="font-bold text-lg">
+                          White-Glove Onboarding
+                        </h4>
+                        <p className="text-sm opacity-80 leading-relaxed">
+                          Dedicated success team ensures seamless implementation
+                          and optimization
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start space-x-4">
+                      <div className="bg-white/20 rounded-2xl p-3 mt-1">
+                        <Zap className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-lg">Priority Markets</h4>
+                        <p className="text-sm opacity-80 leading-relaxed">
+                          Major cities qualify for immediate deployment with no
                           waiting period
                         </p>
                       </div>
                     </div>
                   </div>
+
+                  {/* Priority market indicator */}
+                  {isPriorityMarket && (
+                    <motion.div
+                      className="mt-8 p-4 bg-emerald-500/20 border border-emerald-400/30 rounded-2xl"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.5 }}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <StarIcon className="w-5 h-5 text-emerald-400" />
+                        <span className="font-bold text-emerald-400">
+                          Priority Market Detected!
+                        </span>
+                      </div>
+                      <p className="text-sm text-emerald-200">
+                        {formData.city} qualifies for immediate onboarding with
+                        no waiting period.
+                      </p>
+                    </motion.div>
+                  )}
                 </div>
 
-                {/* Background decorations */}
-                <div className="absolute top-0 right-0 w-full h-full">
+                {/* Enhanced background decorations */}
+                <div className="absolute top-0 right-0 w-full h-full opacity-10">
                   <svg
                     width="100%"
                     height="100%"
                     viewBox="0 0 400 400"
                     xmlns="http://www.w3.org/2000/svg"
-                    className="absolute top-0 left-0 opacity-10"
                   >
                     <defs>
                       <pattern
-                        id="smallGrid"
-                        width="20"
-                        height="20"
+                        id="enhancedGrid"
+                        width="30"
+                        height="30"
                         patternUnits="userSpaceOnUse"
                       >
                         <path
-                          d="M 20 0 L 0 0 0 20"
+                          d="M 30 0 L 0 0 0 30"
                           fill="none"
                           stroke="white"
                           strokeWidth="1"
                         />
                       </pattern>
                     </defs>
-                    <rect width="100%" height="100%" fill="url(#smallGrid)" />
+                    <rect
+                      width="100%"
+                      height="100%"
+                      fill="url(#enhancedGrid)"
+                    />
                   </svg>
-
-                  <div className="absolute -bottom-20 -right-20 w-64 h-64 rounded-full bg-white/10 blur-3xl"></div>
+                  <div className="absolute -bottom-32 -right-32 w-80 h-80 rounded-full bg-white/10 blur-3xl"></div>
+                  <div className="absolute -top-20 -left-20 w-60 h-60 rounded-full bg-indigo-400/20 blur-2xl"></div>
                 </div>
               </div>
 
-              {/* Form area */}
-              <div className="lg:col-span-3 p-8 md:p-10">
+              {/* Enhanced form area */}
+              <div className="lg:col-span-3 p-8 md:p-12">
                 {isSuccess ? (
                   <motion.div
                     className="h-full flex flex-col items-center justify-center text-center p-8"
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.5 }}
+                    transition={{ duration: 0.6 }}
                   >
-                    <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-6">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-10 w-10 text-green-600"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-r from-emerald-100 to-teal-100 flex items-center justify-center mb-8">
+                      <CheckCircleIcon className="h-12 w-12 text-emerald-600" />
                     </div>
-                    <h3 className="text-2xl font-bold text-gray-800 mb-2">
-                      Thank You!
+                    <h3 className="text-3xl font-black text-slate-900 mb-4">
+                      Welcome to the Future! 🎉
                     </h3>
-                    <p className="text-lg text-gray-600 mb-6">
-                      Your submission has been received. We'll be in touch
-                      shortly with next steps.
+                    <p className="text-xl text-slate-600 mb-6 max-w-md">
+                      You're officially on our exclusive waitlist. Expect to
+                      hear from our team within 24 hours.
                     </p>
+                    <div className="text-sm text-slate-500 mb-8">
+                      <p>• Check your email for confirmation</p>
+                      <p>• Priority access secured</p>
+                      <p>• Early adopter pricing locked in</p>
+                    </div>
                     <Button
-                      className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700"
+                      className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 px-8 py-3 font-semibold"
                       onClick={() => setIsSuccess(false)}
                     >
                       Submit Another Request
@@ -489,18 +486,19 @@ export default function ContactForm() {
                 ) : (
                   <motion.form
                     onSubmit={handleSubmit}
-                    className="space-y-6"
-                    variants={containerVariants}
-                    initial="hidden"
-                    animate={isInView ? "visible" : "hidden"}
+                    className="space-y-8"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: isInView ? 1 : 0 }}
+                    transition={{ duration: 0.8, delay: 0.4 }}
                   >
-                    <motion.div variants={itemVariants}>
+                    {/* Form fields with enhanced styling */}
+                    <div>
                       <label
-                        className="block text-lg font-medium mb-2 flex items-center"
+                        className="block text-lg font-bold mb-3 flex items-center text-slate-900"
                         htmlFor="name"
                       >
-                        <UserIcon className="w-5 h-5 mr-2 text-indigo-500" />
-                        Name
+                        <UserIcon className="w-5 h-5 mr-3 text-indigo-500" />
+                        Full Name
                       </label>
                       <Input
                         type="text"
@@ -509,82 +507,82 @@ export default function ContactForm() {
                         placeholder="John Doe"
                         value={formData.name}
                         onChange={handleChange}
-                        className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl"
+                        className="border-2 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-2xl py-4 px-6 text-lg bg-white/80 backdrop-blur-sm"
                       />
                       {errors.name && (
-                        <p className="text-red-500 text-sm mt-1">
+                        <p className="text-red-500 text-sm mt-2">
                           {errors.name}
                         </p>
                       )}
-                    </motion.div>
-                    <motion.div variants={itemVariants}>
+                    </div>
+
+                    <div>
                       <label
-                        className="block text-lg font-medium mb-2 flex items-center"
+                        className="block text-lg font-bold mb-3 flex items-center text-slate-900"
                         htmlFor="email"
                       >
-                        <EnvelopeIcon className="w-5 h-5 mr-2 text-indigo-500" />
-                        Work Email
+                        <EnvelopeIcon className="w-5 h-5 mr-3 text-indigo-500" />
+                        Business Email
                       </label>
                       <Input
                         type="email"
                         id="email"
                         name="email"
-                        placeholder="name@work-email.com"
+                        placeholder="john@company.com"
                         value={formData.email}
                         onChange={handleChange}
-                        className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl"
+                        className="border-2 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-2xl py-4 px-6 text-lg bg-white/80 backdrop-blur-sm"
                       />
                       {errors.email && (
-                        <p className="text-red-500 text-sm mt-1">
+                        <p className="text-red-500 text-sm mt-2">
                           {errors.email}
                         </p>
                       )}
-                    </motion.div>
-                    <motion.div variants={itemVariants} className="relative">
+                    </div>
+
+                    <div className="relative">
                       <label
-                        className="block text-lg font-medium mb-2 flex items-center"
+                        className="block text-lg font-bold mb-3 flex items-center text-slate-900"
                         htmlFor="company"
                       >
-                        <BuildingOfficeIcon className="w-5 h-5 mr-2 text-indigo-500" />
-                        Company
+                        <BuildingOfficeIcon className="w-5 h-5 mr-3 text-indigo-500" />
+                        Company Name
                       </label>
                       <Input
                         type="text"
                         id="company"
                         name="company"
-                        placeholder="Company Name"
+                        placeholder="Your Company Name"
                         value={formData.company}
                         onChange={handleChange}
                         onBlur={() => {
-                          // Use setTimeout to allow click event on predictions to fire first
                           setTimeout(() => {
                             setCompanyPredictions([]);
-                          }, 150); // 150ms delay
+                          }, 150);
                         }}
-                        className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl"
+                        className="border-2 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-2xl py-4 px-6 text-lg bg-white/80 backdrop-blur-sm"
                       />
                       {errors.company && (
-                        <p className="text-red-500 text-sm mt-1">
+                        <p className="text-red-500 text-sm mt-2">
                           {errors.company}
                         </p>
                       )}
 
-                      {/* Company Autocomplete Predictions */}
-                      {/* Keep this section exactly as it was */}
+                      {/* Enhanced company autocomplete */}
                       {companyPredictions.length > 0 && (
-                        <div className="relative z-10">
-                          <div className="absolute w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg">
+                        <div className="relative z-20">
+                          <div className="absolute w-full mt-2 bg-white border-2 border-slate-200 rounded-2xl shadow-2xl max-h-60 overflow-y-auto">
                             {companyPredictions.map((prediction) => (
                               <div
                                 key={prediction.place_id}
-                                className="px-4 py-3 hover:bg-indigo-50 cursor-pointer transition-colors duration-150 first:rounded-t-xl last:rounded-b-xl"
+                                className="px-6 py-4 hover:bg-indigo-50 cursor-pointer transition-colors duration-200 first:rounded-t-2xl last:rounded-b-2xl border-b border-slate-100 last:border-b-0"
                                 onClick={() => {
-                                  wasSelection.current = true; // Mark that the change is from selection
+                                  wasSelection.current = true;
                                   setFormData({
                                     ...formData,
                                     company: prediction.description,
                                   });
-                                  setCompanyPredictions([]); // Clear predictions on selection
+                                  setCompanyPredictions([]);
                                   if (companyPlacesService) {
                                     const request = {
                                       placeId: prediction.place_id,
@@ -608,23 +606,23 @@ export default function ContactForm() {
                                   }
                                 }}
                               >
-                                {prediction.description}
+                                <div className="font-medium text-slate-900">
+                                  {prediction.description}
+                                </div>
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
-                    </motion.div>
-                    <motion.div
-                      variants={itemVariants}
-                      className="grid grid-cols-2 gap-4"
-                    >
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6">
                       <div>
                         <label
-                          className="block text-lg font-medium mb-2 flex items-center"
+                          className="block text-lg font-bold mb-3 flex items-center text-slate-900"
                           htmlFor="city"
                         >
-                          <MapPinIcon className="w-5 h-5 mr-2 text-indigo-500" />
+                          <MapPinIcon className="w-5 h-5 mr-3 text-indigo-500" />
                           City
                         </label>
                         <Input
@@ -634,17 +632,17 @@ export default function ContactForm() {
                           placeholder="Los Angeles"
                           value={formData.city}
                           onChange={handleChange}
-                          className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl"
+                          className="border-2 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-2xl py-4 px-6 text-lg bg-white/80 backdrop-blur-sm"
                         />
                         {errors.city && (
-                          <p className="text-red-500 text-sm mt-1">
+                          <p className="text-red-500 text-sm mt-2">
                             {errors.city}
                           </p>
                         )}
                       </div>
                       <div>
                         <label
-                          className="block text-lg font-medium mb-2"
+                          className="block text-lg font-bold mb-3 text-slate-900"
                           htmlFor="state"
                         >
                           State
@@ -656,73 +654,77 @@ export default function ContactForm() {
                           placeholder="CA"
                           value={formData.state}
                           onChange={handleChange}
-                          className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl"
+                          className="border-2 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-2xl py-4 px-6 text-lg bg-white/80 backdrop-blur-sm"
                         />
                         {errors.state && (
-                          <p className="text-red-500 text-sm mt-1">
+                          <p className="text-red-500 text-sm mt-2">
                             {errors.state}
                           </p>
                         )}
                       </div>
-                    </motion.div>
-                    <motion.div variants={itemVariants}>
+                    </div>
+
+                    <div>
                       <label
-                        className="block text-lg font-medium mb-2 flex items-center"
+                        className="block text-lg font-bold mb-3 flex items-center text-slate-900"
                         htmlFor="message"
                       >
-                        <ChatBubbleBottomCenterTextIcon className="w-5 h-5 mr-2 text-indigo-500" />
-                        Additional Comments (Optional)
+                        <ChatBubbleBottomCenterTextIcon className="w-5 h-5 mr-3 text-indigo-500" />
+                        Tell Us About Your Vision (Optional)
                       </label>
                       <Textarea
                         id="message"
                         name="message"
-                        placeholder="Share any specific interests or questions..."
+                        placeholder="Describe your space, goals, or any specific AR experiences you have in mind..."
                         rows={4}
                         value={formData.message}
                         onChange={handleChange}
-                        className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl"
+                        className="border-2 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-2xl py-4 px-6 text-lg bg-white/80 backdrop-blur-sm resize-none"
                       />
-                      {errors.message && (
-                        <p className="text-red-500 text-sm mt-1">
-                          {errors.message}
-                        </p>
+                    </div>
+
+                    <Button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full py-6 text-xl font-bold bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 hover:from-indigo-700 hover:via-violet-700 hover:to-fuchsia-700 transition-all duration-500 rounded-2xl shadow-2xl hover:shadow-indigo-200/50 border-0 hover:scale-105"
+                    >
+                      {isSubmitting ? (
+                        <div className="flex items-center justify-center gap-3">
+                          <svg
+                            className="animate-spin h-6 w-6 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          Securing Your Spot...
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center gap-3">
+                          <RocketLaunchIcon className="w-6 h-6" />
+                          Secure My Early Access
+                        </div>
                       )}
-                    </motion.div>
-                    <motion.div variants={itemVariants}>
-                      <Button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className="w-full py-6 text-lg bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 transition-all duration-300 rounded-xl shadow-lg hover:shadow-indigo-100/50 shadow-indigo-200/30"
-                      >
-                        {isSubmitting ? (
-                          <div className="flex items-center justify-center">
-                            <svg
-                              className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                              xmlns="http://www.w3.org/2000/svg"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                            >
-                              <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                              ></circle>
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                              ></path>
-                            </svg>
-                            Processing...
-                          </div>
-                        ) : (
-                          "Join Waitlist"
-                        )}
-                      </Button>
-                    </motion.div>
+                    </Button>
+
+                    <p className="text-sm text-slate-500 text-center">
+                      By submitting, you agree to receive updates about
+                      Blueprint AR. We respect your privacy and never share your
+                      information.
+                    </p>
                   </motion.form>
                 )}
               </div>

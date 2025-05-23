@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import ContactForm from "@/components/sections/ContactForm";
 import { Card, CardContent } from "@/components/ui/card";
 import Footer from "@/components/Footer";
-//import AIChatButton from "@/components/AIChatButton";
 import Testimonials from "@/components/sections/Testimonials";
 import LocationShowcase from "@/components/sections/LocationShowcase";
 import { motion, useScroll, useTransform } from "framer-motion";
@@ -31,46 +30,88 @@ import {
   Users,
   PenTool,
   Activity,
+  Clock,
+  Star,
+  Smartphone,
+  Brain,
 } from "lucide-react";
 
 export default function Home() {
   const { currentUser } = useAuth();
   const [, setLocation] = useLocation();
   const mainRef = useRef(null);
-  const contactFormRef = useRef(null);
 
   const steps = [
     {
-      icon: <MapPin className="w-8 h-8" />,
+      icon: <Users className="w-6 h-6 md:w-8 md:h-8" />,
       title: "Join Waitlist",
       description:
-        "Provide your business details to secure early access to Blueprint.",
-      benefits: ["Priority access", "Early adopter pricing", "Direct support"],
-      color: "from-indigo-500 to-blue-600",
+        "Secure your spot in our exclusive early access program. Priority onboarding and special pricing available.",
+      benefits: [
+        "Priority access",
+        "Early adopter pricing",
+        "Dedicated support",
+      ],
+      color: "from-emerald-500 to-teal-600",
+      duration: "1 minute",
     },
     {
-      icon: <Edit className="w-8 h-8" />,
-      title: "Schedule 3D Mapping",
+      icon: <MapPin className="w-6 h-6 md:w-8 md:h-8" />,
+      title: "3D Space Mapping",
       description:
-        "Once off the waitlist, you'll receive an email that contains a link to schedule a convenient time for us to map your location.",
-      benefits: ["Flexible scheduling", "Professional team", "Quick process"],
+        "Our expert team visits your location to create a precise 3D digital twin of your space.",
+      benefits: [
+        "Professional scanning",
+        "Flexible scheduling",
+        "High-precision mapping",
+      ],
       color: "from-blue-500 to-cyan-500",
+      duration: "2-3 hours",
     },
     {
-      icon: <Wand2 className="w-8 h-8" />,
-      title: "Customize & Preview",
+      icon: <Brain className="w-6 h-6 md:w-8 md:h-8" />,
+      title: "AI-Powered Setup",
       description:
-        "After mapping, our AI generates a customized AR solution for the digital twin of your space, which you can preview in real-time.",
-      benefits: ["AI-powered setup", "Real-time preview", "Custom features"],
+        "Our AI generates custom AR experiences tailored to your business goals and customer journey.",
+      benefits: [
+        "Intelligent content placement",
+        "Custom interactions",
+        "Brand integration",
+      ],
       color: "from-violet-500 to-purple-600",
+      duration: "3-5 days",
     },
     {
-      icon: <PlayCircle className="w-8 h-8" />,
-      title: "Launch & Engage",
+      icon: <Rocket className="w-6 h-6 md:w-8 md:h-8" />,
+      title: "Launch & Scale",
       description:
-        "Go live with your AR experience and track customer engagement with your strategically placed QR codes.",
-      benefits: ["Instant deployment", "Usage analytics", "Customer insights"],
+        "Go live instantly with QR codes. Track engagement and optimize your AR experience with real-time analytics.",
+      benefits: [
+        "Instant deployment",
+        "Performance analytics",
+        "Continuous optimization",
+      ],
       color: "from-fuchsia-500 to-pink-600",
+      duration: "Same day",
+    },
+  ];
+
+  // Trust indicators
+  const trustMetrics = [
+    {
+      label: "Faster Setup",
+      value: "10x",
+      icon: <Clock className="w-5 h-5" />,
+    },
+    {
+      label: "Customer Engagement",
+      value: "300%",
+      icon: <Star className="w-5 h-5" />,
+    },
+    {
+      label: "No App Required",
+      value: "100%",
+      icon: <Smartphone className="w-5 h-5" />,
     },
   ];
 
@@ -96,7 +137,7 @@ export default function Home() {
   }, [currentUser, setLocation]);
 
   useEffect(() => {
-    // Check if the Lindy script is already added to prevent duplicates
+    // Lindy script loading
     const lindyScriptId = "lindy-embed-script";
     if (document.getElementById(lindyScriptId)) {
       return;
@@ -107,170 +148,185 @@ export default function Home() {
     script.src =
       "https://api.lindy.ai/api/lindyEmbed/lindyEmbed.js?a=9620fed7-bdfb-4329-ada0-b60963170c59";
     script.async = true;
-    script.crossOrigin = "use-credentials"; // In JS, HTML 'crossorigin' attribute is 'crossOrigin'
+    script.crossOrigin = "use-credentials";
 
     document.body.appendChild(script);
 
-    // Optional: Cleanup function to remove the script when the component unmounts
-    // This might be desired if Home component can unmount and you want to clean up.
-    // For a chatbot that should persist, you might omit the cleanup or make it conditional.
     return () => {
       const existingScript = document.getElementById(lindyScriptId);
       if (existingScript && existingScript.parentNode) {
         existingScript.parentNode.removeChild(existingScript);
       }
     };
-  }, []); // Empty dependency array ensures this effect runs only once on mount and cleans up on unmount
+  }, []);
 
   return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden bg-gradient-to-b from-indigo-50 via-white to-blue-50">
-      {/* Animated background patterns */}
-      <div className="fixed inset-0 z-[-2] opacity-70">
+    <div className="min-h-screen flex flex-col relative overflow-hidden bg-white">
+      {/* Enhanced background patterns */}
+      <div className="fixed inset-0 z-[-2] bg-gradient-to-br from-slate-50 via-white to-indigo-50/20">
         <motion.div
-          className="absolute w-[70vw] h-[70vw] rounded-full bg-gradient-to-r from-violet-300/30 to-fuchsia-300/30 blur-3xl"
-          style={{ top: "-35vw", right: "-20vw" }}
+          className="absolute w-[120vw] h-[120vw] md:w-[80vw] md:h-[80vw] rounded-full bg-gradient-to-r from-indigo-100/40 via-violet-100/30 to-fuchsia-100/20 blur-3xl"
+          style={{ top: "-60vw", right: "-40vw" }}
           animate={{
-            y: [0, 10, 0],
-            scale: [1, 1.05, 1],
+            y: [0, 20, 0],
+            scale: [1, 1.1, 1],
+            rotate: [0, 45, 0],
           }}
           transition={{
-            duration: 20,
+            duration: 30,
             repeat: Infinity,
             repeatType: "reverse",
           }}
         />
         <motion.div
-          className="absolute w-[50vw] h-[50vw] rounded-full bg-gradient-to-r from-blue-300/20 to-cyan-300/20 blur-3xl"
-          style={{ bottom: "-20vw", left: "-10vw" }}
+          className="absolute w-[100vw] h-[100vw] md:w-[60vw] md:h-[60vw] rounded-full bg-gradient-to-r from-blue-100/30 via-cyan-100/20 to-emerald-100/15 blur-3xl"
+          style={{ bottom: "-50vw", left: "-30vw" }}
           animate={{
-            y: [0, -15, 0],
-            scale: [1, 1.08, 1],
+            y: [0, -25, 0],
+            scale: [1, 1.15, 1],
+            rotate: [0, -30, 0],
           }}
           transition={{
-            duration: 25,
+            duration: 35,
             repeat: Infinity,
             repeatType: "reverse",
-            delay: 1,
+            delay: 2,
           }}
         />
       </div>
-
-      {/* Subtle grid pattern overlay */}
-      <motion.div
-        className="fixed inset-0 z-[-1] opacity-[0.07] bg-[url('/images/grid-pattern.svg')] bg-repeat"
-        style={{ y: backgroundY }}
-      />
 
       <Nav />
 
       <main ref={mainRef} className="flex-1 relative z-10">
         <Hero />
 
-        {/* Floating badges section */}
-        <div className="relative py-12 overflow-hidden">
-          <div className="container mx-auto px-4">
+        {/* Trust metrics section */}
+        <section className="py-12 md:py-16 bg-white/80 backdrop-blur-sm">
+          <div className="container mx-auto px-6">
             <motion.div
-              className="flex flex-wrap justify-center gap-3 py-6"
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
+              className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto"
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.8 }}
-              transition={{ staggerChildren: 0.1, delayChildren: 0.1 }}
+              transition={{ staggerChildren: 0.1, delayChildren: 0.2 }}
             >
-              {[
-                "Fast Setup",
-                "No App Required",
-                "Easy Integration",
-                "Real-time Analytics",
-                "Customizable",
-              ].map((badge, index) => (
+              {trustMetrics.map((metric, index) => (
                 <motion.div
-                  key={badge}
-                  className="bg-white/80 backdrop-blur-sm border border-indigo-100 rounded-full px-4 py-2 shadow-sm text-indigo-800 font-medium text-sm"
+                  key={metric.label}
+                  className="text-center p-6 rounded-2xl bg-gradient-to-br from-white to-slate-50 border border-slate-200 shadow-lg hover:shadow-xl transition-all duration-300"
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{
-                    duration: 0.5,
-                    delay: index * 0.1,
-                    type: "spring",
-                    stiffness: 50,
-                  }}
+                  transition={{ duration: 0.6, delay: index * 0.1 }}
                 >
-                  {badge}
+                  <div className="flex items-center justify-center mb-3">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 flex items-center justify-center text-white">
+                      {metric.icon}
+                    </div>
+                  </div>
+                  <div className="text-3xl md:text-4xl font-black text-slate-900 mb-2">
+                    {metric.value}
+                  </div>
+                  <div className="text-slate-600 font-medium">
+                    {metric.label}
+                  </div>
                 </motion.div>
               ))}
             </motion.div>
           </div>
-        </div>
+        </section>
 
         <LocationShowcase />
-        {/* <Features /> */}
-        {/* Process Overview */}
-        <section className="py-20 px-4 relative">
-          <div className="container mx-auto max-w-7xl text-center">
+
+        {/* Enhanced Process Overview */}
+        <section className="py-16 md:py-24 px-6 relative bg-gradient-to-b from-slate-50 to-white">
+          <div className="container mx-auto max-w-7xl">
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="max-w-3xl mx-auto mb-16"
+              transition={{ duration: 0.8 }}
+              className="max-w-4xl mx-auto text-center mb-16"
             >
-              <h2 className="text-3xl md:text-4xl font-bold mb-6 text-gray-800">
-                The Implementation Process
+              <div className="inline-flex items-center gap-2 mb-4 bg-indigo-50 text-indigo-700 py-2 px-4 rounded-full text-sm font-semibold">
+                <Zap className="w-4 h-4" />
+                Simple 4-Step Process
+              </div>
+              <h2 className="text-4xl md:text-5xl font-black mb-6 text-slate-900">
+                From Concept to{" "}
+                <span className="bg-gradient-to-r from-indigo-600 to-violet-600 text-transparent bg-clip-text">
+                  Live AR Experience
+                </span>
               </h2>
-              <p className="text-xl text-gray-600">
-                Our streamlined approach makes adopting AR technology simple and
-                stress-free. Here's how we transform your physical space into an
-                interactive AR experience.
+              <p className="text-xl text-slate-600 leading-relaxed">
+                Our streamlined approach makes implementing cutting-edge AR
+                technology effortless. Get your interactive experience live in
+                less than a week.
               </p>
             </motion.div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 relative mb-20">
-              {/* Connection line */}
-              <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-1 bg-gradient-to-r from-indigo-300 via-blue-300 to-violet-300 transform -translate-y-1/2" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 relative">
+              {/* Enhanced connection line */}
+              <div className="hidden lg:block absolute top-20 left-[12.5%] right-[12.5%] h-1 bg-gradient-to-r from-emerald-400 via-blue-400 via-violet-400 to-fuchsia-400 rounded-full shadow-lg" />
 
               {steps.map((step, idx) => (
                 <motion.div
                   key={idx}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 30 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: idx * 0.1 }}
-                  whileHover={{ y: -5 }}
+                  transition={{ duration: 0.6, delay: idx * 0.15 }}
+                  whileHover={{ y: -8 }}
                   className="relative z-10"
                 >
-                  <Card className="h-full border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-                    <CardContent className="p-6 text-left">
-                      <div className="flex flex-col items-center mb-4">
-                        <div
-                          className={`w-16 h-16 rounded-full mb-6 flex items-center justify-center text-white bg-gradient-to-br ${step.color}`}
-                        >
-                          {step.icon}
+                  <Card className="h-full border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-white/90 backdrop-blur-sm overflow-hidden group">
+                    <CardContent className="p-6 md:p-8">
+                      <div className="flex flex-col items-center text-center mb-6">
+                        <div className="relative mb-6">
+                          <div
+                            className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center text-white bg-gradient-to-br ${step.color} shadow-xl group-hover:scale-110 transition-transform duration-300`}
+                          >
+                            {step.icon}
+                          </div>
+                          <div className="absolute -top-2 -right-2 bg-slate-900 text-white text-sm font-bold w-8 h-8 rounded-full flex items-center justify-center">
+                            {idx + 1}
+                          </div>
                         </div>
-                        <h3 className="text-xl font-semibold mb-2 text-gray-800">
-                          {idx + 1}. {step.title}
+
+                        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                          {step.duration}
+                        </div>
+
+                        <h3 className="text-xl md:text-2xl font-bold mb-3 text-slate-900">
+                          {step.title}
                         </h3>
-                        <p className="text-gray-600 mb-4 text-center">
+
+                        <p className="text-slate-600 mb-6 leading-relaxed">
                           {step.description}
                         </p>
                       </div>
-                      <ul className="space-y-2">
+
+                      <div className="space-y-3">
                         {step.benefits.map((benefit, bidx) => (
-                          <li
+                          <div
                             key={bidx}
-                            className="flex items-center text-gray-600"
+                            className="flex items-center text-slate-700"
                           >
-                            <CheckCircle2 className="w-5 h-5 text-green-500 mr-2 flex-shrink-0" />
-                            <span className="text-sm">{benefit}</span>
-                          </li>
+                            <CheckCircle2 className="w-5 h-5 text-emerald-500 mr-3 flex-shrink-0" />
+                            <span className="text-sm font-medium">
+                              {benefit}
+                            </span>
+                          </div>
                         ))}
-                      </ul>
+                      </div>
+
                       {idx === 0 && (
                         <Button
-                          className="w-full mt-6 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white"
+                          className="w-full mt-8 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-base py-6 font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
                           onClick={handleScrollToContactForm}
                         >
-                          Join Waitlist
+                          Start Your AR Journey
+                          <ArrowRight className="w-5 h-5 ml-2" />
                         </Button>
                       )}
                     </CardContent>
@@ -278,13 +334,47 @@ export default function Home() {
                 </motion.div>
               ))}
             </div>
+
+            {/* Call-to-action below process */}
+            <motion.div
+              className="text-center mt-16"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+            >
+              <p className="text-lg text-slate-600 mb-6">
+                Ready to transform your customer experience?
+              </p>
+              <Button
+                size="lg"
+                variant="outline"
+                className="text-lg px-10 py-6 font-semibold border-2 border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-all duration-300"
+                onClick={handleScrollToContactForm}
+              >
+                See Pricing & Get Started
+                <ArrowDown className="w-5 h-5 ml-2" />
+              </Button>
+            </motion.div>
           </div>
         </section>
-        {/* <Testimonials /> */}
+
         <ContactForm />
       </main>
 
       <Footer />
+
+      {/* Enhanced mobile floating action button */}
+      <div className="lg:hidden fixed bottom-6 left-6 right-6 z-50">
+        <Button
+          onClick={handleScrollToContactForm}
+          className="w-full py-6 flex items-center justify-center gap-3 text-lg font-semibold shadow-2xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-2xl border-0 hover:scale-105 transition-all duration-300"
+        >
+          <Rocket className="w-6 h-6" />
+          Get Early Access
+          <ArrowRight className="w-5 h-5" />
+        </Button>
+      </div>
     </div>
   );
 }
