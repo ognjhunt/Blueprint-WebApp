@@ -48,8 +48,8 @@ export default function Hero() {
 
   const features = [
     { icon: <Zap className="w-5 h-5" />, text: "No App Required" },
-    { icon: <Eye className="w-5 h-5" />, text: "Works on Any Phone" },
-    { icon: <Sparkles className="w-5 h-5" />, text: "Ready in Days" },
+    { icon: <Eye className="w-5 h-5" />, text: "Works on All Glasses" },
+    { icon: <Sparkles className="w-5 h-5" />, text: "Ready in under 24 Hours" },
   ];
 
   return (

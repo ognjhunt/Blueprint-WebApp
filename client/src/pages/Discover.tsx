@@ -352,28 +352,6 @@ export default function Discover() {
         </div>
       </section>
 
-      {/* Process Overview */}
-      <section className="py-20 px-4 relative">
-        <div className="container mx-auto max-w-7xl text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="max-w-3xl mx-auto mb-16"
-          >
-            <h2 className="text-3xl md:text-4xl font-bold mb-6 text-gray-800">
-              The Implementation Process
-            </h2>
-            <p className="text-xl text-gray-600">
-              Our streamlined approach makes adopting AR technology simple and
-              stress-free. Here's how we transform your physical space into an
-              interactive AR experience.
-            </p>
-          </motion.div>
-        </div>
-      </section>
-
       {/* Enhanced Process Overview */}
       <section className="py-16 md:py-24 px-6 relative bg-gradient-to-b from-slate-50 to-white">
         <div className="container mx-auto max-w-7xl">
@@ -395,9 +373,9 @@ export default function Discover() {
               </span>
             </h2>
             <p className="text-xl text-slate-600 leading-relaxed">
-              Our streamlined approach makes implementing cutting-edge AR
-              technology effortless. Get your interactive experience live in under
-              24 hours.
+              Our streamlined approach makes adopting AR technology simple and
+              stress-free. Get your interactive experience live in under 24
+              hours.
             </p>
           </motion.div>
 
@@ -450,9 +428,7 @@ export default function Discover() {
                           className="flex items-center text-slate-700"
                         >
                           <CheckCircle2 className="w-5 h-5 text-emerald-500 mr-3 flex-shrink-0" />
-                          <span className="text-sm font-medium">
-                            {benefit}
-                          </span>
+                          <span className="text-sm font-medium">{benefit}</span>
                         </div>
                       ))}
                     </div>
@@ -494,214 +470,6 @@ export default function Discover() {
             </Button>
           </motion.div>
         </div>
-      </section>
-
-      {/* Detailed Process Section */}
-      <section ref={processRef} className="py-24 px-4 relative">
-        <motion.div
-          style={{ opacity, y }}
-          className="container mx-auto max-w-7xl"
-        >
-          <div className="text-center mb-20">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-            >
-              <h2 className="text-4xl font-bold mb-6 bg-gradient-to-r from-indigo-600 to-violet-600 inline-block text-transparent bg-clip-text">
-                How Blueprint Works
-              </h2>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Our technology combines advanced 3D mapping, artificial
-                intelligence, and augmented reality to create seamless
-                interactive experiences.
-              </p>
-            </motion.div>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-16 items-center">
-            <div>
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-xl border border-indigo-100">
-                <div className="flex justify-between mb-6">
-                  {steps.map((step, idx) => (
-                    <button
-                      key={idx}
-                      className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                        activeStep === idx
-                          ? `text-white bg-gradient-to-br ${step.color}`
-                          : "bg-gray-100 text-gray-500"
-                      }`}
-                      onClick={() => setActiveStep(idx)}
-                    >
-                      {idx + 1}
-                    </button>
-                  ))}
-                </div>
-
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={activeStep}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <div
-                      className={`w-16 h-16 rounded-full mb-6 flex items-center justify-center text-white bg-gradient-to-br ${steps[activeStep].color}`}
-                    >
-                      {steps[activeStep].icon}
-                    </div>
-                    <h3 className="text-2xl font-bold mb-4 text-gray-800">
-                      {activeStep + 1}. {steps[activeStep].title}
-                    </h3>
-                    <p className="text-lg text-gray-600 mb-6">
-                      {steps[activeStep].description}
-                    </p>
-                    <div className="bg-indigo-50 rounded-xl p-4">
-                      <h4 className="font-semibold text-indigo-800 mb-2">
-                        Benefits:
-                      </h4>
-                      <ul className="space-y-2">
-                        {steps[activeStep].benefits.map((benefit, idx) => (
-                          <li
-                            key={idx}
-                            className="flex items-center text-gray-700"
-                          >
-                            <CheckCircle2 className="w-5 h-5 text-green-500 mr-2" />
-                            {benefit}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-            </div>
-
-            <div className="relative">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={activeStep}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.5 }}
-                  className="rounded-2xl overflow-hidden shadow-2xl"
-                >
-                  {activeStep === 0 && (
-                    <div className="relative">
-                      <img
-                        src="/images/waitlist.jpeg"
-                        alt="Join Waitlist"
-                        className="w-full aspect-video object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src =
-                            "/images/grocery-store.jpeg";
-                        }}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-tr from-indigo-900/30 to-transparent" />
-                      <div className="absolute bottom-8 left-8 right-8 bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-indigo-100">
-                        <h4 className="font-bold text-indigo-800">
-                          Priority Access
-                        </h4>
-                        <p className="text-gray-700">
-                          Join our waitlist to get early access and special
-                          pricing.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  {activeStep === 1 && (
-                    <div className="relative">
-                      <img
-                        src="/images/3d-mapping.jpeg"
-                        alt="3D Mapping"
-                        className="w-full aspect-video object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src =
-                            "/images/retail-ar.jpeg";
-                        }}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-tr from-indigo-900/30 to-transparent" />
-                      <div className="absolute bottom-8 left-8 right-8 bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-indigo-100">
-                        <h4 className="font-bold text-indigo-800">
-                          Professional 3D Mapping
-                        </h4>
-                        <p className="text-gray-700">
-                          Our specialists create accurate digital
-                          representations of your space.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  {activeStep === 2 && (
-                    <div className="relative">
-                      <img
-                        src="/images/customize.jpeg"
-                        alt="Customize"
-                        className="w-full aspect-video object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src =
-                            "/images/hotel-ar.jpeg";
-                        }}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-tr from-indigo-900/30 to-transparent" />
-                      <div className="absolute bottom-8 left-8 right-8 bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-indigo-100">
-                        <h4 className="font-bold text-indigo-800">
-                          AI-Powered Customization
-                        </h4>
-                        <p className="text-gray-700">
-                          Add interactive elements and preview your AR
-                          experience in real-time.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  {activeStep === 3 && (
-                    <div className="relative">
-                      <img
-                        src="/images/launch.jpeg"
-                        alt="Launch"
-                        className="w-full aspect-video object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src =
-                            "/images/museum-ar.jpeg";
-                        }}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-tr from-indigo-900/30 to-transparent" />
-                      <div className="absolute bottom-8 left-8 right-8 bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-indigo-100">
-                        <h4 className="font-bold text-indigo-800">
-                          Interactive Customer Engagement
-                        </h4>
-                        <p className="text-gray-700">
-                          Track analytics and optimize your AR experience for
-                          maximum impact.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </motion.div>
-              </AnimatePresence>
-
-              {/* AR Indicators */}
-              <motion.div
-                className={`absolute top-[20%] right-[20%] w-12 h-12 rounded-full border-2 border-indigo-400 flex items-center justify-center ${activeStep > 1 ? "opacity-100" : "opacity-0"}`}
-                animate={{
-                  scale: [1, 1.2, 1],
-                  opacity: activeStep > 1 ? [0.8, 1, 0.8] : 0,
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  repeatType: "reverse",
-                }}
-              >
-                <div className="w-3 h-3 rounded-full bg-indigo-500" />
-              </motion.div>
-            </div>
-          </div>
-        </motion.div>
       </section>
 
       {/* Technology Highlights */}
@@ -773,7 +541,6 @@ export default function Discover() {
       </section>
 
       <Footer />
-      <AIChatButton />
     </div>
   );
 }
