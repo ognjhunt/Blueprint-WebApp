@@ -16,30 +16,6 @@ import {
   CSS3DObject,
 } from "three/examples/jsm/renderers/CSS3DRenderer.js";
 
-// TypeScript interface declarations for TransformControls and DragControls to avoid import errors
-// interface TransformControls extends THREE.Object3D {
-//   visible: boolean;
-//   enabled: boolean;
-//   mode: string;
-//   object: THREE.Object3D | null;
-//   space: string;
-//   dragging: boolean;
-//   setMode(mode: string): void;
-//   attach(object: THREE.Object3D): this;
-//   detach(): void;
-//   setSpace(space: string): void;
-//   setSize(size: number): void;
-//   setTranslationSnap(translationSnap: number): void;
-//   setRotationSnap(rotationSnap: number): void;
-//   setScaleSnap(scaleSnap: number): void;
-//   addEventListener(type: string, listener: (event: any) => void): void;
-//   removeEventListener(type: string, listener: (event: any) => void): void;
-//   showX: boolean;
-//   showY: boolean;
-//   showZ: boolean;
-//   dispose(): void; // Add dispose method
-// }
-
 interface DragControls {
   enabled: boolean;
   transformGroup: boolean;
@@ -1770,41 +1746,6 @@ const ThreeViewer = React.memo(
               imagePlane.userData.anchorId = anchor.id;
               imagePlane.userData.type = "file-image";
 
-              // Modify pointerdown event listener to select the helper mesh
-              imagePlane.addEventListener("pointerdown", (e) => {
-                e.stopPropagation();
-                e.preventDefault(); // Prevent default browser actions
-
-                const helper = imagePlane.userData.helperMesh as THREE.Mesh;
-                const anchorId = imagePlane.userData.anchorId;
-                const fileAnchorData = fileAnchors?.find(
-                  (a) => a.id === anchorId,
-                );
-
-                console.log(
-                  `Image plane clicked for ${anchorId}. Helper found: ${!!helper}`,
-                );
-
-                // 1. Notify BlueprintEditor
-                if (onFileAnchorClick && fileAnchorData) {
-                  onFileAnchorClick(anchorId, fileAnchorData); // This is correct
-                } else {
-                  console.warn(
-                    `onFileAnchorClick callback missing or anchor data not found for ${anchorId}`,
-                  );
-                }
-
-                // 2. Select the HELPER mesh for 3D interaction
-                if (helper) {
-                  handleAnchorSelect(anchorId, helper, "file"); // This is correct
-                } else {
-                  console.warn(
-                    `Helper mesh not found for file anchor ${anchorId} on click.`,
-                  );
-                  handleAnchorSelect(anchorId, imagePlane, "file"); // Fallback
-                }
-              });
-
               sceneRef.current!.add(imagePlane);
               console.log(
                 `%c[ThreeViewer fileAnchors] Successfully ADDED imagePlane mesh to scene for ${anchor.id}`,
@@ -1812,12 +1753,7 @@ const ThreeViewer = React.memo(
               );
               fileAnchorsRef.current.set(anchor.id, imagePlane);
 
-              // AFTER (Inside the fileAnchors.forEach loop, AFTER creating imagePlane/videoPlane/pdfObject/docIcon):
-              // --- ADD HELPER MESH FOR ALL FILE ANCHOR TYPES ---
-              const visualObject = anchor.id
-                ? sceneRef.current!.getObjectByName(anchor.id) ||
-                  new THREE.Object3D()
-                : new THREE.Object3D(); // or videoPlane, pdfObject, docIcon (use the correct variable name)
+              // --- ADD HELPER MESH FOR IMAGE ANCHOR ---
               const helperGeometry = new THREE.BoxGeometry(0.01, 0.01, 0.01); // Small invisible box
               const helperMaterial = new THREE.MeshBasicMaterial({
                 visible: false,
@@ -1827,28 +1763,22 @@ const ThreeViewer = React.memo(
               });
               const helperMesh = new THREE.Mesh(helperGeometry, helperMaterial);
 
-              // Position helper exactly where the visual object is
-              helperMesh.position.copy(visualObject.position);
-              helperMesh.rotation.copy(visualObject.rotation); // Match rotation
-              // Note: Scaling helpers might not be desired, especially for CSS objects.
-              // helperMesh.scale.copy(visualObject.scale);
+              // Position helper exactly where the image plane is
+              helperMesh.position.copy(imagePlane.position);
+              helperMesh.rotation.copy(imagePlane.rotation); // Match rotation
 
               // Link helper and visual object using userData
-              visualObject.userData.helperMesh = helperMesh; // Link visual -> helper
-              helperMesh.userData.visualObject = visualObject; // Link helper -> visual
+              imagePlane.userData.helperMesh = helperMesh; // Link visual -> helper
+              helperMesh.userData.visualObject = imagePlane; // Link helper -> visual
               helperMesh.userData.anchorId = anchor.id; // Store anchor ID on helper
               helperMesh.userData.type = "file-helper"; // Identify helper type
 
               // Add helper to the main WebGL scene
               sceneRef.current!.add(helperMesh);
               console.log(
-                `[ThreeViewer fileAnchors] Added helper mesh for anchor ${anchor.id}`,
+                `[ThreeViewer fileAnchors] Added helper mesh for image anchor ${anchor.id}`,
               );
               // --- END HELPER MESH ADDITION ---
-
-              sceneRef.current!.add(visualObject);
-              // Store the VISUAL object in the ref (or the helper, depending on your selection strategy, but visual is often fine here)
-              fileAnchorsRef.current.set(anchor.id, visualObject);
             } catch (loadError) {
               console.error(
                 `[ThreeViewer fileAnchors] Error creating image texture/mesh inside onload for ${anchor.id} (${anchor.fileName}):`,
@@ -2095,41 +2025,6 @@ const ThreeViewer = React.memo(
               videoPlane.userData.type = "file-video";
               videoPlane.userData.videoElement = video;
 
-              // Add a pointerdown event listener to select the video anchor
-              videoPlane.addEventListener("pointerdown", (e) => {
-                e.stopPropagation();
-                e.preventDefault(); // Prevent default browser actions
-
-                const helper = videoPlane.userData.helperMesh as THREE.Mesh;
-                const currentAnchorId = anchor.id; // Use anchor.id from the loop's current scope
-                const fileAnchorData = fileAnchors?.find(
-                  (a) => a.id === currentAnchorId,
-                );
-
-                console.log(
-                  `Video plane directly clicked for ${currentAnchorId}. Helper found: ${!!helper}. Anchor data found: ${!!fileAnchorData}`,
-                );
-
-                // 1. Notify BlueprintEditor to show the info panel
-                if (onFileAnchorClick && fileAnchorData) {
-                  onFileAnchorClick(currentAnchorId, fileAnchorData);
-                } else {
-                  console.warn(
-                    `onFileAnchorClick callback missing or file anchor data not found for video ${currentAnchorId}`,
-                  );
-                }
-
-                // 2. Select the HELPER mesh (or videoPlane as fallback) for 3D interaction
-                if (helper) {
-                  handleAnchorSelect(currentAnchorId, helper, "file");
-                } else {
-                  console.warn(
-                    `Helper mesh not found for video anchor ${currentAnchorId} on direct click. Selecting video plane.`,
-                  );
-                  handleAnchorSelect(currentAnchorId, videoPlane, "file");
-                }
-              });
-
               sceneRef.current!.add(videoPlane);
               console.log(
                 `%c[ThreeViewer fileAnchors] Successfully ADDED videoPlane mesh to scene for ${anchor.id}`,
@@ -2151,9 +2046,7 @@ const ThreeViewer = React.memo(
                   ),
                 );
 
-              // AFTER (Inside the fileAnchors.forEach loop, AFTER creating imagePlane/videoPlane/pdfObject/docIcon):
-              // --- ADD HELPER MESH FOR ALL FILE ANCHOR TYPES ---
-              const visualObject = videoPlane; // or videoPlane, pdfObject, docIcon (use the correct variable name)
+              // --- ADD HELPER MESH FOR VIDEO ANCHOR ---
               const helperGeometry = new THREE.BoxGeometry(0.01, 0.01, 0.01); // Small invisible box
               const helperMaterial = new THREE.MeshBasicMaterial({
                 visible: false,
@@ -2163,28 +2056,22 @@ const ThreeViewer = React.memo(
               });
               const helperMesh = new THREE.Mesh(helperGeometry, helperMaterial);
 
-              // Position helper exactly where the visual object is
-              helperMesh.position.copy(visualObject.position);
-              helperMesh.rotation.copy(visualObject.rotation); // Match rotation
-              // Note: Scaling helpers might not be desired, especially for CSS objects.
-              // helperMesh.scale.copy(visualObject.scale);
+              // Position helper exactly where the video plane is
+              helperMesh.position.copy(videoPlane.position);
+              helperMesh.rotation.copy(videoPlane.rotation); // Match rotation
 
               // Link helper and visual object using userData
-              visualObject.userData.helperMesh = helperMesh; // Link visual -> helper
-              helperMesh.userData.visualObject = visualObject; // Link helper -> visual
+              videoPlane.userData.helperMesh = helperMesh; // Link visual -> helper
+              helperMesh.userData.visualObject = videoPlane; // Link helper -> visual
               helperMesh.userData.anchorId = anchor.id; // Store anchor ID on helper
               helperMesh.userData.type = "file-helper"; // Identify helper type
 
               // Add helper to the main WebGL scene
               sceneRef.current!.add(helperMesh);
               console.log(
-                `[ThreeViewer fileAnchors] Added helper mesh for anchor ${anchor.id}`,
+                `[ThreeViewer fileAnchors] Added helper mesh for video anchor ${anchor.id}`,
               );
               // --- END HELPER MESH ADDITION ---
-
-              sceneRef.current!.add(visualObject);
-              // Store the VISUAL object in the ref (or the helper, depending on your selection strategy, but visual is often fine here)
-              fileAnchorsRef.current.set(anchor.id, visualObject);
             } catch (loadError) {
               console.error(
                 `[ThreeViewer fileAnchors] Error creating video texture/mesh inside onloadeddata for ${anchor.id} (${anchor.fileName}):`,
@@ -5234,18 +5121,33 @@ const ThreeViewer = React.memo(
         );
 
         // 3) Filter out helpers, highlights, dragPlane, originMarker…
-        const visibleIntersects = allIntersects.filter(
-          (intersect) =>
-            intersect.object.visible &&
-            intersect.object.name !== "selection-highlight" && // Exclude main CSS highlight tracker
-            intersect.object.name !== "selection-highlight-helper" && // Exclude 3D box highlight for helpers
-            intersect.object.name !== "dragPlane" &&
+        const visibleIntersects = allIntersects.filter((intersect) => {
+          const obj = intersect.object;
+          return (
+            obj.visible &&
+            obj.name !== "selection-highlight" && // Exclude main CSS highlight tracker
+            obj.name !== "selection-highlight-helper" && // Exclude 3D box highlight for helpers
+            obj.name !== "dragPlane" &&
+            // Filter out transform control gizmo parts
+            !obj.name.includes("X") &&
+            !obj.name.includes("Y") &&
+            !obj.name.includes("Z") &&
+            !obj.name.includes("E") &&
+            !obj.name.includes("XYZE") &&
+            // Check if object is part of transform controls
+            !(
+              transformControlsRef.current &&
+              obj.parent === transformControlsRef.current
+            ) &&
+            !(
+              transformControlsRef.current &&
+              obj.isDescendantOf?.(transformControlsRef.current)
+            ) &&
             // Helper meshes (e.g., "text-helper", "file-helper") ARE valid click targets
             // for initiating selection, so they should NOT be filtered out here.
-            // The subsequent logic will determine if a clicked helper corresponds to an anchor.
-            (!originMarkerRef.current ||
-              intersect.object !== originMarkerRef.current),
-        );
+            (!originMarkerRef.current || obj !== originMarkerRef.current)
+          );
+        });
 
         // ***** START CONFIRMATION LOGGING *****
         console.log(
@@ -5662,64 +5564,116 @@ const ThreeViewer = React.memo(
 
             // Check File Anchors (only if not found yet)
             if (!foundAnchor) {
-              // Iterate through the fileAnchors prop directly to ensure we have the latest data
-              if (fileAnchors) {
-                // Ensure fileAnchors prop exists
+              // FIRST: Check if currentObj itself is a file anchor (direct hit on image/video mesh)
+              if (
+                currentObj.userData?.type?.startsWith("file-") &&
+                currentObj.userData?.anchorId
+              ) {
+                const anchorId = currentObj.userData.anchorId;
+                let fileAnchorData = fileAnchors?.find(
+                  (a) => a.id === anchorId,
+                );
+
+                console.log(
+                  `[handleClick] Direct hit on file anchor mesh! ID: ${anchorId}, Type: ${currentObj.userData.type}`,
+                );
+
+                // If we can't find the anchor data in props, create a minimal object
+                if (!fileAnchorData) {
+                  console.warn(
+                    `[handleClick] File anchor ${anchorId} not found in fileAnchors prop. Creating minimal data.`,
+                  );
+
+                  // Extract file type from the userData type (e.g., "file-image" -> "image")
+                  const fileType = currentObj.userData.type.replace(
+                    "file-",
+                    "",
+                  );
+
+                  fileAnchorData = {
+                    id: anchorId,
+                    fileType: fileType,
+                    fileName: `${fileType} file`, // Default name
+                    fileUrl: "", // We don't have the URL from userData
+                    x: 0, // These will be updated by the transform
+                    y: 0,
+                    z: 0,
+                  };
+                }
+
+                // For file anchors, prefer the helper mesh if it exists
+                const helperMesh = currentObj.userData.helperMesh as THREE.Mesh;
+                const objectToSelect = helperMesh || currentObj;
+
+                console.log(
+                  `[handleClick] Selecting file anchor. Using:`,
+                  helperMesh ? "helper mesh" : "visual mesh",
+                );
+
+                // 1. Call onFileAnchorClick with the anchorData
+                if (onFileAnchorClick) {
+                  onFileAnchorClick(anchorId, fileAnchorData);
+                } else {
+                  console.warn(
+                    "[handleClick] onFileAnchorClick callback is missing",
+                  );
+                }
+
+                // 2. Select the anchor for 3D interaction
+                handleAnchorSelect(anchorId, objectToSelect, "file");
+
+                foundAnchor = true;
+                selectedAnchorObjectForHighlight = objectToSelect;
+              }
+
+              // THEN: Check the existing ref-based logic if not found by direct hit
+              if (!foundAnchor && fileAnchors) {
                 for (const anchorData of fileAnchors) {
-                  // Iterate over the data array
-                  const fileObject = fileAnchorsRef.current.get(anchorData.id); // Get the 3D object from our ref
-                  if (!fileObject) continue; // If no 3D object for this data, skip
+                  const fileObject = fileAnchorsRef.current.get(anchorData.id);
+                  if (!fileObject) continue;
 
                   const helperMesh = fileObject.userData
                     .helperMesh as THREE.Mesh;
 
-                  // Check if currentObj (the clicked object) is the visual object, its helper, or a child of the visual object
-                  let isThisAnchor = false;
+                  // Check if currentObj is the helper mesh
+                  if (helperMesh && currentObj === helperMesh) {
+                    console.log(
+                      `[handleClick] Clicked helper mesh for File Anchor: ${anchorData.id}`,
+                    );
+
+                    if (onFileAnchorClick) {
+                      onFileAnchorClick(anchorData.id, anchorData);
+                    }
+
+                    handleAnchorSelect(anchorData.id, helperMesh, "file");
+                    foundAnchor = true;
+                    selectedAnchorObjectForHighlight = helperMesh;
+                    break;
+                  }
+
+                  // Check for audio and other CSS3D file types
                   if (
-                    currentObj === fileObject ||
-                    (helperMesh && currentObj === helperMesh)
-                  ) {
-                    isThisAnchor = true;
-                  } else if (
-                    fileObject.children.length > 0 &&
-                    currentObj.isDescendantOf?.(fileObject)
-                  ) {
-                    // This handles cases where the visual object is a Group and a child mesh was clicked
-                    isThisAnchor = true;
-                  } else if (
                     fileObject.userData.type === "file-audio" &&
                     currentObj.isDescendantOf?.(fileObject)
                   ) {
-                    // Specific check for audio wrapper which is a CSS3DObject
-                    isThisAnchor = true;
-                  }
-
-                  if (isThisAnchor) {
-                    const objectToSelect = helperMesh || fileObject; // Prefer helper for transform controls
+                    const objectToSelect = helperMesh || fileObject;
 
                     console.log(
-                      `[handleClick] Identified File Anchor: ${anchorData.id}, Object to select:`,
-                      objectToSelect,
+                      `[handleClick] Clicked audio file anchor: ${anchorData.id}`,
                     );
 
-                    // 1. Call onFileAnchorClick with the anchorData from the prop
                     if (onFileAnchorClick) {
-                      onFileAnchorClick(anchorData.id, anchorData); // Pass the full anchorData
-                    } else {
-                      console.warn(
-                        `[handleClick] onFileAnchorClick callback is missing for file anchor ${anchorData.id}`,
-                      );
+                      onFileAnchorClick(anchorData.id, anchorData);
                     }
 
-                    // 2. Select the anchor for 3D interaction
                     handleAnchorSelect(anchorData.id, objectToSelect, "file");
-
                     foundAnchor = true;
                     selectedAnchorObjectForHighlight = objectToSelect;
-                    break; // Exit the loop once the anchor is found and processed
+                    break;
                   }
                 }
               }
+
               if (foundAnchor) break; // Exit the while(currentObj) loop
             }
 
