@@ -43,7 +43,7 @@ export default function OffWaitlistSignUpFlow() {
   const [isAddressFocused, setIsAddressFocused] = useState(false);
   const [isValidToken, setIsValidToken] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Define a type for the token data
   type TokenData = {
     id: string;
@@ -52,7 +52,9 @@ export default function OffWaitlistSignUpFlow() {
     status?: string;
     [key: string]: any; // For any other properties in the token data
   };
-  
+
+  const INTERNAL_TEST_TOKEN = "blueprint-internal-test-token-2025";
+
   const [tokenData, setTokenData] = useState<TokenData | null>(null);
 
   // ------------------------------
@@ -141,14 +143,17 @@ export default function OffWaitlistSignUpFlow() {
         });
 
         // 3) Mark the token as used
-        await updateDoc(doc(db, "waitlistTokens", tokenData.id), {
-          status: "used",
-          usedAt: serverTimestamp(),
-          usedBy: userId,
-        });
+        if (tokenData.id !== "internal-test-token") {
+          await updateDoc(doc(db, "waitlistTokens", tokenData.id), {
+            status: "used",
+            usedAt: serverTimestamp(),
+            usedBy: userId,
+          });
+        }
       } catch (error: unknown) {
         console.error("Error creating user:", error);
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         setErrorMessage("Error creating user: " + errorMessage);
         return; // Stop here if there's an error
       }
@@ -175,7 +180,8 @@ export default function OffWaitlistSignUpFlow() {
         });
       } catch (error: unknown) {
         console.error("Error updating contact info:", error);
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         setErrorMessage("Error updating contact info: " + errorMessage);
         return; // Stop here if there's an error
       }
@@ -277,7 +283,8 @@ export default function OffWaitlistSignUpFlow() {
           .catch((err) => console.error("Lindy error:", err));
       } catch (error: unknown) {
         console.error("Error updating scheduling info:", error);
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         setErrorMessage("Error updating scheduling info: " + errorMessage);
         return; // Stop here if there's an error
       }
@@ -476,6 +483,25 @@ export default function OffWaitlistSignUpFlow() {
         return;
       }
 
+      // Check for internal test token first
+      if (token === INTERNAL_TEST_TOKEN) {
+        // Create mock token data for testing
+        const mockTokenData: TokenData = {
+          id: "internal-test-token",
+          email: "test@blueprint.com",
+          company: "Blueprint Test Company",
+          status: "unused",
+        };
+
+        setOrganizationName("Blueprint Test Company");
+        setEmail("test@blueprint.com");
+        initialOrgNameSet.current = true;
+        setTokenData(mockTokenData);
+        setIsValidToken(true);
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const q = query(
           collection(db, "waitlistTokens"),
@@ -496,24 +522,24 @@ export default function OffWaitlistSignUpFlow() {
           const data = tokenDoc.data();
 
           // Pre-fill form fields if available
-          // Pre-fill form fields if available
           if (data.company) {
             setOrganizationName(data.company);
-            initialOrgNameSet.current = true; // Mark that the initial value was set programmatically
+            initialOrgNameSet.current = true;
           }
           if (data.email) setEmail(data.email);
 
           // Create properly typed token data
           const typedTokenData: TokenData = {
             id: tokenDoc.id,
-            ...data
+            ...data,
           };
           setTokenData(typedTokenData);
           setIsValidToken(true);
         }
       } catch (error: unknown) {
         console.error("Error validating token:", error);
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         setErrorMessage("Error validating your access token: " + errorMessage);
         setIsValidToken(false);
       } finally {
@@ -522,7 +548,7 @@ export default function OffWaitlistSignUpFlow() {
     };
 
     validateToken();
-  }, []); // No dependency on searchParams anymore
+  }, []);
 
   useEffect(() => {
     if (step === 2) {
