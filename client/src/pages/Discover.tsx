@@ -41,6 +41,7 @@ import {
   Clock,
   Scan,
   Star,
+  Lock,
 } from "lucide-react";
 
 const EnterpriseARSection = () => {
