@@ -83,7 +83,7 @@ export default function ContactForm() {
     {
       icon: <TrendingUp className="w-5 h-5" />,
       title: "Proven ROI",
-      description: "300%+ engagement increase",
+      description: "200%+ engagement increase",
     },
   ];
 

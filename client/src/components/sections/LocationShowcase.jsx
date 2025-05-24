@@ -46,7 +46,7 @@ export default function LocationShowcase() {
       description:
         "Turn shopping into an interactive experience with AR product information, nutritional details, and personalized recommendations.",
       benefits: [
-        "300% increase in engagement",
+        "200% increase in engagement",
         "Reduced checkout time",
         "Enhanced product discovery",
       ],
@@ -344,7 +344,7 @@ export default function LocationShowcase() {
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: 1, duration: 0.6 }}
                     >
-                      <div className="text-xs font-bold">+300% Engagement</div>
+                      <div className="text-xs font-bold">+200% Engagement</div>
                     </motion.div>
                   </div>
                 </div>

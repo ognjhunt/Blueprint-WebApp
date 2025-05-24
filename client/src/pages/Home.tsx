@@ -96,22 +96,31 @@ export default function Home() {
     },
   ];
 
-  // Trust indicators
+  // Trust indicators with enhanced context
   const trustMetrics = [
     {
       label: "Faster Setup",
       value: "10x",
       icon: <Clock className="w-5 h-5" />,
+      context: "vs. building solutions in-house",
+      tooltip:
+        "Average business takes ~10 days to build AR solutions vs. Blueprint's 1-day deployment",
     },
     {
       label: "Customer Engagement",
-      value: "300%",
+      value: "200%",
       icon: <Star className="w-5 h-5" />,
+      context: "vs. non-AR experiences",
+      tooltip:
+        "AR experiences deliver significantly higher interactivity compared to traditional digital interactions",
     },
     {
       label: "No App Required",
-      value: "100%",
+      value: "N/A",
       icon: <Smartphone className="w-5 h-5" />,
+      context: "Works via QR codes",
+      tooltip:
+        "Customers access AR experiences instantly through their glasses's camera - no downloads needed",
     },
   ];
 
@@ -213,12 +222,23 @@ export default function Home() {
               {trustMetrics.map((metric, index) => (
                 <motion.div
                   key={metric.label}
-                  className="text-center p-6 rounded-2xl bg-gradient-to-br from-white to-slate-50 border border-slate-200 shadow-lg hover:shadow-xl transition-all duration-300"
+                  className="text-center p-6 rounded-2xl bg-gradient-to-br from-white to-slate-50 border border-slate-200 shadow-lg hover:shadow-xl transition-all duration-300 group relative"
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.6, delay: index * 0.1 }}
                 >
+                  {/* Tooltip */}
+                  <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div className="relative">
+                      <Info className="w-5 h-5 text-slate-400 hover:text-slate-600 cursor-help" />
+                      <div className="absolute bottom-full right-0 mb-2 w-64 p-3 bg-slate-900 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-50">
+                        {metric.tooltip}
+                        <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-900"></div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="flex items-center justify-center mb-3">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 flex items-center justify-center text-white">
                       {metric.icon}
@@ -227,8 +247,12 @@ export default function Home() {
                   <div className="text-3xl md:text-4xl font-black text-slate-900 mb-2">
                     {metric.value}
                   </div>
-                  <div className="text-slate-600 font-medium">
+                  <div className="text-slate-600 font-medium mb-1">
                     {metric.label}
+                  </div>
+                  {/* Context text */}
+                  <div className="text-xs text-slate-500 italic">
+                    {metric.context}
                   </div>
                 </motion.div>
               ))}
@@ -260,8 +284,8 @@ export default function Home() {
               </h2>
               <p className="text-xl text-slate-600 leading-relaxed">
                 Our streamlined approach makes implementing cutting-edge AR
-                technology effortless. Get your interactive experience live in under
-                24 hours.
+                technology effortless. Get your interactive experience up and
+                running in under 24 hours.
               </p>
             </motion.div>
 

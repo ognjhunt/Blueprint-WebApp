@@ -15,14 +15,14 @@ export default function Hero() {
         "Transform your business location into an immersive digital playground that captivates customers and drives engagement—no app downloads required.",
     },
     {
-      text: "Boost Customer Engagement with", //Personalize Your Custoer Experience with
-      highlight: "Web-Based Augmented Reality",
+      text: "Boost Engagement 200%", //Personalize Your Custoer Experience with
+      highlight: "with Blueprint",
       description:
         "Create memorable experiences that work instantly in any smart glasses browser. From product demos to virtual tours, engage customers like never before.",
     },
     {
-      text: "Easiest AR Platform for",
-      highlight: "Forward-Thinking Businesses", //easy to create customized customer solutions for the spatial age
+      text: "Customized In-Person UX",
+      highlight: "For The Spatial Age", //easy to create customized customer solutions for the spatial age
       description:
         "Join industry leaders who are already transforming customer experiences with our cutting-edge spatial computing technology.",
     },
