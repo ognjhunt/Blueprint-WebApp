@@ -1618,11 +1618,44 @@ export default function BlueprintEditor() {
         setBlueprintStatus(blueprintData.status || "pending");
 
         // Skip onboarding if blueprint is already active
+        // if (
+        //   blueprintData.status === "active" ||
+        //   blueprintData.onboardingCompleted
+        // ) {
+        //   setShowOnboarding(false);
+        // }
+        const urlParams = new URLSearchParams(window.location.search);
+        const testMode =
+          urlParams.get("test") === "true" ||
+          urlParams.get("resetOnboarding") === "true";
+
+        // Skip onboarding if blueprint is already active (unless in test mode)
         if (
-          blueprintData.status === "active" ||
-          blueprintData.onboardingCompleted
+          (blueprintData.status === "active" ||
+            blueprintData.onboardingCompleted) &&
+          !testMode
         ) {
           setShowOnboarding(false);
+        } else if (testMode) {
+          // Force onboarding for testing
+          setShowOnboarding(true);
+          setOnboardingStep(1);
+          setShowFeatureConfig(false);
+          setOnboardingMode("fullscreen");
+
+          // Reset onboarding data to default state for testing
+          setOnboardingData({
+            goal: "",
+            useCases: [],
+            audienceType: "",
+            keyAreas: [],
+            expectedVisitors: "",
+            techComfort: "moderate",
+            preferredStyle: "professional",
+            specialFeatures: [],
+          });
+
+          console.log("🧪 Test mode activated - onboarding reset");
         }
 
         // Set prefill data
