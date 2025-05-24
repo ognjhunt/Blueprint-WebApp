@@ -45,7 +45,7 @@ import {
 } from "lucide-react";
 
 const EnterpriseARSection = () => {
-  const [hoveredFeature, setHoveredFeature] = useState(null);
+  const [hoveredFeature, setHoveredFeature] = useState<number | null>(null);
   const containerRef = useRef(null);
 
   const { scrollYProgress } = useScroll({
