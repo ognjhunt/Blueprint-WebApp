@@ -21,6 +21,11 @@ import {
   Edit,
   Wand2,
   PlayCircle,
+  Smartphone,
+  Brain,
+  BarChart3,
+  Gauge,
+  Cloud,
   ArrowRight,
   CheckCircle2,
   ArrowDown,
@@ -31,54 +36,389 @@ import {
   Users,
   PenTool,
   Activity,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Scan,
+  Star,
 } from "lucide-react";
-// Insert this block right after your import statements and before your Discover component
 
+const EnterpriseARSection = () => {
+  const [hoveredFeature, setHoveredFeature] = useState(null);
+  const containerRef = useRef(null);
+
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start end", "end start"],
+  });
+
+  const y = useTransform(scrollYProgress, [0, 1], ["0%", "20%"]);
+
+  // Enhanced feature set with metrics and detailed benefits
+  const primaryFeatures = [
+    {
+      icon: <Smartphone className="w-8 h-8" />,
+      title: "Zero-Friction Access",
+      subtitle: "No App Downloads Required",
+      description:
+        "Customers access AR experiences instantly through any mobile browser. No app store visits, no storage space required.",
+      metrics: [
+        { label: "Load Time", value: "< 2s" },
+        { label: "Compatibility", value: "100%" },
+        { label: "Storage Used", value: "0 MB" },
+      ],
+      benefits: [
+        "Works on any smartphone",
+        "Instant access via QR codes",
+        "No user friction barriers",
+      ],
+      gradient: "from-blue-500 via-cyan-500 to-teal-500",
+      delay: 0.1,
+    },
+    {
+      icon: <Brain className="w-8 h-8" />,
+      title: "AI-Powered Optimization",
+      subtitle: "Intelligent Content Placement",
+      description:
+        "Our AI analyzes foot traffic, lighting, and spatial geometry to position AR elements exactly where they'll have maximum impact.",
+      metrics: [
+        { label: "Accuracy", value: "99.2%" },
+        { label: "Optimization", value: "Real-time" },
+        { label: "Learning", value: "Continuous" },
+      ],
+      benefits: [
+        "Optimal engagement zones",
+        "Adaptive to environment changes",
+        "Performance-driven placement",
+      ],
+      gradient: "from-violet-500 via-purple-500 to-fuchsia-500",
+      delay: 0.2,
+    },
+    {
+      icon: <Users className="w-8 h-8" />,
+      title: "Multi-User Experiences",
+      subtitle: "Shared AR Interactions",
+      description:
+        "Multiple customers can simultaneously interact with the same AR elements, creating collaborative and social experiences.",
+      metrics: [
+        { label: "Concurrent Users", value: "50+" },
+        { label: "Sync Latency", value: "< 100ms" },
+        { label: "Stability", value: "99.9%" },
+      ],
+      benefits: [
+        "Social AR interactions",
+        "Real-time synchronization",
+        "Scalable architecture",
+      ],
+      gradient: "from-emerald-500 via-green-500 to-lime-500",
+      delay: 0.3,
+    },
+  ];
+
+  const secondaryFeatures = [
+    {
+      icon: <BarChart3 className="w-6 h-6" />,
+      title: "Advanced Analytics",
+      description:
+        "Comprehensive engagement tracking with heat maps, interaction analytics, and ROI measurement.",
+      color: "from-orange-500 to-red-500",
+    },
+    {
+      icon: <Lock className="w-6 h-6" />,
+      title: "Enterprise Security",
+      description:
+        "Bank-level encryption, SOC 2 compliance, and privacy-first architecture protect your data.",
+      color: "from-pink-500 to-rose-500",
+    },
+    {
+      icon: <Gauge className="w-6 h-6" />,
+      title: "Lightning Performance",
+      description:
+        "Optimized rendering engine ensures smooth 60fps AR experiences even on older devices.",
+      color: "from-indigo-500 to-blue-500",
+    },
+    {
+      icon: <Cloud className="w-6 h-6" />,
+      title: "Global CDN",
+      description:
+        "Content delivered from 180+ edge locations worldwide for consistent performance anywhere.",
+      color: "from-cyan-500 to-teal-500",
+    },
+  ];
+
+  return (
+    <section
+      ref={containerRef}
+      className="relative py-24 md:py-32 px-4 overflow-hidden"
+    >
+      {/* Enhanced Background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-white via-slate-50/50 to-white">
+        <motion.div style={{ y }} className="absolute inset-0 opacity-30">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-violet-400/20 to-purple-400/20 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-400/20 to-cyan-400/20 rounded-full blur-3xl" />
+        </motion.div>
+
+        {/* Animated grid pattern */}
+        <div className="absolute inset-0 opacity-5">
+          <div
+            className="w-full h-full"
+            style={{
+              backgroundImage: `
+              linear-gradient(rgba(99, 102, 241, 0.1) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(99, 102, 241, 0.1) 1px, transparent 1px)
+            `,
+              backgroundSize: "60px 60px",
+            }}
+          />
+        </div>
+      </div>
+
+      <div className="container mx-auto max-w-7xl relative z-10">
+        {/* Enhanced Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="text-center mb-20"
+        >
+          <div className="inline-flex items-center gap-2 mb-6 bg-gradient-to-r from-indigo-100 to-violet-100 text-indigo-700 px-6 py-3 rounded-full text-sm font-semibold shadow-lg">
+            <ShieldCheck className="w-4 h-4" />
+            Enterprise-Grade Technology
+          </div>
+
+          <h2 className="text-5xl md:text-6xl font-black mb-8 text-gray-900 leading-tight">
+            Professional AR
+            <span className="block bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 bg-clip-text text-transparent">
+              Made Simple
+            </span>
+          </h2>
+
+          <p className="text-xl md:text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed mb-8">
+            Enterprise-level capabilities with zero complexity. Our platform
+            delivers cutting-edge AR technology that scales from boutique shops
+            to global retailers.
+          </p>
+
+          {/* Trust indicators */}
+          <div className="flex flex-wrap justify-center gap-8 text-sm font-semibold text-gray-700">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+              <span>SOC 2 Certified</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+              <span>99.9% Uptime SLA</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+              <span>24/7 Support</span>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Primary Features - Enhanced Cards */}
+        <div className="grid lg:grid-cols-3 gap-8 mb-20">
+          {primaryFeatures.map((feature, idx) => (
+            <motion.div
+              key={idx}
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: feature.delay }}
+              onMouseEnter={() => setHoveredFeature(idx)}
+              onMouseLeave={() => setHoveredFeature(null)}
+              className="group"
+            >
+              <Card className="h-full border-0 shadow-xl hover:shadow-2xl transition-all duration-500 overflow-hidden bg-white/80 backdrop-blur-sm">
+                {/* Gradient header */}
+                <div className={`h-2 bg-gradient-to-r ${feature.gradient}`} />
+
+                <CardContent className="p-8">
+                  {/* Icon and Title */}
+                  <div className="flex items-start gap-4 mb-6">
+                    <motion.div
+                      whileHover={{ rotate: 5, scale: 1.1 }}
+                      className={`p-4 rounded-2xl bg-gradient-to-br ${feature.gradient} text-white shadow-lg`}
+                    >
+                      {feature.icon}
+                    </motion.div>
+                    <div className="flex-1">
+                      <h3 className="text-2xl font-bold text-gray-900 mb-1">
+                        {feature.title}
+                      </h3>
+                      <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                        {feature.subtitle}
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="text-gray-600 leading-relaxed mb-8">
+                    {feature.description}
+                  </p>
+
+                  {/* Metrics */}
+                  <div className="grid grid-cols-3 gap-4 mb-8">
+                    {feature.metrics.map((metric, midx) => (
+                      <div key={midx} className="text-center">
+                        <div className="text-2xl font-black text-gray-900 mb-1">
+                          {metric.value}
+                        </div>
+                        <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          {metric.label}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Benefits */}
+                  <div className="space-y-3">
+                    {feature.benefits.map((benefit, bidx) => (
+                      <motion.div
+                        key={bidx}
+                        initial={{ opacity: 0.8, x: 0 }}
+                        animate={{
+                          opacity: hoveredFeature === idx ? 1 : 0.8,
+                          x: hoveredFeature === idx ? 4 : 0,
+                        }}
+                        transition={{ delay: bidx * 0.1 }}
+                        className="flex items-center gap-3"
+                      >
+                        <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                        <span className="text-sm font-medium text-gray-700">
+                          {benefit}
+                        </span>
+                      </motion.div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Secondary Features - Compact Grid */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8, delay: 0.4 }}
+          className="mb-16"
+        >
+          <h3 className="text-3xl font-bold text-center mb-12 text-gray-900">
+            Built for Scale & Security
+          </h3>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {secondaryFeatures.map((feature, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: idx * 0.1 }}
+                whileHover={{ y: -4 }}
+                className="group"
+              >
+                <Card className="h-full border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white/70 backdrop-blur-sm">
+                  <CardContent className="p-6">
+                    <div
+                      className={`inline-flex p-3 rounded-xl bg-gradient-to-br ${feature.color} text-white mb-4 group-hover:scale-110 transition-transform duration-300`}
+                    >
+                      {feature.icon}
+                    </div>
+                    <h4 className="text-lg font-bold mb-2 text-gray-900">
+                      {feature.title}
+                    </h4>
+                    <p className="text-gray-600 text-sm leading-relaxed">
+                      {feature.description}
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* Call to Action */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8, delay: 0.6 }}
+          className="text-center bg-gradient-to-r from-indigo-600 to-violet-600 rounded-3xl p-12 shadow-2xl"
+        >
+          <h3 className="text-3xl md:text-4xl font-bold text-white mb-4">
+            Ready to See It in Action?
+          </h3>
+          <p className="text-xl text-indigo-100 mb-8 max-w-2xl mx-auto">
+            Schedule a personalized demo and see how Blueprint can transform
+            your customer experience in under 30 minutes.
+          </p>
+          <Button
+            size="lg"
+            className="bg-white text-indigo-600 hover:bg-gray-50 px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 group"
+          >
+            Schedule Demo
+            <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+          </Button>
+        </motion.div>
+      </div>
+    </section>
+  );
+};
+
+// Enhanced Image Carousel with better controls and styling
 const ImageCarousel = () => {
   const slides = [
     {
       src: "/images/ChatGPT Image Apr 9, 2025, 08_32_27 AM.png",
-      alt: "Step 1: Your first step description",
-      caption:
-        "Step 1: Our mapping specialist will meet your contact at the scheduled date + time. (estimated time: 5 mins)",
+      alt: "Step 1: Initial Meeting",
+      caption: "Initial Meeting",
+      description: "Our AR specialist arrives at your location",
+      time: "5 mins",
     },
     {
       src: "/images/ChatGPT Image Apr 9, 2025, 08_50_20 AM.png",
-      alt: "Step 2: Your second step description",
-      caption:
-        "Step 2: After a brief overview, the mapper will start scanning your location. (estimated time: 20 mins)",
+      alt: "Step 2: 3D Scanning",
+      caption: "3D Space Scanning",
+      description: "Advanced scanning creates a digital twin of your space",
+      time: "20 mins",
     },
     {
       src: "/images/ChatGPT Image Apr 9, 2025, 10_28_16 AM.png",
-      alt: "Step 3: Your third step description",
-      caption:
-        "Step 3: Within minutes, our AI Agent will create a customized AR experience for customers. The location contact has the option to test it out and further edit _____. (estimated time: 15 mins)",
+      alt: "Step 3: AI Generation",
+      caption: "AI-Powered Creation",
+      description: "Our AI instantly generates custom AR experiences",
+      time: "15 mins",
     },
     {
       src: "/images/ChatGPT Image Apr 9, 2025, 09_03_13 AM.png",
-      alt: "Step 4: Your fourth step description",
-      caption:
-        "Step 4: Once finished, with the help of the location contact, we'll place QR codes in the ideal positions for customers. (estimated time: 15 mins)",
+      alt: "Step 4: QR Placement",
+      caption: "Strategic QR Placement",
+      description: "QR codes positioned for optimal customer engagement",
+      time: "15 mins",
     },
     {
       src: "/images/ChatGPT Image Apr 9, 2025, 09_08_15 AM.png",
-      alt: "Step 5: Your final step description",
-      caption:
-        "Step 5: Customers with smart glasses can now easily enter a personalized experience at your location by scanning a QR code.",
+      alt: "Step 5: Customer Experience",
+      caption: "Instant AR Access",
+      description: "Customers scan QR codes to enter AR experiences",
+      time: "Instant",
     },
     {
       src: "/images/ChatGPT Image Apr 9, 2025, 10_33_42 AM.png",
-      alt: "Step 6: Your final step description",
-      caption:
-        "Step 6: Continuous Improvement. Using data + analytics, Blueprint's Agent will continue to update your location's experience.",
+      alt: "Step 6: Continuous Updates",
+      caption: "Continuous Optimization",
+      description: "AI analyzes data to improve experiences over time",
+      time: "Ongoing",
     },
   ];
 
   const [activeIndex, setActiveIndex] = useState(0);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const delay = 6000; // slide duration in milliseconds
+  const delay = 7000;
 
-  // Clear timeout before starting a new one
   const resetTimeout = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
   };
@@ -96,451 +436,442 @@ const ImageCarousel = () => {
   }, [activeIndex, slides.length]);
 
   return (
-    <div className="relative overflow-hidden rounded-2xl shadow-2xl">
-      <div className="relative w-full aspect-[3/2]">
-        <AnimatePresence>
-          <motion.img
-            key={activeIndex}
-            src={slides[activeIndex].src}
-            alt={slides[activeIndex].alt}
-            className="absolute top-0 left-0 w-full h-full object-cover"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.8 }}
-          />
-        </AnimatePresence>
-        {/* Caption overlay */}
-        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-4 text-center">
-          {slides[activeIndex].caption}
+    <div className="relative">
+      {/* Main carousel container */}
+      <div className="relative overflow-hidden rounded-3xl shadow-2xl bg-gradient-to-br from-gray-900 to-gray-800">
+        <div className="relative w-full aspect-[16/10] md:aspect-[3/2]">
+          <AnimatePresence mode="wait">
+            <motion.img
+              key={activeIndex}
+              src={slides[activeIndex].src}
+              alt={slides[activeIndex].alt}
+              className="absolute inset-0 w-full h-full object-cover"
+              initial={{ opacity: 0, scale: 1.1 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.7 }}
+            />
+          </AnimatePresence>
+
+          {/* Gradient overlay for better text readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+          {/* Enhanced caption with step info */}
+          <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10">
+            <motion.div
+              key={`caption-${activeIndex}`}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <span className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md text-white px-4 py-2 rounded-full text-sm font-medium">
+                  <Clock className="w-4 h-4" />
+                  {slides[activeIndex].time}
+                </span>
+                <span className="text-white/80 text-sm">
+                  Step {activeIndex + 1} of {slides.length}
+                </span>
+              </div>
+              <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                {slides[activeIndex].caption}
+              </h3>
+              <p className="text-white/90 text-lg max-w-2xl">
+                {slides[activeIndex].description}
+              </p>
+            </motion.div>
+          </div>
         </div>
-      </div>
-      {/* Manual Controls */}
-      <div className="absolute inset-0 flex items-center justify-between px-4">
+
+        {/* Enhanced navigation buttons */}
         <button
-          onClick={() =>
+          onClick={() => {
+            resetTimeout();
             setActiveIndex(
               activeIndex === 0 ? slides.length - 1 : activeIndex - 1,
-            )
-          }
-          className="bg-black bg-opacity-50 text-white p-2 rounded-full focus:outline-none"
+            );
+          }}
+          className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 backdrop-blur-md hover:bg-white/20 text-white p-3 rounded-full transition-all duration-300 hover:scale-110"
+          aria-label="Previous slide"
         >
-          Prev
+          <ChevronLeft className="w-6 h-6" />
         </button>
         <button
-          onClick={() =>
+          onClick={() => {
+            resetTimeout();
             setActiveIndex(
               activeIndex === slides.length - 1 ? 0 : activeIndex + 1,
-            )
-          }
-          className="bg-black bg-opacity-50 text-white p-2 rounded-full focus:outline-none"
+            );
+          }}
+          className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 backdrop-blur-md hover:bg-white/20 text-white p-3 rounded-full transition-all duration-300 hover:scale-110"
+          aria-label="Next slide"
         >
-          Next
+          <ChevronRight className="w-6 h-6" />
         </button>
+      </div>
+
+      {/* Progress dots */}
+      <div className="flex justify-center gap-2 mt-6">
+        {slides.map((_, idx) => (
+          <button
+            key={idx}
+            onClick={() => {
+              resetTimeout();
+              setActiveIndex(idx);
+            }}
+            className={`h-2 rounded-full transition-all duration-300 ${
+              idx === activeIndex
+                ? "w-8 bg-gradient-to-r from-indigo-500 to-violet-500"
+                : "w-2 bg-gray-300 hover:bg-gray-400"
+            }`}
+            aria-label={`Go to slide ${idx + 1}`}
+          />
+        ))}
       </div>
     </div>
   );
 };
 
-const handleScrollToContactForm = () => {
-  const contactFormElement = document.getElementById("contactForm");
-  if (contactFormElement) {
-    contactFormElement.scrollIntoView({ behavior: "smooth" });
-  }
-};
-
-// Animation variants
-const fadeIn = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.6,
-      ease: "easeOut",
-    },
-  },
-};
-
+// Enhanced step cards for the 4-step process
 const steps = [
   {
-    icon: <MapPin className="w-8 h-8" />,
-    title: "Join Waitlist",
+    icon: <Rocket className="w-8 h-8" />,
+    title: "Join Early Access",
     description:
-      "Provide your business details to secure early access to Blueprint.",
-    benefits: ["Priority access", "Early adopter pricing", "Direct support"],
-    color: "from-indigo-500 to-blue-600",
+      "Reserve your spot for priority access to Blueprint's AR platform",
+    benefits: [
+      "50% early adopter discount",
+      "Priority support",
+      "Custom onboarding",
+    ],
+    color: "from-violet-500 to-purple-600",
   },
   {
-    icon: <Edit className="w-8 h-8" />,
-    title: "Schedule 3D Mapping",
+    icon: <Scan className="w-8 h-8" />,
+    title: "Quick 3D Mapping",
     description:
-      "Once off the waitlist, you'll receive an email that contains a link to schedule a convenient time for us to map your location.",
-    benefits: ["Flexible scheduling", "Professional team", "Quick process"],
+      "Our team scans your space in under 30 minutes using advanced tech",
+    benefits: [
+      "Non-intrusive process",
+      "Works during business hours",
+      "No setup required",
+    ],
     color: "from-blue-500 to-cyan-500",
   },
   {
     icon: <Wand2 className="w-8 h-8" />,
-    title: "Customize & Preview",
+    title: "AI Creates Your AR",
     description:
-      "After mapping, our AI generates a customized AR solution for the digital twin of your space, which you can preview in real-time.",
-    benefits: ["AI-powered setup", "Real-time preview", "Custom features"],
-    color: "from-violet-500 to-purple-600",
+      "Watch as AI instantly generates custom AR experiences for your space",
+    benefits: [
+      "Tailored to your brand",
+      "Preview in real-time",
+      "Unlimited revisions",
+    ],
+    color: "from-emerald-500 to-teal-500",
   },
   {
-    icon: <PlayCircle className="w-8 h-8" />,
-    title: "Launch & Engage",
+    icon: <Star className="w-8 h-8" />,
+    title: "Go Live Instantly",
     description:
-      "Go live with your AR experience and track customer engagement with your strategically placed QR codes.",
-    benefits: ["Instant deployment", "Usage analytics", "Customer insights"],
-    color: "from-fuchsia-500 to-pink-600",
+      "Launch your AR experience and start delighting customers immediately",
+    benefits: [
+      "No app downloads",
+      "Analytics dashboard",
+      "Continuous optimization",
+    ],
+    color: "from-orange-500 to-red-500",
   },
 ];
 
-// Technology sections
-const techSections = [
+// Enhanced technology features
+const techFeatures = [
   {
-    icon: <Layers className="w-8 h-8 text-indigo-500" />,
-    title: "No App Required",
+    icon: <Globe className="w-8 h-8" />,
+    title: "No App Downloads",
     description:
-      "Our AR experiences work directly in mobile browsers, eliminating the friction of app downloads.",
+      "Works instantly in any mobile browser. Your customers just scan and experience.",
+    gradient: "from-blue-500 to-cyan-500",
   },
   {
-    icon: <Code className="w-8 h-8 text-blue-500" />,
-    title: "Easy Integration",
+    icon: <Layers className="w-8 h-8" />,
+    title: "Smart AR Placement",
     description:
-      "Seamlessly integrates with your existing systems, website, and marketing materials.",
+      "AI analyzes your space to place AR elements exactly where they'll have maximum impact.",
+    gradient: "from-violet-500 to-purple-500",
   },
   {
-    icon: <Globe className="w-8 h-8 text-teal-500" />,
-    title: "Works Anywhere",
+    icon: <Users className="w-8 h-8" />,
+    title: "Multi-User Experiences",
     description:
-      "AR experiences are location-aware and can be triggered through QR codes or App Clips.",
+      "Multiple customers can interact with the same AR elements simultaneously.",
+    gradient: "from-emerald-500 to-teal-500",
   },
   {
-    icon: <Users className="w-8 h-8 text-purple-500" />,
-    title: "Multi-User Support",
+    icon: <Activity className="w-8 h-8" />,
+    title: "Real-Time Analytics",
     description:
-      "Allow customers to interact with the same AR elements simultaneously.",
+      "Track engagement, popular elements, and ROI with our comprehensive dashboard.",
+    gradient: "from-orange-500 to-red-500",
   },
   {
-    icon: <PenTool className="w-8 h-8 text-pink-500" />,
-    title: "Custom Designs",
+    icon: <ShieldCheck className="w-8 h-8" />,
+    title: "Enterprise Security",
     description:
-      "Create unique AR elements that match your brand identity and space aesthetics.",
+      "Bank-level encryption and privacy controls keep your data and customers safe.",
+    gradient: "from-pink-500 to-rose-500",
   },
   {
-    icon: <Activity className="w-8 h-8 text-orange-500" />,
-    title: "Analytics Dashboard",
+    icon: <Zap className="w-8 h-8" />,
+    title: "Lightning Fast",
     description:
-      "Track user engagement, popular elements, and conversion metrics.",
+      "AR experiences load in under 2 seconds, ensuring zero customer friction.",
+    gradient: "from-indigo-500 to-blue-500",
   },
 ];
 
 export default function Discover() {
   const contactFormRef = useRef<HTMLDivElement>(null);
-  const processRef = useRef<HTMLDivElement>(null);
-  const [activeStep, setActiveStep] = useState(0);
-
-  const { scrollYProgress } = useScroll({
-    target: processRef,
-    offset: ["start end", "end start"],
-  });
-
-  const opacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0, 1, 1, 0]);
-  const y = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [100, 0, 0, 100]);
+  const [hoveredStep, setHoveredStep] = useState<number | null>(null);
 
   const scrollToContact = () => {
-    contactFormRef.current?.scrollIntoView({ behavior: "smooth" });
+    contactFormRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
   };
 
   return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden bg-gradient-to-b from-indigo-50 via-white to-blue-50">
-      {/* Animated background patterns */}
-      <div className="fixed inset-0 z-[-2] opacity-70">
-        <motion.div
-          className="absolute w-[70vw] h-[70vw] rounded-full bg-gradient-to-r from-violet-300/30 to-fuchsia-300/30 blur-3xl"
-          style={{ top: "-35vw", right: "-20vw" }}
-          animate={{
-            y: [0, 10, 0],
-            scale: [1, 1.05, 1],
-          }}
-          transition={{
-            duration: 20,
-            repeat: Infinity,
-            repeatType: "reverse",
-          }}
-        />
-        <motion.div
-          className="absolute w-[50vw] h-[50vw] rounded-full bg-gradient-to-r from-blue-300/20 to-cyan-300/20 blur-3xl"
-          style={{ bottom: "-20vw", left: "-10vw" }}
-          animate={{
-            y: [0, -15, 0],
-            scale: [1, 1.08, 1],
-          }}
-          transition={{
-            duration: 25,
-            repeat: Infinity,
-            repeatType: "reverse",
-            delay: 1,
-          }}
-        />
+    <div className="min-h-screen flex flex-col bg-white">
+      {/* Subtle background decoration */}
+      <div className="fixed inset-0 z-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(120,119,198,0.08),transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(99,102,241,0.08),transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_80%,rgba(139,92,246,0.08),transparent_50%)]" />
       </div>
-
-      {/* Subtle grid pattern overlay */}
-      <motion.div className="fixed inset-0 z-[-1] opacity-[0.07] bg-[url('/images/grid-pattern.svg')] bg-repeat" />
 
       <Nav />
 
-      {/* Hero Section */}
-      <section className="pt-32 pb-16 px-4 relative overflow-hidden">
-        <div className="container mx-auto max-w-7xl">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+      {/* Enhanced Hero Section */}
+      <section className="relative pt-28 pb-20 px-4 overflow-hidden">
+        <div className="container mx-auto max-w-7xl relative z-10">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
             <motion.div
-              variants={fadeIn}
-              initial="hidden"
-              animate="visible"
-              className="space-y-6"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              className="space-y-8"
             >
-              <div className="inline-block mb-3 bg-indigo-50 text-indigo-700 py-1 px-4 rounded-full text-sm font-medium tracking-wide">
-                Implementation Process
-              </div>
-              <h1 className="text-5xl font-bold leading-tight text-gray-800">
-                Transform Spaces Into{" "}
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600">
-                  Interactive Experiences
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-violet-100 to-indigo-100 text-indigo-700 px-5 py-2 rounded-full text-sm font-semibold"
+              >
+                <Sparkle className="w-4 h-4" />
+                See How Blueprint Works
+              </motion.div>
+
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-gray-900">
+                Turn Any Space Into an
+                <span className="block mt-2 bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 bg-clip-text text-transparent">
+                  AR Experience
+                </span>
+                <span className="block mt-2 text-3xl md:text-4xl lg:text-5xl text-gray-700">
+                  in Under 1 Hour
                 </span>
               </h1>
-              <p className="text-xl text-gray-600">
-                Blueprint uses advanced AR and AI technology to create immersive
-                environments that engage your customers without requiring any
-                app downloads.
+
+              <p className="text-xl text-gray-600 leading-relaxed max-w-xl">
+                No coding. No apps. Just scan a QR code and watch your space
+                come alive with interactive AR that drives 3x more engagement.
               </p>
+
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
                 <Button
                   size="lg"
-                  className="py-6 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-md hover:shadow-indigo-200/50 hover:scale-105 transition-all duration-300"
+                  className="group relative overflow-hidden bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white px-8 py-6 text-lg font-semibold shadow-xl hover:shadow-2xl transition-all duration-300"
                   onClick={scrollToContact}
                 >
-                  Get Started Free
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                  <span className="relative z-10 flex items-center">
+                    Get Early Access
+                    <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                  </span>
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
-                  className="py-6 text-indigo-700 border-2 border-indigo-200 hover:bg-indigo-50 hover:scale-105 transition-all duration-300"
-                  onClick={() => {
-                    processRef.current?.scrollIntoView({ behavior: "smooth" });
-                  }}
+                  className="group px-8 py-6 text-lg font-semibold border-2 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all duration-300"
                 >
-                  See How It Works
-                  <ArrowDown className="ml-2 h-5 w-5" />
+                  <PlayCircle className="mr-2 h-5 w-5 text-indigo-600" />
+                  Watch 2-min Demo
                 </Button>
               </div>
+
+              {/* Trust indicators */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+                className="flex items-center gap-8 pt-4 text-sm text-gray-600"
+              >
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-green-500" />
+                  <span>Setup in 1 hour</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-green-500" />
+                  <span>No app required</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-green-500" />
+                  <span>ROI guaranteed</span>
+                </div>
+              </motion.div>
             </motion.div>
 
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.3 }}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 1, delay: 0.3 }}
               className="relative"
             >
-              {/* Replace the static image with the carousel */}
               <ImageCarousel />
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Enhanced Process Overview */}
-      <section className="py-16 md:py-24 px-6 relative bg-gradient-to-b from-slate-50 to-white">
+      {/* Streamlined 4-Step Process */}
+      <section className="py-20 md:py-32 px-4 bg-gradient-to-b from-gray-50 to-white relative">
         <div className="container mx-auto max-w-7xl">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="max-w-4xl mx-auto text-center mb-16"
+            className="text-center mb-20"
           >
-            <div className="inline-flex items-center gap-2 mb-4 bg-indigo-50 text-indigo-700 py-2 px-4 rounded-full text-sm font-semibold">
+            <div className="inline-flex items-center gap-2 mb-6 bg-gradient-to-r from-indigo-100 to-violet-100 text-indigo-700 px-5 py-2 rounded-full text-sm font-semibold">
               <Zap className="w-4 h-4" />
               Simple 4-Step Process
             </div>
-            <h2 className="text-4xl md:text-5xl font-black mb-6 text-slate-900">
-              From Concept to{" "}
-              <span className="bg-gradient-to-r from-indigo-600 to-violet-600 text-transparent bg-clip-text">
-                Live AR Experience
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900">
+              From Sign-Up to Live AR in
+              <span className="block mt-2 bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
+                Less Than 24 Hours
               </span>
             </h2>
-            <p className="text-xl text-slate-600 leading-relaxed">
-              Our streamlined approach makes adopting AR technology simple and
-              stress-free. Get your interactive experience live in under 24
-              hours.
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Our streamlined process gets you up and running faster than
+              ordering custom business cards
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 relative">
-            {/* Enhanced connection line */}
-            <div className="hidden lg:block absolute top-20 left-[12.5%] right-[12.5%] h-1 bg-gradient-to-r from-emerald-400 via-blue-400 via-violet-400 to-fuchsia-400 rounded-full shadow-lg" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 relative">
+            {/* Connection line for desktop */}
+            <div className="hidden lg:block absolute top-24 left-[12.5%] right-[12.5%] h-0.5">
+              <div className="h-full bg-gradient-to-r from-violet-300 via-indigo-300 to-purple-300 rounded-full" />
+            </div>
 
             {steps.map((step, idx) => (
               <motion.div
                 key={idx}
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 40 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: idx * 0.15 }}
-                whileHover={{ y: -8 }}
-                className="relative z-10"
+                transition={{ duration: 0.6, delay: idx * 0.1 }}
+                onMouseEnter={() => setHoveredStep(idx)}
+                onMouseLeave={() => setHoveredStep(null)}
+                className="relative"
               >
-                <Card className="h-full border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-white/90 backdrop-blur-sm overflow-hidden group">
-                  <CardContent className="p-6 md:p-8">
-                    <div className="flex flex-col items-center text-center mb-6">
+                <Card
+                  className={`h-full border-0 shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden ${
+                    hoveredStep === idx ? "scale-105" : ""
+                  }`}
+                >
+                  <div
+                    className={`absolute inset-0 bg-gradient-to-br ${step.color} opacity-5`}
+                  />
+                  <CardContent className="relative p-8">
+                    <div className="flex flex-col items-center text-center">
+                      {/* Step number and icon */}
                       <div className="relative mb-6">
-                        <div
-                          className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center text-white bg-gradient-to-br ${step.color} shadow-xl group-hover:scale-110 transition-transform duration-300`}
+                        <motion.div
+                          whileHover={{ rotate: 360 }}
+                          transition={{ duration: 0.8 }}
+                          className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${step.color} p-5 shadow-xl`}
                         >
-                          {step.icon}
-                        </div>
-                        <div className="absolute -top-2 -right-2 bg-slate-900 text-white text-sm font-bold w-8 h-8 rounded-full flex items-center justify-center">
+                          <div className="w-full h-full flex items-center justify-center text-white">
+                            {step.icon}
+                          </div>
+                        </motion.div>
+                        <div className="absolute -top-2 -right-2 bg-white shadow-lg text-gray-900 text-sm font-bold w-8 h-8 rounded-full flex items-center justify-center border-2 border-gray-100">
                           {idx + 1}
                         </div>
                       </div>
 
-                      <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                        {/* Duration info - add step.duration to your steps array if needed */}
-                        {step.title}
-                      </div>
-
-                      <h3 className="text-xl md:text-2xl font-bold mb-3 text-slate-900">
+                      <h3 className="text-2xl font-bold mb-3 text-gray-900">
                         {step.title}
                       </h3>
 
-                      <p className="text-slate-600 mb-6 leading-relaxed">
+                      <p className="text-gray-600 mb-6 leading-relaxed">
                         {step.description}
                       </p>
-                    </div>
 
-                    <div className="space-y-3">
-                      {step.benefits.map((benefit, bidx) => (
-                        <div
-                          key={bidx}
-                          className="flex items-center text-slate-700"
+                      <div className="space-y-3 w-full">
+                        {step.benefits.map((benefit, bidx) => (
+                          <motion.div
+                            key={bidx}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{
+                              opacity: hoveredStep === idx ? 1 : 0.8,
+                              x: 0,
+                            }}
+                            transition={{ delay: bidx * 0.1 }}
+                            className="flex items-center text-left"
+                          >
+                            <CheckCircle2 className="w-5 h-5 text-emerald-500 mr-3 flex-shrink-0" />
+                            <span className="text-sm font-medium text-gray-700">
+                              {benefit}
+                            </span>
+                          </motion.div>
+                        ))}
+                      </div>
+
+                      {idx === 0 && (
+                        <Button
+                          className="w-full mt-8 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white py-6 font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+                          onClick={scrollToContact}
                         >
-                          <CheckCircle2 className="w-5 h-5 text-emerald-500 mr-3 flex-shrink-0" />
-                          <span className="text-sm font-medium">{benefit}</span>
-                        </div>
-                      ))}
+                          Reserve Your Spot
+                          <ArrowRight className="w-4 h-4 ml-2" />
+                        </Button>
+                      )}
                     </div>
-
-                    {idx === 0 && (
-                      <Button
-                        className="w-full mt-8 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-base py-6 font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
-                        onClick={handleScrollToContactForm}
-                      >
-                        Start Your AR Journey
-                        <ArrowRight className="w-5 h-5 ml-2" />
-                      </Button>
-                    )}
                   </CardContent>
                 </Card>
               </motion.div>
             ))}
           </div>
-
-          {/* Call-to-action below process */}
-          <motion.div
-            className="text-center mt-16"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-          >
-            <p className="text-lg text-slate-600 mb-6">
-              Ready to transform your customer experience?
-            </p>
-            <Button
-              size="lg"
-              variant="outline"
-              className="text-lg px-10 py-6 font-semibold border-2 border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-all duration-300"
-              onClick={handleScrollToContactForm}
-            >
-              See Pricing & Get Started
-              <ArrowDown className="w-5 h-5 ml-2" />
-            </Button>
-          </motion.div>
         </div>
       </section>
 
-      {/* Technology Highlights */}
-      <section className="py-24 px-4 bg-indigo-50/50">
-        <div className="container mx-auto max-w-7xl">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-bold mb-6 text-gray-800">
-              Advanced Technology Made Simple
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Blueprint combines cutting-edge technology with user-friendly
-              interfaces to make advanced AR accessible for every business.
-            </p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-16">
-            {techSections.map((tech, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: idx * 0.1 }}
-                whileHover={{ y: -5 }}
-              >
-                <Card className="h-full bg-white border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-                  <CardContent className="p-6">
-                    <div className="mb-6">{tech.icon}</div>
-                    <h3 className="text-xl font-semibold mb-2 text-gray-800">
-                      {tech.title}
-                    </h3>
-                    <p className="text-gray-600">{tech.description}</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className="mt-20 text-center"
-          >
-            <Button
-              size="lg"
-              className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg hover:shadow-indigo-200/50 py-6 px-8 text-lg hover:scale-105 transition-all duration-300"
-              onClick={scrollToContact}
-            >
-              Start Your AR Journey
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-          </motion.div>
-        </div>
-      </section>
+      <EnterpriseARSection />
 
       {/* Contact Form Section */}
-      <section ref={contactFormRef} className="py-24">
-        <div className="container mx-auto max-w-7xl px-4">
+      <section
+        ref={contactFormRef}
+        id="contactForm"
+        className="py-24 px-4 bg-gray-50"
+      >
+        <div className="container mx-auto max-w-7xl">
           <ContactForm />
         </div>
       </section>
 
       <Footer />
+      <AIChatButton />
     </div>
   );
 }

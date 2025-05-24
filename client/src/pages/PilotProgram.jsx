@@ -191,8 +191,8 @@ export default function PilotProgram() {
 
   const faqs = [
     {
-      q: "What exactly is Blueprint AR?",
-      a: "Blueprint creates custom augmented reality experiences for physical spaces. Using AI and spatial computing, we transform your venue into an interactive digital environment. Customers access these experiences through their smartphones - no app download required. Think of it as adding a smart, invisible layer to your space that enhances customer engagement, provides information, and creates memorable experiences.",
+      q: "What exactly is Blueprint?",
+      a: "Blueprint is the easiest way to create custom augmented reality experiences for physical spaces. Using AI and spatial computing, we transform your venue into an interactive digital environment. Customers access these experiences through their smart glasses - no app download required. Think of it as adding a smart, invisible layer to your space that enhances customer engagement, provides information, and creates memorable experiences.",
     },
     {
       q: "What does the pilot program cost?",
@@ -204,11 +204,11 @@ export default function PilotProgram() {
     },
     {
       q: "Do we need special hardware for customers?",
-      a: "No! That's the beauty of Blueprint. Your customers access the AR experience through their own smartphones via web browser - no app download needed. During the pilot, we bring Vision Pro and other devices for demos, but day-to-day operation only requires customer smartphones.",
+      a: "No! That's the beauty of Blueprint. Your customers access the AR experience through their own devices via web browser - no app download needed. During the pilot, we bring Vision Pro and other devices for demos, but day-to-day operation only requires customer's devices.",
     },
     {
       q: "What do you need from us?",
-      a: "Just three things: 1) Access to your space for the initial mapping (30-60 min), 2) Basic information about your business, products, or exhibits, and 3) Your feedback during the pilot. We handle everything else - the technology, content creation, and implementation.",
+      a: "Just three things: 1) Access to your space for the initial mapping (30-60 min), 2) Basic information about your business, products, or exhibits, and 3) Your feedback during the coarse of the program. We handle everything else - the technology, content creation, and implementation.",
     },
     {
       q: "What kinds of AR experiences can you create?",
@@ -220,7 +220,7 @@ export default function PilotProgram() {
     },
     {
       q: "How do customers access the AR experience?",
-      a: "Super simple! You'll get custom QR codes and NFC tags to place around your space. Customers scan with their phone camera, and the AR experience launches instantly in their web browser. No downloads, no friction, just magic.",
+      a: "Super simple! You'll get custom QR codes to place around your space. Customers scan with their glasses camera, and the AR experience launches instantly on their device. No downloads, no friction, just magic. If a customer already has the Blueprint app downloaded, then once the QR code is scanned, it will bring them straight to the app.",
     },
   ];
 
@@ -282,7 +282,7 @@ export default function PilotProgram() {
               <div className="flex flex-col sm:flex-row gap-4 mb-8 text-sm">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-green-400" />
-                  <span>Works on any smartphone</span>
+                  <span>Works on all smart glasses</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-green-400" />
@@ -621,7 +621,7 @@ export default function PilotProgram() {
                     </h3>
                     <p className="text-slate-300 mb-6">
                       Blueprint creates a smart digital layer over your physical
-                      space. Customers point their phones at products, exhibits,
+                      space. Customers look at products, exhibits,
                       or areas to unlock:
                     </p>
                     <ul className="space-y-4">
@@ -821,7 +821,7 @@ export default function PilotProgram() {
                       },
                       {
                         step: "3",
-                        title: "WebAR Deployment",
+                        title: "WebXR Deployment",
                         description:
                           "The AR experience runs directly in web browsers using WebXR technology. Customers get instant access without app downloads.",
                         tech: "WebXR + Cloud Infrastructure",
