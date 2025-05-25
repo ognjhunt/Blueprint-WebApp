@@ -872,7 +872,6 @@ export default function Discover() {
       </section>
 
       <Footer />
-      <AIChatButton />
     </div>
   );
 }

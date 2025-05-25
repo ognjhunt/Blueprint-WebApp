@@ -355,7 +355,7 @@ export default function PilotProgram() {
                 />
               </div>
               <p className="text-center text-sm text-slate-400 mt-4">
-                See Blueprint AR in action at a retail store
+                See Blueprint in action at a retail store
               </p>
             </motion.div>
           </div>
@@ -621,8 +621,8 @@ export default function PilotProgram() {
                     </h3>
                     <p className="text-slate-300 mb-6">
                       Blueprint creates a smart digital layer over your physical
-                      space. Customers look at products, exhibits,
-                      or areas to unlock:
+                      space. Customers look at products, exhibits, or areas to
+                      unlock:
                     </p>
                     <ul className="space-y-4">
                       {[

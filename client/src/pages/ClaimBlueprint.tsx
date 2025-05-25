@@ -572,7 +572,7 @@ export default function ClaimBlueprint() {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">Blueprint QR Code Setup</h2>
             <p className="text-muted-foreground">
-              Let's get your location set up with Blueprint AR's smart
+              Let's get your location set up with Blueprint's smart
               navigation system
             </p>
 

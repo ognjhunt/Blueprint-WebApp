@@ -722,7 +722,7 @@ export default function ContactForm() {
 
                     <p className="text-sm text-slate-500 text-center">
                       By submitting, you agree to receive updates about
-                      Blueprint AR. We respect your privacy and never share your
+                      Blueprint. We respect your privacy and never share your
                       information.
                     </p>
                   </motion.form>
