@@ -2066,107 +2066,116 @@ export const ProductInfoConfigScreen = ({ onSave, initialData = {} }) => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start gap-4">
+    <div className="space-y-4 max-h-screen overflow-hidden">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-semibold mb-1">
+          <h1 className="text-xl font-semibold">
             Configure Product Information
           </h1>
           <p className="text-gray-500 text-sm">
             Set up how product details are displayed in AR
           </p>
         </div>
-        <div className="bg-indigo-100 p-3 rounded-full">
-          <Info className="h-6 w-6 text-indigo-600" />
+        <div className="bg-indigo-100 p-2 rounded-full">
+          <Info className="h-5 w-5 text-indigo-600" />
         </div>
       </div>
 
-      <div className="space-y-5">
-        <div className="space-y-2">
-          <Label htmlFor="feature-name">Feature Name</Label>
-          <Input
-            id="feature-name"
-            placeholder="e.g. Product Details"
-            value={configData.name}
-            onChange={(e) => handleChange("name", e.target.value)}
-          />
-        </div>
+      <div className="grid grid-cols-2 gap-4">
+        {/* Left Column */}
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="feature-name" className="text-sm">
+              Feature Name
+            </Label>
+            <Input
+              id="feature-name"
+              placeholder="e.g. Product Details"
+              value={configData.name}
+              onChange={(e) => handleChange("name", e.target.value)}
+              className="mt-1"
+            />
+          </div>
 
-        <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
-          <h4 className="font-medium text-indigo-800 mb-2 flex items-center">
-            <Info className="h-4 w-4 mr-1.5" />
-            Product Information Options
-          </h4>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              {
-                id: "scan",
-                label: "Scan Products",
-                description: "Point device at products",
-                icon: <QrCode />,
-              },
-              {
-                id: "qr",
-                label: "QR Codes",
-                description: "Scan product QR codes",
-                icon: <QrCode />,
-              },
-            ].map((method) => (
-              <div
-                key={method.id}
-                className={`bg-white rounded-lg border p-3 cursor-pointer hover:border-indigo-500 transition-all flex flex-col items-center text-center ${configData.displayMethod === method.id ? "border-indigo-500 bg-indigo-50/50" : ""}`}
-                onClick={() => handleChange("displayMethod", method.id)}
-              >
-                <div className="h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center mb-2">
-                  {React.cloneElement(method.icon, {
-                    className: "h-6 w-6 text-indigo-600",
-                  })}
+          <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+            <h4 className="font-medium text-indigo-800 mb-2 text-sm flex items-center">
+              <Info className="h-4 w-4 mr-1" />
+              Display Method
+            </h4>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                {
+                  id: "scan",
+                  label: "Scan Products",
+                  description: "Point device at products",
+                  icon: <QrCode />,
+                },
+                {
+                  id: "qr",
+                  label: "QR Codes",
+                  description: "Scan product QR codes",
+                  icon: <QrCode />,
+                },
+              ].map((method) => (
+                <div
+                  key={method.id}
+                  className={`bg-white rounded-lg border p-2 cursor-pointer transition-all text-center ${
+                    configData.displayMethod === method.id
+                      ? "border-indigo-500 bg-indigo-50/50"
+                      : ""
+                  }`}
+                  onClick={() => handleChange("displayMethod", method.id)}
+                >
+                  <div className="h-8 w-8 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-1">
+                    {React.cloneElement(method.icon, {
+                      className: "h-4 w-4 text-indigo-600",
+                    })}
+                  </div>
+                  <span className="text-xs font-medium">{method.label}</span>
                 </div>
-                <span className="text-sm font-medium">{method.label}</span>
-                <span className="text-xs text-gray-500 mt-1">
-                  {method.description}
-                </span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Information to Display</h4>
-          <div className="grid grid-cols-2 gap-2 mb-4">
-            {[
-              { id: "price", label: "Price & Discounts" },
-              { id: "specs", label: "Specifications" },
-              { id: "reviews", label: "Customer Reviews" },
-              { id: "variants", label: "Product Variants" },
-              { id: "inventory", label: "Stock Levels" },
-              { id: "related", label: "Related Products" },
-            ].map((field) => (
-              <div key={field.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={field.id}
-                  checked={configData.displayFields[field.id]}
-                  onCheckedChange={(checked) => {
-                    handleChange("displayFields", {
-                      ...configData.displayFields,
-                      [field.id]: !!checked,
-                    });
-                  }}
-                />
-                <label htmlFor={field.id} className="text-sm cursor-pointer">
-                  {field.label}
-                </label>
-              </div>
-            ))}
+        {/* Right Column */}
+        <div className="space-y-3">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Information to Display</h4>
+            <div className="grid grid-cols-2 gap-1">
+              {[
+                { id: "price", label: "Price & Discounts" },
+                { id: "specs", label: "Specifications" },
+                { id: "reviews", label: "Customer Reviews" },
+                { id: "variants", label: "Product Variants" },
+                { id: "inventory", label: "Stock Levels" },
+                { id: "related", label: "Related Products" },
+              ].map((field) => (
+                <div key={field.id} className="flex items-center space-x-1">
+                  <Checkbox
+                    id={field.id}
+                    checked={configData.displayFields[field.id]}
+                    onCheckedChange={(checked) => {
+                      handleChange("displayFields", {
+                        ...configData.displayFields,
+                        [field.id]: !!checked,
+                      });
+                    }}
+                  />
+                  <label htmlFor={field.id} className="text-xs cursor-pointer">
+                    {field.label}
+                  </label>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Data Source</h4>
-          <div className="space-y-3">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Data Source</h4>
             <RadioGroup
               value={configData.dataSource}
               onValueChange={(value) => handleChange("dataSource", value)}
+              className="space-y-1"
             >
               {[
                 { id: "manual", label: "Manual Entry" },
@@ -2176,43 +2185,18 @@ export const ProductInfoConfigScreen = ({ onSave, initialData = {} }) => {
               ].map((source) => (
                 <div key={source.id} className="flex items-center space-x-2">
                   <RadioGroupItem value={source.id} id={source.id} />
-                  <Label htmlFor={source.id}>{source.label}</Label>
+                  <Label htmlFor={source.id} className="text-xs">
+                    {source.label}
+                  </Label>
                 </div>
               ))}
             </RadioGroup>
-
-            {configData.dataSource === "api" && (
-              <div className="pt-3 space-y-3">
-                <Input placeholder="API Endpoint URL" />
-                <Input placeholder="API Key (if required)" />
-                <Button variant="outline" size="sm">
-                  Test Connection
-                </Button>
-              </div>
-            )}
-
-            {configData.dataSource === "csv" && (
-              <div className="pt-3">
-                <div className="border-2 border-dashed rounded-lg p-4 text-center">
-                  <UploadCloud className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                  <p className="text-sm font-medium mb-1">
-                    Upload your product data CSV
-                  </p>
-                  <p className="text-xs text-gray-500 mb-3">
-                    CSV file with product information
-                  </p>
-                  <Button variant="outline" size="sm">
-                    Upload File
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
 
-      <div className="border-t pt-4 flex justify-end">
-        <Button onClick={() => onSave(configData)}>
+      <div className="flex justify-end pt-2">
+        <Button onClick={() => onSave(configData)} size="sm">
           Save Product Information Configuration
         </Button>
       </div>
@@ -2227,15 +2211,12 @@ export const InteractiveExperiencesConfigScreen = ({
   onSave,
   initialData = {},
 }) => {
-  const { toast } = useToast(); // Add this line to initialize toast
+  const { toast } = useToast();
 
   const [configData, setConfigData] = useState({
     name: initialData.name || "Interactive Experience",
     type: initialData.type || "quiz",
-    contentCreation: initialData.contentCreation || "ai", // 'ai' or 'manual'
-    timeSpent: initialData.timeSpent || "medium",
-    difficultyLevel: initialData.difficultyLevel || "medium",
-    rewardMechanism: initialData.rewardMechanism || "points",
+    contentCreation: initialData.contentCreation || "ai",
     questionCount: initialData.questionCount || 5,
     features: initialData.features || {
       soundEffects: true,
@@ -2243,17 +2224,14 @@ export const InteractiveExperiencesConfigScreen = ({
       leaderboard: false,
       multiplayer: false,
     },
-    generatedContent: initialData.generatedContent || [], // Store generated questions/statements
+    generatedContent: initialData.generatedContent || [],
     ...initialData,
   });
 
   const [generatingContent, setGeneratingContent] = useState(false);
 
   const handleChange = (field, value) => {
-    setConfigData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setConfigData((prev) => ({ ...prev, [field]: value }));
   };
 
   // Function to simulate generating content
@@ -2399,254 +2377,241 @@ export const InteractiveExperiencesConfigScreen = ({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start gap-4">
+    <div className="space-y-4 max-h-screen overflow-hidden">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-semibold mb-1">
+          <h1 className="text-xl font-semibold">
             Configure Interactive Experience
           </h1>
           <p className="text-gray-500 text-sm">
             Set up engaging activities for your visitors
           </p>
         </div>
-        <div className="bg-purple-100 p-3 rounded-full">
-          <Zap className="h-6 w-6 text-purple-600" />
+        <div className="bg-purple-100 p-2 rounded-full">
+          <Zap className="h-5 w-5 text-purple-600" />
         </div>
       </div>
 
-      <div className="space-y-5">
-        <div className="space-y-2">
-          <Label htmlFor="exp-name">Experience Name</Label>
-          <Input
-            id="exp-name"
-            placeholder="e.g. Brand Knowledge Quiz, Industry Facts"
-            value={configData.name}
-            onChange={(e) => handleChange("name", e.target.value)}
-          />
-        </div>
-
-        <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
-          <h4 className="font-medium text-purple-800 mb-2 flex items-center">
-            <Zap className="h-4 w-4 mr-1.5" />
-            Interactive Experience Types
-          </h4>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              {
-                id: "quiz",
-                label: "Quiz",
-                description:
-                  "Test brand knowledge with business-specific questions",
-                icon: <MessageSquare />,
-              },
-              {
-                id: "factOrFiction",
-                label: "Fact or Fiction",
-                description:
-                  "True or false statements (either about your business or industry as a whole)",
-                icon: <CheckSquare />,
-              },
-            ].map((type) => (
-              <div
-                key={type.id}
-                className={`bg-white rounded-lg border p-3 cursor-pointer hover:border-purple-500 transition-all flex flex-col items-center text-center ${configData.type === type.id ? "border-purple-500 bg-purple-50/50" : ""}`}
-                onClick={() => handleChange("type", type.id)}
-              >
-                <div className="h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center mb-2">
-                  {React.cloneElement(type.icon, {
-                    className: "h-6 w-6 text-purple-600",
-                  })}
-                </div>
-                <span className="text-sm font-medium">{type.label}</span>
-                <span className="text-xs text-gray-500 mt-1">
-                  {type.description}
-                </span>
-              </div>
-            ))}
+      <div className="grid grid-cols-3 gap-4">
+        {/* Left Column */}
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="exp-name" className="text-sm">
+              Experience Name
+            </Label>
+            <Input
+              id="exp-name"
+              placeholder="e.g. Brand Knowledge Quiz"
+              value={configData.name}
+              onChange={(e) => handleChange("name", e.target.value)}
+              className="mt-1"
+            />
           </div>
-        </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Content Creation</h4>
-          <div className="space-y-3">
-            <div className="flex flex-col space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  {
-                    id: "ai",
-                    label: "AI-Generated",
-                    description: "Automatically created content",
-                    icon: <Cpu />,
-                  },
-                  {
-                    id: "manual",
-                    label: "Manual Creation",
-                    description: "Create your own content",
-                    icon: <Edit />,
-                  },
-                ].map((method) => (
-                  <div
-                    key={method.id}
-                    className={`bg-white rounded-lg border p-3 cursor-pointer hover:border-purple-500 transition-all flex flex-col items-center text-center ${configData.contentCreation === method.id ? "border-purple-500 bg-purple-50/50" : ""}`}
-                    onClick={() => handleChange("contentCreation", method.id)}
-                  >
-                    <div className="h-10 w-10 bg-purple-100 rounded-full flex items-center justify-center mb-2">
-                      {React.cloneElement(method.icon, {
-                        className: "h-5 w-5 text-purple-600",
+          <div className="bg-purple-50 p-3 rounded-lg border border-purple-100">
+            <h4 className="font-medium text-purple-800 mb-2 text-sm">
+              Experience Types
+            </h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "quiz",
+                  label: "Quiz",
+                  description: "Test brand knowledge",
+                  icon: <MessageSquare />,
+                },
+                {
+                  id: "factOrFiction",
+                  label: "Fact or Fiction",
+                  description: "True or false statements",
+                  icon: <CheckSquare />,
+                },
+              ].map((type) => (
+                <div
+                  key={type.id}
+                  className={`bg-white rounded-lg border p-2 cursor-pointer transition-all ${
+                    configData.type === type.id
+                      ? "border-purple-500 bg-purple-50/50"
+                      : ""
+                  }`}
+                  onClick={() => handleChange("type", type.id)}
+                >
+                  <div className="flex items-center">
+                    <div className="h-6 w-6 bg-purple-100 rounded-full flex items-center justify-center mr-2">
+                      {React.cloneElement(type.icon, {
+                        className: "h-3 w-3 text-purple-600",
                       })}
                     </div>
-                    <span className="text-sm font-medium">{method.label}</span>
-                    <span className="text-xs text-gray-500 mt-1">
-                      {method.description}
-                    </span>
+                    <div>
+                      <span className="text-xs font-medium">{type.label}</span>
+                      <p className="text-xs text-gray-500">
+                        {type.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Middle Column */}
+        <div className="space-y-3">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Content Creation</h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "ai",
+                  label: "AI-Generated",
+                  description: "Auto-created",
+                  icon: <Cpu />,
+                },
+                {
+                  id: "manual",
+                  label: "Manual",
+                  description: "Create your own",
+                  icon: <Edit />,
+                },
+              ].map((method) => (
+                <div
+                  key={method.id}
+                  className={`bg-white rounded-lg border p-2 cursor-pointer transition-all ${
+                    configData.contentCreation === method.id
+                      ? "border-purple-500 bg-purple-50/50"
+                      : ""
+                  }`}
+                  onClick={() => handleChange("contentCreation", method.id)}
+                >
+                  <div className="flex items-center">
+                    <div className="h-6 w-6 bg-purple-100 rounded-full flex items-center justify-center mr-2">
+                      {React.cloneElement(method.icon, {
+                        className: "h-3 w-3 text-purple-600",
+                      })}
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium">
+                        {method.label}
+                      </span>
+                      <p className="text-xs text-gray-500">
+                        {method.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between mt-3 pt-2 border-t">
+              <Label className="text-xs">Question Count</Label>
+              <Select
+                value={configData.questionCount.toString()}
+                onValueChange={(value) =>
+                  handleChange("questionCount", parseInt(value))
+                }
+              >
+                <SelectTrigger className="w-20 h-7">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="3">3</SelectItem>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button
+              onClick={generateContent}
+              className="mt-2 w-full h-7 text-xs"
+              disabled={generatingContent}
+            >
+              {generatingContent ? (
+                <>
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Cpu className="h-3 w-3 mr-1" />
+                  Generate Content
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-3">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Features</h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "soundEffects",
+                  label: "Sound Effects",
+                  icon: <Volume />,
+                },
+                {
+                  id: "socialSharing",
+                  label: "Social Sharing",
+                  icon: <Share />,
+                },
+                { id: "leaderboard", label: "Leaderboard", icon: <Trophy /> },
+                { id: "multiplayer", label: "Multiplayer", icon: <Users /> },
+              ].map((feature) => (
+                <div
+                  key={feature.id}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center">
+                    {React.cloneElement(feature.icon, {
+                      className: "h-3 w-3 text-gray-500 mr-1",
+                    })}
+                    <Label className="text-xs cursor-pointer">
+                      {feature.label}
+                    </Label>
+                  </div>
+                  <Switch
+                    checked={configData.features[feature.id]}
+                    onCheckedChange={(checked) => {
+                      handleChange("features", {
+                        ...configData.features,
+                        [feature.id]: checked,
+                      });
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {configData.generatedContent.length > 0 && (
+            <div className="border rounded-lg p-3 bg-white max-h-40 overflow-y-auto">
+              <h4 className="font-medium mb-2 text-sm">Generated Preview</h4>
+              <div className="space-y-1">
+                {configData.generatedContent.slice(0, 3).map((item, index) => (
+                  <div key={index} className="border rounded p-2 bg-purple-50">
+                    <p className="text-xs font-medium">
+                      {configData.type === "quiz"
+                        ? item.question
+                        : item.statement}
+                    </p>
                   </div>
                 ))}
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">Question Count</p>
+                {configData.generatedContent.length > 3 && (
                   <p className="text-xs text-gray-500">
-                    Number of questions to generate
+                    +{configData.generatedContent.length - 3} more...
                   </p>
-                </div>
-                <Select
-                  value={configData.questionCount.toString()}
-                  onValueChange={(value) =>
-                    handleChange("questionCount", parseInt(value))
-                  }
-                >
-                  <SelectTrigger className="w-32">
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="3">3 questions</SelectItem>
-                    <SelectItem value="5">5 questions</SelectItem>
-                    <SelectItem value="10">10 questions</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button
-                onClick={generateContent}
-                className="mt-2 w-full"
-                disabled={generatingContent}
-              >
-                {generatingContent ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                    Generating Content...
-                  </>
-                ) : (
-                  <>
-                    <Cpu className="h-4 w-4 mr-1.5" />
-                    Generate{" "}
-                    {configData.type === "quiz"
-                      ? "Quiz"
-                      : "Fact or Fiction"}{" "}
-                    Content
-                  </>
                 )}
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Interactive Experience Features</h4>
-          <div className="space-y-3">
-            {[
-              { id: "soundEffects", label: "Sound Effects", icon: <Volume /> },
-              { id: "socialSharing", label: "Social Sharing", icon: <Share /> },
-              { id: "leaderboard", label: "Leaderboard", icon: <Trophy /> },
-              { id: "multiplayer", label: "Multiplayer", icon: <Users /> },
-            ].map((feature) => (
-              <div
-                key={feature.id}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center">
-                  {React.cloneElement(feature.icon, {
-                    className: "h-4 w-4 text-gray-500 mr-2",
-                  })}
-                  <Label className="cursor-pointer">{feature.label}</Label>
-                </div>
-                <Switch
-                  checked={configData.features[feature.id]}
-                  onCheckedChange={(checked) => {
-                    handleChange("features", {
-                      ...configData.features,
-                      [feature.id]: checked,
-                    });
-                  }}
-                />
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Place content preview here - right after the Features section */}
-        {configData.generatedContent.length > 0 && (
-          <div className="mt-4 border rounded-lg p-4 bg-white">
-            <h4 className="font-medium mb-3">Generated Content Preview</h4>
-            <div className="space-y-4">
-              {configData.type === "quiz"
-                ? configData.generatedContent.map((item, index) => (
-                    <div
-                      key={index}
-                      className="border rounded p-3 bg-purple-50"
-                    >
-                      <div className="flex justify-between mb-2">
-                        <span className="text-sm font-medium">
-                          Question {index + 1}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <p className="text-sm font-medium">{item.question}</p>
-                      <p className="text-sm text-gray-600 mt-2">
-                        <span className="font-medium">Answer:</span>{" "}
-                        {item.answer}
-                      </p>
-                    </div>
-                  ))
-                : configData.generatedContent.map((item, index) => (
-                    <div
-                      key={index}
-                      className="border rounded p-3 bg-purple-50"
-                    >
-                      <div className="flex justify-between mb-2">
-                        <span className="text-sm font-medium">
-                          Statement {index + 1} (
-                          {item.isTrue ? "Fact" : "Fiction"})
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <p className="text-sm font-medium">{item.statement}</p>
-                      <p className="text-sm text-gray-600 mt-2">
-                        <span className="font-medium">Explanation:</span>{" "}
-                        {item.explanation}
-                      </p>
-                    </div>
-                  ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      <div className="border-t pt-4 flex justify-end">
-        <Button onClick={() => onSave(configData)}>
+      <div className="flex justify-end pt-2">
+        <Button onClick={() => onSave(configData)} size="sm">
           Save Interactive Experience Configuration
         </Button>
       </div>
@@ -2740,122 +2705,118 @@ export const TableReservationsConfigScreen = ({ onSave, initialData = {} }) => {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto p-6 bg-white rounded-xl shadow-sm">
-      {/* Header */}
+    <div className="space-y-4 max-h-screen overflow-hidden">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Table Reservations Setup
-          </h1>
-          <p className="text-gray-600 text-sm mt-1">
+          <h1 className="text-xl font-semibold">Table Reservations Setup</h1>
+          <p className="text-gray-500 text-sm">
             Integrate your reservation system seamlessly
           </p>
         </div>
-        <div className="bg-indigo-100 p-3 rounded-full">
-          <Calendar className="h-6 w-6 text-indigo-600" />
+        <div className="bg-indigo-100 p-2 rounded-full">
+          <Calendar className="h-5 w-5 text-indigo-600" />
         </div>
       </div>
 
-      {/* Configuration Form */}
-      <div className="space-y-6">
-        {/* Feature Name */}
-        <div className="space-y-2">
-          <Label htmlFor="feature-name" className="text-sm font-medium">
-            Feature Name
-          </Label>
-          <Input
-            id="feature-name"
-            placeholder="e.g. Table Reservations"
-            value={configData.name}
-            onChange={(e) => handleChange("name", e.target.value)}
-            className="w-full"
-          />
-        </div>
-
-        {/* Reservation Type Selection */}
-        <div className="bg-indigo-50 p-5 rounded-xl border border-indigo-100">
-          <h4 className="font-semibold text-indigo-800 mb-3 flex items-center">
-            <Globe className="h-5 w-5 mr-2" />
-            Reservation System Type
-          </h4>
-          <div className="grid grid-cols-2 gap-4">
-            {[
-              {
-                id: "restaurant_website",
-                label: "Restaurant Website",
-                description: "Your own booking page",
-                icon: <Globe />,
-              },
-              {
-                id: "third_party",
-                label: "Third-party Service",
-                description: "OpenTable, Resy, etc.",
-                icon: <ExternalLink />,
-              },
-            ].map((method) => (
-              <div
-                key={method.id}
-                className={`bg-white rounded-lg border p-4 cursor-pointer hover:border-indigo-500 transition-all flex flex-col items-center text-center ${
-                  configData.reservationType === method.id
-                    ? "border-indigo-500 bg-indigo-50"
-                    : ""
-                }`}
-                onClick={() => handleChange("reservationType", method.id)}
-              >
-                <div className="h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center mb-3">
-                  {React.cloneElement(method.icon, {
-                    className: "h-6 w-6 text-indigo-600",
-                  })}
-                </div>
-                <span className="text-sm font-medium">{method.label}</span>
-                <span className="text-xs text-gray-500 mt-1">
-                  {method.description}
-                </span>
-              </div>
-            ))}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Left Column */}
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="feature-name" className="text-sm">
+              Feature Name
+            </Label>
+            <Input
+              id="feature-name"
+              placeholder="e.g. Table Reservations"
+              value={configData.name}
+              onChange={(e) => handleChange("name", e.target.value)}
+              className="mt-1"
+            />
           </div>
-        </div>
 
-        {/* URL Input and Validation */}
-        <div className="border rounded-xl p-5">
-          <h4 className="font-semibold mb-3">Reservation URL</h4>
-          <div className="space-y-4">
+          <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+            <h4 className="font-medium text-indigo-800 mb-2 text-sm flex items-center">
+              <Globe className="h-4 w-4 mr-1" />
+              Reservation Type
+            </h4>
             <div className="space-y-2">
-              <Label htmlFor="reservation-url">
+              {[
+                {
+                  id: "restaurant_website",
+                  label: "Restaurant Website",
+                  description: "Your own booking page",
+                  icon: <Globe />,
+                },
+                {
+                  id: "third_party",
+                  label: "Third-party Service",
+                  description: "OpenTable, Resy, etc.",
+                  icon: <ExternalLink />,
+                },
+              ].map((method) => (
+                <div
+                  key={method.id}
+                  className={`bg-white rounded-lg border p-2 cursor-pointer transition-all ${
+                    configData.reservationType === method.id
+                      ? "border-indigo-500 bg-indigo-50"
+                      : ""
+                  }`}
+                  onClick={() => handleChange("reservationType", method.id)}
+                >
+                  <div className="flex items-center">
+                    <div className="h-6 w-6 bg-indigo-100 rounded-full flex items-center justify-center mr-2">
+                      {React.cloneElement(method.icon, {
+                        className: "h-3 w-3 text-indigo-600",
+                      })}
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium">
+                        {method.label}
+                      </span>
+                      <p className="text-xs text-gray-500">
+                        {method.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Reservation URL</h4>
+            <div className="space-y-2">
+              <Label className="text-xs">
                 {configData.reservationType === "restaurant_website"
                   ? "Restaurant Booking Page URL"
                   : "Third-party Booking URL"}
               </Label>
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 <Input
-                  id="reservation-url"
                   placeholder="https://example.com/reservations"
                   value={configData.reservationUrl}
                   onChange={(e) =>
                     handleChange("reservationUrl", e.target.value)
                   }
-                  className="flex-1"
+                  className="flex-1 text-xs"
                 />
                 <Button
                   onClick={validateAndPreviewUrl}
                   disabled={
                     previewState.isValidating || !configData.reservationUrl
                   }
-                  className="bg-indigo-600 hover:bg-indigo-700"
+                  size="sm"
                 >
                   {previewState.isValidating ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Validating
-                    </>
+                    <Loader2 className="h-3 w-3 animate-spin" />
                   ) : (
-                    "Validate & Preview"
+                    "Validate"
                   )}
                 </Button>
               </div>
               {previewState.error && (
-                <p className="text-sm text-red-500 flex items-center">
-                  <AlertTriangle className="h-4 w-4 mr-1" />
+                <p className="text-xs text-red-500 flex items-center">
+                  <AlertTriangle className="h-3 w-3 mr-1" />
                   {previewState.error}
                 </p>
               )}
@@ -2863,50 +2824,40 @@ export const TableReservationsConfigScreen = ({ onSave, initialData = {} }) => {
           </div>
         </div>
 
-        {/* Enhanced Preview Section */}
-        {previewState.isValid && (
-          <div className="border rounded-xl p-5 animate-in fade-in duration-300">
-            <h4 className="font-semibold mb-4 flex items-center">
-              <Eye className="h-5 w-5 mr-2 text-indigo-600" />
-              Live Reservation Preview
-            </h4>
-            <div className="space-y-4">
-              <div className="rounded-lg overflow-hidden border shadow-sm">
-                {/* Browser-like header */}
-                <div className="bg-gray-100 p-3 flex items-center justify-between border-b">
-                  <div className="flex items-center gap-2">
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 rounded-full bg-red-500" />
-                      <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                      <div className="w-2 h-2 rounded-full bg-green-500" />
-                    </div>
-                    <span className="text-sm text-gray-700">
-                      {new URL(configData.reservationUrl).hostname}
-                    </span>
-                  </div>
+        {/* Right Column - Compact Preview */}
+        <div className="space-y-3">
+          {previewState.isValid && (
+            <div className="border rounded-lg p-3">
+              <h4 className="font-medium mb-2 text-sm flex items-center">
+                <Eye className="h-4 w-4 mr-1 text-indigo-600" />
+                Live Preview
+              </h4>
+              <div className="rounded-lg overflow-hidden border">
+                <div className="bg-gray-100 p-2 flex items-center justify-between border-b">
+                  <span className="text-xs text-gray-700">
+                    {configData.reservationUrl
+                      ? new URL(configData.reservationUrl).hostname
+                      : ""}
+                  </span>
                   <Button
                     variant="outline"
                     size="sm"
                     asChild
-                    className="h-8 px-3 text-xs"
+                    className="h-6 px-2 text-xs"
                   >
                     <a
                       href={configData.reservationUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center"
                     >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Open Full Site
+                      <ExternalLink className="h-3 w-3" />
                     </a>
                   </Button>
                 </div>
-
-                {/* Iframe with loading state */}
-                <div className="relative h-[500px]">
+                <div className="relative h-40">
                   {previewState.isLoading && (
                     <div className="absolute inset-0 flex items-center justify-center bg-gray-100/50">
-                      <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+                      <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
                     </div>
                   )}
                   <iframe
@@ -2918,14 +2869,18 @@ export const TableReservationsConfigScreen = ({ onSave, initialData = {} }) => {
                     onError={handlePreviewError}
                   />
                   {previewState.loadError && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100/90 p-4">
-                      <div className="text-center space-y-2">
-                        <AlertTriangle className="h-8 w-8 text-yellow-600 mx-auto" />
-                        <p className="text-sm text-gray-700">
-                          Unable to load preview. This site may not allow
-                          embedding.
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100/90 p-2">
+                      <div className="text-center">
+                        <AlertTriangle className="h-4 w-4 text-yellow-600 mx-auto mb-1" />
+                        <p className="text-xs text-gray-700 mb-2">
+                          Unable to load preview
                         </p>
-                        <Button variant="outline" size="sm" asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          asChild
+                          className="text-xs"
+                        >
                           <a
                             href={configData.reservationUrl}
                             target="_blank"
@@ -2939,30 +2894,21 @@ export const TableReservationsConfigScreen = ({ onSave, initialData = {} }) => {
                   )}
                 </div>
               </div>
-
-              {/* Info Panel */}
-              <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-100">
-                <h5 className="font-medium text-indigo-800 mb-2 flex items-center">
-                  <Info className="h-4 w-4 mr-2" />
-                  Preview Details
-                </h5>
-                <p className="text-sm text-gray-600">
-                  This interactive preview shows exactly what customers will see
-                  when booking. Test the reservation flow and ensure everything
-                  works as expected.
+              <div className="p-2 bg-indigo-50 rounded-lg border border-indigo-100 mt-2">
+                <p className="text-xs text-gray-600">
+                  This preview shows what customers will see when booking.
                 </p>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Footer */}
-      <div className="border-t pt-6 flex justify-end">
+      <div className="flex justify-end pt-2">
         <Button
           onClick={() => onSave(configData)}
-          className="bg-indigo-600 hover:bg-indigo-700"
           disabled={!previewState.isValid}
+          size="sm"
         >
           Save Configuration
         </Button>
@@ -2991,145 +2937,164 @@ export const WaitListConfigScreen = ({ onSave, initialData = {} }) => {
   });
 
   const handleChange = (field, value) => {
-    setConfigData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setConfigData((prev) => ({ ...prev, [field]: value }));
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start gap-4">
+    <div className="space-y-4 max-h-screen overflow-hidden">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-semibold mb-1">Configure Wait List</h1>
+          <h1 className="text-xl font-semibold">Configure Wait List</h1>
           <p className="text-gray-500 text-sm">
             Set up how customers join and manage their place in line
           </p>
         </div>
-        <div className="bg-purple-100 p-3 rounded-full">
-          <Clock className="h-6 w-6 text-purple-600" />
+        <div className="bg-purple-100 p-2 rounded-full">
+          <Clock className="h-5 w-5 text-purple-600" />
         </div>
       </div>
 
-      <div className="space-y-5">
-        <div className="space-y-2">
-          <Label htmlFor="waitlist-name">Feature Name</Label>
-          <Input
-            id="waitlist-name"
-            placeholder="e.g. Virtual Queue"
-            value={configData.name}
-            onChange={(e) => handleChange("name", e.target.value)}
-          />
-        </div>
+      <div className="grid grid-cols-2 gap-4">
+        {/* Left Column */}
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="waitlist-name" className="text-sm">
+              Feature Name
+            </Label>
+            <Input
+              id="waitlist-name"
+              placeholder="e.g. Virtual Queue"
+              value={configData.name}
+              onChange={(e) => handleChange("name", e.target.value)}
+              className="mt-1"
+            />
+          </div>
 
-        <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
-          <h4 className="font-medium text-purple-800 mb-2 flex items-center">
-            <Bell className="h-4 w-4 mr-1.5" />
-            Notification Method
-          </h4>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              {
-                id: "text",
-                label: "Text Message",
-                description: "SMS notifications",
-                icon: <MessageCircle />,
-              },
-              {
-                id: "app",
-                label: "In-App",
-                description: "Push notifications",
-                icon: <Smartphone />,
-              },
-              {
-                id: "both",
-                label: "Both Methods",
-                description: "SMS & push notifications",
-                icon: <Bell />,
-              },
-            ].map((method) => (
-              <div
-                key={method.id}
-                className={`bg-white rounded-lg border p-3 cursor-pointer hover:border-purple-500 transition-all flex flex-col items-center text-center ${configData.notificationMethod === method.id ? "border-purple-500 bg-purple-50/50" : ""}`}
-                onClick={() => handleChange("notificationMethod", method.id)}
-              >
-                <div className="h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center mb-2">
-                  {React.cloneElement(method.icon, {
-                    className: "h-6 w-6 text-purple-600",
-                  })}
+          <div className="bg-purple-50 p-3 rounded-lg border border-purple-100">
+            <h4 className="font-medium text-purple-800 mb-2 text-sm flex items-center">
+              <Bell className="h-4 w-4 mr-1" />
+              Notification Method
+            </h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "text",
+                  label: "Text Message",
+                  description: "SMS notifications",
+                  icon: <MessageCircle />,
+                },
+                {
+                  id: "app",
+                  label: "In-App",
+                  description: "Push notifications",
+                  icon: <Smartphone />,
+                },
+                {
+                  id: "both",
+                  label: "Both Methods",
+                  description: "SMS & push",
+                  icon: <Bell />,
+                },
+              ].map((method) => (
+                <div
+                  key={method.id}
+                  className={`bg-white rounded-lg border p-2 cursor-pointer transition-all ${
+                    configData.notificationMethod === method.id
+                      ? "border-purple-500 bg-purple-50/50"
+                      : ""
+                  }`}
+                  onClick={() => handleChange("notificationMethod", method.id)}
+                >
+                  <div className="flex items-center">
+                    <div className="h-6 w-6 bg-purple-100 rounded-full flex items-center justify-center mr-2">
+                      {React.cloneElement(method.icon, {
+                        className: "h-3 w-3 text-purple-600",
+                      })}
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium">
+                        {method.label}
+                      </span>
+                      <p className="text-xs text-gray-500">
+                        {method.description}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <span className="text-sm font-medium">{method.label}</span>
-                <span className="text-xs text-gray-500 mt-1">
-                  {method.description}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Wait List Features</h4>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <Clock className="h-4 w-4 text-gray-500 mr-2" />
-                <Label className="cursor-pointer">Estimated Wait Time</Label>
-              </div>
-              <Switch
-                checked={configData.estimatedWaitTime}
-                onCheckedChange={(checked) =>
-                  handleChange("estimatedWaitTime", checked)
-                }
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <CheckCircle2 className="h-4 w-4 text-gray-500 mr-2" />
-                <Label className="cursor-pointer">Auto Advance Queue</Label>
-              </div>
-              <Switch
-                checked={configData.autoAdvance}
-                onCheckedChange={(checked) =>
-                  handleChange("autoAdvance", checked)
-                }
-              />
+              ))}
             </div>
           </div>
         </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Customer Information</h4>
-          <div className="space-y-2">
-            {[
-              { id: "name", label: "Full Name" },
-              { id: "phone", label: "Phone Number" },
-              { id: "email", label: "Email Address" },
-              { id: "groupSize", label: "Group Size" },
-              { id: "preferences", label: "Seating Preferences" },
-            ].map((field) => (
-              <div key={field.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={field.id}
-                  checked={configData.collectCustomerData[field.id]}
-                  onCheckedChange={(checked) => {
-                    handleChange("collectCustomerData", {
-                      ...configData.collectCustomerData,
-                      [field.id]: !!checked,
-                    });
-                  }}
+        {/* Right Column */}
+        <div className="space-y-3">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Wait List Features</h4>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Clock className="h-3 w-3 text-gray-500 mr-1" />
+                  <Label className="text-xs cursor-pointer">
+                    Estimated Wait Time
+                  </Label>
+                </div>
+                <Switch
+                  checked={configData.estimatedWaitTime}
+                  onCheckedChange={(checked) =>
+                    handleChange("estimatedWaitTime", checked)
+                  }
                 />
-                <label htmlFor={field.id} className="text-sm cursor-pointer">
-                  {field.label}
-                </label>
               </div>
-            ))}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <CheckCircle2 className="h-3 w-3 text-gray-500 mr-1" />
+                  <Label className="text-xs cursor-pointer">
+                    Auto Advance Queue
+                  </Label>
+                </div>
+                <Switch
+                  checked={configData.autoAdvance}
+                  onCheckedChange={(checked) =>
+                    handleChange("autoAdvance", checked)
+                  }
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Customer Information</h4>
+            <div className="grid grid-cols-2 gap-1">
+              {[
+                { id: "name", label: "Full Name" },
+                { id: "phone", label: "Phone Number" },
+                { id: "email", label: "Email Address" },
+                { id: "groupSize", label: "Group Size" },
+                { id: "preferences", label: "Seating Preferences" },
+              ].map((field) => (
+                <div key={field.id} className="flex items-center space-x-1">
+                  <Checkbox
+                    id={field.id}
+                    checked={configData.collectCustomerData[field.id]}
+                    onCheckedChange={(checked) => {
+                      handleChange("collectCustomerData", {
+                        ...configData.collectCustomerData,
+                        [field.id]: !!checked,
+                      });
+                    }}
+                  />
+                  <label htmlFor={field.id} className="text-xs cursor-pointer">
+                    {field.label}
+                  </label>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="border-t pt-4 flex justify-end">
-        <Button onClick={() => onSave(configData)}>
+      <div className="flex justify-end pt-2">
+        <Button onClick={() => onSave(configData)} size="sm">
           Save Wait List Configuration
         </Button>
       </div>
@@ -3161,196 +3126,228 @@ export const OnlineOrderingConfigScreen = ({ onSave, initialData = {} }) => {
   });
 
   const handleChange = (field, value) => {
-    setConfigData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setConfigData((prev) => ({ ...prev, [field]: value }));
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start gap-4">
+    <div className="space-y-4 max-h-screen overflow-hidden">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-semibold mb-1">
-            Configure Online Ordering
-          </h1>
+          <h1 className="text-xl font-semibold">Configure Online Ordering</h1>
           <p className="text-gray-500 text-sm">
             Set up how customers order directly from their tables
           </p>
         </div>
-        <div className="bg-amber-100 p-3 rounded-full">
-          <ShoppingCart className="h-6 w-6 text-amber-600" />
+        <div className="bg-amber-100 p-2 rounded-full">
+          <ShoppingCart className="h-5 w-5 text-amber-600" />
         </div>
       </div>
 
-      <div className="space-y-5">
-        <div className="space-y-2">
-          <Label htmlFor="order-name">Feature Name</Label>
-          <Input
-            id="order-name"
-            placeholder="e.g. Table Ordering"
-            value={configData.name}
-            onChange={(e) => handleChange("name", e.target.value)}
-          />
-        </div>
-
-        <div className="bg-amber-50 p-4 rounded-lg border border-amber-100">
-          <h4 className="font-medium text-amber-800 mb-2 flex items-center">
-            <ShoppingCart className="h-4 w-4 mr-1.5" />
-            Order Method
-          </h4>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              {
-                id: "tableQR",
-                label: "Table QR Code",
-                description: "Scan at table",
-                icon: <QrCode />,
-              },
-              {
-                id: "tableNumber",
-                label: "Table Number",
-                description: "Enter manually",
-                icon: <Type />,
-              },
-              {
-                id: "location",
-                label: "Location Based",
-                description: "Auto-detect table",
-                icon: <MapPin />,
-              },
-            ].map((method) => (
-              <div
-                key={method.id}
-                className={`bg-white rounded-lg border p-3 cursor-pointer hover:border-amber-500 transition-all flex flex-col items-center text-center ${configData.orderMethod === method.id ? "border-amber-500 bg-amber-50/50" : ""}`}
-                onClick={() => handleChange("orderMethod", method.id)}
-              >
-                <div className="h-12 w-12 bg-amber-100 rounded-full flex items-center justify-center mb-2">
-                  {React.cloneElement(method.icon, {
-                    className: "h-6 w-6 text-amber-600",
-                  })}
-                </div>
-                <span className="text-sm font-medium">{method.label}</span>
-                <span className="text-xs text-gray-500 mt-1">
-                  {method.description}
-                </span>
-              </div>
-            ))}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Left Column */}
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="order-name" className="text-sm">
+              Feature Name
+            </Label>
+            <Input
+              id="order-name"
+              placeholder="e.g. Table Ordering"
+              value={configData.name}
+              onChange={(e) => handleChange("name", e.target.value)}
+              className="mt-1"
+            />
           </div>
-        </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Payment Options</h4>
-          <div className="space-y-2">
-            {[
-              {
-                id: "card",
-                label: "Credit/Debit Card",
-                icon: <CircleDollarSign />,
-              },
-              { id: "applePay", label: "Apple Pay", icon: <Smartphone /> },
-              { id: "googlePay", label: "Google Pay", icon: <Smartphone /> },
-              { id: "payLater", label: "Pay at Counter", icon: <DollarSign /> },
-            ].map((option) => (
-              <div key={option.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={option.id}
-                  checked={configData.paymentOptions.includes(option.id)}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      handleChange("paymentOptions", [
-                        ...configData.paymentOptions,
-                        option.id,
-                      ]);
-                    } else {
-                      handleChange(
-                        "paymentOptions",
-                        configData.paymentOptions.filter(
-                          (item) => item !== option.id,
-                        ),
-                      );
-                    }
-                  }}
-                />
-                <div className="flex items-center">
-                  {React.cloneElement(option.icon, {
-                    className: "h-4 w-4 text-gray-500 mr-2",
-                  })}
-                  <label htmlFor={option.id} className="text-sm cursor-pointer">
-                    {option.label}
-                  </label>
+          <div className="bg-amber-50 p-3 rounded-lg border border-amber-100">
+            <h4 className="font-medium text-amber-800 mb-2 text-sm flex items-center">
+              <ShoppingCart className="h-4 w-4 mr-1" />
+              Order Method
+            </h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "tableQR",
+                  label: "Table QR Code",
+                  description: "Scan at table",
+                  icon: <QrCode />,
+                },
+                {
+                  id: "tableNumber",
+                  label: "Table Number",
+                  description: "Enter manually",
+                  icon: <Type />,
+                },
+                {
+                  id: "location",
+                  label: "Location Based",
+                  description: "Auto-detect table",
+                  icon: <MapPin />,
+                },
+              ].map((method) => (
+                <div
+                  key={method.id}
+                  className={`bg-white rounded-lg border p-2 cursor-pointer transition-all ${
+                    configData.orderMethod === method.id
+                      ? "border-amber-500 bg-amber-50/50"
+                      : ""
+                  }`}
+                  onClick={() => handleChange("orderMethod", method.id)}
+                >
+                  <div className="flex items-center">
+                    <div className="h-6 w-6 bg-amber-100 rounded-full flex items-center justify-center mr-2">
+                      {React.cloneElement(method.icon, {
+                        className: "h-3 w-3 text-amber-600",
+                      })}
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium">
+                        {method.label}
+                      </span>
+                      <p className="text-xs text-gray-500">
+                        {method.description}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Order Features</h4>
-          <div className="space-y-3">
-            {[
-              { id: "modifyItems", label: "Modify Items", icon: <Settings /> },
-              {
-                id: "specialInstructions",
-                label: "Special Instructions",
-                icon: <FileText />,
-              },
-              {
-                id: "savedOrders",
-                label: "Saved Orders",
-                icon: <BookmarkIcon />,
-              },
-              {
-                id: "reorder",
-                label: "Re-order Function",
-                icon: <RefreshCw />,
-              },
-              { id: "splitBill", label: "Split Bill", icon: <Users /> },
-            ].map((feature) => (
-              <div
-                key={feature.id}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center">
-                  {React.cloneElement(feature.icon, {
-                    className: "h-4 w-4 text-gray-500 mr-2",
-                  })}
-                  <Label className="cursor-pointer">{feature.label}</Label>
-                </div>
-                <Switch
-                  checked={configData.orderFeatures[feature.id]}
-                  onCheckedChange={(checked) => {
-                    handleChange("orderFeatures", {
-                      ...configData.orderFeatures,
-                      [feature.id]: checked,
-                    });
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Kitchen Notification</h4>
-          <RadioGroup
-            value={configData.notifyKitchen}
-            onValueChange={(value) => handleChange("notifyKitchen", value)}
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="automatic" id="automatic" />
-              <Label htmlFor="automatic">Automatically Send to Kitchen</Label>
+              ))}
             </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="review" id="review" />
-              <Label htmlFor="review">Staff Review Before Sending</Label>
+          </div>
+
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Kitchen Notification</h4>
+            <RadioGroup
+              value={configData.notifyKitchen}
+              onValueChange={(value) => handleChange("notifyKitchen", value)}
+              className="space-y-1"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="automatic" id="automatic" />
+                <Label htmlFor="automatic" className="text-xs">
+                  Automatically Send to Kitchen
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="review" id="review" />
+                <Label htmlFor="review" className="text-xs">
+                  Staff Review Before Sending
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-3">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Payment Options</h4>
+            <div className="grid grid-cols-2 gap-1">
+              {[
+                {
+                  id: "card",
+                  label: "Credit/Debit Card",
+                  icon: <CircleDollarSign />,
+                },
+                { id: "applePay", label: "Apple Pay", icon: <Smartphone /> },
+                { id: "googlePay", label: "Google Pay", icon: <Smartphone /> },
+                {
+                  id: "payLater",
+                  label: "Pay at Counter",
+                  icon: <DollarSign />,
+                },
+              ].map((option) => (
+                <div key={option.id} className="flex items-center space-x-1">
+                  <Checkbox
+                    id={option.id}
+                    checked={configData.paymentOptions.includes(option.id)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        handleChange("paymentOptions", [
+                          ...configData.paymentOptions,
+                          option.id,
+                        ]);
+                      } else {
+                        handleChange(
+                          "paymentOptions",
+                          configData.paymentOptions.filter(
+                            (item) => item !== option.id,
+                          ),
+                        );
+                      }
+                    }}
+                  />
+                  <div className="flex items-center">
+                    {React.cloneElement(option.icon, {
+                      className: "h-3 w-3 text-gray-500 mr-1",
+                    })}
+                    <label
+                      htmlFor={option.id}
+                      className="text-xs cursor-pointer"
+                    >
+                      {option.label}
+                    </label>
+                  </div>
+                </div>
+              ))}
             </div>
-          </RadioGroup>
+          </div>
+
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Order Features</h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "modifyItems",
+                  label: "Modify Items",
+                  icon: <Settings />,
+                },
+                {
+                  id: "specialInstructions",
+                  label: "Special Instructions",
+                  icon: <FileText />,
+                },
+                {
+                  id: "savedOrders",
+                  label: "Saved Orders",
+                  icon: <BookmarkIcon />,
+                },
+                {
+                  id: "reorder",
+                  label: "Re-order Function",
+                  icon: <RefreshCw />,
+                },
+                { id: "splitBill", label: "Split Bill", icon: <Users /> },
+              ].map((feature) => (
+                <div
+                  key={feature.id}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center">
+                    {React.cloneElement(feature.icon, {
+                      className: "h-3 w-3 text-gray-500 mr-1",
+                    })}
+                    <Label className="text-xs cursor-pointer">
+                      {feature.label}
+                    </Label>
+                  </div>
+                  <Switch
+                    checked={configData.orderFeatures[feature.id]}
+                    onCheckedChange={(checked) => {
+                      handleChange("orderFeatures", {
+                        ...configData.orderFeatures,
+                        [feature.id]: checked,
+                      });
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="border-t pt-4 flex justify-end">
-        <Button onClick={() => onSave(configData)}>
+      <div className="flex justify-end pt-2">
+        <Button onClick={() => onSave(configData)} size="sm">
           Save Online Ordering Configuration
         </Button>
       </div>
@@ -3383,9 +3380,7 @@ export const CustomerReviewsConfigScreen = ({
       sorting: true,
     },
     reviewPrompt: initialData.reviewPrompt || "After visit",
-    reviewSource: initialData.reviewSource || "google", // 'google', 'yelp', 'manual'
-    fetchHistory: initialData.fetchHistory || [],
-    manualReviews: initialData.manualReviews || [],
+    reviewSource: initialData.reviewSource || "google",
     ...initialData,
   });
 
@@ -3396,10 +3391,7 @@ export const CustomerReviewsConfigScreen = ({
   const [fetchingPlace, setFetchingPlace] = useState(false);
 
   const handleChange = (field, value) => {
-    setConfigData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setConfigData((prev) => ({ ...prev, [field]: value }));
   };
 
   // Function to fetch place details from Google Places API
@@ -3630,470 +3622,250 @@ export const CustomerReviewsConfigScreen = ({
   }, [configData.reviewSource]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start gap-4">
+    <div className="space-y-4 max-h-screen overflow-hidden">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-semibold mb-1">
-            Configure Customer Reviews
-          </h1>
+          <h1 className="text-xl font-semibold">Configure Customer Reviews</h1>
           <p className="text-gray-500 text-sm">
             Set up how reviews are displayed and collected
           </p>
         </div>
-        <div className="bg-indigo-100 p-3 rounded-full">
-          <MessageSquare className="h-6 w-6 text-indigo-600" />
+        <div className="bg-indigo-100 p-2 rounded-full">
+          <MessageSquare className="h-5 w-5 text-indigo-600" />
         </div>
       </div>
 
-      <div className="space-y-5">
-        <div className="space-y-2">
-          <Label htmlFor="review-name">Feature Name</Label>
-          <Input
-            id="review-name"
-            placeholder="e.g. Customer Reviews"
-            value={configData.name}
-            onChange={(e) => handleChange("name", e.target.value)}
-          />
-        </div>
-
-        <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
-          <h4 className="font-medium text-indigo-800 mb-2 flex items-center">
-            <MessageSquare className="h-4 w-4 mr-1.5" />
-            Display Method
-          </h4>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              {
-                id: "card",
-                label: "Review Cards",
-                description: "Card layout",
-                icon: <LayoutGrid />,
-              },
-              {
-                id: "list",
-                label: "Review List",
-                description: "List layout",
-                icon: <FileText />,
-              },
-              {
-                id: "carousel",
-                label: "Carousel",
-                description: "Sliding reviews",
-                icon: <RefreshCw />,
-              },
-            ].map((method) => (
-              <div
-                key={method.id}
-                className={`bg-white rounded-lg border p-3 cursor-pointer hover:border-indigo-500 transition-all flex flex-col items-center text-center ${configData.displayMethod === method.id ? "border-indigo-500 bg-indigo-50/50" : ""}`}
-                onClick={() => handleChange("displayMethod", method.id)}
-              >
-                <div className="h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center mb-2">
-                  {React.cloneElement(method.icon, {
-                    className: "h-6 w-6 text-indigo-600",
-                  })}
-                </div>
-                <span className="text-sm font-medium">{method.label}</span>
-                <span className="text-xs text-gray-500 mt-1">
-                  {method.description}
-                </span>
-              </div>
-            ))}
+      <div className="grid grid-cols-3 gap-4">
+        {/* Left Column */}
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="review-name" className="text-sm">
+              Feature Name
+            </Label>
+            <Input
+              id="review-name"
+              placeholder="e.g. Customer Reviews"
+              value={configData.name}
+              onChange={(e) => handleChange("name", e.target.value)}
+              className="mt-1"
+            />
           </div>
-        </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Review Filters</h4>
-          <div className="space-y-4">
+          <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+            <h4 className="font-medium text-indigo-800 mb-2 text-sm flex items-center">
+              <MessageSquare className="h-4 w-4 mr-1" />
+              Display Method
+            </h4>
             <div className="space-y-2">
-              <div className="flex justify-between">
-                <Label>Minimum Rating</Label>
-                <span className="text-sm">
-                  {configData.reviewFilters.minRating} stars
-                </span>
-              </div>
-              <Slider
-                value={[configData.reviewFilters.minRating]}
-                min={1}
-                max={5}
-                step={1}
-                onValueChange={(value) => {
-                  handleChange("reviewFilters", {
-                    ...configData.reviewFilters,
-                    minRating: value[0],
-                  });
-                }}
-              />
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>1 star</span>
-                <span>5 stars</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label>Featured Reviews Only</Label>
-              <Switch
-                checked={configData.reviewFilters.featuredOnly}
-                onCheckedChange={(checked) => {
-                  handleChange("reviewFilters", {
-                    ...configData.reviewFilters,
-                    featuredOnly: checked,
-                  });
-                }}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label>Recent Reviews Only</Label>
-              <Switch
-                checked={configData.reviewFilters.recentOnly}
-                onCheckedChange={(checked) => {
-                  handleChange("reviewFilters", {
-                    ...configData.reviewFilters,
-                    recentOnly: checked,
-                  });
-                }}
-              />
+              {[
+                {
+                  id: "card",
+                  label: "Review Cards",
+                  description: "Card layout",
+                  icon: <LayoutGrid />,
+                },
+                {
+                  id: "list",
+                  label: "Review List",
+                  description: "List layout",
+                  icon: <FileText />,
+                },
+                {
+                  id: "carousel",
+                  label: "Carousel",
+                  description: "Sliding reviews",
+                  icon: <RefreshCw />,
+                },
+              ].map((method) => (
+                <div
+                  key={method.id}
+                  className={`bg-white rounded-lg border p-2 cursor-pointer transition-all ${
+                    configData.displayMethod === method.id
+                      ? "border-indigo-500 bg-indigo-50/50"
+                      : ""
+                  }`}
+                  onClick={() => handleChange("displayMethod", method.id)}
+                >
+                  <div className="flex items-center">
+                    <div className="h-6 w-6 bg-indigo-100 rounded-full flex items-center justify-center mr-2">
+                      {React.cloneElement(method.icon, {
+                        className: "h-3 w-3 text-indigo-600",
+                      })}
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium">
+                        {method.label}
+                      </span>
+                      <p className="text-xs text-gray-500">
+                        {method.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Review Features</h4>
-          <div className="space-y-3">
-            {[
-              { id: "ratings", label: "Star Ratings", icon: <Star /> },
-              { id: "photos", label: "Customer Photos", icon: <ImageIcon /> },
-              {
-                id: "responses",
-                label: "Owner Responses",
-                icon: <MessageCircle />,
-              },
-              {
-                id: "sorting",
-                label: "Sorting Options",
-                icon: <ArrowDownUp />,
-              },
-            ].map((feature) => (
-              <div
-                key={feature.id}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center">
-                  {React.cloneElement(feature.icon, {
-                    className: "h-4 w-4 text-gray-500 mr-2",
-                  })}
-                  <Label className="cursor-pointer">{feature.label}</Label>
+        {/* Middle Column */}
+        <div className="space-y-3">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Review Filters</h4>
+            <div className="space-y-3">
+              <div>
+                <div className="flex justify-between mb-1">
+                  <Label className="text-xs">Minimum Rating</Label>
+                  <span className="text-xs">
+                    {configData.reviewFilters.minRating} stars
+                  </span>
                 </div>
-                <Switch
-                  checked={configData.features[feature.id]}
-                  onCheckedChange={(checked) => {
-                    handleChange("features", {
-                      ...configData.features,
-                      [feature.id]: checked,
+                <Slider
+                  value={[configData.reviewFilters.minRating]}
+                  min={1}
+                  max={5}
+                  step={1}
+                  onValueChange={(value) => {
+                    handleChange("reviewFilters", {
+                      ...configData.reviewFilters,
+                      minRating: value[0],
                     });
                   }}
                 />
               </div>
-            ))}
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Featured Only</Label>
+                <Switch
+                  checked={configData.reviewFilters.featuredOnly}
+                  onCheckedChange={(checked) => {
+                    handleChange("reviewFilters", {
+                      ...configData.reviewFilters,
+                      featuredOnly: checked,
+                    });
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Recent Only</Label>
+                <Switch
+                  checked={configData.reviewFilters.recentOnly}
+                  onCheckedChange={(checked) => {
+                    handleChange("reviewFilters", {
+                      ...configData.reviewFilters,
+                      recentOnly: checked,
+                    });
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Review Collection</h4>
+            <RadioGroup
+              value={configData.reviewPrompt}
+              onValueChange={(value) => handleChange("reviewPrompt", value)}
+              className="space-y-1"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="After visit" id="after-visit" />
+                <Label htmlFor="after-visit" className="text-xs">
+                  Prompt After Visit
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="QR code" id="qr-code" />
+                <Label htmlFor="qr-code" className="text-xs">
+                  QR Code on Receipt
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="Follow-up" id="follow-up" />
+                <Label htmlFor="follow-up" className="text-xs">
+                  Email Follow-up
+                </Label>
+              </div>
+            </RadioGroup>
           </div>
         </div>
 
-        {/* Before: No preview section */}
-
-        {/* After: Add this new Preview section */}
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3 flex items-center">
-            <Eye className="h-4 w-4 mr-1.5 text-gray-500" />
-            Preview
-          </h4>
-
-          <div className="bg-white border rounded-lg p-4">
-            {configData.displayMethod === "card" && (
-              <div className="grid grid-cols-2 gap-3">
-                {reviews.length > 0
-                  ? reviews.slice(0, 4).map((review, index) => (
-                      <div
-                        key={index}
-                        className="border rounded-lg p-3 bg-white"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center">
-                            <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-2">
-                              {review.profile_photo_url ? (
-                                <img
-                                  src={review.profile_photo_url}
-                                  alt={review.author_name}
-                                  className="h-8 w-8 rounded-full object-cover"
-                                />
-                              ) : (
-                                <User className="h-4 w-4 text-indigo-600" />
-                              )}
-                            </div>
-                            <span className="font-medium text-sm">
-                              {review.author_name}
-                            </span>
-                          </div>
-                          {configData.features.ratings && (
-                            <div className="flex">
-                              {Array.from({ length: 5 }).map((_, i) => (
-                                <Star
-                                  key={i}
-                                  className={`h-3 w-3 ${i < review.rating ? "text-amber-400 fill-amber-400" : "text-gray-300"}`}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-600 line-clamp-3">
-                          {review.text}
-                        </p>
-                        <div className="mt-2 text-xs text-gray-500">
-                          {new Date(review.time).toLocaleDateString()}
-                        </div>
-                      </div>
-                    ))
-                  : // Placeholder cards when no reviews exist
-                    Array.from({ length: 4 }).map((_, index) => (
-                      <div
-                        key={index}
-                        className="border rounded-lg p-3 bg-white opacity-70"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center">
-                            <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-2">
-                              <User className="h-4 w-4 text-indigo-600" />
-                            </div>
-                            <span className="font-medium text-sm">
-                              Sample Reviewer
-                            </span>
-                          </div>
-                          {configData.features.ratings && (
-                            <div className="flex">
-                              {Array.from({ length: 5 }).map((_, i) => (
-                                <Star
-                                  key={i}
-                                  className={`h-3 w-3 ${i < 5 ? "text-amber-400 fill-amber-400" : "text-gray-300"}`}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-600">
-                          This is a sample review to show how your reviews will
-                          appear in card layout. Add reviews to see actual
-                          content.
-                        </p>
-                        <div className="mt-2 text-xs text-gray-500">
-                          {new Date().toLocaleDateString()}
-                        </div>
-                      </div>
-                    ))}
-              </div>
-            )}
-
-            {configData.displayMethod === "list" && (
-              <div className="space-y-3">
-                {reviews.length > 0
-                  ? reviews.slice(0, 3).map((review, index) => (
-                      <div
-                        key={index}
-                        className="border-b pb-3 last:border-0 last:pb-0"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center">
-                            <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-2">
-                              {review.profile_photo_url ? (
-                                <img
-                                  src={review.profile_photo_url}
-                                  alt={review.author_name}
-                                  className="h-8 w-8 rounded-full object-cover"
-                                />
-                              ) : (
-                                <User className="h-4 w-4 text-indigo-600" />
-                              )}
-                            </div>
-                            <div>
-                              <span className="font-medium text-sm block">
-                                {review.author_name}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                {new Date(review.time).toLocaleDateString()}
-                              </span>
-                            </div>
-                          </div>
-                          {configData.features.ratings && (
-                            <div className="flex">
-                              {Array.from({ length: 5 }).map((_, i) => (
-                                <Star
-                                  key={i}
-                                  className={`h-3 w-3 ${i < review.rating ? "text-amber-400 fill-amber-400" : "text-gray-300"}`}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-600">{review.text}</p>
-                      </div>
-                    ))
-                  : // Placeholder list items when no reviews exist
-                    Array.from({ length: 3 }).map((_, index) => (
-                      <div
-                        key={index}
-                        className="border-b pb-3 last:border-0 last:pb-0 opacity-70"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center">
-                            <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-2">
-                              <User className="h-4 w-4 text-indigo-600" />
-                            </div>
-                            <div>
-                              <span className="font-medium text-sm block">
-                                Sample Reviewer
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                {new Date().toLocaleDateString()}
-                              </span>
-                            </div>
-                          </div>
-                          {configData.features.ratings && (
-                            <div className="flex">
-                              {Array.from({ length: 5 }).map((_, i) => (
-                                <Star
-                                  key={i}
-                                  className={`h-3 w-3 ${i < 4 ? "text-amber-400 fill-amber-400" : "text-gray-300"}`}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-600">
-                          This is a sample review to show how your reviews will
-                          appear in list layout. Add reviews to see actual
-                          content.
-                        </p>
-                      </div>
-                    ))}
-              </div>
-            )}
-
-            {configData.displayMethod === "carousel" && (
-              <div className="relative p-4 border rounded-lg bg-gray-50">
-                <div className="absolute top-1/2 left-2 transform -translate-y-1/2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 rounded-full p-0 bg-white shadow-sm"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
+        {/* Right Column */}
+        <div className="space-y-3">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Review Features</h4>
+            <div className="space-y-2">
+              {[
+                { id: "ratings", label: "Star Ratings", icon: <Star /> },
+                { id: "photos", label: "Customer Photos", icon: <ImageIcon /> },
+                {
+                  id: "responses",
+                  label: "Owner Responses",
+                  icon: <MessageCircle />,
+                },
+                {
+                  id: "sorting",
+                  label: "Sorting Options",
+                  icon: <ArrowDownUp />,
+                },
+              ].map((feature) => (
+                <div
+                  key={feature.id}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center">
+                    {React.cloneElement(feature.icon, {
+                      className: "h-3 w-3 text-gray-500 mr-1",
+                    })}
+                    <Label className="text-xs cursor-pointer">
+                      {feature.label}
+                    </Label>
+                  </div>
+                  <Switch
+                    checked={configData.features[feature.id]}
+                    onCheckedChange={(checked) => {
+                      handleChange("features", {
+                        ...configData.features,
+                        [feature.id]: checked,
+                      });
+                    }}
+                  />
                 </div>
-
-                <div className="mx-8">
-                  {reviews.length > 0 ? (
-                    <div className="bg-white rounded-lg p-4 border text-center">
-                      {configData.features.ratings && (
-                        <div className="flex justify-center mb-2">
-                          {Array.from({ length: 5 }).map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`h-4 w-4 ${i < reviews[0].rating ? "text-amber-400 fill-amber-400" : "text-gray-300"}`}
-                            />
-                          ))}
-                        </div>
-                      )}
-                      <p className="text-sm text-gray-600 italic">
-                        "{reviews[0].text}"
-                      </p>
-                      <div className="mt-3 flex items-center justify-center">
-                        <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-2">
-                          {reviews[0].profile_photo_url ? (
-                            <img
-                              src={reviews[0].profile_photo_url}
-                              alt={reviews[0].author_name}
-                              className="h-8 w-8 rounded-full object-cover"
-                            />
-                          ) : (
-                            <User className="h-4 w-4 text-indigo-600" />
-                          )}
-                        </div>
-                        <span className="font-medium text-sm">
-                          {reviews[0].author_name}
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-white rounded-lg p-4 border text-center opacity-70">
-                      {configData.features.ratings && (
-                        <div className="flex justify-center mb-2">
-                          {Array.from({ length: 5 }).map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`h-4 w-4 ${i < 5 ? "text-amber-400 fill-amber-400" : "text-gray-300"}`}
-                            />
-                          ))}
-                        </div>
-                      )}
-                      <p className="text-sm text-gray-600 italic">
-                        "This is a sample review to show how your reviews will
-                        appear in carousel layout. Add reviews to see actual
-                        content."
-                      </p>
-                      <div className="mt-3 flex items-center justify-center">
-                        <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-2">
-                          <User className="h-4 w-4 text-indigo-600" />
-                        </div>
-                        <span className="font-medium text-sm">
-                          Sample Reviewer
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="absolute top-1/2 right-2 transform -translate-y-1/2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 rounded-full p-0 bg-white shadow-sm"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                <div className="flex justify-center gap-1 mt-3">
-                  <div className="h-1.5 w-4 rounded-full bg-indigo-500"></div>
-                  <div className="h-1.5 w-1.5 rounded-full bg-gray-300"></div>
-                  <div className="h-1.5 w-1.5 rounded-full bg-gray-300"></div>
-                </div>
-              </div>
-            )}
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Review Collection</h4>
-          <RadioGroup
-            value={configData.reviewPrompt}
-            onValueChange={(value) => handleChange("reviewPrompt", value)}
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="After visit" id="after-visit" />
-              <Label htmlFor="after-visit">Prompt After Visit</Label>
+          {/* Compact Preview */}
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm flex items-center">
+              <Eye className="h-3 w-3 mr-1 text-gray-500" />
+              Preview
+            </h4>
+            <div className="bg-gray-50 rounded p-2">
+              <div className="flex items-center mb-1">
+                <div className="h-4 w-4 bg-indigo-100 rounded-full flex items-center justify-center mr-1">
+                  <User className="h-2 w-2 text-indigo-600" />
+                </div>
+                <span className="text-xs font-medium">Sample Reviewer</span>
+                {configData.features.ratings && (
+                  <div className="flex ml-auto">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`h-2 w-2 ${i < 5 ? "text-amber-400 fill-amber-400" : "text-gray-300"}`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-gray-600">
+                Sample review text to show layout...
+              </p>
             </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="QR code" id="qr-code" />
-              <Label htmlFor="qr-code">QR Code on Receipt</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="Follow-up" id="follow-up" />
-              <Label htmlFor="follow-up">Email Follow-up</Label>
-            </div>
-          </RadioGroup>
+          </div>
         </div>
       </div>
 
-      <div className="border-t pt-4 flex justify-end">
-        <Button onClick={() => onSave(configData)}>
+      <div className="flex justify-end pt-2">
+        <Button onClick={() => onSave(configData)} size="sm">
           Save Reviews Configuration
         </Button>
       </div>
@@ -4127,7 +3899,7 @@ export const EventsConfigScreen = ({ onSave, initialData = {} }) => {
   const [isScraping, setIsScraping] = useState(false);
   const [scrapingError, setScrapingError] = useState(null);
   const [scrapingProgress, setScrapingProgress] = useState({
-    stage: "", // "scraping", "parsing", "complete"
+    stage: "",
     message: "",
   });
 
@@ -4135,10 +3907,7 @@ export const EventsConfigScreen = ({ onSave, initialData = {} }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const handleChange = (field, value) => {
-    setConfigData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setConfigData((prev) => ({ ...prev, [field]: value }));
   };
 
   // Function to check if a URL is valid
@@ -4806,575 +4575,398 @@ export const EventsConfigScreen = ({ onSave, initialData = {} }) => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start gap-4">
+    <div className="space-y-4 max-h-screen overflow-hidden">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-semibold mb-1">
+          <h1 className="text-xl font-semibold">
             Configure Events & Announcements
           </h1>
           <p className="text-gray-500 text-sm">
             Set up how events and promotions are displayed
           </p>
         </div>
-        <div className="bg-green-100 p-3 rounded-full">
-          <Calendar className="h-6 w-6 text-green-600" />
+        <div className="bg-green-100 p-2 rounded-full">
+          <Calendar className="h-5 w-5 text-green-600" />
         </div>
       </div>
 
-      <div className="space-y-5">
-        <div className="space-y-2">
-          <Label htmlFor="event-name">Feature Name</Label>
-          <Input
-            id="event-name"
-            placeholder="e.g. Upcoming Events"
-            value={configData.name}
-            onChange={(e) => handleChange("name", e.target.value)}
-          />
-        </div>
-
-        <div className="bg-green-50 p-4 rounded-lg border border-green-100">
-          <h4 className="font-medium text-green-800 mb-2 flex items-center">
-            <Calendar className="h-4 w-4 mr-1.5" />
-            Display Method
-          </h4>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              {
-                id: "calendar",
-                label: "Calendar View",
-                description: "Monthly calendar",
-                icon: <Calendar />,
-              },
-              {
-                id: "list",
-                label: "Event List",
-                description: "Chronological list",
-                icon: <FileText />,
-              },
-              {
-                id: "featured",
-                label: "Featured Events",
-                description: "Highlight special events",
-                icon: <Star />,
-              },
-            ].map((method) => (
-              <div
-                key={method.id}
-                className={`bg-white rounded-lg border p-3 cursor-pointer hover:border-green-500 transition-all flex flex-col items-center text-center ${configData.displayMethod === method.id ? "border-green-500 bg-green-50/50" : ""}`}
-                onClick={() => handleChange("displayMethod", method.id)}
-              >
-                <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center mb-2">
-                  {React.cloneElement(method.icon, {
-                    className: "h-6 w-6 text-green-600",
-                  })}
-                </div>
-                <span className="text-sm font-medium">{method.label}</span>
-                <span className="text-xs text-gray-500 mt-1">
-                  {method.description}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Event Sources Section */}
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Event Sources</h4>
-          <p className="text-sm text-gray-500 mb-3">
-            Add a website URL or Google Calendar link to automatically import
-            events
-          </p>
-
-          <div className="space-y-3 mb-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder="https://example.com/events or Google Calendar URL"
-                value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
-                disabled={isScraping}
-              />
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if (urlInput.trim()) {
-                    processEventSource(urlInput);
-                  }
-                }}
-                disabled={isScraping || !urlInput.trim()}
-              >
-                {isScraping ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  "Add"
-                )}
-              </Button>
-            </div>
-
-            {isScraping && scrapingProgress.message && (
-              <div className="text-xs text-green-600">
-                <div className="flex items-center mb-1">
-                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  <span>{scrapingProgress.message}</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-1.5">
-                  <div
-                    className="bg-green-600 h-1.5 rounded-full"
-                    style={{
-                      width:
-                        scrapingProgress.stage === "parsing" ? "75%" : "40%",
-                    }}
-                  ></div>
-                </div>
-              </div>
-            )}
-
-            {scrapingError && (
-              <p className="text-xs text-red-500">{scrapingError}</p>
-            )}
+      <div className="grid grid-cols-3 gap-4">
+        {/* Left Column */}
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="event-name" className="text-sm">
+              Feature Name
+            </Label>
+            <Input
+              id="event-name"
+              placeholder="e.g. Upcoming Events"
+              value={configData.name}
+              onChange={(e) => handleChange("name", e.target.value)}
+              className="mt-1"
+            />
           </div>
 
-          {/* Display added sources */}
-          <div className="space-y-2">
-            {configData.eventSources.map((source) => (
-              <div
-                key={source.id}
-                className="flex items-center justify-between p-2 bg-gray-50 rounded-md"
-              >
-                <div className="flex items-center">
-                  {source.type === "google_calendar" ? (
-                    <CalendarDays className="h-4 w-4 text-blue-500 mr-2" />
-                  ) : (
-                    <Globe className="h-4 w-4 text-green-500 mr-2" />
-                  )}
-                  <span className="text-sm truncate max-w-[240px]">
-                    {source.name}: {source.url}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    asChild
-                  >
-                    <a
-                      href={source.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => removeEventSource(source.id)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-
-            {configData.eventSources.length === 0 && !isScraping && (
-              <p className="text-center text-sm text-gray-500 py-2">
-                No event sources added yet
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Event Types Section - Now showing detected types */}
-        {configData.eventTypes.length > 0 && (
-          <div className="border rounded-lg p-4">
-            <h4 className="font-medium mb-3">Detected Event Types</h4>
-            <div className="flex flex-wrap gap-2">
-              {configData.eventTypes.map((type) => (
-                <Badge
-                  key={type}
-                  className="bg-green-100 text-green-800 hover:bg-green-200 transition-colors"
+          <div className="bg-green-50 p-3 rounded-lg border border-green-100">
+            <h4 className="font-medium text-green-800 mb-2 text-sm flex items-center">
+              <Calendar className="h-4 w-4 mr-1" />
+              Display Method
+            </h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "calendar",
+                  label: "Calendar View",
+                  description: "Monthly calendar",
+                  icon: <Calendar />,
+                },
+                {
+                  id: "list",
+                  label: "Event List",
+                  description: "Chronological list",
+                  icon: <FileText />,
+                },
+                {
+                  id: "featured",
+                  label: "Featured Events",
+                  description: "Highlight special events",
+                  icon: <Star />,
+                },
+              ].map((method) => (
+                <div
+                  key={method.id}
+                  className={`bg-white rounded-lg border p-2 cursor-pointer transition-all ${
+                    configData.displayMethod === method.id
+                      ? "border-green-500 bg-green-50/50"
+                      : ""
+                  }`}
+                  onClick={() => handleChange("displayMethod", method.id)}
                 >
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
-                </Badge>
+                  <div className="flex items-center">
+                    <div className="h-6 w-6 bg-green-100 rounded-full flex items-center justify-center mr-2">
+                      {React.cloneElement(method.icon, {
+                        className: "h-3 w-3 text-green-600",
+                      })}
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium">
+                        {method.label}
+                      </span>
+                      <p className="text-xs text-gray-500">
+                        {method.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              These event types were automatically detected from your events
-              sources.
-            </p>
           </div>
-        )}
 
-        {/* Preview Section */}
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3 flex items-center">
-            <Eye className="h-4 w-4 mr-1.5 text-gray-500" />
-            Preview
-          </h4>
-
-          <div className="bg-white border rounded-lg p-4">
-            {configData.displayMethod === "calendar" && (
-              <div className="bg-white rounded-lg border p-3">
-                <div className="flex justify-between items-center mb-4">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      setCurrentMonth(
-                        new Date(
-                          currentMonth.getFullYear(),
-                          currentMonth.getMonth() - 1,
-                        ),
-                      )
-                    }
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <h3 className="text-md font-medium">
-                    {currentMonth.toLocaleString("default", {
-                      month: "long",
-                      year: "numeric",
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Event Features</h4>
+            <div className="space-y-2">
+              {[
+                { id: "rsvp", label: "RSVP Function", icon: <Check /> },
+                { id: "reminders", label: "Event Reminders", icon: <Bell /> },
+                { id: "sharing", label: "Social Sharing", icon: <Share2 /> },
+                {
+                  id: "recurring",
+                  label: "Recurring Events",
+                  icon: <RepeatIcon />,
+                },
+              ].map((feature) => (
+                <div
+                  key={feature.id}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center">
+                    {React.cloneElement(feature.icon, {
+                      className: "h-3 w-3 text-gray-500 mr-1",
                     })}
-                  </h3>
+                    <Label className="text-xs cursor-pointer">
+                      {feature.label}
+                    </Label>
+                  </div>
+                  <Switch
+                    checked={configData.features[feature.id]}
+                    onCheckedChange={(checked) => {
+                      handleChange("features", {
+                        ...configData.features,
+                        [feature.id]: checked,
+                      });
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Middle Column */}
+        <div className="space-y-3">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Event Sources</h4>
+            <p className="text-xs text-gray-500 mb-2">
+              Add website URL or Google Calendar link to import events
+            </p>
+
+            <div className="space-y-2">
+              <div className="flex gap-1">
+                <Input
+                  placeholder="https://example.com/events"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  disabled={isScraping}
+                  className="text-xs"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (urlInput.trim()) {
+                      processEventSource(urlInput);
+                    }
+                  }}
+                  disabled={isScraping || !urlInput.trim()}
+                  size="sm"
+                >
+                  {isScraping ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    "Add"
+                  )}
+                </Button>
+              </div>
+
+              {isScraping && scrapingProgress.message && (
+                <div className="text-xs text-green-600">
+                  <div className="flex items-center mb-1">
+                    <Loader2 className="h-2 w-2 mr-1 animate-spin" />
+                    <span>{scrapingProgress.message}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-1">
+                    <div
+                      className="bg-green-600 h-1 rounded-full"
+                      style={{
+                        width:
+                          scrapingProgress.stage === "parsing" ? "75%" : "40%",
+                      }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+
+              {scrapingError && (
+                <p className="text-xs text-red-500">{scrapingError}</p>
+              )}
+            </div>
+
+            {/* Compact source list */}
+            <div className="space-y-1 mt-2 max-h-20 overflow-y-auto">
+              {configData.eventSources.map((source) => (
+                <div
+                  key={source.id}
+                  className="flex items-center justify-between p-1 bg-gray-50 rounded text-xs"
+                >
+                  <div className="flex items-center min-w-0">
+                    {source.type === "google_calendar" ? (
+                      <Calendar className="h-3 w-3 text-blue-500 mr-1 flex-shrink-0" />
+                    ) : (
+                      <Globe className="h-3 w-3 text-green-500 mr-1 flex-shrink-0" />
+                    )}
+                    <span className="truncate">{source.name}</span>
+                  </div>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() =>
-                      setCurrentMonth(
-                        new Date(
-                          currentMonth.getFullYear(),
-                          currentMonth.getMonth() + 1,
-                        ),
-                      )
-                    }
+                    className="h-4 w-4 p-0"
+                    onClick={() => removeEventSource(source.id)}
                   >
-                    <ChevronRight className="h-4 w-4" />
+                    <X className="h-3 w-3" />
                   </Button>
                 </div>
+              ))}
+              {configData.eventSources.length === 0 && !isScraping && (
+                <p className="text-center text-xs text-gray-500 py-1">
+                  No sources added
+                </p>
+              )}
+            </div>
+          </div>
 
-                <div className="grid grid-cols-7 gap-1 text-center mb-1">
-                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                    (day) => (
+          {/* Detected Event Types */}
+          {configData.eventTypes.length > 0 && (
+            <div className="border rounded-lg p-3">
+              <h4 className="font-medium mb-2 text-sm">Detected Event Types</h4>
+              <div className="flex flex-wrap gap-1">
+                {configData.eventTypes.map((type) => (
+                  <Badge
+                    key={type}
+                    className="bg-green-100 text-green-800 text-xs"
+                  >
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right Column - Compact Preview */}
+        <div className="space-y-3">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm flex items-center">
+              <Eye className="h-3 w-3 mr-1 text-gray-500" />
+              Preview
+            </h4>
+
+            <div className="bg-white border rounded-lg p-2">
+              {configData.displayMethod === "calendar" && (
+                <div className="space-y-2">
+                  <div className="text-center text-xs font-medium">
+                    March 2025
+                  </div>
+                  <div className="grid grid-cols-7 gap-0.5 text-center">
+                    {["S", "M", "T", "W", "T", "F", "S"].map((day) => (
                       <div
                         key={day}
-                        className="text-xs font-medium text-gray-500"
+                        className="text-xs font-medium text-gray-500 p-1"
                       >
                         {day}
                       </div>
-                    ),
-                  )}
+                    ))}
+                    {Array.from({ length: 35 }).map((_, i) => {
+                      const day = i - 5 + 1; // Start from day 1
+                      const hasEvent = [5, 12, 20].includes(day);
+                      return (
+                        <div
+                          key={i}
+                          className={`aspect-square text-xs p-0.5 border ${
+                            day > 0 && day <= 31
+                              ? hasEvent
+                                ? "bg-green-50 border-green-200"
+                                : "bg-white border-gray-100"
+                              : "bg-gray-50 text-gray-300"
+                          }`}
+                        >
+                          {day > 0 && day <= 31 ? day : ""}
+                          {hasEvent && (
+                            <div className="w-1 h-1 bg-green-500 rounded-full mx-auto mt-0.5"></div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
+              )}
 
-                <div className="grid grid-cols-7 gap-1">
-                  {generateCalendarData().map((day, i) => (
-                    <div
-                      key={i}
-                      className={`aspect-square p-1 text-center border ${
-                        day.isCurrentMonth
-                          ? "bg-white"
-                          : "bg-gray-50 text-gray-300"
-                      } ${day.events?.length ? "bg-green-50 border-green-200" : "border-gray-100"}`}
-                    >
-                      <div className="text-xs">{day.day}</div>
-                      {day.events?.length > 0 && (
-                        <div className="mt-1">
-                          {day.events.slice(0, 2).map((event, idx) => (
-                            <TooltipProvider key={idx}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="h-1.5 w-1.5 rounded-full bg-green-500 mx-auto my-0.5"></div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p className="text-xs font-medium">
-                                    {event.title}
-                                  </p>
-                                  {event.time && (
-                                    <p className="text-xs">{event.time}</p>
-                                  )}
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          ))}
-                          {day.events.length > 2 && (
-                            <div className="text-[10px] text-green-600">
-                              +{day.events.length - 2} more
+              {configData.displayMethod === "list" && (
+                <div className="space-y-1">
+                  {configData.scrapedEvents.length > 0
+                    ? configData.scrapedEvents.slice(0, 3).map((event) => (
+                        <div
+                          key={event.id}
+                          className="p-1 border-b last:border-b-0"
+                        >
+                          <div className="text-xs font-medium">
+                            {event.title}
+                          </div>
+                          {event.date && (
+                            <div className="text-xs text-gray-500">
+                              {event.date}
                             </div>
                           )}
+                        </div>
+                      ))
+                    : Array.from({ length: 3 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="p-1 border-b last:border-b-0 opacity-50"
+                        >
+                          <div className="text-xs font-medium">
+                            Sample Event {i + 1}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            3/{5 + i * 7}/2025
+                          </div>
+                        </div>
+                      ))}
+                </div>
+              )}
+
+              {configData.displayMethod === "featured" && (
+                <div className="grid grid-cols-2 gap-1">
+                  {(configData.scrapedEvents.length > 0
+                    ? configData.scrapedEvents.slice(0, 4)
+                    : Array.from({ length: 4 }).map((_, i) => ({
+                        id: i,
+                        title: `Sample Event ${i + 1}`,
+                        date: `3/${5 + i * 5}/2025`,
+                        type: i % 2 === 0 ? "events" : "entertainment",
+                      }))
+                  ).map((event) => (
+                    <div
+                      key={event.id}
+                      className="bg-white rounded border p-1 relative"
+                    >
+                      <Badge className="absolute top-0.5 right-0.5 bg-green-100 text-green-800 text-xs">
+                        {event.type || "events"}
+                      </Badge>
+                      <div className="text-xs font-medium pr-8 line-clamp-1">
+                        {event.title}
+                      </div>
+                      {event.date && (
+                        <div className="text-xs text-gray-500 mt-0.5">
+                          {event.date}
                         </div>
                       )}
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-
-            {configData.displayMethod === "list" && (
-              <div className="bg-white rounded-lg border p-3">
-                <ScrollArea className="h-64">
-                  {configData.scrapedEvents.length > 0 ? (
-                    <div className="space-y-3">
-                      {configData.scrapedEvents
-                        .sort((a, b) => {
-                          // Try to sort by date if available
-                          if (a.date && b.date) {
-                            return new Date(a.date) - new Date(b.date);
-                          }
-                          return 0;
-                        })
-                        .map((event) => (
-                          <div
-                            key={event.id}
-                            className="p-2 border-b last:border-b-0"
-                          >
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h4 className="text-sm font-medium">
-                                  {event.title}
-                                </h4>
-                                {event.date && (
-                                  <p className="text-xs text-gray-500 flex items-center mt-1">
-                                    <Calendar className="h-3 w-3 mr-1" />
-                                    {event.date}{" "}
-                                    {event.time && `• ${event.time}`}
-                                  </p>
-                                )}
-                                {event.location && (
-                                  <p className="text-xs text-gray-500 flex items-center mt-0.5">
-                                    <MapPin className="h-3 w-3 mr-1" />
-                                    {event.location}
-                                  </p>
-                                )}
-                              </div>
-                              {event.type && (
-                                <Badge className="bg-green-100 text-green-800 text-xs">
-                                  {event.type}
-                                </Badge>
-                              )}
-                            </div>
-                            {event.description && (
-                              <p className="text-xs mt-1 text-gray-600 line-clamp-2">
-                                {event.description}
-                              </p>
-                            )}
-                          </div>
-                        ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full py-8 text-center">
-                      <Calendar className="h-8 w-8 text-gray-300 mb-2" />
-                      <h3 className="text-sm font-medium text-gray-600">
-                        No events yet
-                      </h3>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Add events by entering a URL above
-                      </p>
-                    </div>
-                  )}
-                </ScrollArea>
-              </div>
-            )}
-
-            {configData.displayMethod === "featured" && (
-              <div>
-                {configData.scrapedEvents.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    {configData.scrapedEvents.slice(0, 4).map((event) => (
-                      <div
-                        key={event.id}
-                        className="bg-white rounded-lg border p-3 relative"
-                      >
-                        <div className="absolute top-2 right-2">
-                          <Badge className="bg-green-100 text-green-800 text-xs">
-                            {event.type || "events"}
-                          </Badge>
-                        </div>
-                        <h4 className="text-sm font-medium pr-16">
-                          {event.title || "Event title"}
-                        </h4>
-                        {event.date && (
-                          <p className="text-xs text-gray-500 flex items-center mt-1">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            {event.date} {event.time && `• ${event.time}`}
-                          </p>
-                        )}
-                        {event.location && (
-                          <p className="text-xs text-gray-500 flex items-center mt-0.5">
-                            <MapPin className="h-3 w-3 mr-1" />
-                            {event.location}
-                          </p>
-                        )}
-                        {event.description && (
-                          <p className="text-xs mt-2 text-gray-600 line-clamp-3">
-                            {event.description}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    {[1, 2, 3, 4].map((i) => (
-                      <div
-                        key={i}
-                        className="bg-white rounded-lg border p-3 relative opacity-50"
-                      >
-                        <div className="absolute top-2 right-2">
-                          <Badge className="bg-green-100 text-green-800 text-xs">
-                            {i % 2 === 0 ? "events" : "entertainment"}
-                          </Badge>
-                        </div>
-                        <h4 className="text-sm font-medium pr-16">
-                          Example Event {i}
-                        </h4>
-                        <p className="text-xs text-gray-500 flex items-center mt-1">
-                          <Calendar className="h-3 w-3 mr-1" />
-                          3/15/2025 • 2:00 PM
-                        </p>
-                        <p className="text-xs text-gray-500 flex items-center mt-0.5">
-                          <MapPin className="h-3 w-3 mr-1" />
-                          Main Hall
-                        </p>
-                        <p className="text-xs mt-2 text-gray-600 line-clamp-3">
-                          This is a placeholder for a featured event
-                          description. Add events using the URL above.
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Extracted Events Section */}
-        {configData.scrapedEvents.length > 0 && (
-          <div className="border rounded-lg p-4 mt-4">
-            <div className="flex justify-between items-center mb-3">
-              <h4 className="font-medium">Extracted Events</h4>
-              <Badge className="bg-green-100 text-green-800">
-                {configData.scrapedEvents.length} Events
-              </Badge>
+              )}
             </div>
+          </div>
 
-            <ScrollArea className="h-64 rounded-md border p-2">
-              <div className="space-y-3">
+          {/* Compact Extracted Events */}
+          {configData.scrapedEvents.length > 0 && (
+            <div className="border rounded-lg p-3">
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="font-medium text-sm">Extracted Events</h4>
+                <Badge className="bg-green-100 text-green-800 text-xs">
+                  {configData.scrapedEvents.length}
+                </Badge>
+              </div>
+              <div className="max-h-32 overflow-y-auto space-y-1">
                 {configData.scrapedEvents.map((event) => (
                   <div
                     key={event.id}
-                    className="border rounded-lg p-3 bg-gray-50 relative pr-8"
+                    className="border rounded p-2 bg-gray-50 text-xs relative pr-6"
                   >
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 w-6 p-0 absolute top-2 right-2"
+                      className="h-3 w-3 p-0 absolute top-1 right-1"
                       onClick={() => removeEvent(event.id)}
                     >
-                      <X className="h-3 w-3" />
+                      <X className="h-2 w-2" />
                     </Button>
-
-                    <div className="flex justify-between items-start">
-                      <h4 className="text-sm font-medium">{event.title}</h4>
-                      {event.type && (
-                        <Badge className="bg-green-100 text-green-800 text-xs">
-                          {event.type}
-                        </Badge>
-                      )}
+                    <div className="font-medium line-clamp-1">
+                      {event.title}
                     </div>
-
                     {event.date && (
-                      <p className="text-xs text-gray-500 flex items-center mt-1">
-                        <Calendar className="h-3 w-3 mr-1" />
-                        {event.date} {event.time && `• ${event.time}`}
-                      </p>
-                    )}
-
-                    {event.location && (
-                      <p className="text-xs text-gray-500 flex items-center mt-0.5">
-                        <MapPin className="h-3 w-3 mr-1" />
-                        {event.location}
-                      </p>
-                    )}
-
-                    {event.description && (
-                      <div className="mt-2">
-                        <p className="text-xs font-medium text-gray-500">
-                          Description:
-                        </p>
-                        <p className="text-xs">{event.description}</p>
-                      </div>
-                    )}
-
-                    {event.url && (
-                      <div className="mt-2 flex justify-end">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 text-xs"
-                          asChild
-                        >
-                          <a
-                            href={event.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <ExternalLink className="h-3 w-3 mr-1" />
-                            View Source
-                          </a>
-                        </Button>
+                      <div className="text-gray-500 flex items-center mt-0.5">
+                        <Calendar className="h-2 w-2 mr-1" />
+                        {event.date}
                       </div>
                     )}
                   </div>
                 ))}
               </div>
-            </ScrollArea>
-          </div>
-        )}
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Event Features</h4>
-          <div className="space-y-3">
-            {[
-              { id: "rsvp", label: "RSVP Function", icon: <Check /> },
-              { id: "reminders", label: "Event Reminders", icon: <Bell /> },
-              { id: "sharing", label: "Social Sharing", icon: <Share2 /> },
-              {
-                id: "recurring",
-                label: "Recurring Events",
-                icon: <RepeatIcon />,
-              },
-            ].map((feature) => (
-              <div
-                key={feature.id}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center">
-                  {React.cloneElement(feature.icon, {
-                    className: "h-4 w-4 text-gray-500 mr-2",
-                  })}
-                  <Label className="cursor-pointer">{feature.label}</Label>
-                </div>
-                <Switch
-                  checked={configData.features[feature.id]}
-                  onCheckedChange={(checked) => {
-                    handleChange("features", {
-                      ...configData.features,
-                      [feature.id]: checked,
-                    });
-                  }}
-                />
-              </div>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="border-t pt-4 flex justify-end">
-        <Button onClick={() => onSave(configData)}>
+      <div className="flex justify-end pt-2">
+        <Button onClick={() => onSave(configData)} size="sm">
           Save Events Configuration
         </Button>
       </div>
@@ -5414,10 +5006,7 @@ export const SpecialOffersConfigScreen = ({
   const [activeTab, setActiveTab] = useState("setup");
 
   const handleChange = (field, value) => {
-    setConfigData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setConfigData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handlePromotionChange = (index, field, value) => {
@@ -5623,10 +5212,9 @@ export const SpecialOffersConfigScreen = ({
   };
 
   const renderPreview = () => {
-    // Sample promotion for preview
     const samplePromo = configData.activePromotions[0] || {
       name: "Sample Promotion",
-      description: "Description of your promotion will appear here",
+      description: "Description of your promotion",
       discountType: "percentage",
       discountValue: "20",
       code: "SAMPLE20",
@@ -5634,60 +5222,58 @@ export const SpecialOffersConfigScreen = ({
 
     if (previewType === "popup") {
       return (
-        <div className="border rounded-lg shadow-md max-w-sm mx-auto overflow-hidden">
-          <div className="bg-red-50 p-4 border-b border-red-100">
+        <div className="border rounded-lg shadow-md max-w-xs mx-auto overflow-hidden">
+          <div className="bg-red-50 p-2 border-b border-red-100">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-red-800">
+              <h3 className="text-sm font-medium text-red-800">
                 {samplePromo.name}
               </h3>
-              <X className="h-4 w-4 text-gray-500" />
+              <X className="h-3 w-3 text-gray-500" />
             </div>
           </div>
-          <div className="p-4">
-            <p className="text-gray-600 mb-3">{samplePromo.description}</p>
-            <div className="bg-gray-50 p-2 rounded-md text-center mb-3">
+          <div className="p-2">
+            <p className="text-xs text-gray-600 mb-2">
+              {samplePromo.description}
+            </p>
+            <div className="bg-gray-50 p-1 rounded text-center mb-2">
               <span className="text-xs text-gray-500">Use code</span>
-              <div className="font-mono font-bold text-red-600">
+              <div className="font-mono font-bold text-red-600 text-xs">
                 {samplePromo.code}
               </div>
             </div>
-            <div className="flex space-x-2">
-              <Button className="flex-1 bg-red-600 hover:bg-red-700">
-                Claim Offer
-              </Button>
-              <Button variant="outline" className="text-gray-600">
-                Details
-              </Button>
-            </div>
+            <Button
+              size="sm"
+              className="w-full bg-red-600 hover:bg-red-700 text-xs"
+            >
+              Claim Offer
+            </Button>
           </div>
         </div>
       );
     } else {
       return (
-        <div className="max-w-full mx-auto overflow-hidden">
-          <div className="bg-red-50 border border-red-100 rounded-lg p-3 flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="bg-red-100 p-2 rounded-full mr-3">
-                <Tag className="h-5 w-5 text-red-600" />
-              </div>
-              <div>
-                <h3 className="font-medium text-red-800">{samplePromo.name}</h3>
-                <p className="text-sm text-gray-600">
-                  {samplePromo.description}
-                </p>
+        <div className="bg-red-50 border border-red-100 rounded-lg p-2 flex items-center justify-between">
+          <div className="flex items-center">
+            <div className="bg-red-100 p-1 rounded-full mr-2">
+              <Tag className="h-3 w-3 text-red-600" />
+            </div>
+            <div>
+              <h3 className="font-medium text-red-800 text-xs">
+                {samplePromo.name}
+              </h3>
+              <p className="text-xs text-gray-600">{samplePromo.description}</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="text-center">
+              <div className="text-xs text-gray-500">Use code</div>
+              <div className="font-mono font-bold text-red-600 text-xs">
+                {samplePromo.code}
               </div>
             </div>
-            <div className="flex items-center space-x-3">
-              <div className="text-center">
-                <div className="text-xs text-gray-500">Use code</div>
-                <div className="font-mono font-bold text-red-600">
-                  {samplePromo.code}
-                </div>
-              </div>
-              <Button size="sm" className="bg-red-600 hover:bg-red-700">
-                Claim
-              </Button>
-            </div>
+            <Button size="sm" className="bg-red-600 hover:bg-red-700 text-xs">
+              Claim
+            </Button>
           </div>
         </div>
       );
@@ -5695,200 +5281,212 @@ export const SpecialOffersConfigScreen = ({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start gap-4">
+    <div className="space-y-4 max-h-screen overflow-hidden">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-semibold mb-1">
-            Configure Special Offers
-          </h1>
+          <h1 className="text-xl font-semibold">Configure Special Offers</h1>
           <p className="text-gray-500 text-sm">
-            Set up how promotions and discounts are displayed to your customers
+            Set up how promotions and discounts are displayed
           </p>
         </div>
-        <div className="bg-red-100 p-3 rounded-full">
-          <PercentCircle className="h-6 w-6 text-red-600" />
+        <div className="bg-red-100 p-2 rounded-full">
+          <PercentCircle className="h-5 w-5 text-red-600" />
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-3 mb-6">
-          <TabsTrigger value="setup">Basic Setup</TabsTrigger>
-          <TabsTrigger value="integration">System Integration</TabsTrigger>
-          <TabsTrigger value="promotions">Manage Promotions</TabsTrigger>
+        <TabsList className="grid grid-cols-3 mb-3">
+          <TabsTrigger value="setup" className="text-xs">
+            Basic Setup
+          </TabsTrigger>
+          <TabsTrigger value="integration" className="text-xs">
+            Integration
+          </TabsTrigger>
+          <TabsTrigger value="promotions" className="text-xs">
+            Promotions
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="setup" className="space-y-5">
-          <div className="space-y-2">
-            <Label htmlFor="offers-name">Feature Name</Label>
-            <Input
-              id="offers-name"
-              placeholder="e.g. Special Offers & Deals"
-              value={configData.name}
-              onChange={(e) => handleChange("name", e.target.value)}
-            />
-          </div>
-
-          <div className="bg-red-50 p-4 rounded-lg border border-red-100">
-            <h4 className="font-medium text-red-800 mb-2 flex items-center">
-              <PercentCircle className="h-4 w-4 mr-1.5" />
-              Offer Types
-            </h4>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                {
-                  id: "discounts",
-                  label: "Discounts",
-                  description: "Percentage or fixed amount off",
-                  icon: <PercentCircle />,
-                },
-                {
-                  id: "coupons",
-                  label: "Coupons",
-                  description: "Special codes for redemption",
-                  icon: <Ticket />,
-                },
-              ].map((type) => (
-                <div
-                  key={type.id}
-                  className={`bg-white rounded-lg border p-3 cursor-pointer hover:border-red-500 transition-all flex flex-col items-center text-center ${configData.offerType === type.id ? "border-red-500 bg-red-50/50" : ""}`}
-                  onClick={() => handleChange("offerType", type.id)}
-                >
-                  <div className="h-12 w-12 bg-red-100 rounded-full flex items-center justify-center mb-2">
-                    {React.cloneElement(type.icon, {
-                      className: "h-6 w-6 text-red-600",
-                    })}
-                  </div>
-                  <span className="text-sm font-medium">{type.label}</span>
-                  <span className="text-xs text-gray-500 mt-1">
-                    {type.description}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="border rounded-lg p-4">
-            <h4 className="font-medium mb-3">Promotion Schedule</h4>
+        <TabsContent value="setup" className="space-y-3">
+          <div className="grid grid-cols-2 gap-4">
+            {/* Left Column */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">Frequency</p>
-                  <p className="text-xs text-gray-500">
-                    How often to rotate offers
-                  </p>
-                </div>
-                <Select
-                  value={configData.frequency}
-                  onValueChange={(value) => handleChange("frequency", value)}
-                >
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="personalized">
-                      Personalized (Recommended)
-                    </SelectItem>
-                    <SelectItem value="daily">Daily</SelectItem>
-                    <SelectItem value="weekly">Weekly</SelectItem>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div>
+                <Label htmlFor="offers-name" className="text-sm">
+                  Feature Name
+                </Label>
+                <Input
+                  id="offers-name"
+                  placeholder="e.g. Special Offers & Deals"
+                  value={configData.name}
+                  onChange={(e) => handleChange("name", e.target.value)}
+                  className="mt-1"
+                />
               </div>
 
-              {configData.frequency === "personalized" && (
-                <Alert className="bg-blue-50 text-blue-800 border-blue-100">
-                  <AlertDescription className="text-xs">
-                    <span className="font-medium">Personalized scheduling</span>
-                    : Blueprint will intelligently display offers based on
-                    customer behavior patterns and location data for maximum
-                    engagement.
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">Targeting</p>
-                  <p className="text-xs text-gray-500">Who receives offers</p>
+              <div className="bg-red-50 p-3 rounded-lg border border-red-100">
+                <h4 className="font-medium text-red-800 mb-2 text-sm flex items-center">
+                  <PercentCircle className="h-4 w-4 mr-1" />
+                  Offer Types
+                </h4>
+                <div className="space-y-2">
+                  {[
+                    {
+                      id: "discounts",
+                      label: "Discounts",
+                      description: "Percentage or fixed amount off",
+                      icon: <PercentCircle />,
+                    },
+                    {
+                      id: "coupons",
+                      label: "Coupons",
+                      description: "Special codes for redemption",
+                      icon: <Ticket />,
+                    },
+                  ].map((type) => (
+                    <div
+                      key={type.id}
+                      className={`bg-white rounded-lg border p-2 cursor-pointer transition-all ${
+                        configData.offerType === type.id
+                          ? "border-red-500 bg-red-50/50"
+                          : ""
+                      }`}
+                      onClick={() => handleChange("offerType", type.id)}
+                    >
+                      <div className="flex items-center">
+                        <div className="h-6 w-6 bg-red-100 rounded-full flex items-center justify-center mr-2">
+                          {React.cloneElement(type.icon, {
+                            className: "h-3 w-3 text-red-600",
+                          })}
+                        </div>
+                        <div>
+                          <span className="text-xs font-medium">
+                            {type.label}
+                          </span>
+                          <p className="text-xs text-gray-500">
+                            {type.description}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <Select
-                  value={configData.targeting}
-                  onValueChange={(value) => handleChange("targeting", value)}
-                >
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Visitors</SelectItem>
-                    <SelectItem value="first">First-time Visitors</SelectItem>
-                    <SelectItem value="returning">
-                      Returning Visitors
-                    </SelectItem>
-                    <SelectItem value="segmented">Customer Segments</SelectItem>
-                  </SelectContent>
-                </Select>
+              </div>
+
+              <div className="border rounded-lg p-3">
+                <h4 className="font-medium mb-2 text-sm">
+                  Schedule & Targeting
+                </h4>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Frequency</Label>
+                    <Select
+                      value={configData.frequency}
+                      onValueChange={(value) =>
+                        handleChange("frequency", value)
+                      }
+                    >
+                      <SelectTrigger className="w-32 h-7">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="personalized">
+                          Personalized
+                        </SelectItem>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Targeting</Label>
+                    <Select
+                      value={configData.targeting}
+                      onValueChange={(value) =>
+                        handleChange("targeting", value)
+                      }
+                    >
+                      <SelectTrigger className="w-32 h-7">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Visitors</SelectItem>
+                        <SelectItem value="first">First-time</SelectItem>
+                        <SelectItem value="returning">Returning</SelectItem>
+                        <SelectItem value="segmented">Segmented</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="border rounded-lg p-4">
-            <h4 className="font-medium mb-3">Delivery Method</h4>
+            {/* Right Column */}
             <div className="space-y-3">
-              {[
-                { id: "popup", label: "Pop-up notification", icon: <Bell /> },
-                {
-                  id: "banner",
-                  label: "Banner display",
-                  icon: <LayoutPanelTop />,
-                },
-              ].map((method) => (
-                <div
-                  key={method.id}
-                  className="flex items-center justify-between"
-                >
-                  <div className="flex items-center space-x-2">
-                    {React.cloneElement(method.icon, {
-                      className: "h-4 w-4 text-gray-500 mr-2",
-                    })}
-                    <label className="text-sm cursor-pointer">
-                      {method.label}
-                    </label>
-                  </div>
-                  <Switch
-                    checked={configData.deliveryMethods[method.id]}
-                    onCheckedChange={(checked) => {
-                      handleChange("deliveryMethods", {
-                        ...configData.deliveryMethods,
-                        [method.id]: checked,
-                      });
-                    }}
-                  />
+              <div className="border rounded-lg p-3">
+                <h4 className="font-medium mb-2 text-sm">Delivery Method</h4>
+                <div className="space-y-2">
+                  {[
+                    {
+                      id: "popup",
+                      label: "Pop-up notification",
+                      icon: <Bell />,
+                    },
+                    {
+                      id: "banner",
+                      label: "Banner display",
+                      icon: <LayoutPanelTop />,
+                    },
+                  ].map((method) => (
+                    <div
+                      key={method.id}
+                      className="flex items-center justify-between"
+                    >
+                      <div className="flex items-center">
+                        {React.cloneElement(method.icon, {
+                          className: "h-3 w-3 text-gray-500 mr-1",
+                        })}
+                        <label className="text-xs cursor-pointer">
+                          {method.label}
+                        </label>
+                      </div>
+                      <Switch
+                        checked={configData.deliveryMethods[method.id]}
+                        onCheckedChange={(checked) => {
+                          handleChange("deliveryMethods", {
+                            ...configData.deliveryMethods,
+                            [method.id]: checked,
+                          });
+                        }}
+                      />
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
 
-              <div className="mt-6 space-y-2">
+              <div className="border rounded-lg p-3">
                 <div className="flex justify-between items-center mb-2">
                   <h5 className="text-sm font-medium flex items-center">
-                    <Eye className="h-4 w-4 mr-1.5 text-gray-500" />
+                    <Eye className="h-3 w-3 mr-1 text-gray-500" />
                     Preview
                   </h5>
-                  <div className="flex rounded-md overflow-hidden border">
+                  <div className="flex rounded border overflow-hidden">
                     <button
-                      className={`px-3 py-1 text-xs ${previewType === "popup" ? "bg-red-50 text-red-700" : "bg-white text-gray-500"}`}
+                      className={`px-2 py-1 text-xs ${previewType === "popup" ? "bg-red-50 text-red-700" : "bg-white text-gray-500"}`}
                       onClick={() => setPreviewType("popup")}
                     >
                       Pop-up
                     </button>
                     <button
-                      className={`px-3 py-1 text-xs ${previewType === "banner" ? "bg-red-50 text-red-700" : "bg-white text-gray-500"}`}
+                      className={`px-2 py-1 text-xs ${previewType === "banner" ? "bg-red-50 text-red-700" : "bg-white text-gray-500"}`}
                       onClick={() => setPreviewType("banner")}
                     >
                       Banner
                     </button>
                   </div>
                 </div>
-
-                <div className="border rounded-lg p-4 bg-gray-50">
+                <div className="border rounded-lg p-2 bg-gray-50">
                   {renderPreview()}
                 </div>
               </div>
@@ -5896,270 +5494,244 @@ export const SpecialOffersConfigScreen = ({
           </div>
         </TabsContent>
 
-        <TabsContent value="integration" className="space-y-5">
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-5">
-            <h4 className="font-medium text-blue-800 mb-2 flex items-center">
-              <Store className="h-4 w-4 mr-1.5" />
-              Integration Method
-            </h4>
-            <div className="grid grid-cols-2 gap-3">
-              <div
-                className={`bg-white rounded-lg border p-3 cursor-pointer hover:border-blue-500 transition-all flex flex-col items-center text-center ${configData.integrationMethod === "api" ? "border-blue-500 bg-blue-50/50" : ""}`}
-                onClick={() => handleChange("integrationMethod", "api")}
-              >
-                <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center mb-2">
-                  <LinkIcon className="h-6 w-6 text-blue-600" />
-                </div>
-                <span className="text-sm font-medium">Connect to System</span>
-                <span className="text-xs text-gray-500 mt-1">
-                  Import promotions from your retail management system
-                </span>
-              </div>
-
-              <div
-                className={`bg-white rounded-lg border p-3 cursor-pointer hover:border-blue-500 transition-all flex flex-col items-center text-center ${configData.integrationMethod === "manual" ? "border-blue-500 bg-blue-50/50" : ""}`}
-                onClick={() => handleChange("integrationMethod", "manual")}
-              >
-                <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center mb-2">
-                  <Settings className="h-6 w-6 text-blue-600" />
-                </div>
-                <span className="text-sm font-medium">Manual Setup</span>
-                <span className="text-xs text-gray-500 mt-1">
-                  Create and manage promotions directly
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {configData.integrationMethod === "api" && (
-            <div className="border rounded-lg p-4">
-              <h4 className="font-medium mb-3">Retail System Connection</h4>
-              <div className="space-y-3">
+        <TabsContent value="integration" className="space-y-3">
+          <div className="grid grid-cols-2 gap-4">
+            {/* Left Column */}
+            <div className="space-y-3">
+              <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                <h4 className="font-medium text-blue-800 mb-2 text-sm flex items-center">
+                  <Store className="h-4 w-4 mr-1" />
+                  Integration Method
+                </h4>
                 <div className="space-y-2">
-                  <Label htmlFor="system-type">System Type</Label>
-                  <Select
-                    value={configData.systemType}
-                    onValueChange={(value) => handleChange("systemType", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select your system type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="retail">
-                        Retail Management System
-                      </SelectItem>
-                      <SelectItem value="pos">Point of Sale (POS)</SelectItem>
-                      <SelectItem value="ecommerce">
-                        E-commerce Platform
-                      </SelectItem>
-                      <SelectItem value="erp">ERP System</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="integration-url">Integration URL</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="integration-url"
-                      placeholder="https://your-store-system.com/api/promotions"
-                      value={configData.integrationUrl}
-                      onChange={(e) =>
-                        handleChange("integrationUrl", e.target.value)
+                  {[
+                    {
+                      id: "api",
+                      label: "Connect to System",
+                      description: "Import from retail system",
+                      icon: <LinkIcon />,
+                    },
+                    {
+                      id: "manual",
+                      label: "Manual Setup",
+                      description: "Create manually",
+                      icon: <Settings />,
+                    },
+                  ].map((method) => (
+                    <div
+                      key={method.id}
+                      className={`bg-white rounded-lg border p-2 cursor-pointer transition-all ${
+                        configData.integrationMethod === method.id
+                          ? "border-blue-500 bg-blue-50/50"
+                          : ""
+                      }`}
+                      onClick={() =>
+                        handleChange("integrationMethod", method.id)
                       }
-                      className="flex-1"
-                    />
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="outline" size="icon">
-                            <LucideSettings2 className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Advanced Settings</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    Enter the API endpoint for your retail system's promotions
-                  </p>
+                    >
+                      <div className="flex items-center">
+                        <div className="h-6 w-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
+                          {React.cloneElement(method.icon, {
+                            className: "h-3 w-3 text-blue-600",
+                          })}
+                        </div>
+                        <div>
+                          <span className="text-xs font-medium">
+                            {method.label}
+                          </span>
+                          <p className="text-xs text-gray-500">
+                            {method.description}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
+              </div>
 
-                {connectionStatus && (
-                  <div
-                    className={`text-sm p-3 rounded ${connectionStatus.type === "success" ? "bg-green-50 text-green-700" : connectionStatus.type === "error" ? "bg-red-50 text-red-700" : "bg-blue-50 text-blue-700"}`}
-                  >
-                    {connectionStatus.type === "success" && (
-                      <CheckCircle2 className="h-4 w-4 inline mr-2" />
+              {configData.integrationMethod === "api" && (
+                <div className="border rounded-lg p-3">
+                  <h4 className="font-medium mb-2 text-sm">
+                    System Connection
+                  </h4>
+                  <div className="space-y-2">
+                    <div>
+                      <Label className="text-xs">System Type</Label>
+                      <Select
+                        value={configData.systemType}
+                        onValueChange={(value) =>
+                          handleChange("systemType", value)
+                        }
+                      >
+                        <SelectTrigger className="mt-1 h-7">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="retail">
+                            Retail Management
+                          </SelectItem>
+                          <SelectItem value="pos">Point of Sale</SelectItem>
+                          <SelectItem value="ecommerce">E-commerce</SelectItem>
+                          <SelectItem value="erp">ERP System</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Integration URL</Label>
+                      <Input
+                        placeholder="https://your-store-system.com/api"
+                        value={configData.integrationUrl}
+                        onChange={(e) =>
+                          handleChange("integrationUrl", e.target.value)
+                        }
+                        className="mt-1 text-xs"
+                      />
+                    </div>
+                    {connectionStatus && (
+                      <div
+                        className={`text-xs p-2 rounded ${
+                          connectionStatus.type === "success"
+                            ? "bg-green-50 text-green-700"
+                            : connectionStatus.type === "error"
+                              ? "bg-red-50 text-red-700"
+                              : "bg-blue-50 text-blue-700"
+                        }`}
+                      >
+                        {connectionStatus.message}
+                      </div>
                     )}
-                    {connectionStatus.type === "error" && (
-                      <X className="h-4 w-4 inline mr-2" />
-                    )}
-                    {connectionStatus.type === "info" && (
-                      <Loader2 className="h-4 w-4 inline mr-2 animate-spin" />
-                    )}
-                    {connectionStatus.message}
+                    <Button
+                      onClick={connectToRetailSystem}
+                      disabled={isConnecting || !configData.integrationUrl}
+                      size="sm"
+                      className="w-full"
+                    >
+                      {isConnecting ? (
+                        <>
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          Connecting...
+                        </>
+                      ) : (
+                        <>
+                          <LinkIcon className="h-3 w-3 mr-1" />
+                          Connect
+                        </>
+                      )}
+                    </Button>
                   </div>
-                )}
+                </div>
+              )}
+            </div>
 
+            {/* Right Column */}
+            <div className="space-y-3">
+              <div className="border rounded-lg p-3">
+                <h4 className="font-medium mb-2 text-sm">AI Analysis</h4>
+                <p className="text-xs text-gray-600 mb-3">
+                  Use AI to analyze promotions and get optimization suggestions.
+                </p>
                 <Button
-                  onClick={connectToRetailSystem}
-                  disabled={isConnecting || !configData.integrationUrl}
-                  className="w-full mt-2"
+                  variant="outline"
+                  onClick={analyzePromotionsWithAI}
+                  disabled={
+                    isAnalyzing || configData.activePromotions.length === 0
+                  }
+                  size="sm"
+                  className="w-full"
                 >
-                  {isConnecting ? (
+                  {isAnalyzing ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Connecting...
-                    </>
-                  ) : connectionStatus?.type === "success" ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Refresh Connection
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      Analyzing...
                     </>
                   ) : (
                     <>
-                      <LinkIcon className="h-4 w-4 mr-2" />
-                      Connect to System
+                      <BarChart2 className="h-3 w-3 mr-1" />
+                      Analyze with AI
                     </>
                   )}
                 </Button>
+                {analyzedPromotions.length > 0 && (
+                  <div className="mt-2 p-2 bg-green-50 rounded border border-green-100">
+                    <p className="text-xs text-green-800">
+                      AI analysis complete. View suggestions in the Promotions
+                      tab.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
-          )}
-
-          <div className="border rounded-lg p-4">
-            <h4 className="font-medium mb-3">AI Analysis</h4>
-            <p className="text-sm text-gray-600 mb-4">
-              Use AI to analyze your promotions and get optimization suggestions
-              for better engagement and conversion.
-            </p>
-            <Button
-              variant="outline"
-              onClick={analyzePromotionsWithAI}
-              disabled={isAnalyzing || configData.activePromotions.length === 0}
-              className="w-full"
-            >
-              {isAnalyzing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Analyzing promotions...
-                </>
-              ) : (
-                <>
-                  <BarChart2 className="h-4 w-4 mr-2" />
-                  Analyze Promotions with AI
-                </>
-              )}
-            </Button>
-            {analyzedPromotions.length > 0 && (
-              <div className="mt-4 p-3 bg-green-50 rounded-md border border-green-100">
-                <h5 className="text-sm font-medium text-green-800 mb-2">
-                  AI Analysis Complete
-                </h5>
-                <p className="text-xs text-gray-700">
-                  AI suggestions have been added to your promotions. View them
-                  in the Manage Promotions tab.
-                </p>
-              </div>
-            )}
           </div>
         </TabsContent>
 
-        <TabsContent value="promotions" className="space-y-5">
+        <TabsContent value="promotions" className="space-y-3">
           <div className="flex justify-between items-center">
-            <h4 className="font-medium">Active Promotions</h4>
+            <h4 className="font-medium text-sm">Active Promotions</h4>
             <Button
               variant="outline"
               size="sm"
               onClick={addPromotion}
-              className="text-sm"
+              className="text-xs"
             >
-              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              <Plus className="h-3 w-3 mr-1" />
               Add Promotion
             </Button>
           </div>
 
-          <div className="space-y-4">
+          <div className="max-h-80 overflow-y-auto space-y-2">
             {configData.activePromotions.length === 0 ? (
-              <div className="border border-dashed rounded-lg p-6 text-center">
-                <div className="mx-auto w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                  <Tag className="h-6 w-6 text-gray-400" />
+              <div className="border border-dashed rounded-lg p-4 text-center">
+                <div className="mx-auto w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mb-2">
+                  <Tag className="h-4 w-4 text-gray-400" />
                 </div>
                 <h3 className="text-sm font-medium text-gray-700 mb-1">
                   No promotions yet
                 </h3>
-                <p className="text-xs text-gray-500 mb-4">
-                  {configData.integrationMethod === "api"
-                    ? "Connect to your retail system or add promotions manually"
-                    : "Add your first promotion to get started"}
+                <p className="text-xs text-gray-500 mb-3">
+                  Add your first promotion to get started
                 </p>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={
-                    configData.integrationMethod === "api"
-                      ? connectToRetailSystem
-                      : addPromotion
-                  }
+                  onClick={addPromotion}
+                  className="text-xs"
                 >
-                  {configData.integrationMethod === "api" ? (
-                    <>
-                      <LinkIcon className="h-3.5 w-3.5 mr-1.5" />
-                      Connect to System
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-3.5 w-3.5 mr-1.5" />
-                      Add Promotion
-                    </>
-                  )}
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add Promotion
                 </Button>
               </div>
             ) : (
               configData.activePromotions.map((promotion, index) => (
                 <Card key={promotion.id} className="overflow-hidden">
-                  <CardContent className="p-0">
-                    <div className="flex justify-between items-center border-b p-3 bg-gray-50">
-                      <div className="flex items-center">
-                        <div className="bg-red-100 p-2 rounded-full mr-3">
-                          {promotion.discountType === "percentage" ? (
-                            <PercentCircle className="h-4 w-4 text-red-600" />
-                          ) : (
-                            <Ticket className="h-4 w-4 text-red-600" />
-                          )}
-                        </div>
-                        <Input
-                          value={promotion.name}
-                          onChange={(e) =>
-                            handlePromotionChange(index, "name", e.target.value)
-                          }
-                          placeholder="Promotion name"
-                          className="border-0 bg-transparent p-0 h-auto text-sm font-medium focus-visible:ring-0"
-                        />
-                      </div>
-                      <div className="flex items-center space-x-2">
+                  <CardContent className="p-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <Input
+                        value={promotion.name}
+                        onChange={(e) =>
+                          handlePromotionChange(index, "name", e.target.value)
+                        }
+                        placeholder="Promotion name"
+                        className="border-0 bg-transparent p-0 h-auto text-sm font-medium focus-visible:ring-0 flex-1"
+                      />
+                      <div className="flex items-center space-x-1">
                         {promotion.aiSuggestions && (
-                          <Badge className="bg-green-100 text-green-800 hover:bg-green-200">
-                            AI Optimized
+                          <Badge className="bg-green-100 text-green-800 text-xs">
+                            AI
                           </Badge>
                         )}
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => removePromotion(index)}
-                          className="h-8 w-8 p-0"
+                          className="h-6 w-6 p-0"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
 
-                    <div className="p-4 space-y-3">
-                      <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
                         <Label className="text-xs">Description</Label>
                         <Input
                           value={promotion.description}
@@ -6170,145 +5742,83 @@ export const SpecialOffersConfigScreen = ({
                               e.target.value,
                             )
                           }
-                          placeholder="Describe your promotion"
+                          placeholder="Describe promotion"
+                          className="text-xs"
                         />
-                        {promotion.aiSuggestions?.description && (
-                          <div className="flex items-start mt-1">
-                            <div className="flex-shrink-0 mt-0.5">
-                              <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200 text-xs">
-                                AI Suggestion
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-gray-600 ml-2">
-                              {promotion.aiSuggestions.description}
-                            </p>
-                          </div>
-                        )}
                       </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                          <Label className="text-xs">Discount Type</Label>
-                          <Select
-                            value={promotion.discountType}
-                            onValueChange={(value) =>
-                              handlePromotionChange(
-                                index,
-                                "discountType",
-                                value,
-                              )
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="percentage">
-                                Percentage (%)
-                              </SelectItem>
-                              <SelectItem value="fixed">
-                                Fixed Amount ($)
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label className="text-xs">Value</Label>
-                          <div className="relative">
-                            <Input
-                              value={promotion.discountValue}
-                              onChange={(e) =>
-                                handlePromotionChange(
-                                  index,
-                                  "discountValue",
-                                  e.target.value,
-                                )
-                              }
-                              placeholder={
-                                promotion.discountType === "percentage"
-                                  ? "e.g. 20"
-                                  : "e.g. 10"
-                              }
-                              type="number"
-                            />
-                            <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                              <span className="text-gray-500">
-                                {promotion.discountType === "percentage"
-                                  ? "%"
-                                  : "$"}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                          <Label className="text-xs">Valid From</Label>
-                          <Input
-                            type="date"
-                            value={promotion.validFrom}
-                            onChange={(e) =>
-                              handlePromotionChange(
-                                index,
-                                "validFrom",
-                                e.target.value,
-                              )
-                            }
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label className="text-xs">Valid To</Label>
-                          <Input
-                            type="date"
-                            value={promotion.validTo}
-                            onChange={(e) =>
-                              handlePromotionChange(
-                                index,
-                                "validTo",
-                                e.target.value,
-                              )
-                            }
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-xs">Promotion Code</Label>
+                      <div>
+                        <Label className="text-xs">Code</Label>
                         <Input
                           value={promotion.code}
                           onChange={(e) =>
                             handlePromotionChange(index, "code", e.target.value)
                           }
                           placeholder="e.g. SUMMER20"
-                          className="font-mono"
+                          className="font-mono text-xs"
                         />
                       </div>
-
-                      {promotion.aiSuggestions?.creativeIdea && (
-                        <div className="bg-amber-50 p-3 rounded-md border border-amber-100 mt-2">
-                          <h5 className="text-xs font-medium text-amber-800 mb-1 flex items-center">
-                            <LucideSettings2 className="h-3 w-3 mr-1" />
-                            AI Creative Suggestion
-                          </h5>
-                          <p className="text-xs text-gray-700">
-                            {promotion.aiSuggestions.creativeIdea}
-                          </p>
+                      <div>
+                        <Label className="text-xs">Type</Label>
+                        <Select
+                          value={promotion.discountType}
+                          onValueChange={(value) =>
+                            handlePromotionChange(index, "discountType", value)
+                          }
+                        >
+                          <SelectTrigger className="h-7">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="percentage">
+                              Percentage (%)
+                            </SelectItem>
+                            <SelectItem value="fixed">
+                              Fixed Amount ($)
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Value</Label>
+                        <div className="relative">
+                          <Input
+                            value={promotion.discountValue}
+                            onChange={(e) =>
+                              handlePromotionChange(
+                                index,
+                                "discountValue",
+                                e.target.value,
+                              )
+                            }
+                            placeholder={
+                              promotion.discountType === "percentage"
+                                ? "20"
+                                : "10"
+                            }
+                            type="number"
+                            className="text-xs"
+                          />
+                          <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none">
+                            <span className="text-gray-500 text-xs">
+                              {promotion.discountType === "percentage"
+                                ? "%"
+                                : "$"}
+                            </span>
+                          </div>
                         </div>
-                      )}
-
-                      {promotion.aiSuggestions?.displayMethod && (
-                        <div className="text-xs text-gray-600 flex items-center mt-1">
-                          <Check className="h-3 w-3 text-green-500 mr-1" />
-                          Recommended display:{" "}
-                          <span className="font-medium ml-1">
-                            {promotion.aiSuggestions.displayMethod}
-                          </span>
-                        </div>
-                      )}
+                      </div>
                     </div>
+
+                    {promotion.aiSuggestions?.creativeIdea && (
+                      <div className="bg-amber-50 p-2 rounded border border-amber-100 mt-2">
+                        <h5 className="text-xs font-medium text-amber-800 mb-1">
+                          AI Suggestion
+                        </h5>
+                        <p className="text-xs text-gray-700">
+                          {promotion.aiSuggestions.creativeIdea}
+                        </p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))
@@ -6317,8 +5827,8 @@ export const SpecialOffersConfigScreen = ({
         </TabsContent>
       </Tabs>
 
-      <div className="border-t pt-4 flex justify-end">
-        <Button onClick={() => onSave(configData)}>
+      <div className="flex justify-end pt-2">
+        <Button onClick={() => onSave(configData)} size="sm">
           Save Special Offers Configuration
         </Button>
       </div>
@@ -6350,88 +5860,99 @@ export const NewArrivalsConfigScreen = ({ onSave, initialData = {} }) => {
   });
 
   const handleChange = (field, value) => {
-    setConfigData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setConfigData((prev) => ({ ...prev, [field]: value }));
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start gap-4">
+    <div className="space-y-4 max-h-screen overflow-hidden">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-semibold mb-1">Configure New Arrivals</h1>
+          <h1 className="text-xl font-semibold">Configure New Arrivals</h1>
           <p className="text-gray-500 text-sm">
-            Set up how new products are showcased to customers
+            Set up how new products are showcased
           </p>
         </div>
-        <div className="bg-emerald-100 p-3 rounded-full">
-          <Tag className="h-6 w-6 text-emerald-600" />
+        <div className="bg-emerald-100 p-2 rounded-full">
+          <Tag className="h-5 w-5 text-emerald-600" />
         </div>
       </div>
 
-      <div className="space-y-5">
-        <div className="space-y-2">
-          <Label htmlFor="feature-name">Feature Name</Label>
-          <Input
-            id="feature-name"
-            placeholder="e.g. Just Arrived, Fresh Inventory"
-            value={configData.name}
-            onChange={(e) => handleChange("name", e.target.value)}
-          />
-        </div>
-
-        <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100">
-          <h4 className="font-medium text-emerald-800 mb-2 flex items-center">
-            <Tag className="h-4 w-4 mr-1.5" />
-            Display Method
-          </h4>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              {
-                id: "grid",
-                label: "Product Grid",
-                description: "Tiled layout",
-                icon: <LayoutGrid />,
-              },
-              {
-                id: "carousel",
-                label: "Carousel",
-                description: "Sliding showcase",
-                icon: <RefreshCw />,
-              },
-              {
-                id: "featured",
-                label: "Featured Banner",
-                description: "Hero section",
-                icon: <LayoutPanelTop />,
-              },
-            ].map((method) => (
-              <div
-                key={method.id}
-                className={`bg-white rounded-lg border p-3 cursor-pointer hover:border-emerald-500 transition-all flex flex-col items-center text-center ${configData.displayMethod === method.id ? "border-emerald-500 bg-emerald-50/50" : ""}`}
-                onClick={() => handleChange("displayMethod", method.id)}
-              >
-                <div className="h-12 w-12 bg-emerald-100 rounded-full flex items-center justify-center mb-2">
-                  {React.cloneElement(method.icon, {
-                    className: "h-6 w-6 text-emerald-600",
-                  })}
-                </div>
-                <span className="text-sm font-medium">{method.label}</span>
-                <span className="text-xs text-gray-500 mt-1">
-                  {method.description}
-                </span>
-              </div>
-            ))}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Left Column */}
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="feature-name" className="text-sm">
+              Feature Name
+            </Label>
+            <Input
+              id="feature-name"
+              placeholder="e.g. Just Arrived, Fresh Inventory"
+              value={configData.name}
+              onChange={(e) => handleChange("name", e.target.value)}
+              className="mt-1"
+            />
           </div>
-        </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Product Selection</h4>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
+          <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+            <h4 className="font-medium text-emerald-800 mb-2 text-sm flex items-center">
+              <Tag className="h-4 w-4 mr-1" />
+              Display Method
+            </h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "grid",
+                  label: "Product Grid",
+                  description: "Tiled layout",
+                  icon: <LayoutGrid />,
+                },
+                {
+                  id: "carousel",
+                  label: "Carousel",
+                  description: "Sliding showcase",
+                  icon: <RefreshCw />,
+                },
+                {
+                  id: "featured",
+                  label: "Featured Banner",
+                  description: "Hero section",
+                  icon: <LayoutPanelTop />,
+                },
+              ].map((method) => (
+                <div
+                  key={method.id}
+                  className={`bg-white rounded-lg border p-2 cursor-pointer transition-all ${
+                    configData.displayMethod === method.id
+                      ? "border-emerald-500 bg-emerald-50/50"
+                      : ""
+                  }`}
+                  onClick={() => handleChange("displayMethod", method.id)}
+                >
+                  <div className="flex items-center">
+                    <div className="h-6 w-6 bg-emerald-100 rounded-full flex items-center justify-center mr-2">
+                      {React.cloneElement(method.icon, {
+                        className: "h-3 w-3 text-emerald-600",
+                      })}
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium">
+                        {method.label}
+                      </span>
+                      <p className="text-xs text-gray-500">
+                        {method.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Product Selection</h4>
+            <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="text-sm font-medium">Highlight Duration</p>
+                <p className="text-xs font-medium">Highlight Duration</p>
                 <p className="text-xs text-gray-500">Days to show as "new"</p>
               </div>
               <Select
@@ -6440,166 +5961,155 @@ export const NewArrivalsConfigScreen = ({ onSave, initialData = {} }) => {
                   handleChange("highlightDuration", parseInt(value))
                 }
               >
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Select" />
+                <SelectTrigger className="w-20 h-7">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="7">7 days</SelectItem>
-                  <SelectItem value="14">14 days</SelectItem>
-                  <SelectItem value="30">30 days</SelectItem>
-                  <SelectItem value="60">60 days</SelectItem>
-                  <SelectItem value="90">90 days</SelectItem>
+                  <SelectItem value="7">7d</SelectItem>
+                  <SelectItem value="14">14d</SelectItem>
+                  <SelectItem value="30">30d</SelectItem>
+                  <SelectItem value="60">60d</SelectItem>
+                  <SelectItem value="90">90d</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              {[
+                {
+                  id: "autoUpdate",
+                  label: "Auto-update from Inventory",
+                  icon: <RefreshCw />,
+                },
+                {
+                  id: "useInventoryDates",
+                  label: "Use Inventory Date",
+                  icon: <Calendar />,
+                },
+                {
+                  id: "manualApproval",
+                  label: "Manual Approval Required",
+                  icon: <CheckCircle2 />,
+                },
+              ].map((option) => (
+                <div
+                  key={option.id}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center">
+                    {React.cloneElement(option.icon, {
+                      className: "h-3 w-3 text-gray-500 mr-1",
+                    })}
+                    <Label className="text-xs cursor-pointer">
+                      {option.label}
+                    </Label>
+                  </div>
+                  <Switch
+                    checked={configData.automationSettings[option.id]}
+                    onCheckedChange={(checked) => {
+                      handleChange("automationSettings", {
+                        ...configData.automationSettings,
+                        [option.id]: checked,
+                      });
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-3">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Appearance Options</h4>
+            <div className="space-y-2">
+              {[
+                { id: "showBadge", label: "Show 'New' Badge", icon: <Tag /> },
+                {
+                  id: "featuredCarousel",
+                  label: "Homepage Carousel",
+                  icon: <LayoutGrid />,
+                },
+                {
+                  id: "dedicatedSection",
+                  label: "Dedicated Section",
+                  icon: <LayoutPanelTop />,
+                },
+              ].map((option) => (
+                <div
+                  key={option.id}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center">
+                    {React.cloneElement(option.icon, {
+                      className: "h-3 w-3 text-gray-500 mr-1",
+                    })}
+                    <Label className="text-xs cursor-pointer">
+                      {option.label}
+                    </Label>
+                  </div>
+                  <Switch
+                    checked={configData.appearance[option.id]}
+                    onCheckedChange={(checked) => {
+                      handleChange("appearance", {
+                        ...configData.appearance,
+                        [option.id]: checked,
+                      });
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between mt-3 pt-2 border-t">
+              <div>
+                <p className="text-xs font-medium">Sort Order</p>
+                <p className="text-xs text-gray-500">Display order</p>
+              </div>
+              <Select
+                value={configData.appearance.sortOrder}
+                onValueChange={(value) =>
+                  handleChange("appearance", {
+                    ...configData.appearance,
+                    sortOrder: value,
+                  })
+                }
+              >
+                <SelectTrigger className="w-28 h-7">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest</SelectItem>
+                  <SelectItem value="price-high">Price ↓</SelectItem>
+                  <SelectItem value="price-low">Price ↑</SelectItem>
+                  <SelectItem value="popularity">Popular</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <div className="mt-4">
-            <Label className="mb-2 block">Data Integration</Label>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <RefreshCw className="h-4 w-4 text-gray-500 mr-2" />
-                  <Label className="cursor-pointer">
-                    Auto-update from Inventory
-                  </Label>
-                </div>
-                <Switch
-                  checked={configData.automationSettings.autoUpdate}
-                  onCheckedChange={(checked) => {
-                    handleChange("automationSettings", {
-                      ...configData.automationSettings,
-                      autoUpdate: checked,
-                    });
-                  }}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <Calendar className="h-4 w-4 text-gray-500 mr-2" />
-                  <Label className="cursor-pointer">Use Inventory Date</Label>
-                </div>
-                <Switch
-                  checked={configData.automationSettings.useInventoryDates}
-                  onCheckedChange={(checked) => {
-                    handleChange("automationSettings", {
-                      ...configData.automationSettings,
-                      useInventoryDates: checked,
-                    });
-                  }}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <CheckCircle2 className="h-4 w-4 text-gray-500 mr-2" />
-                  <Label className="cursor-pointer">
-                    Manual Approval Required
-                  </Label>
-                </div>
-                <Switch
-                  checked={configData.automationSettings.manualApproval}
-                  onCheckedChange={(checked) => {
-                    handleChange("automationSettings", {
-                      ...configData.automationSettings,
-                      manualApproval: checked,
-                    });
-                  }}
-                />
-              </div>
+          <div className="flex items-center justify-between p-3 border rounded-lg">
+            <div>
+              <Label className="font-medium block mb-1 text-sm">
+                Customer Notifications
+              </Label>
+              <span className="text-xs text-gray-500">
+                Notify about new arrivals
+              </span>
             </div>
+            <Switch
+              checked={configData.notifyCustomers}
+              onCheckedChange={(checked) =>
+                handleChange("notifyCustomers", checked)
+              }
+            />
           </div>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Appearance Options</h4>
-          <div className="space-y-3">
-            {[
-              { id: "showBadge", label: "Show 'New' Badge", icon: <Tag /> },
-              {
-                id: "featuredCarousel",
-                label: "Homepage Carousel",
-                icon: <LayoutGrid />,
-              },
-              {
-                id: "dedicatedSection",
-                label: "Dedicated Section",
-                icon: <LayoutPanelTop />,
-              },
-            ].map((option) => (
-              <div
-                key={option.id}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center">
-                  {React.cloneElement(option.icon, {
-                    className: "h-4 w-4 text-gray-500 mr-2",
-                  })}
-                  <Label className="cursor-pointer">{option.label}</Label>
-                </div>
-                <Switch
-                  checked={configData.appearance[option.id]}
-                  onCheckedChange={(checked) => {
-                    handleChange("appearance", {
-                      ...configData.appearance,
-                      [option.id]: checked,
-                    });
-                  }}
-                />
-              </div>
-            ))}
-
-            <div className="mt-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">Sort Order</p>
-                  <p className="text-xs text-gray-500">Product display order</p>
-                </div>
-                <Select
-                  value={configData.appearance.sortOrder}
-                  onValueChange={(value) =>
-                    handleChange("appearance", {
-                      ...configData.appearance,
-                      sortOrder: value,
-                    })
-                  }
-                >
-                  <SelectTrigger className="w-36">
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="newest">Newest First</SelectItem>
-                    <SelectItem value="price-high">Price (High-Low)</SelectItem>
-                    <SelectItem value="price-low">Price (Low-High)</SelectItem>
-                    <SelectItem value="popularity">Most Popular</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between p-4 border rounded-lg">
-          <div>
-            <Label className="font-medium block mb-1">
-              Customer Notifications
-            </Label>
-            <span className="text-sm text-gray-500">
-              Notify customers about new arrivals
-            </span>
-          </div>
-          <Switch
-            checked={configData.notifyCustomers}
-            onCheckedChange={(checked) =>
-              handleChange("notifyCustomers", checked)
-            }
-          />
         </div>
       </div>
 
-      <div className="border-t pt-4 flex justify-end">
-        <Button onClick={() => onSave(configData)}>
+      <div className="flex justify-end pt-2">
+        <Button onClick={() => onSave(configData)} size="sm">
           Save New Arrivals Configuration
         </Button>
       </div>
@@ -6641,292 +6151,311 @@ export const OnlineCheckInConfigScreen = ({ onSave, initialData = {} }) => {
   });
 
   const handleChange = (field, value) => {
-    setConfigData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setConfigData((prev) => ({ ...prev, [field]: value }));
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start gap-4">
+    <div className="space-y-4 max-h-screen overflow-hidden">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-semibold mb-1">
-            Configure Online Check-in
-          </h1>
+          <h1 className="text-xl font-semibold">Configure Online Check-in</h1>
           <p className="text-gray-500 text-sm">
-            Set up how guests check in to your hotel digitally
+            Set up how guests check in digitally
           </p>
         </div>
-        <div className="bg-blue-100 p-3 rounded-full">
-          <Smartphone className="h-6 w-6 text-blue-600" />
+        <div className="bg-blue-100 p-2 rounded-full">
+          <Smartphone className="h-5 w-5 text-blue-600" />
         </div>
       </div>
 
-      <div className="space-y-5">
-        <div className="space-y-2">
-          <Label htmlFor="checkin-name">Feature Name</Label>
-          <Input
-            id="checkin-name"
-            placeholder="e.g. Express Check-in, Digital Check-in"
-            value={configData.name}
-            onChange={(e) => handleChange("name", e.target.value)}
-          />
-        </div>
-
-        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-          <h4 className="font-medium text-blue-800 mb-2 flex items-center">
-            <Smartphone className="h-4 w-4 mr-1.5" />
-            Check-in Method
-          </h4>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              {
-                id: "app",
-                label: "Hotel App",
-                description: "Using hotel mobile app",
-                icon: <Smartphone />,
-              },
-              {
-                id: "web",
-                label: "Web Check-in",
-                description: "Via browser link",
-                icon: <Globe />,
-              },
-              {
-                id: "kiosk",
-                label: "Self-Service Kiosk",
-                description: "On-site kiosks",
-                icon: <LayoutPanelTop />,
-              },
-            ].map((method) => (
-              <div
-                key={method.id}
-                className={`bg-white rounded-lg border p-3 cursor-pointer hover:border-blue-500 transition-all flex flex-col items-center text-center ${
-                  configData.checkInMethod === method.id
-                    ? "border-blue-500 bg-blue-50/50"
-                    : ""
-                }`}
-                onClick={() => handleChange("checkInMethod", method.id)}
-              >
-                <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center mb-2">
-                  {React.cloneElement(method.icon, {
-                    className: "h-6 w-6 text-blue-600",
-                  })}
-                </div>
-                <span className="text-sm font-medium">{method.label}</span>
-                <span className="text-xs text-gray-500 mt-1">
-                  {method.description}
-                </span>
-              </div>
-            ))}
+      <div className="grid grid-cols-3 gap-4">
+        {/* Left Column */}
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="checkin-name" className="text-sm">
+              Feature Name
+            </Label>
+            <Input
+              id="checkin-name"
+              placeholder="e.g. Express Check-in"
+              value={configData.name}
+              onChange={(e) => handleChange("name", e.target.value)}
+              className="mt-1"
+            />
           </div>
-        </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Verification Requirements</h4>
-          <div className="space-y-3">
-            {[
-              {
-                id: "idVerification",
-                label: "ID Verification",
-                icon: <FileText />,
-              },
-              {
-                id: "paymentVerification",
-                label: "Payment Method",
-                icon: <CreditCard />,
-              },
-              {
-                id: "facialRecognition",
-                label: "Facial Recognition",
-                icon: <Scan />,
-              },
-            ].map((option) => (
-              <div
-                key={option.id}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center">
-                  {React.cloneElement(option.icon, {
-                    className: "h-4 w-4 text-gray-500 mr-2",
-                  })}
-                  <Label className="cursor-pointer">{option.label}</Label>
+          <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+            <h4 className="font-medium text-blue-800 mb-2 text-sm flex items-center">
+              <Smartphone className="h-4 w-4 mr-1" />
+              Check-in Method
+            </h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "app",
+                  label: "Hotel App",
+                  description: "Mobile app",
+                  icon: <Smartphone />,
+                },
+                {
+                  id: "web",
+                  label: "Web Check-in",
+                  description: "Browser link",
+                  icon: <Globe />,
+                },
+                {
+                  id: "kiosk",
+                  label: "Self-Service Kiosk",
+                  description: "On-site kiosks",
+                  icon: <LayoutPanelTop />,
+                },
+              ].map((method) => (
+                <div
+                  key={method.id}
+                  className={`bg-white rounded-lg border p-2 cursor-pointer transition-all ${
+                    configData.checkInMethod === method.id
+                      ? "border-blue-500 bg-blue-50/50"
+                      : ""
+                  }`}
+                  onClick={() => handleChange("checkInMethod", method.id)}
+                >
+                  <div className="flex items-center">
+                    <div className="h-6 w-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
+                      {React.cloneElement(method.icon, {
+                        className: "h-3 w-3 text-blue-600",
+                      })}
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium">
+                        {method.label}
+                      </span>
+                      <p className="text-xs text-gray-500">
+                        {method.description}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <Switch
-                  checked={configData.verificationOptions[option.id]}
-                  onCheckedChange={(checked) => {
-                    handleChange("verificationOptions", {
-                      ...configData.verificationOptions,
-                      [option.id]: checked,
-                    });
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Room Key Options</h4>
-          <div className="space-y-3">
-            {[
-              { id: "digitalKey", label: "Digital Room Key", icon: <Key /> },
-              {
-                id: "physicalKeyBackup",
-                label: "Physical Key Backup",
-                icon: <KeySquare />,
-              },
-              {
-                id: "autoIssue",
-                label: "Auto-Issue on Check-in",
-                icon: <Zap />,
-              },
-            ].map((option) => (
-              <div
-                key={option.id}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center">
-                  {React.cloneElement(option.icon, {
-                    className: "h-4 w-4 text-gray-500 mr-2",
-                  })}
-                  <Label className="cursor-pointer">{option.label}</Label>
-                </div>
-                <Switch
-                  checked={configData.keyOptions[option.id]}
-                  onCheckedChange={(checked) => {
-                    handleChange("keyOptions", {
-                      ...configData.keyOptions,
-                      [option.id]: checked,
-                    });
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Check-in Time Configuration</h4>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label>Earliest Check-in Time</Label>
-              <Select
-                value={configData.checkInTime.earliestTime}
-                onValueChange={(value) =>
-                  handleChange("checkInTime", {
-                    ...configData.checkInTime,
-                    earliestTime: value,
-                  })
-                }
-              >
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Select time" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="08:00">8:00 AM</SelectItem>
-                  <SelectItem value="10:00">10:00 AM</SelectItem>
-                  <SelectItem value="12:00">12:00 PM</SelectItem>
-                  <SelectItem value="14:00">2:00 PM</SelectItem>
-                </SelectContent>
-              </Select>
+              ))}
             </div>
+          </div>
 
-            <div className="flex items-center justify-between">
-              <Label>Standard Check-in Time</Label>
-              <Select
-                value={configData.checkInTime.standardTime}
-                onValueChange={(value) =>
-                  handleChange("checkInTime", {
-                    ...configData.checkInTime,
-                    standardTime: value,
-                  })
-                }
-              >
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Select time" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="14:00">2:00 PM</SelectItem>
-                  <SelectItem value="15:00">3:00 PM</SelectItem>
-                  <SelectItem value="16:00">4:00 PM</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <Calendar className="h-4 w-4 text-gray-500 mr-2" />
-                <Label className="cursor-pointer">
-                  Allow Day-Before Check-in
-                </Label>
-              </div>
-              <Switch
-                checked={configData.checkInTime.dayBefore}
-                onCheckedChange={(checked) => {
-                  handleChange("checkInTime", {
-                    ...configData.checkInTime,
-                    dayBefore: checked,
-                  });
-                }}
-              />
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Verification</h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "idVerification",
+                  label: "ID Verification",
+                  icon: <FileText />,
+                },
+                {
+                  id: "paymentVerification",
+                  label: "Payment Method",
+                  icon: <CreditCard />,
+                },
+                {
+                  id: "facialRecognition",
+                  label: "Facial Recognition",
+                  icon: <Scan />,
+                },
+              ].map((option) => (
+                <div
+                  key={option.id}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center">
+                    {React.cloneElement(option.icon, {
+                      className: "h-3 w-3 text-gray-500 mr-1",
+                    })}
+                    <Label className="text-xs cursor-pointer">
+                      {option.label}
+                    </Label>
+                  </div>
+                  <Switch
+                    checked={configData.verificationOptions[option.id]}
+                    onCheckedChange={(checked) => {
+                      handleChange("verificationOptions", {
+                        ...configData.verificationOptions,
+                        [option.id]: checked,
+                      });
+                    }}
+                  />
+                </div>
+              ))}
             </div>
           </div>
         </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Notification Preferences</h4>
-          <div className="space-y-3">
-            {[
-              {
-                id: "roomReady",
-                label: "Room Ready Alert",
-                icon: <CheckCircle2 />,
-              },
-              {
-                id: "checkInReminder",
-                label: "Check-in Reminder",
-                icon: <Bell />,
-              },
-              {
-                id: "welcomeMessage",
-                label: "Welcome Message",
-                icon: <MessageCircle />,
-              },
-              {
-                id: "upgrades",
-                label: "Room Upgrade Offers",
-                icon: <ArrowUpCircle />,
-              },
-            ].map((option) => (
-              <div
-                key={option.id}
-                className="flex items-center justify-between"
-              >
+        {/* Middle Column */}
+        <div className="space-y-3">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Room Key Options</h4>
+            <div className="space-y-2">
+              {[
+                { id: "digitalKey", label: "Digital Room Key", icon: <Key /> },
+                {
+                  id: "physicalKeyBackup",
+                  label: "Physical Key Backup",
+                  icon: <KeySquare />,
+                },
+                {
+                  id: "autoIssue",
+                  label: "Auto-Issue on Check-in",
+                  icon: <Zap />,
+                },
+              ].map((option) => (
+                <div
+                  key={option.id}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center">
+                    {React.cloneElement(option.icon, {
+                      className: "h-3 w-3 text-gray-500 mr-1",
+                    })}
+                    <Label className="text-xs cursor-pointer">
+                      {option.label}
+                    </Label>
+                  </div>
+                  <Switch
+                    checked={configData.keyOptions[option.id]}
+                    onCheckedChange={(checked) => {
+                      handleChange("keyOptions", {
+                        ...configData.keyOptions,
+                        [option.id]: checked,
+                      });
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Check-in Times</h4>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Earliest Time</Label>
+                <Select
+                  value={configData.checkInTime.earliestTime}
+                  onValueChange={(value) =>
+                    handleChange("checkInTime", {
+                      ...configData.checkInTime,
+                      earliestTime: value,
+                    })
+                  }
+                >
+                  <SelectTrigger className="w-20 h-7">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="08:00">8AM</SelectItem>
+                    <SelectItem value="10:00">10AM</SelectItem>
+                    <SelectItem value="12:00">12PM</SelectItem>
+                    <SelectItem value="14:00">2PM</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Standard Time</Label>
+                <Select
+                  value={configData.checkInTime.standardTime}
+                  onValueChange={(value) =>
+                    handleChange("checkInTime", {
+                      ...configData.checkInTime,
+                      standardTime: value,
+                    })
+                  }
+                >
+                  <SelectTrigger className="w-20 h-7">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="14:00">2PM</SelectItem>
+                    <SelectItem value="15:00">3PM</SelectItem>
+                    <SelectItem value="16:00">4PM</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  {React.cloneElement(option.icon, {
-                    className: "h-4 w-4 text-gray-500 mr-2",
-                  })}
-                  <Label className="cursor-pointer">{option.label}</Label>
+                  <Calendar className="h-3 w-3 text-gray-500 mr-1" />
+                  <Label className="text-xs cursor-pointer">
+                    Day-Before Check-in
+                  </Label>
                 </div>
                 <Switch
-                  checked={configData.notificationPreferences[option.id]}
+                  checked={configData.checkInTime.dayBefore}
                   onCheckedChange={(checked) => {
-                    handleChange("notificationPreferences", {
-                      ...configData.notificationPreferences,
-                      [option.id]: checked,
+                    handleChange("checkInTime", {
+                      ...configData.checkInTime,
+                      dayBefore: checked,
                     });
                   }}
                 />
               </div>
-            ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-3">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Notifications</h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "roomReady",
+                  label: "Room Ready Alert",
+                  icon: <CheckCircle2 />,
+                },
+                {
+                  id: "checkInReminder",
+                  label: "Check-in Reminder",
+                  icon: <Bell />,
+                },
+                {
+                  id: "welcomeMessage",
+                  label: "Welcome Message",
+                  icon: <MessageCircle />,
+                },
+                {
+                  id: "upgrades",
+                  label: "Room Upgrade Offers",
+                  icon: <ArrowUpCircle />,
+                },
+              ].map((option) => (
+                <div
+                  key={option.id}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center">
+                    {React.cloneElement(option.icon, {
+                      className: "h-3 w-3 text-gray-500 mr-1",
+                    })}
+                    <Label className="text-xs cursor-pointer">
+                      {option.label}
+                    </Label>
+                  </div>
+                  <Switch
+                    checked={configData.notificationPreferences[option.id]}
+                    onCheckedChange={(checked) => {
+                      handleChange("notificationPreferences", {
+                        ...configData.notificationPreferences,
+                        [option.id]: checked,
+                      });
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="border-t pt-4 flex justify-end">
-        <Button onClick={() => onSave(configData)}>
+      <div className="flex justify-end pt-2">
+        <Button onClick={() => onSave(configData)} size="sm">
           Save Online Check-in Configuration
         </Button>
       </div>
@@ -6964,10 +6493,7 @@ export const AmenitiesGuideConfigScreen = ({ onSave, initialData = {} }) => {
   });
 
   const handleChange = (field, value) => {
-    setConfigData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setConfigData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleCategoryChange = (index, field, value) => {
@@ -6984,285 +6510,297 @@ export const AmenitiesGuideConfigScreen = ({ onSave, initialData = {} }) => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start gap-4">
+    <div className="space-y-4 max-h-screen overflow-hidden">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-semibold mb-1">
-            Configure Amenities Guide
-          </h1>
+          <h1 className="text-xl font-semibold">Configure Amenities Guide</h1>
           <p className="text-gray-500 text-sm">
-            Set up how guests discover and use hotel facilities
+            Set up how guests discover hotel facilities
           </p>
         </div>
-        <div className="bg-emerald-100 p-3 rounded-full">
-          <Coffee className="h-6 w-6 text-emerald-600" />
+        <div className="bg-emerald-100 p-2 rounded-full">
+          <Coffee className="h-5 w-5 text-emerald-600" />
         </div>
       </div>
 
-      <div className="space-y-5">
-        <div className="space-y-2">
-          <Label htmlFor="amenities-name">Feature Name</Label>
-          <Input
-            id="amenities-name"
-            placeholder="e.g. Hotel Facilities, Amenities Explorer"
-            value={configData.name}
-            onChange={(e) => handleChange("name", e.target.value)}
-          />
-        </div>
-
-        <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100">
-          <h4 className="font-medium text-emerald-800 mb-2 flex items-center">
-            <LayoutGrid className="h-4 w-4 mr-1.5" />
-            Display Method
-          </h4>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              {
-                id: "categories",
-                label: "By Category",
-                description: "Organized by type",
-                icon: <LayoutGrid />,
-              },
-              {
-                id: "location",
-                label: "By Location",
-                description: "Map-based view",
-                icon: <MapPin />,
-              },
-              {
-                id: "featured",
-                label: "Featured First",
-                description: "Highlights on top",
-                icon: <Star />,
-              },
-            ].map((method) => (
-              <div
-                key={method.id}
-                className={`bg-white rounded-lg border p-3 cursor-pointer hover:border-emerald-500 transition-all flex flex-col items-center text-center ${
-                  configData.displayMethod === method.id
-                    ? "border-emerald-500 bg-emerald-50/50"
-                    : ""
-                }`}
-                onClick={() => handleChange("displayMethod", method.id)}
-              >
-                <div className="h-12 w-12 bg-emerald-100 rounded-full flex items-center justify-center mb-2">
-                  {React.cloneElement(method.icon, {
-                    className: "h-6 w-6 text-emerald-600",
-                  })}
-                </div>
-                <span className="text-sm font-medium">{method.label}</span>
-                <span className="text-xs text-gray-500 mt-1">
-                  {method.description}
-                </span>
-              </div>
-            ))}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Left Column */}
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="amenities-name" className="text-sm">
+              Feature Name
+            </Label>
+            <Input
+              id="amenities-name"
+              placeholder="e.g. Hotel Facilities"
+              value={configData.name}
+              onChange={(e) => handleChange("name", e.target.value)}
+              className="mt-1"
+            />
           </div>
-        </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Amenity Categories</h4>
-          <div className="space-y-3 mb-4">
-            {configData.amenityCategories.map((category, index) => (
-              <div
-                key={index}
-                className="flex items-center p-2 bg-gray-50 rounded-md"
-              >
-                <div className="h-8 w-8 bg-emerald-100 rounded-full flex items-center justify-center mr-3">
-                  {category.name.includes("Pool") ? (
-                    <Waves className="h-4 w-4 text-emerald-600" />
-                  ) : category.name.includes("Dining") ? (
-                    <Utensils className="h-4 w-4 text-emerald-600" />
-                  ) : category.name.includes("Fitness") ? (
-                    <Dumbbell className="h-4 w-4 text-emerald-600" />
-                  ) : category.name.includes("Business") ? (
-                    <Briefcase className="h-4 w-4 text-emerald-600" />
-                  ) : (
-                    <Coffee className="h-4 w-4 text-emerald-600" />
-                  )}
+          <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+            <h4 className="font-medium text-emerald-800 mb-2 text-sm flex items-center">
+              <LayoutGrid className="h-4 w-4 mr-1" />
+              Display Method
+            </h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "categories",
+                  label: "By Category",
+                  description: "Organized by type",
+                  icon: <LayoutGrid />,
+                },
+                {
+                  id: "location",
+                  label: "By Location",
+                  description: "Map-based view",
+                  icon: <MapPin />,
+                },
+                {
+                  id: "featured",
+                  label: "Featured First",
+                  description: "Highlights on top",
+                  icon: <Star />,
+                },
+              ].map((method) => (
+                <div
+                  key={method.id}
+                  className={`bg-white rounded-lg border p-2 cursor-pointer transition-all ${
+                    configData.displayMethod === method.id
+                      ? "border-emerald-500 bg-emerald-50/50"
+                      : ""
+                  }`}
+                  onClick={() => handleChange("displayMethod", method.id)}
+                >
+                  <div className="flex items-center">
+                    <div className="h-6 w-6 bg-emerald-100 rounded-full flex items-center justify-center mr-2">
+                      {React.cloneElement(method.icon, {
+                        className: "h-3 w-3 text-emerald-600",
+                      })}
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium">
+                        {method.label}
+                      </span>
+                      <p className="text-xs text-gray-500">
+                        {method.description}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex-1">
+              ))}
+            </div>
+          </div>
+
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Amenity Categories</h4>
+            <div className="space-y-1 mb-2 max-h-32 overflow-y-auto">
+              {configData.amenityCategories.map((category, index) => (
+                <div
+                  key={index}
+                  className="flex items-center p-1 bg-gray-50 rounded"
+                >
+                  <div className="h-6 w-6 bg-emerald-100 rounded-full flex items-center justify-center mr-2">
+                    {category.name.includes("Pool") ? (
+                      <Waves className="h-3 w-3 text-emerald-600" />
+                    ) : category.name.includes("Dining") ? (
+                      <Utensils className="h-3 w-3 text-emerald-600" />
+                    ) : category.name.includes("Fitness") ? (
+                      <Dumbbell className="h-3 w-3 text-emerald-600" />
+                    ) : category.name.includes("Business") ? (
+                      <Briefcase className="h-3 w-3 text-emerald-600" />
+                    ) : (
+                      <Coffee className="h-3 w-3 text-emerald-600" />
+                    )}
+                  </div>
                   <Input
-                    className="border-0 bg-transparent p-0 h-7 text-sm font-medium"
+                    className="border-0 bg-transparent p-0 h-6 text-xs font-medium flex-1"
                     value={category.name}
                     onChange={(e) =>
                       handleCategoryChange(index, "name", e.target.value)
                     }
                   />
+                  <Switch
+                    checked={category.enabled}
+                    onCheckedChange={(checked) =>
+                      handleCategoryChange(index, "enabled", checked)
+                    }
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const newCategories = [...configData.amenityCategories];
+                      newCategories.splice(index, 1);
+                      handleChange("amenityCategories", newCategories);
+                    }}
+                    className="h-6 w-6 p-0"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
                 </div>
-                <Switch
-                  checked={category.enabled}
-                  onCheckedChange={(checked) => {
-                    handleCategoryChange(index, "enabled", checked);
-                  }}
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const newCategories = [...configData.amenityCategories];
-                    newCategories.splice(index, 1);
-                    handleChange("amenityCategories", newCategories);
-                  }}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={addCategory}
-            className="w-full"
-          >
-            <Plus className="h-3.5 w-3.5 mr-1.5" />
-            Add Amenity Category
-          </Button>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Media Options</h4>
-          <div className="space-y-3">
-            {[
-              { id: "photos", label: "Photo Galleries", icon: <ImageIcon /> },
-              { id: "videos", label: "Video Tours", icon: <Video /> },
-              {
-                id: "virtualTour",
-                label: "360° Virtual Tours",
-                icon: <Compass />,
-              },
-              {
-                id: "operatingHours",
-                label: "Operating Hours",
-                icon: <Clock />,
-              },
-            ].map((option) => (
-              <div
-                key={option.id}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center">
-                  {React.cloneElement(option.icon, {
-                    className: "h-4 w-4 text-gray-500 mr-2",
-                  })}
-                  <Label className="cursor-pointer">{option.label}</Label>
-                </div>
-                <Switch
-                  checked={configData.mediaOptions[option.id]}
-                  onCheckedChange={(checked) => {
-                    handleChange("mediaOptions", {
-                      ...configData.mediaOptions,
-                      [option.id]: checked,
-                    });
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Booking Options</h4>
-          <div className="space-y-3">
-            {[
-              {
-                id: "directBooking",
-                label: "Direct Booking",
-                icon: <Calendar />,
-              },
-              {
-                id: "availabilityCheck",
-                label: "Availability Check",
-                icon: <CheckCircle2 />,
-              },
-              {
-                id: "recommendations",
-                label: "Personalized Recommendations",
-                icon: <Heart />,
-              },
-            ].map((option) => (
-              <div
-                key={option.id}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center">
-                  {React.cloneElement(option.icon, {
-                    className: "h-4 w-4 text-gray-500 mr-2",
-                  })}
-                  <Label className="cursor-pointer">{option.label}</Label>
-                </div>
-                <Switch
-                  checked={configData.bookingOptions[option.id]}
-                  onCheckedChange={(checked) => {
-                    handleChange("bookingOptions", {
-                      ...configData.bookingOptions,
-                      [option.id]: checked,
-                    });
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Language Options</h4>
-          <div className="space-y-3 mb-4">
-            {configData.languageOptions.map((language, index) => (
-              <div key={index} className="flex justify-between items-center">
-                <div className="flex items-center">
-                  <Globe className="h-4 w-4 text-gray-500 mr-2" />
-                  <span className="text-sm">{language}</span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const newLanguages = [...configData.languageOptions];
-                    newLanguages.splice(index, 1);
-                    handleChange("languageOptions", newLanguages);
-                  }}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex gap-2">
-            <Select
-              onValueChange={(value) => {
-                if (!configData.languageOptions.includes(value)) {
-                  handleChange("languageOptions", [
-                    ...configData.languageOptions,
-                    value,
-                  ]);
-                }
-              }}
+              ))}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={addCategory}
+              className="w-full text-xs"
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Add language" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="English">English</SelectItem>
-                <SelectItem value="Spanish">Spanish</SelectItem>
-                <SelectItem value="French">French</SelectItem>
-                <SelectItem value="German">German</SelectItem>
-                <SelectItem value="Chinese">Chinese</SelectItem>
-                <SelectItem value="Japanese">Japanese</SelectItem>
-                <SelectItem value="Arabic">Arabic</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline" size="sm">
-              Add
+              <Plus className="h-3 w-3 mr-1" />
+              Add Category
             </Button>
+          </div>
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-3">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Media Options</h4>
+            <div className="space-y-2">
+              {[
+                { id: "photos", label: "Photo Galleries", icon: <ImageIcon /> },
+                { id: "videos", label: "Video Tours", icon: <Video /> },
+                {
+                  id: "virtualTour",
+                  label: "360° Virtual Tours",
+                  icon: <Compass />,
+                },
+                {
+                  id: "operatingHours",
+                  label: "Operating Hours",
+                  icon: <Clock />,
+                },
+              ].map((option) => (
+                <div
+                  key={option.id}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center">
+                    {React.cloneElement(option.icon, {
+                      className: "h-3 w-3 text-gray-500 mr-1",
+                    })}
+                    <Label className="text-xs cursor-pointer">
+                      {option.label}
+                    </Label>
+                  </div>
+                  <Switch
+                    checked={configData.mediaOptions[option.id]}
+                    onCheckedChange={(checked) => {
+                      handleChange("mediaOptions", {
+                        ...configData.mediaOptions,
+                        [option.id]: checked,
+                      });
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Booking Options</h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "directBooking",
+                  label: "Direct Booking",
+                  icon: <Calendar />,
+                },
+                {
+                  id: "availabilityCheck",
+                  label: "Availability Check",
+                  icon: <CheckCircle2 />,
+                },
+                {
+                  id: "recommendations",
+                  label: "Personalized Recommendations",
+                  icon: <Heart />,
+                },
+              ].map((option) => (
+                <div
+                  key={option.id}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center">
+                    {React.cloneElement(option.icon, {
+                      className: "h-3 w-3 text-gray-500 mr-1",
+                    })}
+                    <Label className="text-xs cursor-pointer">
+                      {option.label}
+                    </Label>
+                  </div>
+                  <Switch
+                    checked={configData.bookingOptions[option.id]}
+                    onCheckedChange={(checked) => {
+                      handleChange("bookingOptions", {
+                        ...configData.bookingOptions,
+                        [option.id]: checked,
+                      });
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Language Options</h4>
+            <div className="space-y-1 mb-2 max-h-20 overflow-y-auto">
+              {configData.languageOptions.map((language, index) => (
+                <div key={index} className="flex justify-between items-center">
+                  <div className="flex items-center">
+                    <Globe className="h-3 w-3 text-gray-500 mr-1" />
+                    <span className="text-xs">{language}</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const newLanguages = [...configData.languageOptions];
+                      newLanguages.splice(index, 1);
+                      handleChange("languageOptions", newLanguages);
+                    }}
+                    className="h-6 w-6 p-0"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-1">
+              <Select
+                onValueChange={(value) => {
+                  if (!configData.languageOptions.includes(value)) {
+                    handleChange("languageOptions", [
+                      ...configData.languageOptions,
+                      value,
+                    ]);
+                  }
+                }}
+              >
+                <SelectTrigger className="h-7">
+                  <SelectValue placeholder="Add language" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="English">English</SelectItem>
+                  <SelectItem value="Spanish">Spanish</SelectItem>
+                  <SelectItem value="French">French</SelectItem>
+                  <SelectItem value="German">German</SelectItem>
+                  <SelectItem value="Chinese">Chinese</SelectItem>
+                  <SelectItem value="Japanese">Japanese</SelectItem>
+                  <SelectItem value="Arabic">Arabic</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="border-t pt-4 flex justify-end">
-        <Button onClick={() => onSave(configData)}>
+      <div className="flex justify-end pt-2">
+        <Button onClick={() => onSave(configData)} size="sm">
           Save Amenities Guide Configuration
         </Button>
       </div>
@@ -7306,10 +6844,7 @@ export const RoomServiceConfigScreen = ({ onSave, initialData = {} }) => {
   });
 
   const handleChange = (field, value) => {
-    setConfigData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setConfigData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSectionChange = (
@@ -7338,91 +6873,101 @@ export const RoomServiceConfigScreen = ({ onSave, initialData = {} }) => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start gap-4">
+    <div className="space-y-4 max-h-screen overflow-hidden">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-semibold mb-1">Configure Room Service</h1>
+          <h1 className="text-xl font-semibold">Configure Room Service</h1>
           <p className="text-gray-500 text-sm">
             Set up in-room dining and services for guests
           </p>
         </div>
-        <div className="bg-red-100 p-3 rounded-full">
-          <Utensils className="h-6 w-6 text-red-600" />
+        <div className="bg-red-100 p-2 rounded-full">
+          <Utensils className="h-5 w-5 text-red-600" />
         </div>
       </div>
 
-      <div className="space-y-5">
-        <div className="space-y-2">
-          <Label htmlFor="service-name">Feature Name</Label>
-          <Input
-            id="service-name"
-            placeholder="e.g. In-Room Dining, Room Service"
-            value={configData.name}
-            onChange={(e) => handleChange("name", e.target.value)}
-          />
-        </div>
-
-        <div className="bg-red-50 p-4 rounded-lg border border-red-100">
-          <h4 className="font-medium text-red-800 mb-2 flex items-center">
-            <Smartphone className="h-4 w-4 mr-1.5" />
-            Order Method
-          </h4>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              {
-                id: "app",
-                label: "Mobile App",
-                description: "Order via hotel app",
-                icon: <Smartphone />,
-              },
-              {
-                id: "tablet",
-                label: "In-Room Tablet",
-                description: "Dedicated device",
-                icon: <Tablet />,
-              },
-              {
-                id: "qrCode",
-                label: "Scan QR Code",
-                description: "From room material",
-                icon: <QrCode />,
-              },
-            ].map((method) => (
-              <div
-                key={method.id}
-                className={`bg-white rounded-lg border p-3 cursor-pointer hover:border-red-500 transition-all flex flex-col items-center text-center ${
-                  configData.orderMethod === method.id
-                    ? "border-red-500 bg-red-50/50"
-                    : ""
-                }`}
-                onClick={() => handleChange("orderMethod", method.id)}
-              >
-                <div className="h-12 w-12 bg-red-100 rounded-full flex items-center justify-center mb-2">
-                  {React.cloneElement(method.icon, {
-                    className: "h-6 w-6 text-red-600",
-                  })}
-                </div>
-                <span className="text-sm font-medium">{method.label}</span>
-                <span className="text-xs text-gray-500 mt-1">
-                  {method.description}
-                </span>
-              </div>
-            ))}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Left Column */}
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="service-name" className="text-sm">
+              Feature Name
+            </Label>
+            <Input
+              id="service-name"
+              placeholder="e.g. In-Room Dining"
+              value={configData.name}
+              onChange={(e) => handleChange("name", e.target.value)}
+              className="mt-1"
+            />
           </div>
-        </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Menu Sections</h4>
-          <div className="space-y-3 mb-4">
-            {configData.menuSections.map((section, index) => (
-              <div
-                key={index}
-                className="flex items-center p-2 bg-gray-50 rounded-md"
-              >
-                <div className="flex-1">
+          <div className="bg-red-50 p-3 rounded-lg border border-red-100">
+            <h4 className="font-medium text-red-800 mb-2 text-sm flex items-center">
+              <Smartphone className="h-4 w-4 mr-1" />
+              Order Method
+            </h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "app",
+                  label: "Mobile App",
+                  description: "Order via hotel app",
+                  icon: <Smartphone />,
+                },
+                {
+                  id: "tablet",
+                  label: "In-Room Tablet",
+                  description: "Dedicated device",
+                  icon: <Tablet />,
+                },
+                {
+                  id: "qrCode",
+                  label: "Scan QR Code",
+                  description: "From room material",
+                  icon: <QrCode />,
+                },
+              ].map((method) => (
+                <div
+                  key={method.id}
+                  className={`bg-white rounded-lg border p-2 cursor-pointer transition-all ${
+                    configData.orderMethod === method.id
+                      ? "border-red-500 bg-red-50/50"
+                      : ""
+                  }`}
+                  onClick={() => handleChange("orderMethod", method.id)}
+                >
                   <div className="flex items-center">
+                    <div className="h-6 w-6 bg-red-100 rounded-full flex items-center justify-center mr-2">
+                      {React.cloneElement(method.icon, {
+                        className: "h-3 w-3 text-red-600",
+                      })}
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium">
+                        {method.label}
+                      </span>
+                      <p className="text-xs text-gray-500">
+                        {method.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Menu Sections</h4>
+            <div className="space-y-1 mb-2 max-h-32 overflow-y-auto">
+              {configData.menuSections.map((section, index) => (
+                <div
+                  key={index}
+                  className="flex items-center p-1 bg-gray-50 rounded"
+                >
+                  <div className="flex-1 min-w-0">
                     <Input
-                      className="border-0 bg-transparent p-0 h-7 text-sm font-medium"
+                      className="border-0 bg-transparent p-0 h-6 text-xs font-medium"
                       value={section.name}
                       onChange={(e) =>
                         handleSectionChange(
@@ -7433,82 +6978,80 @@ export const RoomServiceConfigScreen = ({ onSave, initialData = {} }) => {
                         )
                       }
                     />
+                    <div className="flex items-center">
+                      <Clock className="h-2 w-2 text-gray-400 mr-1" />
+                      <Input
+                        className="border-0 bg-transparent p-0 h-4 text-xs text-gray-500"
+                        value={section.available}
+                        onChange={(e) =>
+                          handleSectionChange(
+                            index,
+                            "available",
+                            e.target.value,
+                            "menuSections",
+                          )
+                        }
+                      />
+                    </div>
                   </div>
-                  <div className="flex items-center">
-                    <Clock className="h-3 w-3 text-gray-400 mr-1" />
-                    <Input
-                      className="border-0 bg-transparent p-0 h-5 text-xs text-gray-500"
-                      value={section.available}
-                      onChange={(e) =>
-                        handleSectionChange(
-                          index,
-                          "available",
-                          e.target.value,
-                          "menuSections",
-                        )
-                      }
-                    />
-                  </div>
+                  <Switch
+                    checked={section.enabled}
+                    onCheckedChange={(checked) =>
+                      handleSectionChange(
+                        index,
+                        "enabled",
+                        checked,
+                        "menuSections",
+                      )
+                    }
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const newSections = [...configData.menuSections];
+                      newSections.splice(index, 1);
+                      handleChange("menuSections", newSections);
+                    }}
+                    className="h-6 w-6 p-0"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
                 </div>
-                <Switch
-                  checked={section.enabled}
-                  onCheckedChange={(checked) => {
-                    handleSectionChange(
-                      index,
-                      "enabled",
-                      checked,
-                      "menuSections",
-                    );
-                  }}
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const newSections = [...configData.menuSections];
-                    newSections.splice(index, 1);
-                    handleChange("menuSections", newSections);
-                  }}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
+              ))}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => addSection("menuSections")}
+              className="w-full text-xs"
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              Add Menu Section
+            </Button>
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => addSection("menuSections")}
-            className="w-full"
-          >
-            <Plus className="h-3.5 w-3.5 mr-1.5" />
-            Add Menu Section
-          </Button>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Additional Services</h4>
-          <div className="space-y-3 mb-4">
-            {configData.additionalServices.map((service, index) => (
-              <div
-                key={index}
-                className="flex items-center p-2 bg-gray-50 rounded-md"
-              >
-                <div className="h-8 w-8 bg-gray-100 rounded-full flex items-center justify-center mr-3">
-                  {service.name.includes("Housekeeping") ? (
-                    <BedDouble className="h-4 w-4 text-gray-600" />
-                  ) : service.name.includes("Amenities") ? (
-                    <ShowerHead className="h-4 w-4 text-gray-600" />
-                  ) : service.name.includes("Laundry") ? (
-                    <Shirt className="h-4 w-4 text-gray-600" />
-                  ) : (
-                    <CircleHelp className="h-4 w-4 text-gray-600" />
-                  )}
-                </div>
-                <div className="flex-1">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Additional Services</h4>
+            <div className="space-y-1 mb-2 max-h-24 overflow-y-auto">
+              {configData.additionalServices.map((service, index) => (
+                <div
+                  key={index}
+                  className="flex items-center p-1 bg-gray-50 rounded"
+                >
+                  <div className="h-6 w-6 bg-gray-100 rounded-full flex items-center justify-center mr-2">
+                    {service.name.includes("Housekeeping") ? (
+                      <BedDouble className="h-3 w-3 text-gray-600" />
+                    ) : service.name.includes("Amenities") ? (
+                      <ShowerHead className="h-3 w-3 text-gray-600" />
+                    ) : service.name.includes("Laundry") ? (
+                      <Shirt className="h-3 w-3 text-gray-600" />
+                    ) : (
+                      <CircleHelp className="h-3 w-3 text-gray-600" />
+                    )}
+                  </div>
                   <Input
-                    className="border-0 bg-transparent p-0 h-7 text-sm font-medium"
+                    className="border-0 bg-transparent p-0 h-6 text-xs font-medium flex-1"
                     value={service.name}
                     onChange={(e) =>
                       handleSectionChange(
@@ -7519,146 +7062,161 @@ export const RoomServiceConfigScreen = ({ onSave, initialData = {} }) => {
                       )
                     }
                   />
+                  <Switch
+                    checked={service.enabled}
+                    onCheckedChange={(checked) =>
+                      handleSectionChange(
+                        index,
+                        "enabled",
+                        checked,
+                        "additionalServices",
+                      )
+                    }
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const newServices = [...configData.additionalServices];
+                      newServices.splice(index, 1);
+                      handleChange("additionalServices", newServices);
+                    }}
+                    className="h-6 w-6 p-0"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
                 </div>
-                <Switch
-                  checked={service.enabled}
-                  onCheckedChange={(checked) => {
-                    handleSectionChange(
-                      index,
-                      "enabled",
-                      checked,
-                      "additionalServices",
-                    );
-                  }}
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const newServices = [...configData.additionalServices];
-                    newServices.splice(index, 1);
-                    handleChange("additionalServices", newServices);
-                  }}
+              ))}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => addSection("additionalServices")}
+              className="w-full text-xs"
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              Add Service Type
+            </Button>
+          </div>
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-3">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Order Features</h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "timeSelection",
+                  label: "Delivery Time Selection",
+                  icon: <Clock />,
+                },
+                {
+                  id: "specialInstructions",
+                  label: "Special Instructions",
+                  icon: <FileText />,
+                },
+                {
+                  id: "dietaryRestrictions",
+                  label: "Dietary Restrictions",
+                  icon: <AlertCircle />,
+                },
+                {
+                  id: "chargeToRoom",
+                  label: "Charge to Room",
+                  icon: <CreditCard />,
+                },
+                {
+                  id: "contactlessDelivery",
+                  label: "Contactless Delivery",
+                  icon: <DoorClosed />,
+                },
+                {
+                  id: "trackDelivery",
+                  label: "Delivery Tracking",
+                  icon: <Navigation />,
+                },
+              ].map((feature) => (
+                <div
+                  key={feature.id}
+                  className="flex items-center justify-between"
                 >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
+                  <div className="flex items-center">
+                    {React.cloneElement(feature.icon, {
+                      className: "h-3 w-3 text-gray-500 mr-1",
+                    })}
+                    <Label className="text-xs cursor-pointer">
+                      {feature.label}
+                    </Label>
+                  </div>
+                  <Switch
+                    checked={configData.orderFeatures[feature.id]}
+                    onCheckedChange={(checked) => {
+                      handleChange("orderFeatures", {
+                        ...configData.orderFeatures,
+                        [feature.id]: checked,
+                      });
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => addSection("additionalServices")}
-            className="w-full"
-          >
-            <Plus className="h-3.5 w-3.5 mr-1.5" />
-            Add Service Type
-          </Button>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Order Features</h4>
-          <div className="space-y-3">
-            {[
-              {
-                id: "timeSelection",
-                label: "Delivery Time Selection",
-                icon: <Clock />,
-              },
-              {
-                id: "specialInstructions",
-                label: "Special Instructions",
-                icon: <FileText />,
-              },
-              {
-                id: "dietaryRestrictions",
-                label: "Dietary Restrictions",
-                icon: <AlertCircle />,
-              },
-              {
-                id: "chargeToRoom",
-                label: "Charge to Room",
-                icon: <CreditCard />,
-              },
-              {
-                id: "contactlessDelivery",
-                label: "Contactless Delivery",
-                icon: <DoorClosed />,
-              },
-              {
-                id: "trackDelivery",
-                label: "Delivery Tracking",
-                icon: <Navigation />,
-              },
-            ].map((feature) => (
-              <div
-                key={feature.id}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center">
-                  {React.cloneElement(feature.icon, {
-                    className: "h-4 w-4 text-gray-500 mr-2",
-                  })}
-                  <Label className="cursor-pointer">{feature.label}</Label>
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">
+              Notification Preferences
+            </h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "orderConfirmation",
+                  label: "Order Confirmation",
+                  icon: <CheckCircle2 />,
+                },
+                {
+                  id: "preparationUpdate",
+                  label: "Preparation Updates",
+                  icon: <Utensils />,
+                },
+                {
+                  id: "deliveryAlert",
+                  label: "Delivery Alert",
+                  icon: <Bell />,
+                },
+              ].map((notification) => (
+                <div
+                  key={notification.id}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center">
+                    {React.cloneElement(notification.icon, {
+                      className: "h-3 w-3 text-gray-500 mr-1",
+                    })}
+                    <Label className="text-xs cursor-pointer">
+                      {notification.label}
+                    </Label>
+                  </div>
+                  <Switch
+                    checked={
+                      configData.notificationPreferences[notification.id]
+                    }
+                    onCheckedChange={(checked) => {
+                      handleChange("notificationPreferences", {
+                        ...configData.notificationPreferences,
+                        [notification.id]: checked,
+                      });
+                    }}
+                  />
                 </div>
-                <Switch
-                  checked={configData.orderFeatures[feature.id]}
-                  onCheckedChange={(checked) => {
-                    handleChange("orderFeatures", {
-                      ...configData.orderFeatures,
-                      [feature.id]: checked,
-                    });
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Notification Preferences</h4>
-          <div className="space-y-3">
-            {[
-              {
-                id: "orderConfirmation",
-                label: "Order Confirmation",
-                icon: <CheckCircle2 />,
-              },
-              {
-                id: "preparationUpdate",
-                label: "Preparation Updates",
-                icon: <Utensils />,
-              },
-              { id: "deliveryAlert", label: "Delivery Alert", icon: <Bell /> },
-            ].map((notification) => (
-              <div
-                key={notification.id}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center">
-                  {React.cloneElement(notification.icon, {
-                    className: "h-4 w-4 text-gray-500 mr-2",
-                  })}
-                  <Label className="cursor-pointer">{notification.label}</Label>
-                </div>
-                <Switch
-                  checked={configData.notificationPreferences[notification.id]}
-                  onCheckedChange={(checked) => {
-                    handleChange("notificationPreferences", {
-                      ...configData.notificationPreferences,
-                      [notification.id]: checked,
-                    });
-                  }}
-                />
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="border-t pt-4 flex justify-end">
-        <Button onClick={() => onSave(configData)}>
+      <div className="flex justify-end pt-2">
+        <Button onClick={() => onSave(configData)} size="sm">
           Save Room Service Configuration
         </Button>
       </div>
@@ -10326,189 +9884,218 @@ export const CollectionBrowsingConfigScreen = ({
   });
 
   const handleChange = (field, value) => {
-    setConfigData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setConfigData((prev) => ({ ...prev, [field]: value }));
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start gap-4">
+    <div className="space-y-4 max-h-screen overflow-hidden">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-semibold mb-1">
+          <h1 className="text-xl font-semibold">
             Configure Collection Browser
           </h1>
           <p className="text-gray-500 text-sm">
-            Set up how visitors can explore your digital collection
+            Set up how visitors explore your digital collection
           </p>
         </div>
-        <div className="bg-emerald-100 p-3 rounded-full">
-          <BookmarkIcon className="h-6 w-6 text-emerald-600" />
+        <div className="bg-emerald-100 p-2 rounded-full">
+          <BookmarkIcon className="h-5 w-5 text-emerald-600" />
         </div>
       </div>
 
-      <div className="space-y-5">
-        <div className="space-y-2">
-          <Label htmlFor="collection-name">Feature Name</Label>
-          <Input
-            id="collection-name"
-            placeholder="e.g. Digital Collection"
-            value={configData.name}
-            onChange={(e) => handleChange("name", e.target.value)}
-          />
-        </div>
+      <div className="grid grid-cols-2 gap-4">
+        {/* Left Column */}
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="collection-name" className="text-sm">
+              Feature Name
+            </Label>
+            <Input
+              id="collection-name"
+              placeholder="e.g. Digital Collection"
+              value={configData.name}
+              onChange={(e) => handleChange("name", e.target.value)}
+              className="mt-1"
+            />
+          </div>
 
-        <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100">
-          <h4 className="font-medium text-emerald-800 mb-2 flex items-center">
-            <Book className="h-4 w-4 mr-1.5" />
-            Browse Method
-          </h4>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              {
-                id: "categories",
-                label: "By Category",
-                description: "Browse by groups",
-                icon: <LayoutGrid />,
-              },
-              {
-                id: "timeline",
-                label: "Timeline",
-                description: "Chronological view",
-                icon: <Clock />,
-              },
-              {
-                id: "search",
-                label: "Search-based",
-                description: "Keyword search",
-                icon: <Search />,
-              },
-            ].map((method) => (
-              <div
-                key={method.id}
-                className={`bg-white rounded-lg border p-3 cursor-pointer hover:border-emerald-500 transition-all flex flex-col items-center text-center ${configData.browseMethod === method.id ? "border-emerald-500 bg-emerald-50/50" : ""}`}
-                onClick={() => handleChange("browseMethod", method.id)}
-              >
-                <div className="h-12 w-12 bg-emerald-100 rounded-full flex items-center justify-center mb-2">
-                  {React.cloneElement(method.icon, {
-                    className: "h-6 w-6 text-emerald-600",
-                  })}
+          <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+            <h4 className="font-medium text-emerald-800 mb-2 text-sm flex items-center">
+              <Book className="h-4 w-4 mr-1" />
+              Browse Method
+            </h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "categories",
+                  label: "By Category",
+                  description: "Browse by groups",
+                  icon: <LayoutGrid />,
+                },
+                {
+                  id: "timeline",
+                  label: "Timeline",
+                  description: "Chronological view",
+                  icon: <Clock />,
+                },
+                {
+                  id: "search",
+                  label: "Search-based",
+                  description: "Keyword search",
+                  icon: <Search />,
+                },
+              ].map((method) => (
+                <div
+                  key={method.id}
+                  className={`bg-white rounded-lg border p-2 cursor-pointer transition-all ${
+                    configData.browseMethod === method.id
+                      ? "border-emerald-500 bg-emerald-50/50"
+                      : ""
+                  }`}
+                  onClick={() => handleChange("browseMethod", method.id)}
+                >
+                  <div className="flex items-center">
+                    <div className="h-6 w-6 bg-emerald-100 rounded-full flex items-center justify-center mr-2">
+                      {React.cloneElement(method.icon, {
+                        className: "h-3 w-3 text-emerald-600",
+                      })}
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium">
+                        {method.label}
+                      </span>
+                      <p className="text-xs text-gray-500">
+                        {method.description}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <span className="text-sm font-medium">{method.label}</span>
-                <span className="text-xs text-gray-500 mt-1">
-                  {method.description}
-                </span>
-              </div>
-            ))}
+              ))}
+            </div>
+          </div>
+
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Filter Options</h4>
+            <div className="grid grid-cols-2 gap-1">
+              {[
+                { id: "era", label: "Era/Period" },
+                { id: "artist", label: "Artist/Creator" },
+                { id: "medium", label: "Material/Medium" },
+                { id: "theme", label: "Theme/Subject" },
+                { id: "location", label: "Geographic Origin" },
+              ].map((filter) => (
+                <div key={filter.id} className="flex items-center space-x-1">
+                  <Checkbox
+                    id={filter.id}
+                    checked={configData.filterOptions[filter.id]}
+                    onCheckedChange={(checked) => {
+                      handleChange("filterOptions", {
+                        ...configData.filterOptions,
+                        [filter.id]: !!checked,
+                      });
+                    }}
+                  />
+                  <label htmlFor={filter.id} className="text-xs cursor-pointer">
+                    {filter.label}
+                  </label>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Filter Options</h4>
-          <div className="space-y-2">
-            {[
-              { id: "era", label: "Historical Era/Period" },
-              { id: "artist", label: "Artist/Creator" },
-              { id: "medium", label: "Material/Medium" },
-              { id: "theme", label: "Theme/Subject" },
-              { id: "location", label: "Geographic Origin" },
-            ].map((filter) => (
-              <div key={filter.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={filter.id}
-                  checked={configData.filterOptions[filter.id]}
-                  onCheckedChange={(checked) => {
-                    handleChange("filterOptions", {
-                      ...configData.filterOptions,
-                      [filter.id]: !!checked,
-                    });
-                  }}
-                />
-                <label htmlFor={filter.id} className="text-sm cursor-pointer">
-                  {filter.label}
-                </label>
+        {/* Right Column */}
+        <div className="space-y-3">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Detail Level</h4>
+            <RadioGroup
+              value={configData.detailLevel}
+              onValueChange={(value) => handleChange("detailLevel", value)}
+              className="space-y-1"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="basic" id="basic" />
+                <Label htmlFor="basic" className="text-xs">
+                  Basic (Title, Artist, Date)
+                </Label>
               </div>
-            ))}
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="standard" id="standard" />
+                <Label htmlFor="standard" className="text-xs">
+                  Standard (Basic + Description)
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="detailed" id="detailed" />
+                <Label htmlFor="detailed" className="text-xs">
+                  Detailed (Full Curatorial Info)
+                </Label>
+              </div>
+            </RadioGroup>
           </div>
-        </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Detail Level</h4>
-          <RadioGroup
-            value={configData.detailLevel}
-            onValueChange={(value) => handleChange("detailLevel", value)}
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="basic" id="basic" />
-              <Label htmlFor="basic">Basic (Title, Artist, Date)</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="standard" id="standard" />
-              <Label htmlFor="standard">Standard (Basic + Description)</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="detailed" id="detailed" />
-              <Label htmlFor="detailed">Detailed (Full Curatorial Info)</Label>
-            </div>
-          </RadioGroup>
-        </div>
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Image Quality</h4>
+            <Select
+              value={configData.imageQuality}
+              onValueChange={(value) => handleChange("imageQuality", value)}
+            >
+              <SelectTrigger className="h-7">
+                <SelectValue placeholder="Select quality" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Low (Fast Loading)</SelectItem>
+                <SelectItem value="medium">Medium (Balanced)</SelectItem>
+                <SelectItem value="high">High (Detailed View)</SelectItem>
+                <SelectItem value="ultra">Ultra (For Zoom/Study)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Image Quality</h4>
-          <Select
-            value={configData.imageQuality}
-            onValueChange={(value) => handleChange("imageQuality", value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select image quality" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="low">Low (Fast Loading)</SelectItem>
-              <SelectItem value="medium">Medium (Balanced)</SelectItem>
-              <SelectItem value="high">High (Detailed View)</SelectItem>
-              <SelectItem value="ultra">Ultra (For Zoom/Study)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Interactive Features</h4>
-          <div className="space-y-3">
-            {[
-              { id: "zoom", label: "Zoom In/Out", icon: <ZoomIn /> },
-              { id: "compare", label: "Compare Items", icon: <Layers /> },
-              { id: "share", label: "Social Sharing", icon: <Share2 /> },
-              { id: "favorite", label: "Save Favorites", icon: <Heart /> },
-              { id: "download", label: "Download Images", icon: <Download /> },
-            ].map((feature) => (
-              <div
-                key={feature.id}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center">
-                  {React.cloneElement(feature.icon, {
-                    className: "h-4 w-4 text-gray-500 mr-2",
-                  })}
-                  <Label className="cursor-pointer">{feature.label}</Label>
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Interactive Features</h4>
+            <div className="space-y-2">
+              {[
+                { id: "zoom", label: "Zoom In/Out", icon: <ZoomIn /> },
+                { id: "compare", label: "Compare Items", icon: <Layers /> },
+                { id: "share", label: "Social Sharing", icon: <Share2 /> },
+                { id: "favorite", label: "Save Favorites", icon: <Heart /> },
+                {
+                  id: "download",
+                  label: "Download Images",
+                  icon: <Download />,
+                },
+              ].map((feature) => (
+                <div
+                  key={feature.id}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center">
+                    {React.cloneElement(feature.icon, {
+                      className: "h-3 w-3 text-gray-500 mr-1",
+                    })}
+                    <Label className="text-xs cursor-pointer">
+                      {feature.label}
+                    </Label>
+                  </div>
+                  <Switch
+                    checked={configData.features[feature.id]}
+                    onCheckedChange={(checked) => {
+                      handleChange("features", {
+                        ...configData.features,
+                        [feature.id]: checked,
+                      });
+                    }}
+                  />
                 </div>
-                <Switch
-                  checked={configData.features[feature.id]}
-                  onCheckedChange={(checked) => {
-                    handleChange("features", {
-                      ...configData.features,
-                      [feature.id]: checked,
-                    });
-                  }}
-                />
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="border-t pt-4 flex justify-end">
-        <Button onClick={() => onSave(configData)}>
+      <div className="flex justify-end pt-2">
+        <Button onClick={() => onSave(configData)} size="sm">
           Save Collection Browser Configuration
         </Button>
       </div>
@@ -10523,9 +10110,9 @@ export const CollectionBrowsingConfigScreen = ({
 export const MembershipInfoConfigScreen = ({ onSave, initialData = {} }) => {
   const [configData, setConfigData] = useState({
     name: initialData.name || "Membership Information",
-    membershipSource: initialData.membershipSource || "external", // 'external' or 'manual'
+    membershipSource: initialData.membershipSource || "external",
     membershipUrl: initialData.membershipUrl || "",
-    displayStyle: initialData.displayStyle || "button", // 'button', 'banner', or 'card'
+    displayStyle: initialData.displayStyle || "button",
     summaryText:
       initialData.summaryText ||
       "Join our membership program to enjoy exclusive benefits and support our organization.",
@@ -10535,36 +10122,23 @@ export const MembershipInfoConfigScreen = ({ onSave, initialData = {} }) => {
       "Exclusive content",
     ],
     ctaText: initialData.ctaText || "Become a Member",
-    // Keep simplified version of tiers for quick preview
     membershipTiers: initialData.membershipTiers || [
-      {
-        name: "Individual",
-        price: "50",
-      },
-      {
-        name: "Family",
-        price: "100",
-      },
+      { name: "Individual", price: "50" },
+      { name: "Family", price: "100" },
     ],
     showTierPreview: initialData.showTierPreview || true,
-    accentColor: initialData.accentColor || "#f59e0b", // Amber color by default
-    signupOptions: initialData.signupOptions || {
-      redirectWebsite: true,
-    },
+    accentColor: initialData.accentColor || "#f59e0b",
+    signupOptions: initialData.signupOptions || { redirectWebsite: true },
     ...initialData,
   });
 
-  // New state variables for scraping and analysis
   const [isScrapingUrl, setIsScrapingUrl] = useState(false);
   const [isParsingData, setIsParsingData] = useState(false);
   const [scrapedData, setScrapedData] = useState(null);
   const [scrapingError, setScrapingError] = useState(null);
 
   const handleChange = (field, value) => {
-    setConfigData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setConfigData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleBenefitChange = (index, value) => {
@@ -10737,446 +10311,418 @@ export const MembershipInfoConfigScreen = ({ onSave, initialData = {} }) => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start gap-4">
+    <div className="space-y-4 max-h-screen overflow-hidden">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-semibold mb-1">
+          <h1 className="text-xl font-semibold">
             Configure Membership Information
           </h1>
           <p className="text-gray-500 text-sm">
-            Set up how membership programs are presented to visitors
+            Set up how membership programs are presented
           </p>
         </div>
-        <div className="bg-amber-100 p-3 rounded-full">
-          <Award className="h-6 w-6 text-amber-600" />
+        <div className="bg-amber-100 p-2 rounded-full">
+          <Award className="h-5 w-5 text-amber-600" />
         </div>
       </div>
 
-      <div className="space-y-5">
-        <div className="space-y-2">
-          <Label htmlFor="membership-name">Feature Name</Label>
-          <Input
-            id="membership-name"
-            placeholder="e.g. Become a Member"
-            value={configData.name}
-            onChange={(e) => handleChange("name", e.target.value)}
-          />
-        </div>
-
-        <div className="bg-amber-50 p-4 rounded-lg border border-amber-100">
-          <h4 className="font-medium text-amber-800 mb-2 flex items-center">
-            <Award className="h-4 w-4 mr-1.5" />
-            Membership Information Source
-          </h4>
-          <div className="grid grid-cols-2 gap-3">
-            <div
-              className={`bg-white rounded-lg border p-3 cursor-pointer hover:border-amber-500 transition-all flex flex-col items-center text-center ${
-                configData.membershipSource === "external"
-                  ? "border-amber-500 bg-amber-50/50"
-                  : ""
-              }`}
-              onClick={() => handleChange("membershipSource", "external")}
-            >
-              <div className="h-12 w-12 bg-amber-100 rounded-full flex items-center justify-center mb-2">
-                <LinkIcon className="h-6 w-6 text-amber-600" />
-              </div>
-              <span className="text-sm font-medium">External Link</span>
-              <span className="text-xs text-gray-500 mt-1">
-                Link to your existing membership page
-              </span>
-            </div>
-
-            <div
-              className={`bg-white rounded-lg border p-3 cursor-pointer hover:border-amber-500 transition-all flex flex-col items-center text-center ${
-                configData.membershipSource === "manual"
-                  ? "border-amber-500 bg-amber-50/50"
-                  : ""
-              }`}
-              onClick={() => handleChange("membershipSource", "manual")}
-            >
-              <div className="h-12 w-12 bg-amber-100 rounded-full flex items-center justify-center mb-2">
-                <Settings className="h-6 w-6 text-amber-600" />
-              </div>
-              <span className="text-sm font-medium">Manual Setup</span>
-              <span className="text-xs text-gray-500 mt-1">
-                Configure membership details in-app
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {configData.membershipSource === "external" && (
-          <div className="border rounded-lg p-4">
-            <h4 className="font-medium mb-3">Membership Website</h4>
-            <div className="space-y-2">
-              <Label htmlFor="membership-url">Membership URL</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="membership-url"
-                  placeholder="https://your-organization.com/membership"
-                  value={configData.membershipUrl}
-                  onChange={(e) =>
-                    handleChange("membershipUrl", e.target.value)
-                  }
-                  className="flex-1"
-                />
-                <Button
-                  variant="secondary"
-                  onClick={scrapeUrl}
-                  disabled={
-                    isScrapingUrl || isParsingData || !configData.membershipUrl
-                  }
-                >
-                  {isScrapingUrl ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <span>Analyze</span>
-                  )}
-                </Button>
-                {configData.membershipUrl && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="outline" size="icon" asChild>
-                          <a
-                            href={configData.membershipUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Open URL</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-              </div>
-              {isParsingData && (
-                <div className="flex items-center text-amber-600 text-xs mt-1">
-                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  <span>Analyzing membership details...</span>
-                </div>
-              )}
-              {scrapingError && (
-                <p className="text-xs text-red-500 mt-1">{scrapingError}</p>
-              )}
-              {!isScrapingUrl &&
-                !isParsingData &&
-                scrapedData &&
-                !scrapingError && (
-                  <div className="bg-green-50 border border-green-200 rounded-md p-2 mt-2">
-                    <p className="text-xs text-green-700 flex items-center">
-                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                      Successfully analyzed membership page! Benefits and tiers
-                      have been updated.
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Using local content parsing. For more accurate results,
-                      please check the extracted data.
-                    </p>
-                  </div>
-                )}
-              <p className="text-xs text-gray-500">
-                Link to your website's membership or donation page. Click
-                "Analyze" to automatically extract membership information.
-              </p>
-            </div>
-          </div>
-        )}
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Display Options</h4>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Display Style</Label>
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { id: "button", label: "Button", icon: <ButtonIcon /> },
-                  { id: "banner", label: "Banner", icon: <LayoutPanelTop /> },
-                  { id: "card", label: "Card", icon: <LayoutGrid /> },
-                ].map((style) => (
-                  <div
-                    key={style.id}
-                    className={`bg-white border rounded-lg p-3 cursor-pointer hover:border-amber-500 transition-all flex flex-col items-center text-center ${
-                      configData.displayStyle === style.id
-                        ? "border-amber-500 bg-amber-50/50"
-                        : ""
-                    }`}
-                    onClick={() => handleChange("displayStyle", style.id)}
-                  >
-                    <div className="h-10 w-10 bg-amber-100 rounded-full flex items-center justify-center mb-2">
-                      {React.cloneElement(style.icon, {
-                        className: "h-5 w-5 text-amber-600",
-                      })}
-                    </div>
-                    <span className="text-sm font-medium">{style.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="cta-text">Call to Action Text</Label>
-              <Input
-                id="cta-text"
-                placeholder="e.g. Join Now, Become a Member"
-                value={configData.ctaText}
-                onChange={(e) => handleChange("ctaText", e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="summary-text">Summary Text</Label>
-              <Textarea
-                id="summary-text"
-                placeholder="Brief description of your membership program"
-                value={configData.summaryText}
-                onChange={(e) => handleChange("summaryText", e.target.value)}
-                rows={3}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Accent Color</Label>
-              <div className="flex gap-3">
-                {[
-                  { id: "#f59e0b", label: "Amber", color: "bg-amber-500" },
-                  { id: "#3b82f6", label: "Blue", color: "bg-blue-500" },
-                  { id: "#10b981", label: "Emerald", color: "bg-emerald-500" },
-                  { id: "#8b5cf6", label: "Purple", color: "bg-purple-500" },
-                  { id: "#ef4444", label: "Red", color: "bg-red-500" },
-                ].map((colorOption) => (
-                  <div
-                    key={colorOption.id}
-                    className="flex flex-col items-center gap-1"
-                    onClick={() => handleChange("accentColor", colorOption.id)}
-                  >
-                    <div
-                      className={`h-8 w-8 rounded-full cursor-pointer ${colorOption.color} ${
-                        configData.accentColor === colorOption.id
-                          ? "ring-2 ring-offset-2"
-                          : ""
-                      }`}
-                    />
-                    <span className="text-xs">{colorOption.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Highlighted Benefits</h4>
-          <div className="space-y-3 mb-4">
-            {configData.highlightedBenefits.map((benefit, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <Award className="h-4 w-4 text-amber-500 flex-shrink-0" />
-                <Input
-                  value={benefit}
-                  onChange={(e) => handleBenefitChange(index, e.target.value)}
-                  className="flex-1"
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeBenefit(index)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={addBenefit}
-            >
-              <Plus className="h-3.5 w-3.5 mr-1.5" />
-              Add Benefit
-            </Button>
-          </div>
-        </div>
-
-        {/* Membership tier quick preview */}
-        <div className="border rounded-lg p-4">
-          <div className="flex justify-between items-center mb-3">
-            <h4 className="font-medium">Membership Tier Preview</h4>
-            <Switch
-              checked={configData.showTierPreview}
-              onCheckedChange={(checked) =>
-                handleChange("showTierPreview", checked)
-              }
+      <div className="grid grid-cols-2 gap-4">
+        {/* Left Column */}
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="membership-name" className="text-sm">
+              Feature Name
+            </Label>
+            <Input
+              id="membership-name"
+              placeholder="e.g. Become a Member"
+              value={configData.name}
+              onChange={(e) => handleChange("name", e.target.value)}
+              className="mt-1"
             />
           </div>
 
-          {configData.showTierPreview && (
-            <div className="space-y-3">
-              {configData.membershipTiers.map((tier, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <div className="flex-1 grid grid-cols-2 gap-2">
-                    <Input
-                      value={tier.name}
-                      onChange={(e) =>
-                        handleTierChange(index, "name", e.target.value)
-                      }
-                      placeholder="Tier Name"
-                    />
-                    <div className="flex items-center">
-                      <DollarSign className="h-4 w-4 text-gray-500 mr-1" />
-                      <Input
-                        value={tier.price}
-                        onChange={(e) =>
-                          handleTierChange(index, "price", e.target.value)
-                        }
-                        placeholder="Price"
-                      />
+          <div className="bg-amber-50 p-3 rounded-lg border border-amber-100">
+            <h4 className="font-medium text-amber-800 mb-2 text-sm flex items-center">
+              <Award className="h-4 w-4 mr-1" />
+              Information Source
+            </h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "external",
+                  label: "External Link",
+                  description: "Link to existing page",
+                  icon: <LinkIcon />,
+                },
+                {
+                  id: "manual",
+                  label: "Manual Setup",
+                  description: "Configure in-app",
+                  icon: <Settings />,
+                },
+              ].map((source) => (
+                <div
+                  key={source.id}
+                  className={`bg-white rounded-lg border p-2 cursor-pointer transition-all ${
+                    configData.membershipSource === source.id
+                      ? "border-amber-500 bg-amber-50/50"
+                      : ""
+                  }`}
+                  onClick={() => handleChange("membershipSource", source.id)}
+                >
+                  <div className="flex items-center">
+                    <div className="h-6 w-6 bg-amber-100 rounded-full flex items-center justify-center mr-2">
+                      {React.cloneElement(source.icon, {
+                        className: "h-3 w-3 text-amber-600",
+                      })}
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium">
+                        {source.label}
+                      </span>
+                      <p className="text-xs text-gray-500">
+                        {source.description}
+                      </p>
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeTier(index)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
                 </div>
               ))}
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={addTier}
-              >
-                <Plus className="h-3.5 w-3.5 mr-1.5" />
-                Add Tier
-              </Button>
+            </div>
+          </div>
+
+          {configData.membershipSource === "external" && (
+            <div className="border rounded-lg p-3">
+              <h4 className="font-medium mb-2 text-sm">Membership Website</h4>
+              <div className="space-y-2">
+                <div className="flex gap-1">
+                  <Input
+                    placeholder="https://your-org.com/membership"
+                    value={configData.membershipUrl}
+                    onChange={(e) =>
+                      handleChange("membershipUrl", e.target.value)
+                    }
+                    className="flex-1 text-xs"
+                  />
+                  <Button
+                    variant="secondary"
+                    onClick={scrapeUrl}
+                    disabled={
+                      isScrapingUrl ||
+                      isParsingData ||
+                      !configData.membershipUrl
+                    }
+                    size="sm"
+                  >
+                    {isScrapingUrl ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      "Analyze"
+                    )}
+                  </Button>
+                </div>
+                {isParsingData && (
+                  <div className="flex items-center text-amber-600 text-xs">
+                    <Loader2 className="h-2 w-2 mr-1 animate-spin" />
+                    <span>Analyzing...</span>
+                  </div>
+                )}
+                {scrapingError && (
+                  <p className="text-xs text-red-500">{scrapingError}</p>
+                )}
+                {!isScrapingUrl &&
+                  !isParsingData &&
+                  scrapedData &&
+                  !scrapingError && (
+                    <div className="bg-green-50 border border-green-200 rounded p-2">
+                      <p className="text-xs text-green-700 flex items-center">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Successfully analyzed! Benefits updated.
+                      </p>
+                    </div>
+                  )}
+              </div>
             </div>
           )}
 
-          {!configData.showTierPreview && (
-            <p className="text-sm text-gray-500 text-center py-2">
-              Tier preview disabled. Users will be directed to the membership
-              page for details.
-            </p>
-          )}
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Display Style</h4>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: "button", label: "Button", icon: <ButtonIcon /> },
+                { id: "banner", label: "Banner", icon: <LayoutPanelTop /> },
+                { id: "card", label: "Card", icon: <LayoutGrid /> },
+              ].map((style) => (
+                <div
+                  key={style.id}
+                  className={`bg-white border rounded-lg p-2 cursor-pointer transition-all text-center ${
+                    configData.displayStyle === style.id
+                      ? "border-amber-500 bg-amber-50/50"
+                      : ""
+                  }`}
+                  onClick={() => handleChange("displayStyle", style.id)}
+                >
+                  <div className="h-6 w-6 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-1">
+                    {React.cloneElement(style.icon, {
+                      className: "h-3 w-3 text-amber-600",
+                    })}
+                  </div>
+                  <span className="text-xs font-medium">{style.label}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-2 space-y-2">
+              <div>
+                <Label className="text-xs">Call to Action</Label>
+                <Input
+                  placeholder="e.g. Join Now"
+                  value={configData.ctaText}
+                  onChange={(e) => handleChange("ctaText", e.target.value)}
+                  className="text-xs"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Summary Text</Label>
+                <Textarea
+                  placeholder="Brief description"
+                  value={configData.summaryText}
+                  onChange={(e) => handleChange("summaryText", e.target.value)}
+                  rows={2}
+                  className="text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="mt-2">
+              <Label className="text-xs">Accent Color</Label>
+              <div className="flex gap-1 mt-1">
+                {[
+                  { id: "#f59e0b", color: "bg-amber-500" },
+                  { id: "#3b82f6", color: "bg-blue-500" },
+                  { id: "#10b981", color: "bg-emerald-500" },
+                  { id: "#8b5cf6", color: "bg-purple-500" },
+                  { id: "#ef4444", color: "bg-red-500" },
+                ].map((colorOption) => (
+                  <div
+                    key={colorOption.id}
+                    className={`h-6 w-6 rounded-full cursor-pointer ${colorOption.color} ${
+                      configData.accentColor === colorOption.id
+                        ? "ring-2 ring-offset-1"
+                        : ""
+                    }`}
+                    onClick={() => handleChange("accentColor", colorOption.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Preview section */}
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3 flex items-center">
-            <Eye className="h-4 w-4 mr-1.5 text-gray-500" />
-            Preview
-          </h4>
+        {/* Right Column */}
+        <div className="space-y-3">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Highlighted Benefits</h4>
+            <div className="space-y-1 mb-2 max-h-32 overflow-y-auto">
+              {configData.highlightedBenefits.map((benefit, index) => (
+                <div key={index} className="flex items-center gap-1">
+                  <Award className="h-3 w-3 text-amber-500 flex-shrink-0" />
+                  <Input
+                    value={benefit}
+                    onChange={(e) => handleBenefitChange(index, e.target.value)}
+                    className="flex-1 text-xs"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeBenefit(index)}
+                    className="h-6 w-6 p-0"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-xs"
+              onClick={addBenefit}
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              Add Benefit
+            </Button>
+          </div>
 
-          <div className="bg-white border rounded-lg p-4 max-w-md mx-auto">
-            {configData.displayStyle === "button" && (
-              <div className="flex flex-col items-center text-center space-y-3 py-2">
-                <p className="text-sm text-gray-700">
-                  {configData.summaryText}
-                </p>
-                {configData.highlightedBenefits.length > 0 && (
-                  <ul className="text-sm text-left w-full space-y-1">
-                    {configData.highlightedBenefits.map((benefit, index) => (
-                      <li key={index} className="flex items-start">
-                        <Check className="h-4 w-4 text-amber-500 mr-1.5 mt-0.5" />
-                        <span>{benefit}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+          <div className="border rounded-lg p-3">
+            <div className="flex justify-between items-center mb-2">
+              <h4 className="font-medium text-sm">Membership Tiers</h4>
+              <Switch
+                checked={configData.showTierPreview}
+                onCheckedChange={(checked) =>
+                  handleChange("showTierPreview", checked)
+                }
+              />
+            </div>
+
+            {configData.showTierPreview ? (
+              <div>
+                <div className="space-y-1 mb-2 max-h-28 overflow-y-auto">
+                  {configData.membershipTiers.map((tier, index) => (
+                    <div key={index} className="flex items-center gap-1">
+                      <Input
+                        value={tier.name}
+                        onChange={(e) =>
+                          handleTierChange(index, "name", e.target.value)
+                        }
+                        placeholder="Tier Name"
+                        className="flex-1 text-xs"
+                      />
+                      <div className="flex items-center w-16">
+                        <DollarSign className="h-3 w-3 text-gray-500" />
+                        <Input
+                          value={tier.price}
+                          onChange={(e) =>
+                            handleTierChange(index, "price", e.target.value)
+                          }
+                          placeholder="0"
+                          className="w-12 text-xs"
+                        />
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeTier(index)}
+                        className="h-6 w-6 p-0"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
                 <Button
-                  className="mt-2"
-                  style={{ backgroundColor: configData.accentColor }}
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-xs"
+                  onClick={addTier}
                 >
-                  {configData.ctaText}
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add Tier
                 </Button>
               </div>
+            ) : (
+              <p className="text-xs text-gray-500 text-center py-2">
+                Tier preview disabled. Direct to membership page.
+              </p>
             )}
+          </div>
 
-            {configData.displayStyle === "card" && (
-              <div className="space-y-4">
-                <div className="text-center">
-                  <h3 className="font-semibold text-lg">Membership</h3>
-                  <p className="text-sm text-gray-600 mt-1">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm flex items-center">
+              <Eye className="h-3 w-3 mr-1 text-gray-500" />
+              Preview
+            </h4>
+            <div className="bg-white border rounded-lg p-3">
+              {configData.displayStyle === "button" && (
+                <div className="text-center space-y-2">
+                  <p className="text-xs text-gray-700">
                     {configData.summaryText}
                   </p>
-                </div>
-
-                {configData.showTierPreview &&
-                  configData.membershipTiers.length > 0 && (
-                    <div className="grid grid-cols-2 gap-3 mt-4">
-                      {configData.membershipTiers.map((tier, index) => (
-                        <div
-                          key={index}
-                          className="border rounded-lg p-3 text-center"
-                        >
-                          <h4 className="font-medium">{tier.name}</h4>
-                          <p
-                            className="text-lg font-bold"
-                            style={{ color: configData.accentColor }}
-                          >
-                            ${tier.price}
-                          </p>
-                        </div>
-                      ))}
+                  {configData.highlightedBenefits.length > 0 && (
+                    <div className="space-y-1">
+                      {configData.highlightedBenefits
+                        .slice(0, 3)
+                        .map((benefit, index) => (
+                          <div key={index} className="flex items-start text-xs">
+                            <Check className="h-3 w-3 text-amber-500 mr-1 mt-0.5" />
+                            <span>{benefit}</span>
+                          </div>
+                        ))}
                     </div>
                   )}
-
-                {configData.highlightedBenefits.length > 0 && (
-                  <div className="space-y-1 mt-2">
-                    {configData.highlightedBenefits.map((benefit, index) => (
-                      <div key={index} className="flex items-start">
-                        <Check className="h-4 w-4 text-amber-500 mr-1.5 mt-0.5" />
-                        <span className="text-sm">{benefit}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <Button
-                  className="w-full mt-3"
-                  style={{ backgroundColor: configData.accentColor }}
-                >
-                  {configData.ctaText}
-                </Button>
-              </div>
-            )}
-
-            {configData.displayStyle === "banner" && (
-              <div
-                className="p-4 rounded-lg flex items-center justify-between"
-                style={{ backgroundColor: `${configData.accentColor}15` }}
-              >
-                <div className="space-y-1">
-                  <h3
-                    className="font-medium"
-                    style={{ color: configData.accentColor }}
+                  <Button
+                    size="sm"
+                    style={{ backgroundColor: configData.accentColor }}
+                    className="text-xs"
                   >
-                    Membership Benefits
-                  </h3>
-                  <p className="text-sm text-gray-700">
-                    {configData.summaryText}
-                  </p>
+                    {configData.ctaText}
+                  </Button>
                 </div>
-                <Button
-                  className="whitespace-nowrap"
-                  style={{ backgroundColor: configData.accentColor }}
+              )}
+
+              {configData.displayStyle === "card" && (
+                <div className="space-y-2">
+                  <div className="text-center">
+                    <h3 className="font-semibold text-sm">Membership</h3>
+                    <p className="text-xs text-gray-600">
+                      {configData.summaryText}
+                    </p>
+                  </div>
+                  {configData.showTierPreview &&
+                    configData.membershipTiers.length > 0 && (
+                      <div className="grid grid-cols-2 gap-1">
+                        {configData.membershipTiers
+                          .slice(0, 2)
+                          .map((tier, index) => (
+                            <div
+                              key={index}
+                              className="border rounded p-2 text-center"
+                            >
+                              <h4 className="font-medium text-xs">
+                                {tier.name}
+                              </h4>
+                              <p
+                                className="text-sm font-bold"
+                                style={{ color: configData.accentColor }}
+                              >
+                                ${tier.price}
+                              </p>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  <Button
+                    size="sm"
+                    className="w-full text-xs"
+                    style={{ backgroundColor: configData.accentColor }}
+                  >
+                    {configData.ctaText}
+                  </Button>
+                </div>
+              )}
+
+              {configData.displayStyle === "banner" && (
+                <div
+                  className="p-2 rounded-lg flex items-center justify-between"
+                  style={{ backgroundColor: `${configData.accentColor}15` }}
                 >
-                  {configData.ctaText}
-                </Button>
-              </div>
-            )}
+                  <div>
+                    <h3
+                      className="font-medium text-xs"
+                      style={{ color: configData.accentColor }}
+                    >
+                      Membership Benefits
+                    </h3>
+                    <p className="text-xs text-gray-700">
+                      {configData.summaryText.slice(0, 50)}...
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    style={{ backgroundColor: configData.accentColor }}
+                    className="text-xs"
+                  >
+                    {configData.ctaText}
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="border-t pt-4 flex justify-end">
-        <Button onClick={() => onSave(configData)}>
+      <div className="flex justify-end pt-2">
+        <Button onClick={() => onSave(configData)} size="sm">
           Save Membership Configuration
         </Button>
       </div>
@@ -11234,187 +10780,211 @@ export const EducationalResourcesConfigScreen = ({
   });
 
   const handleChange = (field, value) => {
-    setConfigData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setConfigData((prev) => ({ ...prev, [field]: value }));
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start gap-4">
+    <div className="space-y-4 max-h-screen overflow-hidden">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-semibold mb-1">
+          <h1 className="text-xl font-semibold">
             Configure Educational Resources
           </h1>
           <p className="text-gray-500 text-sm">
             Set up learning materials for visitors and educators
           </p>
         </div>
-        <div className="bg-green-100 p-3 rounded-full">
-          <GraduationCap className="h-6 w-6 text-green-600" />
+        <div className="bg-green-100 p-2 rounded-full">
+          <GraduationCap className="h-5 w-5 text-green-600" />
         </div>
       </div>
 
-      <div className="space-y-5">
-        <div className="space-y-2">
-          <Label htmlFor="edu-name">Feature Name</Label>
-          <Input
-            id="edu-name"
-            placeholder="e.g. Learning Center"
-            value={configData.name}
-            onChange={(e) => handleChange("name", e.target.value)}
-          />
-        </div>
+      <div className="grid grid-cols-2 gap-4">
+        {/* Left Column */}
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="edu-name" className="text-sm">
+              Feature Name
+            </Label>
+            <Input
+              id="edu-name"
+              placeholder="e.g. Learning Center"
+              value={configData.name}
+              onChange={(e) => handleChange("name", e.target.value)}
+              className="mt-1"
+            />
+          </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Resource Types</h4>
-          <div className="space-y-2">
-            {[
-              { id: "lessonPlans", label: "Lesson Plans", icon: <FileText /> },
-              {
-                id: "activities",
-                label: "Interactive Activities",
-                icon: <Zap />,
-              },
-              { id: "videos", label: "Educational Videos", icon: <Video /> },
-              {
-                id: "readings",
-                label: "Supplemental Readings",
-                icon: <Book />,
-              },
-              {
-                id: "quizzes",
-                label: "Interactive Quizzes",
-                icon: <HelpCircle />,
-              },
-            ].map((type) => (
-              <div key={type.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={type.id}
-                  checked={configData.resourceTypes[type.id]}
-                  onCheckedChange={(checked) => {
-                    handleChange("resourceTypes", {
-                      ...configData.resourceTypes,
-                      [type.id]: !!checked,
-                    });
-                  }}
-                />
-                <div className="flex items-center">
-                  {React.cloneElement(type.icon, {
-                    className: "h-4 w-4 text-gray-500 mr-2",
-                  })}
-                  <label htmlFor={type.id} className="text-sm cursor-pointer">
-                    {type.label}
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Resource Types</h4>
+            <div className="grid grid-cols-2 gap-1">
+              {[
+                {
+                  id: "lessonPlans",
+                  label: "Lesson Plans",
+                  icon: <FileText />,
+                },
+                {
+                  id: "activities",
+                  label: "Interactive Activities",
+                  icon: <Zap />,
+                },
+                { id: "videos", label: "Educational Videos", icon: <Video /> },
+                {
+                  id: "readings",
+                  label: "Supplemental Readings",
+                  icon: <Book />,
+                },
+                {
+                  id: "quizzes",
+                  label: "Interactive Quizzes",
+                  icon: <HelpCircle />,
+                },
+              ].map((type) => (
+                <div key={type.id} className="flex items-center space-x-1">
+                  <Checkbox
+                    id={type.id}
+                    checked={configData.resourceTypes[type.id]}
+                    onCheckedChange={(checked) => {
+                      handleChange("resourceTypes", {
+                        ...configData.resourceTypes,
+                        [type.id]: !!checked,
+                      });
+                    }}
+                  />
+                  <div className="flex items-center">
+                    {React.cloneElement(type.icon, {
+                      className: "h-3 w-3 text-gray-500 mr-1",
+                    })}
+                    <label htmlFor={type.id} className="text-xs cursor-pointer">
+                      {type.label}
+                    </label>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Target Audience</h4>
+            <div className="grid grid-cols-2 gap-1">
+              {[
+                { id: "elementary", label: "Elementary" },
+                { id: "middleSchool", label: "Middle School" },
+                { id: "highSchool", label: "High School" },
+                { id: "college", label: "College" },
+                { id: "adults", label: "Adult Learners" },
+                { id: "educators", label: "Educators" },
+              ].map((audience) => (
+                <div key={audience.id} className="flex items-center space-x-1">
+                  <Checkbox
+                    id={audience.id}
+                    checked={configData.audienceTargeting[audience.id]}
+                    onCheckedChange={(checked) => {
+                      handleChange("audienceTargeting", {
+                        ...configData.audienceTargeting,
+                        [audience.id]: !!checked,
+                      });
+                    }}
+                  />
+                  <label
+                    htmlFor={audience.id}
+                    className="text-xs cursor-pointer"
+                  >
+                    {audience.label}
                   </label>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Target Audience</h4>
-          <div className="space-y-2">
-            {[
-              { id: "elementary", label: "Elementary School" },
-              { id: "middleSchool", label: "Middle School" },
-              { id: "highSchool", label: "High School" },
-              { id: "college", label: "College/University" },
-              { id: "adults", label: "Adult Learners" },
-              { id: "educators", label: "Educators" },
-            ].map((audience) => (
-              <div key={audience.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={audience.id}
-                  checked={configData.audienceTargeting[audience.id]}
-                  onCheckedChange={(checked) => {
-                    handleChange("audienceTargeting", {
-                      ...configData.audienceTargeting,
-                      [audience.id]: !!checked,
-                    });
-                  }}
-                />
-                <label htmlFor={audience.id} className="text-sm cursor-pointer">
-                  {audience.label}
-                </label>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Access Options</h4>
-          <div className="space-y-3">
-            {[
-              {
-                id: "downloadable",
-                label: "Downloadable Resources",
-                icon: <Download />,
-              },
-              {
-                id: "printable",
-                label: "Printable Materials",
-                icon: <Printer />,
-              },
-              {
-                id: "deviceOptimized",
-                label: "Device-Optimized Content",
-                icon: <Smartphone />,
-              },
-            ].map((option) => (
-              <div
-                key={option.id}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center">
-                  {React.cloneElement(option.icon, {
-                    className: "h-4 w-4 text-gray-500 mr-2",
-                  })}
-                  <Label className="cursor-pointer">{option.label}</Label>
+        {/* Right Column */}
+        <div className="space-y-3">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Access Options</h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "downloadable",
+                  label: "Downloadable Resources",
+                  icon: <Download />,
+                },
+                {
+                  id: "printable",
+                  label: "Printable Materials",
+                  icon: <Printer />,
+                },
+                {
+                  id: "deviceOptimized",
+                  label: "Device-Optimized Content",
+                  icon: <Smartphone />,
+                },
+              ].map((option) => (
+                <div
+                  key={option.id}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center">
+                    {React.cloneElement(option.icon, {
+                      className: "h-3 w-3 text-gray-500 mr-1",
+                    })}
+                    <Label className="text-xs cursor-pointer">
+                      {option.label}
+                    </Label>
+                  </div>
+                  <Switch
+                    checked={configData.accessOptions[option.id]}
+                    onCheckedChange={(checked) => {
+                      handleChange("accessOptions", {
+                        ...configData.accessOptions,
+                        [option.id]: checked,
+                      });
+                    }}
+                  />
                 </div>
-                <Switch
-                  checked={configData.accessOptions[option.id]}
-                  onCheckedChange={(checked) => {
-                    handleChange("accessOptions", {
-                      ...configData.accessOptions,
-                      [option.id]: checked,
-                    });
-                  }}
-                />
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Resource Organization</h4>
-          <RadioGroup
-            value={configData.organization || "byTopic"}
-            onValueChange={(value) => handleChange("organization", value)}
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="byTopic" id="byTopic" />
-              <Label htmlFor="byTopic">Organized by Topic/Theme</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="byExhibit" id="byExhibit" />
-              <Label htmlFor="byExhibit">Organized by Exhibit</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="byAudience" id="byAudience" />
-              <Label htmlFor="byAudience">Organized by Audience Age</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="byType" id="byType" />
-              <Label htmlFor="byType">Organized by Resource Type</Label>
-            </div>
-          </RadioGroup>
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Resource Organization</h4>
+            <RadioGroup
+              value={configData.organization || "byTopic"}
+              onValueChange={(value) => handleChange("organization", value)}
+              className="space-y-1"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="byTopic" id="byTopic" />
+                <Label htmlFor="byTopic" className="text-xs">
+                  By Topic/Theme
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="byExhibit" id="byExhibit" />
+                <Label htmlFor="byExhibit" className="text-xs">
+                  By Exhibit
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="byAudience" id="byAudience" />
+                <Label htmlFor="byAudience" className="text-xs">
+                  By Audience Age
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="byType" id="byType" />
+                <Label htmlFor="byType" className="text-xs">
+                  By Resource Type
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
         </div>
       </div>
 
-      <div className="border-t pt-4 flex justify-end">
-        <Button onClick={() => onSave(configData)}>
+      <div className="flex justify-end pt-2">
+        <Button onClick={() => onSave(configData)} size="sm">
           Save Educational Resources Configuration
         </Button>
       </div>
@@ -11446,145 +11016,102 @@ export const InventoryCheckingConfigScreen = ({ onSave, initialData = {} }) => {
   });
 
   const handleChange = (field, value) => {
-    setConfigData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setConfigData((prev) => ({ ...prev, [field]: value }));
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start gap-4">
+    <div className="space-y-4 max-h-screen overflow-hidden">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-semibold mb-1">
+          <h1 className="text-xl font-semibold">
             Configure Inventory Checking
           </h1>
           <p className="text-gray-500 text-sm">
             Set up how customers can view product availability
           </p>
         </div>
-        <div className="bg-blue-100 p-3 rounded-full">
-          <Layers className="h-6 w-6 text-blue-600" />
+        <div className="bg-blue-100 p-2 rounded-full">
+          <Layers className="h-5 w-5 text-blue-600" />
         </div>
       </div>
 
-      <div className="space-y-5">
-        <div className="space-y-2">
-          <Label htmlFor="inventory-name">Feature Name</Label>
-          <Input
-            id="inventory-name"
-            placeholder="e.g. Stock Checker, Availability"
-            value={configData.name}
-            onChange={(e) => handleChange("name", e.target.value)}
-          />
-        </div>
-
-        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-          <h4 className="font-medium text-blue-800 mb-2 flex items-center">
-            <Layers className="h-4 w-4 mr-1.5" />
-            Check Method
-          </h4>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              {
-                id: "scan",
-                label: "Scan Products",
-                description: "Scan barcode or QR",
-                icon: <QrCode />,
-              },
-              {
-                id: "search",
-                label: "Search Product",
-                description: "Manual search",
-                icon: <Search />,
-              },
-              {
-                id: "browse",
-                label: "Browse Categories",
-                description: "Category navigation",
-                icon: <Layers />,
-              },
-            ].map((method) => (
-              <div
-                key={method.id}
-                className={`bg-white rounded-lg border p-3 cursor-pointer hover:border-blue-500 transition-all flex flex-col items-center text-center ${configData.checkMethod === method.id ? "border-blue-500 bg-blue-50/50" : ""}`}
-                onClick={() => handleChange("checkMethod", method.id)}
-              >
-                <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center mb-2">
-                  {React.cloneElement(method.icon, {
-                    className: "h-6 w-6 text-blue-600",
-                  })}
-                </div>
-                <span className="text-sm font-medium">{method.label}</span>
-                <span className="text-xs text-gray-500 mt-1">
-                  {method.description}
-                </span>
-              </div>
-            ))}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Left Column */}
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="inventory-name" className="text-sm">
+              Feature Name
+            </Label>
+            <Input
+              id="inventory-name"
+              placeholder="e.g. Stock Checker"
+              value={configData.name}
+              onChange={(e) => handleChange("name", e.target.value)}
+              className="mt-1"
+            />
           </div>
-        </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Display Options</h4>
-          <div className="space-y-3">
-            {[
-              {
-                id: "showExactCount",
-                label: "Show Exact Count",
-                icon: <Hash />,
-              },
-              {
-                id: "showLowStockWarning",
-                label: "Low Stock Warning",
-                icon: <AlertCircle />,
-              },
-              {
-                id: "showOutOfStock",
-                label: "Out of Stock Status",
-                icon: <X />,
-              },
-              {
-                id: "showNearbyStores",
-                label: "Nearby Store Availability",
-                icon: <MapPin />,
-              },
-              {
-                id: "showRestockDate",
-                label: "Expected Restock Date",
-                icon: <Calendar />,
-              },
-            ].map((option) => (
-              <div
-                key={option.id}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center">
-                  {React.cloneElement(option.icon, {
-                    className: "h-4 w-4 text-gray-500 mr-2",
-                  })}
-                  <Label className="cursor-pointer">{option.label}</Label>
+          <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+            <h4 className="font-medium text-blue-800 mb-2 text-sm flex items-center">
+              <Layers className="h-4 w-4 mr-1" />
+              Check Method
+            </h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "scan",
+                  label: "Scan Products",
+                  description: "Scan barcode or QR",
+                  icon: <QrCode />,
+                },
+                {
+                  id: "search",
+                  label: "Search Product",
+                  description: "Manual search",
+                  icon: <Search />,
+                },
+                {
+                  id: "browse",
+                  label: "Browse Categories",
+                  description: "Category navigation",
+                  icon: <Layers />,
+                },
+              ].map((method) => (
+                <div
+                  key={method.id}
+                  className={`bg-white rounded-lg border p-2 cursor-pointer transition-all ${
+                    configData.checkMethod === method.id
+                      ? "border-blue-500 bg-blue-50/50"
+                      : ""
+                  }`}
+                  onClick={() => handleChange("checkMethod", method.id)}
+                >
+                  <div className="flex items-center">
+                    <div className="h-6 w-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
+                      {React.cloneElement(method.icon, {
+                        className: "h-3 w-3 text-blue-600",
+                      })}
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium">
+                        {method.label}
+                      </span>
+                      <p className="text-xs text-gray-500">
+                        {method.description}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <Switch
-                  checked={configData.displayOptions[option.id]}
-                  onCheckedChange={(checked) => {
-                    handleChange("displayOptions", {
-                      ...configData.displayOptions,
-                      [option.id]: checked,
-                    });
-                  }}
-                />
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Inventory Settings</h4>
-          <div className="space-y-4">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Inventory Settings</h4>
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <Label>Low Stock Threshold</Label>
-                <span className="text-sm text-gray-600 font-medium">
+                <Label className="text-xs">Low Stock Threshold</Label>
+                <span className="text-xs text-gray-600 font-medium">
                   {configData.lowStockThreshold} items
                 </span>
               </div>
@@ -11593,116 +11120,175 @@ export const InventoryCheckingConfigScreen = ({ onSave, initialData = {} }) => {
                 min={1}
                 max={20}
                 step={1}
-                onValueChange={(value) => {
-                  handleChange("lowStockThreshold", value[0]);
-                }}
+                onValueChange={(value) =>
+                  handleChange("lowStockThreshold", value[0])
+                }
               />
               <div className="flex justify-between text-xs text-gray-500">
-                <span>1 item</span>
-                <span>20 items</span>
+                <span>1</span>
+                <span>20</span>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Notification Options</h4>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <Bell className="h-4 w-4 text-gray-500 mr-2" />
-                <Label className="cursor-pointer">Notify on Restock</Label>
-              </div>
-              <Switch
-                checked={configData.notificationOptions.notifyOnRestock}
-                onCheckedChange={(checked) => {
-                  handleChange("notificationOptions", {
-                    ...configData.notificationOptions,
-                    notifyOnRestock: checked,
-                  });
-                }}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <AlertCircle className="h-4 w-4 text-gray-500 mr-2" />
-                <Label className="cursor-pointer">Notify on Low Stock</Label>
-              </div>
-              <Switch
-                checked={configData.notificationOptions.notifyOnLowStock}
-                onCheckedChange={(checked) => {
-                  handleChange("notificationOptions", {
-                    ...configData.notificationOptions,
-                    notifyOnLowStock: checked,
-                  });
-                }}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Inventory Integrations</h4>
-          <div className="space-y-2">
-            {[
-              { id: "pos", label: "POS System", icon: <ShoppingCart /> },
-              { id: "wms", label: "Warehouse Management", icon: <Database /> },
-              {
-                id: "ecommerce",
-                label: "E-commerce Platform",
-                icon: <Globe />,
-              },
-              { id: "erp", label: "ERP System", icon: <BarChart2 /> },
-            ].map((integration) => (
-              <div key={integration.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={integration.id}
-                  checked={configData.integrations.includes(integration.id)}
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Notification Options</h4>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Bell className="h-3 w-3 text-gray-500 mr-1" />
+                  <Label className="text-xs cursor-pointer">
+                    Notify on Restock
+                  </Label>
+                </div>
+                <Switch
+                  checked={configData.notificationOptions.notifyOnRestock}
                   onCheckedChange={(checked) => {
-                    if (checked) {
-                      handleChange("integrations", [
-                        ...configData.integrations,
-                        integration.id,
-                      ]);
-                    } else {
-                      handleChange(
-                        "integrations",
-                        configData.integrations.filter(
-                          (item) => item !== integration.id,
-                        ),
-                      );
-                    }
+                    handleChange("notificationOptions", {
+                      ...configData.notificationOptions,
+                      notifyOnRestock: checked,
+                    });
                   }}
                 />
-                <div className="flex items-center">
-                  {React.cloneElement(integration.icon, {
-                    className: "h-4 w-4 text-gray-500 mr-2",
-                  })}
-                  <label
-                    htmlFor={integration.id}
-                    className="text-sm cursor-pointer"
-                  >
-                    {integration.label}
-                  </label>
-                </div>
               </div>
-            ))}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <AlertCircle className="h-3 w-3 text-gray-500 mr-1" />
+                  <Label className="text-xs cursor-pointer">
+                    Notify on Low Stock
+                  </Label>
+                </div>
+                <Switch
+                  checked={configData.notificationOptions.notifyOnLowStock}
+                  onCheckedChange={(checked) => {
+                    handleChange("notificationOptions", {
+                      ...configData.notificationOptions,
+                      notifyOnLowStock: checked,
+                    });
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-3">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Display Options</h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "showExactCount",
+                  label: "Show Exact Count",
+                  icon: <Hash />,
+                },
+                {
+                  id: "showLowStockWarning",
+                  label: "Low Stock Warning",
+                  icon: <AlertCircle />,
+                },
+                {
+                  id: "showOutOfStock",
+                  label: "Out of Stock Status",
+                  icon: <X />,
+                },
+                {
+                  id: "showNearbyStores",
+                  label: "Nearby Store Availability",
+                  icon: <MapPin />,
+                },
+                {
+                  id: "showRestockDate",
+                  label: "Expected Restock Date",
+                  icon: <Calendar />,
+                },
+              ].map((option) => (
+                <div
+                  key={option.id}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center">
+                    {React.cloneElement(option.icon, {
+                      className: "h-3 w-3 text-gray-500 mr-1",
+                    })}
+                    <Label className="text-xs cursor-pointer">
+                      {option.label}
+                    </Label>
+                  </div>
+                  <Switch
+                    checked={configData.displayOptions[option.id]}
+                    onCheckedChange={(checked) => {
+                      handleChange("displayOptions", {
+                        ...configData.displayOptions,
+                        [option.id]: checked,
+                      });
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
 
-          {configData.integrations.length > 0 && (
-            <div className="mt-4">
-              <Button variant="outline" size="sm" className="w-full">
-                <Plus className="h-3.5 w-3.5 mr-1.5" />
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Inventory Integrations</h4>
+            <div className="grid grid-cols-2 gap-1 mb-2">
+              {[
+                { id: "pos", label: "POS System", icon: <ShoppingCart /> },
+                { id: "wms", label: "Warehouse Mgmt", icon: <Database /> },
+                { id: "ecommerce", label: "E-commerce", icon: <Globe /> },
+                { id: "erp", label: "ERP System", icon: <BarChart2 /> },
+              ].map((integration) => (
+                <div
+                  key={integration.id}
+                  className="flex items-center space-x-1"
+                >
+                  <Checkbox
+                    id={integration.id}
+                    checked={configData.integrations.includes(integration.id)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        handleChange("integrations", [
+                          ...configData.integrations,
+                          integration.id,
+                        ]);
+                      } else {
+                        handleChange(
+                          "integrations",
+                          configData.integrations.filter(
+                            (item) => item !== integration.id,
+                          ),
+                        );
+                      }
+                    }}
+                  />
+                  <div className="flex items-center">
+                    {React.cloneElement(integration.icon, {
+                      className: "h-3 w-3 text-gray-500 mr-1",
+                    })}
+                    <label
+                      htmlFor={integration.id}
+                      className="text-xs cursor-pointer"
+                    >
+                      {integration.label}
+                    </label>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {configData.integrations.length > 0 && (
+              <Button variant="outline" size="sm" className="w-full text-xs">
+                <Plus className="h-3 w-3 mr-1" />
                 Configure Integration
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="border-t pt-4 flex justify-end">
-        <Button onClick={() => onSave(configData)}>
+      <div className="flex justify-end pt-2">
+        <Button onClick={() => onSave(configData)} size="sm">
           Save Inventory Configuration
         </Button>
       </div>
@@ -11746,10 +11332,7 @@ export const LoyaltyProgramConfigScreen = ({ onSave, initialData = {} }) => {
   });
 
   const handleChange = (field, value) => {
-    setConfigData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setConfigData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleTierChange = (index, field, value) => {
@@ -11769,309 +11352,325 @@ export const LoyaltyProgramConfigScreen = ({ onSave, initialData = {} }) => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start gap-4">
+    <div className="space-y-4 max-h-screen overflow-hidden">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-semibold mb-1">
-            Configure Loyalty Program
-          </h1>
+          <h1 className="text-xl font-semibold">Configure Loyalty Program</h1>
           <p className="text-gray-500 text-sm">
             Set up how customers can earn and redeem rewards
           </p>
         </div>
-        <div className="bg-purple-100 p-3 rounded-full">
-          <Award className="h-6 w-6 text-purple-600" />
+        <div className="bg-purple-100 p-2 rounded-full">
+          <Award className="h-5 w-5 text-purple-600" />
         </div>
       </div>
 
-      <div className="space-y-5">
-        <div className="space-y-2">
-          <Label htmlFor="program-name">Program Name</Label>
-          <Input
-            id="program-name"
-            placeholder="e.g. VIP Rewards, Star Members"
-            value={configData.name}
-            onChange={(e) => handleChange("name", e.target.value)}
-          />
-        </div>
-
-        <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
-          <h4 className="font-medium text-purple-800 mb-2 flex items-center">
-            <Award className="h-4 w-4 mr-1.5" />
-            Program Type
-          </h4>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              {
-                id: "points",
-                label: "Points-based",
-                description: "Earn and redeem points",
-                icon: <CircleDollarSign />,
-              },
-              {
-                id: "visits",
-                label: "Visit-based",
-                description: "Rewards for visits",
-                icon: <MapPin />,
-              },
-              {
-                id: "tier",
-                label: "Tier-based",
-                description: "Status levels",
-                icon: <Award />,
-              },
-            ].map((type) => (
-              <div
-                key={type.id}
-                className={`bg-white rounded-lg border p-3 cursor-pointer hover:border-purple-500 transition-all flex flex-col items-center text-center ${configData.programType === type.id ? "border-purple-500 bg-purple-50/50" : ""}`}
-                onClick={() => handleChange("programType", type.id)}
-              >
-                <div className="h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center mb-2">
-                  {React.cloneElement(type.icon, {
-                    className: "h-6 w-6 text-purple-600",
-                  })}
-                </div>
-                <span className="text-sm font-medium">{type.label}</span>
-                <span className="text-xs text-gray-500 mt-1">
-                  {type.description}
-                </span>
-              </div>
-            ))}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Left Column */}
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="program-name" className="text-sm">
+              Program Name
+            </Label>
+            <Input
+              id="program-name"
+              placeholder="e.g. VIP Rewards"
+              value={configData.name}
+              onChange={(e) => handleChange("name", e.target.value)}
+              className="mt-1"
+            />
           </div>
-        </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Enrollment Method</h4>
-          <RadioGroup
-            value={configData.joinMethod}
-            onValueChange={(value) => handleChange("joinMethod", value)}
-            className="space-y-3"
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="signup" id="signup" />
-              <div className="flex items-center">
-                <UserPlus className="h-4 w-4 text-gray-500 mr-2" />
-                <Label htmlFor="signup">Account Signup (Automatic)</Label>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="opt-in" id="opt-in" />
-              <div className="flex items-center">
-                <Check className="h-4 w-4 text-gray-500 mr-2" />
-                <Label htmlFor="opt-in">Opt-in Enrollment</Label>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="purchase" id="purchase" />
-              <div className="flex items-center">
-                <ShoppingCart className="h-4 w-4 text-gray-500 mr-2" />
-                <Label htmlFor="purchase">First Purchase</Label>
-              </div>
-            </div>
-          </RadioGroup>
-        </div>
-
-        {configData.programType === "points" && (
-          <div className="border rounded-lg p-4">
-            <h4 className="font-medium mb-3">Points Configuration</h4>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">Points Per Dollar</p>
-                  <p className="text-xs text-gray-500">
-                    Earn rate for purchases
-                  </p>
-                </div>
-                <Select
-                  value={configData.pointsConfig.pointsPerDollar.toString()}
-                  onValueChange={(value) =>
-                    handleChange("pointsConfig", {
-                      ...configData.pointsConfig,
-                      pointsPerDollar: parseInt(value),
-                    })
-                  }
+          <div className="bg-purple-50 p-3 rounded-lg border border-purple-100">
+            <h4 className="font-medium text-purple-800 mb-2 text-sm flex items-center">
+              <Award className="h-4 w-4 mr-1" />
+              Program Type
+            </h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "points",
+                  label: "Points-based",
+                  description: "Earn and redeem points",
+                  icon: <CircleDollarSign />,
+                },
+                {
+                  id: "visits",
+                  label: "Visit-based",
+                  description: "Rewards for visits",
+                  icon: <MapPin />,
+                },
+                {
+                  id: "tier",
+                  label: "Tier-based",
+                  description: "Status levels",
+                  icon: <Award />,
+                },
+              ].map((type) => (
+                <div
+                  key={type.id}
+                  className={`bg-white rounded-lg border p-2 cursor-pointer transition-all ${
+                    configData.programType === type.id
+                      ? "border-purple-500 bg-purple-50/50"
+                      : ""
+                  }`}
+                  onClick={() => handleChange("programType", type.id)}
                 >
-                  <SelectTrigger className="w-24">
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">1 point</SelectItem>
-                    <SelectItem value="2">2 points</SelectItem>
-                    <SelectItem value="5">5 points</SelectItem>
-                    <SelectItem value="10">10 points</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">Minimum Redemption</p>
-                  <p className="text-xs text-gray-500">
-                    Points needed for rewards
-                  </p>
-                </div>
-                <Select
-                  value={configData.pointsConfig.minimumRedemption.toString()}
-                  onValueChange={(value) =>
-                    handleChange("pointsConfig", {
-                      ...configData.pointsConfig,
-                      minimumRedemption: parseInt(value),
-                    })
-                  }
-                >
-                  <SelectTrigger className="w-24">
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="50">50 points</SelectItem>
-                    <SelectItem value="100">100 points</SelectItem>
-                    <SelectItem value="250">250 points</SelectItem>
-                    <SelectItem value="500">500 points</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">Points Expiration</p>
-                  <p className="text-xs text-gray-500">When points expire</p>
-                </div>
-                <Select
-                  value={configData.pointsConfig.expirationMonths.toString()}
-                  onValueChange={(value) =>
-                    handleChange("pointsConfig", {
-                      ...configData.pointsConfig,
-                      expirationMonths: parseInt(value),
-                    })
-                  }
-                >
-                  <SelectTrigger className="w-24">
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="6">6 months</SelectItem>
-                    <SelectItem value="12">12 months</SelectItem>
-                    <SelectItem value="24">24 months</SelectItem>
-                    <SelectItem value="0">Never</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Reward Tiers</h4>
-
-          <div className="space-y-4">
-            {configData.rewardTiers.map((tier, index) => (
-              <div key={index} className="p-3 bg-gray-50 rounded-lg">
-                <div className="flex justify-between items-center mb-2">
                   <div className="flex items-center">
-                    <Award className="h-4 w-4 text-purple-500 mr-2" />
-                    <Input
-                      className="h-7 w-32 bg-white"
-                      value={tier.name}
-                      onChange={(e) =>
-                        handleTierChange(index, "name", e.target.value)
-                      }
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">Min. Points:</span>
-                    <Input
-                      className="h-7 w-20 bg-white"
-                      type="number"
-                      value={tier.points}
-                      onChange={(e) =>
-                        handleTierChange(
-                          index,
-                          "points",
-                          parseInt(e.target.value),
-                        )
-                      }
-                    />
+                    <div className="h-6 w-6 bg-purple-100 rounded-full flex items-center justify-center mr-2">
+                      {React.cloneElement(type.icon, {
+                        className: "h-3 w-3 text-purple-600",
+                      })}
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium">{type.label}</span>
+                      <p className="text-xs text-gray-500">
+                        {type.description}
+                      </p>
+                    </div>
                   </div>
                 </div>
+              ))}
+            </div>
+          </div>
 
-                <div className="mt-2 space-y-1.5">
-                  <span className="text-xs font-medium text-gray-600">
-                    Benefits:
-                  </span>
-                  {tier.benefits.map((benefit, benefitIndex) => (
-                    <div key={benefitIndex} className="flex items-center gap-2">
-                      <Check className="h-3 w-3 text-green-500" />
-                      <span className="text-sm">{benefit}</span>
-                    </div>
-                  ))}
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Enrollment Method</h4>
+            <RadioGroup
+              value={configData.joinMethod}
+              onValueChange={(value) => handleChange("joinMethod", value)}
+              className="space-y-1"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="signup" id="signup" />
+                <div className="flex items-center">
+                  <UserPlus className="h-3 w-3 text-gray-500 mr-1" />
+                  <Label htmlFor="signup" className="text-xs">
+                    Account Signup (Automatic)
+                  </Label>
                 </div>
               </div>
-            ))}
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="opt-in" id="opt-in" />
+                <div className="flex items-center">
+                  <Check className="h-3 w-3 text-gray-500 mr-1" />
+                  <Label htmlFor="opt-in" className="text-xs">
+                    Opt-in Enrollment
+                  </Label>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="purchase" id="purchase" />
+                <div className="flex items-center">
+                  <ShoppingCart className="h-3 w-3 text-gray-500 mr-1" />
+                  <Label htmlFor="purchase" className="text-xs">
+                    First Purchase
+                  </Label>
+                </div>
+              </div>
+            </RadioGroup>
+          </div>
 
+          {configData.programType === "points" && (
+            <div className="border rounded-lg p-3">
+              <h4 className="font-medium mb-2 text-sm">Points Configuration</h4>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium">Points Per Dollar</p>
+                    <p className="text-xs text-gray-500">Earn rate</p>
+                  </div>
+                  <Select
+                    value={configData.pointsConfig.pointsPerDollar.toString()}
+                    onValueChange={(value) =>
+                      handleChange("pointsConfig", {
+                        ...configData.pointsConfig,
+                        pointsPerDollar: parseInt(value),
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-16 h-7">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1</SelectItem>
+                      <SelectItem value="2">2</SelectItem>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="10">10</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium">Min. Redemption</p>
+                    <p className="text-xs text-gray-500">Points needed</p>
+                  </div>
+                  <Select
+                    value={configData.pointsConfig.minimumRedemption.toString()}
+                    onValueChange={(value) =>
+                      handleChange("pointsConfig", {
+                        ...configData.pointsConfig,
+                        minimumRedemption: parseInt(value),
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-16 h-7">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                      <SelectItem value="250">250</SelectItem>
+                      <SelectItem value="500">500</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium">Expiration</p>
+                    <p className="text-xs text-gray-500">When expire</p>
+                  </div>
+                  <Select
+                    value={configData.pointsConfig.expirationMonths.toString()}
+                    onValueChange={(value) =>
+                      handleChange("pointsConfig", {
+                        ...configData.pointsConfig,
+                        expirationMonths: parseInt(value),
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-16 h-7">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="6">6m</SelectItem>
+                      <SelectItem value="12">12m</SelectItem>
+                      <SelectItem value="24">24m</SelectItem>
+                      <SelectItem value="0">Never</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-3">
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Reward Tiers</h4>
+            <div className="space-y-2 mb-2 max-h-40 overflow-y-auto">
+              {configData.rewardTiers.map((tier, index) => (
+                <div key={index} className="p-2 bg-gray-50 rounded">
+                  <div className="flex justify-between items-center mb-1">
+                    <div className="flex items-center">
+                      <Award className="h-3 w-3 text-purple-500 mr-1" />
+                      <Input
+                        className="h-6 w-20 bg-white text-xs"
+                        value={tier.name}
+                        onChange={(e) =>
+                          handleTierChange(index, "name", e.target.value)
+                        }
+                      />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-gray-500">Min:</span>
+                      <Input
+                        className="h-6 w-16 bg-white text-xs"
+                        type="number"
+                        value={tier.points}
+                        onChange={(e) =>
+                          handleTierChange(
+                            index,
+                            "points",
+                            parseInt(e.target.value),
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    {tier.benefits.map((benefit, benefitIndex) => (
+                      <div
+                        key={benefitIndex}
+                        className="flex items-center gap-1"
+                      >
+                        <Check className="h-2 w-2 text-green-500" />
+                        <span className="text-xs">{benefit}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
             <Button
               variant="outline"
               size="sm"
-              className="w-full"
+              className="w-full text-xs"
               onClick={addTier}
             >
-              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              <Plus className="h-3 w-3 mr-1" />
               Add New Tier
             </Button>
           </div>
-        </div>
 
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Display Options</h4>
-          <div className="space-y-3">
-            {[
-              {
-                id: "showPoints",
-                label: "Show Points Balance",
-                icon: <CircleDollarSign />,
-              },
-              {
-                id: "showProgress",
-                label: "Show Tier Progress",
-                icon: <BarChart2 />,
-              },
-              {
-                id: "showHistory",
-                label: "Show Transaction History",
-                icon: <Clock />,
-              },
-              {
-                id: "featuredOnHome",
-                label: "Featured on Homepage",
-                icon: <LayoutPanelTop />,
-              },
-            ].map((option) => (
-              <div
-                key={option.id}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center">
-                  {React.cloneElement(option.icon, {
-                    className: "h-4 w-4 text-gray-500 mr-2",
-                  })}
-                  <Label className="cursor-pointer">{option.label}</Label>
+          <div className="border rounded-lg p-3">
+            <h4 className="font-medium mb-2 text-sm">Display Options</h4>
+            <div className="space-y-2">
+              {[
+                {
+                  id: "showPoints",
+                  label: "Show Points Balance",
+                  icon: <CircleDollarSign />,
+                },
+                {
+                  id: "showProgress",
+                  label: "Show Tier Progress",
+                  icon: <BarChart2 />,
+                },
+                {
+                  id: "showHistory",
+                  label: "Show Transaction History",
+                  icon: <Clock />,
+                },
+                {
+                  id: "featuredOnHome",
+                  label: "Featured on Homepage",
+                  icon: <LayoutPanelTop />,
+                },
+              ].map((option) => (
+                <div
+                  key={option.id}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center">
+                    {React.cloneElement(option.icon, {
+                      className: "h-3 w-3 text-gray-500 mr-1",
+                    })}
+                    <Label className="text-xs cursor-pointer">
+                      {option.label}
+                    </Label>
+                  </div>
+                  <Switch
+                    checked={configData.displayOptions[option.id]}
+                    onCheckedChange={(checked) => {
+                      handleChange("displayOptions", {
+                        ...configData.displayOptions,
+                        [option.id]: checked,
+                      });
+                    }}
+                  />
                 </div>
-                <Switch
-                  checked={configData.displayOptions[option.id]}
-                  onCheckedChange={(checked) => {
-                    handleChange("displayOptions", {
-                      ...configData.displayOptions,
-                      [option.id]: checked,
-                    });
-                  }}
-                />
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="border-t pt-4 flex justify-end">
-        <Button onClick={() => onSave(configData)}>
+      <div className="flex justify-end pt-2">
+        <Button onClick={() => onSave(configData)} size="sm">
           Save Loyalty Program Configuration
         </Button>
       </div>
@@ -12113,10 +11712,7 @@ export const CustomerFeedbackConfigScreen = ({
   });
 
   const handleChange = (field, value) => {
-    setConfigData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setConfigData((prev) => ({ ...prev, [field]: value }));
   };
 
   const saveToFirebase = async (configData) => {
@@ -12154,261 +11750,275 @@ export const CustomerFeedbackConfigScreen = ({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start gap-4">
+    <div className="space-y-4 max-h-screen overflow-hidden">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-semibold mb-1">
-            Configure Customer Feedback
-          </h1>
+          <h1 className="text-xl font-semibold">Configure Customer Feedback</h1>
           <p className="text-gray-500 text-sm">
-            Set up how customer opinions are collected at the end of their visit
+            Set up how customer opinions are collected
           </p>
         </div>
-        <div className="bg-cyan-100 p-3 rounded-full">
-          <MessageCircle className="h-6 w-6 text-cyan-600" />
+        <div className="bg-cyan-100 p-2 rounded-full">
+          <MessageCircle className="h-5 w-5 text-cyan-600" />
         </div>
       </div>
 
-      <div className="space-y-5">
-        {/* Feature Status Toggle */}
-        <div className="border rounded-lg p-4 bg-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-medium">Enable Feedback Collection</h4>
-              <p className="text-sm text-gray-500">
-                Turn on to collect feedback at the end of user visits
-              </p>
+      <div className="grid grid-cols-2 gap-4">
+        {/* Left Column */}
+        <div className="space-y-3">
+          <div className="border rounded-lg p-3 bg-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-medium text-sm">
+                  Enable Feedback Collection
+                </h4>
+                <p className="text-xs text-gray-500">
+                  Turn on to collect feedback at visit end
+                </p>
+              </div>
+              <Switch
+                checked={configData.isEnabled}
+                onCheckedChange={(checked) =>
+                  handleChange("isEnabled", checked)
+                }
+              />
             </div>
-            <Switch
-              checked={configData.isEnabled}
-              onCheckedChange={(checked) => handleChange("isEnabled", checked)}
+          </div>
+
+          <div>
+            <Label htmlFor="feedback-name" className="text-sm">
+              Feature Name
+            </Label>
+            <Input
+              id="feedback-name"
+              placeholder="e.g. Your Opinion Matters"
+              value={configData.name}
+              onChange={(e) => handleChange("name", e.target.value)}
+              className="mt-1"
             />
           </div>
-        </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="feedback-name">Feature Name</Label>
-          <Input
-            id="feedback-name"
-            placeholder="e.g. Your Opinion Matters"
-            value={configData.name}
-            onChange={(e) => handleChange("name", e.target.value)}
-          />
-        </div>
-
-        <div className="bg-cyan-50 p-4 rounded-lg border border-cyan-100">
-          <h4 className="font-medium text-cyan-800 mb-2 flex items-center">
-            <MessageCircle className="h-4 w-4 mr-1.5" />
-            Feedback Collection Method
-          </h4>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              {
-                id: "popup",
-                label: "App Popup",
-                description:
-                  "Show feedback prompt in the app at the end of visit",
-                icon: <MessageCircle />,
-              },
-              {
-                id: "survey",
-                label: "Email Survey",
-                description: "Send a survey link via email after visit",
-                icon: <Mail />,
-              },
-            ].map((method) => (
-              <div
-                key={method.id}
-                className={`bg-white rounded-lg border p-3 cursor-pointer hover:border-cyan-500 transition-all flex flex-col items-center text-center ${configData.feedbackMethod === method.id ? "border-cyan-500 bg-cyan-50/50" : ""}`}
-                onClick={() => handleChange("feedbackMethod", method.id)}
-              >
-                <div className="h-12 w-12 bg-cyan-100 rounded-full flex items-center justify-center mb-2">
-                  {React.cloneElement(method.icon, {
-                    className: "h-6 w-6 text-cyan-600",
-                  })}
-                </div>
-                <span className="text-sm font-medium">{method.label}</span>
-                <span className="text-xs text-gray-500 mt-1">
-                  {method.description}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Survey URL input (only shown when survey method is selected) */}
-        {configData.feedbackMethod === "survey" && (
-          <div className="border rounded-lg p-4">
-            <h4 className="font-medium mb-3">Survey Link</h4>
+          <div className="bg-cyan-50 p-3 rounded-lg border border-cyan-100">
+            <h4 className="font-medium text-cyan-800 mb-2 text-sm flex items-center">
+              <MessageCircle className="h-4 w-4 mr-1" />
+              Collection Method
+            </h4>
             <div className="space-y-2">
-              <Label htmlFor="survey-url">External Survey URL</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="survey-url"
-                  placeholder="https://forms.google.com/... or https://surveymonkey.com/..."
-                  value={configData.surveyUrl}
-                  onChange={(e) => handleChange("surveyUrl", e.target.value)}
-                  className="flex-1"
-                />
-                <Button variant="outline" size="icon">
-                  <ExternalLink className="h-4 w-4" />
-                </Button>
-              </div>
-              <p className="text-xs text-gray-500">
-                Link to your SurveyMonkey, Google Forms, or other survey service
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Feedback Types - Only shown for popup method */}
-        {configData.feedbackMethod === "popup" && (
-          <div className="border rounded-lg p-4">
-            <h4 className="font-medium mb-3">Feedback Types</h4>
-            <div className="space-y-3">
               {[
-                { id: "rating", label: "Rating System", icon: <Star /> },
                 {
-                  id: "comments",
-                  label: "Comment Box",
-                  icon: <MessageSquare />,
+                  id: "popup",
+                  label: "App Popup",
+                  description: "Show feedback prompt in app",
+                  icon: <MessageCircle />,
                 },
                 {
-                  id: "suggestions",
-                  label: "Suggestions",
-                  icon: <Lightbulb />,
+                  id: "survey",
+                  label: "Email Survey",
+                  description: "Send survey link via email",
+                  icon: <Mail />,
                 },
-                {
-                  id: "complaints",
-                  label: "Complaints",
-                  icon: <AlertCircle />,
-                },
-              ].map((type) => (
+              ].map((method) => (
                 <div
-                  key={type.id}
-                  className="flex items-center justify-between"
+                  key={method.id}
+                  className={`bg-white rounded-lg border p-2 cursor-pointer transition-all ${
+                    configData.feedbackMethod === method.id
+                      ? "border-cyan-500 bg-cyan-50/50"
+                      : ""
+                  }`}
+                  onClick={() => handleChange("feedbackMethod", method.id)}
                 >
                   <div className="flex items-center">
-                    {React.cloneElement(type.icon, {
-                      className: "h-4 w-4 text-gray-500 mr-2",
-                    })}
-                    <Label className="cursor-pointer">{type.label}</Label>
+                    <div className="h-6 w-6 bg-cyan-100 rounded-full flex items-center justify-center mr-2">
+                      {React.cloneElement(method.icon, {
+                        className: "h-3 w-3 text-cyan-600",
+                      })}
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium">
+                        {method.label}
+                      </span>
+                      <p className="text-xs text-gray-500">
+                        {method.description}
+                      </p>
+                    </div>
                   </div>
-                  <Switch
-                    checked={configData.feedbackTypes[type.id]}
-                    onCheckedChange={(checked) => {
-                      handleChange("feedbackTypes", {
-                        ...configData.feedbackTypes,
-                        [type.id]: checked,
-                      });
-                    }}
-                  />
                 </div>
               ))}
             </div>
           </div>
-        )}
 
-        {/* Feedback Prompt Customization (only shown for popup method) */}
-        {configData.feedbackMethod === "popup" && (
-          <div className="border rounded-lg p-4">
-            <h4 className="font-medium mb-3">Feedback Prompt Customization</h4>
-            <div className="space-y-4">
+          {configData.feedbackMethod === "survey" && (
+            <div className="border rounded-lg p-3">
+              <h4 className="font-medium mb-2 text-sm">Survey Link</h4>
               <div className="space-y-2">
-                <Label htmlFor="prompt-text">Prompt Question</Label>
-                <Input
-                  id="prompt-text"
-                  placeholder="How was your experience?"
-                  value={configData.promptText}
-                  onChange={(e) => handleChange("promptText", e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="placeholder-text">Input Placeholder</Label>
-                <Input
-                  id="placeholder-text"
-                  placeholder="Share your thoughts with us..."
-                  value={configData.placeholderText}
-                  onChange={(e) =>
-                    handleChange("placeholderText", e.target.value)
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="thank-you-text">Thank You Message</Label>
-                <Input
-                  id="thank-you-text"
-                  placeholder="Thank you for your feedback!"
-                  value={configData.thankYouMessage}
-                  onChange={(e) =>
-                    handleChange("thankYouMessage", e.target.value)
-                  }
-                />
+                <div className="flex gap-1">
+                  <Input
+                    placeholder="https://forms.google.com/..."
+                    value={configData.surveyUrl}
+                    onChange={(e) => handleChange("surveyUrl", e.target.value)}
+                    className="flex-1 text-xs"
+                  />
+                  <Button variant="outline" size="sm" className="px-2">
+                    <ExternalLink className="h-3 w-3" />
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Link to your survey service
+                </p>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Feedback Prompt Preview (only shown for popup method) */}
-        {configData.feedbackMethod === "popup" && (
-          <div className="border rounded-lg p-4">
-            <h4 className="font-medium mb-3 flex items-center">
-              <Eye className="h-4 w-4 mr-1.5 text-gray-500" />
-              Feedback Prompt Preview
-            </h4>
-
-            <div className="mt-3 bg-white border rounded-xl shadow-sm p-4 max-w-md mx-auto">
-              <div className="text-center space-y-4">
-                <h3 className="font-medium text-lg">{configData.promptText}</h3>
-
-                <div className="space-y-2">
-                  {/* Rating System - only show if enabled */}
-                  {configData.feedbackTypes.rating && (
-                    <div className="flex justify-center">
-                      {[1, 2, 3, 4, 5].map((rating) => (
-                        <button
-                          key={rating}
-                          className="mx-1 h-10 w-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50"
-                        >
-                          {rating}
-                        </button>
-                      ))}
+          {configData.feedbackMethod === "popup" && (
+            <div className="border rounded-lg p-3">
+              <h4 className="font-medium mb-2 text-sm">Feedback Types</h4>
+              <div className="space-y-2">
+                {[
+                  { id: "rating", label: "Rating System", icon: <Star /> },
+                  {
+                    id: "comments",
+                    label: "Comment Box",
+                    icon: <MessageSquare />,
+                  },
+                  {
+                    id: "suggestions",
+                    label: "Suggestions",
+                    icon: <Lightbulb />,
+                  },
+                  {
+                    id: "complaints",
+                    label: "Complaints",
+                    icon: <AlertCircle />,
+                  },
+                ].map((type) => (
+                  <div
+                    key={type.id}
+                    className="flex items-center justify-between"
+                  >
+                    <div className="flex items-center">
+                      {React.cloneElement(type.icon, {
+                        className: "h-3 w-3 text-gray-500 mr-1",
+                      })}
+                      <Label className="text-xs cursor-pointer">
+                        {type.label}
+                      </Label>
                     </div>
-                  )}
-
-                  {/* Comments Box - only show if enabled */}
-                  {(configData.feedbackTypes.comments ||
-                    configData.feedbackTypes.suggestions ||
-                    configData.feedbackTypes.complaints) && (
-                    <Textarea
-                      placeholder={configData.placeholderText}
-                      className="resize-none"
-                      rows={3}
+                    <Switch
+                      checked={configData.feedbackTypes[type.id]}
+                      onCheckedChange={(checked) => {
+                        handleChange("feedbackTypes", {
+                          ...configData.feedbackTypes,
+                          [type.id]: checked,
+                        });
+                      }}
                     />
-                  )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
-                  <Button className="w-full">Submit Feedback</Button>
-
-                  <p className="text-sm text-gray-500 pt-2">
-                    Your feedback helps us improve!
-                  </p>
+        {/* Right Column */}
+        <div className="space-y-3">
+          {configData.feedbackMethod === "popup" && (
+            <>
+              <div className="border rounded-lg p-3">
+                <h4 className="font-medium mb-2 text-sm">
+                  Prompt Customization
+                </h4>
+                <div className="space-y-2">
+                  <div>
+                    <Label className="text-xs">Prompt Question</Label>
+                    <Input
+                      placeholder="How was your experience?"
+                      value={configData.promptText}
+                      onChange={(e) =>
+                        handleChange("promptText", e.target.value)
+                      }
+                      className="text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Input Placeholder</Label>
+                    <Input
+                      placeholder="Share your thoughts..."
+                      value={configData.placeholderText}
+                      onChange={(e) =>
+                        handleChange("placeholderText", e.target.value)
+                      }
+                      className="text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Thank You Message</Label>
+                    <Input
+                      placeholder="Thank you for your feedback!"
+                      value={configData.thankYouMessage}
+                      onChange={(e) =>
+                        handleChange("thankYouMessage", e.target.value)
+                      }
+                      className="text-xs"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+
+              <div className="border rounded-lg p-3">
+                <h4 className="font-medium mb-2 text-sm flex items-center">
+                  <Eye className="h-3 w-3 mr-1 text-gray-500" />
+                  Preview
+                </h4>
+                <div className="bg-white border rounded-lg shadow-sm p-3">
+                  <div className="text-center space-y-2">
+                    <h3 className="font-medium text-sm">
+                      {configData.promptText}
+                    </h3>
+
+                    {configData.feedbackTypes.rating && (
+                      <div className="flex justify-center gap-1">
+                        {[1, 2, 3, 4, 5].map((rating) => (
+                          <button
+                            key={rating}
+                            className="h-6 w-6 rounded-full border border-gray-200 flex items-center justify-center text-xs hover:bg-gray-50"
+                          >
+                            {rating}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {(configData.feedbackTypes.comments ||
+                      configData.feedbackTypes.suggestions ||
+                      configData.feedbackTypes.complaints) && (
+                      <Textarea
+                        placeholder={configData.placeholderText}
+                        className="resize-none text-xs"
+                        rows={2}
+                      />
+                    )}
+
+                    <Button size="sm" className="w-full text-xs">
+                      Submit Feedback
+                    </Button>
+                    <p className="text-xs text-gray-500">
+                      Your feedback helps us improve!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
-      <div className="border-t pt-4 flex justify-end">
+      <div className="flex justify-end pt-2">
         <Button
           onClick={() => {
-            // First save to Firebase
-            saveToFirebase(configData);
-            // Then call the original onSave prop
+            if (blueprintId) saveToFirebase(configData);
             onSave(configData);
           }}
+          size="sm"
         >
           Save Feedback Configuration
         </Button>

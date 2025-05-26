@@ -1532,7 +1532,7 @@ export default function BlueprintEditor() {
         </div>
 
         {/* Bottom navigation bar */}
-        <div className="border-t p-6 flex justify-between items-center bg-white">
+        <div className="border-t p-3 flex justify-between items-center bg-white">
           <Button
             variant="outline"
             onClick={() => {
@@ -1739,6 +1739,18 @@ export default function BlueprintEditor() {
     fetchBlueprintData();
   }, [blueprintId]);
 
+  // Enable interactions immediately for AI agents
+  useEffect(() => {
+    const enableEarlyInteraction = () => {
+      // Force loading to false after a maximum of 2 seconds
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 2000);
+    };
+
+    enableEarlyInteraction();
+  }, []);
+
   // ========================
   // INITIALIZATION & DATA LOADING
   // ========================
@@ -1861,11 +1873,12 @@ export default function BlueprintEditor() {
 
   const InteractiveOnboarding = () => {
     // Check if we have prefill data loaded
-    if (isLoading || !prefillData) {
+    if (!prefillData) {
+      // Show a minimal loading state while prefill data loads, but don't block the entire UI
       return (
-        <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
-          <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4" />
-          <p className="text-lg font-medium">Setting up your Blueprint...</p>
+        <div className="p-6 text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+          <p className="text-sm text-gray-600">Setting up your Blueprint...</p>
         </div>
       );
     }
@@ -2571,7 +2584,7 @@ export default function BlueprintEditor() {
             </div>
 
             {/* Main content with scrolling */}
-            <div className="flex-1 overflow-y-auto p-6 md:p-10 max-w-5xl mx-auto w-full">
+            <div className="flex-1 overflow-y-auto p-3 max-w-5xl mx-auto w-full">
               <AnimatePresence mode="wait">
                 {/* Step 1: Goal Selection - Same as original */}
                 {onboardingStep === 1 && (
@@ -2581,7 +2594,7 @@ export default function BlueprintEditor() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0.9 }}
                     transition={{ duration: 0.15 }}
-                    className="space-y-8"
+                    className="space-y-3"
                   >
                     <div className="text-center mb-6">
                       <h1 className="text-3xl font-bold mb-3">
@@ -2592,7 +2605,7 @@ export default function BlueprintEditor() {
                       </p>
                     </div>
 
-                    <div className="mb-6 p-4 bg-indigo-50 rounded-lg">
+                    <div className="mb-3 p-2 bg-indigo-50 rounded-lg">
                       <p className="text-gray-700">
                         Based on our research, we'll be mapping a{" "}
                         {prefillData.industry} business with approximately{" "}
@@ -2601,85 +2614,32 @@ export default function BlueprintEditor() {
                     </div>
 
                     <div>
-                      <h2 className="text-2xl font-semibold mb-6">
+                      <h2 className="text-xl font-semibold mb-3">
                         What's your main goal with Blueprint?
                       </h2>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {[
                           {
                             value: "customerEngagement",
                             label: "Drive Customer Engagement & Sales",
                             icon: (
-                              <Users className="h-10 w-10 text-indigo-500 mb-3" />
+                              <Users className="h-8 w-8 text-indigo-500 mb-2" />
                             ),
                             description:
                               "Create interactive AR experiences for your visitors",
                             isRecommended: true,
-                            exampleOutcome: (
-                              <div className="bg-gray-50 rounded-md overflow-hidden">
-                                <div className="bg-gradient-to-r from-blue-500 to-indigo-600 h-24 relative">
-                                  <div className="absolute bottom-2 left-2 bg-white rounded-md px-2 py-1 text-xs font-medium shadow-sm flex items-center gap-1.5">
-                                    <QrCode className="h-3 w-3" />
-                                    <span>Scan for specials</span>
-                                  </div>
-                                  <div className="absolute top-2 right-2 text-white text-xs bg-black/30 rounded px-1.5 py-0.5">
-                                    Customer View
-                                  </div>
-                                </div>
-                                <div className="p-2 flex justify-between items-center">
-                                  <div className="text-xs">
-                                    <div className="font-medium">
-                                      30% More Sales
-                                    </div>
-                                    <div className="text-gray-500">
-                                      Interactive Product Info
-                                    </div>
-                                  </div>
-                                  <div className="text-xs flex items-center gap-1">
-                                    <Smartphone className="h-3 w-3" />
-                                    <Tag className="h-3 w-3" />
-                                    <ShoppingCart className="h-3 w-3" />
-                                  </div>
-                                </div>
-                              </div>
-                            ),
+                            outcome:
+                              "30% More Sales - Interactive Product Info",
                           },
                           {
                             value: "staffTraining",
                             label: "Empower Your Team",
                             icon: (
-                              <GraduationCap className="h-10 w-10 text-indigo-500 mb-3" />
+                              <GraduationCap className="h-8 w-8 text-indigo-500 mb-2" />
                             ),
                             description:
                               "Improve your crew's experience and effectiveness",
-                            exampleOutcome: (
-                              <div className="bg-gray-50 rounded-md overflow-hidden">
-                                <div className="bg-gradient-to-r from-emerald-500 to-teal-600 h-24 relative">
-                                  <div className="absolute bottom-2 left-2 bg-white rounded-md px-2 py-1 text-xs font-medium shadow-sm flex items-center gap-1.5">
-                                    <CheckCircle2 className="h-3 w-3" />
-                                    <span>Training complete</span>
-                                  </div>
-                                  <div className="absolute top-2 right-2 text-white text-xs bg-black/30 rounded px-1.5 py-0.5">
-                                    Staff View
-                                  </div>
-                                </div>
-                                <div className="p-2 flex justify-between items-center">
-                                  <div className="text-xs">
-                                    <div className="font-medium">
-                                      50% Faster Training
-                                    </div>
-                                    <div className="text-gray-500">
-                                      Interactive Guides
-                                    </div>
-                                  </div>
-                                  <div className="text-xs flex items-center gap-1">
-                                    <GraduationCap className="h-3 w-3" />
-                                    <Briefcase className="h-3 w-3" />
-                                    <Users className="h-3 w-3" />
-                                  </div>
-                                </div>
-                              </div>
-                            ),
+                            outcome: "50% Faster Training - Interactive Guides",
                           },
                         ].map((option) => (
                           <div
@@ -2688,38 +2648,34 @@ export default function BlueprintEditor() {
                               updateOnboardingData("goal", option.value)
                             }
                             className={`
-                              flex flex-col p-6 border-2 rounded-2xl cursor-pointer transition-all relative
+                              flex flex-col p-3 border-2 rounded-lg cursor-pointer transition-all relative
                               ${option.isRecommended ? "shadow-md" : ""}
                               ${
                                 onboardingData.goal === option.value
-                                  ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200 ring-offset-2"
-                                  : "border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50"
+                                  ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200"
+                                  : "border-gray-200 hover:border-indigo-300"
                               }
                             `}
                           >
                             {option.isRecommended && (
-                              <div className="absolute -top-2 -right-2 bg-indigo-500 text-white text-xs font-medium px-2 py-0.5 rounded-full shadow-sm">
+                              <div className="absolute -top-1 -right-1 bg-indigo-500 text-white text-xs font-medium px-1.5 py-0.5 rounded-full">
                                 Recommended
                               </div>
                             )}
 
-                            <div className="flex flex-col items-center text-center mb-5">
+                            <div className="flex flex-col items-center text-center">
                               {option.icon}
                               <h4
-                                className={`text-lg font-medium mb-2 ${option.isRecommended ? "text-indigo-700" : ""}`}
+                                className={`text-base font-medium mb-1 ${option.isRecommended ? "text-indigo-700" : ""}`}
                               >
                                 {option.label}
                               </h4>
-                              <p className="text-gray-600">
+                              <p className="text-sm text-gray-600 mb-2">
                                 {option.description}
                               </p>
-                            </div>
-
-                            <div className="mt-auto w-full">
-                              <h5 className="text-sm font-medium text-gray-700 mb-2">
-                                Example Outcome:
-                              </h5>
-                              {option.exampleOutcome}
+                              <div className="text-xs font-medium text-gray-700 bg-gray-100 px-2 py-1 rounded">
+                                {option.outcome}
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -2736,9 +2692,9 @@ export default function BlueprintEditor() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0.9 }}
                     transition={{ duration: 0.15 }}
-                    className="space-y-8"
+                    className="space-y-3"
                   >
-                    <div className="text-center mb-6">
+                    <div className="text-center mb-2">
                       <h1 className="text-3xl font-bold mb-3">
                         How will people interact with your Blueprint?
                       </h1>
@@ -2752,8 +2708,8 @@ export default function BlueprintEditor() {
                     </div>
 
                     <div>
-                      <h2 className="text-2xl font-semibold mb-6">Use Cases</h2>
-                      <p className="text-gray-600 mb-4">
+                      <h2 className="text-lg font-semibold mb-2">Use Cases</h2>
+                      <p className="text-sm text-gray-600 mb-2">
                         Select all the ways{" "}
                         {onboardingData.goal === "customerEngagement"
                           ? "customers"
@@ -2772,7 +2728,7 @@ export default function BlueprintEditor() {
                         updateOnboardingData={updateOnboardingData}
                       />
 
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-4 gap-2">
                         {getUseCasesByIndustry(
                           prefillData?.industry || "retail",
                         )
@@ -2793,7 +2749,7 @@ export default function BlueprintEditor() {
                           .map((option) => (
                             <div
                               key={option.value}
-                              className={`flex flex-col items-center text-center p-4 border-2 rounded-2xl cursor-pointer transition-all ${
+                              className={`flex flex-col items-center text-center p-2 border-2 rounded-lg cursor-pointer transition-all ${
                                 onboardingData.useCases.includes(option.value)
                                   ? "border-indigo-500 bg-indigo-50"
                                   : "border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50"
@@ -2814,7 +2770,7 @@ export default function BlueprintEditor() {
                               }}
                             >
                               <div
-                                className={`w-6 h-6 flex items-center justify-center border rounded-md mb-2 ${
+                                className={`w-4 h-4 flex items-center justify-center border rounded-md mb-1 ${
                                   onboardingData.useCases.includes(option.value)
                                     ? "border-indigo-500 bg-indigo-500"
                                     : "border-gray-300"
@@ -2822,11 +2778,13 @@ export default function BlueprintEditor() {
                               >
                                 {onboardingData.useCases.includes(
                                   option.value,
-                                ) && <Check className="h-4 w-4 text-white" />}
+                                ) && <Check className="h-3 w-3 text-white" />}
                               </div>
                               <div>{option.icon}</div>
-                              <h4 className="font-medium">{option.label}</h4>
-                              <p className="text-xs text-gray-600 mt-1">
+                              <h4 className="text-sm font-medium">
+                                {option.label}
+                              </h4>
+                              <p className="text-[10px] text-gray-600 mt-1">
                                 {option.description}
                               </p>
                             </div>
@@ -2840,47 +2798,10 @@ export default function BlueprintEditor() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3 }}
-                        className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-5 border border-indigo-100 mt-8"
+                        className="bg-indigo-50 rounded-lg p-2 border border-indigo-100 mt-2"
                       >
-                        <h3 className="text-lg font-medium text-indigo-800 mb-2 flex items-center">
-                          <Zap className="h-5 w-5 mr-2 text-indigo-500" />
-                          Next: Feature Configuration
-                        </h3>
-                        <p className="text-sm text-indigo-700 mb-3">
-                          After selecting your use cases, you'll configure each
-                          feature for your specific needs.
-                        </p>
-                        <div className="grid grid-cols-2 gap-3 mb-3">
-                          <div className="bg-white rounded-lg p-3 border border-indigo-100 flex items-center gap-2">
-                            <div className="h-8 w-8 bg-indigo-100 rounded-full flex items-center justify-center">
-                              <Settings className="h-4 w-4 text-indigo-600" />
-                            </div>
-                            <div>
-                              <div className="text-xs font-medium">
-                                Customize Features
-                              </div>
-                              <div className="text-[10px] text-gray-500">
-                                Adapt to your needs
-                              </div>
-                            </div>
-                          </div>
-                          <div className="bg-white rounded-lg p-3 border border-indigo-100 flex items-center gap-2">
-                            <div className="h-8 w-8 bg-indigo-100 rounded-full flex items-center justify-center">
-                              <MapPin className="h-4 w-4 text-indigo-600" />
-                            </div>
-                            <div>
-                              <div className="text-xs font-medium">
-                                Mark Areas
-                              </div>
-                              <div className="text-[10px] text-gray-500">
-                                Define space in 3D
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <p className="text-xs text-indigo-600">
-                          You can always adjust these settings later in your
-                          Blueprint.
+                        <p className="text-xs text-indigo-700 text-center">
+                          Next: Configure selected features for your space
                         </p>
                       </motion.div>
                     )}
@@ -2890,7 +2811,7 @@ export default function BlueprintEditor() {
             </div>
 
             {/* Bottom navigation bar */}
-            <div className="border-t p-6 flex justify-between items-center bg-white">
+            <div className="border-t p-3 flex justify-between items-center bg-white">
               <Button
                 variant="outline"
                 onClick={prevOnboardingStep}
@@ -3211,19 +3132,10 @@ export default function BlueprintEditor() {
 
   // Type-safe function for updating onboarding data
   const updateOnboardingData = (key: keyof OnboardingData, value: any) => {
-    // Save current scroll position
-    const scrollPosition = window.scrollY;
-
-    // Update state
     setOnboardingData((prev) => ({
       ...prev,
       [key]: value,
     }));
-
-    // Restore scroll position after state update
-    requestAnimationFrame(() => {
-      window.scrollTo(0, scrollPosition);
-    });
   };
 
   useEffect(() => {
@@ -6334,9 +6246,9 @@ export default function BlueprintEditor() {
         >
           {/* Loading overlay */}
           {isLoading && (
-            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
-              <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
-              <p className="text-lg font-medium">Loading Blueprint...</p>
+            <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm p-2 rounded-lg shadow-md z-40 flex items-center gap-2">
+              <Loader2 className="h-4 w-4 text-primary animate-spin" />
+              <span className="text-sm">Loading...</span>
             </div>
           )}
 
