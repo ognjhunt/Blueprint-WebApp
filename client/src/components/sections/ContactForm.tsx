@@ -1,6 +1,7 @@
 "use client";
 
 import { Anthropic } from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { Loader } from "@googlemaps/js-api-loader";
 import { motion, useInView } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -195,10 +196,10 @@ export default function ContactForm() {
       });
 
       // Process waitlist with AI automation
-      const mcpResponse = await fetch('/api/process-waitlist', {
-        method: 'POST',
+      const mcpResponse = await fetch("/api/process-waitlist", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           name: formData.name,
