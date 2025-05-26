@@ -55,6 +55,7 @@ export default function ContactForm() {
   const anthropic = new Anthropic({
     apiKey:
       "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",
+    dangerouslyAllowBrowser: true,
   });
   const [companyWebsite, setCompanyWebsite] = useState("");
   const [companyAutocomplete, setCompanyAutocomplete] =
