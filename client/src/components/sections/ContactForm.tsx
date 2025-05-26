@@ -1,5 +1,6 @@
 "use client";
 
+import { Anthropic } from "@anthropic-ai/sdk";
 import { Loader } from "@googlemaps/js-api-loader";
 import { motion, useInView } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,10 @@ export default function ContactForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const wasSelection = useRef(false);
-
+  const anthropic = new Anthropic({
+    apiKey:
+      "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",
+  });
   const [companyWebsite, setCompanyWebsite] = useState("");
   const [companyAutocomplete, setCompanyAutocomplete] =
     useState<google.maps.places.AutocompleteService | null>(null);
@@ -184,6 +188,7 @@ export default function ContactForm() {
       const baseUrl = window.location.origin;
       const offWaitlistUrl = `${baseUrl}/off-waitlist-signup?token=${token}`;
 
+      // Create Firebase token record
       await addDoc(collection(db, "waitlistTokens"), {
         token: token,
         email: formData.email,
@@ -192,33 +197,47 @@ export default function ContactForm() {
         createdAt: serverTimestamp(),
       });
 
-      const lindyOptions = {
-        method: "POST",
-        headers: {
-          Authorization:
-            "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          company: formData.company,
-          company_url: companyWebsite,
-          location: `${formData.city}, ${formData.state}`,
-          message: formData.message,
-          signup_link: offWaitlistUrl,
-          token: token,
-          base_url: baseUrl,
-        }),
-      };
+      // NEW MCP IMPLEMENTATION - Replace Lindy
+      const anthropic = new Anthropic({
+        apiKey:
+          "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",
+      });
 
-      const response = await fetch(
-        "https://public.lindy.ai/api/v1/webhooks/lindy/163b37c0-2f5c-4969-9b2e-0d5ec61afb52",
-        lindyOptions,
-      );
+      const mcpResponse = await anthropic.beta.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 2000,
+        messages: [
+          {
+            role: "user",
+            content: `Blueprint Waitlist Automation: Process new signup for ${formData.name} from ${formData.company}. 
 
-      if (!response.ok) {
-        throw new Error("Failed to submit form");
+  STEP 1: Create Google Sheet row in "Blueprint Waitlist" spreadsheet with columns: Name="${formData.name}", Company="${formData.company}", Email="${formData.email}", City="${formData.city}", State="${formData.state}", Address="${formData.city}, ${formData.state}", Website="${companyWebsite}", Additional Comments="${formData.message}", Date of Waitlist="${new Date().toISOString().split("T")[0]}", Time of Waitlist="${new Date().toLocaleTimeString()}", Does Company Meet Criteria="", Have we sent off the waitlist email="No", Have they picked a date+time for mapping="No", Have we Onboarded="No".
+
+  STEP 2: Use Perplexity to evaluate: "${formData.company} located in ${formData.city}, ${formData.state} - Evaluate for Blueprint pilot program criteria: customer-facing business, retail/hospitality type, physical presence with foot traffic, located in or near Durham NC area. Respond with Yes (meets all criteria) or No (does not meet criteria) plus brief reason."
+
+  STEP 3: Draft appropriate email:
+  - If Perplexity says YES: Subject="Hello - From Blueprint", Body="Hey ${formData.name.split(" ")[0]},\n\nYou're already off the waitlist for Blueprint!\n\n${formData.company} has met all the criteria needed to jump to first in line to try Blueprint out.\n\nTo get started, please take time to choose sign up and choose a date & time for us to send someone to your location for the 3D mapping of your space!:\n${offWaitlistUrl}\n\nAny questions? Here's a link to my calendar if you wanted to chat this week!:\nhttps://calendly.com/blueprintar/30min\n\n____\nNijel Hunt\nCo-Founder at Blueprint"
+  - If Perplexity says NO: Subject="Your Blueprint waitlist spot is confirmed! 🎉", Body="Hey ${formData.name.split(" ")[0]},\n\nYou're on the waitlist for Blueprint!\n\nYou'll be first to know once Blueprint expands into ${formData.city} (then something about joining Pilot Program within city (first 3 months free)).\n\nWant Blueprint to move to your city quicker?\nPost on X and tag us @tryblueprintapp to let us know you applied.\n\nIf you have any questions about Blueprint in the meantime, just reply to this email.\n\n____\nNijel Hunt\nCo-Founder at Blueprint"
+
+  STEP 4: Update the Google Sheet row with: Does Company Meet Criteria=[Yes/No from Perplexity], Have we sent off the waitlist email="Yes", Have they picked a date+time for mapping="No", Have we Onboarded="No".
+
+  Execute all steps and confirm completion.`,
+          },
+        ],
+        mcp_servers: [
+          {
+            type: "url",
+            url: "https://mcp.zapier.com/api/mcp/s/4d602731-9c5e-4c56-a494-7d1cdef77199/mcp",
+            name: "zapier",
+            authorization_token:
+              "NGQ2MDI3MzEtOWM1ZS00YzU2LWE0OTQtN2QxY2RlZjc3MTk5Ojc0ZWJlNTdlLWZlNzUtNDhjNC1hOGVkLWNjN2I2YzVjNGJmMA==",
+          },
+        ],
+        betas: ["mcp-client-2025-04-04"],
+      });
+
+      if (!mcpResponse) {
+        throw new Error("Failed to process waitlist signup");
       }
 
       setIsSuccess(true);
@@ -237,6 +256,70 @@ export default function ContactForm() {
       setIsSubmitting(false);
     }
   };
+
+  // const handleSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   if (!validateForm()) return;
+  //   setIsSubmitting(true);
+
+  //   try {
+  //     const token = uuidv4();
+  //     const baseUrl = window.location.origin;
+  //     const offWaitlistUrl = `${baseUrl}/off-waitlist-signup?token=${token}`;
+
+  //     await addDoc(collection(db, "waitlistTokens"), {
+  //       token: token,
+  //       email: formData.email,
+  //       company: formData.company,
+  //       status: "unused",
+  //       createdAt: serverTimestamp(),
+  //     });
+
+  //     const lindyOptions = {
+  //       method: "POST",
+  //       headers: {
+  //         Authorization:
+  //           "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({
+  //         name: formData.name,
+  //         email: formData.email,
+  //         company: formData.company,
+  //         company_url: companyWebsite,
+  //         location: `${formData.city}, ${formData.state}`,
+  //         message: formData.message,
+  //         signup_link: offWaitlistUrl,
+  //         token: token,
+  //         base_url: baseUrl,
+  //       }),
+  //     };
+
+  //     const response = await fetch(
+  //       "https://public.lindy.ai/api/v1/webhooks/lindy/163b37c0-2f5c-4969-9b2e-0d5ec61afb52",
+  //       lindyOptions,
+  //     );
+
+  //     if (!response.ok) {
+  //       throw new Error("Failed to submit form");
+  //     }
+
+  //     setIsSuccess(true);
+  //     setFormData({
+  //       name: "",
+  //       email: "",
+  //       company: "",
+  //       city: "",
+  //       state: "",
+  //       message: "",
+  //     });
+  //   } catch (error) {
+  //     console.error("Error submitting form:", error);
+  //     alert("There was an error submitting your form. Please try again.");
+  //   } finally {
+  //     setIsSubmitting(false);
+  //   }
+  // };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
