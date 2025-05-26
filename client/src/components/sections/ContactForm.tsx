@@ -53,13 +53,6 @@ export default function ContactForm() {
   const [isSuccess, setIsSuccess] = useState(false);
   const wasSelection = useRef(false);
 
-  const mySecret = process.env["claude"];
-
-  const anthropic = new Anthropic({
-    apiKey: mySecret,
-    dangerouslyAllowBrowser: true,
-  });
-
   const [companyWebsite, setCompanyWebsite] = useState("");
   const [companyAutocomplete, setCompanyAutocomplete] =
     useState<google.maps.places.AutocompleteService | null>(null);
@@ -201,46 +194,25 @@ export default function ContactForm() {
         createdAt: serverTimestamp(),
       });
 
-      // NEW MCP IMPLEMENTATION - Replace Lindy
-      const anthropic = new Anthropic({
-        apiKey: mySecret,
-        dangerouslyAllowBrowser: true, // Add this line
+      // Process waitlist with AI automation
+      const mcpResponse = await fetch('/api/process-waitlist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          company: formData.company,
+          email: formData.email,
+          city: formData.city,
+          state: formData.state,
+          message: formData.message,
+          companyWebsite: companyWebsite,
+          offWaitlistUrl: offWaitlistUrl,
+        }),
       });
 
-      const mcpResponse = await anthropic.beta.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 2000,
-        messages: [
-          {
-            role: "user",
-            content: `Blueprint Waitlist Automation: Process new signup for ${formData.name} from ${formData.company}. 
-
-  STEP 1: Create Google Sheet row in "Blueprint Waitlist" spreadsheet with columns: Name="${formData.name}", Company="${formData.company}", Email="${formData.email}", City="${formData.city}", State="${formData.state}", Address="${formData.city}, ${formData.state}", Website="${companyWebsite}", Additional Comments="${formData.message}", Date of Waitlist="${new Date().toISOString().split("T")[0]}", Time of Waitlist="${new Date().toLocaleTimeString()}", Does Company Meet Criteria="", Have we sent off the waitlist email="No", Have they picked a date+time for mapping="No", Have we Onboarded="No".
-
-  STEP 2: Use Perplexity to evaluate: "${formData.company} located in ${formData.city}, ${formData.state} - Evaluate for Blueprint pilot program criteria: customer-facing business, retail/hospitality type, physical presence with foot traffic, located in or near Durham NC area. Respond with Yes (meets all criteria) or No (does not meet criteria) plus brief reason."
-
-  STEP 3: Draft appropriate email:
-  - If Perplexity says YES: Subject="Hello - From Blueprint", Body="Hey ${formData.name.split(" ")[0]},\n\nYou're already off the waitlist for Blueprint!\n\n${formData.company} has met all the criteria needed to jump to first in line to try Blueprint out.\n\nTo get started, please take time to choose sign up and choose a date & time for us to send someone to your location for the 3D mapping of your space!:\n${offWaitlistUrl}\n\nAny questions? Here's a link to my calendar if you wanted to chat this week!:\nhttps://calendly.com/blueprintar/30min\n\n____\nNijel Hunt\nCo-Founder at Blueprint"
-  - If Perplexity says NO: Subject="Your Blueprint waitlist spot is confirmed! 🎉", Body="Hey ${formData.name.split(" ")[0]},\n\nYou're on the waitlist for Blueprint!\n\nYou'll be first to know once Blueprint expands into ${formData.city} (then something about joining Pilot Program within city (first 3 months free)).\n\nWant Blueprint to move to your city quicker?\nPost on X and tag us @tryblueprintapp to let us know you applied.\n\nIf you have any questions about Blueprint in the meantime, just reply to this email.\n\n____\nNijel Hunt\nCo-Founder at Blueprint"
-
-  STEP 4: Update the Google Sheet row with: Does Company Meet Criteria=[Yes/No from Perplexity], Have we sent off the waitlist email="Yes", Have they picked a date+time for mapping="No", Have we Onboarded="No".
-
-  Execute all steps and confirm completion.`,
-          },
-        ],
-        mcp_servers: [
-          {
-            type: "url",
-            url: "https://mcp.zapier.com/api/mcp/s/4d602731-9c5e-4c56-a494-7d1cdef77199/mcp",
-            name: "zapier",
-            authorization_token:
-              "NGQ2MDI3MzEtOWM1ZS00YzU2LWE0OTQtN2QxY2RlZjc3MTk5Ojc0ZWJlNTdlLWZlNzUtNDhjNC1hOGVkLWNjN2I2YzVjNGJmMA==",
-          },
-        ],
-        betas: ["mcp-client-2025-04-04"],
-      });
-
-      if (!mcpResponse) {
+      if (!mcpResponse.ok) {
         throw new Error("Failed to process waitlist signup");
       }
 

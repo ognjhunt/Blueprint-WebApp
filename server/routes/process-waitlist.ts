@@ -1,13 +1,12 @@
+import { Request, Response } from "express";
 import { Anthropic } from "@anthropic-ai/sdk";
-import { NextRequest, NextResponse } from "next/server";
 
 const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY, // Store in environment variable
+  apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-export async function POST(request: NextRequest) {
+export default async function processWaitlistHandler(req: Request, res: Response) {
   try {
-    const body = await request.json();
     const {
       name,
       email,
@@ -17,7 +16,7 @@ export async function POST(request: NextRequest) {
       message,
       companyWebsite,
       offWaitlistUrl,
-    } = body;
+    } = req.body;
 
     const mcpResponse = await anthropic.beta.messages.create({
       model: "claude-sonnet-4-20250514",
@@ -45,18 +44,16 @@ Execute all steps and confirm completion.`,
           type: "url",
           url: "https://mcp.zapier.com/api/mcp/s/4d602731-9c5e-4c56-a494-7d1cdef77199/mcp",
           name: "zapier",
-          authorization_token: process.env.ZAPIER_MCP_TOKEN, // Store in environment variable
+          authorization_token:
+            "NGQ2MDI3MzEtOWM1ZS00YzU2LWE0OTQtN2QxY2RlZjc3MTk5Ojc0ZWJlNTdlLWZlNzUtNDhjNC1hOGVkLWNjN2I2YzVjNGJmMA==",
         },
       ],
       betas: ["mcp-client-2025-04-04"],
     });
 
-    return NextResponse.json({ success: true, response: mcpResponse });
+    res.json({ success: true, response: mcpResponse });
   } catch (error) {
     console.error("Error processing waitlist:", error);
-    return NextResponse.json(
-      { error: "Failed to process waitlist signup" },
-      { status: 500 },
-    );
+    res.status(500).json({ error: "Failed to process waitlist signup" });
   }
 }
