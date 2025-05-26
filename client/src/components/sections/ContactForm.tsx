@@ -55,6 +55,7 @@ export default function ContactForm() {
   const wasSelection = useRef(false);
 
   const [companyWebsite, setCompanyWebsite] = useState("");
+  const [companyAddress, setCompanyAddress] = useState("");
   const [companyAutocomplete, setCompanyAutocomplete] =
     useState<google.maps.places.AutocompleteService | null>(null);
   const [companyPlacesService, setCompanyPlacesService] =
@@ -183,7 +184,7 @@ export default function ContactForm() {
 
     try {
       const token = uuidv4();
-      const baseUrl = window.location.origin;
+      const baseUrl = "https://blueprint-vision-fork-nijelhunt.replit.app";
       const offWaitlistUrl = `${baseUrl}/off-waitlist-signup?token=${token}`;
 
       // Create Firebase token record
@@ -646,7 +647,7 @@ export default function ContactForm() {
                                   if (companyPlacesService) {
                                     const request = {
                                       placeId: prediction.place_id,
-                                      fields: ["website"],
+                                      fields: ["website", "formatted_address"],
                                     };
                                     companyPlacesService.getDetails(
                                       request,
@@ -659,6 +660,9 @@ export default function ContactForm() {
                                         ) {
                                           setCompanyWebsite(
                                             placeResult.website || "",
+                                          );
+                                          setCompanyAddress(
+                                            placeResult.formatted_address || "",
                                           );
                                         }
                                       },

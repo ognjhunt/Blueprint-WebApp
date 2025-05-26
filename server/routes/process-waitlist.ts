@@ -23,6 +23,7 @@ export default async function processWaitlistHandler(
       state,
       message,
       companyWebsite,
+      companyAddress: companyAddress,
       offWaitlistUrl,
     } = req.body;
 
@@ -30,7 +31,7 @@ export default async function processWaitlistHandler(
       model: "o4-mini",
       input: `Blueprint Waitlist Automation: Process new signup for ${name} from ${company}. 
 
-    STEP 1: Create Google Sheet row in "Blueprint Waitlist" spreadsheet with columns: Name="${name}", Company="${company}", Email="${email}", City="${city}", State="${state}", Address="${city}, ${state}", Website="${companyWebsite}", Additional Comments="${message}", Date of Waitlist="${new Date().toISOString().split("T")[0]}", Time of Waitlist="${new Date().toLocaleTimeString()}", Does Company Meet Criteria="", Have we sent off the waitlist email="No", Have they picked a date+time for mapping="No", Have we Onboarded="No".
+    STEP 1: Create Google Sheet row in "Blueprint Waitlist" spreadsheet with columns: Name="${name}", Company="${company}", Email="${email}", City="${city}", State="${state}", Address="${companyAddress}", Website="${companyWebsite}", Additional Comments="${message}", Date of Waitlist="${new Date().toISOString().split("T")[0]}", Time of Waitlist="${new Date().toLocaleTimeString()}", Does Company Meet Criteria="", Have we sent off the waitlist email="No", Have they picked a date+time for mapping="No", Have we Onboarded="No".
 
     STEP 2: Use Perplexity to evaluate: "${company} located in ${city}, ${state} - Evaluate for Blueprint pilot program criteria: customer-facing business, retail/hospitality type, physical presence with foot traffic, located in or near Durham NC area. Respond with Yes (meets all criteria) or No (does not meet criteria) plus brief reason."
 
@@ -42,7 +43,7 @@ export default async function processWaitlistHandler(
 
     Execute all steps and confirm completion.`,
       reasoning: {
-        effort: "medium",
+        effort: "high",
       },
       tools: [
         {
