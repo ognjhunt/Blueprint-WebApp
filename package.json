@@ -75,6 +75,7 @@
     "multer": "^2.0.0",
     "next-connect": "^1.0.0",
     "node-fetch": "^3.3.2",
+    "openai": "^4.103.0",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
     "qrcode": "^1.5.4",
