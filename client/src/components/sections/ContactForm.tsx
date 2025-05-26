@@ -52,11 +52,14 @@ export default function ContactForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const wasSelection = useRef(false);
+
+  const mySecret = process.env["claude"];
+
   const anthropic = new Anthropic({
-    apiKey:
-      "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",
+    apiKey: mySecret,
     dangerouslyAllowBrowser: true,
   });
+
   const [companyWebsite, setCompanyWebsite] = useState("");
   const [companyAutocomplete, setCompanyAutocomplete] =
     useState<google.maps.places.AutocompleteService | null>(null);
@@ -200,8 +203,8 @@ export default function ContactForm() {
 
       // NEW MCP IMPLEMENTATION - Replace Lindy
       const anthropic = new Anthropic({
-        apiKey:
-          "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",
+        apiKey: mySecret,
+        dangerouslyAllowBrowser: true, // Add this line
       });
 
       const mcpResponse = await anthropic.beta.messages.create({
