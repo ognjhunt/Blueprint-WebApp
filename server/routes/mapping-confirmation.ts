@@ -151,7 +151,7 @@ Execute all steps and confirm completion with summary.`,
     console.error("Error processing mapping confirmation:", error);
     res.status(500).json({
       error: "Failed to process mapping confirmation",
-      message: error.message,
+      message: error instanceof Error ? error.message : "Unknown error",
     });
   }
 }
