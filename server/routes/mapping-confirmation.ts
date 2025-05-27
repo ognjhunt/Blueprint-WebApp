@@ -26,6 +26,7 @@ export default async function processMappingConfirmationHandler(
       company_name,
       contact_name,
       contact_phone_number,
+      estimated_square_footage,
     } = req.body;
 
     // Validate required fields
@@ -33,6 +34,7 @@ export default async function processMappingConfirmationHandler(
       company_name,
       contact_name,
       contact_phone_number,
+      estimated_square_footage,
       address,
       company_url,
       chosen_date_of_mapping,
@@ -168,6 +170,7 @@ Execute all steps and confirm completion with summary.`,
 //       company_name,
 //       contact_name,
 //       contact_phone_number,
+//       estimated_square_footage,
 //     } = req.body;
 
 //     // Validate required fields
@@ -179,6 +182,7 @@ Execute all steps and confirm completion with summary.`,
 //       company_url,
 //       chosen_date_of_mapping,
 //       chosen_time_of_mapping,
+//       estimated_square_footage,
 //     };
 
 //     for (const [field, value] of Object.entries(requiredFields)) {
