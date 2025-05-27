@@ -253,11 +253,39 @@ export default function OffWaitlistSignUpFlow() {
         const personName = contactName.trim();
         const contactPhone = phoneNumber.trim();
 
-        const options = {
+        // const options = {
+        //   method: "POST",
+        //   headers: {
+        //     Authorization:
+        //       "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
+        //     "Content-Type": "application/json",
+        //   },
+        //   body: JSON.stringify({
+        //     have_we_onboarded: "No",
+        //     chosen_time_of_mapping: chosenTime,
+        //     chosen_date_of_mapping: chosenDate,
+        //     have_user_chosen_date: "Yes",
+        //     address: cAddress,
+        //     company_url: cUrl,
+        //     company_name: cName,
+        //     contact_name: personName,
+        //     contact_phone_number: contactPhone,
+        //     estimated_square_footage: squareFootage,
+        //   }),
+        // };
+
+        // fetch(
+        //   "https://public.lindy.ai/api/v1/webhooks/lindy/43c7b7d7-bc40-4593-acfe-ba79ad6488b8",
+        //   options,
+        // )
+        //   .then((res) => res.json())
+        //   .then((data) => console.log("Lindy response:", data))
+        //   .catch((err) => console.error("Lindy error:", err));
+
+        // ✅ NEW MCP WEBHOOK CALL:
+        const mcpResponse = await fetch("/api/mapping-confirmation", {
           method: "POST",
           headers: {
-            Authorization:
-              "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -272,15 +300,14 @@ export default function OffWaitlistSignUpFlow() {
             contact_phone_number: contactPhone,
             estimated_square_footage: squareFootage,
           }),
-        };
+        });
 
-        fetch(
-          "https://public.lindy.ai/api/v1/webhooks/lindy/43c7b7d7-bc40-4593-acfe-ba79ad6488b8",
-          options,
-        )
-          .then((res) => res.json())
-          .then((data) => console.log("Lindy response:", data))
-          .catch((err) => console.error("Lindy error:", err));
+        if (!mcpResponse.ok) {
+          throw new Error("Failed to process mapping confirmation");
+        }
+
+        const result = await mcpResponse.json();
+        console.log("MCP mapping confirmation completed:", result);
       } catch (error: unknown) {
         console.error("Error updating scheduling info:", error);
         const errorMessage =
