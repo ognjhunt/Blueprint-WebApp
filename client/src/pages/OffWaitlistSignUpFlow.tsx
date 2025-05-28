@@ -294,7 +294,7 @@ export default function OffWaitlistSignUpFlow() {
             chosen_date_of_mapping: chosenDate,
             have_user_chosen_date: "Yes",
             address: cAddress,
-            company_url: cUrl,
+            company_url: cUrl || "",
             company_name: cName,
             contact_name: personName,
             contact_phone_number: contactPhone,
@@ -303,11 +303,39 @@ export default function OffWaitlistSignUpFlow() {
         });
 
         if (!mcpResponse.ok) {
-          throw new Error("Failed to process mapping confirmation");
+          console.log("Debug - API payload:", {
+            have_we_onboarded: "No",
+            chosen_time_of_mapping: chosenTime,
+            chosen_date_of_mapping: chosenDate,
+            have_user_chosen_date: "Yes",
+            address: cAddress || "123 Washington St., Raleigh, NC",
+            company_url: cUrl || "https://example.com",
+            company_name: cName,
+            contact_name: personName,
+            contact_phone_number: contactPhone,
+            estimated_square_footage: squareFootage,
+          });
+          const errorText = await mcpResponse.text();
+          console.log("API Error Response:", errorText);
+          throw new Error(
+            `Failed to process mapping confirmation: ${errorText}`,
+          );
         }
 
         const result = await mcpResponse.json();
         console.log("MCP mapping confirmation completed:", result);
+        console.log("Debug - API payload:", {
+          have_we_onboarded: "No",
+          chosen_time_of_mapping: chosenTime,
+          chosen_date_of_mapping: chosenDate,
+          have_user_chosen_date: "Yes",
+          address: cAddress,
+          company_url: cUrl,
+          company_name: cName,
+          contact_name: personName,
+          contact_phone_number: contactPhone,
+          estimated_square_footage: squareFootage,
+        });
       } catch (error: unknown) {
         console.error("Error updating scheduling info:", error);
         const errorMessage =
@@ -576,6 +604,67 @@ export default function OffWaitlistSignUpFlow() {
 
     validateToken();
   }, []);
+
+  useEffect(() => {
+    if (companyWebsite) {
+      console.log("Company website found:", companyWebsite);
+    }
+  }, [companyWebsite]);
+
+  // Fetch website for prefilled organization name
+  useEffect(() => {
+    const fetchWebsiteForPrefilledOrg = async () => {
+      // Only run if we have a prefilled org name and places service is ready
+      if (
+        organizationName && 
+        autocomplete && 
+        placesService && 
+        tokenData && 
+        !companyWebsite // Only if we don't already have a website
+      ) {
+        try {
+          const request: google.maps.places.AutocompletionRequest = {
+            input: organizationName,
+            componentRestrictions: { country: "us" },
+          };
+
+          const predictions = await new Promise<google.maps.places.AutocompletePrediction[]>((resolve, reject) => {
+            autocomplete.getPlacePredictions(request, (results, status) => {
+              if (status !== google.maps.places.PlacesServiceStatus.OK || !results) {
+                return reject(new Error(`Places API error: ${status}`));
+              }
+              resolve(results);
+            });
+          });
+
+          // Get details for the first prediction (most likely match)
+          if (predictions.length > 0) {
+            placesService.getDetails(
+              {
+                placeId: predictions[0].place_id,
+                fields: ["website", "formatted_address"],
+              },
+              (placeResult, status) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK && placeResult) {
+                  if (placeResult.website) {
+                    setCompanyWebsite(placeResult.website);
+                  }
+                  if (placeResult.formatted_address) {
+                    setAddress(placeResult.formatted_address);
+                  }
+                }
+              }
+            );
+          }
+        } catch (error) {
+          console.error("Error fetching website for prefilled org:", error);
+          // Fail silently - this is just a nice-to-have
+        }
+      }
+    };
+
+    fetchWebsiteForPrefilledOrg();
+  }, [organizationName, autocomplete, placesService, tokenData, companyWebsite]);
 
   useEffect(() => {
     if (step === 2) {
