@@ -1,6 +1,9 @@
 import { Request, Response } from "express";
 import { Anthropic } from "@anthropic-ai/sdk";
 import OpenAI from "openai";
+import { initializeApp, getApps, cert } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -9,6 +12,21 @@ const openai = new OpenAI({
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
+
+// 🔥 ADD THIS FIREBASE ADMIN SETUP:
+if (!getApps().length) {
+  initializeApp({
+    credential: cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+    }),
+    storageBucket: "blueprint-8c1ca.appspot.com",
+  });
+}
+
+const adminDb = getFirestore();
+const storage = getStorage();
 
 // Helper function to extract structured data from AI response
 function extractDataFromAIResponse(responseText: string): {
@@ -74,6 +92,147 @@ export default async function processMappingConfirmationHandler(
       contact_phone_number?: string;
       estimated_square_footage?: number;
     } = req.body;
+
+    // Helper function to extract URLs from deep research output
+    // Helper function to extract URLs from deep research output using OpenAI
+    async function extractUrlsFromResearch(researchOutput: string): Promise<{
+      [key: string]: string;
+    }> {
+      try {
+        const extractionPrompt = `
+    You are a URL extraction expert. Analyze the following company research output and extract specific URLs.
+
+    TASK: Find and extract URLs for these categories (return "N/A" if not found):
+    1. menu_url - Menu, food menu, drink menu, services menu
+    2. reservations_url - Reservations, booking, table booking, appointment booking
+    3. online_ordering_url - Online ordering, delivery, takeout, food ordering
+    4. events_url - Events, calendar, upcoming events, event booking
+    5. loyalty_url - Loyalty program, rewards, membership program
+    6. specials_url - Specials, promotions, deals, offers, coupons
+    7. reviews_url - Reviews, testimonials, Yelp page, Google reviews
+    8. waitlist_url - Waitlist, wait list, join waitlist
+
+    IMPORTANT: Return ONLY a valid JSON object in this exact format (no markdown, no explanation):
+    {
+      "menu_url": "URL_or_N/A",
+      "reservations_url": "URL_or_N/A", 
+      "online_ordering_url": "URL_or_N/A",
+      "events_url": "URL_or_N/A",
+      "loyalty_url": "URL_or_N/A",
+      "specials_url": "URL_or_N/A",
+      "reviews_url": "URL_or_N/A",
+      "waitlist_url": "URL_or_N/A"
+    }
+
+    RESEARCH OUTPUT TO ANALYZE:
+    ${researchOutput}
+    `;
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4.1", 
+          messages: [
+            {
+              role: "system",
+              content: "You are a precise URL extraction assistant. Return only valid JSON with no additional text or formatting."
+            },
+            {
+              role: "user",
+              content: extractionPrompt
+            }
+          ],
+          temperature: 0.1, // Low temperature for consistent results
+          max_tokens: 500
+        });
+
+        const extractedText = response.choices[0]?.message?.content;
+
+        if (!extractedText) {
+          console.error("No response from OpenAI URL extraction");
+          return {};
+        }
+
+        // Parse the JSON response
+        const urlData = JSON.parse(extractedText);
+
+        // Filter out "N/A" values
+        const filteredData: { [key: string]: string } = {};
+        for (const [key, value] of Object.entries(urlData)) {
+          if (value && value !== "N/A" && typeof value === "string") {
+            filteredData[key] = value;
+          }
+        }
+
+        console.log("OpenAI extracted URLs:", filteredData);
+        return filteredData;
+
+      } catch (error) {
+        console.error("Error extracting URLs with OpenAI:", error);
+        // Fallback to empty object if extraction fails
+        return {};
+      }
+    }
+
+    // Helper function to find blueprint by company URL or name
+    async function findBlueprintByCompany(
+      companyUrl: string,
+      companyName: string,
+    ): Promise<string | null> {
+      try {
+        // First try to find by company name (businessName field)
+        const nameQuery = adminDb
+          .collection("blueprints")
+          .where("businessName", "==", companyName)
+          .limit(1);
+
+        const nameSnapshot = await nameQuery.get();
+
+        if (!nameSnapshot.empty) {
+          return nameSnapshot.docs[0].id;
+        }
+
+        // If not found by name, try to find by comparing URLs in context or other fields
+        const allBlueprints = await adminDb.collection("blueprints").get();
+
+        for (const doc of allBlueprints.docs) {
+          const data = doc.data();
+          if (data.context && data.context.includes(companyUrl)) {
+            return doc.id;
+          }
+        }
+
+        return null;
+      } catch (error) {
+        console.error("Error finding blueprint:", error);
+        return null;
+      }
+    }
+
+    // Helper function to upload markdown content to Firebase Storage
+    async function uploadMarkdownToStorage(
+      blueprintId: string,
+      content: string,
+      filename: string,
+    ): Promise<string> {
+      try {
+        const bucket = storage.bucket();
+        const filePath = `blueprints/${blueprintId}/${filename}`;
+        const file = bucket.file(filePath);
+
+        await file.save(content, {
+          metadata: {
+            contentType: "text/markdown",
+          },
+        });
+
+        // Make the file publicly readable (optional)
+        await file.makePublic();
+
+        return `https://storage.googleapis.com/blueprint-8c1ca.appspot.com/${filePath}`;
+      } catch (error) {
+        console.error("Error uploading to storage:", error);
+        throw error;
+      }
+    }
 
     const requiredFields = {
       company_name,
@@ -216,8 +375,7 @@ Provide a summary of all actions taken. Confirm if any fallback was used.
 
     console.log("Sending Prompt for Call 1 to OpenAI...");
     // The type from openai.responses.create() is OpenAI.Response
-    // const mcpResponseCall1: OpenAI.Response = await openai.responses.create({
-    const mcpResponseCall1: any = await openai.responses.create({
+    const mcpResponseCall1: OpenAI.Response = await openai.responses.create({
       model: "o4-mini",
       input: promptCall1,
       tools: [
@@ -378,8 +536,7 @@ Execute tasks sequentially. Provide a summary of actions, including the Notion p
 `;
 
     console.log("Sending Prompt for Call 2 to OpenAI...");
-    // const mcpResponseCall2: OpenAI.Response = await openai.responses.create({
-    const mcpResponseCall2: any = await openai.responses.create({
+    const mcpResponseCall2: OpenAI.Response = await openai.responses.create({
       model: "o4-mini",
       input: promptCall2,
       tools: [
@@ -449,12 +606,94 @@ Execute tasks sequentially. Provide a summary of actions, including the Notion p
     }
     console.log("Successfully extracted responseTextCall2:", responseTextCall2);
 
+    console.log("Starting Firebase update with research data...");
+
+    try {
+      // 1. Find the blueprint document by company info
+      let blueprintId = null;
+      try {
+        // 1. Find the blueprint document by company info
+        blueprintId = await findBlueprintByCompany(
+          companyUrlForCall2,
+          company_name,
+        );
+
+      if (!blueprintId) {
+        console.warn(
+          `No blueprint found for company: ${company_name} (${companyUrlForCall2})`,
+        );
+      } else {
+        console.log(`Found blueprint ID: ${blueprintId}`);
+
+        // 2. Extract URLs from the research output
+        const extractedUrls = await extractUrlsFromResearch(responseTextCall2);
+        console.log("Extracted URLs:", extractedUrls);
+
+        // 3. Check if research output contains markdown content to upload
+        let uploadedFileUrl = null;
+        if (
+          responseTextCall2.includes("```") ||
+          responseTextCall2.includes("markdown")
+        ) {
+          try {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+            const filename = `research-report-${timestamp}.md`;
+            uploadedFileUrl = await uploadMarkdownToStorage(
+              blueprintId,
+              responseTextCall2,
+              filename,
+            );
+            console.log("Uploaded markdown file:", uploadedFileUrl);
+          } catch (uploadError) {
+            console.error("Error uploading markdown file:", uploadError);
+            // Continue without failing the entire process
+          }
+        }
+
+        // 4. Prepare the update data for Firestore
+        const updateData: any = {
+          context: responseTextCall2, // Store the full research output
+          lastResearchUpdate: new Date().toISOString(),
+          researchCompleted: true,
+          ...extractedUrls, // Spread the extracted URLs (menu_url, reservations_url, etc.)
+        };
+
+        // Add uploaded file URL if available
+        if (uploadedFileUrl) {
+          updateData.researchReportUrl = uploadedFileUrl;
+        }
+
+        // 5. Update the blueprint document in Firestore
+        await adminDb
+          .collection("blueprints")
+          .doc(blueprintId)
+          .update(updateData);
+
+        console.log(
+          `Successfully updated blueprint ${blueprintId} with research data`,
+        );
+      }
+    } catch (firebaseError) {
+      console.error(
+        "Error updating Firebase with research data:",
+        firebaseError,
+      );
+      // Don't fail the entire process, just log the error
+    }
+
+    // Original response with additional Firebase info
     res.json({
       success: true,
       phase1_summary: responseTextCall1,
       phase1_extracted_data: extractedDataCall1,
-      phase2_summary: responseTextCall2, // Assuming responseTextCall2 is successfully populated
-      message: "Mapping confirmation workflow (Phases 1 & 2) processed.",
+      phase2_summary: responseTextCall2,
+      firebase_update: {
+        blueprint_found: !!blueprintId,
+        blueprint_id: blueprintId || null,
+        urls_extracted: extractedUrls || {},
+      },
+      message:
+        "Mapping confirmation workflow (Phases 1 & 2) and Firebase update processed.",
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
