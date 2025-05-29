@@ -329,40 +329,41 @@ Provide a summary of all actions taken. Confirm if any fallback was used.
     let responseTextCall1: string | null | undefined;
 
     // Try different possible response locations, with output_text FIRST
+    const response1: any = mcpResponseCall1;
     if (
-      mcpResponseCall1.output_text &&
-      typeof mcpResponseCall1.output_text === "string"
+      response1.output_text &&
+      typeof response1.output_text === "string"
     ) {
-      responseTextCall1 = mcpResponseCall1.output_text;
+      responseTextCall1 = response1.output_text;
     } else if (
-      mcpResponseCall1.text &&
-      typeof mcpResponseCall1.text === "string"
+      response1.text &&
+      typeof response1.text === "string"
     ) {
-      responseTextCall1 = mcpResponseCall1.text;
-    } else if (mcpResponseCall1.choices?.[0]?.message?.content) {
-      responseTextCall1 = mcpResponseCall1.choices[0].message.content;
+      responseTextCall1 = response1.text;
+    } else if (response1.choices?.[0]?.message?.content) {
+      responseTextCall1 = response1.choices[0].message.content;
     } else if (
-      mcpResponseCall1.output &&
-      typeof mcpResponseCall1.output === "string"
+      response1.output &&
+      typeof response1.output === "string"
     ) {
-      responseTextCall1 = mcpResponseCall1.output;
+      responseTextCall1 = response1.output;
     } else if (
-      mcpResponseCall1.result &&
-      typeof mcpResponseCall1.result === "string"
+      response1.result &&
+      typeof response1.result === "string"
     ) {
-      responseTextCall1 = mcpResponseCall1.result;
+      responseTextCall1 = response1.result;
     } else if (
-      mcpResponseCall1.content &&
-      typeof mcpResponseCall1.content === "string"
+      response1.content &&
+      typeof response1.content === "string"
     ) {
-      responseTextCall1 = mcpResponseCall1.content;
+      responseTextCall1 = response1.content;
     }
 
     console.log("=== DEBUGGING CALL 1 RESPONSE ===");
     console.log("Response text found:", !!responseTextCall1);
     console.log(
       "Using field:",
-      mcpResponseCall1.output_text ? "output_text" : "other",
+      response1.output_text ? "output_text" : "other",
     );
 
     if (typeof responseTextCall1 !== "string" || !responseTextCall1.trim()) {
@@ -495,34 +496,35 @@ Provide a summary of all actions taken. Confirm if any fallback was used.
 
     // Fix Call 2 response handling too:
     let responseTextCall2: string | null | undefined;
+    const response2: any = mcpResponseCall2;
 
     if (
-      mcpResponseCall2.output_text &&
-      typeof mcpResponseCall2.output_text === "string"
+      response2.output_text &&
+      typeof response2.output_text === "string"
     ) {
-      responseTextCall2 = mcpResponseCall2.output_text;
+      responseTextCall2 = response2.output_text;
     } else if (
-      mcpResponseCall2.text &&
-      typeof mcpResponseCall2.text === "string"
+      response2.text &&
+      typeof response2.text === "string"
     ) {
-      responseTextCall2 = mcpResponseCall2.text;
-    } else if (mcpResponseCall2.choices?.[0]?.message?.content) {
-      responseTextCall2 = mcpResponseCall2.choices[0].message.content;
+      responseTextCall2 = response2.text;
+    } else if (response2.choices?.[0]?.message?.content) {
+      responseTextCall2 = response2.choices[0].message.content;
     } else if (
-      mcpResponseCall2.output &&
-      typeof mcpResponseCall2.output === "string"
+      response2.output &&
+      typeof response2.output === "string"
     ) {
-      responseTextCall2 = mcpResponseCall2.output;
+      responseTextCall2 = response2.output;
     } else if (
-      mcpResponseCall2.result &&
-      typeof mcpResponseCall2.result === "string"
+      response2.result &&
+      typeof response2.result === "string"
     ) {
-      responseTextCall2 = mcpResponseCall2.result;
+      responseTextCall2 = response2.result;
     } else if (
-      mcpResponseCall2.content &&
-      typeof mcpResponseCall2.content === "string"
+      response2.content &&
+      typeof response2.content === "string"
     ) {
-      responseTextCall2 = mcpResponseCall2.content;
+      responseTextCall2 = response2.content;
     }
 
     if (typeof responseTextCall2 !== "string" || !responseTextCall2.trim()) {
