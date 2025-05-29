@@ -150,6 +150,9 @@ export default function OffWaitlistSignUpFlow() {
             usedBy: userId,
           });
         }
+
+        // ✅ ADD THIS LINE - Move to next step after successful user creation
+        setStep((prev) => prev + 1);
       } catch (error: unknown) {
         console.error("Error creating user:", error);
         const errorMessage =
@@ -178,6 +181,9 @@ export default function OffWaitlistSignUpFlow() {
           address: address.trim(),
           mappingAreaSqFt: squareFootage,
         });
+
+        // ✅ ADD THIS LINE - Move to next step after successful update
+        setStep((prev) => prev + 1);
       } catch (error: unknown) {
         console.error("Error updating contact info:", error);
         const errorMessage =

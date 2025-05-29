@@ -304,6 +304,9 @@ Provide a summary of all actions taken. Confirm if any fallback was used.
     console.log("Sending Prompt for Call 1 to OpenAI...");
     const mcpResponseCall1 = await openai.responses.create({
       model: "o4-mini",
+      reasoning: {
+        effort: "high",
+      },
       input: promptCall1,
       tools: [
         {
@@ -330,32 +333,17 @@ Provide a summary of all actions taken. Confirm if any fallback was used.
 
     // Try different possible response locations, with output_text FIRST
     const response1: any = mcpResponseCall1;
-    if (
-      response1.output_text &&
-      typeof response1.output_text === "string"
-    ) {
+    if (response1.output_text && typeof response1.output_text === "string") {
       responseTextCall1 = response1.output_text;
-    } else if (
-      response1.text &&
-      typeof response1.text === "string"
-    ) {
+    } else if (response1.text && typeof response1.text === "string") {
       responseTextCall1 = response1.text;
     } else if (response1.choices?.[0]?.message?.content) {
       responseTextCall1 = response1.choices[0].message.content;
-    } else if (
-      response1.output &&
-      typeof response1.output === "string"
-    ) {
+    } else if (response1.output && typeof response1.output === "string") {
       responseTextCall1 = response1.output;
-    } else if (
-      response1.result &&
-      typeof response1.result === "string"
-    ) {
+    } else if (response1.result && typeof response1.result === "string") {
       responseTextCall1 = response1.result;
-    } else if (
-      response1.content &&
-      typeof response1.content === "string"
-    ) {
+    } else if (response1.content && typeof response1.content === "string") {
       responseTextCall1 = response1.content;
     }
 
@@ -473,6 +461,9 @@ Provide a summary of all actions taken. Confirm if any fallback was used.
     console.log("Sending Prompt for Call 2 to OpenAI...");
     const mcpResponseCall2 = await openai.responses.create({
       model: "o4-mini",
+      reasoning: {
+        effort: "high",
+      },
       input: promptCall2,
       tools: [
         {
@@ -498,32 +489,17 @@ Provide a summary of all actions taken. Confirm if any fallback was used.
     let responseTextCall2: string | null | undefined;
     const response2: any = mcpResponseCall2;
 
-    if (
-      response2.output_text &&
-      typeof response2.output_text === "string"
-    ) {
+    if (response2.output_text && typeof response2.output_text === "string") {
       responseTextCall2 = response2.output_text;
-    } else if (
-      response2.text &&
-      typeof response2.text === "string"
-    ) {
+    } else if (response2.text && typeof response2.text === "string") {
       responseTextCall2 = response2.text;
     } else if (response2.choices?.[0]?.message?.content) {
       responseTextCall2 = response2.choices[0].message.content;
-    } else if (
-      response2.output &&
-      typeof response2.output === "string"
-    ) {
+    } else if (response2.output && typeof response2.output === "string") {
       responseTextCall2 = response2.output;
-    } else if (
-      response2.result &&
-      typeof response2.result === "string"
-    ) {
+    } else if (response2.result && typeof response2.result === "string") {
       responseTextCall2 = response2.result;
-    } else if (
-      response2.content &&
-      typeof response2.content === "string"
-    ) {
+    } else if (response2.content && typeof response2.content === "string") {
       responseTextCall2 = response2.content;
     }
 
