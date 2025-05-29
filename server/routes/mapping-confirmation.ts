@@ -302,8 +302,7 @@ Provide a summary of all actions taken. Confirm if any fallback was used.
 `;
 
     console.log("Sending Prompt for Call 1 to OpenAI...");
-    // The type from openai.responses.create() is OpenAI.Response
-    const mcpResponseCall1: OpenAI.Response = await openai.responses.create({
+    const mcpResponseCall1 = await openai.responses.create({
       model: "o4-mini",
       input: promptCall1,
       tools: [
@@ -471,7 +470,7 @@ Provide a summary of all actions taken. Confirm if any fallback was used.
     `;
 
     console.log("Sending Prompt for Call 2 to OpenAI...");
-    const mcpResponseCall2: OpenAI.Response = await openai.responses.create({
+    const mcpResponseCall2 = await openai.responses.create({
       model: "o4-mini",
       input: promptCall2,
       tools: [
