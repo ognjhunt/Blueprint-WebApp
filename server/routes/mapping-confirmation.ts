@@ -197,7 +197,7 @@ Blueprint Post-Signup - Phase 1: Initial Mapping Setup for ${company_name}.
 - Est. Square Footage: ${estimated_square_footage}
 
 **TASK 1: LOCATE & PREPARE GOOGLE SHEET CONTACT**
-1.  In the "Blueprint Waitlist" spreadsheet, find the row where the 'Website' column matches "${company_url}".
+1.  In the "Blueprint Waitlist" spreadsheet, in Sheet: Inbound (Website), find the row where the 'Website' column matches "${company_url}".
 2.  From this specific row, extract:
     - Full Name from 'Name' (Column A) - store as [SheetContactName].
     - Email from 'Email' (Column B) - store as [SheetContactEmail].
@@ -416,6 +416,7 @@ Provide a summary of all actions taken. Confirm if any fallback was used.
 
     **TASK 2: UPDATE GOOGLE SHEET WITH DEEP RESEARCH**
     Spreadsheet: "Blueprint Waitlist"
+    Sheet: "Inbound (Website)"
     If the provided Google Sheet Row ID is "LOOKUP_REQUIRED" or "NOT_FOUND", first find the row where 'Website' column matches "${companyUrlForCall2}" and use that Row ID. If still not found after attempting lookup, note this clearly.
     If a valid Row ID is available, update the column "Company Research" with the entire [DeepResearchOutput] from TASK 1.
     Also, update a column named "Research Timestamp" (or create if it doesn't exist) with the current date & time (e.g., YYYY-MM-DD HH:MM AM/PM EST).
