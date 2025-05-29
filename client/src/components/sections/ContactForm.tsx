@@ -196,8 +196,19 @@ export default function ContactForm() {
         createdAt: serverTimestamp(),
       });
 
-      // Process waitlist with AI automation
-      const mcpResponse = await fetch("/api/process-waitlist", {
+      // Show success immediately
+      setIsSuccess(true);
+      setFormData({
+        name: "",
+        email: "",
+        company: "",
+        city: "",
+        state: "",
+        message: "",
+      });
+
+      // Fire MCP process in background (don't await)
+      fetch("/api/process-waitlist", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -212,20 +223,9 @@ export default function ContactForm() {
           companyWebsite: companyWebsite,
           offWaitlistUrl: offWaitlistUrl,
         }),
-      });
-
-      if (!mcpResponse.ok) {
-        throw new Error("Failed to process waitlist signup");
-      }
-
-      setIsSuccess(true);
-      setFormData({
-        name: "",
-        email: "",
-        company: "",
-        city: "",
-        state: "",
-        message: "",
+      }).catch((error) => {
+        console.error("Background MCP process failed:", error);
+        // Optionally store this error in Firebase for debugging
       });
     } catch (error) {
       console.error("Error submitting form:", error);
@@ -242,9 +242,10 @@ export default function ContactForm() {
 
   //   try {
   //     const token = uuidv4();
-  //     const baseUrl = window.location.origin;
+  //     const baseUrl = "https://blueprint-vision-fork-nijelhunt.replit.app";
   //     const offWaitlistUrl = `${baseUrl}/off-waitlist-signup?token=${token}`;
 
+  //     // Create Firebase token record
   //     await addDoc(collection(db, "waitlistTokens"), {
   //       token: token,
   //       email: formData.email,
@@ -253,33 +254,26 @@ export default function ContactForm() {
   //       createdAt: serverTimestamp(),
   //     });
 
-  //     const lindyOptions = {
+  //     // Process waitlist with AI automation
+  //     const mcpResponse = await fetch("/api/process-waitlist", {
   //       method: "POST",
   //       headers: {
-  //         Authorization:
-  //           "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
   //         "Content-Type": "application/json",
   //       },
   //       body: JSON.stringify({
   //         name: formData.name,
-  //         email: formData.email,
   //         company: formData.company,
-  //         company_url: companyWebsite,
-  //         location: `${formData.city}, ${formData.state}`,
+  //         email: formData.email,
+  //         city: formData.city,
+  //         state: formData.state,
   //         message: formData.message,
-  //         signup_link: offWaitlistUrl,
-  //         token: token,
-  //         base_url: baseUrl,
+  //         companyWebsite: companyWebsite,
+  //         offWaitlistUrl: offWaitlistUrl,
   //       }),
-  //     };
+  //     });
 
-  //     const response = await fetch(
-  //       "https://public.lindy.ai/api/v1/webhooks/lindy/163b37c0-2f5c-4969-9b2e-0d5ec61afb52",
-  //       lindyOptions,
-  //     );
-
-  //     if (!response.ok) {
-  //       throw new Error("Failed to submit form");
+  //     if (!mcpResponse.ok) {
+  //       throw new Error("Failed to process waitlist signup");
   //     }
 
   //     setIsSuccess(true);

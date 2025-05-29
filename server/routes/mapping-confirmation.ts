@@ -1,9 +1,8 @@
 import { Request, Response } from "express";
 import { Anthropic } from "@anthropic-ai/sdk";
 import OpenAI from "openai";
-import { initializeApp, getApps, cert } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
-import { getStorage } from "firebase-admin/storage";
+import * as admin from "firebase-admin"; // Added for Firebase Admin SDK
+//import admin, { db, storageAdmin } from '@/lib/firebaseAdmin'; // Adjust path if you placed it elsewhere
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -13,22 +12,7 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-// 🔥 ADD THIS FIREBASE ADMIN SETUP:
-if (!getApps().length) {
-  initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    }),
-    storageBucket: "blueprint-8c1ca.appspot.com",
-  });
-}
-
-const adminDb = getFirestore();
-const storage = getStorage();
-
-// Helper function to extract structured data from AI response
+// Helper function to extract structured data from AI response (Phase 1)
 function extractDataFromAIResponse(responseText: string): {
   [key: string]: string;
 } {
@@ -47,7 +31,7 @@ function extractDataFromAIResponse(responseText: string): {
     "MAPPING_DURATION_MINUTES:",
     "CAR_TRAVEL_MINUTES:",
     "PUBLIC_TRANSPORT_MINUTES:",
-    "COMPANY_URL_USED:", // Adding this to ensure we pass the correct URL to phase 2
+    "COMPANY_URL_USED:",
   ];
 
   lines.forEach((line) => {
@@ -59,11 +43,93 @@ function extractDataFromAIResponse(responseText: string): {
           .toUpperCase();
         const value = line.substring(marker.length).trim();
         extractedData[key] = value;
-        break; // Move to next line once a marker is found
+        break;
       }
     }
   });
   return extractedData;
+}
+
+// Helper function to extract Key URLs from Deep Research Output (Phase 2)
+function extractUrlsFromDeepResearch(markdownText: string): {
+  [key: string]: string;
+} {
+  const urls: { [key: string]: string } = {};
+  if (typeof markdownText !== "string" || !markdownText) {
+    return urls;
+  }
+  const lines = markdownText.split("\n");
+  let inKeyUrlsSection = false;
+
+  // Define mappings from the text labels in markdown to Firestore field names
+  const keyMappings: { [key: string]: string } = {
+    Menu: "menu_url",
+    Reservations: "reservations_url",
+    "Wait List": "wait_list_url",
+    "Online Ordering": "online_ordering_url",
+    Reviews: "reviews_url",
+    "Loyalty Program": "loyalty_program_url",
+    "Specials/Promotions": "specials_promotions_url",
+    "Events/Calendar": "events_url",
+    // Add other mappings if needed
+  };
+
+  // Regex to find lines like "- Menu: http://example.com" or "- Menu: N/A"
+  // It also handles potential markdown links like "- Menu: [Visit Here](http://example.com)"
+  const itemRegex = /^\s*-\s*([^:]+):\s*(.*)/;
+
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+
+    if (trimmedLine.startsWith("### Key URLs Found:")) {
+      inKeyUrlsSection = true;
+      continue;
+    }
+
+    // If we encounter another H3 or a completely different section, stop processing Key URLs.
+    // This condition might need adjustment based on the variability of the AI's output.
+    if (
+      inKeyUrlsSection &&
+      (trimmedLine.startsWith("### ") || trimmedLine === "")
+    ) {
+      // If it's an empty line immediately after "### Key URLs Found:", don't break yet.
+      // If it's another heading, or several empty lines, then break.
+      // For simplicity, we'll break on any other H3.
+      if (
+        trimmedLine.startsWith("### ") &&
+        !trimmedLine.startsWith("### Key URLs Found:")
+      ) {
+        inKeyUrlsSection = false; // Exit the section
+        break;
+      }
+    }
+
+    if (inKeyUrlsSection) {
+      const match = trimmedLine.match(itemRegex);
+      if (match) {
+        const keyName = match[1].trim(); // e.g., "Menu"
+        let value = match[2].trim(); // e.g., "http://example.com" or "[Text](url)" or "N/A"
+
+        if (value.toLowerCase() !== "n/a" && value !== "") {
+          // Extract URL if it's in markdown format [Text](URL)
+          const markdownLinkMatch = value.match(
+            /\[.*?\]\((https?:\/\/[^\s)]+)\)/,
+          );
+          if (markdownLinkMatch && markdownLinkMatch[1]) {
+            value = markdownLinkMatch[1];
+          }
+
+          // Ensure it's a plausible URL (basic check)
+          if (value.startsWith("http://") || value.startsWith("https://")) {
+            if (keyMappings[keyName]) {
+              urls[keyMappings[keyName]] = value;
+            }
+          }
+        }
+      }
+    }
+  }
+  return urls;
 }
 
 export default async function processMappingConfirmationHandler(
@@ -80,6 +146,7 @@ export default async function processMappingConfirmationHandler(
       contact_name,
       contact_phone_number,
       estimated_square_footage,
+      blueprint_id,
     }: {
       have_we_onboarded?: string;
       chosen_time_of_mapping?: string;
@@ -91,148 +158,8 @@ export default async function processMappingConfirmationHandler(
       contact_name?: string;
       contact_phone_number?: string;
       estimated_square_footage?: number;
+      blueprint_id?: string;
     } = req.body;
-
-    // Helper function to extract URLs from deep research output
-    // Helper function to extract URLs from deep research output using OpenAI
-    async function extractUrlsFromResearch(researchOutput: string): Promise<{
-      [key: string]: string;
-    }> {
-      try {
-        const extractionPrompt = `
-    You are a URL extraction expert. Analyze the following company research output and extract specific URLs.
-
-    TASK: Find and extract URLs for these categories (return "N/A" if not found):
-    1. menu_url - Menu, food menu, drink menu, services menu
-    2. reservations_url - Reservations, booking, table booking, appointment booking
-    3. online_ordering_url - Online ordering, delivery, takeout, food ordering
-    4. events_url - Events, calendar, upcoming events, event booking
-    5. loyalty_url - Loyalty program, rewards, membership program
-    6. specials_url - Specials, promotions, deals, offers, coupons
-    7. reviews_url - Reviews, testimonials, Yelp page, Google reviews
-    8. waitlist_url - Waitlist, wait list, join waitlist
-
-    IMPORTANT: Return ONLY a valid JSON object in this exact format (no markdown, no explanation):
-    {
-      "menu_url": "URL_or_N/A",
-      "reservations_url": "URL_or_N/A", 
-      "online_ordering_url": "URL_or_N/A",
-      "events_url": "URL_or_N/A",
-      "loyalty_url": "URL_or_N/A",
-      "specials_url": "URL_or_N/A",
-      "reviews_url": "URL_or_N/A",
-      "waitlist_url": "URL_or_N/A"
-    }
-
-    RESEARCH OUTPUT TO ANALYZE:
-    ${researchOutput}
-    `;
-
-        const response = await openai.chat.completions.create({
-          model: "gpt-4.1", 
-          messages: [
-            {
-              role: "system",
-              content: "You are a precise URL extraction assistant. Return only valid JSON with no additional text or formatting."
-            },
-            {
-              role: "user",
-              content: extractionPrompt
-            }
-          ],
-          temperature: 0.1, // Low temperature for consistent results
-          max_tokens: 500
-        });
-
-        const extractedText = response.choices[0]?.message?.content;
-
-        if (!extractedText) {
-          console.error("No response from OpenAI URL extraction");
-          return {};
-        }
-
-        // Parse the JSON response
-        const urlData = JSON.parse(extractedText);
-
-        // Filter out "N/A" values
-        const filteredData: { [key: string]: string } = {};
-        for (const [key, value] of Object.entries(urlData)) {
-          if (value && value !== "N/A" && typeof value === "string") {
-            filteredData[key] = value;
-          }
-        }
-
-        console.log("OpenAI extracted URLs:", filteredData);
-        return filteredData;
-
-      } catch (error) {
-        console.error("Error extracting URLs with OpenAI:", error);
-        // Fallback to empty object if extraction fails
-        return {};
-      }
-    }
-
-    // Helper function to find blueprint by company URL or name
-    async function findBlueprintByCompany(
-      companyUrl: string,
-      companyName: string,
-    ): Promise<string | null> {
-      try {
-        // First try to find by company name (businessName field)
-        const nameQuery = adminDb
-          .collection("blueprints")
-          .where("businessName", "==", companyName)
-          .limit(1);
-
-        const nameSnapshot = await nameQuery.get();
-
-        if (!nameSnapshot.empty) {
-          return nameSnapshot.docs[0].id;
-        }
-
-        // If not found by name, try to find by comparing URLs in context or other fields
-        const allBlueprints = await adminDb.collection("blueprints").get();
-
-        for (const doc of allBlueprints.docs) {
-          const data = doc.data();
-          if (data.context && data.context.includes(companyUrl)) {
-            return doc.id;
-          }
-        }
-
-        return null;
-      } catch (error) {
-        console.error("Error finding blueprint:", error);
-        return null;
-      }
-    }
-
-    // Helper function to upload markdown content to Firebase Storage
-    async function uploadMarkdownToStorage(
-      blueprintId: string,
-      content: string,
-      filename: string,
-    ): Promise<string> {
-      try {
-        const bucket = storage.bucket();
-        const filePath = `blueprints/${blueprintId}/${filename}`;
-        const file = bucket.file(filePath);
-
-        await file.save(content, {
-          metadata: {
-            contentType: "text/markdown",
-          },
-        });
-
-        // Make the file publicly readable (optional)
-        await file.makePublic();
-
-        return `https://storage.googleapis.com/blueprint-8c1ca.appspot.com/${filePath}`;
-      } catch (error) {
-        console.error("Error uploading to storage:", error);
-        throw error;
-      }
-    }
 
     const requiredFields = {
       company_name,
@@ -243,6 +170,7 @@ export default async function processMappingConfirmationHandler(
       chosen_time_of_mapping,
       estimated_square_footage,
       company_url,
+      blueprint_id,
     };
 
     for (const [field, value] of Object.entries(requiredFields)) {
@@ -479,61 +407,68 @@ Provide a summary of all actions taken. Confirm if any fallback was used.
     const companyUrlForCall2 = extractedDataCall1.COMPANY_URL_USED;
 
     const promptCall2 = `
-Blueprint Post-Signup - Phase 2: Deep Research & Content Generation for ${company_name}.
+    Blueprint Post-Signup - Phase 2: Deep Research & Content Generation for ${company_name}.
 
-**INPUT DATA:**
-- Company Name: ${company_name}
-- Company URL: ${companyUrlForCall2}
-- Company Address: ${address}
-- Google Sheet Row ID to update: ${sheetRowId} (If "LOOKUP_REQUIRED" or "NOT_FOUND", your first step in TASK 2 must be to find the row by Website column matching "${companyUrlForCall2}")
+    **INPUT DATA:**
+    - Company Name: ${company_name}
+    - Company URL: ${companyUrlForCall2 || "No website provided, conduct general search if possible."}
+    - Company Address: ${address}
+    - Google Sheet Row ID to update: ${sheetRowId} (If "LOOKUP_REQUIRED" or "NOT_FOUND", your first step in TASK 2 must be to find the row by Website column matching "${companyUrlForCall2}")
 
-**TASK 1: PERFORM DEEP COMPANY RESEARCH (Using Perplexity Sonar or similar advanced web research tool available via Zapier)**
-For company at URL: ${companyUrlForCall2} (and physical address: ${address} for local context if needed)
-1.  Visit main website. If it's a generic portal, find the specific page for the location.
-2.  Extract Key URLs: Menu, Reservations, Wait List, Online Ordering, Reviews, Loyalty Program, Specials/Promotions, Events/Calendar. List them. If a URL is not found, state "N/A".
-3.  Menu Scrape: Get full menu (items, descriptions, prices). If PDF/image, provide a link to it and attempt to summarize its contents if tool supports. Note if not fully scrapable.
-4.  General Info Crawl: Hours, Social Media links, Contact Info (phone, email), About Us, Policies.
-5.  Content Scrape: For each Key URL from (1.2) that is not N/A, scrape its textual content.
-6.  Reviews: Find up to 6 Google Reviews & up to 6 Yelp Reviews (preferably 4+ stars, recent, extract text, reviewer name/initials, rating). If fewer are found, list what's available.
-7.  Engagement Questions: Create 5-10 personalized multiple-choice questions (with distinct correct answers) about the company, its services, or menu, based on your research.
-Compile all findings into a well-structured markdown block. Let's call this [DeepResearchOutput].
+    **TASK 1: PERFORM DEEP COMPANY RESEARCH (Using Perplexity Sonar or similar advanced web research tool available via Zapier)**
+    For company at URL: ${companyUrlForCall2 || "No website provided. Attempt research based on Company Name and Address."} (and physical address: ${address} for local context if needed)
+    1.  Visit main website. If it's a generic portal, find the specific page for the location. If no URL provided, attempt to find one.
+    2.  Extract Key URLs: Menu, Reservations, Wait List, Online Ordering, Reviews, Loyalty Program, Specials/Promotions, Events/Calendar. List them. If a URL is not found, state "N/A".
+    3.  Menu Scrape: Get full menu (items, descriptions, prices). If PDF/image, provide a link to it and attempt to summarize its contents if tool supports. Note if not fully scrapable.
+    4.  General Info Crawl: Hours, Social Media links, Contact Info (phone, email), About Us, Policies.
+    5.  Content Scrape: For each Key URL from (1.2) that is not N/A, scrape its textual content.
+    6.  Reviews: Find up to 6 Google Reviews & up to 6 Yelp Reviews (preferably 4+ stars, recent, extract text, reviewer name/initials, rating). If fewer are found, list what's available.
+    7.  Engagement Questions: Create 5-10 personalized multiple-choice questions (with distinct correct answers) about the company, its services, or menu, based on your research.
+    Compile all findings into a well-structured markdown block. Let's call this [DeepResearchOutput].
 
-**TASK 2: UPDATE GOOGLE SHEET WITH DEEP RESEARCH**
-Spreadsheet: "Blueprint Waitlist"
-If the provided Google Sheet Row ID is "LOOKUP_REQUIRED" or "NOT_FOUND", first find the row where 'Website' column matches "${companyUrlForCall2}" and use that Row ID. If still not found after attempting lookup, note this clearly.
-If a valid Row ID is available, update the column "Company Research" with the entire [DeepResearchOutput] from TASK 1.
-Also, update a column named "Research Timestamp" (or create if it doesn't exist) with the current date & time (e.g., YYYY-MM-DD HH:MM AM/PM EST).
+    **TASK 2: UPDATE GOOGLE SHEET WITH DEEP RESEARCH**
+    Spreadsheet: "Blueprint Waitlist"
+    If the provided Google Sheet Row ID is "LOOKUP_REQUIRED" or "NOT_FOUND", first find the row where 'Website' column matches "${companyUrlForCall2}" and use that Row ID. If still not found after attempting lookup, note this clearly.
+    If a valid Row ID is available, update the column "Company Research" with the entire [DeepResearchOutput] from TASK 1.
+    Also, update a column named "Research Timestamp" (or create if it doesn't exist) with the current date & time (e.g., YYYY-MM-DD HH:MM AM/PM EST).
 
-**TASK 3: CREATE NOTION PAGE**
-In a Notion database/page named "Blueprint Hub" (or a relevant parent page you can access):
-Title: "${company_name} - Blueprint Design Ideas & Research"
-Icon: (AI-selected emoji based on company type, e.g., 🍕 for pizza, ☕ for cafe, 🛍️ for retail)
-Cover: (AI-selected stock image URL based on company branding/type/location)
-Content (structured using Notion blocks like Headings, Text, Bullet lists):
-"### Deep Research Summary
-[Paste a concise 3-5 sentence summary of [DeepResearchOutput] here, highlighting key findings like menu type/main products, main services, hours. Include the direct website link: ${companyUrlForCall2}]
+    **TASK 3: CREATE NOTION PAGE**
+    In a Notion database/page named "Blueprint Hub" (or a relevant parent page you can access):
+    Title: "${company_name} - Blueprint Design Ideas & Research"
+    Icon: (AI-selected emoji based on company type, e.g., 🍕 for pizza, ☕ for cafe, 🛍️ for retail)
+    Cover: (AI-selected stock image URL based on company branding/type/location)
+    Content (structured using Notion blocks like Headings, Text, Bullet lists):
+    "### Deep Research Summary
+    [Paste a concise 3-5 sentence summary of [DeepResearchOutput] here, highlighting key findings like menu type/main products, main services, hours. Include the direct website link: ${companyUrlForCall2 || "N/A"}]
 
-### Key URLs Found:
-- Menu: [Link or N/A from TASK 1.2]
-- Reservations: [Link or N/A from TASK 1.2]
-- ... (list other key URLs from TASK 1.2)
+    ### Key URLs Found: 
+    (This section is CRITICAL for Firestore update. Ensure clear list format, e.g., "- Menu: [URL or N/A]")
+    - Menu: [Link or N/A from TASK 1.2]
+    - Reservations: [Link or N/A from TASK 1.2]
+    - Wait List: [Link or N/A from TASK 1.2]
+    - Online Ordering: [Link or N/A from TASK 1.2]
+    - Reviews: [Link or N/A from TASK 1.2]
+    - Loyalty Program: [Link or N/A from TASK 1.2]
+    - Specials/Promotions: [Link or N/A from TASK 1.2]
+    - Events/Calendar: [Link or N/A from TASK 1.2]
 
-### AI-Generated Blueprint AR Experience Ideas:
-(Based on [DeepResearchOutput], generate 3-5 creative AR experience ideas. For each, suggest potential placements/uses for Text, 3D Models, Media (images/videos), Webpages, and Uploaded Content (MP3/4, GLB, PNG, PDF, PPT) that could be relevant to the idea.)
-   **Idea 1: [Descriptive Title]**
-      - *Objective:* [Brief goal of this AR idea]
-      - *Text Elements:* [Examples]
-      - *3D Models:* [Examples, e.g., featured product, mascot]
-      - *Media:* [Examples, e.g., promotional video, image gallery]
-      - *Webpages:* [Examples, e.g., link to online ordering, loyalty signup]
-      - *Uploaded Content:* [Examples, e.g., PDF menu, promotional audio]
-   **(Repeat for 2-4 more ideas)**
+    ### AI-Generated Blueprint AR Experience Ideas:
+    (Based on [DeepResearchOutput], generate 3-5 creative AR experience ideas. For each, suggest potential placements/uses for Text, 3D Models, Media (images/videos), Webpages, and Uploaded Content (MP3/4, GLB, PNG, PDF, PPT) that could be relevant to the idea.)
+       **Idea 1: [Descriptive Title]**
+          - *Objective:* [Brief goal of this AR idea]
+          - *Text Elements:* [Examples]
+          - *3D Models:* [Examples, e.g., featured product, mascot]
+          - *Media:* [Examples, e.g., promotional video, image gallery]
+          - *Webpages:* [Examples, e.g., link to online ordering, loyalty signup]
+          - *Uploaded Content:* [Examples, e.g., PDF menu, promotional audio]
+       **(Repeat for 2-4 more ideas)**
 
-### Customer Engagement Questions (from Research):
-(List the 5-10 MCQs with their answers from TASK 1.7)"
+    ### Customer Engagement Questions (from Research):
+    (List the 5-10 MCQs with their answers from TASK 1.7)"
 
-Execute tasks sequentially. Provide a summary of actions, including the Notion page URL. If research was limited or any task failed, note these limitations clearly.
-`;
+    Execute tasks sequentially. Provide a summary of actions, including the Notion page URL. If research was limited or any task failed, note these limitations clearly.
+    The entire response from this phase will be considered [DeepResearchOutput].
+    `;
 
     console.log("Sending Prompt for Call 2 to OpenAI...");
     const mcpResponseCall2: OpenAI.Response = await openai.responses.create({
@@ -606,98 +541,105 @@ Execute tasks sequentially. Provide a summary of actions, including the Notion p
     }
     console.log("Successfully extracted responseTextCall2:", responseTextCall2);
 
-    console.log("Starting Firebase update with research data...");
+    // --- START: New Firebase Operations ---
+    let firebaseStoragePath: string | null = null;
+    let firestoreUpdateDetails: any = { success: false };
+    let firebaseOpsError: string | null = null;
 
-    try {
-      // 1. Find the blueprint document by company info
-      let blueprintId = null;
+    if (blueprint_id) {
+      // Ensure blueprint_id is available
       try {
-        // 1. Find the blueprint document by company info
-        blueprintId = await findBlueprintByCompany(
-          companyUrlForCall2,
-          company_name,
-        );
+        // Ensure Firebase Admin is initialized
+        if (!admin.apps.length) {
+          // This is a critical error if not initialized. For this example, we log and proceed,
+          // but in a production app, this should be handled robustly, or initialization guaranteed.
+          console.error(
+            "CRITICAL: Firebase Admin SDK is not initialized. Firebase operations will fail.",
+          );
+          throw new Error("Firebase Admin SDK not initialized.");
+        }
+        const db = admin.firestore();
+        const bucket = admin.storage().bucket(); // Default bucket
 
-      if (!blueprintId) {
-        console.warn(
-          `No blueprint found for company: ${company_name} (${companyUrlForCall2})`,
-        );
-      } else {
-        console.log(`Found blueprint ID: ${blueprintId}`);
+        // 1. Upload Deep Research output (responseTextCall2) to Firebase Storage
+        // The "IF THE output from deep research contains markdown files" implies that
+        // responseTextCall2 itself is the markdown content to be uploaded.
+        if (responseTextCall2) {
+          const storageFilePath = `blueprints/${blueprint_id}/deep_research_report.md`;
+          const file = bucket.file(storageFilePath);
 
-        // 2. Extract URLs from the research output
-        const extractedUrls = await extractUrlsFromResearch(responseTextCall2);
-        console.log("Extracted URLs:", extractedUrls);
-
-        // 3. Check if research output contains markdown content to upload
-        let uploadedFileUrl = null;
-        if (
-          responseTextCall2.includes("```") ||
-          responseTextCall2.includes("markdown")
-        ) {
-          try {
-            const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-            const filename = `research-report-${timestamp}.md`;
-            uploadedFileUrl = await uploadMarkdownToStorage(
-              blueprintId,
-              responseTextCall2,
-              filename,
-            );
-            console.log("Uploaded markdown file:", uploadedFileUrl);
-          } catch (uploadError) {
-            console.error("Error uploading markdown file:", uploadError);
-            // Continue without failing the entire process
-          }
+          await file.save(responseTextCall2, {
+            metadata: {
+              contentType: "text/markdown; charset=utf-8", // Specify UTF-8
+            },
+          });
+          firebaseStoragePath = `gs://${bucket.name}/${storageFilePath}`;
+          console.log(
+            `Deep research report uploaded to Firebase Storage: ${firebaseStoragePath}`,
+          );
         }
 
-        // 4. Prepare the update data for Firestore
-        const updateData: any = {
-          context: responseTextCall2, // Store the full research output
-          lastResearchUpdate: new Date().toISOString(),
-          researchCompleted: true,
-          ...extractedUrls, // Spread the extracted URLs (menu_url, reservations_url, etc.)
+        // 2. Update Firestore document
+        const blueprintDocRef = db.collection("blueprints").doc(blueprint_id);
+        const firestoreUpdateData: { [key: string]: any } = {
+          context: responseTextCall2, // Paste whole output from Deep Research
+          researchLastUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
         };
 
-        // Add uploaded file URL if available
-        if (uploadedFileUrl) {
-          updateData.researchReportUrl = uploadedFileUrl;
+        // Extract Key URLs from responseTextCall2 and add them to the update object
+        const extractedUrls = extractUrlsFromDeepResearch(responseTextCall2);
+        if (Object.keys(extractedUrls).length > 0) {
+          console.log("Extracted URLs for Firestore:", extractedUrls);
+        } else {
+          console.warn(
+            "No key URLs extracted from deep research output for Firestore. Check AI output format.",
+          );
         }
 
-        // 5. Update the blueprint document in Firestore
-        await adminDb
-          .collection("blueprints")
-          .doc(blueprintId)
-          .update(updateData);
+        for (const key in extractedUrls) {
+          firestoreUpdateData[key] = extractedUrls[key];
+        }
 
+        await blueprintDocRef.set(firestoreUpdateData, { merge: true }); // Use set with merge to create or update
+        firestoreUpdateDetails = {
+          success: true,
+          documentPath: blueprintDocRef.path,
+          updatedFields: Object.keys(firestoreUpdateData),
+        };
         console.log(
-          `Successfully updated blueprint ${blueprintId} with research data`,
+          `Firestore document ${blueprintDocRef.path} updated successfully.`,
         );
+      } catch (fbError: any) {
+        console.error("Firebase operation failed:", fbError);
+        firebaseOpsError =
+          fbError.message ||
+          "An unknown error occurred during Firebase operations.";
+        // Optional: if Firebase ops are critical, you might re-throw or return 500 here
+        // For now, we'll report the error in the response.
       }
-    } catch (firebaseError) {
-      console.error(
-        "Error updating Firebase with research data:",
-        firebaseError,
-      );
-      // Don't fail the entire process, just log the error
+    } else {
+      firebaseOpsError =
+        "Blueprint ID was missing, Firebase operations skipped.";
+      console.warn(firebaseOpsError);
     }
+    // --- END: New Firebase Operations ---
 
-    // Original response with additional Firebase info
     res.json({
       success: true,
       phase1_summary: responseTextCall1,
       phase1_extracted_data: extractedDataCall1,
       phase2_summary: responseTextCall2,
-      firebase_update: {
-        blueprint_found: !!blueprintId,
-        blueprint_id: blueprintId || null,
-        urls_extracted: extractedUrls || {},
+      firebase_operations_status: {
+        // New section for Firebase results
+        storage_upload_path: firebaseStoragePath,
+        firestore_update: firestoreUpdateDetails,
+        error: firebaseOpsError,
       },
       message:
-        "Mapping confirmation workflow (Phases 1 & 2) and Firebase update processed.",
+        "Mapping confirmation workflow (Phases 1 & 2) processed. Review Firebase operations status.",
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
-    // ... (error handling remains the same) ...
     console.error("Error processing mapping confirmation:", error);
     let errorMessage = "Failed to process mapping confirmation";
     if (error.response && error.response.data) {

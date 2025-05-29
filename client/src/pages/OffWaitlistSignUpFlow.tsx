@@ -244,7 +244,10 @@ export default function OffWaitlistSignUpFlow() {
           createdBlueprintIDs: arrayUnion(blueprintId),
         });
 
-        // Add the webhook call here to use the user's chosen scheduling info:
+        // 🎉 SHOW SUCCESS IMMEDIATELY - Move to step 4 right away
+        setStep((prev) => prev + 1);
+
+        // 🔥 FIRE MCP CALL IN BACKGROUND (don't await)
         const chosenDate = scheduleDate.toISOString().split("T")[0];
         const chosenTime = scheduleTime;
         const cName = organizationName.trim();
@@ -253,37 +256,7 @@ export default function OffWaitlistSignUpFlow() {
         const personName = contactName.trim();
         const contactPhone = phoneNumber.trim();
 
-        // const options = {
-        //   method: "POST",
-        //   headers: {
-        //     Authorization:
-        //       "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
-        //     "Content-Type": "application/json",
-        //   },
-        //   body: JSON.stringify({
-        //     have_we_onboarded: "No",
-        //     chosen_time_of_mapping: chosenTime,
-        //     chosen_date_of_mapping: chosenDate,
-        //     have_user_chosen_date: "Yes",
-        //     address: cAddress,
-        //     company_url: cUrl,
-        //     company_name: cName,
-        //     contact_name: personName,
-        //     contact_phone_number: contactPhone,
-        //     estimated_square_footage: squareFootage,
-        //   }),
-        // };
-
-        // fetch(
-        //   "https://public.lindy.ai/api/v1/webhooks/lindy/43c7b7d7-bc40-4593-acfe-ba79ad6488b8",
-        //   options,
-        // )
-        //   .then((res) => res.json())
-        //   .then((data) => console.log("Lindy response:", data))
-        //   .catch((err) => console.error("Lindy error:", err));
-
-        // ✅ NEW MCP WEBHOOK CALL:
-        const mcpResponse = await fetch("/api/mapping-confirmation", {
+        fetch("/api/mapping-confirmation", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -299,43 +272,27 @@ export default function OffWaitlistSignUpFlow() {
             contact_name: personName,
             contact_phone_number: contactPhone,
             estimated_square_footage: squareFootage,
+            blueprint_id: blueprintId,
           }),
-        });
-
-        if (!mcpResponse.ok) {
-          console.log("Debug - API payload:", {
-            have_we_onboarded: "No",
-            chosen_time_of_mapping: chosenTime,
-            chosen_date_of_mapping: chosenDate,
-            have_user_chosen_date: "Yes",
-            address: cAddress || "123 Washington St., Raleigh, NC",
-            company_url: cUrl || "https://example.com",
-            company_name: cName,
-            contact_name: personName,
-            contact_phone_number: contactPhone,
-            estimated_square_footage: squareFootage,
+        })
+          .then(async (mcpResponse) => {
+            if (!mcpResponse.ok) {
+              const errorText = await mcpResponse.text();
+              console.error("Background MCP process failed:", errorText);
+              // Optionally update booking status to indicate processing failed
+              return;
+            }
+            const result = await mcpResponse.json();
+            console.log(
+              "Background MCP mapping confirmation completed:",
+              result,
+            );
+            // Optionally update booking status to indicate processing completed
+          })
+          .catch((error) => {
+            console.error("Background MCP process error:", error);
+            // Optionally update booking status to indicate processing failed
           });
-          const errorText = await mcpResponse.text();
-          console.log("API Error Response:", errorText);
-          throw new Error(
-            `Failed to process mapping confirmation: ${errorText}`,
-          );
-        }
-
-        const result = await mcpResponse.json();
-        console.log("MCP mapping confirmation completed:", result);
-        console.log("Debug - API payload:", {
-          have_we_onboarded: "No",
-          chosen_time_of_mapping: chosenTime,
-          chosen_date_of_mapping: chosenDate,
-          have_user_chosen_date: "Yes",
-          address: cAddress,
-          company_url: cUrl,
-          company_name: cName,
-          contact_name: personName,
-          contact_phone_number: contactPhone,
-          estimated_square_footage: squareFootage,
-        });
       } catch (error: unknown) {
         console.error("Error updating scheduling info:", error);
         const errorMessage =
@@ -344,8 +301,6 @@ export default function OffWaitlistSignUpFlow() {
         return; // Stop here if there's an error
       }
     }
-    // Finally, advance to the next step if everything succeeded
-    setStep((prev) => prev + 1);
   }
 
   //       const options = {
@@ -616,10 +571,10 @@ export default function OffWaitlistSignUpFlow() {
     const fetchWebsiteForPrefilledOrg = async () => {
       // Only run if we have a prefilled org name and places service is ready
       if (
-        organizationName && 
-        autocomplete && 
-        placesService && 
-        tokenData && 
+        organizationName &&
+        autocomplete &&
+        placesService &&
+        tokenData &&
         !companyWebsite // Only if we don't already have a website
       ) {
         try {
@@ -628,9 +583,14 @@ export default function OffWaitlistSignUpFlow() {
             componentRestrictions: { country: "us" },
           };
 
-          const predictions = await new Promise<google.maps.places.AutocompletePrediction[]>((resolve, reject) => {
+          const predictions = await new Promise<
+            google.maps.places.AutocompletePrediction[]
+          >((resolve, reject) => {
             autocomplete.getPlacePredictions(request, (results, status) => {
-              if (status !== google.maps.places.PlacesServiceStatus.OK || !results) {
+              if (
+                status !== google.maps.places.PlacesServiceStatus.OK ||
+                !results
+              ) {
                 return reject(new Error(`Places API error: ${status}`));
               }
               resolve(results);
@@ -645,7 +605,10 @@ export default function OffWaitlistSignUpFlow() {
                 fields: ["website", "formatted_address"],
               },
               (placeResult, status) => {
-                if (status === google.maps.places.PlacesServiceStatus.OK && placeResult) {
+                if (
+                  status === google.maps.places.PlacesServiceStatus.OK &&
+                  placeResult
+                ) {
                   if (placeResult.website) {
                     setCompanyWebsite(placeResult.website);
                   }
@@ -653,7 +616,7 @@ export default function OffWaitlistSignUpFlow() {
                     setAddress(placeResult.formatted_address);
                   }
                 }
-              }
+              },
             );
           }
         } catch (error) {
@@ -664,7 +627,13 @@ export default function OffWaitlistSignUpFlow() {
     };
 
     fetchWebsiteForPrefilledOrg();
-  }, [organizationName, autocomplete, placesService, tokenData, companyWebsite]);
+  }, [
+    organizationName,
+    autocomplete,
+    placesService,
+    tokenData,
+    companyWebsite,
+  ]);
 
   useEffect(() => {
     if (step === 2) {
