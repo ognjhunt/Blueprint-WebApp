@@ -46,10 +46,10 @@ export default function Home() {
       icon: <Users className="w-6 h-6 md:w-8 md:h-8" />,
       title: "Join Waitlist",
       description:
-        "Secure your spot in our exclusive early access program. Priority onboarding and special pricing available.",
+        "Secure your spot in our exclusive early access program. Priority onboarding for our free pilot program available.",
       benefits: [
         "Priority access",
-        "Early adopter pricing",
+        "Free 14-day pilot",
         "Dedicated support",
       ],
       color: "from-emerald-500 to-teal-600",
@@ -376,7 +376,7 @@ export default function Home() {
                 className="text-lg px-10 py-6 font-semibold border-2 border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-all duration-300"
                 onClick={handleScrollToContactForm}
               >
-                See Pricing & Get Started
+                Learn More & Get Started
                 <ArrowDown className="w-5 h-5 ml-2" />
               </Button>
             </motion.div>

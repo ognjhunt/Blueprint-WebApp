@@ -85,7 +85,7 @@ export default function ContactForm() {
     },
     {
       icon: <TrendingUp className="w-5 h-5" />,
-      title: "Proven ROI",
+      title: "Proven Impact",
       description: "200%+ engagement increase",
     },
   ];
@@ -413,11 +413,10 @@ export default function ContactForm() {
                       </div>
                       <div>
                         <h4 className="font-bold text-lg">
-                          Industry Leader Pricing
+                          Exclusive Early Access
                         </h4>
                         <p className="text-sm opacity-80 leading-relaxed">
-                          Lock in exclusive early adopter rates before our
-                          public launch
+                          Get exclusive access and benefits as an early participant in our free pilot program.
                         </p>
                       </div>
                     </div>
@@ -529,7 +528,6 @@ export default function ContactForm() {
                     <div className="text-sm text-slate-500 mb-8">
                       <p>• Check your email for confirmation</p>
                       <p>• Priority access secured</p>
-                      <p>• Early adopter pricing locked in</p>
                     </div>
                     <Button
                       className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 px-8 py-3 font-semibold"
