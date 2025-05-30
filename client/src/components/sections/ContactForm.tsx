@@ -308,7 +308,7 @@ export default function ContactForm() {
     <motion.section
       ref={formRef}
       id="contactForm"
-      className="py-20 md:py-28 relative overflow-hidden bg-gradient-to-b from-slate-50 via-white to-slate-50"
+      className="py-10 md:py-20 lg:py-28 relative overflow-hidden bg-gradient-to-b from-slate-50 via-white to-slate-50"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 1 }}
@@ -332,49 +332,73 @@ export default function ContactForm() {
       <div className="container mx-auto px-6 relative z-10">
         {/* Enhanced header */}
         <motion.div
-          className="max-w-4xl mx-auto mb-20 text-center"
+          className="max-w-4xl mx-auto mb-8 md:mb-20 text-center" // Reduced mb-20 to mb-8 on mobile
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 30 }}
           transition={{ duration: 0.8 }}
         >
-          <div className="inline-flex items-center justify-center gap-2 mb-6 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 py-3 px-6 rounded-full border border-emerald-200">
-            <RocketLaunchIcon className="w-5 h-5" />
-            <span className="text-sm font-bold uppercase tracking-wider">
+          <div className="inline-flex items-center justify-center gap-2 mb-4 md:mb-6 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 py-2 md:py-3 px-4 md:px-6 rounded-full border border-emerald-200">
+            <RocketLaunchIcon className="w-4 h-4 md:w-5 md:h-5" />
+            <span className="text-xs md:text-sm font-bold uppercase tracking-wider">
               Limited Early Access Program
             </span>
           </div>
 
-          <h2 className="text-4xl md:text-6xl font-black mb-8 leading-tight text-slate-900">
+          <h2 className="text-3xl md:text-6xl font-black mb-4 md:mb-8 leading-tight text-slate-900">
             Ready to Transform Your{" "}
             <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 text-transparent bg-clip-text">
               Customer Experience?
             </span>
           </h2>
 
-          <p className="text-xl md:text-2xl text-slate-600 max-w-3xl mx-auto leading-relaxed mb-8">
+          <p className="text-lg md:text-2xl text-slate-600 max-w-3xl mx-auto leading-relaxed mb-6 md:mb-8">
             Join industry leaders who are already revolutionizing customer
             engagement with our cutting-edge AR technology platform.
           </p>
 
-          {/* Enhanced benefits grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
-            {benefits.map((benefit, index) => (
+          {/* Mobile: Show only 2 key benefits, Desktop: Show all 4 */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 max-w-3xl mx-auto">
+            {benefits.slice(0, 2).map((benefit, index) => (
               <motion.div
                 key={benefit.title}
-                className="text-center p-4 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm"
+                className="text-center p-3 md:p-4 bg-white/80 backdrop-blur-sm rounded-xl md:rounded-2xl border border-slate-200 shadow-sm"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 20 }}
                 transition={{ duration: 0.6, delay: index * 0.1 }}
               >
-                <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-xl flex items-center justify-center text-white mx-auto mb-3">
+                <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-lg md:rounded-xl flex items-center justify-center text-white mx-auto mb-2 md:mb-3">
                   {benefit.icon}
                 </div>
-                <h4 className="font-bold text-sm text-slate-900 mb-1">
+                <h4 className="font-bold text-xs md:text-sm text-slate-900 mb-1">
                   {benefit.title}
                 </h4>
-                <p className="text-xs text-slate-600">{benefit.description}</p>
+                <p className="text-xs text-slate-600 hidden md:block">
+                  {benefit.description}
+                </p>
               </motion.div>
             ))}
+            {/* Show remaining benefits only on desktop */}
+            <div className="hidden md:contents">
+              {benefits.slice(2).map((benefit, index) => (
+                <motion.div
+                  key={benefit.title}
+                  className="text-center p-4 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 20 }}
+                  transition={{ duration: 0.6, delay: (index + 2) * 0.1 }}
+                >
+                  <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-xl flex items-center justify-center text-white mx-auto mb-3">
+                    {benefit.icon}
+                  </div>
+                  <h4 className="font-bold text-sm text-slate-900 mb-1">
+                    {benefit.title}
+                  </h4>
+                  <p className="text-xs text-slate-600">
+                    {benefit.description}
+                  </p>
+                </motion.div>
+              ))}
+            </div>
           </div>
         </motion.div>
 
@@ -387,86 +411,116 @@ export default function ContactForm() {
           >
             <div className="grid grid-cols-1 lg:grid-cols-5">
               {/* Enhanced left sidebar */}
-              <div className="lg:col-span-2 bg-gradient-to-br from-slate-900 via-indigo-900 to-violet-900 text-white p-8 md:p-12 relative overflow-hidden">
+              <div className="lg:col-span-2 bg-gradient-to-br from-slate-900 via-indigo-900 to-violet-900 text-white p-4 md:p-8 lg:p-12 relative overflow-hidden">
                 <div className="relative z-10">
-                  <div className="flex items-center gap-2 mb-4">
-                    <SparklesIcon className="w-6 h-6 text-yellow-400" />
-                    <span className="text-sm font-bold uppercase tracking-wider text-yellow-400">
+                  <div className="flex items-center gap-2 mb-3 md:mb-4">
+                    <SparklesIcon className="w-5 h-5 md:w-6 md:h-6 text-yellow-400" />
+                    <span className="text-xs md:text-sm font-bold uppercase tracking-wider text-yellow-400">
                       Early Access
                     </span>
                   </div>
 
-                  <h3 className="font-black text-3xl mb-6 leading-tight">
+                  <h3 className="font-black text-xl md:text-3xl mb-4 md:mb-6 leading-tight">
                     Be Among the First to Launch AR Experiences
                   </h3>
 
-                  <p className="mb-8 text-lg opacity-90 leading-relaxed">
-                    Blueprint is transforming how businesses engage customers
-                    across retail, hospitality, and commercial spaces. Join our
-                    exclusive early access program.
+                  {/* Mobile: Show only key info, Desktop: Show full content */}
+                  <p className="mb-4 md:mb-8 text-sm md:text-lg opacity-90 leading-relaxed">
+                    <span className="md:hidden">
+                      Join our exclusive early access program with white-glove
+                      onboarding.
+                    </span>
+                    <span className="hidden md:block">
+                      Blueprint is transforming how businesses engage customers
+                      across retail, hospitality, and commercial spaces. Join
+                      our exclusive early access program.
+                    </span>
                   </p>
 
-                  <div className="space-y-6">
-                    <div className="flex items-start space-x-4">
-                      <div className="bg-white/20 rounded-2xl p-3 mt-1">
-                        <Award className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-lg">
-                          Exclusive Early Access
-                        </h4>
-                        <p className="text-sm opacity-80 leading-relaxed">
-                          Get exclusive access and benefits as an early participant in our free pilot program.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start space-x-4">
-                      <div className="bg-white/20 rounded-2xl p-3 mt-1">
-                        <Users className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-lg">
-                          White-Glove Onboarding
-                        </h4>
-                        <p className="text-sm opacity-80 leading-relaxed">
-                          Dedicated success team ensures seamless implementation
-                          and optimization
-                        </p>
+                  {/* Mobile: Show condensed benefits, Desktop: Show full list */}
+                  <div className="space-y-3 md:space-y-6">
+                    {/* Mobile: Only show first benefit */}
+                    <div className="md:hidden">
+                      <div className="flex items-center space-x-3">
+                        <div className="bg-white/20 rounded-xl p-2">
+                          <Award className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm">
+                            Exclusive Early Access
+                          </h4>
+                          <p className="text-xs opacity-80">
+                            Free pilot program with priority support
+                          </p>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="flex items-start space-x-4">
-                      <div className="bg-white/20 rounded-2xl p-3 mt-1">
-                        <Zap className="w-6 h-6" />
+                    {/* Desktop: Show all benefits */}
+                    <div className="hidden md:block space-y-6">
+                      <div className="flex items-start space-x-4">
+                        <div className="bg-white/20 rounded-2xl p-3 mt-1">
+                          <Award className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-lg">
+                            Exclusive Early Access
+                          </h4>
+                          <p className="text-sm opacity-80 leading-relaxed">
+                            Get exclusive access and benefits as an early
+                            participant in our free pilot program.
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-bold text-lg">Priority Markets</h4>
-                        <p className="text-sm opacity-80 leading-relaxed">
-                          Major cities qualify for immediate deployment with no
-                          waiting period
-                        </p>
+
+                      <div className="flex items-start space-x-4">
+                        <div className="bg-white/20 rounded-2xl p-3 mt-1">
+                          <Users className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-lg">
+                            White-Glove Onboarding
+                          </h4>
+                          <p className="text-sm opacity-80 leading-relaxed">
+                            Dedicated success team ensures seamless
+                            implementation and optimization
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start space-x-4">
+                        <div className="bg-white/20 rounded-2xl p-3 mt-1">
+                          <Zap className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-lg">
+                            Priority Markets
+                          </h4>
+                          <p className="text-sm opacity-80 leading-relaxed">
+                            Major cities qualify for immediate deployment with
+                            no waiting period
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Priority market indicator */}
+                  {/* Priority market indicator - keep as is but smaller on mobile */}
                   {isPriorityMarket && (
                     <motion.div
-                      className="mt-8 p-4 bg-emerald-500/20 border border-emerald-400/30 rounded-2xl"
+                      className="mt-4 md:mt-8 p-3 md:p-4 bg-emerald-500/20 border border-emerald-400/30 rounded-xl md:rounded-2xl"
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: 0.5 }}
                     >
-                      <div className="flex items-center gap-2 mb-2">
-                        <StarIcon className="w-5 h-5 text-emerald-400" />
-                        <span className="font-bold text-emerald-400">
+                      <div className="flex items-center gap-2 mb-1 md:mb-2">
+                        <StarIcon className="w-4 h-4 md:w-5 md:h-5 text-emerald-400" />
+                        <span className="font-bold text-emerald-400 text-sm md:text-base">
                           Priority Market Detected!
                         </span>
                       </div>
-                      <p className="text-sm text-emerald-200">
-                        {formData.city} qualifies for immediate onboarding with
-                        no waiting period.
+                      <p className="text-xs md:text-sm text-emerald-200">
+                        {formData.city} qualifies for immediate onboarding.
                       </p>
                     </motion.div>
                   )}
@@ -507,10 +561,11 @@ export default function ContactForm() {
               </div>
 
               {/* Enhanced form area */}
-              <div className="lg:col-span-3 p-8 md:p-12">
+              <div className="lg:col-span-3 p-4 md:p-8 lg:p-12">
                 {isSuccess ? (
+                  // Keep success state as is but reduce padding
                   <motion.div
-                    className="h-full flex flex-col items-center justify-center text-center p-8"
+                    className="h-full flex flex-col items-center justify-center text-center p-4 md:p-8"
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.6 }}
@@ -539,18 +594,18 @@ export default function ContactForm() {
                 ) : (
                   <motion.form
                     onSubmit={handleSubmit}
-                    className="space-y-8"
+                    className="space-y-4 md:space-y-8" // Reduced spacing on mobile
                     initial={{ opacity: 0 }}
                     animate={{ opacity: isInView ? 1 : 0 }}
                     transition={{ duration: 0.8, delay: 0.4 }}
                   >
-                    {/* Form fields with enhanced styling */}
+                    {/* All form fields - just update the spacing and sizing */}
                     <div>
                       <label
-                        className="block text-lg font-bold mb-3 flex items-center text-slate-900"
+                        className="block text-base md:text-lg font-bold mb-2 md:mb-3 flex items-center text-slate-900"
                         htmlFor="name"
                       >
-                        <UserIcon className="w-5 h-5 mr-3 text-indigo-500" />
+                        <UserIcon className="w-4 h-4 md:w-5 md:h-5 mr-2 md:mr-3 text-indigo-500" />
                         Full Name
                       </label>
                       <Input
@@ -560,7 +615,7 @@ export default function ContactForm() {
                         placeholder="John Doe"
                         value={formData.name}
                         onChange={handleChange}
-                        className="border-2 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-2xl py-4 px-6 text-lg bg-white/80 backdrop-blur-sm"
+                        className="border-2 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl md:rounded-2xl py-3 md:py-4 px-4 md:px-6 text-base md:text-lg bg-white/80 backdrop-blur-sm"
                       />
                       {errors.name && (
                         <p className="text-red-500 text-sm mt-2">
@@ -672,13 +727,13 @@ export default function ContactForm() {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                       <div>
                         <label
-                          className="block text-lg font-bold mb-3 flex items-center text-slate-900"
+                          className="block text-base md:text-lg font-bold mb-2 md:mb-3 flex items-center text-slate-900"
                           htmlFor="city"
                         >
-                          <MapPinIcon className="w-5 h-5 mr-3 text-indigo-500" />
+                          <MapPinIcon className="w-4 h-4 md:w-5 md:h-5 mr-2 md:mr-3 text-indigo-500" />
                           City
                         </label>
                         <Input
@@ -688,7 +743,7 @@ export default function ContactForm() {
                           placeholder="Los Angeles"
                           value={formData.city}
                           onChange={handleChange}
-                          className="border-2 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-2xl py-4 px-6 text-lg bg-white/80 backdrop-blur-sm"
+                          className="border-2 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl md:rounded-2xl py-3 md:py-4 px-4 md:px-6 text-base md:text-lg bg-white/80 backdrop-blur-sm"
                         />
                         {errors.city && (
                           <p className="text-red-500 text-sm mt-2">
@@ -698,7 +753,7 @@ export default function ContactForm() {
                       </div>
                       <div>
                         <label
-                          className="block text-lg font-bold mb-3 text-slate-900"
+                          className="block text-base md:text-lg font-bold mb-2 md:mb-3 text-slate-900"
                           htmlFor="state"
                         >
                           State
@@ -710,7 +765,7 @@ export default function ContactForm() {
                           placeholder="CA"
                           value={formData.state}
                           onChange={handleChange}
-                          className="border-2 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-2xl py-4 px-6 text-lg bg-white/80 backdrop-blur-sm"
+                          className="border-2 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl md:rounded-2xl py-3 md:py-4 px-4 md:px-6 text-base md:text-lg bg-white/80 backdrop-blur-sm"
                         />
                         {errors.state && (
                           <p className="text-red-500 text-sm mt-2">
@@ -722,27 +777,27 @@ export default function ContactForm() {
 
                     <div>
                       <label
-                        className="block text-lg font-bold mb-3 flex items-center text-slate-900"
+                        className="block text-base md:text-lg font-bold mb-2 md:mb-3 flex items-center text-slate-900"
                         htmlFor="message"
                       >
-                        <ChatBubbleBottomCenterTextIcon className="w-5 h-5 mr-3 text-indigo-500" />
+                        <ChatBubbleBottomCenterTextIcon className="w-4 h-4 md:w-5 md:h-5 mr-2 md:mr-3 text-indigo-500" />
                         Tell Us About Your Vision (Optional)
                       </label>
                       <Textarea
                         id="message"
                         name="message"
                         placeholder="Describe your space, goals, or any specific AR experiences you have in mind..."
-                        rows={4}
+                        rows={3} // Reduced from 4
                         value={formData.message}
                         onChange={handleChange}
-                        className="border-2 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-2xl py-4 px-6 text-lg bg-white/80 backdrop-blur-sm resize-none"
+                        className="border-2 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl md:rounded-2xl py-3 md:py-4 px-4 md:px-6 text-base md:text-lg bg-white/80 backdrop-blur-sm resize-none"
                       />
                     </div>
 
                     <Button
                       type="submit"
                       disabled={isSubmitting}
-                      className="w-full py-6 text-xl font-bold bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 hover:from-indigo-700 hover:via-violet-700 hover:to-fuchsia-700 transition-all duration-500 rounded-2xl shadow-2xl hover:shadow-indigo-200/50 border-0 hover:scale-105"
+                      className="w-full py-4 md:py-6 text-lg md:text-xl font-bold bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 hover:from-indigo-700 hover:via-violet-700 hover:to-fuchsia-700 transition-all duration-500 rounded-xl md:rounded-2xl shadow-2xl hover:shadow-indigo-200/50 border-0 hover:scale-105"
                     >
                       {isSubmitting ? (
                         <div className="flex items-center justify-center gap-3">
@@ -776,7 +831,7 @@ export default function ContactForm() {
                       )}
                     </Button>
 
-                    <p className="text-sm text-slate-500 text-center">
+                    <p className="text-xs md:text-sm text-slate-500 text-center">
                       By submitting, you agree to receive updates about
                       Blueprint. We respect your privacy and never share your
                       information.

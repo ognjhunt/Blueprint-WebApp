@@ -14,6 +14,7 @@ import {
 export default function LocationShowcase() {
   const [selectedLocation, setSelectedLocation] = useState("Grocery Store");
   const [isHovering, setIsHovering] = useState(null);
+  const [showAfter, setShowAfter] = useState(false);
 
   const [groceryIndex, setGroceryIndex] = useState(0);
   useEffect(() => {
@@ -213,142 +214,82 @@ export default function LocationShowcase() {
           ))}
         </motion.div>
 
-        {/* Enhanced before/after comparison */}
-        <div className="relative max-w-7xl mx-auto">
+        <div className="relative max-w-4xl mx-auto">
           <AnimatePresence mode="wait">
             <motion.div
               key={selectedLocation}
-              className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12"
+              className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl cursor-pointer"
               initial={{ opacity: 0, y: 50 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -50 }}
               transition={{ duration: 0.8 }}
+              onClick={() => setShowAfter(!showAfter)} // Tap to toggle on mobile
             >
               {/* Before Image */}
               <motion.div
-                className="relative group"
-                layoutId={`container-${currentLocation.id}`}
-                transition={{ duration: 0.6 }}
+                className="absolute inset-0"
+                animate={{ opacity: showAfter ? 0 : 1 }}
+                transition={{ duration: 0.5 }}
               >
-                <div className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl">
-                  <motion.img
-                    src={
-                      selectedLocation === "Grocery Store"
-                        ? groceryBeforeImages[groceryIndex]
-                        : currentLocation.image
-                    }
-                    alt={currentLocation.name}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    initial={{ scale: 1.1 }}
-                    animate={{ scale: 1 }}
-                    transition={{ duration: 1 }}
-                  />
-
-                  {/* Before overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent">
-                    <div className="absolute bottom-6 left-6 text-white">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-3 h-3 rounded-full bg-red-400"></div>
-                        <span className="text-sm font-semibold uppercase tracking-wider">
-                          Before
-                        </span>
-                      </div>
-                      <h3 className="text-2xl md:text-3xl font-bold mb-2">
-                        Standard Experience
-                      </h3>
-                      <p className="text-white/90 text-sm">
-                        Traditional {currentLocation.category.toLowerCase()}
-                      </p>
+                <img
+                  src={
+                    selectedLocation === "Grocery Store"
+                      ? groceryBeforeImages[groceryIndex]
+                      : currentLocation.image
+                  }
+                  alt={currentLocation.name}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent">
+                  <div className="absolute bottom-6 left-6 text-white">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-3 h-3 rounded-full bg-red-400"></div>
+                      <span className="text-sm font-semibold uppercase tracking-wider">
+                        Before
+                      </span>
                     </div>
+                    <h3 className="text-xl md:text-3xl font-bold mb-2">
+                      Standard Experience
+                    </h3>
                   </div>
                 </div>
               </motion.div>
 
               {/* After Image */}
               <motion.div
-                className="relative group"
-                layoutId={`container-ar-${currentLocation.id}`}
-                transition={{ duration: 0.6 }}
+                className="absolute inset-0"
+                animate={{ opacity: showAfter ? 1 : 0 }}
+                transition={{ duration: 0.5 }}
               >
-                <div className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl">
-                  <motion.img
-                    src={
-                      selectedLocation === "Grocery Store"
-                        ? groceryAfterImages[groceryIndex]
-                        : currentLocation.secondaryImage
-                    }
-                    alt={`AR-enhanced ${currentLocation.name}`}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    initial={{ scale: 1.1 }}
-                    animate={{ scale: 1 }}
-                    transition={{ duration: 1 }}
-                  />
-
-                  {/* After overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-indigo-900/80 via-indigo-900/30 to-transparent">
-                    <div className="absolute bottom-6 left-6 text-white">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></div>
-                        <span className="text-sm font-semibold uppercase tracking-wider">
-                          After Blueprint
-                        </span>
-                      </div>
-                      <h3 className="text-2xl md:text-3xl font-bold mb-2">
-                        Interactive AR Experience
-                      </h3>
-                      <p className="text-white/90 text-sm mb-3">
-                        {currentLocation.description}
-                      </p>
+                <img
+                  src={
+                    selectedLocation === "Grocery Store"
+                      ? groceryAfterImages[groceryIndex]
+                      : currentLocation.secondaryImage
+                  }
+                  alt={`AR-enhanced ${currentLocation.name}`}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-indigo-900/80 via-indigo-900/30 to-transparent">
+                  <div className="absolute bottom-6 left-6 text-white">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></div>
+                      <span className="text-sm font-semibold uppercase tracking-wider">
+                        After Blueprint
+                      </span>
                     </div>
-                  </div>
-
-                  {/* Enhanced AR elements overlay */}
-                  <div className="absolute inset-0 pointer-events-none">
-                    <motion.div
-                      className="absolute top-[25%] right-[20%] bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-xl border border-indigo-100 transform -rotate-2"
-                      initial={{ opacity: 0, y: 30, scale: 0.8 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ delay: 0.6, duration: 0.8 }}
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <Star className="w-4 h-4 text-yellow-500" />
-                        <span className="text-xs font-semibold text-slate-600">
-                          Live Rating
-                        </span>
-                      </div>
-                      <div className="text-lg font-black text-slate-900">
-                        4.8 ⭐⭐⭐⭐⭐
-                      </div>
-                    </motion.div>
-
-                    <motion.div
-                      className="absolute top-[45%] left-[15%] bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-xl border border-indigo-100 transform rotate-1"
-                      initial={{ opacity: 0, y: 30, scale: 0.8 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ delay: 0.8, duration: 0.8 }}
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <Eye className="w-4 h-4 text-indigo-500" />
-                        <span className="text-xs font-semibold text-slate-600">
-                          Interactive Info
-                        </span>
-                      </div>
-                      <div className="text-sm font-bold text-slate-900">
-                        Tap to explore
-                      </div>
-                    </motion.div>
-
-                    <motion.div
-                      className="absolute bottom-[20%] right-[15%] bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl px-3 py-2 shadow-lg transform rotate-3"
-                      initial={{ opacity: 0, scale: 0 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: 1, duration: 0.6 }}
-                    >
-                      <div className="text-xs font-bold">+200% Engagement</div>
-                    </motion.div>
+                    <h3 className="text-xl md:text-3xl font-bold mb-2">
+                      Interactive AR Experience
+                    </h3>
                   </div>
                 </div>
+                {/* Keep your AR overlay elements here */}
               </motion.div>
+
+              {/* Tap instruction for mobile */}
+              <div className="lg:hidden absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-full px-3 py-2 text-xs font-semibold text-slate-700">
+                Tap to compare
+              </div>
             </motion.div>
           </AnimatePresence>
 
@@ -414,3 +355,141 @@ export default function LocationShowcase() {
     </section>
   );
 }
+
+// <div className="relative max-w-7xl mx-auto">
+//   <AnimatePresence mode="wait">
+//     <motion.div
+//       key={selectedLocation}
+//       className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12"
+//       initial={{ opacity: 0, y: 50 }}
+//       animate={{ opacity: 1, y: 0 }}
+//       exit={{ opacity: 0, y: -50 }}
+//       transition={{ duration: 0.8 }}
+//     >
+//       {/* Before Image */}
+//       <motion.div
+//         className="relative group"
+//         layoutId={`container-${currentLocation.id}`}
+//         transition={{ duration: 0.6 }}
+//       >
+//         <div className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl">
+//           <motion.img
+//             src={
+//               selectedLocation === "Grocery Store"
+//                 ? groceryBeforeImages[groceryIndex]
+//                 : currentLocation.image
+//             }
+//             alt={currentLocation.name}
+//             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+//             initial={{ scale: 1.1 }}
+//             animate={{ scale: 1 }}
+//             transition={{ duration: 1 }}
+//           />
+
+//           {/* Before overlay */}
+//           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent">
+//             <div className="absolute bottom-6 left-6 text-white">
+//               <div className="flex items-center gap-2 mb-2">
+//                 <div className="w-3 h-3 rounded-full bg-red-400"></div>
+//                 <span className="text-sm font-semibold uppercase tracking-wider">
+//                   Before
+//                 </span>
+//               </div>
+//               <h3 className="text-2xl md:text-3xl font-bold mb-2">
+//                 Standard Experience
+//               </h3>
+//               <p className="text-white/90 text-sm">
+//                 Traditional {currentLocation.category.toLowerCase()}
+//               </p>
+//             </div>
+//           </div>
+//         </div>
+//       </motion.div>
+
+//       {/* After Image */}
+//       <motion.div
+//         className="relative group"
+//         layoutId={`container-ar-${currentLocation.id}`}
+//         transition={{ duration: 0.6 }}
+//       >
+//         <div className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl">
+//           <motion.img
+//             src={
+//               selectedLocation === "Grocery Store"
+//                 ? groceryAfterImages[groceryIndex]
+//                 : currentLocation.secondaryImage
+//             }
+//             alt={`AR-enhanced ${currentLocation.name}`}
+//             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+//             initial={{ scale: 1.1 }}
+//             animate={{ scale: 1 }}
+//             transition={{ duration: 1 }}
+//           />
+
+//           {/* After overlay */}
+//           <div className="absolute inset-0 bg-gradient-to-t from-indigo-900/80 via-indigo-900/30 to-transparent">
+//             <div className="absolute bottom-6 left-6 text-white">
+//               <div className="flex items-center gap-2 mb-2">
+//                 <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></div>
+//                 <span className="text-sm font-semibold uppercase tracking-wider">
+//                   After Blueprint
+//                 </span>
+//               </div>
+//               <h3 className="text-2xl md:text-3xl font-bold mb-2">
+//                 Interactive AR Experience
+//               </h3>
+//               <p className="text-white/90 text-sm mb-3">
+//                 {currentLocation.description}
+//               </p>
+//             </div>
+//           </div>
+
+//           {/* Enhanced AR elements overlay */}
+//           <div className="absolute inset-0 pointer-events-none">
+//             <motion.div
+//               className="absolute top-[25%] right-[20%] bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-xl border border-indigo-100 transform -rotate-2"
+//               initial={{ opacity: 0, y: 30, scale: 0.8 }}
+//               animate={{ opacity: 1, y: 0, scale: 1 }}
+//               transition={{ delay: 0.6, duration: 0.8 }}
+//             >
+//               <div className="flex items-center gap-2 mb-2">
+//                 <Star className="w-4 h-4 text-yellow-500" />
+//                 <span className="text-xs font-semibold text-slate-600">
+//                   Live Rating
+//                 </span>
+//               </div>
+//               <div className="text-lg font-black text-slate-900">
+//                 4.8 ⭐⭐⭐⭐⭐
+//               </div>
+//             </motion.div>
+
+//             <motion.div
+//               className="absolute top-[45%] left-[15%] bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-xl border border-indigo-100 transform rotate-1"
+//               initial={{ opacity: 0, y: 30, scale: 0.8 }}
+//               animate={{ opacity: 1, y: 0, scale: 1 }}
+//               transition={{ delay: 0.8, duration: 0.8 }}
+//             >
+//               <div className="flex items-center gap-2 mb-2">
+//                 <Eye className="w-4 h-4 text-indigo-500" />
+//                 <span className="text-xs font-semibold text-slate-600">
+//                   Interactive Info
+//                 </span>
+//               </div>
+//               <div className="text-sm font-bold text-slate-900">
+//                 Tap to explore
+//               </div>
+//             </motion.div>
+
+//             <motion.div
+//               className="absolute bottom-[20%] right-[15%] bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl px-3 py-2 shadow-lg transform rotate-3"
+//               initial={{ opacity: 0, scale: 0 }}
+//               animate={{ opacity: 1, scale: 1 }}
+//               transition={{ delay: 1, duration: 0.6 }}
+//             >
+//               <div className="text-xs font-bold">+200% Engagement</div>
+//             </motion.div>
+//           </div>
+//         </div>
+//       </motion.div>
+//     </motion.div>
+//   </AnimatePresence>

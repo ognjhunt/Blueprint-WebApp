@@ -291,7 +291,7 @@ export default function PilotProgram() {
       <Nav />
 
       {/* HERO SECTION - Improved clarity on what Blueprint does */}
-      <section className="pt-20 md:pt-32 pb-16 md:pb-24 relative overflow-hidden">
+      <section className="pt-16 md:pt-20 lg:pt-32 pb-12 md:pb-16 lg:pb-24 relative overflow-hidden">
         {/* Animated background */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute inset-0 bg-[url('/images/grid-pattern.svg')] opacity-5" />
@@ -334,14 +334,20 @@ export default function PilotProgram() {
                 </span>
               </h1>
 
-              <p className="text-lg sm:text-xl text-slate-600 mb-8 max-w-2xl mx-auto lg:mx-0">
-                Blueprint uses AI to create custom augmented reality for your
-                business. No apps needed - customers just scan and explore. Try
-                it for completely free.
+              <p className="text-base sm:text-lg md:text-xl text-slate-600 mb-6 md:mb-8 max-w-2xl mx-auto lg:mx-0">
+                <span className="md:hidden">
+                  AI-powered AR for your business. No apps needed - customers
+                  just scan and explore. Try it free.
+                </span>
+                <span className="hidden md:block">
+                  Blueprint uses AI to create custom augmented reality for your
+                  business. No apps needed - customers just scan and explore.
+                  Try it for completely free.
+                </span>
               </p>
 
               {/* Key points for instant understanding */}
-              <div className="flex flex-col sm:flex-row gap-4 mb-8 text-sm">
+              <div className="flex flex-col sm:flex-row gap-2 md:gap-4 mb-6 md:mb-8 text-xs md:text-sm">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-green-600" />
                   <span className="text-slate-700">
@@ -381,22 +387,25 @@ export default function PilotProgram() {
               </div>
 
               {/* Social proof */}
-              <div className="flex items-center justify-center lg:justify-start gap-4">
-                <div className="flex -space-x-2">
+              <div className="flex items-center justify-center lg:justify-start gap-3 md:gap-4">
+                <div className="flex -space-x-1 md:-space-x-2">
                   {[1, 2, 3, 4].map((i) => (
                     <div
                       key={i}
-                      className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 border-2 border-white flex items-center justify-center text-xs font-bold text-white"
+                      className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 border-2 border-white flex items-center justify-center text-xs font-bold text-white"
                     >
                       {String.fromCharCode(64 + i)}
                     </div>
                   ))}
                 </div>
-                <p className="text-sm text-slate-600">
+                <p className="text-xs md:text-sm text-slate-600">
                   <span className="font-bold text-slate-900">
                     47 businesses
                   </span>{" "}
-                  transformed this month
+                  <span className="hidden sm:inline">
+                    transformed this month
+                  </span>
+                  <span className="sm:hidden">joined this month</span>
                 </p>
               </div>
             </motion.div>
@@ -444,7 +453,7 @@ export default function PilotProgram() {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {idealFor.map((item, idx) => (
               <motion.div
                 key={idx}
@@ -455,7 +464,7 @@ export default function PilotProgram() {
                 className="group"
               >
                 <Card className="h-full bg-white/80 border-slate-200 hover:bg-white hover:border-indigo-300 hover:shadow-xl transition-all duration-300">
-                  <CardContent className="p-6 text-center">
+                  <CardContent className="p-4 md:p-6 text-center">
                     <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center group-hover:scale-110 transition-transform">
                       {React.cloneElement(item.icon, {
                         className: "w-8 h-8 text-indigo-600",
@@ -585,34 +594,52 @@ export default function PilotProgram() {
                   </div>
 
                   <Card className="h-full bg-white/90 border-slate-200 hover:shadow-2xl transition-all lg:mt-20">
-                    <CardContent className="p-6">
-                      <div className="text-center mb-4">
-                        <h3 className="text-2xl font-bold mb-1 text-slate-900">
+                    <CardContent className="p-4 md:p-6">
+                      <div className="text-center mb-3 md:mb-4">
+                        <h3 className="text-lg md:text-2xl font-bold mb-1 text-slate-900">
                           {step.title}
                         </h3>
-                        <p className="text-indigo-600 font-semibold">
+                        <p className="text-indigo-600 font-semibold text-sm md:text-base">
                           {step.subtitle}
                         </p>
                       </div>
 
-                      <p className="text-slate-600 mb-4 text-center">
-                        {step.description}
+                      <p className="text-slate-600 mb-3 md:mb-4 text-center text-sm md:text-base">
+                        <span className="md:hidden">
+                          {step.description.split(".")[0]}.
+                        </span>
+                        <span className="hidden md:block">
+                          {step.description}
+                        </span>
                       </p>
 
+                      {/* Mobile: Show only first 2 details, Desktop: Show all */}
                       <div className="space-y-2">
-                        {step.details.map((detail, didx) => (
+                        {step.details.slice(0, 2).map((detail, didx) => (
                           <div
                             key={didx}
-                            className="flex items-center gap-2 text-sm"
+                            className="flex items-center gap-2 text-xs md:text-sm"
                           >
-                            <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+                            <CheckCircle2 className="w-3 h-3 md:w-4 md:h-4 text-green-600 flex-shrink-0" />
                             <span className="text-slate-700">{detail}</span>
                           </div>
                         ))}
+                        {/* Show remaining details only on desktop */}
+                        <div className="hidden md:block space-y-2">
+                          {step.details.slice(2).map((detail, didx) => (
+                            <div
+                              key={didx + 2}
+                              className="flex items-center gap-2 text-sm"
+                            >
+                              <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+                              <span className="text-slate-700">{detail}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
 
-                      <div className="mt-4 pt-4 border-t border-slate-200">
-                        <p className="text-sm font-semibold text-center text-violet-600">
+                      <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-slate-200">
+                        <p className="text-xs md:text-sm font-semibold text-center text-violet-600">
                           {step.benefit}
                         </p>
                       </div>
@@ -955,7 +982,7 @@ export default function PilotProgram() {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {benefits.map((benefit, idx) => (
               <motion.div
                 key={idx}
@@ -966,19 +993,21 @@ export default function PilotProgram() {
                 whileHover={{ y: -5 }}
               >
                 <Card className="h-full bg-white/90 border-slate-200 hover:shadow-2xl hover:border-indigo-300 transition-all group">
-                  <CardContent className="p-6">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <CardContent className="p-4 md:p-6">
+                    <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform">
                       {React.cloneElement(benefit.icon, {
-                        className: "w-6 h-6 text-indigo-600",
+                        className: "w-5 h-5 md:w-6 md:h-6 text-indigo-600",
                       })}
                     </div>
-                    <Badge className="bg-green-100 text-green-700 border-green-200 text-xs mb-3">
+                    <Badge className="bg-green-100 text-green-700 border-green-200 text-xs mb-2 md:mb-3">
                       {benefit.highlight}
                     </Badge>
-                    <h3 className="text-xl font-bold mb-2 text-slate-900">
+                    <h3 className="text-lg md:text-xl font-bold mb-2 text-slate-900">
                       {benefit.title}
                     </h3>
-                    <p className="text-slate-600">{benefit.description}</p>
+                    <p className="text-slate-600 text-sm md:text-base">
+                      {benefit.description}
+                    </p>
                   </CardContent>
                 </Card>
               </motion.div>

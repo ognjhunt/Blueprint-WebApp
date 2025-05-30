@@ -55,7 +55,7 @@ export default function Hero() {
   return (
     <section
       ref={heroRef}
-      className="relative min-h-[95vh] flex items-center justify-center pt-24 pb-16 overflow-hidden bg-gradient-to-br from-slate-50 via-white to-indigo-50/30"
+      className="relative min-h-[85vh] sm:min-h-[95vh] flex items-center justify-center pt-20 sm:pt-24 pb-12 sm:pb-16 overflow-hidden bg-gradient-to-br from-slate-50 via-white to-indigo-50/30"
     >
       {/* Enhanced background elements */}
       <div className="absolute inset-0 overflow-hidden">
@@ -92,7 +92,7 @@ export default function Hero() {
         }}
       />
 
-      <div className="container mx-auto px-6 relative z-20">
+      <div className="container mx-auto px-4 sm:px-6 relative z-20">
         <div className="max-w-4xl mx-auto text-center">
           <div>
             {/* Badge */}
@@ -107,7 +107,7 @@ export default function Hero() {
             </motion.div>
 
             {/* Main headline container */}
-            <div className="min-h-[160px] sm:min-h-[180px] md:min-h-[220px] lg:min-h-[240px] mb-8">
+            <div className="min-h-[120px] sm:min-h-[180px] md:min-h-[220px] lg:min-h-[240px] mb-6 sm:mb-8">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={currentIndex}
@@ -117,7 +117,7 @@ export default function Hero() {
                   exit={{ opacity: 0, y: -30 }}
                   transition={{ duration: 0.8 }}
                 >
-                  <h1 className="text-5xl md:text-6xl lg:text-7xl font-black mb-6 leading-tight line-clamp-2 overflow-hidden">
+                  <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-black mb-4 sm:mb-6 leading-tight line-clamp-2 overflow-hidden">
                     <span className="text-slate-900">
                       {headlines[currentIndex].text}
                     </span>
@@ -126,7 +126,7 @@ export default function Hero() {
                       {headlines[currentIndex].highlight}
                     </span>
                   </h1>
-                  <p className="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed line-clamp-2 overflow-hidden">
+                  <p className="text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed line-clamp-3 sm:line-clamp-2 overflow-hidden px-4 sm:px-0">
                     {headlines[currentIndex].description}
                   </p>
                 </motion.div>
@@ -135,7 +135,7 @@ export default function Hero() {
 
             {/* Feature badges */}
             <motion.div
-              className="flex flex-wrap justify-center gap-3 mb-10"
+              className="flex flex-wrap justify-center gap-2 sm:gap-3 mb-6 sm:mb-10 px-2 sm:px-0"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 20 }}
               transition={{ duration: 0.8, delay: 0.3 }}
@@ -153,14 +153,14 @@ export default function Hero() {
 
             {/* Action buttons */}
             <motion.div
-              className="flex flex-col sm:flex-row justify-center gap-4"
+              className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 px-4 sm:px-0"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 20 }}
               transition={{ duration: 0.8, delay: 0.4 }}
             >
               <Button
                 size="lg"
-                className="text-lg px-10 py-6 font-semibold tracking-wide shadow-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 hover:scale-105 transition-all duration-300 border-0"
+                className="text-base sm:text-lg px-6 sm:px-10 py-4 sm:py-6 font-semibold tracking-wide shadow-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 hover:scale-105 transition-all duration-300 border-0"
                 onClick={handleScrollToContactForm}
               >
                 Get Early Access
@@ -181,7 +181,7 @@ export default function Hero() {
 
             {/* Social proof */}
             <motion.div
-              className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-8"
+              className="mt-8 sm:mt-12 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 px-4 sm:px-0"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 20 }}
               transition={{ duration: 0.8, delay: 0.6 }}

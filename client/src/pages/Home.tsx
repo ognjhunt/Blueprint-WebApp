@@ -47,11 +47,7 @@ export default function Home() {
       title: "Join Waitlist",
       description:
         "Secure your spot in our exclusive early access program. Priority onboarding for our free pilot program available.",
-      benefits: [
-        "Priority access",
-        "Free 14-day pilot",
-        "Dedicated support",
-      ],
+      benefits: ["Priority access", "Free 14-day pilot", "Dedicated support"],
       color: "from-emerald-500 to-teal-600",
       duration: "1 minute",
     },
@@ -210,10 +206,10 @@ export default function Home() {
         <Hero />
 
         {/* Trust metrics section */}
-        <section className="py-12 md:py-16 bg-gradient-to-b from-indigo-50/30 via-white/60 to-slate-50/40 backdrop-blur-sm">
-          <div className="container mx-auto px-6">
+        <section className="py-6 md:py-16 bg-gradient-to-b from-indigo-50/30 via-white/60 to-slate-50/40 backdrop-blur-sm">
+          <div className="container mx-auto px-4 md:px-6">
             <motion.div
-              className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto"
+              className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 max-w-4xl mx-auto"
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.8 }}
@@ -222,14 +218,14 @@ export default function Home() {
               {trustMetrics.map((metric, index) => (
                 <motion.div
                   key={metric.label}
-                  className="text-center p-6 rounded-2xl bg-gradient-to-br from-white to-slate-50 border border-slate-200 shadow-lg hover:shadow-xl transition-all duration-300 group relative"
+                  className="text-center p-4 md:p-6 rounded-2xl bg-gradient-to-br from-white to-slate-50 border border-slate-200 shadow-lg hover:shadow-xl transition-all duration-300 group relative"
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.6, delay: index * 0.1 }}
                 >
                   {/* Tooltip */}
-                  <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="hidden md:block absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <div className="relative">
                       <Info className="w-5 h-5 text-slate-400 hover:text-slate-600 cursor-help" />
                       <div className="absolute bottom-full right-0 mb-2 w-64 p-3 bg-slate-900 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-50">
@@ -239,19 +235,19 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-center mb-3">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 flex items-center justify-center text-white">
+                  <div className="flex items-center justify-center mb-2 md:mb-3">
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 flex items-center justify-center text-white">
                       {metric.icon}
                     </div>
                   </div>
-                  <div className="text-3xl md:text-4xl font-black text-slate-900 mb-2">
+                  <div className="text-2xl md:text-4xl font-black text-slate-900 mb-1 md:mb-2">
                     {metric.value}
                   </div>
-                  <div className="text-slate-600 font-medium mb-1">
+                  <div className="text-slate-600 font-medium mb-1 text-sm md:text-base">
                     {metric.label}
                   </div>
                   {/* Context text */}
-                  <div className="text-xs text-slate-500 italic">
+                  <div className="text-xs md:text-sm text-slate-500 italic">
                     {metric.context}
                   </div>
                 </motion.div>
