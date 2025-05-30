@@ -277,7 +277,7 @@ export default function PilotProgram() {
     },
     {
       q: "What happens after the 14-day pilot?",
-      a: "You'll have three options: 1) Discuss future options with our team, 2) Take a break and come back when ready, or 3) Simply say thanks but no thanks. There's absolutely no pressure. We'll also provide a complete analytics report showing the impact on your business metrics.",
+      a: "We'll send out a survey to all participants of the Demo Day asking about the whole Pilot Experience. Any feedback from this survey helps us improve Blueprint!",
     },
     {
       q: "How do customers access the AR experience?",
@@ -337,7 +337,7 @@ export default function PilotProgram() {
               <p className="text-lg sm:text-xl text-slate-600 mb-8 max-w-2xl mx-auto lg:mx-0">
                 Blueprint uses AI to create custom augmented reality for your
                 business. No apps needed - customers just scan and explore. Try
-                it free for 14 days.
+                it for completely free.
               </p>
 
               {/* Key points for instant understanding */}

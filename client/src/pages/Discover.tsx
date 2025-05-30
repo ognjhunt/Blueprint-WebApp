@@ -79,12 +79,12 @@ const EnterpriseARSection = () => {
     {
       icon: <Brain className="w-8 h-8" />,
       title: "AI-Powered Optimization",
-      subtitle: "Intelligent Content Placement",
+      subtitle: "Smart Content Placement",
       description:
         "Our AI analyzes foot traffic, lighting, and spatial geometry to position AR elements exactly where they'll have maximum impact.",
       metrics: [
         { label: "Accuracy", value: "99.2%" },
-        { label: "Optimization", value: "Real-time" },
+        { label: "Speed", value: "Real-time" },
         { label: "Learning", value: "Continuous" },
       ],
       benefits: [
@@ -219,7 +219,7 @@ const EnterpriseARSection = () => {
         </motion.div>
 
         {/* Primary Features - Enhanced Cards */}
-        <div className="grid lg:grid-cols-3 gap-8 mb-20">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8 mb-20">
           {primaryFeatures.map((feature, idx) => (
             <motion.div
               key={idx}
@@ -236,16 +236,16 @@ const EnterpriseARSection = () => {
                 <div className={`h-2 bg-gradient-to-r ${feature.gradient}`} />
 
                 <CardContent className="p-8">
-                  {/* Icon and Title */}
-                  <div className="flex items-start gap-4 mb-6">
+                  {/* Icon and Title Section */}
+                  <div className="flex items-start gap-4 mb-8">
                     <motion.div
                       whileHover={{ rotate: 5, scale: 1.1 }}
-                      className={`p-4 rounded-2xl bg-gradient-to-br ${feature.gradient} text-white shadow-lg`}
+                      className={`p-4 rounded-2xl bg-gradient-to-br ${feature.gradient} text-white shadow-lg flex-shrink-0`}
                     >
                       {feature.icon}
                     </motion.div>
-                    <div className="flex-1">
-                      <h3 className="text-2xl font-bold text-gray-900 mb-1">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-2xl font-bold text-gray-900 mb-2 leading-tight">
                         {feature.title}
                       </h3>
                       <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
@@ -254,26 +254,34 @@ const EnterpriseARSection = () => {
                     </div>
                   </div>
 
-                  <p className="text-gray-600 leading-relaxed mb-8">
+                  {/* Description */}
+                  <p className="text-gray-600 leading-relaxed mb-8 text-base">
                     {feature.description}
                   </p>
 
-                  {/* Metrics */}
-                  <div className="grid grid-cols-3 gap-4 mb-8">
-                    {feature.metrics.map((metric, midx) => (
-                      <div key={midx} className="text-center">
-                        <div className="text-2xl font-black text-gray-900 mb-1">
-                          {metric.value}
+                  {/* Metrics - Improved Layout */}
+                  <div className="bg-gray-50/80 rounded-2xl p-8 mb-8">
+                    <div className="grid grid-cols-3 gap-4">
+                      {feature.metrics.map((metric, midx) => (
+                        <div key={midx} className="text-center">
+                          <div
+                            className={`text-xl font-black bg-gradient-to-r ${feature.gradient} bg-clip-text text-transparent mb-3 leading-none`}
+                          >
+                            {metric.value}
+                          </div>
+                          <div className="text-sm font-medium text-gray-500 uppercase tracking-wide leading-relaxed">
+                            {metric.label}
+                          </div>
                         </div>
-                        <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {metric.label}
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
 
                   {/* Benefits */}
-                  <div className="space-y-3">
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
+                      Key Benefits
+                    </h4>
                     {feature.benefits.map((benefit, bidx) => (
                       <motion.div
                         key={bidx}
@@ -286,7 +294,7 @@ const EnterpriseARSection = () => {
                         className="flex items-center gap-3"
                       >
                         <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                        <span className="text-sm font-medium text-gray-700">
+                        <span className="text-sm font-medium text-gray-700 leading-relaxed">
                           {benefit}
                         </span>
                       </motion.div>
