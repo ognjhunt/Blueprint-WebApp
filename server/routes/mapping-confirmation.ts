@@ -221,7 +221,7 @@ Subject: "Confirmed for Blueprint Mapping: ${company_name}!"
 Body:
 "Hi [SheetContactName],
 
-We've confirmed a Blueprint Mapping for ${company_name} at ${address ? address.replace(", USA", "") : "the provided address"} on ${chosen_date_of_mapping} at ${chosen_time_of_mapping}.
+We've confirmed a Blueprint Mapping for ${company_name} at ${address ? address.replace(", USA", "") : "the provided address"} on (chosen date of mapping, but in the format of Saturday, May 31st, 2025 instead of ${chosen_date_of_mapping}), at (chosen time of mapping, but in the format 1:00 PM instead of ${chosen_time_of_mapping}).
 
 You should receive a Google Calendar Invite for this shortly. Please accept it to confirm.
 
@@ -247,9 +247,9 @@ Allow conflicts: Yes
 To: [SheetContactEmail]
 Subject: "REMINDER: Blueprint Mapping for ${company_name} is Today!"
 Body:
-"Hi [SheetContactName],
+"Hi [SheetContactName (just first name)],
 
-Just a friendly reminder that your Blueprint Mapping for ${company_name} is scheduled for today, ${chosen_date_of_mapping}, at ${chosen_time_of_mapping} at ${address ? address.replace(", USA", "") : "the provided address"}.
+Just a friendly reminder that your Blueprint Mapping for ${company_name} is scheduled for today, (chosen date of mapping, but in the format of Saturday, May 31st, 2025 instead of ${chosen_date_of_mapping}), at (chosen time of mapping, but in the format 1:00 PM instead of ${chosen_time_of_mapping}) at ${address ? address.replace(", USA", "") : "the provided address"}.
 
 The webhook contact, ${contact_name}, will also receive an SMS reminder approximately 1 hour before.
 
