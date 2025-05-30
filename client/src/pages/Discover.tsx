@@ -541,7 +541,7 @@ const steps = [
     description:
       "Reserve your spot for priority access to Blueprint's AR platform",
     benefits: [
-      "50% early adopter discount",
+      "Free 14-day pilot access",
       "Priority support",
       "Custom onboarding",
     ],
@@ -726,7 +726,7 @@ export default function Discover() {
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-green-500" />
-                  <span>ROI guaranteed</span>
+                  <span>Impact Guaranteed</span>
                 </div>
               </motion.div>
             </motion.div>

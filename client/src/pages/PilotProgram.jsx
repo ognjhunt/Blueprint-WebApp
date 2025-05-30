@@ -277,7 +277,7 @@ export default function PilotProgram() {
     },
     {
       q: "What happens after the 14-day pilot?",
-      a: "You'll have three options: 1) Continue with a full deployment (monthly plans start at $599), 2) Take a break and come back when ready, or 3) Simply say thanks but no thanks. There's absolutely no pressure. We'll also provide a complete analytics report showing the impact on your business metrics.",
+      a: "You'll have three options: 1) Discuss future options with our team, 2) Take a break and come back when ready, or 3) Simply say thanks but no thanks. There's absolutely no pressure. We'll also provide a complete analytics report showing the impact on your business metrics.",
     },
     {
       q: "How do customers access the AR experience?",
