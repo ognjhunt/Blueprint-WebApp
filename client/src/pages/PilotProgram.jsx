@@ -115,7 +115,7 @@ export default function PilotProgram() {
         </div>
       ),
       {
-        duration: 0, // Don't auto-dismiss
+        duration: 6000, // Don't auto-dismiss
         position: "top-center",
       },
     );

@@ -674,8 +674,8 @@ export default function Discover() {
               </motion.div>
 
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-gray-900">
-                Turn Any Space Into an
-                <span className="block mt-2 bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 bg-clip-text text-transparent">
+                Turn Any Space Into an{" "}
+                <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 bg-clip-text text-transparent">
                   AR Experience
                 </span>
                 <span className="block mt-2 text-3xl md:text-4xl lg:text-5xl text-gray-700">
