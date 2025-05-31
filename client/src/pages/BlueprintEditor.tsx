@@ -1,3 +1,12 @@
+/**
+ * @file BlueprintEditor.tsx
+ * @description This file contains the main component for the Blueprint Editor.
+ * The BlueprintEditor is responsible for managing the overall state of the editor,
+ * rendering the user interface (including the 3D viewer, side panels, and modals),
+ * handling user interactions, and coordinating data flow between various sub-components.
+ * It integrates with Firebase for data persistence and manages features like
+ * onboarding, element placement, QR code generation, and collaboration.
+ */
 "use client";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -300,96 +309,149 @@ export default function BlueprintEditor() {
   // STATE MANAGEMENT
   // ========================
 
-  // Auth and navigation
-  const { currentUser } = useAuth();
-  const [showShareDialog, setShowShareDialog] = useState(false);
-  const [showQrCodes, setShowQrCodes] = useState(true);
-  const [showTextAnchors, setShowTextAnchors] = useState(true); // New state for Text
-  const [showFileAnchors, setShowFileAnchors] = useState(true); // New state for Files (incl. images/videos)
-  const [showWebpageAnchors, setShowWebpageAnchors] = useState(true); // New state for Webpages
-  const [showModelAnchors, setShowModelAnchors] = useState(true); // New state for 3D Models
-  const [location] = useLocation();
-  const blueprintId = location.split("/").pop();
-  const { toast } = useToast();
+  // Auth and Navigation States
+  const { currentUser } = useAuth(); // Current Firebase user
+  const [showShareDialog, setShowShareDialog] = useState(false); // Controls visibility of the share dialog
+  const [showQrCodes, setShowQrCodes] = useState(true); // Toggles visibility of QR code anchors in 3D view
+  const [showTextAnchors, setShowTextAnchors] = useState(true); // Toggles visibility of text anchors
+  const [showFileAnchors, setShowFileAnchors] = useState(true); // Toggles visibility of file anchors
+  const [showWebpageAnchors, setShowWebpageAnchors] = useState(true); // Toggles visibility of webpage anchors
+  const [showModelAnchors, setShowModelAnchors] = useState(true); // Toggles visibility of 3D model anchors
+  const [location] = useLocation(); // From wouter, for routing
+  const blueprintId = location.split("/").pop(); // Extracts blueprint ID from URL
+  const { toast } = useToast(); // For showing toast notifications
 
-  // Onboarding states - ADD THESE
-  const [showOnboarding, setShowOnboarding] = useState(true);
-  const [onboardingStep, setOnboardingStep] = useState(1);
-  // Define interfaces for onboarding data
+  // Onboarding States
+  const [showOnboarding, setShowOnboarding] = useState(true); // Controls visibility of the onboarding flow
+  const [onboardingStep, setOnboardingStep] = useState(1); // Current step in the onboarding process
+  // Interface for individual key area items during onboarding
   interface AreaItem {
     id: string;
     name: string;
   }
-
-  // Define typings for onboarding data
+  // Interface for the overall onboarding data structure
   interface OnboardingData {
-    goal: string;
-    useCases: string[]; // Array of use case identifiers
-    audienceType: string;
+    goal: string; // Main goal for using the blueprint (e.g., customerEngagement, staffTraining)
+    useCases: string[]; // Selected use cases (e.g., navigation, information)
+    audienceType: string; // Target audience (e.g., customers, staff)
     keyAreas: (string | AreaItem)[]; // Can be either strings or objects with id and name
-    expectedVisitors: string;
-    techComfort: string;
-    preferredStyle: string;
-    specialFeatures: string[]; // Array of special feature identifiers
+    expectedVisitors: string; // Estimated number of visitors
+    techComfort: string; // Audience's comfort level with technology
+    preferredStyle: string; // Visual style preference for the blueprint
+    specialFeatures: string[]; // Additional features to include
   }
-
   const [onboardingData, setOnboardingData] = useState<OnboardingData>({
     goal: "",
-    useCases: [], // Changed from primaryUseCase (string) to useCases (array)
+    useCases: [],
     audienceType: "",
-    keyAreas: [], // Can be either strings or objects with id and name
+    keyAreas: [],
     expectedVisitors: "",
     techComfort: "moderate",
     preferredStyle: "professional",
     specialFeatures: [],
   });
+  const [prefillData, setPrefillData] = useState<any | null>(null); // Data pre-filled from initial blueprint creation (e.g., business name, industry)
+  const [onboardingMode, setOnboardingMode] = useState("fullscreen"); // Display mode for onboarding ("fullscreen" or "sidebar")
 
-  // Onboarding pre-filled data - ADD THIS
-  const [prefillData, setPrefillData] = useState<any | null>(null);
-
-  // Core view states
-  const [viewMode, setViewMode] = useState("3D");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [sidebarWidth, setSidebarWidth] = useState(360);
-  const [activePanel, setActivePanel] = useState("elements");
-  const [isLoading, setIsLoading] = useState(true);
-  const [blueprintTitle, setBlueprintTitle] = useState("");
-  const [blueprintStatus, setBlueprintStatus] = useState("pending");
-  const [uploadLoading, setUploadLoading] = useState(false);
-  const [, setLocation] = useLocation();
-  const navigateToDashboard = () => {
+  // Core View and UI States
+  const [viewMode, setViewMode] = useState("3D"); // Current view mode ("3D", "2D", "WORKFLOW")
+  const [sidebarOpen, setSidebarOpen] = useState(true); // (Potentially legacy) Tracks if the main sidebar is open
+  const [sidebarWidth, setSidebarWidth] = useState(360); // (Potentially legacy) Width of the main sidebar
+  const [activePanel, setActivePanel] = useState("elements"); // (Potentially legacy) Determines which panel is open in the older sidebar design
+  const [isLoading, setIsLoading] = useState(true); // Tracks overall loading state of the editor
+  const [blueprintTitle, setBlueprintTitle] = useState(""); // Title of the current blueprint
+  const [blueprintStatus, setBlueprintStatus] = useState("pending"); // Status of the blueprint (e.g., "pending", "active")
+  const [uploadLoading, setUploadLoading] = useState(false); // Tracks if a file upload is in progress
+  const [, setLocation] = useLocation(); // Wouter's setLocation for navigation
+  const navigateToDashboard = () => { // Navigates user to the dashboard page
     setLocation("/dashboard");
   };
-  // 3D viewer states
-  const [model3DPath, setModel3DPath] = useState("");
-  const [originPoint, setOriginPoint] = useState<any | null>(null);
-  const [isChoosingOrigin, setIsChoosingOrigin] = useState(false);
-  const [scaleFactor, setScaleFactor] = useState(1);
-  const [referencePoints2D, setReferencePoints2D] = useState<any[]>([]);
-  const [referencePoints3D, setReferencePoints3D] = useState<any[]>([]);
-  const [floorPlanImage, setFloorPlanImage] = useState("");
-  const [showGrid, setShowGrid] = useState(true);
-  const [markedAreas, setMarkedAreas] = useState<any[]>([]);
-  const [selectedArea, setSelectedArea] = useState<any | null>(null); // Add this new state
+  const [panelWidth, setPanelWidth] = useState(360); // Width of the newer sliding panel (text, media, etc.)
+  const [activeSection, setActiveSection] = useState<string | null>(null); // Determines which section/tool is active in the icon bar, controlling the sliding panel
+  const isPanelOpen = activeSection !== null; // Boolean indicating if the sliding panel is open
 
-  const [isMarkingArea, setIsMarkingArea] = useState(false);
-  const [pendingArea, setPendingArea] = useState<any | null>(null);
-  const [areaName, setAreaName] = useState("");
-  const [areaNameDialogOpen, setAreaNameDialogOpen] = useState(false);
-  const [remarkingAreaId, setRemarkingAreaId] = useState<string | null>(null);
-  // const corner1Ref = useRef(null);
-  const [onboardingMode, setOnboardingMode] = useState("fullscreen"); // "fullscreen" or "sidebar"
+  // 3D Viewer and Model States
+  const [model3DPath, setModel3DPath] = useState(""); // Path/URL to the main 3D model for the scene
+  const [originPoint, setOriginPoint] = useState<any | null>(null); // The (0,0,0) origin point in the 3D scene, as a THREE.Vector3
+  const [isChoosingOrigin, setIsChoosingOrigin] = useState(false); // True if user is currently in the process of selecting the origin point
+  const [scaleFactor, setScaleFactor] = useState(1); // Scale factor for aligning 2D floor plan with 3D model
+  const [referencePoints2D, setReferencePoints2D] = useState<any[]>([]); // 2D points selected on the floor plan for alignment
+  const [referencePoints3D, setReferencePoints3D] = useState<any[]>([]); // Corresponding 3D points selected in the model for alignment
+  const [floorPlanImage, setFloorPlanImage] = useState(""); // URL of the 2D floor plan image
+  const [showGrid, setShowGrid] = useState(true); // Toggles visibility of the grid in the 3D viewer
+  const [markedAreas, setMarkedAreas] = useState<any[]>([]); // Array of areas marked by the user in the 3D space
+  const [selectedArea, setSelectedArea] = useState<any | null>(null); // ID of the currently selected marked area for inspection/editing
+  const [isMarkingArea, setIsMarkingArea] = useState(false); // True if user is currently in area marking mode
+  const [pendingArea, setPendingArea] = useState<any | null>(null); // Holds the coordinates of an area being drawn, before it's saved
+  const [areaName, setAreaName] = useState(""); // Name for the area currently being marked/edited
+  const [areaNameDialogOpen, setAreaNameDialogOpen] = useState(false); // Controls visibility of the dialog to name a marked area
+  const [remarkingAreaId, setRemarkingAreaId] = useState<string | null>(null); // ID of an existing area being re-marked
 
-  // Element states
-  // const [activeSection, setActiveSection] = useState(null); // ADDED - Tracks the open Canva-style panel ('text', 'media', '3d', 'uploads', 'webpages', 'areas', 'settings', or null)
-  const [elements, setElements] = useState<any[]>([]);
-  const [panelWidth, setPanelWidth] = useState(360); // RENAMED from sidebarWidth
-  const [selectedElement, setSelectedElement] = useState<any | null>(null);
-  const [hoveredElement, setHoveredElement] = useState<any | null>(null);
+  // Element and Anchor States (Text, Files, Webpages, Models)
+  const [elements, setElements] = useState<any[]>([]); // (Potentially legacy or for different element types) Array of general elements
+  const [selectedElement, setSelectedElement] = useState<any | null>(null); // (Potentially legacy) Currently selected general element
+  const [hoveredElement, setHoveredElement] = useState<any | null>(null); // (Potentially legacy) Element currently being hovered over
+  const [selectedAnchorData, setSelectedAnchorData] = useState<any | null>(null); // Data of the currently selected anchor of any type, for display in an info panel
+  const [modelAnchors, setModelAnchors] = useState<any[]>([]); // Array of 3D model anchors
+  const [webpageAnchors, setWebpageAnchors] = useState<any[]>([]); // Array of webpage link anchors
+  const [textAnchors, setTextAnchors] = useState<TextAnchor[]>([]); // Array of text label anchors
+  const [textContent, setTextContent] = useState(""); // Current text content for adding/editing text anchors
+  const [editingTextAnchorId, setEditingTextAnchorId] = useState<string | null>(null); // ID of the text anchor currently being edited
+  const [editingWebpageAnchorId, setEditingWebpageAnchorId] = useState<string | null>(null); // ID of the webpage anchor currently being edited
+  const [editingFileAnchorId, setEditingFileAnchorId] = useState<string | null>(null); // ID of the file anchor currently being edited
+  const [fileAnchors, setFileAnchors] = useState<any[]>([]); // Array of file anchors (images, videos, documents)
+  const [featuredModels, setFeaturedModels] = useState<any[]>([]); // Array of featured 3D models for placement
+  const [searchQuery, setSearchQuery] = useState(""); // Search query for filtering models or elements
+  const [uploadedFiles, setUploadedFiles] = useState<any[]>([]); // Array of files uploaded by the user
+  const [externalUrl, setExternalUrl] = useState(""); // URL for adding/editing webpage anchors
+  const pendingLabelTextRef = useRef(""); // Ref to hold text content for a label before it's placed
+  const showTextBoxInputRef = useRef(false); // Ref to control visibility of the text input for placing labels in 3D
 
-  const [selectedAnchorData, setSelectedAnchorData] = useState<any | null>(
-    null,
-  );
+  // QR Code Generation States
+  const [qrCodeAnchors, setQrCodeAnchors] = useState<any[]>([]); // Array of QR code anchors
+  const [qrPlacementMode, setQrPlacementMode] = useState(false); // True if user is currently in QR code placement mode
+  const [qrGenerationActive, setQrGenerationActive] = useState(false); // True if the QR code generation flow is active
+  const [qrGenerationStep, setQrGenerationStep] = useState(0); // Current step in the QR code generation process
+  const [qrLocations, setQrLocations] = useState<any[]>([]); // (Potentially legacy or for UI) Array of QR code locations
+  const [qrAnchorIds, setQrAnchorIds] = useState<string[]>([]); // (Potentially legacy) Array of QR code anchor IDs
+  const [qrCodeStrings, setQrCodeStrings] = useState<string[]>([]); // Array of strings to be encoded into QR codes
+  const [currentPlacingIndex, setCurrentPlacingIndex] = useState(0); // Index of the QR code currently being placed (in batch mode)
+  const [qrCodeModalOpen, setQrCodeModalOpen] = useState(false); // Controls visibility of the individual QR code display modal
+  const [qrCodeValue, setQrCodeValue] = useState(""); // String value for the currently displayed/generated QR code
+  const [isBatchPrinting, setIsBatchPrinting] = useState(false); // Tracks if batch printing of QR codes is in progress
+
+  // Collaboration States
+  const [showInviteModal, setShowInviteModal] = useState(false); // Controls visibility of the invite team member modal
+  const [inviteEmail, setInviteEmail] = useState(""); // Email address for inviting a team member
+  const [isInviting, setIsInviting] = useState(false); // Tracks if an invitation is currently being sent
+  const [inviteSuccess, setInviteSuccess] = useState(false); // True if invitation was sent successfully
+  const [isActivating, setIsActivating] = useState(false); // Tracks if the blueprint is currently being activated
+
+  // Interactive/Helper States
+  const [isDragging, setIsDragging] = useState(false); // True if user is dragging, e.g., to resize sidebar
+  const [placementMode, setPlacementMode] = useState<{ type: "link" | "file" | "model"; data?: any } | null>(null); // Determines what type of item is being placed in the 3D view
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 }); // Starting coordinates for a drag operation
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 }); // Current mouse position, used for various UI interactions
+  const [activeLabel, setActiveLabel] = useState<"A" | "B" | "C" | null>(null); // Active label for 2D/3D alignment points (A, B, or C)
+  const [awaiting3D, setAwaiting3D] = useState(false); // True if waiting for user to select a point in 3D view for alignment
+  const [showAlignmentWizard, setShowAlignmentWizard] = useState(false); // Controls visibility of the 2D/3D alignment wizard
+  const [showDistanceDialog, setShowDistanceDialog] = useState(false); // Controls visibility of the dialog to input real-world distance for scaling
+  const [realDistance, setRealDistance] = useState(10); // Real-world distance input by user for scaling
+  const [activeAreaToMark, setActiveAreaToMark] = useState<any | null>(null); // The specific area object/ID that is cued up for marking
+  const [customArea, setCustomArea] = useState(""); // Name for a custom area being added during onboarding/navigation setup
+  const [featureConfigStep, setFeatureConfigStep] = useState(0); // Current step in feature configuration sub-flow
+  const [currentFeature, setCurrentFeature] = useState(null); // The feature currently being configured (e.g., "navigation", "productInfo")
+  const [featureConfigData, setFeatureConfigData] = useState({}); // Holds configuration data for various features
+  const [showFeatureConfig, setShowFeatureConfig] = useState(false); // Controls visibility of the feature configuration panel
+
+  // Refs
+  const containerRef = useRef(null); // Ref for the main container div of the 3D viewer
+  const threeViewerRef = useRef<ThreeViewerRef>(null); // Ref to access ThreeViewer component's imperative handles (e.g., zoomIn, zoomOut)
+  const sidebarRef = useRef(null); // (Potentially legacy) Ref for the main sidebar element
+  const fileInputRef = useRef<HTMLInputElement>(null); // Ref for the hidden file input element used for general file uploads
+  const modelFileInputRef = useRef<HTMLInputElement>(null); // Ref for the hidden file input element used for 3D model uploads
+  const corner1Ref = useRef(null); // Ref to store the first corner point when marking an area
+  const storage = getStorage(); // Firebase Storage instance
 
   // Helper once at top of the file (reuse in the other two fixes)
   const getSimpleType = (mime: string) =>
@@ -1586,10 +1648,16 @@ export default function BlueprintEditor() {
     );
   };
 
-  useEffect(() => {
-    const fetchBlueprintData = async () => {
-      if (!blueprintId) {
-        console.error("No blueprint ID available");
+  /**
+   * Fetches the core data for the current blueprint from Firestore.
+   * This includes blueprint metadata (name, status, 3D model path, etc.),
+   * prefill data for onboarding, and previously saved settings like origin point,
+   * scale, marked areas, and uploaded files. It also handles logic for
+   * whether to show or skip the onboarding flow.
+   */
+  const fetchBlueprintData = async () => {
+    if (!blueprintId) {
+      console.error("No blueprint ID available");
         setIsLoading(false);
         return;
       }
@@ -1737,7 +1805,7 @@ export default function BlueprintEditor() {
     };
 
     fetchBlueprintData();
-  }, [blueprintId]);
+  }, [blueprintId]); // fetchBlueprintData is defined outside and called here, so blueprintId is the key dependency.
 
   // Enable interactions immediately for AI agents
   useEffect(() => {
@@ -2970,6 +3038,18 @@ export default function BlueprintEditor() {
     );
   };
 
+  /**
+   * Finalizes the onboarding process for a blueprint.
+   * This asynchronous function updates the blueprint document in Firestore by:
+   * - Setting `onboardingCompleted` to true.
+   * - Storing the collected `onboardingData`.
+   * - Changing the blueprint `status` to "active".
+   * - Recording the `activatedAt` and `updatedAt` timestamps.
+   * - Saving any `featureConfigData` collected during feature configuration.
+   * It provides toast notifications for loading and success/error states.
+   * After successful completion, it hides the onboarding UI and may trigger
+   * subsequent flows like QR code generation if selected as a feature.
+   */
   const completeOnboarding = async () => {
     try {
       if (blueprintId) {
@@ -3409,8 +3489,21 @@ export default function BlueprintEditor() {
     });
   };
 
-  // Load blueprint anchors
-  const loadBlueprintAnchors = async (blueprintId) => {
+  /**
+   * Fetches and processes all anchor data (text, files, webpages, models, QR codes)
+   * associated with the current blueprint ID from Firestore.
+   * It populates the respective state arrays (e.g., `textAnchors`, `fileAnchors`)
+   * which are then passed to the ThreeViewer component to render them in the 3D scene.
+   * @param {string} blueprintId - The ID of the blueprint whose anchors are to be loaded.
+   */
+  /**
+   * Fetches and processes all anchor data (text, files, webpages, models, QR codes)
+   * associated with the current blueprint ID from Firestore.
+   * It populates the respective state arrays (e.g., `textAnchors`, `fileAnchors`)
+   * which are then passed to the ThreeViewer component to render them in the 3D scene.
+   * @param {string} blueprintId - The ID of the blueprint whose anchors are to be loaded.
+   */
+  const loadBlueprintAnchors = async (blueprintId: string) => {
     try {
       const blueprintRef = doc(db, "blueprints", blueprintId);
       const blueprintSnap = await getDoc(blueprintRef);
@@ -3985,7 +4078,15 @@ export default function BlueprintEditor() {
   // AREA MARKING & REFERENCE POINTS
   // ========================
 
-  // Handle area marking
+  /**
+   * Handles the completion of an area marking action from the ThreeViewer.
+   * It receives the bounding box coordinates of the marked area, sets this
+   * as a pending area, and opens a dialog for the user to name the area.
+   * It pre-fills the area name if re-marking an existing area or suggests
+   * a name based on onboarding data if in that flow.
+   * @param {object} areaBounds - An object containing the min and max
+   *                              THREE.Vector3 coordinates of the marked area.
+   */
   const handleAreaMarked = (areaBounds) => {
     setPendingArea(areaBounds);
 
@@ -4037,8 +4138,18 @@ export default function BlueprintEditor() {
       });
     }
   };
-
-  // Save marked area
+  /**
+   * Saves a new or updates an existing marked area.
+   * If `remarkingAreaId` state is set, it updates the existing area's coordinates
+   * and potentially its name (though name update isn't directly handled here,
+   * it's set via `areaName` state). Otherwise, it creates a new area object
+   * with a unique ID, the current `areaName`, the `pendingArea` bounds, a random color,
+   * and a creation timestamp.
+   * The new/updated area is saved to both the local `markedAreas` state and
+   * persisted to Firestore under the current blueprint's document.
+   * Resets relevant states like `areaName`, `pendingArea`, `areaNameDialogOpen`,
+   * `isMarkingArea`, and `remarkingAreaId` after the operation.
+   */
   const saveMarkedArea = async () => {
     if (!pendingArea || !blueprintId) return;
 
@@ -4124,7 +4235,13 @@ export default function BlueprintEditor() {
     }
   };
 
-  // Delete marked area
+  /**
+   * Deletes a marked area from the blueprint.
+   * It removes the area from both the local `markedAreas` state and the
+   * `markedAreas` array in the Firestore document for the current blueprint.
+   * Shows a toast notification upon successful deletion or if an error occurs.
+   * @param {string} areaId - The ID of the marked area to be deleted.
+   */
   const deleteMarkedArea = async (areaId) => {
     try {
       // Find the area
@@ -4481,8 +4598,16 @@ export default function BlueprintEditor() {
   // FILE & MODEL HANDLING
   // ========================
 
-  // Handle file upload
-  const handleFileUpload = async (file, type = "standard") => {
+  /**
+   * Handles the upload of various file types (floor plans, 3D models, general files like images/videos/documents).
+   * It uploads the file to Firebase Storage in a structured path based on blueprint ID and file category.
+   * After successful upload, it updates the relevant Firestore document (e.g., blueprint document with floorPlanUrl
+   * or floorPlan3DUrl, or the `files` collection and `uploadedFiles` array in the blueprint for general files).
+   * It also provides user feedback via toast notifications during and after the upload.
+   * @param {File} file - The file object to be uploaded.
+   * @param {string} [type="standard"] - The type of upload, e.g., "floorplan", "3dmodel", or "standard" for general files.
+   */
+  const handleFileUpload = async (file: File, type: string = "standard") => {
     if (!file || !blueprintId) return;
 
     // Use the state variable defined at the component level
@@ -6375,6 +6500,15 @@ export default function BlueprintEditor() {
                 setOriginPoint(point);
                 setIsChoosingOrigin(false);
 
+                /**
+                 * Handles setting the origin point for the 3D scene.
+                 * This function is called by the ThreeViewer component when the user
+                 * selects an origin point in the 3D space. It updates the `originPoint`
+                 * state, sets `isChoosingOrigin` to false to exit origin selection mode,
+                 * saves the origin coordinates to Firestore for persistence, and shows
+                 * a toast notification to confirm the action.
+                 * @param {THREE.Vector3} point - The 3D coordinates of the selected origin point.
+                 */
                 // Save origin to Firestore
                 if (blueprintId) {
                   updateDoc(doc(db, "blueprints", blueprintId), {
@@ -6977,854 +7111,3 @@ export default function BlueprintEditor() {
                             ...prev,
                             { label: activeLabel, x, y },
                           ]);
-
-                          setAwaiting3D(true);
-                        }
-                      }}
-                    />
-
-                    {/* Render 2D points */}
-                    {referencePoints2D.map((point) => (
-                      <div
-                        key={point.label}
-                        className="absolute flex items-center justify-center font-bold text-white text-xs"
-                        style={{
-                          left: point.x,
-                          top: point.y,
-                          width: "24px",
-                          height: "24px",
-                          backgroundColor:
-                            point.label === "A"
-                              ? "#EF4444"
-                              : point.label === "B"
-                                ? "#3B82F6"
-                                : "#10B981",
-                          borderRadius: "50%",
-                          transform: "translate(-50%, -50%)",
-                        }}
-                      >
-                        {point.label}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-muted-foreground">
-                      No floor plan image available
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Right side - 3D model */}
-            <div className="w-1/2 flex flex-col">
-              <DialogHeader className="px-4 py-2 border-b">
-                <DialogTitle className="text-lg">3D Model</DialogTitle>
-                <DialogDescription>
-                  {awaiting3D
-                    ? `Click to set point ${activeLabel} in 3D`
-                    : "Select 2D points first"}
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="flex-1 relative">
-                {model3DPath ? (
-                  <div className="w-full h-full">
-                    <ThreeViewer
-                      modelPath={model3DPath}
-                      ref={threeViewerRef}
-                      originPoint={originPoint}
-                      activeLabel={activeLabel}
-                      awaiting3D={awaiting3D}
-                      setReferencePoints3D={setReferencePoints3D}
-                      isMarkingArea={isMarkingArea}
-                      onAreaMarked={handleAreaMarked}
-                      markedAreas={markedAreas}
-                      fileAnchors={fileAnchors}
-                      setAwaiting3D={setAwaiting3D}
-                      setActiveLabel={setActiveLabel}
-                      selectedArea={selectedArea}
-                      placementMode={null}
-                      webpageAnchors={[]}
-                      textAnchors={[]}
-                      modelAnchors={[]}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-muted-foreground">
-                      No 3D model available
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="px-4 py-3 bg-muted border-t flex justify-between items-center">
-            <div className="flex gap-4">
-              <div>
-                <p className="text-sm font-medium mb-1">2D Points</p>
-                <div className="flex gap-1.5">
-                  {["A", "B", "C"].map((label) => (
-                    <Badge
-                      key={label}
-                      variant={
-                        referencePoints2D.some((p) => p.label === label)
-                          ? "default"
-                          : "outline"
-                      }
-                    >
-                      {label}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium mb-1">3D Points</p>
-                <div className="flex gap-1.5">
-                  {["A", "B", "C"].map((label) => (
-                    <Badge
-                      key={label}
-                      variant={
-                        referencePoints3D.some((p) => p.label === label)
-                          ? "default"
-                          : "outline"
-                      }
-                    >
-                      {label}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowAlignmentWizard(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={computeAlignment}
-                disabled={
-                  referencePoints2D.length < 2 || referencePoints3D.length < 2
-                }
-              >
-                Compute Alignment
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-      {/* Distance Dialog */}
-      <Dialog
-        open={areaNameDialogOpen}
-        onOpenChange={(open) => {
-          if (!open && pendingArea) {
-            setAreaNameDialogOpen(false);
-            setPendingArea(null);
-          } else {
-            setAreaNameDialogOpen(open);
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5 text-blue-600" />
-              Name Your Area
-            </DialogTitle>
-            <DialogDescription>
-              {onboardingStep === 3
-                ? `This area will help visitors navigate your ${prefillData?.industry || "space"}`
-                : `Give a name to the area you just marked.`}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="py-4">
-            <Label htmlFor="area-name" className="mb-1.5 block">
-              Area Name
-            </Label>
-            <Input
-              id="area-name"
-              value={areaName}
-              onChange={(e) => setAreaName(e.target.value)}
-              placeholder={
-                onboardingStep === 3 && onboardingData.keyAreas.length > 0
-                  ? `e.g. ${
-                      typeof onboardingData.keyAreas[0] === "string"
-                        ? getAreaLabel(
-                            onboardingData.keyAreas[0],
-                            prefillData.industry,
-                          )
-                        : (onboardingData.keyAreas[0] as AreaItem)?.name ||
-                          "Area Name"
-                    }`
-                  : "e.g. Kitchen, Living Room, Office"
-              }
-              autoFocus
-              className="mb-2"
-            />
-
-            {onboardingStep === 3 && (
-              <div className="mt-3 bg-blue-50 p-3 rounded-lg border border-blue-100">
-                <h4 className="text-sm font-medium mb-1.5 text-blue-800">
-                  Suggested Names:
-                </h4>
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {onboardingData.keyAreas
-                    .filter((area) => {
-                      // Only suggest unmarked areas
-                      let areaLabel;
-                      if (typeof area === "string") {
-                        areaLabel = getAreaLabel(
-                          area,
-                          prefillData.industry,
-                        ).toLowerCase();
-                      } else if (area && typeof area === "object") {
-                        areaLabel = (
-                          (area as AreaItem).name || ""
-                        ).toLowerCase();
-                      } else {
-                        return false; // Skip invalid areas
-                      }
-
-                      const markedAreaNames = markedAreas.map((a) =>
-                        a.name.toLowerCase(),
-                      );
-                      return !markedAreaNames.includes(areaLabel);
-                    })
-                    .map((area, index) => {
-                      let areaName;
-                      let areaId;
-
-                      if (typeof area === "string") {
-                        areaName = getAreaLabel(area, prefillData.industry);
-                        areaId = area;
-                      } else if (area && typeof area === "object") {
-                        areaName = (area as AreaItem).name || "";
-                        areaId = (area as AreaItem).id || `area-${index}`;
-                      } else {
-                        return null; // Skip invalid areas
-                      }
-
-                      return (
-                        <Badge
-                          key={areaId}
-                          className="bg-white border border-blue-200 text-blue-800 cursor-pointer hover:bg-blue-100"
-                          onClick={() => setAreaName(areaName)}
-                        >
-                          {areaName}
-                        </Badge>
-                      );
-                    })}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setAreaNameDialogOpen(false);
-                setPendingArea(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                saveMarkedArea();
-                // Show success animation in the background
-                // (This would need to be implemented in the 3D view)
-                showAreaMarkedSuccess(areaName);
-              }}
-              disabled={!pendingArea || !areaName.trim()}
-            >
-              <Check className="h-4 w-4 mr-1.5" />
-              Save Area
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      {/* QR Code Modal */}
-      <Dialog open={qrCodeModalOpen} onOpenChange={setQrCodeModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Blueprint QR Code</DialogTitle>
-            <DialogDescription>
-              Scan this QR code to access the blueprint at this location.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex justify-center py-6">
-            <QRCodeCanvas
-              value={qrCodeValue}
-              size={256}
-              includeMargin
-              className="border p-2 rounded-md bg-white"
-            />
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => window.print()}
-              className="gap-1.5"
-            >
-              <Download className="h-4 w-4" />
-              Print
-            </Button>
-            <Button onClick={() => setQrCodeModalOpen(false)}>Done</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      {/* QR Generation Flow */}
-      {qrGenerationActive && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center">
-          <div className="bg-background rounded-xl shadow-2xl w-[800px] max-w-[90vw] overflow-hidden">
-            {/* Progress bar */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 h-1.5">
-              <div
-                className="bg-gradient-to-r from-emerald-400 to-teal-500 h-full transition-all duration-500"
-                style={{ width: `${(qrGenerationStep / 2) * 100}%` }}
-              ></div>
-            </div>
-
-            {/* Step 0: Introduction */}
-            {qrGenerationStep === 0 && (
-              <div className="p-6">
-                <div className="mb-6 flex justify-between items-start gap-8">
-                  <div>
-                    <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 mb-2">
-                      Let's Place Your QR Codes
-                    </h2>
-                    <p className="text-muted-foreground">
-                      Make your Blueprint accessible to everyone in your space
-                    </p>
-                  </div>
-
-                  <div className="w-28 h-28 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                    <QRCodeCanvas
-                      value={blueprintId || "example"}
-                      size={80}
-                      className="rounded-lg"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-6 mb-8">
-                  <div className="bg-blue-50 rounded-xl p-5 border border-blue-100">
-                    <h3 className="text-lg font-semibold text-blue-800 mb-3">
-                      Why QR Codes Matter
-                    </h3>
-                    <ul className="space-y-2">
-                      <li className="flex items-start">
-                        <div className="mt-1 bg-blue-500 rounded-full p-0.5 text-white mr-2">
-                          <Check className="h-3.5 w-3.5" />
-                        </div>
-                        <p className="text-sm">
-                          Instantly onboard visitors to your AR experience
-                        </p>
-                      </li>
-                      <li className="flex items-start">
-                        <div className="mt-1 bg-blue-500 rounded-full p-0.5 text-white mr-2">
-                          <Check className="h-3.5 w-3.5" />
-                        </div>
-                        <p className="text-sm">
-                          Place at key entry points and high-traffic areas
-                        </p>
-                      </li>
-                      <li className="flex items-start">
-                        <div className="mt-1 bg-blue-500 rounded-full p-0.5 text-white mr-2">
-                          <Check className="h-3.5 w-3.5" />
-                        </div>
-                        <p className="text-sm">
-                          Automated alignment makes the experience seamless
-                        </p>
-                      </li>
-                    </ul>
-                  </div>
-
-                  <div className="bg-purple-50 rounded-xl p-5 border border-purple-100">
-                    <h3 className="text-lg font-semibold text-purple-800 mb-3">
-                      How It Works
-                    </h3>
-                    <ol className="list-decimal ml-5 space-y-2 text-sm">
-                      <li>
-                        We'll guide you to place 3-6 QR codes in your space
-                      </li>
-                      <li>
-                        Each code will align visitors to that exact location
-                      </li>
-                      <li>Print all your QR codes with one click</li>
-                      <li>Place them in optimal locations at your venue</li>
-                    </ol>
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={completeQRGeneration}>
-                    Skip For Now
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setQrGenerationStep(1);
-                      setViewMode("3D");
-                      setQrPlacementMode(true);
-                    }}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-                  >
-                    Start Placing QR Codes
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Step 1: Preview & Print */}
-            {qrGenerationStep === 1 && (
-              <div className="p-6">
-                <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 mb-2">
-                  Your QR Codes Are Ready!
-                </h2>
-                <p className="text-muted-foreground mb-6">
-                  Print and place these QR codes at the matching locations in
-                  your space
-                </p>
-
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  {qrCodeStrings.map((codeValue, index) => (
-                    <div
-                      key={index}
-                      className="bg-white rounded-xl border shadow-sm p-4 flex flex-col items-center"
-                    >
-                      <div className="mb-2 font-medium text-center">
-                        Location {index + 1}
-                      </div>
-                      <QRCodeCanvas
-                        value={codeValue}
-                        size={128}
-                        className="mb-3"
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-xs"
-                        onClick={() => {
-                          // Create a temporary print window
-                          const printWindow = window.open("", "_blank");
-                          if (!printWindow) return;
-
-                          printWindow.document.write(`
-                            <html>
-                              <head>
-                                <title>Blueprint QR Code ${index + 1}</title>
-                                <style>
-                                  body { display: flex; justify-content: center; align-items: center; height: 100vh; }
-                                  .qr-container { text-align: center; }
-                                  .qr-label { font-family: Arial; margin-bottom: 20px; font-size: 24px; }
-                                </style>
-                              </head>
-                              <body>
-                                <div class="qr-container">
-                                  <div class="qr-label">Blueprint QR Code - Location ${index + 1}</div>
-                                  <div id="qrcode"></div>
-                                </div>
-                                <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>
-                                <script>
-                                  QRCode.toCanvas(document.getElementById('qrcode'), "${codeValue}", { width: 400 }, function (error) {
-                                    if (error) console.error(error);
-                                    setTimeout(() => { window.print(); window.close(); }, 500);
-                                  });
-                                </script>
-                              </body>
-                            </html>
-                          `);
-                          printWindow.document.close();
-                        }}
-                      >
-                        Print Individual
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-5 border border-purple-100 mb-6">
-                  <h3 className="text-lg font-semibold text-purple-800 mb-3">
-                    Next Steps
-                  </h3>
-                  <ol className="list-decimal ml-5 space-y-1.5 text-sm">
-                    <li>Print all QR codes and cut them out</li>
-                    <li>Place each QR code at its corresponding location</li>
-                    <li>Mount at eye level for optimal scanning</li>
-                    <li>Ensure adequate lighting for QR visibility</li>
-                  </ol>
-                </div>
-
-                <div className="flex justify-between">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setQrGenerationStep(0);
-                      setCurrentPlacingIndex(qrLocations.length);
-                      setQrPlacementMode(true);
-                    }}
-                  >
-                    Add More QR Codes
-                  </Button>
-
-                  <div className="flex gap-3">
-                    <Button
-                      variant="default"
-                      className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white"
-                      onClick={() => {
-                        setIsBatchPrinting(true);
-
-                        // Create a batch print page
-                        const printWindow = window.open("", "_blank");
-                        if (!printWindow) return;
-
-                        printWindow.document.write(`
-                          <html>
-                            <head>
-                              <title>Blueprint QR Codes</title>
-                              <style>
-                                body { font-family: Arial; padding: 40px; }
-                                .header { text-align: center; margin-bottom: 30px; }
-                                .header h1 { color: #4338CA; margin-bottom: 5px; }
-                                .header p { color: #6B7280; }
-                                .qr-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 40px; }
-                                .qr-card { border: 1px solid #E5E7EB; border-radius: 12px; padding: 20px; text-align: center; }
-                                .qr-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; }
-                                .instructions { margin-top: 40px; padding: 20px; background: #F3F4F6; border-radius: 8px; }
-                                .instructions h2 { margin-top: 0; color: #4338CA; }
-                                @media print {
-                                  .instructions { page-break-after: always; }
-                                }
-                              </style>
-                            </head>
-                            <body>
-                              <div class="header">
-                                <h1>Blueprint QR Codes</h1>
-                                <p>Print, cut out, and place at the matching locations in your space</p>
-                              </div>
-
-                              <div class="instructions">
-                                <h2>Placement Instructions</h2>
-                                <ol>
-                                  <li>Cut out each QR code along the border</li>
-                                  <li>Place each code at its numbered location in your space</li>
-                                  <li>Mount codes at eye level (around 5ft high) for easy scanning</li>
-                                  <li>Ensure codes are well-lit and not obscured</li>
-                                </ol>
-                              </div>
-
-                              <div class="qr-grid" id="qr-container">
-                                ${qrCodeStrings
-                                  .map(
-                                    (code, i) => `
-                                  <div class="qr-card">
-                                    <div class="qr-title">Location ${i + 1}</div>
-                                    <div id="qrcode-${i}"></div>
-                                  </div>
-                                `,
-                                  )
-                                  .join("")}
-                              </div>
-
-                              <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>
-                              <script>
-                                // Generate all QR codes
-                                Promise.all([
-                                  ${qrCodeStrings
-                                    .map(
-                                      (code, i) => `
-                                    QRCode.toCanvas(document.getElementById('qrcode-${i}'), "${code}", { width: 200 })
-                                  `,
-                                    )
-                                    .join(",")}
-                                ]).then(() => {
-                                  // Print after a short delay to ensure rendering
-                                  setTimeout(() => { window.print(); }, 500);
-                                });
-                              </script>
-                            </body>
-                          </html>
-                        `);
-                        printWindow.document.close();
-
-                        setTimeout(() => {
-                          setIsBatchPrinting(false);
-                        }, 2000);
-                      }}
-                    >
-                      {isBatchPrinting ? (
-                        <span className="flex items-center">
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Printing...
-                        </span>
-                      ) : (
-                        <span>Print All QR Codes</span>
-                      )}
-                    </Button>
-
-                    <Button
-                      onClick={completeQRGeneration}
-                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-                    >
-                      Continue to Next Step
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-      {/* Invite Team Modal */}
-      <Dialog open={showInviteModal} onOpenChange={setShowInviteModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Invite Team Members</DialogTitle>
-            <DialogDescription>
-              Add collaborators to your blueprint project.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="py-4">
-            {blueprintStatus === "active" && (
-              <div className="bg-green-50 p-4 rounded-lg mb-4">
-                <p className="text-green-800 font-medium flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4" />
-                  Your blueprint is now active! 🎉
-                </p>
-                <p className="text-sm text-gray-700 mt-1.5">
-                  Invite your team members so they can:
-                </p>
-                <ul className="mt-2 space-y-1 text-sm">
-                  <li className="flex items-center gap-2">
-                    <Check className="h-3.5 w-3.5 text-green-500" />
-                    Access this blueprint without additional costs
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-3.5 w-3.5 text-green-500" />
-                    Collaborate on designs and modifications
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-3.5 w-3.5 text-green-500" />
-                    Share and view AR experiences
-                  </li>
-                </ul>
-              </div>
-            )}
-
-            <Label htmlFor="invite-email" className="mb-1.5 block">
-              Email Address
-            </Label>
-            <div className="flex gap-2">
-              <Input
-                id="invite-email"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder="colleague@company.com"
-                className="flex-1"
-              />
-              <Button
-                onClick={handleInviteTeamMember}
-                disabled={isInviting || !inviteEmail.trim()}
-                className="gap-1.5"
-              >
-                {isInviting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <UserPlus className="h-4 w-4" />
-                    Invite
-                  </>
-                )}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1.5">
-              Enter multiple emails separated by commas to invite several people
-              at once.
-            </p>
-
-            {inviteSuccess && (
-              <div className="mt-4 p-3 bg-green-50 text-green-700 rounded-lg flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4" />
-                Invitation sent successfully!
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowInviteModal(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      {showOnboarding && <InteractiveOnboarding />}
-      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Share This Blueprint</DialogTitle>
-            <DialogDescription>
-              Invite others to view this Blueprint or copy the link below.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-2 py-4">
-            <Label className="text-sm">Public Share Link</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                readOnly
-                value={window.location.origin + "/public/" + blueprintId}
-                className="flex-1"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  navigator.clipboard.writeText(
-                    window.location.origin + "/public/" + blueprintId,
-                  );
-                  toast({
-                    title: "Link Copied",
-                    description: "Share link has been copied to your clipboard",
-                  });
-                }}
-              >
-                Copy
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Anyone with this link can view the Blueprint.
-            </p>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowShareDialog(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {selectedAnchorData && (
-        <div className="absolute top-20 right-4 w-80 p-6 bg-white rounded-lg border border-gray-100 shadow-xl z-50 transition-all duration-200 ease-in-out">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="font-semibold text-gray-800 text-base">
-              Selected Anchor Info
-            </h3>
-            <button
-              onClick={() => setSelectedAnchorData(null)}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            <div className="bg-gray-50 p-2 rounded-md">
-              <p className="text-xs text-gray-500 mb-1">Anchor ID</p>
-              <p className="text-sm font-mono text-gray-700 break-all">
-                {selectedAnchorData.id || "N/A"}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Text Content</p>
-              <p className="text-sm text-gray-700 max-h-24 overflow-y-auto pr-1">
-                {selectedAnchorData.textContent || "N/A"}
-              </p>
-            </div>
-
-            <div className="bg-gray-50 p-2 rounded-md">
-              <p className="text-xs text-gray-500 mb-1">Blueprint ID</p>
-              <p className="text-sm font-mono text-gray-700 break-all">
-                {selectedAnchorData.blueprintID || "N/A"}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Created</p>
-              <p className="text-sm text-gray-700">
-                {selectedAnchorData.createdDate
-                  ? new Date(
-                      selectedAnchorData.createdDate.seconds * 1000,
-                    ).toLocaleString()
-                  : "N/A"}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-col gap-2">
-            {/* Close Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSelectedAnchorData(null)}
-              className="w-full bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 rounded-md py-1.5 transition-colors"
-            >
-              Close
-            </Button>
-
-            {/* 3) Our new Delete button */}
-            <Button
-              variant="destructive"
-              size="sm"
-              className="w-full text-white bg-red-500 hover:bg-red-600"
-              onClick={() =>
-                handleDeleteAnchor(
-                  selectedAnchorData.id,
-                  selectedAnchorData.blueprintID,
-                )
-              }
-            >
-              {/* Example: using a Trash icon plus “Delete” */}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-4 w-4 mr-1.5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 
-                  2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V5a2 
-                  2 0 00-2-2H9a2 2 0 00-2 2v2H5m14 0H5"
-                />
-              </svg>
-              Delete
-            </Button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}

@@ -1,3 +1,13 @@
+/**
+ * @file ThreeViewer.tsx
+ * @description This component is responsible for rendering the 3D scene using Three.js.
+ * It handles the loading and display of 3D models, manages various types of interactive
+ * anchors (text, files, webpages, QR codes, 3D models), and allows users to navigate
+ * and interact with the 3D environment. Key functionalities include setting an origin point,
+ * placing and transforming anchors, handling user clicks for selection and interaction,
+ * and visualizing marked areas. It also provides imperative handles for functionalities
+ * like zooming.
+ */
 import React, {
   useEffect,
   useRef,
