@@ -16,8 +16,7 @@ import { calculateMappingDuration } from "../utils/business-logic";
 import {
   buildMappingConfirmationPhase1AIPrompt,
   buildMappingConfirmationPhase2AIPrompt,
-  // MappingConfirmationDataForPrompt, // Already effectively used via MappingConfirmationData
-  // Phase1ExtractedData, // This is the type for extractedDataCall1
+  Phase1ExtractedData, // This is the type for extractedDataCall1
 } from "../utils/ai-prompts";
 
 const openai = new OpenAI({
