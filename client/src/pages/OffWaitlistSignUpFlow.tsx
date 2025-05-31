@@ -1,6 +1,9 @@
-// --------------------------
-// lines above remain unchanged
-// --------------------------
+// This file defines the OffWaitlistSignUpFlow component, a multi-step form for users
+// who are invited off the waitlist to sign up for the Blueprint service.
+// It handles token validation, account creation, contact and location information input,
+// and scheduling for a 3D mapping session.
+// It integrates with Firebase for authentication and data storage,
+// and Google Maps Places API for address and organization name autocomplete.
 
 "use client";
 import { Loader } from "@googlemaps/js-api-loader";
@@ -34,6 +37,13 @@ import { db } from "@/lib/firebase";
  * - Step 2: Contact & Location (Contact Name, Phone, Address)
  * - Step 3: Scheduling (Date, Time)
  * - Final: Confirmation Screen
+ */
+
+/**
+ * The OffWaitlistSignUpFlow component guides users invited from the waitlist through a multi-step signup process.
+ * This includes account creation, providing contact and location details, and scheduling a 3D mapping session.
+ *
+ * @returns {JSX.Element} The rendered OffWaitlistSignUpFlow component.
  */
 export default function OffWaitlistSignUpFlow() {
   // ------------------------------
@@ -82,12 +92,22 @@ export default function OffWaitlistSignUpFlow() {
 
   const [errorMessage, setErrorMessage] = useState("");
 
+  /**
+   * Validates an email address using a basic regular expression.
+   * @param {string} email - The email address to validate.
+   * @returns {boolean} True if the email is valid, false otherwise.
+   */
   function isValidEmail(email: string) {
     // A basic regex for email validation
     const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return pattern.test(email);
   }
 
+  /**
+   * Validates a phone number by checking if it contains 10 digits after removing non-digit characters.
+   * @param {string} phone - The phone number to validate.
+   * @returns {boolean} True if the phone number is valid, false otherwise.
+   */
   function isValidPhone(phone: string) {
     const digits = phone.replace(/\D/g, "");
     return digits.length === 10;
@@ -105,6 +125,11 @@ export default function OffWaitlistSignUpFlow() {
   // ------------------------------
   // STEP HANDLERS
   // ------------------------------
+  /**
+   * Handles the logic for advancing to the next step in the sign-up flow.
+   * This includes form validation for the current step and data submission to Firebase.
+   * @async
+   */
   async function handleNextStep() {
     if (step === 1) {
       // Check token validity
@@ -347,6 +372,9 @@ export default function OffWaitlistSignUpFlow() {
   //   setStep((prev) => prev + 1);
   // }
 
+  /**
+   * Handles moving to the previous step in the sign-up flow.
+   */
   function handlePrevStep() {
     setStep((prev) => prev - 1);
   }
@@ -366,6 +394,11 @@ export default function OffWaitlistSignUpFlow() {
   >([]);
   const [loadingOrg, setLoadingOrg] = useState(false);
 
+  /**
+   * Fetches organization name predictions from Google Places API based on user input.
+   * @param {string} input - The user's input for the organization name.
+   * @async
+   */
   // ADD THIS BELOW:
   const [addressPredictions, setAddressPredictions] = useState<
     google.maps.places.AutocompletePrediction[]
@@ -442,6 +475,11 @@ export default function OffWaitlistSignUpFlow() {
     [autocomplete],
   );
 
+  /**
+   * Fetches address predictions from Google Places API based on user input.
+   * @param {string} input - The user's input for the address.
+   * @async
+   */
   const handleAddressSearch = useCallback(
     async (input: string) => {
       if (!autocomplete) return;
@@ -706,6 +744,11 @@ export default function OffWaitlistSignUpFlow() {
   //   );
   // }, [organizationName, autocompleteService]);
 
+  /**
+   * Handles the overall form submission, though its primary action is to call `handleNextStep`.
+   * Includes submitting state management.
+   * @async
+   */
   async function handleSubmit() {
     setIsSubmitting(true);
     try {
@@ -727,6 +770,11 @@ export default function OffWaitlistSignUpFlow() {
   // ------------------------------
   // STEP CONTENT COMPONENTS
   // ------------------------------
+  /**
+   * Renders the content for Step 1 of the sign-up flow: Basic Account Setup.
+   * This includes fields for organization name, email, and password, with Google Sign-In as an alternative.
+   * @returns {JSX.Element} The Step 1 form content.
+   */
   const Step1 = (
     <div className="flex flex-col gap-4">
       <h2 className="text-2xl font-bold mb-2">Basic Account Setup</h2>
@@ -840,6 +888,11 @@ export default function OffWaitlistSignUpFlow() {
     </div>
   );
 
+  /**
+   * Renders the content for Step 2 of the sign-up flow: Contact & Location.
+   * This includes fields for contact person name, phone number, physical address, and estimated square footage.
+   * @returns {JSX.Element} The Step 2 form content.
+   */
   const Step2 = (
     <div className="flex flex-col gap-4">
       <h2 className="text-2xl font-bold mb-2">Contact &amp; Location</h2>
@@ -944,6 +997,12 @@ export default function OffWaitlistSignUpFlow() {
     );
   }
 
+  /**
+   * Renders the content for Step 3 of the sign-up flow: Schedule 3D Mapping.
+   * This includes a date picker and time slot selection for the mapping session.
+   * It fetches and displays available time slots based on existing bookings.
+   * @returns {JSX.Element} The Step 3 form content.
+   */
   const Step3 = () => {
     const [bookedTimes, setBookedTimes] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -1152,6 +1211,10 @@ export default function OffWaitlistSignUpFlow() {
     );
   };
 
+  /**
+   * Renders the confirmation screen shown after successfully completing all sign-up steps.
+   * @returns {JSX.Element} The confirmation message and a button to go to the dashboard.
+   */
   function Confirmation() {
     return (
       <div className="flex flex-col gap-4 items-center text-center">

@@ -1,3 +1,8 @@
+// This file defines the PilotProgram page component.
+// This page provides detailed information about the Blueprint pilot program,
+// including its benefits, timeline, ideal candidates, and FAQs.
+// It also includes a call-to-action to join the waitlist via a contact form.
+
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -43,6 +48,12 @@ import {
   Smartphone,
 } from "lucide-react";
 
+/**
+ * The PilotProgram component renders a page with detailed information about the Blueprint pilot program.
+ * It showcases the benefits, timeline, ideal candidates, FAQs, and includes a contact form to join the waitlist.
+ *
+ * @returns {JSX.Element} The rendered PilotProgram page.
+ */
 export default function PilotProgram() {
   const [isIntersected, setIsIntersected] = useState(false);
   const [activeTab, setActiveTab] = useState("what");
@@ -64,6 +75,10 @@ export default function PilotProgram() {
     };
   }, []);
 
+  /**
+   * Displays a custom toast notification prompting the user to check their email for a pilot invitation.
+   * If the user indicates they haven't received an email, it scrolls to the waitlist contact form.
+   */
   const showPilotToast = () => {
     toast.custom(
       (t) => (

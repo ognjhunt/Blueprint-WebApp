@@ -1,3 +1,6 @@
+// This file defines the Home page component, which serves as the main landing page for the application.
+// It showcases the application's features, benefits, and provides a way for users to join the waitlist or contact the team.
+
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,6 +39,13 @@ import {
   Brain,
 } from "lucide-react";
 
+/**
+ * The Home component renders the main landing page of the application.
+ * It includes sections such as Hero, Features, Testimonials, LocationShowcase, and a ContactForm.
+ * It also handles redirection to the dashboard if the user is already logged in.
+ *
+ * @returns {JSX.Element} The rendered Home page.
+ */
 export default function Home() {
   const { currentUser } = useAuth();
   const [, setLocation] = useLocation();
@@ -126,6 +136,9 @@ export default function Home() {
     offset: ["start start", "end start"],
   });
 
+  /**
+   * Scrolls the page to the contact form section smoothly.
+   */
   const handleScrollToContactForm = () => {
     const contactFormElement = document.getElementById("contactForm");
     if (contactFormElement) {

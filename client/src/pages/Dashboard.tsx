@@ -1,3 +1,7 @@
+// This file defines the Dashboard page component, which serves as the main interface for users after they log in.
+// It displays an overview of their "Blueprints" (3D spaces), analytics, and provides navigation to other sections.
+// The dashboard also includes an onboarding flow for new users and a waiting screen for users whose 3D mapping is pending.
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -113,6 +117,13 @@ const itemVariants = {
   },
 };
 
+/**
+ * The Dashboard component is the main interface for users after they log in.
+ * It displays an overview of their "Blueprints" (3D spaces), analytics, and provides navigation to other sections.
+ * The dashboard also includes an onboarding flow for new users and a waiting screen for users whose 3D mapping is pending.
+ *
+ * @returns {JSX.Element} The rendered Dashboard page.
+ */
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -156,6 +167,10 @@ export default function Dashboard() {
     responseMimeType: "text/plain",
   };
 
+  /**
+   * Initializes a chat session with the Gemini model and sends an initial message.
+   * This function is likely used for an AI chat feature within the dashboard.
+   */
   async function run() {
     const chatSession = model.startChat({
       generationConfig,
@@ -249,7 +264,11 @@ export default function Dashboard() {
 
   const [userData, setUserData] = useState<UserData | null>(null);
 
-  // Helper function to format timestamp as "time ago"
+  /**
+   * Formats a given date into a "time ago" string (e.g., "2 hours ago", "3 days ago").
+   * @param {Date} date - The date to format.
+   * @returns {string} The formatted "time ago" string.
+   */
   const formatTimeAgo = (date: Date): string => {
     if (!date) return "Recently";
 
@@ -609,6 +628,12 @@ export default function Dashboard() {
     run();
   }, [currentUser]);
 
+  /**
+   * Constructs a Google Street View Static API URL for a given address and business name.
+   * @param {string} address - The address of the location.
+   * @param {string} businessName - The name of the business.
+   * @returns {Promise<string | null>} A promise that resolves with the Street View image URL or null if an error occurs or no address is provided.
+   */
   const getLocationImageUrl = async (address, businessName) => {
     // Ensure you have an address to work with
     if (!address) {
@@ -645,6 +670,11 @@ export default function Dashboard() {
   };
 
   // Modified blueprint initialization to use the new image fetching logic
+  /**
+   * Initializes a blueprint object with data, including fetching a location image URL.
+   * @param {any} blueprintData - The raw blueprint data.
+   * @returns {Promise<object>} A promise that resolves with the initialized blueprint object.
+   */
   const initializeBlueprint = async (blueprintData) => {
     // Get image URL with fallbacks
     let imageUrl: string | null = null;
@@ -686,7 +716,11 @@ export default function Dashboard() {
     };
   };
 
-  // Helper function to format dates consistently
+  /**
+   * Formats a date field (which can be a Firestore Timestamp or a string) into a localized date string.
+   * @param {any} dateField - The date field to format.
+   * @returns {string} The formatted date string or "N/A" if formatting fails.
+   */
   const formatDate = (dateField) => {
     if (!dateField) return "N/A";
 
@@ -759,7 +793,14 @@ export default function Dashboard() {
     generateRealChartData();
   }, [currentUser]);
 
-  // CountdownTimer component to show time remaining until mapping session
+  /**
+   * A component that displays a countdown timer to a specific target date and time.
+   * @param {object} props - The component's props.
+   * @param {Date} props.targetDate - The target date for the countdown.
+   * @param {string} props.targetTime - The target time for the countdown (format: "HH:MM").
+   * @param {Function} props.onTimerEnd - Callback function to execute when the timer ends.
+   * @returns {JSX.Element} The rendered CountdownTimer component.
+   */
   const CountdownTimer = ({ targetDate, targetTime, onTimerEnd }) => {
     const [timeRemaining, setTimeRemaining] = useState({
       days: 0,
@@ -876,6 +917,16 @@ export default function Dashboard() {
     );
   };
 
+  /**
+   * A component displayed when the user is waiting for their 3D mapping session to be completed.
+   * It shows a countdown timer and information about the mapping process.
+   * Allows the user to manually check if the mapping is complete.
+   *
+   * @param {object} props - The component's props.
+   * @param {Date} props.mappingDate - The scheduled date for the mapping session.
+   * @param {string} props.mappingTime - The scheduled time for the mapping session.
+   * @returns {JSX.Element} The rendered WaitingForMappingDashboard component.
+   */
   const WaitingForMappingDashboard = ({ mappingDate, mappingTime }) => {
     const [timerEnded, setTimerEnded] = useState(false);
     const [checkingCompletion, setCheckingCompletion] = useState(false);

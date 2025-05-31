@@ -1,3 +1,7 @@
+// This file defines the Hero component, which is the main hero section for the landing page.
+// It displays a rotating headline, a short description, and call-to-action buttons.
+// It also includes some visual elements like background gradients and patterns.
+
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -6,6 +10,13 @@ import { Link } from "wouter";
 import { PlayIcon, ArrowRightIcon } from "@heroicons/react/24/solid";
 import { Info, Sparkles, Zap, Eye } from "lucide-react";
 
+/**
+ * The Hero component is the main hero section for the landing page.
+ * It displays a rotating headline, a short description, and call-to-action buttons.
+ * It also includes some visual elements like background gradients and patterns.
+ *
+ * @returns {JSX.Element} The rendered Hero component.
+ */
 export default function Hero() {
   const headlines = [
     {
@@ -32,6 +43,9 @@ export default function Hero() {
   const heroRef = useRef(null);
   const isInView = useInView(heroRef, { once: true });
 
+  /**
+   * Scrolls the page to the contact form section smoothly.
+   */
   const handleScrollToContactForm = () => {
     const contactFormElement = document.getElementById("contactForm");
     if (contactFormElement) {

@@ -1,3 +1,7 @@
+// This file defines the LocationShowcase component, which displays a showcase of different locations
+// and how AR technology can be applied to them. It allows users to select different locations
+// and see "before" and "after" images or videos demonstrating the AR enhancements.
+
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -11,6 +15,14 @@ import {
   Camera,
 } from "lucide-react";
 
+/**
+ * The LocationShowcase component displays a showcase of different locations
+ * and how AR technology can be applied to them.
+ * It allows users to select different locations and see "before" and "after"
+ * images or videos demonstrating the AR enhancements.
+ *
+ * @returns {JSX.Element} The rendered LocationShowcase component.
+ */
 export default function LocationShowcase() {
   const [selectedLocation, setSelectedLocation] = useState("Grocery Store");
   const [isHovering, setIsHovering] = useState(null);

@@ -1,12 +1,28 @@
+// This file defines the Footer component, which is displayed at the bottom of all pages.
+// It includes links to resources, company information, a newsletter subscription form,
+// and copyright information.
+
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 
+/**
+ * The Footer component is displayed at the bottom of all pages.
+ * It includes links to resources, company information, a newsletter subscription form,
+ * and copyright information.
+ *
+ * @returns {JSX.Element} The rendered Footer component.
+ */
 export default function Footer() {
   const [email, setEmail] = useState("");
   const [subscribed, setSubscribed] = useState(false);
 
+  /**
+   * Handles the newsletter subscription form submission.
+   * Validates the email and sets the subscribed state.
+   * @param {React.FormEvent} e - The form submission event.
+   */
   const handleSubscribe = (e) => {
     e.preventDefault();
     if (email && email.includes("@") && email.includes(".")) {
