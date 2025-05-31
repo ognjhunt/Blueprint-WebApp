@@ -3,6 +3,22 @@ import { Anthropic } from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import * as admin from "firebase-admin"; // Added for Firebase Admin SDK
 //import admin, { db, storageAdmin } from '@/lib/firebaseAdmin'; // Adjust path if you placed it elsewhere
+import {
+  extractDataFromAIResponse,
+  extractUrlsFromDeepResearch,
+} from "../utils/data-extraction";
+import {
+  validateMappingConfirmationData,
+  MappingConfirmationData,
+  ValidationError,
+} from "../utils/validation";
+import { calculateMappingDuration } from "../utils/business-logic";
+import {
+  buildMappingConfirmationPhase1AIProomp,
+  buildMappingConfirmationPhase2AIProomp,
+  // MappingConfirmationDataForPrompt, // Already effectively used via MappingConfirmationData
+  // Phase1ExtractedData, // This is the type for extractedDataCall1
+} from "../utils/ai-prompts";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -11,126 +27,6 @@ const openai = new OpenAI({
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
-
-// Helper function to extract structured data from AI response (Phase 1)
-function extractDataFromAIResponse(responseText: string): {
-  [key: string]: string;
-} {
-  const extractedData: { [key: string]: string } = {};
-  if (typeof responseText !== "string" || !responseText.trim()) {
-    console.warn(
-      "extractDataFromAIResponse received invalid input or empty string.",
-    );
-    return extractedData; // Return empty if no valid text
-  }
-  const lines = responseText.split("\n");
-  const markers = [
-    "SHEET_ROW_ID:",
-    "SHEET_CONTACT_NAME:",
-    "SHEET_CONTACT_EMAIL:",
-    "MAPPING_DURATION_MINUTES:",
-    "CAR_TRAVEL_MINUTES:",
-    "PUBLIC_TRANSPORT_MINUTES:",
-    "COMPANY_URL_USED:",
-  ];
-
-  lines.forEach((line) => {
-    for (const marker of markers) {
-      if (line.trim().startsWith(marker)) {
-        const key = marker
-          .substring(0, marker.length - 1)
-          .replace(/ /g, "_")
-          .toUpperCase();
-        const value = line.substring(marker.length).trim();
-        extractedData[key] = value;
-        break;
-      }
-    }
-  });
-  return extractedData;
-}
-
-// Helper function to extract Key URLs from Deep Research Output (Phase 2)
-function extractUrlsFromDeepResearch(markdownText: string): {
-  [key: string]: string;
-} {
-  const urls: { [key: string]: string } = {};
-  if (typeof markdownText !== "string" || !markdownText) {
-    return urls;
-  }
-  const lines = markdownText.split("\n");
-  let inKeyUrlsSection = false;
-
-  // Define mappings from the text labels in markdown to Firestore field names
-  const keyMappings: { [key: string]: string } = {
-    Menu: "menu_url",
-    Reservations: "reservations_url",
-    "Wait List": "wait_list_url",
-    "Online Ordering": "online_ordering_url",
-    Reviews: "reviews_url",
-    "Loyalty Program": "loyalty_program_url",
-    "Specials/Promotions": "specials_promotions_url",
-    "Events/Calendar": "events_url",
-    // Add other mappings if needed
-  };
-
-  // Regex to find lines like "- Menu: http://example.com" or "- Menu: N/A"
-  // It also handles potential markdown links like "- Menu: [Visit Here](http://example.com)"
-  const itemRegex = /^\s*-\s*([^:]+):\s*(.*)/;
-
-  for (const line of lines) {
-    const trimmedLine = line.trim();
-
-    if (trimmedLine.startsWith("### Key URLs Found:")) {
-      inKeyUrlsSection = true;
-      continue;
-    }
-
-    // If we encounter another H3 or a completely different section, stop processing Key URLs.
-    // This condition might need adjustment based on the variability of the AI's output.
-    if (
-      inKeyUrlsSection &&
-      (trimmedLine.startsWith("### ") || trimmedLine === "")
-    ) {
-      // If it's an empty line immediately after "### Key URLs Found:", don't break yet.
-      // If it's another heading, or several empty lines, then break.
-      // For simplicity, we'll break on any other H3.
-      if (
-        trimmedLine.startsWith("### ") &&
-        !trimmedLine.startsWith("### Key URLs Found:")
-      ) {
-        inKeyUrlsSection = false; // Exit the section
-        break;
-      }
-    }
-
-    if (inKeyUrlsSection) {
-      const match = trimmedLine.match(itemRegex);
-      if (match) {
-        const keyName = match[1].trim(); // e.g., "Menu"
-        let value = match[2].trim(); // e.g., "http://example.com" or "[Text](url)" or "N/A"
-
-        if (value.toLowerCase() !== "n/a" && value !== "") {
-          // Extract URL if it's in markdown format [Text](URL)
-          const markdownLinkMatch = value.match(
-            /\[.*?\]\((https?:\/\/[^\s)]+)\)/,
-          );
-          if (markdownLinkMatch && markdownLinkMatch[1]) {
-            value = markdownLinkMatch[1];
-          }
-
-          // Ensure it's a plausible URL (basic check)
-          if (value.startsWith("http://") || value.startsWith("https://")) {
-            if (keyMappings[keyName]) {
-              urls[keyMappings[keyName]] = value;
-            }
-          }
-        }
-      }
-    }
-  }
-  return urls;
-}
 
 export default async function processMappingConfirmationHandler(
   req: Request,
@@ -147,159 +43,55 @@ export default async function processMappingConfirmationHandler(
       contact_phone_number,
       estimated_square_footage,
       blueprint_id,
-    }: {
-      have_we_onboarded?: string;
-      chosen_time_of_mapping?: string;
-      chosen_date_of_mapping?: string;
-      have_user_chosen_date?: string;
-      address?: string;
-      company_url?: string;
-      company_name?: string;
-      contact_name?: string;
-      contact_phone_number?: string;
-      estimated_square_footage?: number;
-      blueprint_id?: string;
-    } = req.body;
+    }: MappingConfirmationData = req.body; // Use the interface here
 
-    const requiredFields = {
-      company_name,
-      contact_name,
-      contact_phone_number,
-      address,
-      chosen_date_of_mapping,
-      chosen_time_of_mapping,
-      estimated_square_footage,
-      company_url,
-      blueprint_id,
-    };
-
-    for (const [field, value] of Object.entries(requiredFields)) {
-      if (value === undefined || value === null || value === "") {
-        return res.status(400).json({
-          error: `Missing required field: ${field}`,
-        });
-      }
+    const validationErrors = validateMappingConfirmationData(req.body);
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        error: "Validation failed",
+        errors: validationErrors, // Return structured errors
+      });
     }
 
-    const calculatedMappingDuration =
-      Number(estimated_square_footage) / 100 + 15;
+    // At this point, estimated_square_footage has been validated to be a non-negative number (or string coercible to one)
+    // by validateMappingConfirmationData.
+    const duration = calculateMappingDuration(estimated_square_footage);
+    // The calculateMappingDuration function is robust, but if for some reason it still results in NaN
+    // (e.g. if validation logic changes or there's a bug), we should handle it.
+    // However, validateMappingConfirmationData should ensure estimated_square_footage is valid.
+    // For the prompt, we'll rely on prior validation.
+    const calculatedMappingDuration = duration;
 
-    const promptCall1 = `
-Blueprint Post-Signup - Phase 1: Initial Mapping Setup for ${company_name}.
+    // Consider what to do if `duration` is NaN.
+    // The `validateMappingConfirmationData` should prevent this.
+    // If it could still happen, add a check:
+    if (isNaN(duration)) {
+      console.error(
+        "Error: calculateMappingDuration returned NaN despite prior validation. SqFt:",
+        estimated_square_footage,
+      );
+      return res.status(500).json({
+        error:
+          "Internal server error: Could not calculate mapping duration due to invalid square footage after validation.",
+      });
+    }
 
-**WEBHOOK DATA:**
-- Company: ${company_name}
-- Contact (from Webhook): ${contact_name} (${contact_phone_number})
-- Address: ${address}
-- Website: ${company_url || "Not provided"}
-- Mapping Date: ${chosen_date_of_mapping}
-- Mapping Time: ${chosen_time_of_mapping}
-- Est. Square Footage: ${estimated_square_footage}
-
-**TASK 1: LOCATE & PREPARE GOOGLE SHEET CONTACT**
-1.  In the "Blueprint Waitlist" spreadsheet, in Sheet: Inbound (Website), find the row where the 'Website' column matches "${company_url}".
-2.  From this specific row, extract:
-    - Full Name from 'Name' (Column A) - store as [SheetContactName].
-    - Email from 'Email' (Column B) - store as [SheetContactEmail].
-3.  If multiple rows match, use the first one found. If no row is found, note this in your final summary, use "${contact_name}" as [SheetContactName] and "no-reply@blueprint.com" as [SheetContactEmail] (or another placeholder) for subsequent email steps BUT CLEARLY INDICATE THIS FALLBACK.
-4.  Store the Row ID of the matched row as [SheetRowID]. If no row is found, use "NOT_FOUND" for [SheetRowID].
-
-**TASK 2: UPDATE GOOGLE SHEET (using [SheetRowID] if found and not "NOT_FOUND", else skip this task and note it)**
-Update the following columns for row [SheetRowID]:
-- "Have they picked a date+time for mapping?" = "Yes"
-- "Have we Onboarded?" = "No"
-- "Chosen Date of Mapping" = "${chosen_date_of_mapping}"
-- "Chosen Time of Mapping" = "${chosen_time_of_mapping}"
-- "Contact Name" (this is the webhook contact) = "${contact_name}"
-- "Contact Phone Number" (this is the webhook contact) = "${contact_phone_number}"
-- "Address" = "${address}"
-- "Est. Sq Ft" (if such a column exists, otherwise use a suitable column or note) = "${estimated_square_footage}"
-
-**TASK 3: DRAFT CONFIRMATION EMAIL**
-To: [SheetContactEmail] (using the email found/derived in TASK 1)
-Subject: "Confirmed for Blueprint Mapping: ${company_name}!"
-Body:
-"Hi [SheetContactName],
-
-We've confirmed a Blueprint Mapping for ${company_name} at ${address ? address.replace(", USA", "") : "the provided address"} on (chosen date of mapping, but in the format of Saturday, May 31st, 2025 instead of ${chosen_date_of_mapping}), at (chosen time of mapping, but in the format 1:00 PM instead of ${chosen_time_of_mapping}).
-
-You should receive a Google Calendar Invite for this shortly. Please accept it to confirm.
-
-Based on the provided information (${estimated_square_footage} sq ft), we estimate the mapping will take approximately ${calculatedMappingDuration} minutes.
-
-Pilot Details: https://blueprint-vision-fork-nijelhunt.replit.app/pilot-program
-Questions? Reply to this email or schedule a chat: https://calendly.com/blueprintar/30min
-
-Thanks,
-Nijel Hunt
-Co-Founder at Blueprint"
-
-**TASK 4: CREATE GOOGLE CALENDAR EVENT**
-Event Title: "Blueprint Mapping: ${company_name}"
-Description: "Company: ${company_name}\\nContact (Webhook): ${contact_name} (${contact_phone_number})\\nPrimary Contact (Sheet): [SheetContactName] ([SheetContactEmail])\\nAddress: ${address}\\nEst. Sq. Ft: ${estimated_square_footage}"
-Location: ${address}
-Start: ${chosen_date_of_mapping} ${chosen_time_of_mapping} (Ensure this is in a Zapier-compatible format, assume EST if no timezone specified by user. If the provided time is already in a specific timezone, use that.)
-End: Calculate end time based on a 60-minute duration from the start time.
-Attendees: Add [SheetContactEmail] AND founders@blueprint.com.
-Allow conflicts: Yes
-
-**TASK 5: DRAFT DAY-OF REMINDER EMAIL**
-To: [SheetContactEmail]
-Subject: "REMINDER: Blueprint Mapping for ${company_name} is Today!"
-Body:
-"Hi [SheetContactName (just first name)],
-
-Just a friendly reminder that your Blueprint Mapping for ${company_name} is scheduled for today, (chosen date of mapping, but in the format of Saturday, May 31st, 2025 instead of ${chosen_date_of_mapping}), at (chosen time of mapping, but in the format 1:00 PM instead of ${chosen_time_of_mapping}) at ${address ? address.replace(", USA", "") : "the provided address"}.
-
-The webhook contact, ${contact_name}, will also receive an SMS reminder approximately 1 hour before.
-
-If you have any questions, please contact founders@blueprint.com.
-
-See you soon,
-Nijel Hunt
-Co-Founder at Blueprint"
-This draft should be scheduled to be sent on ${chosen_date_of_mapping} at 9:00 AM EST.
-
-**TASK 6: SEND IMMEDIATE TWILIO SMS TO WEBHOOK CONTACT**
-To: ${contact_phone_number} (Fallback: +19196389913 if primary is invalid/missing)
-Message: "Hi ${contact_name}! Your Blueprint Mapping for ${company_name} is confirmed for ${chosen_date_of_mapping} at ${chosen_time_of_mapping} (${address ? address.replace(", USA", "") : "location"}). Email to [SheetContactEmail] & Calendar invite sent. Reminder SMS 1hr prior. - Blueprint"
-
-**TASK 7: SCHEDULE 1-HOUR REMINDER TWILIO SMS TO WEBHOOK CONTACT**
-To: ${contact_phone_number} (Fallback: +19196389913)
-Message: "Reminder: Your Blueprint Mapping for ${company_name} at ${address ? address.replace(", USA", "") : "location"} is in about 1 hour (${chosen_time_of_mapping}). See you soon! - Blueprint"
-Schedule: 1 hour before ${chosen_date_of_mapping} ${chosen_time_of_mapping} (use the same timezone considerations as TASK 4 for the base time).
-
-**TASK 8: GET TRAVEL TIME (Use Google Maps via Zapier if available, otherwise Perplexity. Prioritize Zapier's Google Maps tool for reliability)**
-Origin: "1005 Crete St, Durham, NC 27707"
-Destination: "${address}"
-Return ONLY minutes for car/Uber travel time as [CarTravelMinutes] AND public transport travel time as [PublicTransportMinutes]. If a mode is unavailable, return 'N/A' for it.
-
-**TASK 9: SEND SLACK MESSAGE**
-Channel: gumloop-experiment
-Message:
-"✅ NEW APPOINTMENT (Phase 1 Complete): ${company_name}
-Contact (Webhook): ${contact_name} (${contact_phone_number})
-Contact (Sheet): [SheetContactName] ([SheetContactEmail])
-Location: ${address}
-Date: ${chosen_date_of_mapping} @ ${chosen_time_of_mapping}
-Est. Mapping Duration: ${calculatedMappingDuration} mins
-Travel (Car): [CarTravelMinutes] mins / (Public): [PublicTransportMinutes] mins
-Est. Sq. Ft: ${estimated_square_footage}
-Sheet Row ID: [SheetRowID]
-
-Next: Phase 2 (Deep Research) for ${company_url}."
-
-Execute all tasks sequentially.
-IMPORTANT: At the VERY END of your response, provide the following details in this exact format, on separate lines, ensuring each value is present:
-SHEET_ROW_ID:[SheetRowID]
-SHEET_CONTACT_NAME:[SheetContactName]
-SHEET_CONTACT_EMAIL:[SheetContactEmail]
-MAPPING_DURATION_MINUTES:${calculatedMappingDuration}
-CAR_TRAVEL_MINUTES:[CarTravelMinutes]
-PUBLIC_TRANSPORT_MINUTES:[PublicTransportMinutes]
-COMPANY_URL_USED:${company_url}
-Provide a summary of all actions taken. Confirm if any fallback was used.
-`;
+    // Prepare data for Phase 1 prompt builder
+    // req.body already conforms to MappingConfirmationData which is compatible with MappingConfirmationDataForPrompt
+    const phase1PromptData = {
+      company_name: company_name!, // Add ! to assert that company_name is defined
+      contact_name: contact_name!,
+      contact_phone_number: contact_phone_number!,
+      address: address!,
+      company_url: company_url, // Optional, so no ! needed
+      chosen_date_of_mapping: chosen_date_of_mapping!,
+      chosen_time_of_mapping: chosen_time_of_mapping!,
+      estimated_square_footage: estimated_square_footage!,
+    };
+    const promptCall1 = buildMappingConfirmationPhase1AIProomp(
+      phase1PromptData,
+      calculatedMappingDuration,
+    );
 
     console.log("Sending Prompt for Call 1 to OpenAI...");
     const mcpResponseCall1 = await openai.responses.create({
@@ -392,72 +184,25 @@ Provide a summary of all actions taken. Confirm if any fallback was used.
     }
 
     const sheetRowId = extractedDataCall1.SHEET_ROW_ID;
-    const companyUrlForCall2 = extractedDataCall1.COMPANY_URL_USED;
+    const companyUrlForCall2 = extractedDataCall1.COMPANY_URL_USED; // This comes from AI in phase 1
 
-    const promptCall2 = `
-    Blueprint Post-Signup - Phase 2: Deep Research & Content Generation for ${company_name}.
+    // Prepare original webhook data for Phase 2 prompt builder
+    // req.body is already of type MappingConfirmationData, which is compatible with MappingConfirmationDataForPrompt
+    const originalWebhookDataForPhase2 = {
+      company_name: company_name!,
+      contact_name: contact_name!,
+      contact_phone_number: contact_phone_number!,
+      address: address!,
+      company_url: company_url,
+      chosen_date_of_mapping: chosen_date_of_mapping!,
+      chosen_time_of_mapping: chosen_time_of_mapping!,
+      estimated_square_footage: estimated_square_footage!,
+    };
 
-    **INPUT DATA:**
-    - Company Name: ${company_name}
-    - Company URL: ${companyUrlForCall2 || "No website provided, conduct general search if possible."}
-    - Company Address: ${address}
-    - Google Sheet Row ID to update: ${sheetRowId} (If "LOOKUP_REQUIRED" or "NOT_FOUND", your first step in TASK 2 must be to find the row by Website column matching "${companyUrlForCall2}")
-
-    **TASK 1: PERFORM DEEP COMPANY RESEARCH (Using Perplexity Sonar or similar advanced web research tool available via Zapier)**
-    For company at URL: ${companyUrlForCall2 || "No website provided. Attempt research based on Company Name and Address."} (and physical address: ${address} for local context if needed)
-    1.  Visit main website. If it's a generic portal, find the specific page for the location. If no URL provided, attempt to find one.
-    2.  Extract Key URLs: Menu, Reservations, Wait List, Online Ordering, Reviews, Loyalty Program, Specials/Promotions, Events/Calendar. List them. If a URL is not found, state "N/A".
-    3.  Menu Scrape: Get full menu (items, descriptions, prices). If PDF/image, provide a link to it and attempt to summarize its contents if tool supports. Note if not fully scrapable.
-    4.  General Info Crawl: Hours, Social Media links, Contact Info (phone, email), About Us, Policies.
-    5.  Content Scrape: For each Key URL from (1.2) that is not N/A, scrape its textual content.
-    6.  Reviews: Find up to 6 Google Reviews & up to 6 Yelp Reviews (preferably 4+ stars, recent, extract text, reviewer name/initials, rating). If fewer are found, list what's available.
-    7.  Engagement Questions: Create 5-10 personalized multiple-choice questions (with distinct correct answers) about the company, its services, or menu, based on your research.
-    Compile all findings into a well-structured markdown block. Let's call this [DeepResearchOutput].
-
-    **TASK 2: UPDATE GOOGLE SHEET WITH DEEP RESEARCH**
-    Spreadsheet: "Blueprint Waitlist"
-    Sheet: "Inbound (Website)"
-    If the provided Google Sheet Row ID is "LOOKUP_REQUIRED" or "NOT_FOUND", first find the row where 'Website' column matches "${companyUrlForCall2}" and use that Row ID. If still not found after attempting lookup, note this clearly.
-    If a valid Row ID is available, update the column "Company Research" with the entire [DeepResearchOutput] from TASK 1.
-    Also, update a column named "Research Timestamp" (or create if it doesn't exist) with the current date & time (e.g., YYYY-MM-DD HH:MM AM/PM EST).
-
-    **TASK 3: CREATE NOTION PAGE**
-    In a Notion database/page named "Blueprint Hub" (or a relevant parent page you can access):
-    Title: "${company_name} - Blueprint Design Ideas & Research"
-    Icon: (AI-selected emoji based on company type, e.g., 🍕 for pizza, ☕ for cafe, 🛍️ for retail)
-    Cover: (AI-selected stock image URL based on company branding/type/location)
-    Content (structured using Notion blocks like Headings, Text, Bullet lists):
-    "### Deep Research Summary
-    [Paste a concise 3-5 sentence summary of [DeepResearchOutput] here, highlighting key findings like menu type/main products, main services, hours. Include the direct website link: ${companyUrlForCall2 || "N/A"}]
-
-    ### Key URLs Found: 
-    (This section is CRITICAL for Firestore update. Ensure clear list format, e.g., "- Menu: [URL or N/A]")
-    - Menu: [Link or N/A from TASK 1.2]
-    - Reservations: [Link or N/A from TASK 1.2]
-    - Wait List: [Link or N/A from TASK 1.2]
-    - Online Ordering: [Link or N/A from TASK 1.2]
-    - Reviews: [Link or N/A from TASK 1.2]
-    - Loyalty Program: [Link or N/A from TASK 1.2]
-    - Specials/Promotions: [Link or N/A from TASK 1.2]
-    - Events/Calendar: [Link or N/A from TASK 1.2]
-
-    ### AI-Generated Blueprint AR Experience Ideas:
-    (Based on [DeepResearchOutput], generate 3-5 creative AR experience ideas. For each, suggest potential placements/uses for Text, 3D Models, Media (images/videos), Webpages, and Uploaded Content (MP3/4, GLB, PNG, PDF, PPT) that could be relevant to the idea.)
-       **Idea 1: [Descriptive Title]**
-          - *Objective:* [Brief goal of this AR idea]
-          - *Text Elements:* [Examples]
-          - *3D Models:* [Examples, e.g., featured product, mascot]
-          - *Media:* [Examples, e.g., promotional video, image gallery]
-          - *Webpages:* [Examples, e.g., link to online ordering, loyalty signup]
-          - *Uploaded Content:* [Examples, e.g., PDF menu, promotional audio]
-       **(Repeat for 2-4 more ideas)**
-
-    ### Customer Engagement Questions (from Research):
-    (List the 5-10 MCQs with their answers from TASK 1.7)"
-
-    Execute tasks sequentially. Provide a summary of actions, including the Notion page URL. If research was limited or any task failed, note these limitations clearly.
-    The entire response from this phase will be considered [DeepResearchOutput].
-    `;
+    const promptCall2 = buildMappingConfirmationPhase2AIProomp(
+      originalWebhookDataForPhase2,
+      extractedDataCall1, // This is Phase1ExtractedData
+    );
 
     console.log("Sending Prompt for Call 2 to OpenAI...");
     const mcpResponseCall2 = await openai.responses.create({
