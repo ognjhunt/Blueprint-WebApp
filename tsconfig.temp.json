@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "vite.config.ts",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/tests/**/*"
+  ],
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "noEmit": true
+  }
+}
