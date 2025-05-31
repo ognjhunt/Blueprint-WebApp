@@ -81,7 +81,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 
-function generateToken(length = 24) {
+export function generateToken(length = 24) {
   const characters =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   let token = "";

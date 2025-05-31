@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import ContactForm from '@/components/sections/ContactForm';
 
 // Mock child components or external dependencies if necessary
@@ -37,8 +37,6 @@ describe('ContactForm', () => {
   // Helper function to click submit
   const clickSubmit = async () => {
     fireEvent.click(screen.getByRole('button', { name: /Secure My Early Access/i }));
-    // Wait for potential state updates and error messages
-    await waitFor(() => {});
   };
 
   describe('validateForm() - through UI interaction', () => {
@@ -51,93 +49,125 @@ describe('ContactForm', () => {
         city: 'New York',
         state: 'NY',
       });
-      await clickSubmit();
-      // Check that no error messages are present
+      // Wrap state-updating interactions in act
+      await act(async () => {
+        fillForm({
+          name: 'John Doe',
+          email: 'john.doe@example.com',
+          company: 'Example Corp',
+          city: 'New York',
+          state: 'NY',
+        });
+        await clickSubmit();
+      });
+      // Expect success state or submission attempt
+      expect(await screen.findByText(/Welcome to the Future!/i)).toBeInTheDocument();
+      // Check that no error messages are present AFTER success is confirmed
       expect(screen.queryByText('Name is required')).not.toBeInTheDocument();
       expect(screen.queryByText('Valid email is required')).not.toBeInTheDocument();
       expect(screen.queryByText('Company name is required')).not.toBeInTheDocument();
       expect(screen.queryByText('City is required')).not.toBeInTheDocument();
       expect(screen.queryByText('State is required')).not.toBeInTheDocument();
-      // Expect success state or submission attempt
-      expect(screen.queryByText(/Welcome to the Future!/i)).toBeInTheDocument();
     });
 
     it('should show error for empty name', async () => {
       render(<ContactForm />);
-      fillForm({ name: '' });
-      await clickSubmit();
+      await act(async () => {
+        fillForm({ name: '' });
+        await clickSubmit();
+      });
       expect(screen.getByText('Name is required')).toBeInTheDocument();
     });
 
     it('should show error for name less than 2 characters', async () => {
       render(<ContactForm />);
-      fillForm({ name: 'J' });
-      await clickSubmit();
+      await act(async () => {
+        fillForm({ name: 'J' });
+        await clickSubmit();
+      });
       expect(screen.getByText('Name is required')).toBeInTheDocument();
     });
 
     it('should show error for invalid email', async () => {
       render(<ContactForm />);
-      fillForm({ email: 'invalid-email' });
-      await clickSubmit();
-      expect(screen.getByText('Valid email is required')).toBeInTheDocument();
+      await act(async () => {
+        fillForm({ email: 'invalid-email' });
+        await clickSubmit();
+      });
+      expect(await screen.findByText('Valid email is required', {}, { timeout: 3000 })).toBeInTheDocument();
     });
      it('should show error for empty email', async () => {
       render(<ContactForm />);
-      fillForm({ email: '' });
-      await clickSubmit();
-      expect(screen.getByText('Valid email is required')).toBeInTheDocument();
+      await act(async () => {
+        fillForm({ email: '' });
+        await clickSubmit();
+      });
+      expect(await screen.findByText('Valid email is required')).toBeInTheDocument();
     });
 
     it('should show error for empty company', async () => {
       render(<ContactForm />);
-      fillForm({ company: '' });
-      await clickSubmit();
-      expect(screen.getByText('Company name is required')).toBeInTheDocument();
+      await act(async () => {
+        fillForm({ company: '' });
+        await clickSubmit();
+      });
+      expect(await screen.findByText('Company name is required')).toBeInTheDocument();
     });
     it('should show error for company name less than 2 chars', async () => {
       render(<ContactForm />);
-      fillForm({ company: 'C' });
-      await clickSubmit();
-      expect(screen.getByText('Company name is required')).toBeInTheDocument();
+      await act(async () => {
+        fillForm({ company: 'C' });
+        await clickSubmit();
+      });
+      expect(await screen.findByText('Company name is required')).toBeInTheDocument();
     });
 
 
     it('should show error for empty city', async () => {
       render(<ContactForm />);
-      fillForm({ city: '' });
-      await clickSubmit();
-      expect(screen.getByText('City is required')).toBeInTheDocument();
+      await act(async () => {
+        fillForm({ city: '' });
+        await clickSubmit();
+      });
+      expect(await screen.findByText('City is required')).toBeInTheDocument();
     });
      it('should show error for city name less than 2 chars', async () => {
       render(<ContactForm />);
-      fillForm({ city: 'C' });
-      await clickSubmit();
-      expect(screen.getByText('City is required')).toBeInTheDocument();
+      await act(async () => {
+        fillForm({ city: 'C' });
+        await clickSubmit();
+      });
+      expect(await screen.findByText('City is required')).toBeInTheDocument();
     });
 
     it('should show error for empty state', async () => {
       render(<ContactForm />);
-      fillForm({ state: '' });
-      await clickSubmit();
-      expect(screen.getByText('State is required')).toBeInTheDocument();
+      await act(async () => {
+        fillForm({ state: '' });
+        await clickSubmit();
+      });
+      expect(await screen.findByText('State is required')).toBeInTheDocument();
     });
     it('should show error for state name less than 2 chars', async () => {
       render(<ContactForm />);
-      fillForm({ state: 'S' });
-      await clickSubmit();
-      expect(screen.getByText('State is required')).toBeInTheDocument();
+      await act(async () => {
+        fillForm({ state: 'S' });
+        await clickSubmit();
+      });
+      expect(await screen.findByText('State is required')).toBeInTheDocument();
     });
 
     it('should show multiple errors for multiple empty fields', async () => {
         render(<ContactForm />);
-        // No input
-        await clickSubmit();
-        expect(screen.getByText('Name is required')).toBeInTheDocument();
-        expect(screen.getByText('Valid email is required')).toBeInTheDocument();
-        expect(screen.getByText('Company name is required')).toBeInTheDocument();
-        expect(screen.getByText('City is required')).toBeInTheDocument();
-        expect(screen.getByText('State is required')).toBeInTheDocument();
+        await act(async () => {
+          // No input
+          await clickSubmit();
+        });
+        expect(await screen.findByText('Name is required')).toBeInTheDocument();
+        expect(await screen.findByText('Valid email is required')).toBeInTheDocument();
+        expect(await screen.findByText('Company name is required')).toBeInTheDocument();
+        expect(await screen.findByText('City is required')).toBeInTheDocument();
+        expect(await screen.findByText('State is required')).toBeInTheDocument();
     });
   });
 
