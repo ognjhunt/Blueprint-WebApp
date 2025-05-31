@@ -1204,10 +1204,10 @@ export default function OffWaitlistSignUpFlow() {
           }
         }}
         className={
-          showStep2Errors && squareFootage <= 0 ? "border-red-500" : ""
+          showStep2Errors && (squareFootage === null || squareFootage <= 0) ? "border-red-500" : ""
         }
       />
-      {showStep2Errors && squareFootage <= 0 && (
+      {showStep2Errors && (squareFootage === null || squareFootage <= 0) && (
         <p className="text-red-500 text-xs mt-1">
           Estimated square footage must be greater than zero.
         </p>
