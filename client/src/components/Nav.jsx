@@ -44,7 +44,10 @@ const getInitials = (name) => {
  * @param {string} [props.blueprintTitle] - An optional title to display in the center of the nav bar.
  * @returns {JSX.Element} The rendered Nav component.
  */
-export default function Nav({ blueprintTitle }) {
+export default function Nav({
+  blueprintTitle,
+  hideAuthenticatedFeatures = false,
+}) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { currentUser, userData, logout } = useAuth();
@@ -86,7 +89,8 @@ export default function Nav({ blueprintTitle }) {
 
   const navLinks = [
     { href: "/pilot-program", label: "Pilot Program", badge: "New" },
-    ...(currentUser
+    // Only show authenticated nav links if not hiding authenticated features
+    ...(currentUser && !hideAuthenticatedFeatures
       ? [
           { href: "/scanner-portal", label: "Scanner Portal" },
           { href: "/pricing", label: "Pricing" },
@@ -175,8 +179,8 @@ export default function Nav({ blueprintTitle }) {
               </motion.div>
             </Link>
           ))}
-
-          {currentUser && (
+          {/* Only show Invite Team button if authenticated and not hiding features */}
+          {currentUser && !hideAuthenticatedFeatures && (
             <Link href="/workspace" className="mr-2">
               <Button
                 variant="default"
@@ -187,7 +191,6 @@ export default function Nav({ blueprintTitle }) {
               </Button>
             </Link>
           )}
-
           {!currentUser ? (
             <Link href="/sign-in">
               <Button
@@ -199,7 +202,8 @@ export default function Nav({ blueprintTitle }) {
             </Link>
           ) : (
             <div className="flex items-center space-x-4">
-              {location !== "/dashboard" && (
+              {/* Only show Dashboard button and other features if not hiding authenticated features */}
+              {!hideAuthenticatedFeatures && location !== "/dashboard" && (
                 <Link href="/dashboard">
                   <Button
                     variant="outline"
@@ -214,6 +218,7 @@ export default function Nav({ blueprintTitle }) {
                 </Link>
               )}
 
+              {/* ALWAYS show user avatar dropdown when logged in */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -260,12 +265,17 @@ export default function Nav({ blueprintTitle }) {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator className="my-2" />
-                  <Link href="/settings">
-                    <DropdownMenuItem className="cursor-pointer hover:bg-indigo-50 rounded-xl transition-colors p-3 font-medium">
-                      Settings
-                    </DropdownMenuItem>
-                  </Link>
-                  <DropdownMenuSeparator className="my-2" />
+                  {/* Only show Settings if not hiding authenticated features */}
+                  {!hideAuthenticatedFeatures && (
+                    <>
+                      <Link href="/settings">
+                        <DropdownMenuItem className="cursor-pointer hover:bg-indigo-50 rounded-xl transition-colors p-3 font-medium">
+                          Settings
+                        </DropdownMenuItem>
+                      </Link>
+                      <DropdownMenuSeparator className="my-2" />
+                    </>
+                  )}
                   <DropdownMenuItem
                     onClick={handleSignOut}
                     className="cursor-pointer hover:bg-red-50 text-red-600 hover:text-red-700 rounded-xl transition-colors p-3 font-medium"
@@ -332,7 +342,8 @@ export default function Nav({ blueprintTitle }) {
                 </Link>
               ))}
 
-              {currentUser && (
+              {/* Only show authenticated mobile menu items if not hiding features */}
+              {currentUser && !hideAuthenticatedFeatures && (
                 <Link
                   href="/workspace"
                   className="w-full"
@@ -360,27 +371,36 @@ export default function Nav({ blueprintTitle }) {
                 </Link>
               ) : (
                 <>
-                  <Link
-                    href="/dashboard"
-                    className="w-full"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    <Button
-                      variant="outline"
-                      className="w-full py-4 rounded-2xl border-2 border-slate-200 font-semibold"
+                  {/* Only show Dashboard if not hiding authenticated features */}
+                  {!hideAuthenticatedFeatures && (
+                    <Link
+                      href="/dashboard"
+                      className="w-full"
+                      onClick={() => setIsMobileMenuOpen(false)}
                     >
-                      Dashboard
-                    </Button>
-                  </Link>
-                  <Link
-                    href="/settings"
-                    className="w-full"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    <div className="text-slate-700 hover:text-indigo-600 text-sm font-semibold py-4 px-4 hover:bg-indigo-50/50 rounded-2xl transition-colors duration-200 text-center">
-                      Settings
-                    </div>
-                  </Link>
+                      <Button
+                        variant="outline"
+                        className="w-full py-4 rounded-2xl border-2 border-slate-200 font-semibold"
+                      >
+                        Dashboard
+                      </Button>
+                    </Link>
+                  )}
+
+                  {/* Only show Settings if not hiding authenticated features */}
+                  {!hideAuthenticatedFeatures && (
+                    <Link
+                      href="/settings"
+                      className="w-full"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <div className="text-slate-700 hover:text-indigo-600 text-sm font-semibold py-4 px-4 hover:bg-indigo-50/50 rounded-2xl transition-colors duration-200 text-center">
+                        Settings
+                      </div>
+                    </Link>
+                  )}
+
+                  {/* ALWAYS show Sign Out when logged in */}
                   <Button
                     variant="outline"
                     className="w-full py-4 rounded-2xl border-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 font-semibold"

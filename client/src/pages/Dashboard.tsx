@@ -225,7 +225,7 @@ export default function Dashboard() {
   interface FirestoreTimestamp {
     toDate(): Date;
   }
-  
+
   // Define the activity interface with all needed properties
   interface Activity {
     id: string;
@@ -238,7 +238,7 @@ export default function Dashboard() {
     time?: string;
     blueprintName?: string;
   }
-  
+
   // Define the user data interface
   interface UserData {
     averageRating?: number;
@@ -743,7 +743,7 @@ export default function Dashboard() {
     visitors: number;
     engagement: number;
   }
-  
+
   const [chartData, setChartData] = useState<ChartDataItem[]>([]);
 
   useEffect(() => {
@@ -1139,9 +1139,7 @@ export default function Dashboard() {
                       <ul className="space-y-2 text-gray-600">
                         <li className="flex items-start">
                           <div className="mr-2 mt-1 text-green-500">✓</div>
-                          <span>
-                            Processing takes approximately 1-2 hours
-                          </span>
+                          <span>Processing takes approximately 1-2 hours</span>
                         </li>
                         <li className="flex items-start">
                           <div className="mr-2 mt-1 text-green-500">✓</div>
@@ -1263,7 +1261,7 @@ export default function Dashboard() {
   return (
     <LiveAPIProvider>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-indigo-50/20">
-        <Nav />
+        <Nav hideAuthenticatedFeatures={isWaitingForMapping} />
 
         {isLoading ? (
           <div className="min-h-screen flex items-center justify-center">
@@ -1405,15 +1403,17 @@ export default function Dashboard() {
                           <p className="text-xs text-indigo-100 mt-1 mb-3">
                             Valid until{" "}
                             {userData?.planExpiryDate
-                              ? ('toDate' in userData.planExpiryDate)
+                              ? "toDate" in userData.planExpiryDate
                                 ? new Date(
-                                    userData.planExpiryDate.toDate()
+                                    userData.planExpiryDate.toDate(),
                                   ).toLocaleDateString("en-US", {
                                     month: "short",
                                     day: "numeric",
                                     year: "numeric",
                                   })
-                                : new Date(userData.planExpiryDate).toLocaleDateString("en-US", {
+                                : new Date(
+                                    userData.planExpiryDate,
+                                  ).toLocaleDateString("en-US", {
                                     month: "short",
                                     day: "numeric",
                                     year: "numeric",
@@ -1553,11 +1553,12 @@ export default function Dashboard() {
                                 <div className="text-3xl font-bold text-gray-900">
                                   {userData?.totalCustomers || 0}
                                 </div>
-                                {userData?.customerGrowth && userData.customerGrowth > 0 && (
-                                  <div className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-800">
-                                    +{userData.customerGrowth}%
-                                  </div>
-                                )}
+                                {userData?.customerGrowth &&
+                                  userData.customerGrowth > 0 && (
+                                    <div className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-800">
+                                      +{userData.customerGrowth}%
+                                    </div>
+                                  )}
                               </div>
                               <p className="text-xs text-gray-500 mt-2">
                                 {userData?.newCustomersThisMonth
@@ -1581,11 +1582,12 @@ export default function Dashboard() {
                                 <div className="text-3xl font-bold text-gray-900">
                                   {userData?.numSessions || 0}
                                 </div>
-                                {userData?.sessionGrowth && userData.sessionGrowth > 0 && (
-                                  <div className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-800">
-                                    +{userData.sessionGrowth}%
-                                  </div>
-                                )}
+                                {userData?.sessionGrowth &&
+                                  userData.sessionGrowth > 0 && (
+                                    <div className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-800">
+                                      +{userData.sessionGrowth}%
+                                    </div>
+                                  )}
                               </div>
                               <p className="text-xs text-gray-500 mt-2">
                                 {userData?.newSessionsThisMonth
@@ -1609,11 +1611,12 @@ export default function Dashboard() {
                                 <div className="text-3xl font-bold text-gray-900">
                                   {userData?.averageRating?.toFixed(1) || "N/A"}
                                 </div>
-                                {userData?.ratingGrowth !== undefined && userData.ratingGrowth > 0 && (
-                                  <div className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-800">
-                                    +{userData.ratingGrowth.toFixed(1)}
-                                  </div>
-                                )}
+                                {userData?.ratingGrowth !== undefined &&
+                                  userData.ratingGrowth > 0 && (
+                                    <div className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-800">
+                                      +{userData.ratingGrowth.toFixed(1)}
+                                    </div>
+                                  )}
                               </div>
                               {userData?.averageRating && (
                                 <div className="flex items-center mt-2">
@@ -1767,23 +1770,24 @@ export default function Dashboard() {
                                     updates
                                   </CardDescription>
                                 </div>
-                                {Array.isArray(userData?.recentActivities) && userData.recentActivities.length > 0 && (
-                                  <Link href="#">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
-                                    >
-                                      View All{" "}
-                                      <ChevronRight className="w-4 h-4 ml-1" />
-                                    </Button>
-                                  </Link>
-                                )}
+                                {Array.isArray(userData?.recentActivities) &&
+                                  userData.recentActivities.length > 0 && (
+                                    <Link href="#">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                                      >
+                                        View All{" "}
+                                        <ChevronRight className="w-4 h-4 ml-1" />
+                                      </Button>
+                                    </Link>
+                                  )}
                               </div>
                             </CardHeader>
                             <CardContent>
                               <div className="space-y-4">
-                                {Array.isArray(userData?.recentActivities) && 
+                                {Array.isArray(userData?.recentActivities) &&
                                 userData.recentActivities.length > 0 ? (
                                   userData.recentActivities
                                     .slice(0, 3)
@@ -1809,10 +1813,15 @@ export default function Dashboard() {
                                               {activity.event}
                                             </h4>
                                             <span className="text-xs text-gray-500">
-                                              {activity.timestamp && 'toDate' in activity.timestamp
-                                                ? formatTimeAgo(activity.timestamp.toDate())
-                                                : activity.timestamp 
-                                                  ? formatTimeAgo(activity.timestamp as Date)
+                                              {activity.timestamp &&
+                                              "toDate" in activity.timestamp
+                                                ? formatTimeAgo(
+                                                    activity.timestamp.toDate(),
+                                                  )
+                                                : activity.timestamp
+                                                  ? formatTimeAgo(
+                                                      activity.timestamp as Date,
+                                                    )
                                                   : activity.time || "Recently"}
                                             </span>
                                           </div>

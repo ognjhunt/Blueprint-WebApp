@@ -14,8 +14,8 @@ import {
 } from "../utils/validation";
 import { calculateMappingDuration } from "../utils/business-logic";
 import {
-  buildMappingConfirmationPhase1AIProomp,
-  buildMappingConfirmationPhase2AIProomp,
+  buildMappingConfirmationPhase1AIPrompt,
+  buildMappingConfirmationPhase2AIPrompt,
   // MappingConfirmationDataForPrompt, // Already effectively used via MappingConfirmationData
   // Phase1ExtractedData, // This is the type for extractedDataCall1
 } from "../utils/ai-prompts";
@@ -88,7 +88,7 @@ export default async function processMappingConfirmationHandler(
       chosen_time_of_mapping: chosen_time_of_mapping!,
       estimated_square_footage: estimated_square_footage!,
     };
-    const promptCall1 = buildMappingConfirmationPhase1AIProomp(
+    const promptCall1 = buildMappingConfirmationPhase1AIPrompt(
       phase1PromptData,
       calculatedMappingDuration,
     );
@@ -199,9 +199,9 @@ export default async function processMappingConfirmationHandler(
       estimated_square_footage: estimated_square_footage!,
     };
 
-    const promptCall2 = buildMappingConfirmationPhase2AIProomp(
+    const promptCall2 = buildMappingConfirmationPhase2AIPrompt(
       originalWebhookDataForPhase2,
-      extractedDataCall1 as any, // Type assertion to resolve interface mismatch
+      extractedDataCall1, // This is Phase1ExtractedData
     );
 
     console.log("Sending Prompt for Call 2 to OpenAI...");

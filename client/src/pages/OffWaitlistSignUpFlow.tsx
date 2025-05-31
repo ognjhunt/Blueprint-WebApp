@@ -66,6 +66,7 @@ export default function OffWaitlistSignUpFlow() {
   const INTERNAL_TEST_TOKEN = "blueprint-internal-test-token-2025";
 
   const [tokenData, setTokenData] = useState<TokenData | null>(null);
+  const [userCreated, setUserCreated] = useState(false);
 
   // ------------------------------
   // STEP STATE
@@ -84,7 +85,7 @@ export default function OffWaitlistSignUpFlow() {
   const [contactName, setContactName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [address, setAddress] = useState("");
-  const [squareFootage, setSquareFootage] = useState<number>(0);
+  const [squareFootage, setSquareFootage] = useState<number | null>(null);
 
   // Step 3
   const [scheduleDate, setScheduleDate] = useState(new Date());
@@ -120,6 +121,7 @@ export default function OffWaitlistSignUpFlow() {
     contactName.trim() !== "" &&
     isValidPhone(phoneNumber) &&
     address.trim() !== "" &&
+    squareFootage !== null &&
     squareFootage > 0;
 
   // ------------------------------
@@ -175,6 +177,9 @@ export default function OffWaitlistSignUpFlow() {
             usedBy: userId,
           });
         }
+
+        // ✅ SET THE FLAG THAT USER HAS BEEN CREATED
+        setUserCreated(true);
 
         // ✅ ADD THIS LINE - Move to next step after successful user creation
         setStep((prev) => prev + 1);
@@ -374,8 +379,14 @@ export default function OffWaitlistSignUpFlow() {
 
   /**
    * Handles moving to the previous step in the sign-up flow.
+   * Prevents going back to Step 1 once a user has been created.
    */
   function handlePrevStep() {
+    // Don't allow going back to Step 1 if user has already been created
+    if (step === 2 && userCreated) {
+      return; // Do nothing - user cannot go back to Step 1
+    }
+
     setStep((prev) => prev - 1);
   }
 
@@ -775,6 +786,119 @@ export default function OffWaitlistSignUpFlow() {
    * This includes fields for organization name, email, and password, with Google Sign-In as an alternative.
    * @returns {JSX.Element} The Step 1 form content.
    */
+  // const Step1 = (
+  //   <div className="flex flex-col gap-4">
+  //     <h2 className="text-2xl font-bold mb-2">Basic Account Setup</h2>
+  //     <p className="text-gray-600 text-sm mb-4">
+  //       We just need a few details to set up your account.
+  //     </p>
+
+  //     <Input
+  //       type="text"
+  //       placeholder="Organization Name"
+  //       value={organizationName}
+  //       onChange={(e) => setOrganizationName(e.target.value)}
+  //     />
+
+  //     {/* Organization Name Predictions */}
+  //     {orgPredictions.length > 0 && (
+  //       <div className="relative">
+  //         <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-md">
+  //           {orgPredictions.map((prediction) => (
+  //             <div
+  //               key={prediction.place_id}
+  //               className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+  //               onClick={() => {
+  //                 setOrganizationName(prediction.description);
+  //                 setOrgPredictions([]);
+
+  //                 if (placesService) {
+  //                   const request = {
+  //                     placeId: prediction.place_id,
+  //                     fields: ["website", "formatted_address"], // <-- ADD formatted_address
+  //                   };
+  //                   placesService.getDetails(request, (placeResult, status) => {
+  //                     if (
+  //                       status === google.maps.places.PlacesServiceStatus.OK &&
+  //                       placeResult
+  //                     ) {
+  //                       // Keep setting the company website
+  //                       setCompanyWebsite(placeResult.website || "");
+  //                       // NEW: Also set the address so Step 2 is pre-filled
+  //                       setAddress(placeResult.formatted_address || "");
+  //                     }
+  //                   });
+  //                 }
+  //               }}
+  //             >
+  //               {prediction.description}
+  //             </div>
+  //           ))}
+  //         </div>
+  //       </div>
+  //     )}
+
+  //     <Input
+  //       type="email"
+  //       placeholder="Email"
+  //       value={email}
+  //       onChange={(e) => setEmail(e.target.value)}
+  //     />
+
+  //     {email && !isValidEmail(email) && (
+  //       <p className="text-red-500 text-xs">
+  //         Please enter a valid email address.
+  //       </p>
+  //     )}
+
+  //     <Input
+  //       type="password"
+  //       placeholder="Password"
+  //       value={password}
+  //       onChange={(e) => {
+  //         setPassword(e.target.value);
+  //         // Clear any existing error if user starts typing again
+  //         if (errorMessage) setErrorMessage("");
+  //       }}
+  //     />
+
+  //     {/* Password requirement hint */}
+  //     {password && password.length < 8 && (
+  //       <p className="text-red-500 text-xs">
+  //         Your password must be at least 8 characters long.
+  //       </p>
+  //     )}
+
+  //     <div className="flex flex-col items-center gap-4 mt-4">
+  //       <Button onClick={handleNextStep} disabled={!step1Valid}>
+  //         Next
+  //       </Button>
+
+  //       <div className="flex items-center w-full">
+  //         <div className="flex-grow border-t border-gray-300"></div>
+  //         <span className="px-2 text-gray-500 text-sm">OR</span>
+  //         <div className="flex-grow border-t border-gray-300"></div>
+  //       </div>
+
+  //       <GoogleOAuthProvider clientId="YOUR_GOOGLE_CLIENT_ID">
+  //         <GoogleLogin
+  //           onSuccess={(credentialResponse) => {
+  //             if (!organizationName.trim()) {
+  //               alert(
+  //                 "Please enter an organization name before continuing with Google.",
+  //               );
+  //               return;
+  //             }
+  //             console.log("Google sign-in success:", credentialResponse);
+  //             handleNextStep();
+  //           }}
+  //           onError={() => alert("Google Sign-In Failed")}
+  //         />
+  //       </GoogleOAuthProvider>
+  //     </div>
+  //   </div>
+  // );
+
   const Step1 = (
     <div className="flex flex-col gap-4">
       <h2 className="text-2xl font-bold mb-2">Basic Account Setup</h2>
@@ -787,6 +911,11 @@ export default function OffWaitlistSignUpFlow() {
         placeholder="Organization Name"
         value={organizationName}
         onChange={(e) => setOrganizationName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && step1Valid) {
+            handleNextStep();
+          }
+        }}
       />
 
       {/* Organization Name Predictions */}
@@ -804,16 +933,14 @@ export default function OffWaitlistSignUpFlow() {
                   if (placesService) {
                     const request = {
                       placeId: prediction.place_id,
-                      fields: ["website", "formatted_address"], // <-- ADD formatted_address
+                      fields: ["website", "formatted_address"],
                     };
                     placesService.getDetails(request, (placeResult, status) => {
                       if (
                         status === google.maps.places.PlacesServiceStatus.OK &&
                         placeResult
                       ) {
-                        // Keep setting the company website
                         setCompanyWebsite(placeResult.website || "");
-                        // NEW: Also set the address so Step 2 is pre-filled
                         setAddress(placeResult.formatted_address || "");
                       }
                     });
@@ -832,6 +959,11 @@ export default function OffWaitlistSignUpFlow() {
         placeholder="Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && step1Valid) {
+            handleNextStep();
+          }
+        }}
       />
 
       {email && !isValidEmail(email) && (
@@ -842,26 +974,35 @@ export default function OffWaitlistSignUpFlow() {
 
       <Input
         type="password"
-        placeholder="Password"
+        placeholder="Password (at least 8 characters)"
         value={password}
         onChange={(e) => {
           setPassword(e.target.value);
-          // Clear any existing error if user starts typing again
           if (errorMessage) setErrorMessage("");
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && step1Valid) {
+            handleNextStep();
+          }
         }}
       />
 
-      {/* Password requirement hint */}
       {password && password.length < 8 && (
         <p className="text-red-500 text-xs">
           Your password must be at least 8 characters long.
         </p>
       )}
 
-      <div className="flex flex-col items-center gap-4 mt-4">
-        <Button onClick={handleNextStep} disabled={!step1Valid}>
-          Next
-        </Button>
+      <div className="flex flex-col items-center gap-4 mt-6">
+        <div className="flex justify-end w-full">
+          <Button
+            onClick={handleNextStep}
+            disabled={!step1Valid}
+            className="px-8 py-3 text-lg font-semibold min-w-[120px]"
+          >
+            Next →
+          </Button>
+        </div>
 
         <div className="flex items-center w-full">
           <div className="flex-grow border-t border-gray-300"></div>
@@ -893,6 +1034,101 @@ export default function OffWaitlistSignUpFlow() {
    * This includes fields for contact person name, phone number, physical address, and estimated square footage.
    * @returns {JSX.Element} The Step 2 form content.
    */
+  // const Step2 = (
+  //   <div className="flex flex-col gap-4">
+  //     <h2 className="text-2xl font-bold mb-2">Contact &amp; Location</h2>
+  //     <p className="text-gray-600 text-sm mb-4">
+  //       Provide the main contact details and the address we'll map.
+  //     </p>
+
+  //     <Input
+  //       type="text"
+  //       placeholder="Contact Person Name"
+  //       value={contactName}
+  //       onChange={(e) => setContactName(e.target.value)}
+  //     />
+
+  //     <Input
+  //       type="text"
+  //       placeholder="Contact's Phone Number"
+  //       value={phoneNumber}
+  //       onChange={(e) => setPhoneNumber(e.target.value)}
+  //       className={
+  //         showStep2Errors && !isValidPhone(phoneNumber) ? "border-red-500" : ""
+  //       }
+  //     />
+  //     {showStep2Errors && !isValidPhone(phoneNumber) && (
+  //       <p className="text-red-500 text-xs mt-1">
+  //         Please enter a valid 10‑digit phone number.
+  //       </p>
+  //     )}
+
+  //     <Input
+  //       type="text"
+  //       placeholder="Physical Address (where the mapping will occur)"
+  //       value={address}
+  //       onChange={(e) => setAddress(e.target.value)}
+  //       onFocus={() => setIsAddressFocused(true)}
+  //       onBlur={() => setTimeout(() => setIsAddressFocused(false), 200)}
+  //     />
+
+  //     {/* ────────────────────────────────────────────────────────────────────── */}
+  //     {/* NEW FIELD: Prompt user for estimated square footage of the mapping area */}
+  //     <Label>Estimated Square Footage to Map</Label>
+  //     <Input
+  //       type="number"
+  //       placeholder="e.g. 1500"
+  //       value={squareFootage}
+  //       onChange={(e) => setSquareFootage(Number(e.target.value))}
+  //       className={
+  //         showStep2Errors && squareFootage <= 0 ? "border-red-500" : ""
+  //       }
+  //     />
+  //     {showStep2Errors && squareFootage <= 0 && (
+  //       <p className="text-red-500 text-xs mt-1">
+  //         Estimated square footage must be greater than zero.
+  //       </p>
+  //     )}
+
+  //     {showStep2Errors && (
+  //       <p className="text-red-500 text-sm mt-3">
+  //         Fix the errors above to unlock the Next button.
+  //       </p>
+  //     )}
+  //     {/* ────────────────────────────────────────────────────────────────────── */}
+
+  //     {isAddressFocused && addressPredictions.length > 0 && (
+  //       <div className="relative">
+  //         <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-md">
+  //           {addressPredictions.map((prediction) => (
+  //             <div
+  //               key={prediction.place_id}
+  //               className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+  //               onClick={() => {
+  //                 // Just store the full text for now
+  //                 setAddress(prediction.description);
+  //                 setAddressPredictions([]);
+  //                 // Optionally fetch place details if you want geometry, etc.
+  //               }}
+  //             >
+  //               {prediction.description}
+  //             </div>
+  //           ))}
+  //         </div>
+  //       </div>
+  //     )}
+
+  //     <div className="flex justify-between mt-4">
+  //       <Button variant="outline" onClick={handlePrevStep}>
+  //         Back
+  //       </Button>
+  //       <Button onClick={handleNextStep} disabled={!step2Valid}>
+  //         Next
+  //       </Button>
+  //     </div>
+  //   </div>
+  // );
+
   const Step2 = (
     <div className="flex flex-col gap-4">
       <h2 className="text-2xl font-bold mb-2">Contact &amp; Location</h2>
@@ -905,13 +1141,29 @@ export default function OffWaitlistSignUpFlow() {
         placeholder="Contact Person Name"
         value={contactName}
         onChange={(e) => setContactName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && step2Valid) {
+            handleNextStep();
+          }
+        }}
+        className={
+          showStep2Errors && !contactName.trim() ? "border-red-500" : ""
+        }
       />
+      {showStep2Errors && !contactName.trim() && (
+        <p className="text-red-500 text-xs mt-1">Contact name is required.</p>
+      )}
 
       <Input
         type="text"
         placeholder="Contact's Phone Number"
         value={phoneNumber}
         onChange={(e) => setPhoneNumber(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && step2Valid) {
+            handleNextStep();
+          }
+        }}
         className={
           showStep2Errors && !isValidPhone(phoneNumber) ? "border-red-500" : ""
         }
@@ -929,16 +1181,28 @@ export default function OffWaitlistSignUpFlow() {
         onChange={(e) => setAddress(e.target.value)}
         onFocus={() => setIsAddressFocused(true)}
         onBlur={() => setTimeout(() => setIsAddressFocused(false), 200)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && step2Valid) {
+            handleNextStep();
+          }
+        }}
+        className={showStep2Errors && !address.trim() ? "border-red-500" : ""}
       />
+      {showStep2Errors && !address.trim() && (
+        <p className="text-red-500 text-xs mt-1">Address is required.</p>
+      )}
 
-      {/* ────────────────────────────────────────────────────────────────────── */}
-      {/* NEW FIELD: Prompt user for estimated square footage of the mapping area */}
       <Label>Estimated Square Footage to Map</Label>
       <Input
         type="number"
         placeholder="e.g. 1500"
-        value={squareFootage}
-        onChange={(e) => setSquareFootage(Number(e.target.value))}
+        value={squareFootage || ""} // This prevents the 0 from showing
+        onChange={(e) => setSquareFootage(Number(e.target.value) || 0)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && step2Valid) {
+            handleNextStep();
+          }
+        }}
         className={
           showStep2Errors && squareFootage <= 0 ? "border-red-500" : ""
         }
@@ -949,13 +1213,6 @@ export default function OffWaitlistSignUpFlow() {
         </p>
       )}
 
-      {showStep2Errors && (
-        <p className="text-red-500 text-sm mt-3">
-          Fix the errors above to unlock the Next button.
-        </p>
-      )}
-      {/* ────────────────────────────────────────────────────────────────────── */}
-
       {isAddressFocused && addressPredictions.length > 0 && (
         <div className="relative">
           <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded shadow-md">
@@ -964,10 +1221,8 @@ export default function OffWaitlistSignUpFlow() {
                 key={prediction.place_id}
                 className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                 onClick={() => {
-                  // Just store the full text for now
                   setAddress(prediction.description);
                   setAddressPredictions([]);
-                  // Optionally fetch place details if you want geometry, etc.
                 }}
               >
                 {prediction.description}
@@ -977,12 +1232,31 @@ export default function OffWaitlistSignUpFlow() {
         </div>
       )}
 
-      <div className="flex justify-between mt-4">
-        <Button variant="outline" onClick={handlePrevStep}>
-          Back
-        </Button>
-        <Button onClick={handleNextStep} disabled={!step2Valid}>
-          Next
+      {showStep2Errors && (
+        <p className="text-red-500 text-sm mt-3">
+          Please complete all required fields above.
+        </p>
+      )}
+
+      <div className="flex justify-between items-center mt-6">
+        {/* Only show Back button if user hasn't been created yet */}
+        {!userCreated ? (
+          <Button
+            variant="outline"
+            onClick={handlePrevStep}
+            className="px-6 py-3 text-lg"
+          >
+            ← Back
+          </Button>
+        ) : (
+          <div></div> // Empty div to maintain spacing
+        )}
+        <Button
+          onClick={handleNextStep}
+          disabled={!step2Valid} // Fixed the condition here too
+          className="px-8 py-3 text-lg font-semibold min-w-[140px] bg-green-600 hover:bg-green-700"
+        >
+          Next →
         </Button>
       </div>
     </div>
@@ -1264,7 +1538,7 @@ export default function OffWaitlistSignUpFlow() {
         </div>
       )}
 
-      <Nav />
+      <Nav hideAuthenticatedFeatures={true} />
 
       <main className="flex-1 flex flex-col items-center justify-center px-4 pt-24 pb-12">
         {isLoading ? (

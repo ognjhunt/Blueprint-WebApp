@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { Anthropic } from "@anthropic-ai/sdk";
 import OpenAI from "openai";
-import { buildWaitlistAIProomp } from "../utils/ai-prompts";
+import { buildWaitlistAIPrompt } from "../utils/ai-prompts";
 import {
   validateWaitlistData,
   WaitlistData,
@@ -46,9 +46,9 @@ export default async function processWaitlistHandler(
     } = requestData;
 
     // Prepare data for the prompt builder, using validated fields
-    // All fields passed to buildWaitlistAIProomp are guaranteed to be present and non-empty if required by WaitlistDataForPrompt
+    // All fields passed to buildWaitlistAIPrompt are guaranteed to be present and non-empty if required by WaitlistDataForPrompt
     // because validateWaitlistData would have caught them.
-    // The types for buildWaitlistAIProomp (WaitlistDataForPrompt) expect non-optional for required fields.
+    // The types for buildWaitlistAIPrompt (WaitlistDataForPrompt) expect non-optional for required fields.
     const promptData = {
       name: name!, // Assert non-null/undefined as validation passed
       email: email!,
@@ -61,7 +61,7 @@ export default async function processWaitlistHandler(
       offWaitlistUrl: offWaitlistUrl!,
     };
 
-    const aiPrompt = buildWaitlistAIProomp(promptData);
+    const aiPrompt = buildWaitlistAIPrompt(promptData);
 
     const mcpResponse = await openai.responses.create({
       model: "o4-mini",

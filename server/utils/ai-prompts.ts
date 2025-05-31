@@ -15,7 +15,7 @@ interface WaitlistDataForPrompt {
  * @param {WaitlistDataForPrompt} data The waitlist signup data.
  * @returns {string} The formatted AI prompt string.
  */
-export function buildWaitlistAIProomp(data: WaitlistDataForPrompt): string {
+export function buildWaitlistAIPrompt(data: WaitlistDataForPrompt): string {
   const {
     name,
     email,
@@ -37,7 +37,7 @@ export function buildWaitlistAIProomp(data: WaitlistDataForPrompt): string {
 
   return `Blueprint Waitlist Automation: Process new signup for ${name} from ${company}.
 
- STEP 1: Create Google Sheet row in "Blueprint Waitlist" spreadsheet with columns: Name="${name}", Company="${company}", Email="${email}", City="${city}", State="${state}", Address="${companyAddress}", Website="${companyWebsite}", Additional Comments="${message}", Date of Waitlist="${currentDate}", Time of Waitlist="${currentTime}", Does Company Meet Criteria="", Have we sent off the waitlist email="No", Have they picked a date+time for mapping="No", Have we Onboarded="No".
+ STEP 1: Create Google Sheet row in "Blueprint Waitlist" spreadsheet - Sheet named: 'Inbound (Website)' with columns: Name="${name}", Company="${company}", Email="${email}", City="${city}", State="${state}", Address="${companyAddress}", Website="${companyWebsite}", Additional Comments="${message}", Date of Waitlist="${currentDate}", Time of Waitlist="${currentTime}", Does Company Meet Criteria="", Have we sent off the waitlist email="No", Have they picked a date+time for mapping="No", Have we Onboarded="No".
 
  STEP 2: Use Perplexity to evaluate: "${company} located in ${city}, ${state} - Evaluate for Blueprint pilot program criteria: customer-facing business, retail/hospitality type, physical presence with foot traffic, located in or near Durham NC area. Respond with Yes (meets all criteria) or No (does not meet criteria) plus brief reason."
 
@@ -96,7 +96,7 @@ export interface MappingConfirmationDataForPrompt {
  * @param {number} calculatedMappingDuration The pre-calculated mapping duration.
  * @returns {string} The formatted AI prompt string for Phase 1.
  */
-export function buildMappingConfirmationPhase1AIProomp(
+export function buildMappingConfirmationPhase1AIPrompt(
   data: MappingConfirmationDataForPrompt,
   calculatedMappingDuration: number, // This comes from calculateMappingDuration
 ): string {
@@ -248,7 +248,7 @@ export interface Phase1ExtractedData {
  * @param {Phase1ExtractedData} phase1ExtractedData Data extracted from the AI's Phase 1 response.
  * @returns {string} The formatted AI prompt string for Phase 2.
  */
-export function buildMappingConfirmationPhase2AIProomp(
+export function buildMappingConfirmationPhase2AIPrompt(
   originalWebhookData: MappingConfirmationDataForPrompt, // The initial data received by the handler
   phase1ExtractedData: Phase1ExtractedData, // Data extracted from AI Call 1's response
 ): string {
@@ -289,7 +289,6 @@ export function buildMappingConfirmationPhase2AIProomp(
     Sheet: "Inbound (Website)"
     If the provided Google Sheet Row ID is "LOOKUP_REQUIRED" or "NOT_FOUND", first find the row where 'Website' column matches "${companyUrlForCall2}" and use that Row ID. If still not found after attempting lookup, note this clearly.
     If a valid Row ID is available, update the column "Company Research" with the entire [DeepResearchOutput] from TASK 1.
-    Also, update a column named "Research Timestamp" (or create if it doesn't exist) with the current date & time (e.g., YYYY-MM-DD HH:MM AM/PM EST).
 
     **TASK 3: CREATE NOTION PAGE**
     In a Notion database/page named "Blueprint Hub" (or a relevant parent page you can access):
