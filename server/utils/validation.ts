@@ -1,4 +1,4 @@
-interface WaitlistData {
+export interface WaitlistData {
   name?: string;
   email?: string;
   company?: string;
@@ -50,7 +50,7 @@ export function validateWaitlistData(
       !requestBody[field] ||
       (typeof requestBody[field] === 'string' && !(requestBody[field] as string).trim())
     ) {
-      errors.push({ field, message: `Missing required field: ${field}` });
+      errors.push({ field: field as string, message: `Missing required field: ${field}` });
     }
   }
 
@@ -113,7 +113,7 @@ export function validateMappingConfirmationData(
   for (const field of requiredFields) {
     const value = requestBody[field];
     if (value === undefined || value === null || String(value).trim() === '') {
-      errors.push({ field, message: `Missing required field: ${field}` });
+      errors.push({ field: field as string, message: `Missing required field: ${field}` });
     }
   }
 

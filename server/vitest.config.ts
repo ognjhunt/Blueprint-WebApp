@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig } from "vite";
 import path from "path";
 
 const __dirname = import.meta.dirname;

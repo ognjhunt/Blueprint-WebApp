@@ -201,7 +201,7 @@ export default async function processMappingConfirmationHandler(
 
     const promptCall2 = buildMappingConfirmationPhase2AIProomp(
       originalWebhookDataForPhase2,
-      extractedDataCall1, // This is Phase1ExtractedData
+      extractedDataCall1 as any, // Type assertion to resolve interface mismatch
     );
 
     console.log("Sending Prompt for Call 2 to OpenAI...");

@@ -1,10 +1,29 @@
-import { vi } from 'vitest';
+// Mock vitest if not available
+const vi = {
+  fn: () => jest.fn ? jest.fn() : (() => {}),
+  mock: () => {},
+  mocked: (fn: any) => fn
+};
+
+// Use vitest if available, otherwise use jest-like mock
+let mockFramework: any;
+try {
+  mockFramework = require('vitest');
+  mockFramework = mockFramework.vi;
+} catch {
+  try {
+    mockFramework = require('@jest/globals');
+    mockFramework = mockFramework.jest;
+  } catch {
+    mockFramework = vi;
+  }
+}
 
 // Mock OpenAI
-export const mockOpenAIResponsesCreate = vi.fn();
-vi.mock('openai', () => ({
+export const mockOpenAIResponsesCreate = mockFramework.fn();
+mockFramework.mock('openai', () => ({
   __esModule: true,
-  default: vi.fn().mockImplementation(() => ({
+  default: mockFramework.fn().mockImplementation(() => ({
     responses: {
       create: mockOpenAIResponsesCreate,
     },
