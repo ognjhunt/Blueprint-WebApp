@@ -27,8 +27,8 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    environment: 'happy-dom', // or 'jsdom'
-    setupFiles: './tests/setup.ts', // if you need a setup file
+    environment: 'jsdom', // or 'jsdom'
+    setupFiles: './client/tests/setup.ts', // if you need a setup file
     css: true, // if you need to process CSS
   },
 });
