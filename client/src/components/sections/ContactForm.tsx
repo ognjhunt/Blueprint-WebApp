@@ -1,3 +1,8 @@
+// This file defines the ContactForm component, which allows users to submit their contact information
+// and a message to join a waitlist or get in touch with the team.
+// It includes form validation, integration with Google Maps Places API for company autocomplete,
+// and submission to a Firebase backend.
+
 "use client";
 
 import { Anthropic } from "@anthropic-ai/sdk";
@@ -37,6 +42,14 @@ interface FormData {
   message: string;
 }
 
+/**
+ * The ContactForm component allows users to submit their contact information
+ * and a message to join a waitlist or get in touch with the team.
+ * It includes form validation, integration with Google Maps Places API for company autocomplete,
+ * and submission to a Firebase backend.
+ *
+ * @returns {JSX.Element} The rendered ContactForm component.
+ */
 export default function ContactForm() {
   const formRef = useRef(null);
   const isInView = useInView(formRef, { once: true, amount: 0.3 });
@@ -66,6 +79,10 @@ export default function ContactForm() {
 
   const [errors, setErrors] = useState<Partial<FormData>>({});
 
+  /**
+   * Validates the form data and sets errors if any field is invalid.
+   * @returns {boolean} True if the form is valid, false otherwise.
+   */
   // Enhanced trust indicators and benefits
   const benefits = [
     {
@@ -154,6 +171,10 @@ export default function ContactForm() {
     return () => clearTimeout(timer);
   }, [formData.company, companyAutocomplete]);
 
+  /**
+   * Validates the form data and sets errors if any field is invalid.
+   * @returns {boolean} True if the form is valid, false otherwise.
+   */
   const validateForm = () => {
     const newErrors: Partial<FormData> = {};
 
@@ -177,6 +198,11 @@ export default function ContactForm() {
     return Object.keys(newErrors).length === 0;
   };
 
+  /**
+   * Handles the form submission.
+   * Validates the form, submits the data to Firebase, and handles UI updates.
+   * @param {React.FormEvent} e - The form submission event.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -293,6 +319,10 @@ export default function ContactForm() {
   //   }
   // };
 
+  /**
+   * Handles changes to form input fields and updates the form data state.
+   * @param {React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>} e - The input change event.
+   */
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {

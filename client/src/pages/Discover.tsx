@@ -1,3 +1,9 @@
+// This file defines the Discover page component.
+// The Discover page serves as an informational page detailing the features,
+// benefits, and technology behind the Blueprint AR platform. It includes
+// sections like Enterprise AR features, an image carousel showcasing the setup process,
+// a step-by-step guide to getting started, and a contact form.
+
 import React, { useRef, useEffect, useState } from "react";
 import Nav from "@/components/Nav";
 import { Link } from "wouter";
@@ -44,6 +50,13 @@ import {
   Lock,
 } from "lucide-react";
 
+/**
+ * The EnterpriseARSection component highlights the enterprise-grade features of the Blueprint AR platform.
+ * It showcases primary features like zero-friction access, AI-powered optimization, and multi-user experiences,
+ * along with secondary features like advanced analytics, security, performance, and CDN.
+ *
+ * @returns {JSX.Element} The rendered EnterpriseARSection component.
+ */
 const EnterpriseARSection = () => {
   const [hoveredFeature, setHoveredFeature] = useState<number | null>(null);
   const containerRef = useRef(null);
@@ -377,7 +390,13 @@ const EnterpriseARSection = () => {
   );
 };
 
-// Enhanced Image Carousel with better controls and styling
+/**
+ * The ImageCarousel component displays a series of images with captions,
+ * showcasing the step-by-step process of setting up a Blueprint AR experience.
+ * It includes auto-play functionality and navigation controls.
+ *
+ * @returns {JSX.Element} The rendered ImageCarousel component.
+ */
 const ImageCarousel = () => {
   const slides = [
     {
@@ -639,10 +658,20 @@ const techFeatures = [
   },
 ];
 
+/**
+ * The Discover component renders the main informational page about the Blueprint AR platform.
+ * It includes sections detailing enterprise features, an image carousel of the setup process,
+ * a step-by-step guide, and a contact form for users to get early access.
+ *
+ * @returns {JSX.Element} The rendered Discover page.
+ */
 export default function Discover() {
   const contactFormRef = useRef<HTMLDivElement>(null);
   const [hoveredStep, setHoveredStep] = useState<number | null>(null);
 
+  /**
+   * Scrolls the page smoothly to the contact form section.
+   */
   const scrollToContact = () => {
     contactFormRef.current?.scrollIntoView({
       behavior: "smooth",

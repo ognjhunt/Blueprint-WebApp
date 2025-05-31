@@ -1,3 +1,7 @@
+// This file defines the Nav component, which is the main navigation bar for the application.
+// It handles displaying navigation links, user authentication status, and a mobile menu.
+// It also shows a dynamic title when the `blueprintTitle` prop is provided.
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { AnimatePresence, motion } from "framer-motion";
@@ -15,6 +19,11 @@ import { Link, useLocation, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 
+/**
+ * Generates initials from a given name.
+ * @param {string} name - The full name.
+ * @returns {string} The initials (e.g., "JD" for "John Doe").
+ */
 const getInitials = (name) => {
   if (!name) return "";
   return name
@@ -26,6 +35,15 @@ const getInitials = (name) => {
     .toUpperCase();
 };
 
+/**
+ * The Nav component is the main navigation bar for the application.
+ * It handles displaying navigation links, user authentication status, and a mobile menu.
+ * It also shows a dynamic title when the `blueprintTitle` prop is provided.
+ *
+ * @param {object} props - The component's props.
+ * @param {string} [props.blueprintTitle] - An optional title to display in the center of the nav bar.
+ * @returns {JSX.Element} The rendered Nav component.
+ */
 export default function Nav({ blueprintTitle }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -41,6 +59,11 @@ export default function Nav({ blueprintTitle }) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  /**
+   * Handles the user sign-out process.
+   * It calls the logout function from the AuthContext, shows a toast notification,
+   * and redirects the user to the home page.
+   */
   const handleSignOut = async () => {
     try {
       await logout();
