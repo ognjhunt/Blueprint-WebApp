@@ -57,6 +57,7 @@ const BlueprintImage = ({ blueprint }) => {
         onError={handleImageError}
         onLoad={handleImageLoad}
         style={{ display: isLoading ? "none" : "block" }}
+        loading="lazy"
       />
 
       {/* Fallback content when no image is available */}
