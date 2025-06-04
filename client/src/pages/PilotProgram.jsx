@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import FadeIn from "@/components/FadeIn";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -55,25 +56,8 @@ import {
  * @returns {JSX.Element} The rendered PilotProgram page.
  */
 export default function PilotProgram() {
-  const [isIntersected, setIsIntersected] = useState(false);
   const [activeTab, setActiveTab] = useState("what");
   const [selectedFaq, setSelectedFaq] = useState(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setIsIntersected(entry.isIntersecting);
-      },
-      { threshold: 0.1 },
-    );
-
-    const target = document.getElementById("benefits-section");
-    if (target) observer.observe(target);
-
-    return () => {
-      if (target) observer.unobserve(target);
-    };
-  }, []);
 
   /**
    * Displays a custom toast notification prompting the user to check their email for a pilot invitation.
@@ -309,33 +293,18 @@ export default function PilotProgram() {
       <section className="pt-16 md:pt-20 lg:pt-32 pb-12 md:pb-16 lg:pb-24 relative overflow-hidden">
         {/* Animated background */}
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute inset-0 bg-[url('/images/grid-pattern.svg')] opacity-5" />
-          <motion.div
-            className="absolute top-20 -right-20 w-96 h-96 bg-indigo-100/30 rounded-full blur-3xl"
-            animate={{
-              x: [0, 50, 0],
-              y: [0, -30, 0],
-            }}
-            transition={{ duration: 20, repeat: Infinity }}
+          <div className="absolute inset-0 opacity-5" />
+          <div
+            className="absolute top-20 -right-20 w-96 h-96 bg-indigo-100/30 rounded-full blur-3xl animated-bg-circle-1"
           />
-          <motion.div
-            className="absolute -bottom-20 -left-20 w-96 h-96 bg-violet-100/30 rounded-full blur-3xl"
-            animate={{
-              x: [0, -50, 0],
-              y: [0, 30, 0],
-            }}
-            transition={{ duration: 25, repeat: Infinity }}
+          <div
+            className="absolute -bottom-20 -left-20 w-96 h-96 bg-violet-100/30 rounded-full blur-3xl animated-bg-circle-2"
           />
         </div>
 
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl relative z-10">
           <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-16">
-            <motion.div
-              className="flex-1 text-center lg:text-left"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7 }}
-            >
+            <FadeIn yOffset={20} delay={0.1} className="flex-1 text-center lg:text-left">
               {/* What Blueprint is - Crystal Clear */}
               <Badge className="inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 border-indigo-200 mb-6 px-4 py-2">
                 <Rocket className="w-4 h-4" />
@@ -423,29 +392,23 @@ export default function PilotProgram() {
                   <span className="sm:hidden">joined this month</span>
                 </p>
               </div>
-            </motion.div>
+            </FadeIn>
 
             {/* Video Demo */}
-            <motion.div
-              className="flex-1 w-full max-w-2xl lg:max-w-none"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.7, delay: 0.2 }}
-              id="demo-video"
-            >
+            <FadeIn yOffset={20} delay={0.2} className="flex-1 w-full max-w-2xl lg:max-w-none" id="demo-video">
               <div className="relative rounded-2xl overflow-hidden shadow-2xl">
                 <div className="absolute inset-0 bg-gradient-to-tr from-indigo-100/20 to-violet-100/20 z-10 pointer-events-none" />
                 <video
                   className="w-full aspect-video object-cover"
                   src="/videos/Pilot Program.mp4"
                   controls
-                  poster="/images/video-poster.jpg"
+                  preload="metadata"
                 />
               </div>
               <p className="text-center text-sm text-slate-600 mt-4">
                 See Blueprint in action at a retail store
               </p>
-            </motion.div>
+            </FadeIn>
           </div>
         </div>
       </section>
@@ -453,12 +416,7 @@ export default function PilotProgram() {
       {/* WHO IT'S FOR - New Section */}
       <section className="py-16 md:py-24 relative bg-gradient-to-b from-indigo-50/20 to-slate-50">
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
-          <motion.div
-            className="text-center mb-12"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
+          <FadeIn yOffset={20} delay={0.1} className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-slate-900">
               Perfect For Forward-Thinking Businesses
             </h2>
@@ -466,18 +424,11 @@ export default function PilotProgram() {
               If you have a physical space and want to create unforgettable
               customer experiences, Blueprint is for you
             </p>
-          </motion.div>
+          </FadeIn>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {idealFor.map((item, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.1 }}
-                className="group"
-              >
+              <FadeIn key={idx} yOffset={20} delay={idx * 0.1} className="group">
                 <Card className="h-full bg-white/80 border-slate-200 hover:bg-white hover:border-indigo-300 hover:shadow-xl transition-all duration-300">
                   <CardContent className="p-4 md:p-6 text-center">
                     <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -491,7 +442,7 @@ export default function PilotProgram() {
                     <p className="text-slate-600 text-sm">{item.description}</p>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </FadeIn>
             ))}
           </div>
         </div>
@@ -523,13 +474,7 @@ export default function PilotProgram() {
               gradient: "from-violet-500 to-purple-500",
             },
           ].map((stat, idx) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: idx * 0.1 }}
-            >
+            <FadeIn key={stat.label} yOffset={20} delay={idx * 0.1}>
               <Card className="relative bg-white/90 border-slate-200 hover:shadow-xl transition-all group overflow-hidden">
                 <div
                   className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${stat.gradient}`}
@@ -559,7 +504,7 @@ export default function PilotProgram() {
                   </div>
                 </CardContent>
               </Card>
-            </motion.div>
+            </FadeIn>
           ))}
         </div>
       </section>
@@ -567,12 +512,7 @@ export default function PilotProgram() {
       {/* TIMELINE - Enhanced */}
       <section className="py-16 md:py-24 bg-gradient-to-b from-slate-50 to-indigo-50/30">
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
-          <motion.div
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
+          <FadeIn yOffset={20} delay={0.1} className="text-center mb-16">
             <Badge className="inline-flex items-center gap-2 bg-violet-100 text-violet-700 border-violet-200 mb-4 px-4 py-2">
               <CalendarCheck className="w-4 h-4" />
               Simple 14-Day Process
@@ -584,7 +524,7 @@ export default function PilotProgram() {
               Our streamlined process gets your AR experience up and running
               fast, with zero technical work on your end
             </p>
-          </motion.div>
+          </FadeIn>
 
           <div className="relative">
             {/* Desktop Timeline Line */}
@@ -592,12 +532,10 @@ export default function PilotProgram() {
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 relative">
               {timeline.map((step, idx) => (
-                <motion.div
+                <FadeIn
                   key={idx}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: idx * 0.15 }}
+                  yOffset={30}
+                  delay={idx * 0.15}
                   className="relative"
                 >
                   <div className="lg:absolute lg:-top-3 lg:left-1/2 lg:-translate-x-1/2 mb-6 lg:mb-0">
@@ -660,7 +598,7 @@ export default function PilotProgram() {
                       </div>
                     </CardContent>
                   </Card>
-                </motion.div>
+                </FadeIn>
               ))}
             </div>
           </div>
@@ -670,19 +608,14 @@ export default function PilotProgram() {
       {/* EXPLAINER TABS - Enhanced */}
       <section className="py-16 md:py-24 relative bg-white">
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
-          <motion.div
-            className="text-center mb-12"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
+          <FadeIn yOffset={20} delay={0.1} className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-slate-900">
               Everything You Need to Know
             </h2>
             <p className="text-lg text-slate-600">
               Dive deeper into how Blueprint transforms your business
             </p>
-          </motion.div>
+          </FadeIn>
 
           <Tabs
             defaultValue="what"
@@ -740,16 +673,16 @@ export default function PilotProgram() {
                         "Gamified experiences and rewards",
                         "Real-time offers and personalized content",
                       ].map((item, idx) => (
-                        <motion.li
+                        <FadeIn
                           key={idx}
+                          Component="li"
+                          delay={idx * 0.1}
+                          yOffset={10}
                           className="flex items-start gap-3"
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: idx * 0.1 }}
                         >
                           <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
                           <span className="text-slate-700">{item}</span>
-                        </motion.li>
+                        </FadeIn>
                       ))}
                     </ul>
                   </div>
@@ -758,11 +691,6 @@ export default function PilotProgram() {
                     <div className="absolute inset-0 bg-gradient-to-tr from-indigo-100/20 to-violet-100/20 blur-3xl" />
                     <Card className="relative bg-white border-slate-200 overflow-hidden shadow-xl">
                       <CardContent className="p-0">
-                        <img
-                          src="/images/ar-visualization.jpg"
-                          alt="AR Experience Demo"
-                          className="w-full h-auto"
-                        />
                         <div className="p-6">
                           <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 mb-3">
                             <Smartphone className="w-3 h-3 mr-1" />
@@ -824,12 +752,11 @@ export default function PilotProgram() {
                             icon: Star,
                           },
                         ].map((stat, idx) => (
-                          <motion.div
+                          <FadeIn
                             key={idx}
+                            delay={idx * 0.1}
+                            yOffset={10}
                             className="bg-slate-50 border border-slate-200 rounded-xl p-4"
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: idx * 0.1 }}
                           >
                             <stat.icon className="w-5 h-5 text-indigo-600 mb-2" />
                             <p className="text-3xl font-bold text-transparent bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text">
@@ -838,7 +765,7 @@ export default function PilotProgram() {
                             <p className="text-xs text-slate-600">
                               {stat.label}
                             </p>
-                          </motion.div>
+                          </FadeIn>
                         ))}
                       </div>
 
@@ -861,12 +788,11 @@ export default function PilotProgram() {
                         What Pilot Participants Say
                       </h4>
                       {testimonials.map((testimonial, idx) => (
-                        <motion.div
+                        <FadeIn
                           key={idx}
+                          delay={idx * 0.15}
+                          yOffset={10}
                           className="bg-white border border-slate-200 rounded-xl p-6 shadow-lg"
-                          initial={{ opacity: 0, x: 20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: idx * 0.15 }}
                         >
                           <div className="flex gap-1 mb-3">
                             {[...Array(5)].map((_, i) => (
@@ -892,7 +818,7 @@ export default function PilotProgram() {
                               {testimonial.metric}
                             </Badge>
                           </div>
-                        </motion.div>
+                        </FadeIn>
                       ))}
                     </div>
                   </div>
@@ -942,12 +868,11 @@ export default function PilotProgram() {
                         tech: "Custom Analytics Platform",
                       },
                     ].map((item, idx) => (
-                      <motion.div
+                      <FadeIn
                         key={idx}
+                        delay={idx * 0.1}
+                        yOffset={10}
                         className="flex gap-6"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: idx * 0.1 }}
                       >
                         <div className="flex-shrink-0">
                           <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center font-bold text-lg text-white">
@@ -966,7 +891,7 @@ export default function PilotProgram() {
                             {item.tech}
                           </Badge>
                         </div>
-                      </motion.div>
+                      </FadeIn>
                     ))}
                   </div>
                 </motion.div>
@@ -982,12 +907,7 @@ export default function PilotProgram() {
         className="py-16 md:py-24 bg-gradient-to-b from-indigo-50/20 to-slate-50"
       >
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
-          <motion.div
-            className="text-center mb-12"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
+          <FadeIn yOffset={20} delay={0.1} className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-slate-900">
               Why Join the Pilot Program?
             </h2>
@@ -995,18 +915,11 @@ export default function PilotProgram() {
               Experience the future of customer engagement with zero risk and
               maximum support
             </p>
-          </motion.div>
+          </FadeIn>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {benefits.map((benefit, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.1 }}
-                whileHover={{ y: -5 }}
-              >
+              <FadeIn key={idx} yOffset={20} delay={idx * 0.1}>
                 <Card className="h-full bg-white/90 border-slate-200 hover:shadow-2xl hover:border-indigo-300 transition-all group">
                   <CardContent className="p-4 md:p-6">
                     <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform">
@@ -1025,17 +938,11 @@ export default function PilotProgram() {
                     </p>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </FadeIn>
             ))}
           </div>
 
-          <motion.div
-            className="mt-12 text-center"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.3 }}
-          >
+          <FadeIn yOffset={20} delay={0.3} className="mt-12 text-center">
             <Button
               size="lg"
               className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white px-8 py-6 text-lg font-bold shadow-xl hover:shadow-2xl transition-all"
@@ -1047,36 +954,25 @@ export default function PilotProgram() {
             <p className="text-slate-500 mt-4">
               Only 13 spots remaining this month • No credit card required
             </p>
-          </motion.div>
+          </FadeIn>
         </div>
       </section>
 
       {/* FAQ - Enhanced */}
       <section className="py-16 md:py-24 bg-white">
         <div className="container mx-auto px-4 sm:px-6 max-w-4xl">
-          <motion.div
-            className="text-center mb-12"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
+          <FadeIn yOffset={20} delay={0.1} className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-slate-900">
               Frequently Asked Questions
             </h2>
             <p className="text-lg text-slate-600">
               Got questions? We've got answers.
             </p>
-          </motion.div>
+          </FadeIn>
 
           <div className="space-y-4">
             {faqs.map((faq, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.05 }}
-              >
+              <FadeIn key={idx} yOffset={20} delay={idx * 0.05}>
                 <button
                   className="w-full text-left bg-white hover:bg-slate-50 border border-slate-200 rounded-xl p-6 transition-all"
                   onClick={() =>
@@ -1110,15 +1006,14 @@ export default function PilotProgram() {
                     )}
                   </AnimatePresence>
                 </button>
-              </motion.div>
+              </FadeIn>
             ))}
           </div>
 
-          <motion.div
+          <FadeIn
+            yOffset={20}
+            delay={0.1}
             className="mt-12 p-8 rounded-2xl bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-200 text-center"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
           >
             <h3 className="text-2xl font-bold mb-4 text-slate-900">
               Still Have Questions?
@@ -1148,7 +1043,7 @@ export default function PilotProgram() {
                 </a>
               </Button>
             </div>
-          </motion.div>
+          </FadeIn>
         </div>
       </section>
 
