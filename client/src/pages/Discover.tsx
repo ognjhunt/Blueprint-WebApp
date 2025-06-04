@@ -403,7 +403,7 @@ const ImageCarousel = () => {
       src: "/images/ChatGPT Image Apr 9, 2025, 08_32_27 AM.png",
       alt: "Step 1: Initial Meeting",
       caption: "Initial Meeting",
-      description: "Our AR specialist arrives at your location",
+      description: "Our mapping specialist arrives at your location",
       time: "5 mins",
     },
     {

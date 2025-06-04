@@ -72,7 +72,7 @@ ____
 Nijel Hunt
 Co-Founder at Blueprint"
 
- STEP 4: Update the Google Sheet row with: Does Company Meet Criteria=[Yes/No from Perplexity], Have we sent off the waitlist email="Yes", Have they picked a date+time for mapping="No", Have we Onboarded="No".
+ STEP 4: Update the Google Sheet - Sheet named: 'Inbound (Website)' row with: Does Company Meet Criteria=[Yes/No from Perplexity], Have we sent off the waitlist email="Yes", Have they picked a date+time for mapping="No", Have we Onboarded="No".
 
  Execute all steps and confirm completion.`;
 }
