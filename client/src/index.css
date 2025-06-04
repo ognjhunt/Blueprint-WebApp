@@ -282,3 +282,22 @@
   -webkit-text-fill-color: transparent;
   animation: gradient-text 3s linear infinite;
 }
+
+/* Added for PilotProgram.jsx background animations */
+@keyframes pulse-circle-1 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(50px, -30px); }
+}
+
+@keyframes pulse-circle-2 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-50px, 30px); }
+}
+
+.animated-bg-circle-1 {
+  animation: pulse-circle-1 20s infinite alternate ease-in-out;
+}
+
+.animated-bg-circle-2 {
+  animation: pulse-circle-2 25s infinite alternate ease-in-out;
+}
