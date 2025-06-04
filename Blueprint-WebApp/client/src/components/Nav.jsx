@@ -2,7 +2,7 @@
 // It handles displaying navigation links, user authentication status, and a mobile menu.
 // It also shows a dynamic title when the `blueprintTitle` prop is provided.
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, memo } from "react";
 import { Button } from "@/components/ui/button";
 import { AnimatePresence, motion } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -52,9 +52,9 @@ export default function Nav({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { currentUser, userData, logout } = useAuth();
   const { toast } = useToast();
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation(); // location was not used, setLocation is used by handleSignOut
   const [matchEditor] = useRoute("/blueprint-editor/:rest*");
-  const isBlueprintEditorPage = Boolean(matchEditor);
+  // const isBlueprintEditorPage = Boolean(matchEditor); // This variable is not used
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -62,12 +62,7 @@ export default function Nav({
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  /**
-   * Handles the user sign-out process.
-   * It calls the logout function from the AuthContext, shows a toast notification,
-   * and redirects the user to the home page.
-   */
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     try {
       await logout();
       toast({
@@ -75,7 +70,7 @@ export default function Nav({
         description: "You have been successfully signed out.",
       });
       setLocation("/");
-    } catch (error) {
+    } catch (error)
       console.error("Sign out error:", error);
       toast({
         title: "Error",
@@ -83,7 +78,7 @@ export default function Nav({
         variant: "destructive",
       });
     }
-  };
+  }, [logout, toast, setLocation]);
 
   const userInitials = getInitials(userData?.name || userData?.displayName);
 
@@ -180,26 +175,9 @@ export default function Nav({
             </Link>
           ))}
           {/* Only show Invite Team button if authenticated and not hiding features */}
-          {currentUser && !hideAuthenticatedFeatures && (
-            <Link href="/workspace" className="mr-2">
-              <Button
-                variant="default"
-                className="rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg hover:shadow-indigo-200/50 transition-all duration-300 flex items-center gap-2 px-4 py-2"
-              >
-                <UserPlus className="h-4 w-4" />
-                Invite Team
-              </Button>
-            </Link>
-          )}
+          {currentUser && !hideAuthenticatedFeatures && <InviteTeamButtonInternal />}
           {!currentUser ? (
-            <Link href="/sign-in">
-              <Button
-                variant="default"
-                className="rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg hover:shadow-indigo-200/50 hover:scale-105 transition-all duration-300 px-6 py-2 font-semibold"
-              >
-                Sign In
-              </Button>
-            </Link>
+            <SignInButtonInternal />
           ) : (
             <div className="flex items-center space-x-4">
               {/* Only show Dashboard button and other features if not hiding authenticated features */}
@@ -228,61 +206,20 @@ export default function Nav({
                     } hover:ring-indigo-300 transition-all duration-300 shadow-lg hover:shadow-xl`}
                     aria-label="User menu"
                   >
-                    <Avatar className="h-11 w-11">
-                      <AvatarImage
-                        src={userData?.photoURL || ""}
-                        alt={
-                          userData?.name ||
-                          userData?.displayName ||
-                          "User Profile"
-                        }
-                        onError={(e) => {
-                          e.target.style.display = "none";
-                        }}
-                      />
-                      <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-violet-500 text-white font-bold text-sm">
-                        {userInitials ? (
-                          userInitials
-                        ) : (
-                          <User className="h-5 w-5" />
-                        )}
-                      </AvatarFallback>
-                    </Avatar>
+                    <UserAvatarDisplay
+                      photoURL={userData?.photoURL}
+                      name={userData?.name}
+                      displayName={userData?.displayName}
+                      initials={userInitials}
+                    />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-60 p-3 rounded-2xl shadow-xl border border-slate-200 bg-white/95 backdrop-blur-xl"
-                >
-                  <DropdownMenuLabel className="font-normal p-3 rounded-xl bg-slate-50">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-semibold leading-none text-slate-900">
-                        {userData?.name || userData?.displayName || "User"}
-                      </p>
-                      <p className="text-xs leading-none text-slate-500">
-                        {currentUser?.email || "No email"}
-                      </p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator className="my-2" />
-                  {/* Only show Settings if not hiding authenticated features */}
-                  {!hideAuthenticatedFeatures && (
-                    <>
-                      <Link href="/settings">
-                        <DropdownMenuItem className="cursor-pointer hover:bg-indigo-50 rounded-xl transition-colors p-3 font-medium">
-                          Settings
-                        </DropdownMenuItem>
-                      </Link>
-                      <DropdownMenuSeparator className="my-2" />
-                    </>
-                  )}
-                  <DropdownMenuItem
-                    onClick={handleSignOut}
-                    className="cursor-pointer hover:bg-red-50 text-red-600 hover:text-red-700 rounded-xl transition-colors p-3 font-medium"
-                  >
-                    Sign out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
+                <MemoizedDropdownMenuContent
+                  currentUser={currentUser}
+                  userData={userData}
+                  handleSignOut={handleSignOut}
+                  hideAuthenticatedFeatures={hideAuthenticatedFeatures}
+                />
               </DropdownMenu>
             </div>
           )}
@@ -420,3 +357,90 @@ export default function Nav({
     </motion.nav>
   );
 }
+
+// Memoized Components
+
+const UserAvatarDisplay = memo(({ photoURL, name, displayName, initials }) => {
+  return (
+    <Avatar className="h-11 w-11">
+      <AvatarImage
+        src={photoURL || ""}
+        alt={name || displayName || "User Profile"}
+        onError={(e) => {
+          e.target.style.display = "none";
+        }}
+      />
+      <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-violet-500 text-white font-bold text-sm">
+        {initials ? initials : <User className="h-5 w-5" />}
+      </AvatarFallback>
+    </Avatar>
+  );
+});
+UserAvatarDisplay.displayName = 'UserAvatarDisplay';
+
+const MemoizedDropdownMenuContent = memo(({ currentUser, userData, handleSignOut, hideAuthenticatedFeatures }) => {
+  return (
+    <DropdownMenuContent
+      align="end"
+      className="w-60 p-3 rounded-2xl shadow-xl border border-slate-200 bg-white/95 backdrop-blur-xl"
+    >
+      <DropdownMenuLabel className="font-normal p-3 rounded-xl bg-slate-50">
+        <div className="flex flex-col space-y-1">
+          <p className="text-sm font-semibold leading-none text-slate-900">
+            {userData?.name || userData?.displayName || "User"}
+          </p>
+          <p className="text-xs leading-none text-slate-500">
+            {currentUser?.email || "No email"}
+          </p>
+        </div>
+      </DropdownMenuLabel>
+      <DropdownMenuSeparator className="my-2" />
+      {!hideAuthenticatedFeatures && (
+        <>
+          <Link href="/settings">
+            <DropdownMenuItem className="cursor-pointer hover:bg-indigo-50 rounded-xl transition-colors p-3 font-medium">
+              Settings
+            </DropdownMenuItem>
+          </Link>
+          <DropdownMenuSeparator className="my-2" />
+        </>
+      )}
+      <DropdownMenuItem
+        onClick={handleSignOut}
+        className="cursor-pointer hover:bg-red-50 text-red-600 hover:text-red-700 rounded-xl transition-colors p-3 font-medium"
+      >
+        Sign out
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  );
+});
+MemoizedDropdownMenuContent.displayName = 'MemoizedDropdownMenuContent';
+
+const InviteTeamButtonInternal = memo(() => {
+  return (
+    <Link href="/workspace" className="mr-2">
+      <Button
+        variant="default"
+        className="rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg hover:shadow-indigo-200/50 transition-all duration-300 flex items-center gap-2 px-4 py-2"
+      >
+        <UserPlus className="h-4 w-4" />
+        Invite Team
+      </Button>
+    </Link>
+  );
+});
+InviteTeamButtonInternal.displayName = 'InviteTeamButtonInternal';
+
+const SignInButtonInternal = memo(() => {
+  return (
+    <Link href="/sign-in">
+      <Button
+        variant="default"
+        className="rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg hover:shadow-indigo-200/50 hover:scale-105 transition-all duration-300 px-6 py-2 font-semibold"
+      >
+        Sign In
+      </Button>
+    </Link>
+  );
+});
+SignInButtonInternal.displayName = 'SignInButtonInternal';

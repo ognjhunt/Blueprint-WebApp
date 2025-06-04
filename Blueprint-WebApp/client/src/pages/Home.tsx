@@ -1,17 +1,17 @@
 // This file defines the Home page component, which serves as the main landing page for the application.
 // It showcases the application's features, benefits, and provides a way for users to join the waitlist or contact the team.
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, memo, lazy, Suspense } from "react"; // Added lazy and Suspense
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import Nav from "@/components/Nav";
 import Hero from "@/components/sections/Hero";
-import Features from "@/components/sections/Features";
+// import Features from "@/components/sections/Features"; // Features is not used
 import { Button } from "@/components/ui/button";
-import ContactForm from "@/components/sections/ContactForm";
+// import ContactForm from "@/components/sections/ContactForm"; // Will be lazy loaded
 import { Card, CardContent } from "@/components/ui/card";
 import Footer from "@/components/Footer";
-import Testimonials from "@/components/sections/Testimonials";
+// import Testimonials from "@/components/sections/Testimonials"; // Testimonials is not used
 import LocationShowcase from "@/components/sections/LocationShowcase";
 import { motion, useScroll, useTransform } from "framer-motion";
 import {
@@ -185,34 +185,36 @@ export default function Home() {
         <motion.div
           className="absolute w-[120vw] h-[120vw] md:w-[80vw] md:h-[80vw] rounded-full bg-gradient-to-r from-indigo-100/40 via-violet-100/30 to-fuchsia-100/20 blur-3xl"
           style={{ top: "-60vw", right: "-40vw" }}
-          animate={{
-            y: [0, 20, 0], // Only y-axis movement
-          }}
-          transition={{
-            duration: 45, // Increased duration
-            repeat: Infinity,
-            repeatType: "reverse",
-          }}
+          // Removing y-axis animation for performance
+          // animate={{
+          //   y: [0, 20, 0],
+          // }}
+          // transition={{
+          //   duration: 45,
+          //   repeat: Infinity,
+          //   repeatType: "reverse",
+          // }}
         />
         <motion.div
           className="absolute w-[100vw] h-[100vw] md:w-[60vw] md:h-[60vw] rounded-full bg-gradient-to-r from-blue-100/30 via-cyan-100/20 to-emerald-100/15 blur-3xl"
           style={{ bottom: "-50vw", left: "-30vw" }}
-          animate={{
-            y: [0, -25, 0], // Only y-axis movement, different direction/amplitude
-          }}
-          transition={{
-            duration: 50, // Increased and different duration
-            repeat: Infinity,
-            repeatType: "reverse",
-            delay: 2, // Keep or adjust delay as preferred
-          }}
+          // Removing y-axis animation for performance
+          // animate={{
+          //   y: [0, -25, 0],
+          // }}
+          // transition={{
+          //   duration: 50,
+          //   repeat: Infinity,
+          //   repeatType: "reverse",
+          //   delay: 2,
+          // }}
         />
       </div>
 
       <Nav />
 
       <main ref={mainRef} className="flex-1 relative z-10">
-        <Hero />
+        <MemoizedHero />
 
         {/* Trust metrics section */}
         <section className="py-6 md:py-16 bg-gradient-to-b from-indigo-50/30 via-white/60 to-slate-50/40 backdrop-blur-sm">
@@ -265,7 +267,7 @@ export default function Home() {
           </div>
         </section>
 
-        <LocationShowcase />
+        <MemoizedLocationShowcase />
 
         {/* Enhanced Process Overview */}
         <section className="py-16 md:py-24 px-6 relative bg-gradient-to-b from-slate-50 to-white">
@@ -387,11 +389,12 @@ export default function Home() {
             </motion.div>
           </div>
         </section>
-
-        <ContactForm />
+        <Suspense fallback={<div className="text-center py-10">Loading Form...</div>}>
+          <MemoizedContactForm />
+        </Suspense>
       </main>
 
-      <Footer />
+      <MemoizedFooter />
 
       {/* Enhanced mobile floating action button */}
       <div className="lg:hidden fixed bottom-6 left-6 right-6 z-50">
@@ -407,3 +410,18 @@ export default function Home() {
     </div>
   );
 }
+
+// Memoized child components
+const MemoizedHero = memo(Hero);
+const MemoizedLocationShowcase = memo(LocationShowcase);
+const LazyContactForm = lazy(() => import('@/components/sections/ContactForm'));
+const MemoizedContactForm = memo(LazyContactForm); // Memoize the lazy-loaded component
+const MemoizedFooter = memo(Footer);
+
+// It might be beneficial to move steps and trustMetrics arrays outside the Home component
+// if they are truly static and their re-declaration on every Home render is a concern.
+// For example:
+// const stepsData = [ ... ];
+// const trustMetricsData = [ ... ];
+// export default function Home() { ... use stepsData and trustMetricsData ... }
+// However, this is outside the scope of memoizing child components directly.
