@@ -1,0 +1,237 @@
+'use client'
+
+import React, { useState, useCallback } from 'react'
+import ReactFlow, {
+  Node,
+  Edge,
+  Controls,
+  Background,
+  useNodesState,
+  useEdgesState,
+  addEdge,
+  Connection,
+} from 'reactflow'
+import 'reactflow/dist/style.css'
+import { PlusCircle, MessageCircle, HelpCircle, Tag, Navigation } from 'lucide-react'
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+
+const nodeTypes = {
+  welcome: WelcomeNode,
+  message: MessageNode,
+  question: QuestionNode,
+  offer: OfferNode,
+  action: ActionNode,
+}
+
+const initialNodes: Node[] = [
+  {
+    id: '1',
+    type: 'welcome',
+    data: { label: 'Welcome Message' },
+    position: { x: 250, y: 5 },
+  },
+]
+
+const initialEdges: Edge[] = []
+
+export default function CustomerExperienceDesigner() {
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
+  const [selectedNode, setSelectedNode] = useState(null)
+
+  const onConnect = useCallback((params: Connection | Edge) => setEdges((eds) => addEdge(params, eds)), [setEdges])
+
+  const onNodeClick = useCallback((event, node) => {
+    setSelectedNode(node)
+  }, [])
+
+  const addNode = (type: string) => {
+    const newNode = {
+      id: (nodes.length + 1).toString(),
+      type,
+      data: { label: `New ${type} Node` },
+      position: { x: Math.random() * 500, y: Math.random() * 500 },
+    }
+    setNodes((nds) => nds.concat(newNode))
+  }
+
+  return (
+    <div className="h-screen flex flex-col">
+      <div className="p-4 bg-white border-b">
+        <h1 className="text-2xl font-bold mb-4">Customer Experience Designer</h1>
+        <div className="flex space-x-2">
+          <Button onClick={() => addNode('welcome')} className="flex items-center">
+            <PlusCircle className="w-4 h-4 mr-2" />
+            Welcome
+          </Button>
+          <Button onClick={() => addNode('message')} className="flex items-center">
+            <MessageCircle className="w-4 h-4 mr-2" />
+            Message
+          </Button>
+          <Button onClick={() => addNode('question')} className="flex items-center">
+            <HelpCircle className="w-4 h-4 mr-2" />
+            Question
+          </Button>
+          <Button onClick={() => addNode('offer')} className="flex items-center">
+            <Tag className="w-4 h-4 mr-2" />
+            Offer
+          </Button>
+          <Button onClick={() => addNode('action')} className="flex items-center">
+            <Navigation className="w-4 h-4 mr-2" />
+            Action
+          </Button>
+        </div>
+      </div>
+      <div className="flex-grow">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodeClick={onNodeClick}
+          nodeTypes={nodeTypes}
+        >
+          <Background />
+          <Controls />
+        </ReactFlow>
+      </div>
+      {selectedNode && (
+        <NodeEditor node={selectedNode} updateNode={(updatedData) => {
+          setNodes((nds) =>
+            nds.map((node) => {
+              if (node.id === selectedNode.id) {
+                node.data = { ...node.data, ...updatedData }
+              }
+              return node
+            })
+          )
+        }} />
+      )}
+    </div>
+  )
+}
+
+function WelcomeNode({ data }) {
+  return (
+    <div className="bg-green-100 p-4 rounded-lg shadow">
+      <h3 className="font-bold mb-2">Welcome</h3>
+      <p>{data.message || 'Set a welcome message'}</p>
+    </div>
+  )
+}
+
+function MessageNode({ data }) {
+  return (
+    <div className="bg-blue-100 p-4 rounded-lg shadow">
+      <h3 className="font-bold mb-2">Message</h3>
+      <p>{data.message || 'Set a message'}</p>
+    </div>
+  )
+}
+
+function QuestionNode({ data }) {
+  return (
+    <div className="bg-yellow-100 p-4 rounded-lg shadow">
+      <h3 className="font-bold mb-2">Question</h3>
+      <p>{data.question || 'Set a question'}</p>
+      <ul className="list-disc list-inside">
+        {data.options?.map((option, index) => (
+          <li key={index}>{option}</li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function OfferNode({ data }) {
+  return (
+    <div className="bg-red-100 p-4 rounded-lg shadow">
+      <h3 className="font-bold mb-2">Offer</h3>
+      <p>{data.offer || 'Set an offer'}</p>
+    </div>
+  )
+}
+
+function ActionNode({ data }) {
+  return (
+    <div className="bg-purple-100 p-4 rounded-lg shadow">
+      <h3 className="font-bold mb-2">Action</h3>
+      <p>{data.action || 'Set an action'}</p>
+    </div>
+  )
+}
+
+function NodeEditor({ node, updateNode }) {
+  const [isOpen, setIsOpen] = useState(true)
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    const formData = new FormData(e.target)
+    const updatedData = Object.fromEntries(formData.entries())
+    updateNode(updatedData)
+    setIsOpen(false)
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit {node.type.charAt(0).toUpperCase() + node.type.slice(1)} Node</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {node.type === 'welcome' && (
+            <div>
+              <Label htmlFor="message">Welcome Message</Label>
+              <Textarea id="message" name="message" defaultValue={node.data.message} />
+            </div>
+          )}
+          {node.type === 'message' && (
+            <div>
+              <Label htmlFor="message">Message</Label>
+              <Textarea id="message" name="message" defaultValue={node.data.message} />
+            </div>
+          )}
+          {node.type === 'question' && (
+            <>
+              <div>
+                <Label htmlFor="question">Question</Label>
+                <Input id="question" name="question" defaultValue={node.data.question} />
+              </div>
+              <div>
+                <Label htmlFor="options">Options (one per line)</Label>
+                <Textarea
+                  id="options"
+                  name="options"
+                  defaultValue={node.data.options?.join('\n')}
+                  onChange={(e) => {
+                    const options = e.target.value.split('\n').filter(Boolean)
+                    updateNode({ options })
+                  }}
+                />
+              </div>
+            </>
+          )}
+          {node.type === 'offer' && (
+            <div>
+              <Label htmlFor="offer">Offer Details</Label>
+              <Textarea id="offer" name="offer" defaultValue={node.data.offer} />
+            </div>
+          )}
+          {node.type === 'action' && (
+            <div>
+              <Label htmlFor="action">Action Description</Label>
+              <Textarea id="action" name="action" defaultValue={node.data.action} />
+            </div>
+          )}
+          <Button type="submit">Save Changes</Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}

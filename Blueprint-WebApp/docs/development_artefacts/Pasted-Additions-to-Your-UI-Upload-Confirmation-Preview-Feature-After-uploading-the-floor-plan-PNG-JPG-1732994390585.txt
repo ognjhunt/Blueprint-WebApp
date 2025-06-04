@@ -1,0 +1,75 @@
+Additions to Your UI
+Upload Confirmation & Preview
+
+Feature: After uploading the floor plan (PNG/JPG), display a preview of the uploaded file overlaid on the grid.
+UI Addition:
+A "Preview" section that shows the uploaded floor plan.
+Controls for scaling, rotating, and aligning the floor plan to fit the grid.
+Alignment Tools
+
+Feature: Allow users to align the uploaded floor plan with the grid.
+UI Addition:
+Add buttons/sliders for scaling (zoom in/out) and rotating the map.
+Include "Snap to Grid" or "Auto-Align" options for easier alignment.
+Placement Mode
+
+Feature: Enable users to enter "Placement Mode" after the floor plan is uploaded and aligned.
+UI Addition:
+A prominent "Start Placing AR Elements" button.
+Toggle options like "Place AR Element" or "Adjust Layout" in the side panel.
+Element Placement Toolbar
+
+Feature: Add a toolbar specifically for managing AR elements.
+UI Addition:
+Dynamic options based on selected AR elements (e.g., "Info Card," "Marker," "Interactive Button").
+Layer management tools (e.g., bring forward, send backward).
+Duplicate/Delete options for elements.
+Zoning & Categories
+
+Feature: Allow users to define zones (e.g., "Aisle 1," "Produce Section") for better AR content organization.
+UI Addition:
+Add a "Define Zones" button that lets users highlight sections of the floor plan.
+A "Zone Name" input field and color-coding for zones.
+Save & Review
+
+Feature: Save the layout and provide a real-time preview.
+UI Addition:
+A "Save Changes" button with a confirmation modal.
+A "Preview Mode" to simulate what the user will see in AR.
+How the UX Should Work
+Step 1: Upload the Floor Plan
+
+Action: User clicks "Choose File" to upload a PNG or JPG of their store’s floor plan.
+System Response: The floor plan is displayed in the center of the grid with options to scale, rotate, and align it.
+Step 2: Align the Floor Plan
+
+Action: User adjusts the floor plan to fit the grid using the scaling and rotation tools.
+System Assistance:
+Add guidelines to snap the edges of the floor plan to the grid.
+Include a "Fit to Grid" button that auto-scales the floor plan.
+Step 3: Define Zones (Optional)
+
+Action: User defines zones within the floor plan (e.g., "Entrance," "Produce Section").
+How: They draw rectangles or shapes on the grid and label each zone.
+Outcome: Zones are color-coded and saved for future organization.
+Step 4: Place AR Elements
+
+Action: User selects "Add AR Element" from the side menu and drags it to the desired position on the floor plan.
+How:
+Select AR elements like Info Cards, Markers, or Buttons.
+Drag and drop them onto the grid.
+Adjust size and position using controls (e.g., resize handles).
+System Assistance:
+Snap AR elements to grid lines for precise placement.
+Provide a "Preview Info" button for each element to customize its content.
+Step 5: Save and Sync
+
+Action: User clicks "Save Layout" to store the floor plan and placed elements.
+System Response:
+Data is saved to the backend (e.g., Firebase).
+A unique Blueprint ID is generated for this layout.
+Step 6: Review in AR (Optional)
+
+Action: User selects "Preview in AR" to view how the layout will appear in AR.
+System Response:
+Generate a QR code or anchor link for the user to load the layout in an AR viewer.

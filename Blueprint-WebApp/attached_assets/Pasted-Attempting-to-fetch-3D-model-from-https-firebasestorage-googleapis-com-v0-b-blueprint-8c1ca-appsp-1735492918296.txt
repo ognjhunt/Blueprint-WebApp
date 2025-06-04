@@ -1,0 +1,40 @@
+Attempting to fetch 3D model from: https://firebasestorage.googleapis.com/v0/b/blueprint-8c1ca.appspot.com/o/blueprints%2F07ef9cea-65a4-487f-be11-0cec626201bb%2F3d%2F%20-%20Uniform%20%E2%80%A2%20100%25%20%E2%80%A2%208k.glb?alt=media&token=39faf145-db42-44e2-a3c2-7431b5c85b70
+Loading model from direct URL: https://firebasestorage.googleapis.com/v0/b/blueprint-8c1ca.appspot.com/o/blueprints%2F07ef9cea-65a4-487f-be11-0cec626201bb%2F3d%2F%20-%20Uniform%20%E2%80%A2%20100%25%20%E2%80%A2%208k.glb?alt=media&token=39faf145-db42-44e2-a3c2-7431b5c85b70
+Attempting to fetch 3D model from: https://firebasestorage.googleapis.com/v0/b/blueprint-8c1ca.appspot.com/o/blueprints%2F07ef9cea-65a4-487f-be11-0cec626201bb%2F3d%2F%20-%20Uniform%20%E2%80%A2%20100%25%20%E2%80%A2%208k.glb?alt=media&token=39faf145-db42-44e2-a3c2-7431b5c85b70
+Loading model from direct URL: https://firebasestorage.googleapis.com/v0/b/blueprint-8c1ca.appspot.com/o/blueprints%2F07ef9cea-65a4-487f-be11-0cec626201bb%2F3d%2F%20-%20Uniform%20%E2%80%A2%20100%25%20%E2%80%A2%208k.glb?alt=media&token=39faf145-db42-44e2-a3c2-7431b5c85b70
+Error loading model: 
+TypeError {}
+
+Retrying model load... Attempt 1/3
+Failed to fetch
+Error loading model: 
+TypeError {}
+
+Retrying model load... Attempt 1/3
+Failed to fetch
+Error loading model: 
+TypeError {}
+
+Retrying model load... Attempt 1/3
+Failed to fetch
+Attempting to fetch 3D model from: https://firebasestorage.googleapis.com/v0/b/blueprint-8c1ca.appspot.com/o/blueprints%2F07ef9cea-65a4-487f-be11-0cec626201bb%2F3d%2F%20-%20Uniform%20%E2%80%A2%20100%25%20%E2%80%A2%208k.glb?alt=media&token=39faf145-db42-44e2-a3c2-7431b5c85b70
+Loading model from direct URL: https://firebasestorage.googleapis.com/v0/b/blueprint-8c1ca.appspot.com/o/blueprints%2F07ef9cea-65a4-487f-be11-0cec626201bb%2F3d%2F%20-%20Uniform%20%E2%80%A2%20100%25%20%E2%80%A2%208k.glb?alt=media&token=39faf145-db42-44e2-a3c2-7431b5c85b70
+Error loading model: 
+TypeError {}
+message: "Failed to fetch"
+stack: "TypeError: Failed to fetch↵ at window.fetch (https://7a08843a-3237-452f-a05d-0fbf373c7c46-00-1c1p64djqfosf.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:218642)↵ at loadModel (https://7a08843a-3237-452f-a05d-0fbf373c7c46-00-1c1p64djqfosf.kirk.replit.dev/src/components/ThreeViewer.tsx:132:30)↵ at https://7a08843a-3237-452f-a05d-0fbf373c7c46-00-1c1p64djqfosf.kirk.replit.dev/src/components/ThreeViewer.tsx:262:7↵ at commitHookEffectListMount (https://7a08843a-3237-452f-a05d-0fbf373c7c46-00-1c1p64djqfosf.kirk.replit.dev/@fs/home/runner/BlueprintVisionFork/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=57a49aae:16915:34)↵ at invokePassiveEffectMountInDEV (https://7a08843a-3237-452f-a05d-0fbf373c7c46-00-1c1p64djqfosf.kirk.replit.dev/@fs/home/runner/BlueprintVisionFork/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=57a49aae:18324:19)↵ at invokeEffectsInDev (https://7a08843a-3237-452f-a05d-0fbf373c7c46-00-1c1p64djqfosf.kirk.replit.dev/@fs/home/runner/BlueprintVisionFork/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=57a49aae:19701:19)↵ at commitDoubleInvokeEffectsInDEV (https://7a08843a-3237-452f-a05d-0fbf373c7c46-00-1c1p64djqfosf.kirk.replit.dev/@fs/home/runner/BlueprintVisionFork/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=57a49aae:19686:15)↵ at flushPassiveEffectsImpl (https://7a08843a-3237-452f-a05d-0fbf373c7c46-00-1c1p64djqfosf.kirk.replit.dev/@fs/home/runner/BlueprintVisionFork/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=57a49aae:19503:13)↵ at flushPassiveEffects (https://7a08843a-3237-452f-a05d-0fbf373c7c46-00-1c1p64djqfosf.kirk.replit.dev/@fs/home/runner/BlueprintVisionFork/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=57a49aae:19447:22)↵ at commitRootImpl (https://7a08843a-3237-452f-a05d-0fbf373c7c46-00-1c1p64djqfosf.kirk.replit.dev/@fs/home/runner/BlueprintVisionFork/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=57a49aae:19416:13)"
+get stack: ƒ ()
+set stack: ƒ ()
+[[Prototype]]: Object
+
+Retrying model load... Attempt 1/3
+Failed to fetch
+Attempting to fetch 3D model from: https://firebasestorage.googleapis.com/v0/b/blueprint-8c1ca.appspot.com/o/blueprints%2F07ef9cea-65a4-487f-be11-0cec626201bb%2F3d%2F%20-%20Uniform%20%E2%80%A2%20100%25%20%E2%80%A2%208k.glb?alt=media&token=39faf145-db42-44e2-a3c2-7431b5c85b70
+Loading model from direct URL: https://firebasestorage.googleapis.com/v0/b/blueprint-8c1ca.appspot.com/o/blueprints%2F07ef9cea-65a4-487f-be11-0cec626201bb%2F3d%2F%20-%20Uniform%20%E2%80%A2%20100%25%20%E2%80%A2%208k.glb?alt=media&token=39faf145-db42-44e2-a3c2-7431b5c85b70
+Error loading model: 
+TypeError {}
+
+Retrying model load... Attempt 2/3
+Failed to fetch
+Attempting to fetch 3D model from: https://firebasestorage.googleapis.com/v0/b/blueprint-8c1ca.appspot.com/o/blueprints%2F07ef9cea-65a4-487f-be11-0cec626201bb%2F3d%2F%20-%20Uniform%20%E2%80%A2%20100%25%20%E2%80%A2%208k.glb?alt=media&token=39faf145-db42-44e2-a3c2-7431b5c85b70
+Loading model from direct URL: https://f

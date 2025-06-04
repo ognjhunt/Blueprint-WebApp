@@ -1,0 +1,74 @@
+{/* Main Editor Area */}
+<div
+  className={`flex-1 relative ml-64 min-h-[calc(100vh-4rem)] isolate ${isPanMode ? "cursor-grab" : ""} ${isDragging ? "cursor-grabbing" : ""} ${
+    editorState.isPlacementMode
+      ? "ring-2 ring-primary ring-opacity-50"
+      : ""
+  }`}
+  onDragOver={handleDragOver}
+  onDragLeave={handleDragLeave}
+  onDrop={handleDrop}
+  onMouseDown={handlePanStart}
+  onMouseMove={handlePanMove}
+  onMouseUp={handlePanEnd}
+  onMouseLeave={handlePanEnd}
+  onContextMenu={(e) => {
+    e.preventDefault();
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const relativeX = ((e.clientX - rect.left) / rect.width) * 100;
+      const relativeY = ((e.clientY - rect.top) / rect.height) * 100;
+      setPromptPosition({ x: relativeX, y: relativeY });
+      setShowAiPrompt(true);
+    }
+  }}
+  ref={containerRef}
+>
+  <div
+    className={`absolute top-0 left-0 w-[200vw] h-[200vh] ${
+      showGrid ? "bg-grid-pattern" : ""
+    }`}
+    style={{
+      transform: `translate(${editorState.position.x}px, ${editorState.position.y}px) scale(${editorState.containerScale})`,
+      transformOrigin: "center",
+      transition: isDragging ? "none" : "transform 0.1s ease-out",
+      zIndex: 0,
+    }}
+  >
+    {/* Your AR elements, layout image, etc. */}
+  </div>
+
+  {/* Move the AI prompt OUTSIDE of the transformed div, but still inside this main div */}
+  {showAiPrompt && (
+    <div
+      style={{
+        position: "absolute",
+        left: `${promptPosition.x}%`,
+        top: `${promptPosition.y}%`,
+        transform: "translate(-50%, -50%)",
+        zIndex: 9999,
+      }}
+      className="bg-white border rounded shadow p-2"
+    >
+      <Input
+        type="text"
+        placeholder="What would you like to see at this location?"
+        value={promptInput}
+        onChange={(e) => setPromptInput(e.target.value)}
+        className="border p-1 w-48"
+      />
+      <Button
+        onClick={() => {
+          // Handle AI logic here
+          setShowAiPrompt(false);
+          setPromptInput("");
+        }}
+        className="mt-2"
+      >
+        Submit
+      </Button>
+    </div>
+  )}
+  
+  {/* Placement Mode Button, Controls, and other UI elements stay here */}
+</div>
