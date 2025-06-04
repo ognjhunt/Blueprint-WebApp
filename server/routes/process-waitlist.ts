@@ -67,7 +67,7 @@ export default async function processWaitlistHandler(
       model: "o4-mini",
       input: aiPrompt, // Use the generated prompt
       reasoning: {
-        effort: "high",
+        effort: "medium",
       },
       tools: [
         {
