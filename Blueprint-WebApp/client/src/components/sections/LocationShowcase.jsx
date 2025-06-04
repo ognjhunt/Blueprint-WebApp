@@ -54,8 +54,8 @@ export default function LocationShowcase() {
       id: "grocery",
       name: "Grocery Store",
       category: "Retail",
-      image: "/images/grocerystore1.png",
-      secondaryImage: "/images/grocery-ar.jpeg",
+      image: "/images/grocerystorebase1.png",
+      secondaryImage: "/images/grocery-ar.jpeg", // FIXME: Image not found at this path
       description:
         "Turn shopping into an interactive experience with AR product information, nutritional details, and personalized recommendations.",
       benefits: [
@@ -70,7 +70,7 @@ export default function LocationShowcase() {
       name: "Retail Store",
       category: "Commerce",
       image: "/images/apple-store.jpeg",
-      secondaryImage: "/images/retail-ar.jpeg",
+      secondaryImage: "/images/apple-store-blueprint.jpeg",
       description:
         "Create immersive try-before-you-buy experiences with virtual product demonstrations and interactive catalogs.",
       benefits: [
@@ -85,7 +85,7 @@ export default function LocationShowcase() {
       name: "Hotel",
       category: "Hospitality",
       image: "/images/hotel.jpeg",
-      secondaryImage: "/images/hotel-ar.jpeg",
+      secondaryImage: "/images/hotel-ar.jpeg", // FIXME: Image not found at this path
       description:
         "Elevate guest experiences with interactive room tours, amenity guides, and personalized concierge services.",
       benefits: [
@@ -99,8 +99,8 @@ export default function LocationShowcase() {
       id: "museum",
       name: "Museum",
       category: "Culture",
-      image: "/images/museum.jpeg",
-      secondaryImage: "/images/museum-ar.jpeg",
+      image: "/images/museum.jpeg", // FIXME: Image not found at this path
+      secondaryImage: "/images/museum-ar.jpeg", // FIXME: Image not found at this path
       description:
         "Bring exhibits to life with immersive storytelling, interactive timelines, and augmented historical content.",
       benefits: [
@@ -114,8 +114,8 @@ export default function LocationShowcase() {
       id: "office",
       name: "Office",
       category: "Corporate",
-      image: "/images/office.jpeg",
-      secondaryImage: "/images/office-ar.jpeg",
+      image: "/images/office.jpeg", // FIXME: Image not found at this path
+      secondaryImage: "/images/office-ar.jpeg", // FIXME: Image not found at this path
       description:
         "Transform workspaces with AR-powered collaboration tools, interactive presentations, and virtual meeting spaces.",
       benefits: [
@@ -129,8 +129,8 @@ export default function LocationShowcase() {
       id: "apartment",
       name: "Real Estate",
       category: "Property",
-      image: "/images/apartment.jpeg",
-      secondaryImage: "/images/apartment-ar.jpeg",
+      image: "/images/apartment.jpeg", // FIXME: Image not found at this path
+      secondaryImage: "/images/apartment-ar.jpeg", // FIXME: Image not found at this path
       description:
         "Revolutionize property tours with AR staging, virtual furniture placement, and interactive floor plans.",
       benefits: ["Faster sales cycles", "Virtual staging", "Remote viewings"],
