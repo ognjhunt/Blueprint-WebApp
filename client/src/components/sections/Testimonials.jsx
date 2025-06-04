@@ -120,15 +120,40 @@ export default function Testimonials() {
 
                   <div className="flex flex-col md:flex-row items-center gap-6 mb-6">
                     <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-indigo-100 flex-shrink-0">
-                      <img
-                        src={testimonial.image}
-                        alt={testimonial.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = `https://ui-avatars.com/api/?name=${testimonial.name.replace(" ", "+")}&background=6366f1&color=fff`;
-                        }}
-                      />
+                      <picture>
+                        <source srcSet={testimonial.image.replace(/\.(png|jpe?g)$/i, '.webp')} type="image/webp" />
+                        <source srcSet={testimonial.image} type={testimonial.image.endsWith('.png') ? 'image/png' : 'image/jpeg'} />
+                        <img
+                          src={testimonial.image}
+                          alt={testimonial.name}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            // Attempt to load WebP version of fallback avatar if original avatar fails
+                            const fallbackWebP = `https://ui-avatars.com/api/?name=${testimonial.name.replace(" ", "+")}&background=6366f1&color=fff&format=webp`;
+                            const fallbackPng = `https://ui-avatars.com/api/?name=${testimonial.name.replace(" ", "+")}&background=6366f1&color=fff&format=png`;
+
+                            const pictureElement = e.target.parentElement;
+                            if (pictureElement && pictureElement.tagName === 'PICTURE') {
+                              // Remove existing sources
+                              Array.from(pictureElement.querySelectorAll('source')).forEach(source => source.remove());
+
+                              // Add new sources for ui-avatars
+                              const sourceWebP = document.createElement('source');
+                              sourceWebP.srcSet = fallbackWebP;
+                              sourceWebP.type = 'image/webp';
+                              pictureElement.prepend(sourceWebP);
+
+                              const sourcePng = document.createElement('source');
+                              sourcePng.srcSet = fallbackPng;
+                              sourcePng.type = 'image/png';
+                              pictureElement.prepend(sourcePng);
+                            }
+                            e.target.src = fallbackPng; // Set img src to the final fallback
+                          }}
+                        />
+                      </picture>
                     </div>
                     <div className="text-center md:text-left">
                       <h3 className="font-bold text-xl text-gray-800">

@@ -243,16 +243,40 @@ export default function LocationShowcase() {
                 animate={{ opacity: showAfter ? 0 : 1 }}
                 transition={{ duration: 0.5 }}
               >
-                <img
-                  src={
-                    selectedLocation === "Grocery Store"
-                      ? groceryBeforeImages[groceryIndex]
-                      : currentLocation.image
-                  }
-                  alt={currentLocation.name}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
+                <picture>
+                  <source
+                    srcSet={
+                      (selectedLocation === "Grocery Store"
+                        ? groceryBeforeImages[groceryIndex]
+                        : currentLocation.image
+                      ).replace(/\.(png|jpe?g)$/i, '.webp')
+                    }
+                    type="image/webp"
+                  />
+                  <source
+                    srcSet={
+                      selectedLocation === "Grocery Store"
+                        ? groceryBeforeImages[groceryIndex]
+                        : currentLocation.image
+                    }
+                    type={
+                      (selectedLocation === "Grocery Store"
+                        ? groceryBeforeImages[groceryIndex]
+                        : currentLocation.image
+                      ).endsWith('.png') ? 'image/png' : 'image/jpeg'
+                    }
+                  />
+                  <img
+                    src={
+                      selectedLocation === "Grocery Store"
+                        ? groceryBeforeImages[groceryIndex]
+                        : currentLocation.image
+                    }
+                    alt={currentLocation.name}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                </picture>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent">
                   <div className="absolute bottom-6 left-6 text-white">
                     <div className="flex items-center gap-2 mb-2">
@@ -274,16 +298,40 @@ export default function LocationShowcase() {
                 animate={{ opacity: showAfter ? 1 : 0 }}
                 transition={{ duration: 0.5 }}
               >
-                <img
-                  src={
-                    selectedLocation === "Grocery Store"
-                      ? groceryAfterImages[groceryIndex]
-                      : currentLocation.secondaryImage
-                  }
-                  alt={`AR-enhanced ${currentLocation.name}`}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
+                <picture>
+                  <source
+                    srcSet={
+                      (selectedLocation === "Grocery Store"
+                        ? groceryAfterImages[groceryIndex]
+                        : currentLocation.secondaryImage
+                      ).replace(/\.(png|jpe?g)$/i, '.webp')
+                    }
+                    type="image/webp"
+                  />
+                  <source
+                    srcSet={
+                      selectedLocation === "Grocery Store"
+                        ? groceryAfterImages[groceryIndex]
+                        : currentLocation.secondaryImage
+                    }
+                    type={
+                      (selectedLocation === "Grocery Store"
+                        ? groceryAfterImages[groceryIndex]
+                        : currentLocation.secondaryImage
+                      ).endsWith('.png') ? 'image/png' : 'image/jpeg'
+                    }
+                  />
+                  <img
+                    src={
+                      selectedLocation === "Grocery Store"
+                        ? groceryAfterImages[groceryIndex]
+                        : currentLocation.secondaryImage
+                    }
+                    alt={`AR-enhanced ${currentLocation.name}`}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                </picture>
                 <div className="absolute inset-0 bg-gradient-to-t from-indigo-900/80 via-indigo-900/30 to-transparent">
                   <div className="absolute bottom-6 left-6 text-white">
                     <div className="flex items-center gap-2 mb-2">
@@ -387,18 +435,43 @@ export default function LocationShowcase() {
 //         transition={{ duration: 0.6 }}
 //       >
 //         <div className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl">
-//           <motion.img
-//             src={
-//               selectedLocation === "Grocery Store"
-//                 ? groceryBeforeImages[groceryIndex]
-//                 : currentLocation.image
-//             }
-//             alt={currentLocation.name}
-//             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-//             initial={{ scale: 1.1 }}
-//             animate={{ scale: 1 }}
-//             transition={{ duration: 1 }}
-//           />
+//           <picture>
+//             <source
+//               srcSet={
+//                 (selectedLocation === "Grocery Store"
+//                   ? groceryBeforeImages[groceryIndex]
+//                   : currentLocation.image
+//                 ).replace(/\.(png|jpe?g)$/i, '.webp')
+//               }
+//               type="image/webp"
+//             />
+//             <source
+//               srcSet={
+//                 selectedLocation === "Grocery Store"
+//                   ? groceryBeforeImages[groceryIndex]
+//                   : currentLocation.image
+//               }
+//               type={
+//                 (selectedLocation === "Grocery Store"
+//                   ? groceryBeforeImages[groceryIndex]
+//                   : currentLocation.image
+//                 ).endsWith('.png') ? 'image/png' : 'image/jpeg'
+//               }
+//             />
+//             <motion.img
+//               src={
+//                 selectedLocation === "Grocery Store"
+//                   ? groceryBeforeImages[groceryIndex]
+//                   : currentLocation.image
+//               }
+//               alt={currentLocation.name}
+//               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+//               initial={{ scale: 1.1 }}
+//               animate={{ scale: 1 }}
+//               transition={{ duration: 1 }}
+//               loading="lazy"
+//             />
+//           </picture>
 
 //           {/* Before overlay */}
 //           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent">
@@ -427,18 +500,43 @@ export default function LocationShowcase() {
 //         transition={{ duration: 0.6 }}
 //       >
 //         <div className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl">
-//           <motion.img
-//             src={
-//               selectedLocation === "Grocery Store"
-//                 ? groceryAfterImages[groceryIndex]
-//                 : currentLocation.secondaryImage
-//             }
-//             alt={`AR-enhanced ${currentLocation.name}`}
-//             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-//             initial={{ scale: 1.1 }}
-//             animate={{ scale: 1 }}
-//             transition={{ duration: 1 }}
-//           />
+//           <picture>
+//             <source
+//               srcSet={
+//                 (selectedLocation === "Grocery Store"
+//                   ? groceryAfterImages[groceryIndex]
+//                   : currentLocation.secondaryImage
+//                 ).replace(/\.(png|jpe?g)$/i, '.webp')
+//               }
+//               type="image/webp"
+//             />
+//             <source
+//               srcSet={
+//                 selectedLocation === "Grocery Store"
+//                   ? groceryAfterImages[groceryIndex]
+//                   : currentLocation.secondaryImage
+//               }
+//               type={
+//                 (selectedLocation === "Grocery Store"
+//                   ? groceryAfterImages[groceryIndex]
+//                   : currentLocation.secondaryImage
+//                 ).endsWith('.png') ? 'image/png' : 'image/jpeg'
+//               }
+//             />
+//             <motion.img
+//               src={
+//                 selectedLocation === "Grocery Store"
+//                   ? groceryAfterImages[groceryIndex]
+//                   : currentLocation.secondaryImage
+//               }
+//               alt={`AR-enhanced ${currentLocation.name}`}
+//               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+//               initial={{ scale: 1.1 }}
+//               animate={{ scale: 1 }}
+//               transition={{ duration: 1 }}
+//               loading="lazy"
+//             />
+//           </picture>
 
 //           {/* After overlay */}
 //           <div className="absolute inset-0 bg-gradient-to-t from-indigo-900/80 via-indigo-900/30 to-transparent">

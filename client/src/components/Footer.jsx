@@ -62,11 +62,11 @@ export default function Footer() {
         <motion.div
           className="absolute -top-40 -right-40 w-80 h-80 bg-indigo-900/20 rounded-full blur-3xl"
           animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.2, 0.3, 0.2],
+            scale: [1, 1.05, 1], // More subtle scale
+            opacity: [0.1, 0.15, 0.1], // More subtle opacity
           }}
           transition={{
-            duration: 15,
+            duration: 25, // Increased duration
             repeat: Infinity,
             repeatType: "reverse",
           }}
@@ -75,11 +75,11 @@ export default function Footer() {
         <motion.div
           className="absolute -bottom-40 -left-40 w-96 h-96 bg-purple-900/20 rounded-full blur-3xl"
           animate={{
-            scale: [1, 1.3, 1],
-            opacity: [0.2, 0.3, 0.2],
+            scale: [1, 1.03, 1], // More subtle scale
+            opacity: [0.05, 0.1, 0.05], // More subtle opacity
           }}
           transition={{
-            duration: 20,
+            duration: 30, // Increased duration
             repeat: Infinity,
             repeatType: "reverse",
             delay: 2,

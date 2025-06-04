@@ -186,12 +186,10 @@ export default function Home() {
           className="absolute w-[120vw] h-[120vw] md:w-[80vw] md:h-[80vw] rounded-full bg-gradient-to-r from-indigo-100/40 via-violet-100/30 to-fuchsia-100/20 blur-3xl"
           style={{ top: "-60vw", right: "-40vw" }}
           animate={{
-            y: [0, 20, 0],
-            scale: [1, 1.1, 1],
-            rotate: [0, 45, 0],
+            y: [0, 20, 0], // Only y-axis movement
           }}
           transition={{
-            duration: 30,
+            duration: 45, // Increased duration
             repeat: Infinity,
             repeatType: "reverse",
           }}
@@ -200,15 +198,13 @@ export default function Home() {
           className="absolute w-[100vw] h-[100vw] md:w-[60vw] md:h-[60vw] rounded-full bg-gradient-to-r from-blue-100/30 via-cyan-100/20 to-emerald-100/15 blur-3xl"
           style={{ bottom: "-50vw", left: "-30vw" }}
           animate={{
-            y: [0, -25, 0],
-            scale: [1, 1.15, 1],
-            rotate: [0, -30, 0],
+            y: [0, -25, 0], // Only y-axis movement, different direction/amplitude
           }}
           transition={{
-            duration: 35,
+            duration: 50, // Increased and different duration
             repeat: Infinity,
             repeatType: "reverse",
-            delay: 2,
+            delay: 2, // Keep or adjust delay as preferred
           }}
         />
       </div>

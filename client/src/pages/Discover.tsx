@@ -469,17 +469,21 @@ const ImageCarousel = () => {
       <div className="relative overflow-hidden rounded-3xl shadow-2xl bg-gradient-to-br from-gray-900 to-gray-800">
         <div className="relative w-full aspect-[16/10] md:aspect-[3/2]">
           <AnimatePresence mode="wait">
-            <motion.img
-              key={activeIndex}
-              src={slides[activeIndex].src}
-              alt={slides[activeIndex].alt}
-              className="absolute inset-0 w-full h-full object-cover"
-              initial={{ opacity: 0, scale: 1.1 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.7 }}
-              loading="lazy"
-            />
+            <picture>
+              <source srcSet={slides[activeIndex].src.replace(/\.(png|jpe?g)$/i, '.webp')} type="image/webp" />
+              <source srcSet={slides[activeIndex].src} type={slides[activeIndex].src.endsWith('.png') ? 'image/png' : 'image/jpeg'} />
+              <motion.img
+                key={activeIndex}
+                src={slides[activeIndex].src}
+                alt={slides[activeIndex].alt}
+                className="absolute inset-0 w-full h-full object-cover"
+                initial={{ opacity: 0, scale: 1.1 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.7 }}
+                loading="lazy"
+              />
+            </picture>
           </AnimatePresence>
 
           {/* Gradient overlay for better text readability */}

@@ -76,21 +76,19 @@ export default function Hero() {
         <motion.div
           className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full bg-gradient-to-br from-indigo-100/40 via-violet-100/30 to-fuchsia-100/20 blur-3xl"
           animate={{
-            y: [0, 30, 0],
-            x: [0, 20, 0],
-            scale: [1, 1.1, 1],
+            y: [0, 20, 0], // Simplified from y: [0, 30, 0] and removed x and scale
+            x: [0, 15, 0], // Simplified from x: [0, 20, 0]
           }}
-          transition={{ duration: 20, repeat: Infinity, repeatType: "reverse" }}
+          transition={{ duration: 30, repeat: Infinity, repeatType: "reverse" }} // Increased duration
         />
         <motion.div
           className="absolute bottom-0 left-0 w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-blue-100/30 via-cyan-100/20 to-emerald-100/10 blur-3xl"
           animate={{
-            y: [0, -40, 0],
-            x: [0, 30, 0],
-            scale: [1, 1.05, 1],
+            y: [0, -25, 0], // Simplified from y: [0, -40, 0] and removed x and scale
+            x: [0, -15, 0], // Simplified from x: [0, 30, 0]
           }}
           transition={{
-            duration: 25,
+            duration: 35, // Increased duration
             repeat: Infinity,
             repeatType: "reverse",
             delay: 2,
@@ -206,15 +204,40 @@ export default function Hero() {
                     key={i}
                     className="w-10 h-10 rounded-full border-3 border-white overflow-hidden shadow-lg"
                   >
-                    <img
-                      src={`/images/avatar-${i}.jpg`}
-                      alt="Customer avatar"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = `https://ui-avatars.com/api/?name=User+${i}&background=6366f1&color=fff&bold=true`;
-                      }}
-                    />
+                    <picture>
+                      <source srcSet={`/images/avatar-${i}.webp`} type="image/webp" />
+                      <source srcSet={`/images/avatar-${i}.jpg`} type="image/jpeg" />
+                      <img
+                        src={`/images/avatar-${i}.jpg`}
+                        alt="Customer avatar"
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          // Attempt to load WebP version of fallback avatar if original avatar fails
+                          const fallbackWebP = `https://ui-avatars.com/api/?name=User+${i}&background=6366f1&color=fff&bold=true&format=webp`;
+                          const fallbackPng = `https://ui-avatars.com/api/?name=User+${i}&background=6366f1&color=fff&bold=true&format=png`;
+
+                          const pictureElement = e.target.parentElement;
+                          if (pictureElement && pictureElement.tagName === 'PICTURE') {
+                            // Remove existing sources
+                            Array.from(pictureElement.querySelectorAll('source')).forEach(source => source.remove());
+
+                            // Add new sources for ui-avatars
+                            const sourceWebP = document.createElement('source');
+                            sourceWebP.srcSet = fallbackWebP;
+                            sourceWebP.type = 'image/webp';
+                            pictureElement.prepend(sourceWebP);
+
+                            const sourcePng = document.createElement('source');
+                            sourcePng.srcSet = fallbackPng;
+                            sourcePng.type = 'image/png';
+                            pictureElement.prepend(sourcePng);
+                          }
+                          e.target.src = fallbackPng; // Set img src to the final fallback
+                        }}
+                      />
+                    </picture>
                   </div>
                 ))}
                 <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm flex items-center justify-center border-3 border-white font-bold shadow-lg">

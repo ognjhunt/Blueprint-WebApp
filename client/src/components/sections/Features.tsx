@@ -85,11 +85,11 @@ export default function Features() {
       <motion.div
         className="absolute -top-40 -right-40 w-96 h-96 bg-indigo-100 rounded-full blur-3xl opacity-30 -z-10"
         animate={{
-          scale: [1, 1.2, 1],
-          opacity: [0.3, 0.2, 0.3],
+          scale: [1, 1.05, 1], // More subtle scale
+          opacity: [0.1, 0.15, 0.1], // More subtle opacity
         }}
         transition={{
-          duration: 15,
+          duration: 25, // Increased duration
           repeat: Infinity,
           repeatType: "reverse",
         }}
