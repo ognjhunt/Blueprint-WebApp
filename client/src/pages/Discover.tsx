@@ -765,69 +765,72 @@ export default function Discover() {
                 key={idx}
                 yOffset={40}
                 delay={idx * 0.1}
-                onMouseEnter={() => setHoveredStep(idx)}
-                onMouseLeave={() => setHoveredStep(null)}
                 className="relative"
               >
-                <Card
-                  className={`h-full border-0 shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden ${
-                    hoveredStep === idx ? "scale-105" : ""
-                  }`}
+                <div
+                  onMouseEnter={() => setHoveredStep(idx)}
+                  onMouseLeave={() => setHoveredStep(null)}
                 >
-                  <div
-                    className={`absolute inset-0 bg-gradient-to-br ${step.color} opacity-5`}
-                  />
-                  <CardContent className="relative p-8">
-                    <div className="flex flex-col items-center text-center">
-                      {/* Step number and icon */}
-                      <div className="relative mb-6">
-                        <div
-                          className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${step.color} p-5 shadow-xl`}
-                        >
-                          <div className="w-full h-full flex items-center justify-center text-white">
-                            {step.icon}
+                  <Card
+                    className={`h-full border-0 shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden ${
+                      hoveredStep === idx ? "scale-105" : ""
+                    }`}
+                  >
+                    <div
+                      className={`absolute inset-0 bg-gradient-to-br ${step.color} opacity-5`}
+                    />
+                    <CardContent className="relative p-8">
+                      <div className="flex flex-col items-center text-center">
+                        {/* Step number and icon */}
+                        <div className="relative mb-6">
+                          <div
+                            className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${step.color} p-5 shadow-xl`}
+                          >
+                            <div className="w-full h-full flex items-center justify-center text-white">
+                              {step.icon}
+                            </div>
+                          </div>
+                          <div className="absolute -top-2 -right-2 bg-white shadow-lg text-gray-900 text-sm font-bold w-8 h-8 rounded-full flex items-center justify-center border-2 border-gray-100">
+                            {idx + 1}
                           </div>
                         </div>
-                        <div className="absolute -top-2 -right-2 bg-white shadow-lg text-gray-900 text-sm font-bold w-8 h-8 rounded-full flex items-center justify-center border-2 border-gray-100">
-                          {idx + 1}
+
+                        <h3 className="text-2xl font-bold mb-3 text-gray-900">
+                          {step.title}
+                        </h3>
+
+                        <p className="text-gray-600 mb-6 leading-relaxed">
+                          {step.description}
+                        </p>
+
+                        <div className="space-y-3 w-full">
+                          {step.benefits.map((benefit, bidx) => (
+                            <FadeIn
+                              key={bidx}
+                              delay={bidx * 0.1}
+                              className="flex items-center text-left"
+                            >
+                              <CheckCircle2 className="w-5 h-5 text-emerald-500 mr-3 flex-shrink-0" />
+                              <span className="text-sm font-medium text-gray-700">
+                                {benefit}
+                              </span>
+                            </FadeIn>
+                          ))}
                         </div>
-                      </div>
 
-                      <h3 className="text-2xl font-bold mb-3 text-gray-900">
-                        {step.title}
-                      </h3>
-
-                      <p className="text-gray-600 mb-6 leading-relaxed">
-                        {step.description}
-                      </p>
-
-                      <div className="space-y-3 w-full">
-                        {step.benefits.map((benefit, bidx) => (
-                          <FadeIn
-                            key={bidx}
-                            delay={bidx * 0.1}
-                            className="flex items-center text-left"
+                        {idx === 0 && (
+                          <Button
+                            className="w-full mt-8 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white py-6 font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+                            onClick={scrollToContact}
                           >
-                            <CheckCircle2 className="w-5 h-5 text-emerald-500 mr-3 flex-shrink-0" />
-                            <span className="text-sm font-medium text-gray-700">
-                              {benefit}
-                            </span>
-                          </FadeIn>
-                        ))}
+                            Reserve Your Spot
+                            <ArrowRight className="w-4 h-4 ml-2" />
+                          </Button>
+                        )}
                       </div>
-
-                      {idx === 0 && (
-                        <Button
-                          className="w-full mt-8 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white py-6 font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
-                          onClick={scrollToContact}
-                        >
-                          Reserve Your Spot
-                          <ArrowRight className="w-4 h-4 ml-2" />
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </div>
               </FadeIn>
             ))}
           </div>
