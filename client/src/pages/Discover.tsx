@@ -9,12 +9,7 @@ import Nav from "@/components/Nav";
 import { Link } from "wouter";
 import ContactForm from "@/components/sections/ContactForm";
 import Footer from "@/components/Footer";
-import {
-  motion,
-  useScroll,
-  useTransform,
-  AnimatePresence,
-} from "framer-motion";
+import FadeIn from "@/components/FadeIn";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import AIChatButton from "@/components/AIChatButton";
@@ -58,16 +53,6 @@ import {
  * @returns {JSX.Element} The rendered EnterpriseARSection component.
  */
 const EnterpriseARSection = () => {
-  const [hoveredFeature, setHoveredFeature] = useState<number | null>(null);
-  const containerRef = useRef(null);
-
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start end", "end start"],
-  });
-
-  const y = useTransform(scrollYProgress, [0, 1], ["0%", "20%"]);
-
   // Enhanced feature set with metrics and detailed benefits
   const primaryFeatures = [
     {
@@ -161,16 +146,13 @@ const EnterpriseARSection = () => {
   ];
 
   return (
-    <section
-      ref={containerRef}
-      className="relative py-24 md:py-32 px-4 overflow-hidden"
-    >
+    <section className="relative py-24 md:py-32 px-4 overflow-hidden">
       {/* Enhanced Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-white via-slate-50/50 to-white">
-        <motion.div style={{ y }} className="absolute inset-0 opacity-30">
+        <div className="absolute inset-0 opacity-30">
           <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-violet-400/20 to-purple-400/20 rounded-full blur-3xl" />
           <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-400/20 to-cyan-400/20 rounded-full blur-3xl" />
-        </motion.div>
+        </div>
 
         {/* Animated grid pattern */}
         <div className="absolute inset-0 opacity-5">
@@ -189,13 +171,7 @@ const EnterpriseARSection = () => {
 
       <div className="container mx-auto max-w-7xl relative z-10">
         {/* Enhanced Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
-          className="text-center mb-20"
-        >
+        <FadeIn yOffset={30} delay={0.3} className="text-center mb-20">
           <div className="inline-flex items-center gap-2 mb-6 bg-gradient-to-r from-indigo-100 to-violet-100 text-indigo-700 px-6 py-3 rounded-full text-sm font-semibold shadow-lg">
             <ShieldCheck className="w-4 h-4" />
             Enterprise-Grade Technology
@@ -229,19 +205,15 @@ const EnterpriseARSection = () => {
               <span>24/7 Support</span>
             </div>
           </div>
-        </motion.div>
+        </FadeIn>
 
         {/* Primary Features - Enhanced Cards */}
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8 mb-20">
           {primaryFeatures.map((feature, idx) => (
-            <motion.div
+            <FadeIn
               key={idx}
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: feature.delay }}
-              onMouseEnter={() => setHoveredFeature(idx)}
-              onMouseLeave={() => setHoveredFeature(null)}
+              yOffset={40}
+              delay={feature.delay}
               className="group"
             >
               <Card className="h-full border-0 shadow-xl hover:shadow-2xl transition-all duration-500 overflow-hidden bg-white/80 backdrop-blur-sm">
@@ -251,12 +223,11 @@ const EnterpriseARSection = () => {
                 <CardContent className="p-8">
                   {/* Icon and Title Section */}
                   <div className="flex items-start gap-4 mb-8">
-                    <motion.div
-                      whileHover={{ rotate: 5, scale: 1.1 }}
+                    <div
                       className={`p-4 rounded-2xl bg-gradient-to-br ${feature.gradient} text-white shadow-lg flex-shrink-0`}
                     >
                       {feature.icon}
-                    </motion.div>
+                    </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="text-2xl font-bold text-gray-900 mb-2 leading-tight">
                         {feature.title}
@@ -296,53 +267,39 @@ const EnterpriseARSection = () => {
                       Key Benefits
                     </h4>
                     {feature.benefits.map((benefit, bidx) => (
-                      <motion.div
+                      <FadeIn
                         key={bidx}
-                        initial={{ opacity: 0.8, x: 0 }}
-                        animate={{
-                          opacity: hoveredFeature === idx ? 1 : 0.8,
-                          x: hoveredFeature === idx ? 4 : 0,
-                        }}
-                        transition={{ delay: bidx * 0.1 }}
+                        delay={bidx * 0.1}
                         className="flex items-center gap-3"
                       >
                         <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
                         <span className="text-sm font-medium text-gray-700 leading-relaxed">
                           {benefit}
                         </span>
-                      </motion.div>
+                      </FadeIn>
                     ))}
                   </div>
                 </CardContent>
               </Card>
-            </motion.div>
+            </FadeIn>
           ))}
         </div>
 
         {/* Secondary Features - Compact Grid */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-          className="mb-16"
-        >
+        <FadeIn yOffset={30} delay={0.4} className="mb-16">
           <h3 className="text-3xl font-bold text-center mb-12 text-gray-900">
             Built for Scale & Security
           </h3>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {secondaryFeatures.map((feature, idx) => (
-              <motion.div
+              <FadeIn
                 key={idx}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: idx * 0.1 }}
-                whileHover={{ y: -4 }}
+                yOffset={20}
+                delay={idx * 0.1}
                 className="group"
               >
-                <Card className="h-full border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white/70 backdrop-blur-sm">
+                <Card className="h-full border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white/70 backdrop-blur-sm group-hover:-translate-y-1">
                   <CardContent className="p-6">
                     <div
                       className={`inline-flex p-3 rounded-xl bg-gradient-to-br ${feature.color} text-white mb-4 group-hover:scale-110 transition-transform duration-300`}
@@ -357,17 +314,15 @@ const EnterpriseARSection = () => {
                     </p>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </FadeIn>
             ))}
           </div>
-        </motion.div>
+        </FadeIn>
 
         {/* Call to Action */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8, delay: 0.6 }}
+        <FadeIn
+          yOffset={30}
+          delay={0.6}
           className="text-center bg-gradient-to-r from-indigo-600 to-violet-600 rounded-3xl p-12 shadow-2xl"
         >
           <h3 className="text-3xl md:text-4xl font-bold text-white mb-4">
@@ -384,7 +339,7 @@ const EnterpriseARSection = () => {
             Schedule Demo
             <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
           </Button>
-        </motion.div>
+        </FadeIn>
       </div>
     </section>
   );
@@ -463,36 +418,49 @@ const ImageCarousel = () => {
     };
   }, [activeIndex, slides.length]);
 
+  // Preload the next image
+  useEffect(() => {
+    if (slides && slides.length > 1) {
+      const nextIndex = (activeIndex + 1) % slides.length;
+      if (slides[nextIndex] && slides[nextIndex].src) {
+        const img = new Image();
+        img.src = slides[nextIndex].src;
+      }
+
+      // Optional: Preload previous image as well for bi-directional navigation
+      // const prevIndex = (activeIndex - 1 + slides.length) % slides.length;
+      // if (slides[prevIndex] && slides[prevIndex].src) {
+      //   const prevImg = new Image();
+      //   prevImg.src = slides[prevIndex].src;
+      // }
+    }
+  }, [activeIndex, slides]);
+
   return (
     <div className="relative">
       {/* Main carousel container */}
       <div className="relative overflow-hidden rounded-3xl shadow-2xl bg-gradient-to-br from-gray-900 to-gray-800">
         <div className="relative w-full aspect-[16/10] md:aspect-[3/2]">
-          <AnimatePresence mode="wait">
-            <motion.img
-              key={activeIndex}
+          <FadeIn
+            key={activeIndex}
+            className="absolute inset-0 w-full h-full"
+            delay={0}
+            threshold={0.1}
+          >
+            <img
               src={slides[activeIndex].src}
               alt={slides[activeIndex].alt}
               className="absolute inset-0 w-full h-full object-cover"
-              initial={{ opacity: 0, scale: 1.1 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.7 }}
               loading="lazy"
             />
-          </AnimatePresence>
+          </FadeIn>
 
           {/* Gradient overlay for better text readability */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
           {/* Enhanced caption with step info */}
           <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10">
-            <motion.div
-              key={`caption-${activeIndex}`}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
+            <FadeIn yOffset={20} delay={0.2} key={`caption-${activeIndex}`}>
               <div className="flex items-center gap-3 mb-3">
                 <span className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md text-white px-4 py-2 rounded-full text-sm font-medium">
                   <Clock className="w-4 h-4" />
@@ -508,7 +476,7 @@ const ImageCarousel = () => {
               <p className="text-white/90 text-lg max-w-2xl">
                 {slides[activeIndex].description}
               </p>
-            </motion.div>
+            </FadeIn>
           </div>
         </div>
 
@@ -695,21 +663,14 @@ export default function Discover() {
       <section className="relative pt-28 pb-20 px-4 overflow-hidden">
         <div className="container mx-auto max-w-7xl relative z-10">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              className="space-y-8"
-            >
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
+            <FadeIn yOffset={30} delay={0.2} className="space-y-8">
+              <FadeIn
+                delay={0.2}
                 className="inline-flex items-center gap-2 bg-gradient-to-r from-violet-100 to-indigo-100 text-indigo-700 px-5 py-2 rounded-full text-sm font-semibold"
               >
                 <Sparkle className="w-4 h-4" />
                 See How Blueprint Works
-              </motion.div>
+              </FadeIn>
 
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-gray-900">
                 Turn Any Space Into an{" "}
@@ -748,35 +709,27 @@ export default function Discover() {
               </div>
 
               {/* Trust indicators */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-                className="flex items-center gap-8 pt-4 text-sm text-gray-600"
-              >
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-green-500" />
-                  <span>Setup in 1 hour</span>
+              <FadeIn yOffset={20} delay={0.4}>
+                <div className="flex items-center gap-8 pt-4 text-sm text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-green-500" />
+                    <span>Setup in 1 hour</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-green-500" />
+                    <span>No app required</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-green-500" />
+                    <span>Impact Guaranteed</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-green-500" />
-                  <span>No app required</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-green-500" />
-                  <span>Impact Guaranteed</span>
-                </div>
-              </motion.div>
-            </motion.div>
+              </FadeIn>
+            </FadeIn>
 
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1, delay: 0.3 }}
-              className="relative"
-            >
+            <FadeIn delay={0.3} className="relative">
               <ImageCarousel />
-            </motion.div>
+            </FadeIn>
           </div>
         </div>
       </section>
@@ -784,13 +737,7 @@ export default function Discover() {
       {/* Streamlined 4-Step Process */}
       <section className="py-20 md:py-32 px-4 bg-gradient-to-b from-gray-50 to-white relative">
         <div className="container mx-auto max-w-7xl">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-20"
-          >
+          <FadeIn yOffset={30} delay={0.2} className="text-center mb-20">
             <div className="inline-flex items-center gap-2 mb-6 bg-gradient-to-r from-indigo-100 to-violet-100 text-indigo-700 px-5 py-2 rounded-full text-sm font-semibold">
               <Zap className="w-4 h-4" />
               Simple 4-Step Process
@@ -805,7 +752,7 @@ export default function Discover() {
               Our streamlined process gets you up and running faster than
               ordering custom business cards
             </p>
-          </motion.div>
+          </FadeIn>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 relative">
             {/* Connection line for desktop */}
@@ -814,12 +761,10 @@ export default function Discover() {
             </div>
 
             {steps.map((step, idx) => (
-              <motion.div
+              <FadeIn
                 key={idx}
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: idx * 0.1 }}
+                yOffset={40}
+                delay={idx * 0.1}
                 onMouseEnter={() => setHoveredStep(idx)}
                 onMouseLeave={() => setHoveredStep(null)}
                 className="relative"
@@ -836,15 +781,13 @@ export default function Discover() {
                     <div className="flex flex-col items-center text-center">
                       {/* Step number and icon */}
                       <div className="relative mb-6">
-                        <motion.div
-                          whileHover={{ rotate: 360 }}
-                          transition={{ duration: 0.8 }}
+                        <div
                           className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${step.color} p-5 shadow-xl`}
                         >
                           <div className="w-full h-full flex items-center justify-center text-white">
                             {step.icon}
                           </div>
-                        </motion.div>
+                        </div>
                         <div className="absolute -top-2 -right-2 bg-white shadow-lg text-gray-900 text-sm font-bold w-8 h-8 rounded-full flex items-center justify-center border-2 border-gray-100">
                           {idx + 1}
                         </div>
@@ -860,21 +803,16 @@ export default function Discover() {
 
                       <div className="space-y-3 w-full">
                         {step.benefits.map((benefit, bidx) => (
-                          <motion.div
+                          <FadeIn
                             key={bidx}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{
-                              opacity: hoveredStep === idx ? 1 : 0.8,
-                              x: 0,
-                            }}
-                            transition={{ delay: bidx * 0.1 }}
+                            delay={bidx * 0.1}
                             className="flex items-center text-left"
                           >
                             <CheckCircle2 className="w-5 h-5 text-emerald-500 mr-3 flex-shrink-0" />
                             <span className="text-sm font-medium text-gray-700">
                               {benefit}
                             </span>
-                          </motion.div>
+                          </FadeIn>
                         ))}
                       </div>
 
@@ -890,7 +828,7 @@ export default function Discover() {
                     </div>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </FadeIn>
             ))}
           </div>
         </div>
