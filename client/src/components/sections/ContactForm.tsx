@@ -261,64 +261,6 @@ export default function ContactForm() {
     }
   };
 
-  // const handleSubmit = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   if (!validateForm()) return;
-  //   setIsSubmitting(true);
-
-  //   try {
-  //     const token = uuidv4();
-  //     const baseUrl = "https://blueprint-vision-fork-nijelhunt.replit.app";
-  //     const offWaitlistUrl = `${baseUrl}/off-waitlist-signup?token=${token}`;
-
-  //     // Create Firebase token record
-  //     await addDoc(collection(db, "waitlistTokens"), {
-  //       token: token,
-  //       email: formData.email,
-  //       company: formData.company,
-  //       status: "unused",
-  //       createdAt: serverTimestamp(),
-  //     });
-
-  //     // Process waitlist with AI automation
-  //     const mcpResponse = await fetch("/api/process-waitlist", {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify({
-  //         name: formData.name,
-  //         company: formData.company,
-  //         email: formData.email,
-  //         city: formData.city,
-  //         state: formData.state,
-  //         message: formData.message,
-  //         companyWebsite: companyWebsite,
-  //         offWaitlistUrl: offWaitlistUrl,
-  //       }),
-  //     });
-
-  //     if (!mcpResponse.ok) {
-  //       throw new Error("Failed to process waitlist signup");
-  //     }
-
-  //     setIsSuccess(true);
-  //     setFormData({
-  //       name: "",
-  //       email: "",
-  //       company: "",
-  //       city: "",
-  //       state: "",
-  //       message: "",
-  //     });
-  //   } catch (error) {
-  //     console.error("Error submitting form:", error);
-  //     alert("There was an error submitting your form. Please try again.");
-  //   } finally {
-  //     setIsSubmitting(false);
-  //   }
-  // };
-
   /**
    * Handles changes to form input fields and updates the form data state.
    * @param {React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>} e - The input change event.

@@ -851,7 +851,7 @@ export default function PilotProgram() {
                         title: "AI Content Generation",
                         description:
                           "Our proprietary AI analyzes your space, brand, and products to generate contextually relevant AR content. No generic templates—everything is custom.",
-                        tech: "GPT-4 + Computer Vision Models",
+                        tech: "Computer-Use + Computer Vision Models",
                       },
                       {
                         step: "3",
