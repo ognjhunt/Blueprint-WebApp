@@ -324,6 +324,44 @@ export default function OffWaitlistSignUpFlow() {
               result,
             );
             // Optionally update booking status to indicate processing completed
+            
+            // 🎯 ADD LINDY WEBHOOK CALL HERE - AFTER MCP SUCCESS
+            const lindyOptions = {
+              method: "POST",
+              headers: {
+                Authorization:
+                  "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                website: cUrl || "", // PRIMARY LOOKUP FIELD for your Google Sheets
+                email: email.trim(),
+                company_name: cName,
+                contact_name: personName,
+                contact_phone: contactPhone,
+                address: cAddress,
+                chosen_date: chosenDate,
+                chosen_time: chosenTime,
+                square_footage: squareFootage,
+                blueprint_id: blueprintId,
+              }),
+            };
+
+            // Call Lindy webhook for 24-hour reminder setup
+            fetch(
+              "https://public.lindy.ai/api/v1/webhooks/lindy/4c2cf282-1443-4541-8379-972800470035",
+              lindyOptions,
+            )
+              .then((lindyResponse) => lindyResponse.json())
+              .then((lindyData) =>
+                console.log(
+                  "Lindy 24hr reminder webhook initiated:",
+                  lindyData,
+                ),
+              )
+              .catch((lindyErr) =>
+                console.error("Lindy webhook error:", lindyErr),
+              );
           })
           .catch((error) => {
             console.error("Background MCP process error:", error);
@@ -1204,7 +1242,9 @@ export default function OffWaitlistSignUpFlow() {
           }
         }}
         className={
-          showStep2Errors && (squareFootage === null || squareFootage <= 0) ? "border-red-500" : ""
+          showStep2Errors && (squareFootage === null || squareFootage <= 0)
+            ? "border-red-500"
+            : ""
         }
       />
       {showStep2Errors && (squareFootage === null || squareFootage <= 0) && (
