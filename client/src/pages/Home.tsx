@@ -182,7 +182,7 @@ export default function Home() {
     <div className="min-h-screen flex flex-col relative overflow-hidden bg-white">
       {/* Enhanced background patterns */}
       <div className="fixed inset-0 z-[-2] bg-gradient-to-br from-slate-50 via-white to-indigo-50/20">
-        <motion.div
+        {/* <motion.div
           className="absolute w-[120vw] h-[120vw] md:w-[80vw] md:h-[80vw] rounded-full bg-gradient-to-r from-indigo-100/40 via-violet-100/30 to-fuchsia-100/20 blur-3xl"
           style={{ top: "-60vw", right: "-40vw" }}
           animate={{
@@ -195,7 +195,9 @@ export default function Home() {
             repeat: Infinity,
             repeatType: "reverse",
           }}
-        />
+        /> */}
+        <div className="absolute w-[80vw] h-[80vw] md:w-[60vw] md:h-[60vw] rounded-full bg-gradient-to-r from-indigo-100/40 via-violet-100/30 to-fuchsia-100/20 blur-2xl opacity-60" 
+           style={{ top: "-40vw", right: "-20vw" }} />
         <motion.div
           className="absolute w-[100vw] h-[100vw] md:w-[60vw] md:h-[60vw] rounded-full bg-gradient-to-r from-blue-100/30 via-cyan-100/20 to-emerald-100/15 blur-3xl"
           style={{ bottom: "-50vw", left: "-30vw" }}
