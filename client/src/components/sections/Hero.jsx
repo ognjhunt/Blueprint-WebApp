@@ -78,12 +78,8 @@ export default function Hero() {
     >
       {/* Enhanced background elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <motion.div
-          className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full bg-gradient-to-br from-indigo-100/40 via-violet-100/30 to-fuchsia-100/20 blur-3xl"
-        />
-        <motion.div
-          className="absolute bottom-0 left-0 w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-blue-100/30 via-cyan-100/20 to-emerald-100/10 blur-3xl"
-        />
+        <motion.div className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full bg-gradient-to-br from-indigo-100/40 via-violet-100/30 to-fuchsia-100/20 blur-3xl" />
+        <motion.div className="absolute bottom-0 left-0 w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-blue-100/30 via-cyan-100/20 to-emerald-100/10 blur-3xl" />
       </div>
 
       {/* Floating grid pattern */}
@@ -166,11 +162,11 @@ export default function Hero() {
             >
               <Button
                 size="lg"
-                className="w-full sm:w-auto text-sm sm:text-base lg:text-lg px-6 sm:px-8 lg:px-10 py-3 sm:py-4 lg:py-6 font-semibold tracking-wide shadow-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 hover:scale-105 transition-all duration-300 border-0"
+                className="w-full sm:w-auto text-sm sm:text-base lg:text-lg px-6 sm:px-8 lg:px-10 py-3 sm:py-4 lg:py-6 font-semibold tracking-wide shadow-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 hover:scale-105 transition-all duration-300 border-0 text-white"
                 onClick={handleScrollToContactForm}
               >
                 Get Early Access
-                <ArrowRightIcon className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
+                <ArrowRightIcon className="w-4 h-4 sm:w-5 sm:h-5 ml-2 text-white" />
               </Button>
 
               <Link href="/discover">
