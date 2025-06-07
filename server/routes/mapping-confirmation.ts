@@ -64,25 +64,27 @@ class SimpleJobQueue {
     this.processing = true;
 
     try {
-      // Process jobs sequentially to avoid concurrency issues
-      const pendingJobs = Array.from(this.jobs.entries()).filter(([_, job]) => job.status === "pending");
-      
-      for (const [id, job] of pendingJobs) {
-        job.status = "processing";
-        console.log(`Processing job ${id} of type ${job.type}`);
+      // Fix: Use Array.from() to convert Map to array, then process sequentially
+      const jobEntries = Array.from(this.jobs.entries());
 
-        try {
-          if (job.type === "phase1-background") {
-            await this.processPhase1Background(job);
-          } else if (job.type === "phase2") {
-            await this.processPhase2(job);
+      for (const [id, job] of jobEntries) {
+        if (job.status === "pending") {
+          job.status = "processing";
+          console.log(`Processing job ${id} of type ${job.type}`);
+
+          try {
+            if (job.type === "phase1-background") {
+              await this.processPhase1Background(job);
+            } else if (job.type === "phase2") {
+              await this.processPhase2(job);
+            }
+            job.status = "completed";
+            console.log(`Job ${id} completed successfully`);
+          } catch (error: any) {
+            job.status = "failed";
+            job.error = error.message;
+            console.error(`Job ${id} failed:`, error);
           }
-          job.status = "completed";
-          console.log(`Job ${id} completed successfully`);
-        } catch (error: any) {
-          job.status = "failed";
-          job.error = error.message;
-          console.error(`Job ${id} failed:`, error);
         }
       }
     } finally {
