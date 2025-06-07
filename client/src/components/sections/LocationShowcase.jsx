@@ -29,14 +29,14 @@ export default function LocationShowcase() {
   const [showAfter, setShowAfter] = useState(false);
 
   const [groceryIndex, setGroceryIndex] = useState(0);
-  useEffect(() => {
-    if (selectedLocation === "Grocery Store") {
-      const interval = setInterval(() => {
-        setGroceryIndex((prev) => (prev + 1) % 2);
-      }, 4000);
-      return () => clearInterval(interval);
-    }
-  }, [selectedLocation]);
+  // useEffect(() => {
+  //   if (selectedLocation === "Grocery Store") {
+  //     const interval = setInterval(() => {
+  //       setGroceryIndex((prev) => (prev + 1) % 2);
+  //     }, 4000);
+  //     return () => clearInterval(interval);
+  //   }
+  // }, [selectedLocation]);
 
   const groceryBeforeImages = [
     "/images/grocerystore1.png",
@@ -231,9 +231,9 @@ export default function LocationShowcase() {
             <motion.div
               key={selectedLocation}
               className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl cursor-pointer"
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -50 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               transition={{ duration: 0.8 }}
               onClick={() => setShowAfter(!showAfter)} // Tap to toggle on mobile
             >

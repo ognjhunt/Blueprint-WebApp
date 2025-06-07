@@ -52,7 +52,7 @@ export default function Hero() {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % headlines.length);
-    }, 5000);
+    }, 8000);
     return () => clearInterval(interval);
   }, [headlines.length]);
 
@@ -80,26 +80,9 @@ export default function Hero() {
       <div className="absolute inset-0 overflow-hidden">
         <motion.div
           className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full bg-gradient-to-br from-indigo-100/40 via-violet-100/30 to-fuchsia-100/20 blur-3xl"
-          animate={{
-            y: [0, 30, 0],
-            x: [0, 20, 0],
-            scale: [1, 1.1, 1],
-          }}
-          transition={{ duration: 20, repeat: Infinity, repeatType: "reverse" }}
         />
         <motion.div
           className="absolute bottom-0 left-0 w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-blue-100/30 via-cyan-100/20 to-emerald-100/10 blur-3xl"
-          animate={{
-            y: [0, -40, 0],
-            x: [0, 30, 0],
-            scale: [1, 1.05, 1],
-          }}
-          transition={{
-            duration: 25,
-            repeat: Infinity,
-            repeatType: "reverse",
-            delay: 2,
-          }}
         />
       </div>
 

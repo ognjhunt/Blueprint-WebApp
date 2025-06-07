@@ -155,22 +155,38 @@ export default function Home() {
   }, [currentUser, setLocation]);
 
   useEffect(() => {
-    // Lindy script loading
     const lindyScriptId = "lindy-embed-script";
-    if (document.getElementById(lindyScriptId)) {
+
+    // Check if script already exists or if timeout is already set
+    // @ts-ignore
+    if (document.getElementById(lindyScriptId) || window.lindyScriptTimeoutId) {
       return;
     }
 
-    const script = document.createElement("script");
-    script.id = lindyScriptId;
-    script.src =
-      "https://api.lindy.ai/api/lindyEmbed/lindyEmbed.js?a=9620fed7-bdfb-4329-ada0-b60963170c59";
-    script.async = true;
-    script.crossOrigin = "use-credentials";
+    const loadLindyScript = () => {
+      if (document.getElementById(lindyScriptId)) return; // Double check
 
-    document.body.appendChild(script);
+      const script = document.createElement("script");
+      script.id = lindyScriptId;
+      script.src =
+        "https://api.lindy.ai/api/lindyEmbed/lindyEmbed.js?a=9620fed7-bdfb-4329-ada0-b60963170c59";
+      script.async = true;
+      script.crossOrigin = "use-credentials";
+
+      document.body.appendChild(script);
+    };
+
+    // @ts-ignore
+    window.lindyScriptTimeoutId = setTimeout(loadLindyScript, 3000); // Delay loading by 3 seconds
 
     return () => {
+      // @ts-ignore
+      if (window.lindyScriptTimeoutId) {
+        // @ts-ignore
+        clearTimeout(window.lindyScriptTimeoutId);
+        // @ts-ignore
+        window.lindyScriptTimeoutId = null;
+      }
       const existingScript = document.getElementById(lindyScriptId);
       if (existingScript && existingScript.parentNode) {
         existingScript.parentNode.removeChild(existingScript);
@@ -201,17 +217,6 @@ export default function Home() {
         <motion.div
           className="absolute w-[100vw] h-[100vw] md:w-[60vw] md:h-[60vw] rounded-full bg-gradient-to-r from-blue-100/30 via-cyan-100/20 to-emerald-100/15 blur-3xl"
           style={{ bottom: "-50vw", left: "-30vw" }}
-          animate={{
-            y: [0, -25, 0],
-            scale: [1, 1.15, 1],
-            rotate: [0, -30, 0],
-          }}
-          transition={{
-            duration: 35,
-            repeat: Infinity,
-            repeatType: "reverse",
-            delay: 2,
-          }}
         />
       </div>
 

@@ -84,15 +84,6 @@ export default function Features() {
       <div className="absolute inset-0 bg-gradient-to-b from-white to-indigo-50/50 -z-10" />
       <motion.div
         className="absolute -top-40 -right-40 w-96 h-96 bg-indigo-100 rounded-full blur-3xl opacity-30 -z-10"
-        animate={{
-          scale: [1, 1.2, 1],
-          opacity: [0.3, 0.2, 0.3],
-        }}
-        transition={{
-          duration: 15,
-          repeat: Infinity,
-          repeatType: "reverse",
-        }}
       />
 
       <div className="container mx-auto px-4">
