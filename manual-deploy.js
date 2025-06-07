@@ -39,7 +39,7 @@ async function deploy() {
 
   // Step 2: Build the server with esbuild directly (without the problematic --no-check flag)
   console.log('\n=== Building server with esbuild ===');
-  const serverBuildSuccess = await runCommand('npx esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist');
+  const serverBuildSuccess = await runCommand('npx esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --target=es2015 --outdir=dist');
   if (!serverBuildSuccess) {
     console.error('Server build failed');
     process.exit(1);
