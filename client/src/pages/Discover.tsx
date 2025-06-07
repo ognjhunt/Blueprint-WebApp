@@ -64,7 +64,6 @@ const EnterpriseARSection = () => {
       metrics: [
         { label: "Load Time", value: "< 2s" },
         { label: "Compatibility", value: "100%" },
-        { label: "Storage Used", value: "0 MB" },
       ],
       benefits: [
         "Works on any smartphone",
@@ -81,7 +80,6 @@ const EnterpriseARSection = () => {
       description:
         "Our AI analyzes foot traffic, lighting, and spatial geometry to position AR elements exactly where they'll have maximum impact.",
       metrics: [
-        { label: "Accuracy", value: "99.2%" },
         { label: "Speed", value: "Real-time" },
         { label: "Learning", value: "Continuous" },
       ],
@@ -101,7 +99,6 @@ const EnterpriseARSection = () => {
         "Multiple customers can simultaneously interact with the same AR elements, creating collaborative and social experiences.",
       metrics: [
         { label: "Concurrent Users", value: "50+" },
-        { label: "Sync Latency", value: "< 100ms" },
         { label: "Stability", value: "99.9%" },
       ],
       benefits: [
@@ -244,16 +241,19 @@ const EnterpriseARSection = () => {
                   </p>
 
                   {/* Metrics - Improved Layout */}
-                  <div className="bg-gray-50/80 rounded-2xl p-8 mb-8">
-                    <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-gray-50/80 rounded-2xl p-6 mb-8">
+                    <div className="flex flex-wrap justify-center gap-8">
                       {feature.metrics.map((metric, midx) => (
-                        <div key={midx} className="text-center">
+                        <div
+                          key={midx}
+                          className="text-center min-w-0 flex-shrink-0"
+                        >
                           <div
-                            className={`text-xl font-black bg-gradient-to-r ${feature.gradient} bg-clip-text text-transparent mb-3 leading-none`}
+                            className={`text-xl font-black bg-gradient-to-r ${feature.gradient} bg-clip-text text-transparent mb-2 leading-tight`}
                           >
                             {metric.value}
                           </div>
-                          <div className="text-sm font-medium text-gray-500 uppercase tracking-wide leading-relaxed">
+                          <div className="text-xs font-medium text-gray-500 uppercase tracking-wide leading-relaxed whitespace-nowrap">
                             {metric.label}
                           </div>
                         </div>
