@@ -106,6 +106,18 @@ export default async function processMappingConfirmationHandler(
           server_url:
             "https://mcp.zapier.com/api/mcp/s/4d32a0ae-826f-450a-9fe5-30c1e2fd41e7/mcp", //OG: https://mcp.zapier.com/api/mcp/s/bd9c31ca-1f38-455b-9cb2-9f22c45e7814/mcp
           require_approval: "never",
+          allowed_tools: [
+            "gmail_create_draft",
+            "gmail_send_email",
+            "perplexity_chat_completion",
+            "google_sheets_find_worksheet",
+            "google_sheets_lookup_spreadsheet_row",
+            "google_sheets_update_spreadsheet_row",
+            "twilio_send_sms",
+            "google_calendar_create_detailed_event",
+            "slack_send_channel_message",
+            "google_calendar_add_attendee_s_to_event",
+          ],
           headers: {
             Authorization:
               "Bearer NGQzMmEwYWUtODI2Zi00NTBhLTlmZTUtMzBjMWUyZmQ0MWU3OjdmNjQ1YTVjLTBmY2UtNDg4ZS05NjIwLTMyOTY0YjI2ZWI0Mg==", //OG: YmQ5YzMxY2EtMWYzOC00NTViLTljYjItOWYyMmM0NWU3ODE0OjJkN2ZmMzRjLTQ1MTgtNDNkMC05ODg0LTc2MzA5NTYyMjFjYw==
@@ -217,6 +229,16 @@ export default async function processMappingConfirmationHandler(
           server_url:
             "https://mcp.zapier.com/api/mcp/s/bd9c31ca-1f38-455b-9cb2-9f22c45e7814/mcp",
           require_approval: "never",
+          allowed_tools: [
+            "perplexity_chat_completion",
+            "google_sheets_find_worksheet",
+            "google_sheets_lookup_spreadsheet_row",
+            "google_sheets_update_spreadsheet_row",
+            "notion_create_page",
+            "notion_add_content_to_page",
+            "notion_get_page_and_children",
+            "notion_find_page_by_title",
+          ],
           headers: {
             Authorization:
               "Bearer YmQ5YzMxY2EtMWYzOC00NTViLTljYjItOWYyMmM0NWU3ODE0OjJkN2ZmMzRjLTQ1MTgtNDNkMC05ODg0LTc2MzA5NTYyMjFjYw==",

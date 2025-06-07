@@ -96,7 +96,7 @@ export default async function processMappingConfirmationHandler(
     const mcpResponseCall1 = await openai.responses.create({
       model: "o4-mini",
       reasoning: {
-        effort: "medium",
+        effort: "high",
       },
       input: promptCall1,
       tools: [
@@ -220,7 +220,7 @@ export default async function processMappingConfirmationHandler(
     const mcpResponseCall2 = await openai.responses.create({
       model: "o4-mini",
       reasoning: {
-        effort: "medium",
+        effort: "high",
       },
       input: promptCall2,
       tools: [
