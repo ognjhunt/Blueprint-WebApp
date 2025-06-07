@@ -1028,7 +1028,7 @@ export default function PilotProgram() {
                 className="border-slate-300 text-slate-700 hover:bg-slate-50"
                 asChild
               >
-                <a href="mailto:pilot@blueprint.ar">
+                <a href="mailto:support@tryblueprint.io">
                   <Send className="mr-2 w-4 h-4" />
                   Email Us
                 </a>

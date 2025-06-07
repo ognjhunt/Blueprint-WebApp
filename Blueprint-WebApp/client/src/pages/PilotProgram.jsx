@@ -284,7 +284,7 @@ export default function PilotProgram() {
     },
     {
       q: "What do you need from us?",
-      a: "Just three things: 1) Access to your space for the initial mapping (30-60 min), 2) Basic information about your business, products, or exhibits, and 3) Your feedback during the coarse of the program. We handle everything else - the technology, content creation, and implementation.",
+      a: "Just three things: 1) Access to your space for the initial mapping (30-60 min), 2) Basic information about your business, products, or exhibits, and 3) Your feedback during the full course of the program. We handle everything else - the technology, content creation, and implementation.",
     },
     {
       q: "What kinds of AR experiences can you create?",
@@ -292,7 +292,7 @@ export default function PilotProgram() {
     },
     {
       q: "What happens after the 14-day pilot?",
-      a: "We'll send out a survey to all participants of the Demo Day asking about the whole Pilot Experience. Any feedback from this survey helps us improve Blueprint!",
+      a: "We'll send out a survey to all participants of the Demo Day asking about the whole Pilot Program experience. Any feedback from this survey helps us improve Blueprint!",
     },
     {
       q: "How do customers access the AR experience?",
@@ -316,7 +316,11 @@ export default function PilotProgram() {
               x: [0, 50, 0],
               y: [0, -30, 0],
             }}
-            transition={{ duration: 25, repeat: Infinity, repeatType: "reverse" }}
+            transition={{
+              duration: 25,
+              repeat: Infinity,
+              repeatType: "reverse",
+            }}
           />
           <motion.div
             className="absolute -bottom-20 -left-20 w-96 h-96 bg-violet-100/30 rounded-full blur-3xl"
@@ -324,7 +328,11 @@ export default function PilotProgram() {
               x: [0, -50, 0],
               y: [0, 30, 0],
             }}
-            transition={{ duration: 30, repeat: Infinity, repeatType: "reverse" }}
+            transition={{
+              duration: 30,
+              repeat: Infinity,
+              repeatType: "reverse",
+            }}
           />
         </div>
 
@@ -1133,7 +1141,7 @@ export default function PilotProgram() {
                 className="border-slate-300 text-slate-700 hover:bg-slate-50"
                 asChild
               >
-                <a href="mailto:pilot@blueprint.ar">
+                <a href="mailto:support@tryblueprint.io">
                   <Send className="mr-2 w-4 h-4" />
                   Email Us
                 </a>

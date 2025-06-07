@@ -131,7 +131,7 @@ Blueprint Post-Signup - Phase 1: Initial Mapping Setup for ${company_name}.
 2.  From this specific row, extract:
     - Full Name from 'Name' (Column A) - store as [SheetContactName].
     - Email from 'Email' (Column B) - store as [SheetContactEmail].
-3.  If multiple rows match, use the first one found. If no row is found, note this in your final summary, use "${contact_name}" as [SheetContactName] and "no-reply@blueprint.com" as [SheetContactEmail] (or another placeholder) for subsequent email steps BUT CLEARLY INDICATE THIS FALLBACK.
+3.  If multiple rows match, use the first one found. If no row is found, note this in your final summary, use "${contact_name}" as [SheetContactName] and "support@tryblueprint.io" as [SheetContactEmail] (or another placeholder) for subsequent email steps BUT CLEARLY INDICATE THIS FALLBACK.
 4.  Store the Row ID of the matched row as [SheetRowID]. If no row is found, use "NOT_FOUND" for [SheetRowID].
 
 **TASK 2: UPDATE GOOGLE SHEET (using [SheetRowID] if found and not "NOT_FOUND", else skip this task and note it)**
@@ -170,7 +170,7 @@ Description: "Company: ${company_name}\nContact (Webhook): ${contact_name} (${co
 Location: ${address}
 Start: ${chosen_date_of_mapping} ${chosen_time_of_mapping} (Ensure this is in a Zapier-compatible format, assume EST if no timezone specified by user. If the provided time is already in a specific timezone, use that.)
 End: Calculate end time based on a 60-minute duration from the start time.
-Attendees: Add [SheetContactEmail] AND founders@blueprint.com.
+Attendees: Add [SheetContactEmail] AND support@tryblueprint.io.
 Allow conflicts: Yes
 
 **TASK 5: DRAFT DAY-OF REMINDER EMAIL**
@@ -183,7 +183,7 @@ Just a friendly reminder that your Blueprint Mapping for ${company_name} is sche
 
 The webhook contact, ${contact_name}, will also receive an SMS reminder approximately 1 hour before.
 
-If you have any questions, please contact founders@blueprint.com.
+If you have any questions, please contact support@tryblueprint.io.
 
 See you soon,
 Nijel Hunt
