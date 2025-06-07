@@ -212,8 +212,10 @@ export default function Home() {
             repeatType: "reverse",
           }}
         /> */}
-        <div className="absolute w-[80vw] h-[80vw] md:w-[60vw] md:h-[60vw] rounded-full bg-gradient-to-r from-indigo-100/40 via-violet-100/30 to-fuchsia-100/20 blur-2xl opacity-60" 
-           style={{ top: "-40vw", right: "-20vw" }} />
+        <div
+          className="absolute w-[80vw] h-[80vw] md:w-[60vw] md:h-[60vw] rounded-full bg-gradient-to-r from-indigo-100/40 via-violet-100/30 to-fuchsia-100/20 blur-2xl opacity-60"
+          style={{ top: "-40vw", right: "-20vw" }}
+        />
         <motion.div
           className="absolute w-[100vw] h-[100vw] md:w-[60vw] md:h-[60vw] rounded-full bg-gradient-to-r from-blue-100/30 via-cyan-100/20 to-emerald-100/15 blur-3xl"
           style={{ bottom: "-50vw", left: "-30vw" }}
@@ -405,7 +407,7 @@ export default function Home() {
       <Footer />
 
       {/* Enhanced mobile floating action button */}
-      <div className="lg:hidden fixed bottom-6 left-6 right-6 z-50">
+      {/* <div className="lg:hidden fixed bottom-6 left-6 right-6 z-50">
         <Button
           onClick={handleScrollToContactForm}
           className="w-full py-6 flex items-center justify-center gap-3 text-lg font-semibold shadow-2xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-2xl border-0 hover:scale-105 transition-all duration-300"
@@ -414,7 +416,7 @@ export default function Home() {
           Get Early Access
           <ArrowRight className="w-5 h-5" />
         </Button>
-      </div>
+      </div> */}
     </div>
   );
 }
