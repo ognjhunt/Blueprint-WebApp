@@ -51,7 +51,12 @@ class SimpleJobQueue {
     };
 
     this.jobs.set(id, job);
-    this.processQueue(); // Start processing if not already running
+
+    // Don't wait for processQueue, but handle errors
+    this.processQueue().catch((error) => {
+      console.error("Queue processing error:", error);
+    });
+
     return id;
   }
 
@@ -477,6 +482,8 @@ function extractResponseText(response: any): string {
   throw new Error("Could not extract text from response");
 }
 
+const processedRequests = new Map<string, { timestamp: Date; result: any }>();
+
 // Main handler - Phase 1 Essential only
 export default async function processMappingConfirmationHandler(
   req: Request,
@@ -494,6 +501,23 @@ export default async function processMappingConfirmationHandler(
       estimated_square_footage,
       blueprint_id,
     }: MappingConfirmationData = req.body;
+
+    const idempotencyKey = `${company_name}_${contact_phone_number}_${chosen_date_of_mapping}_${chosen_time_of_mapping}`;
+
+    // Check if we've processed this request recently (within 5 minutes)
+    const existing = processedRequests.get(idempotencyKey);
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+
+    if (existing && existing.timestamp > fiveMinutesAgo) {
+      console.log(
+        `Duplicate request detected for ${idempotencyKey}, returning cached result`,
+      );
+      return res.json({
+        ...existing.result,
+        message: "Duplicate request - returning cached result",
+        duplicate_request: true,
+      });
+    }
 
     // Validation
     const validationErrors = validateMappingConfirmationData(req.body);
@@ -581,8 +605,8 @@ export default async function processMappingConfirmationHandler(
     console.log(`Background job queued: ${backgroundJobId}`);
     console.log(`Phase 2 job queued: ${phase2JobId}`);
 
-    // Return immediate success response
-    res.json({
+    // CREATE THE RESULT OBJECT
+    const result = {
       success: true,
       message:
         "Phase 1 essential tasks completed. Background processing initiated.",
@@ -591,7 +615,28 @@ export default async function processMappingConfirmationHandler(
       phase2_job_id: phase2JobId,
       status_endpoint: `/api/mapping-confirmation/status`,
       timestamp: new Date().toISOString(),
+    };
+
+    // CACHE THE SUCCESSFUL RESULT
+    processedRequests.set(idempotencyKey, {
+      timestamp: new Date(),
+      result,
     });
+
+    // CLEAN UP OLD ENTRIES (keep last 100)
+    if (processedRequests.size > 100) {
+      const entries = Array.from(processedRequests.entries());
+      const sorted = entries.sort(
+        (a, b) => b[1].timestamp.getTime() - a[1].timestamp.getTime(),
+      );
+      processedRequests.clear();
+      sorted.slice(0, 100).forEach(([key, value]) => {
+        processedRequests.set(key, value);
+      });
+    }
+
+    // SEND THE RESPONSE
+    res.json(result);
   } catch (error: any) {
     console.error("Error processing mapping confirmation:", error);
     res.status(500).json({
