@@ -38,9 +38,11 @@ interface CalendarSetupProps {
     contactName?: string,
     contactPhone?: string,
   ) => void;
+  minDate?: Date;
+  maxDate?: Date;
 }
 
-export function CalendarSetup({ onScheduleSelect }: CalendarSetupProps) {
+export function CalendarSetup({ onScheduleSelect, minDate, maxDate }: CalendarSetupProps) {
   const [date, setDate] = React.useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = React.useState("");
 
@@ -49,8 +51,8 @@ export function CalendarSetup({ onScheduleSelect }: CalendarSetupProps) {
   const [contactPhone, setContactPhone] = React.useState("");
 
   const today = startOfDay(new Date());
-  const maxDate = new Date();
-  maxDate.setMonth(maxDate.getMonth() + 1);
+  const defaultMaxDate = new Date();
+  defaultMaxDate.setMonth(defaultMaxDate.getMonth() + 1);
 
   // Only allow future times with a 1-hour leeway
   const getAvailableTimeSlots = (selectedDate: Date | undefined) => {
@@ -120,8 +122,8 @@ export function CalendarSetup({ onScheduleSelect }: CalendarSetupProps) {
                   onSelect={handleDateSelect}
                   className="border rounded-md"
                   disabled={(day) =>
-                    day < startOfDay(today) ||
-                    day > maxDate ||
+                    day < (minDate || startOfDay(today)) ||
+                    day > (maxDate || defaultMaxDate) ||
                     day.getDay() === 0 ||
                     day.getDay() === 6
                   }

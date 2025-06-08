@@ -8,6 +8,7 @@
 "use client";
 import { Loader } from "@googlemaps/js-api-loader";
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import { CalendarSetup } from "@/components/CalendarSetup"; // Import CalendarSetup
 import { motion, AnimatePresence } from "framer-motion";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
@@ -90,6 +91,12 @@ export default function OffWaitlistSignUpFlow() {
   // Step 3
   const [scheduleDate, setScheduleDate] = useState(new Date());
   const [scheduleTime, setScheduleTime] = useState("08:00");
+
+  // Step 4 (New)
+  const [demoDayScheduleDate, setDemoDayScheduleDate] = useState<Date | null>(null);
+  const [demoDayScheduleTime, setDemoDayScheduleTime] = useState<string>("");
+  const [currentBookingId, setCurrentBookingId] = useState<string | null>(null);
+  const [currentBlueprintId, setCurrentBlueprintId] = useState<string | null>(null);
 
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -211,6 +218,7 @@ export default function OffWaitlistSignUpFlow() {
           address: address.trim(),
           mappingAreaSqFt: squareFootage,
         });
+        if (!userCreated) setUserCreated(true); // Ensure userCreated is true
 
         // ✅ ADD THIS LINE - Move to next step after successful update
         setStep((prev) => prev + 1);
@@ -239,9 +247,11 @@ export default function OffWaitlistSignUpFlow() {
 
         const bookingDate = scheduleDate.toISOString().split("T")[0]; // Format: YYYY-MM-DD
         const bookingId = `${bookingDate}_${scheduleTime}`;
+        setCurrentBookingId(bookingId); // Store bookingId
 
         // Create a unique blueprintId that will be used later when uploading files
         const blueprintId = crypto.randomUUID();
+        setCurrentBlueprintId(blueprintId); // Store blueprintId
 
         // Create a more comprehensive booking record
         await setDoc(doc(db, "bookings", bookingId), {
@@ -284,6 +294,82 @@ export default function OffWaitlistSignUpFlow() {
         setStep((prev) => prev + 1);
 
         // 🔥 FIRE MCP CALL IN BACKGROUND (don't await)
+        // This call is moved to handleNextStep when advancing from step 3
+        // setStep((prev) => prev + 1); // Advance step here, API calls follow
+
+      } catch (error: unknown) {
+        console.error("Error updating scheduling info for mapping:", error);
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        setErrorMessage("Error updating scheduling info: " + errorMessage);
+        return; // Stop here if there's an error
+      }
+    } else if (step === 4) { // Advancing from Demo Day Scheduling to Confirmation
+      if (!demoDayScheduleDate || !demoDayScheduleTime) {
+        setErrorMessage("Please select a date and time for your Demo Day.");
+        return;
+      }
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user) {
+        setErrorMessage("No user found. Please sign up first.");
+        return;
+      }
+      if (!currentBookingId || !currentBlueprintId) {
+        setErrorMessage("Booking or Blueprint ID is missing. Please go back and try scheduling mapping again.");
+        return;
+      }
+
+      try {
+        // Update user document
+        await updateDoc(doc(db, "users", user.uid), {
+          demoDayDate: demoDayScheduleDate.toISOString().split('T')[0],
+          demoDayScheduleTime: demoDayScheduleTime,
+          finishedOnboarding: true, // Mark onboarding as finished
+        });
+
+        // Update existing booking document
+        await updateDoc(doc(db, "bookings", currentBookingId), {
+            demoDayDate: demoDayScheduleDate.toISOString().split('T')[0],
+            demoDayTime: demoDayScheduleTime,
+            status: "confirmed-demo-day", // Update status
+        });
+
+        // API Call for Demo Day Confirmation
+        fetch("/api/demo-day-confirmation", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                userId: user.uid,
+                blueprintId: currentBlueprintId,
+                mappingDate: scheduleDate.toISOString().split('T')[0],
+                mappingTime: scheduleTime,
+                demoDayDate: demoDayScheduleDate.toISOString().split('T')[0],
+                demoDayTime: demoDayScheduleTime,
+                organizationName: organizationName,
+                contactName: contactName,
+                email: email,
+            }),
+        })
+        .then(response => response.json())
+        .then(data => console.log("Demo day confirmation response:", data))
+        .catch(error => console.error("Demo day confirmation error:", error));
+
+        setStep((prev) => prev + 1); // Advance to confirmation
+
+      } catch (error: unknown) {
+        console.error("Error scheduling demo day:", error);
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        setErrorMessage("Error scheduling demo day: " + errorMessage);
+        return;
+      }
+
+    }
+
+
+    // Original Step 3 logic for /api/mapping-confirmation, now part of step 3 advancement logic
+    if (step === 3 && scheduleDate && scheduleTime && currentBlueprintId) {
         const chosenDate = scheduleDate.toISOString().split("T")[0];
         const chosenTime = scheduleTime;
         const cName = organizationName.trim();
@@ -308,7 +394,7 @@ export default function OffWaitlistSignUpFlow() {
             contact_name: personName,
             contact_phone_number: contactPhone,
             estimated_square_footage: squareFootage,
-            blueprint_id: blueprintId,
+            blueprint_id: currentBlueprintId, // Use currentBlueprintId here
           }),
         })
           .then(async (mcpResponse) => {
@@ -324,7 +410,6 @@ export default function OffWaitlistSignUpFlow() {
               result,
             );
             // Optionally update booking status to indicate processing completed
-            
             // 🎯 ADD LINDY WEBHOOK CALL HERE - AFTER MCP SUCCESS
             const lindyOptions = {
               method: "POST",
@@ -367,13 +452,6 @@ export default function OffWaitlistSignUpFlow() {
             console.error("Background MCP process error:", error);
             // Optionally update booking status to indicate processing failed
           });
-      } catch (error: unknown) {
-        console.error("Error updating scheduling info:", error);
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-        setErrorMessage("Error updating scheduling info: " + errorMessage);
-        return; // Stop here if there's an error
-      }
     }
   }
 
@@ -410,10 +488,7 @@ export default function OffWaitlistSignUpFlow() {
   //       return; // Stop here if there's an error
   //     }
   //   }
-
-  //   // Finally, advance to the next step if everything succeeded
-  //   setStep((prev) => prev + 1);
-  // }
+  }
 
   /**
    * Handles moving to the previous step in the sign-up flow.
@@ -423,6 +498,10 @@ export default function OffWaitlistSignUpFlow() {
     // Don't allow going back to Step 1 if user has already been created
     if (step === 2 && userCreated) {
       return; // Do nothing - user cannot go back to Step 1
+    }
+    if (step === 4 && !scheduleDate) { // If going back from Demo Day scheduling and mapping date isn't set (edge case)
+        setStep(2); // Go back to contact/location
+        return;
     }
 
     setStep((prev) => prev - 1);
@@ -1317,7 +1396,7 @@ export default function OffWaitlistSignUpFlow() {
    * It fetches and displays available time slots based on existing bookings.
    * @returns {JSX.Element} The Step 3 form content.
    */
-  const Step3 = () => {
+  const ScheduleMappingStep = () => {
     const [bookedTimes, setBookedTimes] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -1518,12 +1597,76 @@ export default function OffWaitlistSignUpFlow() {
             onClick={handleNextStep}
             disabled={!scheduleTime || isLoading}
           >
+            Next
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  const ScheduleDemoDayStep = () => {
+    // TODO: Implement this component
+    // For now, a placeholder:
+    const mappingDate = scheduleDate; // This is the state from the mapping step
+    let minDemoDate: Date | undefined = undefined;
+    let maxDemoDate: Date | undefined = undefined;
+    if (mappingDate) {
+        minDemoDate = new Date(mappingDate);
+        minDemoDate.setDate(mappingDate.getDate() + 7);
+        maxDemoDate = new Date(mappingDate);
+        maxDemoDate.setDate(mappingDate.getDate() + 14);
+    }
+
+    // Initialize demoDayScheduleDate if not already set and mappingDate is available
+    useEffect(() => {
+        if (mappingDate && !demoDayScheduleDate && minDemoDate) {
+            // Check if minDemoDate is not a weekend
+            let initialDemoDate = new Date(minDemoDate);
+            while (initialDemoDate.getDay() === 0 || initialDemoDate.getDay() === 6) {
+                initialDemoDate.setDate(initialDemoDate.getDate() + 1);
+            }
+            // Ensure it's not beyond maxDemoDate
+            if (maxDemoDate && initialDemoDate > maxDemoDate) {
+                // Handle case where no valid weekday is available in the range, though unlikely with 7-14 day window
+                // Potentially set to null or don't set, forcing user selection. For now, let's try setting to minDemoDate if valid.
+            } else {
+                 setDemoDayScheduleDate(initialDemoDate);
+            }
+        }
+    }, [mappingDate, demoDayScheduleDate, minDemoDate, maxDemoDate]);
+
+
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h2 className="text-2xl font-bold">Schedule Your Demo Day</h2>
+          <p className="text-gray-600 mt-2">
+            Your Demo Day will be in Week 2, approximately 1 hour long. Please choose a date and time that works for you.
+          </p>
+        </div>
+        <CalendarSetup
+            onScheduleSelect={(date, time) => {
+                setDemoDayScheduleDate(date);
+                setDemoDayScheduleTime(time);
+            }}
+            minDate={minDemoDate}
+            maxDate={maxDemoDate}
+        />
+        <div className="flex justify-between mt-4">
+          <Button variant="outline" onClick={handlePrevStep}>
+            Back
+          </Button>
+          <Button
+            onClick={handleNextStep}
+            disabled={!demoDayScheduleDate || !demoDayScheduleTime}
+          >
             Finish
           </Button>
         </div>
       </div>
     );
   };
+
 
   /**
    * Renders the confirmation screen shown after successfully completing all sign-up steps.
@@ -1534,8 +1677,9 @@ export default function OffWaitlistSignUpFlow() {
       <div className="flex flex-col gap-4 items-center text-center">
         <h2 className="text-3xl font-bold">All Set!</h2>
         <p className="text-gray-600 max-w-md">
-          We've received your information and scheduled your 3D mapping. We'll
-          send a SMS message as a reminder ~1 hour before your scheduled time.
+          We've received your information and scheduled your 3D Mapping for {scheduleDate?.toLocaleDateString()} at {scheduleTime},
+          and your Demo Day for {demoDayScheduleDate?.toLocaleDateString()} at {demoDayScheduleTime}.
+          We'll send reminders for both.
         </p>
         <p className="text-sm text-gray-400 mt-2">
           Thank you for choosing Blueprint. We look forward to creating an
@@ -1607,7 +1751,7 @@ export default function OffWaitlistSignUpFlow() {
           <div className="w-full max-w-3xl bg-white rounded-lg shadow-lg p-8 relative">
             {/* Progress Indicator remains the same */}
             <div className="flex items-center justify-center mb-8">
-              {[1, 2, 3].map((s) => (
+              {[1, 2, 3, 4].map((s) => (
                 <React.Fragment key={s}>
                   <div
                     className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold transition-colors
@@ -1621,7 +1765,7 @@ export default function OffWaitlistSignUpFlow() {
                   >
                     {s}
                   </div>
-                  {s < 3 && (
+                  {s < 4 && (
                     <div
                       className={`w-16 h-1 ${
                         step > s ? "bg-green-600" : "bg-gray-300"
@@ -1643,8 +1787,9 @@ export default function OffWaitlistSignUpFlow() {
               >
                 {step === 1 && Step1}
                 {step === 2 && Step2}
-                {step === 3 && <Step3 />}
-                {step === 4 && <Confirmation />}
+                {step === 3 && <ScheduleMappingStep />}
+                {step === 4 && <ScheduleDemoDayStep />}
+                {step === 5 && <Confirmation />}
               </motion.div>
             </AnimatePresence>
           </div>

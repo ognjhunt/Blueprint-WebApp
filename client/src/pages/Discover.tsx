@@ -537,7 +537,7 @@ const steps = [
     description:
       "Reserve your spot for priority access to Blueprint's AR platform",
     benefits: [
-      "Free 14-day pilot access",
+      "Free 2 week program access",
       "Priority support",
       "Custom onboarding",
     ],

@@ -123,8 +123,8 @@ export default function PilotProgram() {
   const timeline = [
     {
       icon: <MapPin className="w-6 h-6" />,
-      title: "Day 0",
-      subtitle: "3D Space Mapping",
+      title: "Week 1",
+      subtitle: "Mapping Session",
       description:
         "We scan your venue in 30-60 minutes using advanced LiDAR technology to create a precise digital twin.",
       color: "from-blue-500 to-indigo-500",
@@ -137,32 +137,24 @@ export default function PilotProgram() {
     },
     {
       icon: <Sparkles className="w-6 h-6" />,
-      title: "Days 1-10",
-      subtitle: "AI-Powered Creation",
+      title: "Week 1",
+      subtitle: "Finalize Design",
       description:
-        "Our AI generates custom AR experiences tailored to your brand, products, and customer journey.",
+        "Our AI generates custom AR experiences, and we work with you to finalize the design and smart triggers.",
       color: "from-indigo-500 to-violet-500",
       benefit: "Fully customized for your business",
       details: [
         "AI-generated content",
         "Brand-aligned design",
         "Interactive elements",
+        "QR code placement",
+        "Final adjustments",
       ],
     },
     {
-      icon: <Palette className="w-6 h-6" />,
-      title: "Days 11-13",
-      subtitle: "Fine-Tuning",
-      description:
-        "We perfect every detail, place smart triggers, and prepare for your team's demo experience.",
-      color: "from-violet-500 to-purple-500",
-      benefit: "Polished to perfection",
-      details: ["QR code placement", "Final adjustments", "Team briefing prep"],
-    },
-    {
       icon: <PlayCircle className="w-6 h-6" />,
-      title: "Day 14",
-      subtitle: "Live Demo Day",
+      title: "Week 2",
+      subtitle: "Demo Day",
       description:
         "Experience your space transformed with AR using cutting-edge devices. See the magic firsthand!",
       color: "from-purple-500 to-pink-500",
@@ -202,7 +194,7 @@ export default function PilotProgram() {
     {
       icon: <Shield className="w-6 h-6" />,
       title: "Zero Risk",
-      description: "14-day pilot with absolutely no cost or obligation",
+      description: "2 week program with absolutely no cost or obligation",
       highlight: "100% FREE",
     },
     {
@@ -256,7 +248,7 @@ export default function PilotProgram() {
     },
     {
       q: "What does the pilot program cost?",
-      a: "Nothing. Zero. Nada. The entire 14-day pilot is completely free with no hidden fees, no credit card required, and no obligation to continue. This includes the space mapping, AI-generated AR content, hardware demos, and analytics. We're investing in showing you the future because we believe seeing is believing.",
+      a: "Nothing. Zero. Nada. The entire 2 week program is completely free with no hidden fees, no credit card required, and no obligation to continue. This includes the space mapping, AI-generated AR content, hardware demos, and analytics. We're investing in showing you the future because we believe seeing is believing.",
     },
     {
       q: "How long does the space mapping take?",
@@ -275,7 +267,7 @@ export default function PilotProgram() {
       a: "The possibilities are endless! For retail: virtual try-ons, product demos, and interactive catalogs. For museums: digital guides, historical recreations, and interactive exhibits. For restaurants: 3D menu visualizations and tableside ordering. For real estate: virtual staging and property tours. Each experience is custom-built for your specific needs.",
     },
     {
-      q: "What happens after the 14-day pilot?",
+      q: "What happens after the 2 week program?",
       a: "We'll send out a survey to all participants of the Demo Day asking about the whole Pilot Experience. Any feedback from this survey helps us improve Blueprint!",
     },
     {
@@ -354,7 +346,7 @@ export default function PilotProgram() {
                   className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white px-6 sm:px-8 py-6 text-base sm:text-lg font-bold shadow-xl hover:shadow-2xl transition-all"
                   onClick={showPilotToast}
                 >
-                  Start Your Free 14-Day Pilot
+                  Start Your Free 2 Week Program
                   <ArrowRight className="ml-2 w-5 h-5" />
                 </Button>
                 <Button
@@ -461,7 +453,7 @@ export default function PilotProgram() {
             },
             {
               label: "Time to Launch",
-              value: "14 days",
+              value: "2 weeks",
               icon: <Clock className="w-6 h-6" />,
               description: "From scan to live experience",
               gradient: "from-blue-500 to-cyan-500",
@@ -515,7 +507,7 @@ export default function PilotProgram() {
           <FadeIn yOffset={20} delay={0.1} className="text-center mb-16">
             <Badge className="inline-flex items-center gap-2 bg-violet-100 text-violet-700 border-violet-200 mb-4 px-4 py-2">
               <CalendarCheck className="w-4 h-4" />
-              Simple 14-Day Process
+              Simple 2 Week Process
             </Badge>
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-slate-900">
               From First Scan to Live AR in Two Weeks

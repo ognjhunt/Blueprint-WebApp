@@ -5,6 +5,7 @@ import generateImageHandler from "../client/src/pages/api/generate-image";
 import submitToSheetsHandler from "../client/src/pages/api/submit-to-sheets";
 import processWaitlistHandler from "./routes/process-waitlist";
 import processMappingConfirmationHandler from "./routes/mapping-confirmation";
+import demoDayConfirmationHandler from "./routes/demo-day-confirmation";
 
 export function registerRoutes(app: Express) {
   // API routes for Express
@@ -14,4 +15,5 @@ export function registerRoutes(app: Express) {
   app.post("/api/submit-to-sheets", submitToSheetsHandler);
   app.post("/api/process-waitlist", processWaitlistHandler);
   app.post("/api/mapping-confirmation", processMappingConfirmationHandler);
+  app.post("/api/demo-day-confirmation", demoDayConfirmationHandler);
 }
