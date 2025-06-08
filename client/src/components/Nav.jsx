@@ -88,7 +88,7 @@ export default function Nav({
   const userInitials = getInitials(userData?.name || userData?.displayName);
 
   const navLinks = [
-    { href: "/pilot-program", label: "2 Week Program", badge: "New" },
+    { href: "/pilot-program", label: "Pilot Program", badge: "New" },
     // Only show authenticated nav links if not hiding authenticated features
     ...(currentUser && !hideAuthenticatedFeatures
       ? [
