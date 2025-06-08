@@ -90,6 +90,28 @@ export interface MappingConfirmationDataForPrompt {
   estimated_square_footage: number | string; // Can be number or string from form
 }
 
+// **TASK 5: DRAFT DAY-OF REMINDER EMAIL**
+// To: [SheetContactEmail]
+// Subject: "REMINDER: Blueprint Mapping for ${company_name} is Today!"
+// Body:
+// "Hi [SheetContactName (just first name)],
+
+// Just a friendly reminder that your Blueprint Mapping for ${company_name} is scheduled for today, (chosen date of mapping, but in the format of Saturday, May 31st, 2025 instead of ${chosen_date_of_mapping}), at (chosen time of mapping, but in the format 1:00 PM instead of ${chosen_time_of_mapping}) at ${displayAddress}.
+
+// The webhook contact, ${contact_name}, will also receive an SMS reminder approximately 1 hour before.
+
+// If you have any questions, please contact support@tryblueprint.io.
+
+// See you soon,
+// Nijel Hunt
+// Co-Founder at Blueprint
+// This draft should be scheduled to be sent on ${chosen_date_of_mapping} at 9:00 AM EST.
+
+// **TASK 7: SCHEDULE 1-HOUR REMINDER TWILIO SMS TO WEBHOOK CONTACT**
+// To: ${contact_phone_number} (Fallback: +19196389913)
+// Message: "Reminder: Your Blueprint Mapping for ${company_name} at ${displayAddress} is in about 1 hour (${chosen_time_of_mapping}). See you soon! - Blueprint"
+// Schedule: 1 hour before ${chosen_date_of_mapping} ${chosen_time_of_mapping} (use the same timezone considerations as TASK 4 for the base time).
+
 /**
  * Builds the AI prompt for Phase 1 of mapping confirmation (initial setup).
  * @param {MappingConfirmationDataForPrompt} data The mapping confirmation data from the webhook.
@@ -173,38 +195,16 @@ End: Calculate end time based on a 60-minute duration from the start time.
 Attendees: Add [SheetContactEmail] AND support@tryblueprint.io.
 Allow conflicts: Yes
 
-**TASK 5: DRAFT DAY-OF REMINDER EMAIL**
-To: [SheetContactEmail]
-Subject: "REMINDER: Blueprint Mapping for ${company_name} is Today!"
-Body:
-"Hi [SheetContactName (just first name)],
-
-Just a friendly reminder that your Blueprint Mapping for ${company_name} is scheduled for today, (chosen date of mapping, but in the format of Saturday, May 31st, 2025 instead of ${chosen_date_of_mapping}), at (chosen time of mapping, but in the format 1:00 PM instead of ${chosen_time_of_mapping}) at ${displayAddress}.
-
-The webhook contact, ${contact_name}, will also receive an SMS reminder approximately 1 hour before.
-
-If you have any questions, please contact support@tryblueprint.io.
-
-See you soon,
-Nijel Hunt
-Co-Founder at Blueprint"
-This draft should be scheduled to be sent on ${chosen_date_of_mapping} at 9:00 AM EST.
-
-**TASK 6: SEND IMMEDIATE TWILIO SMS TO WEBHOOK CONTACT**
+**TASK 5: SEND IMMEDIATE TWILIO SMS TO WEBHOOK CONTACT**
 To: ${contact_phone_number} (Fallback: +19196389913 if primary is invalid/missing)
 Message: "Hi ${contact_name}! Your Blueprint Mapping for ${company_name} is confirmed for ${chosen_date_of_mapping} at ${chosen_time_of_mapping} (${displayAddress}). Email to [SheetContactEmail] & Calendar invite sent. Reminder SMS 1hr prior. - Blueprint"
 
-**TASK 7: SCHEDULE 1-HOUR REMINDER TWILIO SMS TO WEBHOOK CONTACT**
-To: ${contact_phone_number} (Fallback: +19196389913)
-Message: "Reminder: Your Blueprint Mapping for ${company_name} at ${displayAddress} is in about 1 hour (${chosen_time_of_mapping}). See you soon! - Blueprint"
-Schedule: 1 hour before ${chosen_date_of_mapping} ${chosen_time_of_mapping} (use the same timezone considerations as TASK 4 for the base time).
-
-**TASK 8: GET TRAVEL TIME (Use Google Maps via Zapier if available, otherwise Perplexity. Prioritize Zapier's Google Maps tool for reliability)**
+**TASK 6: GET TRAVEL TIME (Use Google Maps via Zapier if available, otherwise Perplexity. Prioritize Zapier's Google Maps tool for reliability)**
 Origin: "1005 Crete St, Durham, NC 27707"
 Destination: "${address}"
 Return ONLY minutes for car/Uber travel time as [CarTravelMinutes] AND public transport travel time as [PublicTransportMinutes]. If a mode is unavailable, return 'N/A' for it.
 
-**TASK 9: SEND SLACK MESSAGE**
+**TASK 7: SEND SLACK MESSAGE**
 Channel: gumloop-experiment
 Message:
 "✅ NEW APPOINTMENT (Phase 1 Complete): ${company_name}
