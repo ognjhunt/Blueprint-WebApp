@@ -1566,7 +1566,7 @@ export default function OffWaitlistSignUpFlow() {
     }, [scheduleDate]);
 
     const maxDemoDate = useCallback(() => {
-      const date = new New(scheduleDate);
+      const date = new Date(scheduleDate);
       date.setDate(date.getDate() + 14); // Demo can be at most 14 days after mapping
       return date;
     }, [scheduleDate]);
