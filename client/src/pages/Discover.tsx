@@ -52,7 +52,7 @@ import {
  *
  * @returns {JSX.Element} The rendered EnterpriseARSection component.
  */
-const EnterpriseARSection = () => {
+const EnterpriseARSection = ({ scrollToContact }) => {
   // Enhanced feature set with metrics and detailed benefits
   const primaryFeatures = [
     {
@@ -326,17 +326,18 @@ const EnterpriseARSection = () => {
           className="text-center bg-gradient-to-r from-indigo-600 to-violet-600 rounded-3xl p-12 shadow-2xl"
         >
           <h3 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Ready to See It in Action?
+            Join the Waitlist for Early Access
           </h3>
           <p className="text-xl text-indigo-100 mb-8 max-w-2xl mx-auto">
-            Schedule a personalized demo and see how Blueprint can transform
-            your customer experience in under 30 minutes.
+            Be among the first to experience Blueprint. We're carefully
+            selecting businesses for our exclusive early access program.
           </p>
           <Button
             size="lg"
             className="bg-white text-indigo-600 hover:bg-gray-50 px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 group"
+            onClick={scrollToContact}
           >
-            Schedule Demo
+            Join Waitlist
             <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
           </Button>
         </FadeIn>
@@ -837,7 +838,7 @@ export default function Discover() {
         </div>
       </section>
 
-      <EnterpriseARSection />
+      <EnterpriseARSection scrollToContact={scrollToContact} />
 
       {/* Contact Form Section */}
       <section

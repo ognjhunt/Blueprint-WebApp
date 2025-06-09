@@ -147,7 +147,6 @@ export default function PilotProgram() {
         "AI-generated content",
         "Brand-aligned design",
         "Interactive elements",
-        "QR code placement",
         "Final adjustments",
       ],
     },
