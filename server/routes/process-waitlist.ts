@@ -64,7 +64,7 @@ export default async function processWaitlistHandler(
     const aiPrompt = buildWaitlistAIPrompt(promptData);
 
     const mcpResponse = await openai.responses.create({
-      model: "o4-mini",
+      model: "o3",
       input: aiPrompt, // Use the generated prompt
       reasoning: {
         effort: "medium",

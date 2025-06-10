@@ -94,9 +94,9 @@ export default async function processMappingConfirmationHandler(
 
     console.log("Sending Prompt for Call 1 to OpenAI...");
     const mcpResponseCall1 = await openai.responses.create({
-      model: "o4-mini",
+      model: "o3",
       reasoning: {
-        effort: "high",
+        effort: "medium",
       },
       input: promptCall1,
       tools: [
@@ -257,9 +257,9 @@ export default async function processMappingConfirmationHandler(
 
     console.log("Sending Prompt for Call 2 to OpenAI...");
     const mcpResponseCall2 = await openai.responses.create({
-      model: "o4-mini",
+      model: "o3",
       reasoning: {
-        effort: "high",
+        effort: "medium",
       },
       input: promptCall2,
       tools: [
