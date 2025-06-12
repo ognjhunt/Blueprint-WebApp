@@ -999,17 +999,20 @@ const ThreeViewer = React.memo(
     const adjustAnchorsForOriginChange = useCallback(
       (oldOriginModel: THREE.Vector3, newOriginModel: THREE.Vector3) => {
         console.log(
-          `[AdjustAnchors] Called. Old: ${oldOriginModel.toArray()}, New: ${newOriginModel.toArray()}`,
+          `[AdjustAnchors] Called. Old Origin Model: ${oldOriginModel.toArray().join(", ")}, New Origin Model: ${newOriginModel.toArray().join(", ")}`,
         );
         const deltaOriginModelSpace = newOriginModel
           .clone()
           .sub(oldOriginModel);
+        console.log(
+          `[AdjustAnchors] Delta Origin Model Space: ${deltaOriginModelSpace.toArray().join(", ")}`,
+        );
         const deltaRealWorldOffset = deltaOriginModelSpace
           .clone()
           .multiplyScalar(SCALE_FACTOR);
 
         console.log(
-          `[AdjustAnchors] Delta RealWorld Offset (to subtract): ${deltaRealWorldOffset.toArray()}`,
+          `[AdjustAnchors] Delta RealWorld Offset (to subtract): ${deltaRealWorldOffset.toArray().join(", ")}`,
         );
 
         const updateList = (list: any[] | undefined, type: string) => {
@@ -1044,13 +1047,20 @@ const ThreeViewer = React.memo(
               .clone()
               .sub(deltaRealWorldOffset);
 
-            console.log(`  Adjusting ${type} anchor ${anchor.id}:`);
-            console.log(
-              `    Old RealWorld XYZ: (${anchor.x}, ${anchor.y}, ${anchor.z})`,
-            );
-            console.log(
-              `    New RealWorld XYZ: (${newRealWorldPos.x}, ${newRealWorldPos.y}, ${newRealWorldPos.z})`,
-            );
+            // Enhanced logging for the first anchor in each list (or a specific one if needed for debugging)
+            if (list.indexOf(anchor) === 0) { // Log details for the first anchor of the list
+              console.log(`  [AdjustAnchors] Details for first anchor in "${type}" list (ID: ${anchor.id}):`);
+              console.log(`    Current RealWorld Pos (from anchor data): ${currentRealWorldPos.toArray().join(", ")}`);
+              console.log(`    Calculated New RealWorld Pos: ${newRealWorldPos.toArray().join(", ")}`);
+            } else { // Standard logging for other anchors
+              console.log(`  [AdjustAnchors] Adjusting ${type} anchor ${anchor.id}:`);
+              console.log(
+                `    Old RealWorld XYZ: (${anchor.x}, ${anchor.y}, ${anchor.z})`,
+              );
+              console.log(
+                `    New RealWorld XYZ: (${newRealWorldPos.x}, ${newRealWorldPos.y}, ${newRealWorldPos.z})`,
+              );
+            }
 
             const payload = {
               x: newRealWorldPos.x,
