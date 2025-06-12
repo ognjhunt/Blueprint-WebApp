@@ -104,7 +104,7 @@ export default async function processMappingConfirmationHandler(
           type: "mcp",
           server_label: "zapier",
           server_url:
-            "https://mcp.zapier.com/api/mcp/s/4d32a0ae-826f-450a-9fe5-30c1e2fd41e7/mcp", //OG: https://mcp.zapier.com/api/mcp/s/bd9c31ca-1f38-455b-9cb2-9f22c45e7814/mcp
+            "https://mcp.zapier.com/api/mcp/s/bd9c31ca-1f38-455b-9cb2-9f22c45e7814/mcp", //NEWER:  https://mcp.zapier.com/api/mcp/s/4d32a0ae-826f-450a-9fe5-30c1e2fd41e7/mcp
           require_approval: "never",
           allowed_tools: [
             "gmail_create_draft",
@@ -121,7 +121,7 @@ export default async function processMappingConfirmationHandler(
           ],
           headers: {
             Authorization:
-              "Bearer NGQzMmEwYWUtODI2Zi00NTBhLTlmZTUtMzBjMWUyZmQ0MWU3OjdmNjQ1YTVjLTBmY2UtNDg4ZS05NjIwLTMyOTY0YjI2ZWI0Mg==", //OG: YmQ5YzMxY2EtMWYzOC00NTViLTljYjItOWYyMmM0NWU3ODE0OjJkN2ZmMzRjLTQ1MTgtNDNkMC05ODg0LTc2MzA5NTYyMjFjYw==
+              "YmQ5YzMxY2EtMWYzOC00NTViLTljYjItOWYyMmM0NWU3ODE0OjJkN2ZmMzRjLTQ1MTgtNDNkMC05ODg0LTc2MzA5NTYyMjFjYw==", //NEWER:  Bearer NGQzMmEwYWUtODI2Zi00NTBhLTlmZTUtMzBjMWUyZmQ0MWU3OjdmNjQ1YTVjLTBmY2UtNDg4ZS05NjIwLTMyOTY0YjI2ZWI0Mg==
           },
         },
       ],
