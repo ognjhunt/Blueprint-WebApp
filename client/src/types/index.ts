@@ -9,6 +9,8 @@ export interface ElementContent {
   mediaUrl?: string;
   mediaType?: string;
   storagePath?: string;
+  width?: number;
+  height?: number;
   [key: string]: any; // For any additional properties that might be added
 }
 

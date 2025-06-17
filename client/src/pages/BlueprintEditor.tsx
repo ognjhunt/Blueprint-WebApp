@@ -3808,8 +3808,134 @@ export default function BlueprintEditor() {
     // 2. Determine file type for the anchor
     const fileTypeStr = getSimpleFileType(fileInfo);
 
-    // 3. Create the new anchor object for local state
-    const newAnchor = {
+    let width: number | undefined = undefined;
+    let height: number | undefined = undefined;
+
+    const createAnchorAndSave = async (resolvedWidth?: number, resolvedHeight?: number) => {
+      // 3. Create the new anchor object for local state
+      const newAnchor = {
+        id: newAnchorId,
+        contentType: "file",
+        fileType: fileTypeStr,
+        fileName: fileInfo.name || "File",
+        fileUrl: fileInfo.url,
+        x: realWorldCoords.x,
+        y: realWorldCoords.y,
+        z: realWorldCoords.z,
+        contentID: newContentId,
+        createdDate: new Date(),
+        blueprintID: blueprintId,
+        // Add default rotation/scale if needed, or get from ThreeViewer if you implement transform later
+        rotationX: 0,
+        rotationY: 0,
+        rotationZ: 0,
+        scaleX: 1,
+        scaleY: 1,
+        scaleZ: 1,
+        width: resolvedWidth,
+        height: resolvedHeight,
+      };
+
+      // 4. Update local state IMMEDIATELY
+      setFileAnchors((prev) => [...prev, newAnchor]);
+      console.log(
+        "[BlueprintEditor] Updated local fileAnchors state:",
+        newAnchor,
+      );
+
+      // 5. Save to Firestore (asynchronously)
+      try {
+        await setDoc(doc(db, "anchors", newAnchorId), {
+          id: newAnchorId,
+          createdDate: newAnchor.createdDate,
+          contentID: newAnchor.contentID,
+          contentType: "file",
+          fileType: newAnchor.fileType,
+          fileName: newAnchor.fileName,
+          fileUrl: newAnchor.fileUrl,
+          blueprintID: blueprintId,
+          x: newAnchor.x,
+          y: newAnchor.y,
+          z: newAnchor.z,
+          rotationX: newAnchor.rotationX,
+          rotationY: newAnchor.rotationY,
+          rotationZ: newAnchor.rotationZ,
+          scaleX: newAnchor.scaleX,
+          scaleY: newAnchor.scaleY,
+          scaleZ: newAnchor.scaleZ,
+          width: newAnchor.width,
+          height: newAnchor.height,
+          host: currentUser.uid,
+          isPrivate: false,
+        });
+
+        await updateDoc(doc(db, "blueprints", blueprintId), {
+          anchorIDs: arrayUnion(newAnchorId),
+        });
+        console.log(
+          "[BlueprintEditor] Creating new file anchor in Firestore for:",
+          fileInfo.name,
+        );
+
+        toast({
+          title: "File Placed",
+          description: `${newAnchor.fileName} added to your blueprint.`,
+          variant: "default",
+        });
+        console.log(
+          "[BlueprintEditor] Successfully saved file anchor to Firestore:",
+          newAnchorId,
+        );
+      } catch (error) {
+        console.error("Error saving file anchor to Firestore:", error);
+        toast({
+          title: "Save Error",
+          description: "Failed to save file anchor to the database.",
+          variant: "destructive",
+        });
+        // Optional: Rollback local state update if Firestore save fails
+        // setFileAnchors((prev) => prev.filter(anchor => anchor.id !== newAnchorId));
+      }
+    };
+
+    if (fileTypeStr === 'image') {
+      const img = new Image();
+      img.onload = () => {
+        width = img.width;
+        height = img.height;
+        createAnchorAndSave(width, height);
+      };
+      img.onerror = () => {
+        console.error("Error loading image to get dimensions for anchor:", fileInfo.url);
+        createAnchorAndSave(); // Save without dimensions if image fails to load
+      }
+      img.src = fileInfo.url;
+    } else if (fileTypeStr === 'video') {
+      const video = document.createElement('video');
+      video.onloadedmetadata = () => {
+        width = video.videoWidth;
+        height = video.videoHeight;
+        createAnchorAndSave(width, height);
+      };
+      video.onerror = () => {
+        console.error("Error loading video to get dimensions for anchor:", fileInfo.url);
+        createAnchorAndSave(); // Save without dimensions if video fails to load
+      }
+      video.src = fileInfo.url;
+    } else {
+      // For other file types, save immediately without width/height
+      createAnchorAndSave();
+    }
+  };
+
+  // ========================
+  // TEXT LABEL HANDLING (NEW HANDLER)
+  // ========================
+  const handleTextAnchorPlaced = async (
+    text: string,
+    realWorldCoords: { x: number; y: number; z: number },
+  ) => {
+    if (!blueprintId || !currentUser) {
       id: newAnchorId,
       contentType: "file",
       fileType: fileTypeStr,
@@ -3828,8 +3954,8 @@ export default function BlueprintEditor() {
       scaleX: 1,
       scaleY: 1,
       scaleZ: 1,
-      width: fileInfo.width || 1, // Default width if not provided
-      height: fileInfo.height || 1, // Default height if not provided
+      width: resolvedWidth,
+      height: resolvedHeight,
     };
 
     // 4. Update local state IMMEDIATELY
