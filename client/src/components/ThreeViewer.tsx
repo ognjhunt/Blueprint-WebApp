@@ -138,6 +138,8 @@ interface FileAnchor {
   y: number;
   z: number;
   thumbnailUrl?: string;
+  width?: number;
+  height?: number;
 }
 
 interface ThreeViewerProps {
@@ -1688,8 +1690,24 @@ const ThreeViewer = React.memo(
               return;
             }
             try {
-              const aspect = img.width / img.height;
-              const planeWidth = 0.15;
+              let aspect;
+              if (
+                anchor.width &&
+                anchor.height &&
+                anchor.width > 0 &&
+                anchor.height > 0
+              ) {
+                aspect = anchor.width / anchor.height;
+                console.log(
+                  `[ThreeViewer fileAnchors Image] Using dimensions from anchor data for ${anchor.id}: ${anchor.width}x${anchor.height}, Aspect: ${aspect}`,
+                );
+              } else {
+                aspect = img.width / img.height;
+                console.log(
+                  `[ThreeViewer fileAnchors Image] Using dimensions from loaded image for ${anchor.id}: ${img.width}x${img.height}, Aspect: ${aspect}`,
+                );
+              }
+              const planeWidth = 0.15; // Or some other default visual size
               const planeHeight = planeWidth / aspect;
               const canvas = document.createElement("canvas");
               canvas.width = img.width;
@@ -1948,8 +1966,24 @@ const ThreeViewer = React.memo(
               return;
             }
             try {
-              const aspect = video.videoWidth / video.videoHeight;
-              const planeWidth = 0.25;
+              let aspect;
+              if (
+                anchor.width &&
+                anchor.height &&
+                anchor.width > 0 &&
+                anchor.height > 0
+              ) {
+                aspect = anchor.width / anchor.height;
+                console.log(
+                  `[ThreeViewer fileAnchors Video] Using dimensions from anchor data for ${anchor.id}: ${anchor.width}x${anchor.height}, Aspect: ${aspect}`,
+                );
+              } else {
+                aspect = video.videoWidth / video.videoHeight;
+                console.log(
+                  `[ThreeViewer fileAnchors Video] Using dimensions from loaded video for ${anchor.id}: ${video.videoWidth}x${video.videoHeight}, Aspect: ${aspect}`,
+                );
+              }
+              const planeWidth = 0.25; // Or some other default visual size
               const planeHeight = planeWidth / aspect;
 
               const videoTexture = new THREE.VideoTexture(video);
@@ -4296,8 +4330,8 @@ const ThreeViewer = React.memo(
       const loader = new GLTFLoader();
 
       const fullModelPath =
-        "https://f005.backblazeb2.com/file/objectModels-dev/4_27_2025.glb";
-      //  "https://f005.backblazeb2.com/file/objectModels-dev/home.glb";
+        //  "https://f005.backblazeb2.com/file/objectModels-dev/4_27_2025.glb";
+        "https://f005.backblazeb2.com/file/objectModels-dev/home.glb";
 
       // Determine if modelPath is an external URL or local path
       // let fullModelPath = modelPath;

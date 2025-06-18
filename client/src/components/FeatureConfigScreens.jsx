@@ -3381,6 +3381,8 @@ export const CustomerReviewsConfigScreen = ({
     },
     reviewPrompt: initialData.reviewPrompt || "After visit",
     reviewSource: initialData.reviewSource || "google",
+    fetchHistory: initialData.fetchHistory || [], // Add this line
+    manualReviews: initialData.manualReviews || [], // Also add this if it's not already there
     ...initialData,
   });
 
