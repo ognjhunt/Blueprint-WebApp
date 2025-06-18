@@ -2703,50 +2703,29 @@ const ThreeViewer = React.memo(
       modelAnchors.forEach((anchor) => {
         if (anchorModelsRef.current.has(anchor.id)) return;
 
-        // 1) Convert your anchor coords from feet to the model's local coords
-        let anchorPosition;
-        if (anchor.position) {
-          // If anchor has a nested position object
-          anchorPosition = new THREE.Vector3(
-            Number(anchor.position.x),
-            Number(anchor.position.y),
-            Number(anchor.position.z),
-          );
+        // --- POSITIONING ---
+        const localPosition = new THREE.Vector3(
+            Number(anchor.x || 0) / SCALE_FACTOR, // SCALE_FACTOR is 45.6
+            Number(anchor.y || 0) / SCALE_FACTOR,
+            Number(anchor.z || 0) / SCALE_FACTOR
+        );
+        let worldPosition: THREE.Vector3;
+        const originMatrix = originNodeRef.current?.matrixWorld;
+
+        if (originMatrix) {
+            worldPosition = localPosition.clone().applyMatrix4(originMatrix);
         } else {
-          // If anchor has direct x, y, z properties
-          anchorPosition = new THREE.Vector3(
-            Number(anchor.x || 0),
-            Number(anchor.y || 0),
-            Number(anchor.z || 0),
-          );
+            worldPosition = localPosition; // Fallback
+            console.warn(`[ThreeViewer modelAnchors] No originMatrix for anchor ${anchor.id}. Placing relative to world origin (model units).`);
         }
+        console.log(`[ThreeViewer modelAnchors] Adding model for anchor ${anchor.id} at worldPosition:`, worldPosition.toArray());
 
-        // STORE ORIGINAL COORDS FOR REFERENCE
-        const originalX = anchorPosition.x;
-        const originalY = anchorPosition.y;
-        const originalZ = anchorPosition.z;
-
-        // Use originPoint directly for relative positioning
-        if (originPoint) {
-          console.log(
-            "Using originPoint for relative positioning:",
-            originPoint,
-          );
-          anchorPosition.sub(originPoint);
-          anchorPosition.divideScalar(45.6);
-        } else {
-          console.log("No originPoint available, using global origin");
-          anchorPosition.divideScalar(45.6);
-        }
-
-        console.log("Adding model for anchor", anchor.id, "at", anchorPosition);
-
-        // --- LOAD 3D MODEL INSTEAD OF CREATING ORANGE DOT ---
+        // --- LOAD 3D MODEL ---
         const loader = new GLTFLoader();
         const modelUrl =
-          "https://f005.backblazeb2.com/file/objectModels-dev/Mona_Lisa_PBR_hires_model.glb";
+          "https://f005.backblazeb2.com/file/objectModels-dev/Mona_Lisa_PBR_hires_model.glb"; // Example URL
 
-        // Create temporary marker while model loads
+        // Create temporary marker while model loads, now using worldPosition
         const tempMarkerGeometry = new THREE.SphereGeometry(0.02, 16, 16);
         const tempMarkerMaterial = new THREE.MeshBasicMaterial({
           color: 0xff8c00,
@@ -2757,11 +2736,9 @@ const ThreeViewer = React.memo(
           tempMarkerGeometry,
           tempMarkerMaterial,
         );
-        tempMarker.position.copy(anchorPosition);
+        tempMarker.position.copy(worldPosition); // Use worldPosition for tempMarker
         sceneRef.current?.add(tempMarker);
 
-        // Load the actual model
-        // Load the actual model
         loader.load(
           modelUrl,
           (gltf) => {
@@ -2772,39 +2749,37 @@ const ThreeViewer = React.memo(
             const size = box.getSize(new THREE.Vector3());
             const maxDim = Math.max(size.x, size.y, size.z);
 
-            // Base scale factor (if not already in the anchor)
-            const baseFactor = 0.1 / maxDim;
+            // --- POSITIONING --- (worldPosition is already calculated and available in this scope)
+            model.position.copy(worldPosition);
 
-            // Check if anchor has rotation and scale data
-            if (
-              anchor.rotationX !== undefined &&
-              anchor.rotationY !== undefined &&
-              anchor.rotationZ !== undefined
-            ) {
-              model.rotation.set(
-                Number(anchor.rotationX),
-                Number(anchor.rotationY),
-                Number(anchor.rotationZ),
-              );
-            }
+            // --- ROTATION ---
+            const anchorEuler = new THREE.Euler(
+                Number(anchor.rotationX || 0),
+                Number(anchor.rotationY || 0),
+                Number(anchor.rotationZ || 0)
+            );
+            const anchorQuat = new THREE.Quaternion().setFromEuler(anchorEuler);
+            const originQuat = originNodeRef.current?.quaternion;
 
-            if (
-              anchor.scaleX !== undefined &&
-              anchor.scaleY !== undefined &&
-              anchor.scaleZ !== undefined
-            ) {
-              model.scale.set(
-                Number(anchor.scaleX) * baseFactor,
-                Number(anchor.scaleY) * baseFactor,
-                Number(anchor.scaleZ) * baseFactor,
-              );
+            if (originQuat) {
+                const finalQuat = originQuat.clone().multiply(anchorQuat);
+                model.setRotationFromQuaternion(finalQuat);
             } else {
-              // Use default scaling if not specified
-              model.scale.multiplyScalar(baseFactor);
+                model.setRotationFromQuaternion(anchorQuat);
             }
 
-            // Position the model at the anchor position
-            model.position.copy(anchorPosition);
+            // --- SCALING (ensure this remains, e.g., using baseFactor and anchor.scaleX/Y/Z) ---
+            // Recalculate box for fresh model if needed, though maxDim from outer scope might be sufficient if model isn't pre-scaled
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const maxDimFresh = Math.max(size.x, size.y, size.z) || 1; // Avoid division by zero
+            const baseFactor = 0.1 / maxDimFresh;
+
+            model.scale.set(
+                Number(anchor.scaleX ?? 1) * baseFactor,
+                Number(anchor.scaleY ?? 1) * baseFactor,
+                Number(anchor.scaleZ ?? 1) * baseFactor
+            );
 
             // Add the model to the scene
             sceneRef.current?.add(model);
@@ -2862,7 +2837,7 @@ const ThreeViewer = React.memo(
         // Add label to scene
         sceneRef.current?.add(labelObject);
       });
-    }, [modelAnchors, originPoint, showModelAnchors]);
+    }, [modelAnchors, originPoint, originOrientation, showModelAnchors]); // Added originOrientation
 
     // NEW: Centralized selection handler for ALL anchor types
     const handleAnchorSelect = (
