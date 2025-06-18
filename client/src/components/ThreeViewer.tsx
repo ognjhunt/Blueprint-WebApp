@@ -1186,23 +1186,31 @@ const ThreeViewer = React.memo(
         originNodeRef.current.position.set(0, 0, 0); // Default to scene origin if null
       }
 
-      // Update orientation
+      // Update orientation with corrected coordinate system
       if (originOrientation) {
-        // Ensure originOrientation is destructured from props
-        originNodeRef.current.quaternion.copy(originOrientation);
+        // Create a corrected quaternion that maps the picked direction to positive X-axis
+        // This ensures X is "forward" in the direction the user picked
+        const correctedQuaternion = originOrientation.clone();
+
+        // Apply a 90-degree rotation around Y to make X the forward axis instead of Z
+        const yRotation = new THREE.Quaternion().setFromAxisAngle(
+          new THREE.Vector3(0, 1, 0),
+          -Math.PI / 2,
+        );
+        correctedQuaternion.multiplyQuaternions(correctedQuaternion, yRotation);
+
+        originNodeRef.current.quaternion.copy(correctedQuaternion);
       } else {
         originNodeRef.current.quaternion.set(0, 0, 0, 1); // Default to no rotation
       }
 
       originNodeRef.current.updateMatrixWorld();
 
-      // Update the visual marker (assuming updateOriginMarker is defined elsewhere)
-      // Make sure updateOriginMarker is called with the correct arguments
+      // Update the visual marker
       if (sceneRef.current && originNodeRef.current) {
-        // Add checks for sceneRef and originNodeRef
-        updateOriginMarker(sceneRef.current, originNodeRef.current); // Pass originNodeRef.current
+        updateOriginMarker(sceneRef.current, originNodeRef.current);
       }
-    }, [originPoint, originOrientation]); // Dependencies: originPoint, originOrientation
+    }, [originPoint, originOrientation]);
 
     // UPDATED: This function now creates a full gizmo (sphere + axes)
     // and attaches it to the main origin node.
@@ -4179,6 +4187,13 @@ const ThreeViewer = React.memo(
       }
     };
 
+    const propsRef = useRef(props);
+
+    // This effect runs on every render to keep the ref updated with the latest props
+    useEffect(() => {
+      propsRef.current = props;
+    });
+
     useEffect(() => {
       if (!mountRef.current || !modelPath) return;
 
@@ -4538,32 +4553,32 @@ const ThreeViewer = React.memo(
       };
 
       async function handleClick(event: MouseEvent) {
-        console.log("[ThreeViewer] handleClick fired!"); // Keep or adjust logging as needed
+        // Use a ref to get the latest props inside this event handler,
+        // as it's defined in a useEffect that only runs once.
+        const currentProps = propsRef.current;
+
         if (
           !mountRef.current ||
           !sceneRef.current ||
           !cameraRef.current ||
           !transformControlsRef.current
         ) {
-          console.warn("[handleClick] Missing refs, aborting.");
           return;
         }
 
+        // Ignore clicks if we are currently dragging a transform control
         if (transformControlsRef.current.dragging) {
-          console.log(
-            "[handleClick] Ignoring click while dragging transform controls.",
-          );
           return;
         }
 
+        // --- Setup Raycasting ---
         const rect = mountRef.current.getBoundingClientRect();
         const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
         const mouse = new THREE.Vector2(x, y);
-
         raycasterRef.current.setFromCamera(mouse, cameraRef.current);
 
-        // Raycast against the main model first to ensure the click is on it
+        // Raycast against the main model first to check for intersections on it
         let modelIntersects: THREE.Intersection[] = [];
         if (parentModelRef.current) {
           modelIntersects = raycasterRef.current.intersectObject(
@@ -4572,149 +4587,58 @@ const ThreeViewer = React.memo(
           );
         }
 
-        // ADD THIS: Handle basic origin setting with isChoosingOrigin
-        if (isChoosingOriginRef.current && setOriginPoint) {
-          // Ensure click is on the parent model for origin picking
+        // --- 1. Handle Special Modes (like Origin Setting) ---
+        // These modes take priority over all other click actions.
+
+        // Two-step origin setting (position)
+        if (
+          currentProps.originSettingStep === "picking_position" &&
+          currentProps.onOriginPositionPicked
+        ) {
           if (modelIntersects.length > 0) {
-            const newOriginPoint = modelIntersects[0].point.clone();
-            console.log("[handleClick] Setting new origin at:", newOriginPoint);
+            currentProps.onOriginPositionPicked(
+              modelIntersects[0].point.clone(),
+            );
+          } else {
+            console.log("Origin position picking click missed the model.");
+          }
+          return; // Exit
+        }
 
-            setOriginPoint(newOriginPoint);
-            setIsChoosingOrigin?.(false);
-            onOriginSet?.(newOriginPoint);
+        // Two-step origin setting (direction)
+        if (
+          currentProps.originSettingStep === "picking_direction" &&
+          currentProps.onOriginDirectionPicked &&
+          currentProps.tempOriginPos
+        ) {
+          if (modelIntersects.length > 0) {
+            currentProps.onOriginDirectionPicked(
+              currentProps.tempOriginPos.clone(),
+              modelIntersects[0].point.clone(),
+            );
+          } else {
+            console.log("Origin direction picking click missed the model.");
+          }
+          return; // Exit
+        }
 
-            // Show confirmation message
+        // One-step (legacy) origin setting
+        if (isChoosingOriginRef.current && currentProps.onOriginSet) {
+          if (modelIntersects.length > 0) {
+            currentProps.onOriginSet(modelIntersects[0].point.clone());
+          } else {
             setOriginConfirmation(
-              `Origin set at: X: ${newOriginPoint.x.toFixed(2)}, Y: ${newOriginPoint.y.toFixed(2)}, Z: ${newOriginPoint.z.toFixed(2)}`,
+              "Please click on the model to set the origin.",
             );
-          } else {
-            console.log("[handleClick] Origin setting click missed the model.");
-            setOriginConfirmation("Please click on the model to set origin");
           }
-          return; // End click handling here for origin setting
+          return; // Exit
         }
 
-        // --- NEW: Handle Origin Setting Flow ---
-        // This part should come early, as it's a special mode.
-        if (
-          props.originSettingStep === "picking_position" &&
-          props.onOriginPositionPicked
-        ) {
-          // Ensure click is on the parent model for origin picking
+        // --- 2. Handle Placement Modes (QR, Text, etc.) ---
+
+        if (qrPlacementModeRef.current && currentProps.onQRPlaced) {
           if (modelIntersects.length > 0) {
-            const positionHitPoint = modelIntersects[0].point.clone();
-            props.onOriginPositionPicked(positionHitPoint);
-            console.log(
-              "[handleClick] Origin position picked:",
-              positionHitPoint,
-            );
-          } else {
-            console.log(
-              "[handleClick] Origin position picking click missed the model.",
-            );
-            // Optionally provide feedback to user to click on the model
-          }
-          return; // End click handling here for this step
-        }
-
-        if (
-          props.originSettingStep === "picking_direction" &&
-          props.onOriginDirectionPicked &&
-          props.tempOriginPos
-        ) {
-          // Ensure click is on the parent model for origin direction picking
-          if (modelIntersects.length > 0) {
-            const directionHitPoint = modelIntersects[0].point.clone();
-            props.onOriginDirectionPicked(
-              props.tempOriginPos.clone(),
-              directionHitPoint,
-            );
-            console.log(
-              "[handleClick] Origin direction picked. Position:",
-              props.tempOriginPos,
-              "Direction point:",
-              directionHitPoint,
-            );
-          } else {
-            console.log(
-              "[handleClick] Origin direction picking click missed the model.",
-            );
-            // Optionally provide feedback to user to click on the model
-          }
-          return; // End click handling here for this step
-        }
-
-        // --- Existing Click Logic (Raycast against all scene children for other interactions) ---
-        const allIntersects = raycasterRef.current.intersectObjects(
-          sceneRef.current.children,
-          true,
-        );
-
-        // Filter out non-interactive or irrelevant objects (gizmos, helpers that shouldn't be primary click targets)
-        const visibleIntersects = allIntersects.filter((intersect) => {
-          const obj = intersect.object;
-          return (
-            obj.visible &&
-            obj !== originMarkerRef.current && // Don't interact with the origin marker itself
-            !obj.name.startsWith("highlight-") && // Ignore highlight meshes
-            obj.name !== "dragPlane" &&
-            obj !== dragCircleRef.current && // Ignore drag indicator
-            !(
-              transformControlsRef.current &&
-              obj.isDescendantOf?.(transformControlsRef.current)
-            )
-          ); // Ignore transform control parts
-        });
-
-        if (visibleIntersects.length === 0) {
-          console.log(
-            "[handleClick] No relevant objects intersected after filtering.",
-          );
-          handleDeselect(); // Deselect if clicked on empty space
-          if (onBackgroundClick) onBackgroundClick();
-          return;
-        }
-
-        const hitPoint = visibleIntersects[0].point.clone(); // Use the primary intersection point on a relevant object
-        const clickedObj = visibleIntersects[0].object;
-
-        // --- Placement Modes (QR, Link, File, Text, Alignment) ---
-        // Ensure these modes use hitPoint (which is in model space)
-        // The conversion to realWorldCoords for PERSISTENCE should happen in BlueprintEditor
-        // after receiving this model-space hitPoint.
-
-        if (qrPlacementModeRef.current && onQRPlaced) {
-          if (modelIntersects.length > 0) {
-            // Ensure placement is on the model
-            onQRPlaced(modelIntersects[0].point.clone());
-          } else {
-            console.log("[handleClick] QR placement click missed model.");
-          }
-          return;
-        }
-
-        if (placementModeRef.current?.type === "link" && onPlacementComplete) {
-          if (modelIntersects.length > 0) {
-            onPlacementComplete(
-              placementModeRef.current,
-              modelIntersects[0].point.clone(),
-              null,
-            );
-          } else {
-            console.log("[handleClick] Link placement click missed model.");
-          }
-          return;
-        }
-
-        if (placementModeRef.current?.type === "file" && onPlacementComplete) {
-          if (modelIntersects.length > 0) {
-            onPlacementComplete(
-              placementModeRef.current,
-              modelIntersects[0].point.clone(),
-              null,
-            );
-          } else {
-            console.log("[handleClick] File placement click missed model.");
+            currentProps.onQRPlaced(modelIntersects[0].point.clone());
           }
           return;
         }
@@ -4722,162 +4646,483 @@ const ThreeViewer = React.memo(
         if (
           showTextBoxInputRef?.current &&
           pendingLabelTextRef?.current &&
-          onTextBoxSubmit
+          currentProps.onTextBoxSubmit
         ) {
           if (modelIntersects.length > 0) {
-            const modelHitPoint = modelIntersects[0].point.clone();
-            // `onTextBoxSubmit` expects realWorldCoords.
-            // However, the problem description implies `convertToRealWorldCoords` is for display/conversion TO real-world.
-            // For sending back to BlueprintEditor, we send the model-space point.
-            // BlueprintEditor will handle conversion with its authoritative origin.
-            // So, we pass modelHitPoint. The `convertToRealWorldCoords` in this component is for other uses.
-            // The issue statement: "Ensure all placement logic inside handleClick now uses `convertToRealWorldCoords`
-            // to get correct coordinates to send back to BlueprintEditor." This might be a slight misinterpretation.
-            // Let's assume for now that callbacks like `onTextBoxSubmit` expect model-space coordinates.
-            // If they truly expect pre-converted real-world coords from ThreeViewer, this would need adjustment.
-            // Based on `convertToRealWorldCoords` converting *to* real-world, it's unlikely `onTextBoxSubmit` wants that.
-            // It most likely wants the point on the model.
+            const hitPoint = modelIntersects[0].point.clone();
             const textToPlace = pendingLabelTextRef.current;
             showTextBoxInputRef.current = false;
             pendingLabelTextRef.current = "";
-            // Pass the model-space hit point. BlueprintEditor will convert using its origin state.
-            const realWorldCoordsForSubmit =
-              convertToRealWorldCoords(modelHitPoint);
-            onTextBoxSubmit(textToPlace, realWorldCoordsForSubmit);
-          } else {
-            console.log("[handleClick] Text placement click missed model.");
+            currentProps.onTextBoxSubmit(
+              textToPlace,
+              convertToRealWorldCoords(hitPoint),
+            );
           }
           return;
         }
 
+        // Generic placement mode for links, files, models
+        if (placementModeRef.current && currentProps.onPlacementComplete) {
+          if (modelIntersects.length > 0) {
+            currentProps.onPlacementComplete(
+              placementModeRef.current,
+              modelIntersects[0].point.clone(),
+              null,
+            );
+          }
+          return;
+        }
+
+        // Alignment wizard point placement
         if (
           awaiting3DRef.current &&
           activeLabelRef.current &&
-          setReferencePoints3D
+          currentProps.setReferencePoints3D
         ) {
           if (modelIntersects.length > 0) {
             const alignHitPoint = modelIntersects[0].point.clone();
-            // ... (rest of your existing alignment logic using alignHitPoint) ...
-            // Example:
             const sphereGeom = new THREE.SphereGeometry(0.02, 16, 16);
             const sphereMat = new THREE.MeshBasicMaterial({
-              color: labelColors[activeLabelRef.current!],
+              color: labelColors[activeLabelRef.current],
             });
             const newSphere = new THREE.Mesh(sphereGeom, sphereMat);
             newSphere.position.copy(alignHitPoint);
-            sceneRef.current?.add(newSphere);
+            sceneRef.current.add(newSphere);
             newSphere.userData.label = activeLabelRef.current;
-            transformControlsRef.current?.attach(newSphere);
-            // ... etc.
-            setAwaiting3D?.(false); // Typically after processing the active label
-          } else {
-            console.log("[handleClick] Alignment click missed model.");
+            transformControlsRef.current.attach(newSphere);
+            currentProps.setAwaiting3D?.(false);
           }
           return;
         }
 
-        // --- Anchor Selection Logic ---
-        // (Your existing handleAnchorSelect logic or similar interaction handling)
-        // This part needs to correctly identify if a helper mesh or a direct anchor visual was clicked.
+        // --- 3. Handle Regular Interactions (Selecting/Deselecting) ---
+        const allIntersects = raycasterRef.current.intersectObjects(
+          sceneRef.current.children,
+          true,
+        );
+        const visibleIntersects = allIntersects.filter((intersect) => {
+          const obj = intersect.object;
+          return (
+            obj.visible &&
+            obj !== originMarkerRef.current &&
+            !obj.name.startsWith("highlight-") &&
+            obj.name !== "dragPlane" &&
+            obj !== dragCircleRef.current &&
+            !(
+              transformControlsRef.current &&
+              obj.isDescendantOf?.(transformControlsRef.current)
+            )
+          );
+        });
+
+        if (visibleIntersects.length === 0) {
+          // Clicked on empty space
+          handleDeselect();
+          currentProps.onBackgroundClick?.();
+          return;
+        }
+
+        // --- Logic for selecting an anchor ---
+        let clickedObj = visibleIntersects[0].object;
         let foundAnchor = false;
-        let currentInteractiveObj: THREE.Object3D | null = clickedObj;
 
-        while (currentInteractiveObj) {
-          if (
-            currentInteractiveObj.userData?.anchorId &&
-            currentInteractiveObj.userData?.type
-          ) {
-            const anchorId = currentInteractiveObj.userData.anchorId;
-            const anchorType = currentInteractiveObj.userData.type; // e.g., "text-helper", "file-image", "model"
-            let objectToSelect = currentInteractiveObj;
-
-            // Determine the actual type for handleAnchorSelect ("text", "file", "model", "webpage")
+        while (clickedObj) {
+          if (clickedObj.userData?.anchorId && clickedObj.userData?.type) {
+            const { anchorId, type } = clickedObj.userData;
             let selectableType: "text" | "file" | "model" | "webpage" | null =
               null;
-            if (anchorType.startsWith("text")) selectableType = "text";
-            else if (anchorType.startsWith("file")) selectableType = "file";
-            else if (anchorType.startsWith("model"))
-              selectableType = "model"; // Assuming direct model click or model's helper
-            else if (anchorType.startsWith("webpage"))
-              selectableType = "webpage";
 
-            // If a helper was clicked, its userData.visualObject or userData.labelObject or userData.cssObject
-            // might be what handleAnchorSelect was originally designed for in some cases.
-            // However, the instruction is to pass the helper itself if it's the interactive part.
-            // The `handleAnchorSelect` function is expected to manage this.
+            if (type.startsWith("text")) selectableType = "text";
+            else if (type.startsWith("file")) selectableType = "file";
+            else if (type.startsWith("model")) selectableType = "model";
+            else if (type.startsWith("webpage")) selectableType = "webpage";
 
             if (selectableType) {
-              // Callbacks for info panels (onTextAnchorClick, etc.)
-              if (
-                selectableType === "text" &&
-                onTextAnchorClick &&
-                currentInteractiveObj.userData.labelObject?.element
-              ) {
-                onTextAnchorClick(
-                  anchorId,
-                  (
-                    currentInteractiveObj.userData.labelObject
-                      .element as HTMLElement
-                  ).textContent || "",
-                );
-              } else if (selectableType === "file" && onFileAnchorClick) {
-                const fileData = props.fileAnchors?.find(
-                  (f) => f.id === anchorId,
-                );
-                if (fileData) onFileAnchorClick(anchorId, fileData);
-              } else if (
-                selectableType === "webpage" &&
-                onWebpageAnchorClick &&
-                currentInteractiveObj.userData.cssObject
-              ) {
-                const webpageData = props.webpageAnchors?.find(
-                  (w) => w.id === anchorId,
-                );
-                if (webpageData)
-                  onWebpageAnchorClick(anchorId, webpageData.webpageUrl);
-              }
-              // Model anchors might not have an immediate info panel click, selection is primary.
-
-              handleAnchorSelect(anchorId, objectToSelect, selectableType);
+              handleAnchorSelect(anchorId, clickedObj, selectableType);
               foundAnchor = true;
               break;
             }
           }
-          currentInteractiveObj = currentInteractiveObj.parent;
+          clickedObj = clickedObj.parent as THREE.Object3D;
         }
 
+        // --- 4. Fallback Behavior (like showing distance) ---
         if (!foundAnchor) {
-          console.log(
-            "[handleClick] Click did not select a known anchor. Deselecting.",
-          );
-          handleDeselect();
-          if (onBackgroundClick) onBackgroundClick();
+          handleDeselect(); // Deselect if click didn't result in selecting a new anchor
 
-          // Display distance if origin is set and a point on the model was clicked
-          if (originPoint && modelIntersects.length > 0) {
-            const modelHit = modelIntersects[0].point.clone();
-            const offset = modelHit.sub(originPoint); // Now relative to originPoint (model space)
-            // convertToRealWorldCoords expects a model-space point and converts it using originNode
-            // For display purposes, if we want distance from the *visual origin marker point* in model space:
-            const realWorldDisplayCoords = convertToRealWorldCoords(
-              modelIntersects[0].point.clone(),
-            );
-
-            // The message should reflect distance from the defined origin.
-            // The `offset` vector calculated above is already in model space relative to `originPoint`.
-            // To display its length in "real world" units, scale its components.
+          if (currentProps.originPoint && modelIntersects.length > 0) {
             const displayOffset = modelIntersects[0].point
               .clone()
-              .sub(originPoint);
+              .sub(currentProps.originPoint);
             const msg = `Relative to origin: X:${(displayOffset.x * 45.6).toFixed(2)}, Y:${(displayOffset.y * 45.6).toFixed(2)}, Z:${(displayOffset.z * 45.6).toFixed(2)} ft`;
             setDistanceDisplay(msg);
-          } else {
-            setDistanceDisplay(
-              originPoint ? "Clicked outside model." : "Origin not set.",
-            );
           }
         }
       }
+
+      // async function handleClick(event: MouseEvent) {
+      //   console.log("[ThreeViewer] handleClick fired!"); // Keep or adjust logging as needed
+      //   if (
+      //     !mountRef.current ||
+      //     !sceneRef.current ||
+      //     !cameraRef.current ||
+      //     !transformControlsRef.current
+      //   ) {
+      //     console.warn("[handleClick] Missing refs, aborting.");
+      //     return;
+      //   }
+
+      //   if (transformControlsRef.current.dragging) {
+      //     console.log(
+      //       "[handleClick] Ignoring click while dragging transform controls.",
+      //     );
+      //     return;
+      //   }
+
+      //   const rect = mountRef.current.getBoundingClientRect();
+      //   const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      //   const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      //   const mouse = new THREE.Vector2(x, y);
+
+      //   raycasterRef.current.setFromCamera(mouse, cameraRef.current);
+
+      //   // Raycast against the main model first to ensure the click is on it
+      //   let modelIntersects: THREE.Intersection[] = [];
+      //   if (parentModelRef.current) {
+      //     modelIntersects = raycasterRef.current.intersectObject(
+      //       parentModelRef.current,
+      //       true,
+      //     );
+      //   }
+
+      //   // --- PRIORITY #1: Handle the two-step origin setting flow ---
+      //   // This MUST come first to correctly handle clicks in this special mode.
+      //   if (
+      //     props.originSettingStep === "picking_position" &&
+      //     props.onOriginPositionPicked
+      //   ) {
+      //     if (modelIntersects.length > 0) {
+      //       const positionHitPoint = modelIntersects[0].point.clone();
+      //       props.onOriginPositionPicked(positionHitPoint);
+      //       console.log(
+      //         "[handleClick] Origin position picked:",
+      //         positionHitPoint,
+      //       );
+      //     } else {
+      //       console.log(
+      //         "[handleClick] Origin position picking click missed the model.",
+      //       );
+      //     }
+      //     return; // IMPORTANT: End click handling here
+      //   }
+
+      //   if (
+      //     props.originSettingStep === "picking_direction" &&
+      //     props.onOriginDirectionPicked &&
+      //     props.tempOriginPos
+      //   ) {
+      //     if (modelIntersects.length > 0) {
+      //       const directionHitPoint = modelIntersects[0].point.clone();
+      //       props.onOriginDirectionPicked(
+      //         props.tempOriginPos.clone(),
+      //         directionHitPoint,
+      //       );
+      //       console.log(
+      //         "[handleClick] Origin direction picked. Position:",
+      //         props.tempOriginPos,
+      //         "Direction point:",
+      //         directionHitPoint,
+      //       );
+      //     } else {
+      //       console.log(
+      //         "[handleClick] Origin direction picking click missed the model.",
+      //       );
+      //     }
+      //     return; // IMPORTANT: End click handling here
+      //   }
+
+      //   // --- Handle legacy one-click origin setting ---
+      //   // This runs only if the two-step process is not active.
+      //   if (isChoosingOriginRef.current && onOriginSet) {
+      //     if (modelIntersects.length > 0) {
+      //       const newOriginPoint = modelIntersects[0].point.clone();
+      //       console.log(
+      //         "[handleClick] Calling onOriginSet for one-click process:",
+      //         newOriginPoint,
+      //       );
+      //       onOriginSet(newOriginPoint);
+      //     } else {
+      //       console.log(
+      //         "[handleClick] One-click origin setting missed the model.",
+      //       );
+      //       setOriginConfirmation(
+      //         "Please click on the model to set the origin.",
+      //       );
+      //     }
+      //     return; // IMPORTANT: End click handling here
+      //   }
+
+      //   if (
+      //     props.originSettingStep === "picking_direction" &&
+      //     props.onOriginDirectionPicked &&
+      //     props.tempOriginPos
+      //   ) {
+      //     // Ensure click is on the parent model for origin direction picking
+      //     if (modelIntersects.length > 0) {
+      //       const directionHitPoint = modelIntersects[0].point.clone();
+      //       props.onOriginDirectionPicked(
+      //         props.tempOriginPos.clone(),
+      //         directionHitPoint,
+      //       );
+      //       console.log(
+      //         "[handleClick] Origin direction picked. Position:",
+      //         props.tempOriginPos,
+      //         "Direction point:",
+      //         directionHitPoint,
+      //       );
+      //     } else {
+      //       console.log(
+      //         "[handleClick] Origin direction picking click missed the model.",
+      //       );
+      //       // Optionally provide feedback to user to click on the model
+      //     }
+      //     return; // End click handling here for this step
+      //   }
+
+      //   // --- Existing Click Logic (Raycast against all scene children for other interactions) ---
+      //   const allIntersects = raycasterRef.current.intersectObjects(
+      //     sceneRef.current.children,
+      //     true,
+      //   );
+
+      //   // Filter out non-interactive or irrelevant objects (gizmos, helpers that shouldn't be primary click targets)
+      //   const visibleIntersects = allIntersects.filter((intersect) => {
+      //     const obj = intersect.object;
+      //     return (
+      //       obj.visible &&
+      //       obj !== originMarkerRef.current && // Don't interact with the origin marker itself
+      //       !obj.name.startsWith("highlight-") && // Ignore highlight meshes
+      //       obj.name !== "dragPlane" &&
+      //       obj !== dragCircleRef.current && // Ignore drag indicator
+      //       !(
+      //         transformControlsRef.current &&
+      //         obj.isDescendantOf?.(transformControlsRef.current)
+      //       )
+      //     ); // Ignore transform control parts
+      //   });
+
+      //   if (visibleIntersects.length === 0) {
+      //     console.log(
+      //       "[handleClick] No relevant objects intersected after filtering.",
+      //     );
+      //     handleDeselect(); // Deselect if clicked on empty space
+      //     if (onBackgroundClick) onBackgroundClick();
+      //     return;
+      //   }
+
+      //   const hitPoint = visibleIntersects[0].point.clone(); // Use the primary intersection point on a relevant object
+      //   const clickedObj = visibleIntersects[0].object;
+
+      //   // --- Placement Modes (QR, Link, File, Text, Alignment) ---
+      //   // Ensure these modes use hitPoint (which is in model space)
+      //   // The conversion to realWorldCoords for PERSISTENCE should happen in BlueprintEditor
+      //   // after receiving this model-space hitPoint.
+
+      //   if (qrPlacementModeRef.current && onQRPlaced) {
+      //     if (modelIntersects.length > 0) {
+      //       // Ensure placement is on the model
+      //       onQRPlaced(modelIntersects[0].point.clone());
+      //     } else {
+      //       console.log("[handleClick] QR placement click missed model.");
+      //     }
+      //     return;
+      //   }
+
+      //   if (placementModeRef.current?.type === "link" && onPlacementComplete) {
+      //     if (modelIntersects.length > 0) {
+      //       onPlacementComplete(
+      //         placementModeRef.current,
+      //         modelIntersects[0].point.clone(),
+      //         null,
+      //       );
+      //     } else {
+      //       console.log("[handleClick] Link placement click missed model.");
+      //     }
+      //     return;
+      //   }
+
+      //   if (placementModeRef.current?.type === "file" && onPlacementComplete) {
+      //     if (modelIntersects.length > 0) {
+      //       onPlacementComplete(
+      //         placementModeRef.current,
+      //         modelIntersects[0].point.clone(),
+      //         null,
+      //       );
+      //     } else {
+      //       console.log("[handleClick] File placement click missed model.");
+      //     }
+      //     return;
+      //   }
+
+      //   if (
+      //     showTextBoxInputRef?.current &&
+      //     pendingLabelTextRef?.current &&
+      //     onTextBoxSubmit
+      //   ) {
+      //     if (modelIntersects.length > 0) {
+      //       const modelHitPoint = modelIntersects[0].point.clone();
+      //       // `onTextBoxSubmit` expects realWorldCoords.
+      //       // However, the problem description implies `convertToRealWorldCoords` is for display/conversion TO real-world.
+      //       // For sending back to BlueprintEditor, we send the model-space point.
+      //       // BlueprintEditor will handle conversion with its authoritative origin.
+      //       // So, we pass modelHitPoint. The `convertToRealWorldCoords` in this component is for other uses.
+      //       // The issue statement: "Ensure all placement logic inside handleClick now uses `convertToRealWorldCoords`
+      //       // to get correct coordinates to send back to BlueprintEditor." This might be a slight misinterpretation.
+      //       // Let's assume for now that callbacks like `onTextBoxSubmit` expect model-space coordinates.
+      //       // If they truly expect pre-converted real-world coords from ThreeViewer, this would need adjustment.
+      //       // Based on `convertToRealWorldCoords` converting *to* real-world, it's unlikely `onTextBoxSubmit` wants that.
+      //       // It most likely wants the point on the model.
+      //       const textToPlace = pendingLabelTextRef.current;
+      //       showTextBoxInputRef.current = false;
+      //       pendingLabelTextRef.current = "";
+      //       // Pass the model-space hit point. BlueprintEditor will convert using its origin state.
+      //       const realWorldCoordsForSubmit =
+      //         convertToRealWorldCoords(modelHitPoint);
+      //       onTextBoxSubmit(textToPlace, realWorldCoordsForSubmit);
+      //     } else {
+      //       console.log("[handleClick] Text placement click missed model.");
+      //     }
+      //     return;
+      //   }
+
+      //   if (
+      //     awaiting3DRef.current &&
+      //     activeLabelRef.current &&
+      //     setReferencePoints3D
+      //   ) {
+      //     if (modelIntersects.length > 0) {
+      //       const alignHitPoint = modelIntersects[0].point.clone();
+      //       // ... (rest of your existing alignment logic using alignHitPoint) ...
+      //       // Example:
+      //       const sphereGeom = new THREE.SphereGeometry(0.02, 16, 16);
+      //       const sphereMat = new THREE.MeshBasicMaterial({
+      //         color: labelColors[activeLabelRef.current!],
+      //       });
+      //       const newSphere = new THREE.Mesh(sphereGeom, sphereMat);
+      //       newSphere.position.copy(alignHitPoint);
+      //       sceneRef.current?.add(newSphere);
+      //       newSphere.userData.label = activeLabelRef.current;
+      //       transformControlsRef.current?.attach(newSphere);
+      //       // ... etc.
+      //       setAwaiting3D?.(false); // Typically after processing the active label
+      //     } else {
+      //       console.log("[handleClick] Alignment click missed model.");
+      //     }
+      //     return;
+      //   }
+
+      //   // --- Anchor Selection Logic ---
+      //   // (Your existing handleAnchorSelect logic or similar interaction handling)
+      //   // This part needs to correctly identify if a helper mesh or a direct anchor visual was clicked.
+      //   let foundAnchor = false;
+      //   let currentInteractiveObj: THREE.Object3D | null = clickedObj;
+
+      //   while (currentInteractiveObj) {
+      //     if (
+      //       currentInteractiveObj.userData?.anchorId &&
+      //       currentInteractiveObj.userData?.type
+      //     ) {
+      //       const anchorId = currentInteractiveObj.userData.anchorId;
+      //       const anchorType = currentInteractiveObj.userData.type; // e.g., "text-helper", "file-image", "model"
+      //       let objectToSelect = currentInteractiveObj;
+
+      //       // Determine the actual type for handleAnchorSelect ("text", "file", "model", "webpage")
+      //       let selectableType: "text" | "file" | "model" | "webpage" | null =
+      //         null;
+      //       if (anchorType.startsWith("text")) selectableType = "text";
+      //       else if (anchorType.startsWith("file")) selectableType = "file";
+      //       else if (anchorType.startsWith("model"))
+      //         selectableType = "model"; // Assuming direct model click or model's helper
+      //       else if (anchorType.startsWith("webpage"))
+      //         selectableType = "webpage";
+
+      //       // If a helper was clicked, its userData.visualObject or userData.labelObject or userData.cssObject
+      //       // might be what handleAnchorSelect was originally designed for in some cases.
+      //       // However, the instruction is to pass the helper itself if it's the interactive part.
+      //       // The `handleAnchorSelect` function is expected to manage this.
+
+      //       if (selectableType) {
+      //         // Callbacks for info panels (onTextAnchorClick, etc.)
+      //         if (
+      //           selectableType === "text" &&
+      //           onTextAnchorClick &&
+      //           currentInteractiveObj.userData.labelObject?.element
+      //         ) {
+      //           onTextAnchorClick(
+      //             anchorId,
+      //             (
+      //               currentInteractiveObj.userData.labelObject
+      //                 .element as HTMLElement
+      //             ).textContent || "",
+      //           );
+      //         } else if (selectableType === "file" && onFileAnchorClick) {
+      //           const fileData = props.fileAnchors?.find(
+      //             (f) => f.id === anchorId,
+      //           );
+      //           if (fileData) onFileAnchorClick(anchorId, fileData);
+      //         } else if (
+      //           selectableType === "webpage" &&
+      //           onWebpageAnchorClick &&
+      //           currentInteractiveObj.userData.cssObject
+      //         ) {
+      //           const webpageData = props.webpageAnchors?.find(
+      //             (w) => w.id === anchorId,
+      //           );
+      //           if (webpageData)
+      //             onWebpageAnchorClick(anchorId, webpageData.webpageUrl);
+      //         }
+      //         // Model anchors might not have an immediate info panel click, selection is primary.
+
+      //         handleAnchorSelect(anchorId, objectToSelect, selectableType);
+      //         foundAnchor = true;
+      //         break;
+      //       }
+      //     }
+      //     currentInteractiveObj = currentInteractiveObj.parent;
+      //   }
+
+      //   if (!foundAnchor) {
+      //     console.log(
+      //       "[handleClick] Click did not select a known anchor. Deselecting.",
+      //     );
+      //     handleDeselect();
+      //     if (onBackgroundClick) onBackgroundClick();
+
+      //     // Display distance if origin is set and a point on the model was clicked
+      //     if (originPoint && modelIntersects.length > 0) {
+      //       const modelHit = modelIntersects[0].point.clone();
+      //       const offset = modelHit.sub(originPoint); // Now relative to originPoint (model space)
+      //       // convertToRealWorldCoords expects a model-space point and converts it using originNode
+      //       // For display purposes, if we want distance from the *visual origin marker point* in model space:
+      //       const realWorldDisplayCoords = convertToRealWorldCoords(
+      //         modelIntersects[0].point.clone(),
+      //       );
+
+      //       // The message should reflect distance from the defined origin.
+      //       // The `offset` vector calculated above is already in model space relative to `originPoint`.
+      //       // To display its length in "real world" units, scale its components.
+      //       const displayOffset = modelIntersects[0].point
+      //         .clone()
+      //         .sub(originPoint);
+      //       const msg = `Relative to origin: X:${(displayOffset.x * 45.6).toFixed(2)}, Y:${(displayOffset.y * 45.6).toFixed(2)}, Z:${(displayOffset.z * 45.6).toFixed(2)} ft`;
+      //       setDistanceDisplay(msg);
+      //     } else {
+      //       setDistanceDisplay(
+      //         originPoint ? "Clicked outside model." : "Origin not set.",
+      //       );
+      //     }
+      //   }
+      // }
 
       function getNDCCoords(event: MouseEvent, container: HTMLDivElement) {
         const rect = container.getBoundingClientRect();

@@ -1841,15 +1841,28 @@ export default function BlueprintEditor() {
   // NEW: Origin Setting Handlers
   // ========================
 
+  // const handleStartOriginSet = () => {
+  //   // Start the process
+  //   setOriginSettingStep("picking_position");
+  //   toast({
+  //     title: "Set Origin: Step 1 of 2",
+  //     description: "Click on the model to set the origin's location.",
+  //     variant: "default",
+  //   });
+  // };
+
   const handleStartOriginSet = () => {
-    // Start the process
+    // Start the two-step process
     setOriginSettingStep("picking_position");
+    // Explicitly disable the one-step flag to prevent conflicts
+    setIsChoosingOrigin(false); 
     toast({
       title: "Set Origin: Step 1 of 2",
       description: "Click on the model to set the origin's location.",
       variant: "default",
     });
   };
+  
 
   const handleCancelOriginSet = () => {
     setOriginSettingStep("inactive");
@@ -6867,7 +6880,9 @@ export default function BlueprintEditor() {
 
               {/* Origin Point Button */}
               <Button
-                variant={originSettingStep !== "inactive" ? "secondary" : "ghost"}
+                variant={
+                  originSettingStep !== "inactive" ? "secondary" : "ghost"
+                }
                 size="sm"
                 onClick={
                   originSettingStep !== "inactive"
@@ -6877,9 +6892,11 @@ export default function BlueprintEditor() {
                 className="h-8 p-0"
               >
                 <Compass className="h-4 w-4 mr-1.5" />
-                  {originSettingStep !== "inactive" ? "Cancel Origin" : "Set Origin"}
-                </Button>
-              
+                {originSettingStep !== "inactive"
+                  ? "Cancel Origin"
+                  : "Set Origin"}
+              </Button>
+
               {/* Separator */}
               <Separator orientation="vertical" className="h-8" />
 
