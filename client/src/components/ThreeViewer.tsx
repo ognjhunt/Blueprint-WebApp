@@ -1170,43 +1170,31 @@ const ThreeViewer = React.memo(
         : null;
     }, [originPoint, adjustAnchorsForOriginChange]);
 
+    // Located in ThreeViewer.tsx
+
     useEffect(() => {
       if (!sceneRef.current) return;
       if (!originNodeRef.current) {
-        // Create the origin node if it doesn't exist and add it to the scene
         originNodeRef.current = new THREE.Object3D();
         originNodeRef.current.name = "OriginNode";
         sceneRef.current.add(originNodeRef.current);
       }
 
-      // Update position
       if (originPoint) {
         originNodeRef.current.position.copy(originPoint);
       } else {
-        originNodeRef.current.position.set(0, 0, 0); // Default to scene origin if null
+        originNodeRef.current.position.set(0, 0, 0);
       }
 
-      // Update orientation with corrected coordinate system
+      // This part is crucial: Use the orientation directly without any modifications.
       if (originOrientation) {
-        // Create a corrected quaternion that maps the picked direction to positive X-axis
-        // This ensures X is "forward" in the direction the user picked
-        const correctedQuaternion = originOrientation.clone();
-
-        // Apply a 90-degree rotation around Y to make X the forward axis instead of Z
-        const yRotation = new THREE.Quaternion().setFromAxisAngle(
-          new THREE.Vector3(0, 1, 0),
-          -Math.PI / 2,
-        );
-        correctedQuaternion.multiplyQuaternions(correctedQuaternion, yRotation);
-
-        originNodeRef.current.quaternion.copy(correctedQuaternion);
+        originNodeRef.current.quaternion.copy(originOrientation);
       } else {
-        originNodeRef.current.quaternion.set(0, 0, 0, 1); // Default to no rotation
+        originNodeRef.current.quaternion.set(0, 0, 0, 1);
       }
 
       originNodeRef.current.updateMatrixWorld();
 
-      // Update the visual marker
       if (sceneRef.current && originNodeRef.current) {
         updateOriginMarker(sceneRef.current, originNodeRef.current);
       }
@@ -1218,39 +1206,45 @@ const ThreeViewer = React.memo(
       scene: THREE.Scene,
       parentNode: THREE.Object3D,
     ) => {
+      console.log("🔄 Origin useEffect triggered", {
+        hasScene: !!sceneRef.current,
+        originPoint: originPoint ? originPoint.toArray() : null,
+        originOrientation: originOrientation ? "present" : "missing",
+      });
+
       // Remove existing marker
       if (originMarkerRef.current) {
-        // Check if originMarkerRef.current is a child of parentNode before removing
         if (originMarkerRef.current.parent === parentNode) {
           parentNode.remove(originMarkerRef.current);
         } else if (originMarkerRef.current.parent === sceneRef.current) {
-          // If it was previously parented to the scene directly (old implementation)
           sceneRef.current?.remove(originMarkerRef.current);
         }
-        // Dispose of geometries and materials if necessary to prevent memory leaks
-        // (Simplified for this example, but important for complex/frequent updates)
         originMarkerRef.current = null;
       }
 
-      // Don't draw if origin isn't fully set (props.originPoint is the position part)
-      if (!originPoint) return; // Using destructured originPoint from component props
+      if (!originPoint) {
+        console.log("❌ No originPoint, skipping marker creation");
+        return;
+      }
+
+      console.log("✅ Creating origin marker with forward axis");
 
       const markerGroup = new THREE.Group();
-      markerGroup.name = "originMarkerVisuals"; // More specific name
+      markerGroup.name = "originMarkerVisuals";
 
       // Center Sphere
-      const sphereGeo = new THREE.SphereGeometry(0.03, 16, 16); // Standardize radius
+      const sphereGeo = new THREE.SphereGeometry(0.03, 16, 16);
       const sphereMat = new THREE.MeshBasicMaterial({
         color: 0xffff00,
         depthTest: false,
       });
       const sphere = new THREE.Mesh(sphereGeo, sphereMat);
-      sphere.renderOrder = 999; // Ensure sphere is also rendered on top
+      sphere.renderOrder = 999;
       markerGroup.add(sphere);
 
       const axisLength = 0.2;
-      const headLength = 0.05; // Arrow head length
-      const headWidth = 0.02; // Arrow head width
+      const headLength = 0.05;
+      const headWidth = 0.02;
 
       // X-Axis (Red)
       const xAxis = new THREE.ArrowHelper(
@@ -1261,6 +1255,7 @@ const ThreeViewer = React.memo(
         headLength,
         headWidth,
       );
+
       // Y-Axis (Green)
       const yAxis = new THREE.ArrowHelper(
         new THREE.Vector3(0, 1, 0),
@@ -1270,39 +1265,52 @@ const ThreeViewer = React.memo(
         headLength,
         headWidth,
       );
-      // Z-Axis (Blue) - This represents "forward"
-      const zAxis = new THREE.ArrowHelper(
+
+      // Z-Axis (Forward) - SUPER VISIBLE
+      const forwardAxis = new THREE.ArrowHelper(
         new THREE.Vector3(0, 0, 1),
         new THREE.Vector3(0, 0, 0),
-        axisLength,
-        0x0000ff,
-        headLength,
-        headWidth,
+        1.0, // Very long
+        0xff00ff, // Bright magenta color
+        0.2, // Big head
+        0.08, // Wide head
       );
 
+      // Make the forward axis materials ignore depth testing
+      if (forwardAxis.line.material instanceof THREE.LineBasicMaterial) {
+        forwardAxis.line.material.depthTest = false;
+        forwardAxis.line.material.transparent = true;
+        forwardAxis.line.material.opacity = 1.0;
+      }
+      if (forwardAxis.cone.material instanceof THREE.MeshBasicMaterial) {
+        forwardAxis.cone.material.depthTest = false;
+        forwardAxis.cone.material.transparent = true;
+        forwardAxis.cone.material.opacity = 1.0;
+      }
+
+      // Set render orders
       xAxis.renderOrder = 999;
       yAxis.renderOrder = 999;
-      zAxis.renderOrder = 999;
+      forwardAxis.renderOrder = 10000; // Highest priority
 
-      // Ensure materials are correctly typed for depthTest
+      // Set depth test for X and Y axes
       if (xAxis.line.material instanceof THREE.LineBasicMaterial) {
-        (xAxis.line.material as THREE.LineBasicMaterial).depthTest = false;
+        xAxis.line.material.depthTest = false;
         (xAxis.cone.material as THREE.MeshBasicMaterial).depthTest = false;
       }
       if (yAxis.line.material instanceof THREE.LineBasicMaterial) {
-        (yAxis.line.material as THREE.LineBasicMaterial).depthTest = false;
+        yAxis.line.material.depthTest = false;
         (yAxis.cone.material as THREE.MeshBasicMaterial).depthTest = false;
       }
-      if (zAxis.line.material instanceof THREE.LineBasicMaterial) {
-        (zAxis.line.material as THREE.LineBasicMaterial).depthTest = false;
-        (zAxis.cone.material as THREE.MeshBasicMaterial).depthTest = false;
-      }
 
-      markerGroup.add(xAxis, yAxis, zAxis);
+      // Add all axes to the group
+      markerGroup.add(xAxis, yAxis, forwardAxis);
 
-      // It's important that originMarkerRef stores the markerGroup itself
+      console.log("🚀 Added super-visible forward axis");
+
+      // Store and attach the marker
       originMarkerRef.current = markerGroup;
-      parentNode.add(markerGroup); // Attach the visual marker to the main origin node (originNodeRef)
+      parentNode.add(markerGroup);
     };
 
     // In ThreeViewer.tsx, find the configureTransformControls function

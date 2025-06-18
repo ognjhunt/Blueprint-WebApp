@@ -1841,28 +1841,15 @@ export default function BlueprintEditor() {
   // NEW: Origin Setting Handlers
   // ========================
 
-  // const handleStartOriginSet = () => {
-  //   // Start the process
-  //   setOriginSettingStep("picking_position");
-  //   toast({
-  //     title: "Set Origin: Step 1 of 2",
-  //     description: "Click on the model to set the origin's location.",
-  //     variant: "default",
-  //   });
-  // };
-
   const handleStartOriginSet = () => {
-    // Start the two-step process
+    // Start the process
     setOriginSettingStep("picking_position");
-    // Explicitly disable the one-step flag to prevent conflicts
-    setIsChoosingOrigin(false); 
     toast({
       title: "Set Origin: Step 1 of 2",
       description: "Click on the model to set the origin's location.",
       variant: "default",
     });
   };
-  
 
   const handleCancelOriginSet = () => {
     setOriginSettingStep("inactive");
@@ -1887,18 +1874,30 @@ export default function BlueprintEditor() {
   };
 
   // Called from ThreeViewer when the second point is picked
+  // In BlueprintEditor.tsx
+
   const handleOriginDirectionPicked = async (
     positionPoint: THREE.Vector3,
     directionPoint: THREE.Vector3,
   ) => {
-    // 1. Calculate the orientation
-    const tempObject = new THREE.Object3D();
-    tempObject.position.copy(positionPoint);
-    // Use lookAt to align the object's local +Z axis towards the direction point
-    tempObject.lookAt(directionPoint);
-    const newOrientation = tempObject.quaternion;
+    // 1. Define the default "forward" direction in a THREE.js scene.
+    const defaultForward = new THREE.Vector3(0, 0, 1);
 
-    // 2. Update state and save to Firebase
+    // 2. Calculate the user's desired "forward" direction vector.
+    // This is a vector pointing from the origin position to the direction point.
+    const targetDirection = new THREE.Vector3()
+      .subVectors(directionPoint, positionPoint)
+      .normalize();
+
+    // 3. Create a quaternion that represents the rotation from the default forward
+    //    vector to the user's target direction vector. This is the correct and stable
+    //    way to calculate the orientation, avoiding the pitfalls of lookAt().
+    const newOrientation = new THREE.Quaternion().setFromUnitVectors(
+      defaultForward,
+      targetDirection,
+    );
+
+    // 4. Update state and save to Firebase (this part remains the same).
     setOriginPoint(positionPoint);
     setOriginOrientation(newOrientation);
 
@@ -1928,7 +1927,7 @@ export default function BlueprintEditor() {
       }
     }
 
-    // 3. Clean up and exit setting mode
+    // 5. Clean up and exit setting mode.
     setTempOriginPos(null);
     setOriginSettingStep("inactive");
   };
