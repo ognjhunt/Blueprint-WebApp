@@ -35,7 +35,8 @@ import { db } from "@/lib/firebase";
  * OffWaitlistSignUpFlow
  * - Step 1: Basic Account Setup (Organization Name, Email, Password)
  * - Step 2: Contact & Location (Contact Name, Phone, Address)
- * - Step 3: Scheduling (Date, Time)
+ * - Step 3: 3D Mapping Scheduling (Date, Time)
+ * - Step 4: Demo Day Scheduling (Date, Time)
  * - Final: Confirmation Screen
  */
 
@@ -90,6 +91,13 @@ export default function OffWaitlistSignUpFlow() {
   // Step 3
   const [scheduleDate, setScheduleDate] = useState(new Date());
   const [scheduleTime, setScheduleTime] = useState("08:00");
+
+  const [demoDate, setDemoDate] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 7); // Default to 1 week from today
+    return date;
+  });
+  const [demoTime, setDemoTime] = useState("11:00"); // Default to 11:00 AM
 
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -230,20 +238,46 @@ export default function OffWaitlistSignUpFlow() {
         return;
       }
 
-      // 2) Update user doc with scheduling info
+      // 2) Update user doc with mapping scheduling info only
       try {
         await updateDoc(doc(db, "users", user.uid), {
-          mappingScheduleDate: scheduleDate, // or scheduleDate.toISOString()
+          mappingScheduleDate: scheduleDate,
           mappingScheduleTime: scheduleTime,
         });
 
+        // Move to step 4 (demo scheduling)
+        setStep((prev) => prev + 1);
+      } catch (error: unknown) {
+        console.error("Error updating mapping schedule:", error);
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        setErrorMessage("Error updating mapping schedule: " + errorMessage);
+        return;
+      }
+    } else if (step === 4) {
+      // Handle Step 4: Demo Day Scheduling + Complete Booking Creation
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user) {
+        setErrorMessage("No user found. Please sign up first.");
+        return;
+      }
+
+      try {
+        // 1) Update user doc with demo scheduling info
+        await updateDoc(doc(db, "users", user.uid), {
+          demoScheduleDate: demoDate,
+          demoScheduleTime: demoTime,
+        });
+
+        // 2) Create all booking records and blueprint
         const bookingDate = scheduleDate.toISOString().split("T")[0]; // Format: YYYY-MM-DD
         const bookingId = `${bookingDate}_${scheduleTime}`;
 
         // Create a unique blueprintId that will be used later when uploading files
         const blueprintId = crypto.randomUUID();
 
-        // Create a more comprehensive booking record
+        // Create a comprehensive booking record (including demo info)
         await setDoc(doc(db, "bookings", bookingId), {
           id: bookingId,
           date: bookingDate,
@@ -256,10 +290,13 @@ export default function OffWaitlistSignUpFlow() {
           email: email.trim(),
           status: "pending",
           blueprintId: blueprintId, // Add the blueprint ID for reference
+          // NEW: Add demo scheduling info to the booking
+          demoScheduleDate: demoDate.toISOString().split("T")[0],
+          demoScheduleTime: demoTime,
           createdAt: serverTimestamp(),
         });
 
-        // Also create a placeholder blueprint document that will be updated later with scan files
+        // Create a placeholder blueprint document that will be updated later with scan files
         await setDoc(doc(db, "blueprints", blueprintId), {
           id: blueprintId,
           businessName: organizationName.trim(),
@@ -275,12 +312,34 @@ export default function OffWaitlistSignUpFlow() {
           phone: phoneNumber.trim(),
         });
 
+        // Create a separate demo booking record
+        const demoBookingDate = demoDate.toISOString().split("T")[0];
+        const demoBookingId = `demo_${demoBookingDate}_${demoTime}`;
+
+        await setDoc(doc(db, "demoBookings", demoBookingId), {
+          id: demoBookingId,
+          date: demoBookingDate,
+          time: demoTime,
+          userId: user.uid,
+          businessName: organizationName.trim(),
+          address: address.trim(),
+          contactName: contactName.trim(),
+          contactPhone: phoneNumber.trim(),
+          email: email.trim(),
+          status: "scheduled",
+          type: "demo",
+          blueprintId: blueprintId, // Link to the main blueprint
+          mappingDate: bookingDate, // Reference to the mapping date
+          mappingTime: scheduleTime, // Reference to the mapping time
+          createdAt: serverTimestamp(),
+        });
+
         // Update the user document to include this blueprintId in their createdBlueprintIDs array
         await updateDoc(doc(db, "users", user.uid), {
           createdBlueprintIDs: arrayUnion(blueprintId),
         });
 
-        // 🎉 SHOW SUCCESS IMMEDIATELY - Move to step 4 right away
+        // 🎉 SHOW SUCCESS IMMEDIATELY - Move to confirmation step
         setStep((prev) => prev + 1);
 
         // 🔥 FIRE MCP CALL IN BACKGROUND (don't await)
@@ -309,6 +368,9 @@ export default function OffWaitlistSignUpFlow() {
             contact_phone_number: contactPhone,
             estimated_square_footage: squareFootage,
             blueprint_id: blueprintId,
+            // NEW: Add demo scheduling info to MCP call
+            demo_schedule_date: demoDate.toISOString().split("T")[0],
+            demo_schedule_time: demoTime,
           }),
         })
           .then(async (mcpResponse) => {
@@ -324,55 +386,17 @@ export default function OffWaitlistSignUpFlow() {
               result,
             );
             // Optionally update booking status to indicate processing completed
-            
-            // 🎯 ADD LINDY WEBHOOK CALL HERE - AFTER MCP SUCCESS
-            const lindyOptions = {
-              method: "POST",
-              headers: {
-                Authorization:
-                  "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                website: cUrl || "", // PRIMARY LOOKUP FIELD for your Google Sheets
-                email: email.trim(),
-                company_name: cName,
-                contact_name: personName,
-                contact_phone: contactPhone,
-                address: cAddress,
-                chosen_date: chosenDate,
-                chosen_time: chosenTime,
-                square_footage: squareFootage,
-                blueprint_id: blueprintId,
-              }),
-            };
-
-            // Call Lindy webhook for 24-hour reminder setup
-            fetch(
-              "https://public.lindy.ai/api/v1/webhooks/lindy/4c2cf282-1443-4541-8379-972800470035",
-              lindyOptions,
-            )
-              .then((lindyResponse) => lindyResponse.json())
-              .then((lindyData) =>
-                console.log(
-                  "Lindy 24hr reminder webhook initiated:",
-                  lindyData,
-                ),
-              )
-              .catch((lindyErr) =>
-                console.error("Lindy webhook error:", lindyErr),
-              );
           })
           .catch((error) => {
             console.error("Background MCP process error:", error);
             // Optionally update booking status to indicate processing failed
           });
       } catch (error: unknown) {
-        console.error("Error updating scheduling info:", error);
+        console.error("Error completing booking setup:", error);
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
-        setErrorMessage("Error updating scheduling info: " + errorMessage);
-        return; // Stop here if there's an error
+        setErrorMessage("Error completing booking setup: " + errorMessage);
+        return;
       }
     }
   }
@@ -1526,6 +1550,192 @@ export default function OffWaitlistSignUpFlow() {
   };
 
   /**
+   * Renders the content for Step 4 of the sign-up flow: Schedule Demo Day.
+   * This includes a date picker and time slot selection for the demo presentation.
+   * @returns {JSX.Element} The Step 4 form content.
+   */
+  const Step4 = () => {
+    const [demoBookedTimes, setDemoBookedTimes] = useState<string[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // ⭐ UPDATED: Demo can only be scheduled 8-14 days after mapping
+    const minDemoDate = useCallback(() => {
+      const date = new Date(scheduleDate);
+      date.setDate(date.getDate() + 8); // Demo must be at least 8 days after mapping
+      return date;
+    }, [scheduleDate]);
+
+    const maxDemoDate = useCallback(() => {
+      const date = new Date(scheduleDate);
+      date.setDate(date.getDate() + 14); // Demo can be at most 14 days after mapping
+      return date;
+    }, [scheduleDate]);
+
+    // Helper to format 24-hr "HH:MM" into "h:MM AM/PM"
+    const formatSlot = (time: string): string => {
+      const [hh, mm] = time.split(":");
+      let hour = parseInt(hh, 10);
+      const isAM = hour < 12;
+      const ampm = isAM ? "AM" : "PM";
+      if (hour === 0) {
+        hour = 12;
+      } else if (hour > 12) {
+        hour -= 12;
+      }
+      return `${hour}:${mm} ${ampm}`;
+    };
+
+    // Fetch booked demo times when date changes
+    useEffect(() => {
+      const fetchDemoBookedTimes = async () => {
+        setIsLoading(true);
+        try {
+          const bookingDate = demoDate.toISOString().split("T")[0];
+          const { collection, query, where, getDocs } = await import(
+            "firebase/firestore"
+          );
+
+          // Get all demo bookings for the selected date
+          const demoBookingsRef = collection(db, "demoBookings");
+          const q = query(demoBookingsRef, where("date", "==", bookingDate));
+          const querySnapshot = await getDocs(q);
+
+          // Extract the booked times
+          const times: string[] = [];
+          querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            if (data && data.time) {
+              times.push(data.time as string);
+            }
+          });
+
+          setDemoBookedTimes(times);
+        } catch (error) {
+          console.error("Error fetching demo booked times:", error);
+          setErrorMessage(
+            "Could not load demo availability. Please try again.",
+          );
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      fetchDemoBookedTimes();
+    }, [demoDate]);
+
+    // Check if a demo time slot should be unavailable
+    const isDemoSlotUnavailable = useCallback(
+      (slot) => {
+        return demoBookedTimes.includes(slot);
+      },
+      [demoBookedTimes],
+    );
+
+    const generateDemoTimeSlots = useCallback(() => {
+      const slots: string[] = [];
+      // Demo slots from 9 AM to 6 PM
+      for (let hour = 9; hour < 18; hour++) {
+        slots.push(`${hour.toString().padStart(2, "0")}:00`);
+        slots.push(`${hour.toString().padStart(2, "0")}:30`);
+      }
+      slots.push("18:00");
+
+      return slots.filter((slot) => !isDemoSlotUnavailable(slot));
+    }, [isDemoSlotUnavailable]);
+
+    const demoTimeSlots = generateDemoTimeSlots();
+
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h2 className="text-2xl font-bold">Schedule Demo Day</h2>
+          <p className="text-gray-600 mt-2">
+            Choose when you'd like us to present your completed 3D blueprint and
+            AR experience. This should be at least 3 days after your mapping
+            session.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Calendar Section */}
+          <div className="bg-white rounded-lg shadow-sm border p-4">
+            <div className="mb-4 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-green-600" />
+              <Label className="font-medium">Select Demo Date</Label>
+            </div>
+            <DatePicker
+              selected={demoDate}
+              onChange={(date: Date | null) => date && setDemoDate(date)}
+              inline
+              minDate={minDemoDate()}
+              maxDate={maxDemoDate()}
+              dropdownMode="select"
+              calendarClassName="!border-0 !shadow-none scale-[1.285] origin-top-left"
+              wrapperClassName="!block w-full"
+              dayClassName={(date) =>
+                date.toDateString() === demoDate.toDateString()
+                  ? "!bg-green-600 !text-white hover:!bg-green-700"
+                  : "hover:!bg-green-50"
+              }
+            />
+          </div>
+
+          {/* Time Selection Section */}
+          <div className="bg-white rounded-lg shadow-sm border p-4">
+            <div className="mb-4">
+              <Label className="font-medium">Select Demo Time</Label>
+              <p className="text-sm text-gray-500 mt-1">
+                Available presentation slots
+              </p>
+            </div>
+
+            {isLoading ? (
+              <div className="flex justify-center py-6">
+                <div className="w-6 h-6 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : demoTimeSlots.length > 0 ? (
+              <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto pr-2">
+                {demoTimeSlots.map((slot) => (
+                  <button
+                    key={slot}
+                    onClick={() => setDemoTime(slot)}
+                    className={`p-2 text-sm rounded-md transition-colors
+                    ${
+                      demoTime === slot
+                        ? "bg-green-600 text-white"
+                        : "bg-gray-50 hover:bg-gray-100"
+                    }
+                  `}
+                  >
+                    {formatSlot(slot)}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="text-red-600 text-sm p-4 bg-red-50 rounded-md">
+                No available demo times for this date. Please pick another date.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-between mt-4">
+          <Button variant="outline" onClick={handlePrevStep}>
+            Back
+          </Button>
+          <Button
+            onClick={handleNextStep}
+            disabled={!demoTime || isLoading}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            Complete Setup
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  /**
    * Renders the confirmation screen shown after successfully completing all sign-up steps.
    * @returns {JSX.Element} The confirmation message and a button to go to the dashboard.
    */
@@ -1559,9 +1769,6 @@ export default function OffWaitlistSignUpFlow() {
     );
   }
 
-  // ------------------------------
-  // RENDER FUNCTION
-  // ------------------------------
   // ------------------------------
   // RENDER FUNCTION
   // ------------------------------
@@ -1605,9 +1812,9 @@ export default function OffWaitlistSignUpFlow() {
           </div>
         ) : (
           <div className="w-full max-w-3xl bg-white rounded-lg shadow-lg p-8 relative">
-            {/* Progress Indicator remains the same */}
+            {/* Progress Indicator */}
             <div className="flex items-center justify-center mb-8">
-              {[1, 2, 3].map((s) => (
+              {[1, 2, 3, 4].map((s) => (
                 <React.Fragment key={s}>
                   <div
                     className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold transition-colors
@@ -1621,7 +1828,7 @@ export default function OffWaitlistSignUpFlow() {
                   >
                     {s}
                   </div>
-                  {s < 3 && (
+                  {s < 4 && (
                     <div
                       className={`w-16 h-1 ${
                         step > s ? "bg-green-600" : "bg-gray-300"
@@ -1644,7 +1851,8 @@ export default function OffWaitlistSignUpFlow() {
                 {step === 1 && Step1}
                 {step === 2 && Step2}
                 {step === 3 && <Step3 />}
-                {step === 4 && <Confirmation />}
+                {step === 4 && <Step4 />}
+                {step === 5 && <Confirmation />}
               </motion.div>
             </AnimatePresence>
           </div>

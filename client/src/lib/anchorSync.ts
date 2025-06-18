@@ -65,6 +65,8 @@ export const createAnchorFromElement = async (
       mediaUrl: "",
       storagePath: "",
       mediaType: element.content.mediaType || "image",
+      width: element.content.width || undefined, // Add this
+      height: element.content.height || undefined, // Add this
     };
 
     if (mediaFile) {
@@ -155,6 +157,8 @@ export const updateAnchorInFirebase = async (
         mediaUrl: element.content.mediaUrl || "",
         mediaType: element.content.mediaType || "image",
         storagePath: element.content.storagePath || "",
+        width: element.content.width || undefined, // Add this
+        height: element.content.height || undefined, // Add this
       };
 
       if (newMediaFile) {
@@ -163,10 +167,13 @@ export const updateAnchorInFirebase = async (
           blueprintId,
           anchorId,
         );
+        // Preserve existing width and height if newMediaFile doesn't change them implicitly
         mediaData = {
           mediaUrl: uploadResult.downloadUrl,
           storagePath: uploadResult.storagePath,
           mediaType: newMediaFile.type.startsWith("video/") ? "video" : "image",
+          width: mediaData.width, // Keep existing or undefined
+          height: mediaData.height, // Keep existing or undefined
         };
       }
 

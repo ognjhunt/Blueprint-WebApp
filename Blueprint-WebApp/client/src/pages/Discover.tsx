@@ -470,8 +470,21 @@ const ImageCarousel = () => {
         <div className="relative w-full aspect-[16/10] md:aspect-[3/2]">
           <AnimatePresence mode="wait">
             <picture>
-              <source srcSet={slides[activeIndex].src.replace(/\.(png|jpe?g)$/i, '.webp')} type="image/webp" />
-              <source srcSet={slides[activeIndex].src} type={slides[activeIndex].src.endsWith('.png') ? 'image/png' : 'image/jpeg'} />
+              <source
+                srcSet={slides[activeIndex].src.replace(
+                  /\.(png|jpe?g)$/i,
+                  ".webp",
+                )}
+                type="image/webp"
+              />
+              <source
+                srcSet={slides[activeIndex].src}
+                type={
+                  slides[activeIndex].src.endsWith(".png")
+                    ? "image/png"
+                    : "image/jpeg"
+                }
+              />
               <motion.img
                 key={activeIndex}
                 src={slides[activeIndex].src}

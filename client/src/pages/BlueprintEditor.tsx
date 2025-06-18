@@ -291,6 +291,81 @@ export function getSimpleFileType(fileInfo: {
   return "document"; // ← sensible catch‑all
 }
 
+// ADD THIS NEW HELPER FUNCTION
+/**
+ * Asynchronously determines the dimensions of an image or video from its URL.
+ * @param fileInfo An object containing the media's URL and MIME type.
+ * @returns A Promise that resolves to an object with width and height.
+ */
+const getMediaDimensions = (fileInfo: {
+  url: string;
+  type?: string; // Make type optional
+  mimeType?: string; // Add mimeType as optional
+  name?: string; // Add name for fallback
+}): Promise<{ width: number; height: number }> => {
+  return new Promise((resolve) => {
+    console.log("[getMediaDimensions] Received fileInfo:", fileInfo);
+
+    // Create a normalized object to handle both `type` and `mimeType` properties
+    const typeInfo = {
+      type: fileInfo.type || fileInfo.mimeType,
+      name: fileInfo.name,
+    };
+
+    const simpleType = getSimpleFileType(typeInfo);
+    console.log(`[getMediaDimensions] Determined simpleType: ${simpleType}`);
+
+    if (simpleType === "image") {
+      const img = new Image();
+      // This is crucial for loading images from other origins like Firebase Storage
+      img.crossOrigin = "Anonymous";
+      img.onload = () => {
+        console.log(
+          `[getMediaDimensions] Image loaded successfully. Dimensions: ${img.width}x${img.height}`,
+        );
+        // Resolve with the actual dimensions
+        resolve({ width: img.width, height: img.height });
+      };
+      img.onerror = (e) => {
+        console.error("--- IMAGE LOAD ERROR ---");
+        console.error(
+          "[getMediaDimensions] Failed to load image. This is most likely a CORS issue. See Step 2 in the fix guide.",
+        );
+        console.error("Failing URL:", fileInfo.url);
+        // Fallback to the original default value on error
+        resolve({ width: 1, height: 1 });
+      };
+      img.src = fileInfo.url;
+    } else if (simpleType === "video") {
+      const video = document.createElement("video");
+      video.crossOrigin = "Anonymous";
+      // This event fires once the video's metadata (including dimensions) is loaded
+      video.onloadedmetadata = () => {
+        console.log(
+          `[getMediaDimensions] Video metadata loaded. Dimensions: ${video.videoWidth}x${video.videoHeight}`,
+        );
+        resolve({ width: video.videoWidth, height: video.videoHeight });
+      };
+      video.onerror = (e) => {
+        console.error("--- VIDEO LOAD ERROR ---");
+        console.error(
+          "[getMediaDimensions] Failed to load video metadata. Check CORS and URL.",
+          e,
+        );
+        console.error("Failing URL:", fileInfo.url);
+        resolve({ width: 1, height: 1 });
+      };
+      video.src = fileInfo.url;
+    } else {
+      console.log(
+        `[getMediaDimensions] Non-media file type (${simpleType}). Using default dimensions.`,
+      );
+      // For non-media files like PDF, use a default size
+      resolve({ width: 600, height: 800 });
+    }
+  });
+};
+
 /**
  * Main component for the Blueprint Editor
  * A complete rewrite focused on modern UI/UX and seamless integration with ThreeViewer
@@ -363,6 +438,17 @@ export default function BlueprintEditor() {
   // 3D viewer states
   const [model3DPath, setModel3DPath] = useState("");
   const [originPoint, setOriginPoint] = useState<any | null>(null);
+  // NEW: State for origin's orientation
+  const [originOrientation, setOriginOrientation] =
+    useState<THREE.Quaternion | null>(null);
+  // NEW: State to manage the two-step origin setting process
+  const [originSettingStep, setOriginSettingStep] = useState<
+    "inactive" | "picking_position" | "picking_direction"
+  >("inactive");
+  // NEW: State to hold the first point while picking the second
+  const [tempOriginPos, setTempOriginPos] = useState<THREE.Vector3 | null>(
+    null,
+  );
   const [isChoosingOrigin, setIsChoosingOrigin] = useState(false);
   const [scaleFactor, setScaleFactor] = useState(1);
   const [referencePoints2D, setReferencePoints2D] = useState<any[]>([]);
@@ -1688,6 +1774,18 @@ export default function BlueprintEditor() {
           );
         }
 
+        // NEW: Load origin orientation if available
+        if (blueprintData.originOrientation) {
+          setOriginOrientation(
+            new THREE.Quaternion(
+              blueprintData.originOrientation.x || 0,
+              blueprintData.originOrientation.y || 0,
+              blueprintData.originOrientation.z || 0,
+              blueprintData.originOrientation.w || 1,
+            ),
+          );
+        }
+
         // Set scale factor if available
         if (blueprintData.scale) {
           setScaleFactor(blueprintData.scale);
@@ -1738,6 +1836,101 @@ export default function BlueprintEditor() {
 
     fetchBlueprintData();
   }, [blueprintId]);
+
+  // ========================
+  // NEW: Origin Setting Handlers
+  // ========================
+
+  const handleStartOriginSet = () => {
+    // Start the process
+    setOriginSettingStep("picking_position");
+    toast({
+      title: "Set Origin: Step 1 of 2",
+      description: "Click on the model to set the origin's location.",
+      variant: "default",
+    });
+  };
+
+  const handleCancelOriginSet = () => {
+    setOriginSettingStep("inactive");
+    setTempOriginPos(null);
+    toast({
+      title: "Origin selection cancelled.",
+      variant: "destructive",
+      duration: 2000,
+    });
+  };
+
+  // Called from ThreeViewer when the first point is picked
+  const handleOriginPositionPicked = (point: THREE.Vector3) => {
+    setTempOriginPos(point);
+    setOriginSettingStep("picking_direction"); // Move to next step
+    toast({
+      title: "Set Origin: Step 2 of 2",
+      description:
+        "Now, click a second point to define the 'forward' direction.",
+      variant: "default",
+    });
+  };
+
+  // Called from ThreeViewer when the second point is picked
+  // In BlueprintEditor.tsx
+
+  const handleOriginDirectionPicked = async (
+    positionPoint: THREE.Vector3,
+    directionPoint: THREE.Vector3,
+  ) => {
+    // 1. Define the default "forward" direction in a THREE.js scene.
+    const defaultForward = new THREE.Vector3(0, 0, 1);
+
+    // 2. Calculate the user's desired "forward" direction vector.
+    // This is a vector pointing from the origin position to the direction point.
+    const targetDirection = new THREE.Vector3()
+      .subVectors(directionPoint, positionPoint)
+      .normalize();
+
+    // 3. Create a quaternion that represents the rotation from the default forward
+    //    vector to the user's target direction vector. This is the correct and stable
+    //    way to calculate the orientation, avoiding the pitfalls of lookAt().
+    const newOrientation = new THREE.Quaternion().setFromUnitVectors(
+      defaultForward,
+      targetDirection,
+    );
+
+    // 4. Update state and save to Firebase (this part remains the same).
+    setOriginPoint(positionPoint);
+    setOriginOrientation(newOrientation);
+
+    if (blueprintId) {
+      try {
+        await updateDoc(doc(db, "blueprints", blueprintId), {
+          origin: {
+            x: positionPoint.x,
+            y: positionPoint.y,
+            z: positionPoint.z,
+          },
+          originOrientation: {
+            x: newOrientation.x,
+            y: newOrientation.y,
+            z: newOrientation.z,
+            w: newOrientation.w,
+          },
+        });
+        toast({
+          title: "Origin Set Successfully",
+          description: "Position and orientation have been saved.",
+          variant: "default",
+        });
+      } catch (error) {
+        console.error("Error saving new origin:", error);
+        toast({ title: "Error Saving Origin", variant: "destructive" });
+      }
+    }
+
+    // 5. Clean up and exit setting mode.
+    setTempOriginPos(null);
+    setOriginSettingStep("inactive");
+  };
 
   // Enable interactions immediately for AI agents
   useEffect(() => {
@@ -3778,37 +3971,30 @@ export default function BlueprintEditor() {
     );
 
     if (!blueprintId || !currentUser || !originPoint) {
-      console.warn(
-        "[BlueprintEditor] Missing blueprintId, currentUser, or originPoint - cannot create anchor",
-      );
+      toast({
+        title: "Error Placing File",
+        description:
+          "Cannot save file anchor. Missing blueprint, user info, or origin point.",
+        variant: "destructive",
+      });
       return;
     }
 
-    // if (!blueprintId || !currentUser || !originPoint) {
-    //   // Added originPoint check
-    //   toast({
-    //     title: "Error Placing File",
-    //     description:
-    //       "Cannot save file anchor. Missing blueprint, user info, or origin point.",
-    //     variant: "destructive",
-    //   });
-    //   return;
-    // }
-
+    // --- NEW: GET MEDIA DIMENSIONS ---
+    // Await the dimensions from our new helper function
+    const { width, height } = await getMediaDimensions(fileInfo);
     console.log(
-      "[BlueprintEditor] handleFileAnchorPlaced called with:",
-      fileInfo,
-      realWorldCoords,
+      `[BlueprintEditor] Determined dimensions for ${fileInfo.name}: ${width}x${height}`,
     );
 
     // 1. Generate unique IDs
     const newAnchorId = `anchor-file-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-    const newContentId = `file-${Date.now()}`; // Use a consistent prefix
+    const newContentId = `file-${Date.now()}`;
 
     // 2. Determine file type for the anchor
     const fileTypeStr = getSimpleFileType(fileInfo);
 
-    // 3. Create the new anchor object for local state
+    // 3. Create the new anchor object for local state, NOW WITH CORRECT DIMENSIONS
     const newAnchor = {
       id: newAnchorId,
       contentType: "file",
@@ -3821,15 +4007,14 @@ export default function BlueprintEditor() {
       contentID: newContentId,
       createdDate: new Date(),
       blueprintID: blueprintId,
-      // Add default rotation/scale if needed, or get from ThreeViewer if you implement transform later
       rotationX: 0,
       rotationY: 0,
       rotationZ: 0,
       scaleX: 1,
       scaleY: 1,
       scaleZ: 1,
-      width: fileInfo.width || 1, // Default width if not provided
-      height: fileInfo.height || 1, // Default height if not provided
+      width: width, // <-- CORRECTED
+      height: height, // <-- CORRECTED
     };
 
     // 4. Update local state IMMEDIATELY
@@ -3859,8 +4044,8 @@ export default function BlueprintEditor() {
         scaleX: newAnchor.scaleX,
         scaleY: newAnchor.scaleY,
         scaleZ: newAnchor.scaleZ,
-        width: newAnchor.width,
-        height: newAnchor.height,
+        width: width, // <-- CORRECTED
+        height: height, // <-- CORRECTED
         host: currentUser.uid,
         isPrivate: false,
       });
@@ -3868,10 +4053,6 @@ export default function BlueprintEditor() {
       await updateDoc(doc(db, "blueprints", blueprintId), {
         anchorIDs: arrayUnion(newAnchorId),
       });
-      console.log(
-        "[BlueprintEditor] Creating new file anchor in Firestore for:",
-        fileInfo.name,
-      );
 
       toast({
         title: "File Placed",
@@ -3889,10 +4070,134 @@ export default function BlueprintEditor() {
         description: "Failed to save file anchor to the database.",
         variant: "destructive",
       });
-      // Optional: Rollback local state update if Firestore save fails
-      // setFileAnchors((prev) => prev.filter(anchor => anchor.id !== newAnchorId));
     }
   };
+  // const handleFileAnchorPlaced = async (
+  //   fileInfo: any,
+  //   realWorldCoords: { x: number; y: number; z: number },
+  // ) => {
+  //   console.log(
+  //     "[BlueprintEditor] handleFileAnchorPlaced triggered with:",
+  //     fileInfo,
+  //     realWorldCoords,
+  //   );
+
+  //   if (!blueprintId || !currentUser || !originPoint) {
+  //     console.warn(
+  //       "[BlueprintEditor] Missing blueprintId, currentUser, or originPoint - cannot create anchor",
+  //     );
+  //     return;
+  //   }
+
+  //   // if (!blueprintId || !currentUser || !originPoint) {
+  //   //   // Added originPoint check
+  //   //   toast({
+  //   //     title: "Error Placing File",
+  //   //     description:
+  //   //       "Cannot save file anchor. Missing blueprint, user info, or origin point.",
+  //   //     variant: "destructive",
+  //   //   });
+  //   //   return;
+  //   // }
+
+  //   console.log(
+  //     "[BlueprintEditor] handleFileAnchorPlaced called with:",
+  //     fileInfo,
+  //     realWorldCoords,
+  //   );
+
+  //   // 1. Generate unique IDs
+  //   const newAnchorId = `anchor-file-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+  //   const newContentId = `file-${Date.now()}`; // Use a consistent prefix
+
+  //   // 2. Determine file type for the anchor
+  //   const fileTypeStr = getSimpleFileType(fileInfo);
+
+  //   // 3. Create the new anchor object for local state
+  //   const newAnchor = {
+  //     id: newAnchorId,
+  //     contentType: "file",
+  //     fileType: fileTypeStr,
+  //     fileName: fileInfo.name || "File",
+  //     fileUrl: fileInfo.url,
+  //     x: realWorldCoords.x,
+  //     y: realWorldCoords.y,
+  //     z: realWorldCoords.z,
+  //     contentID: newContentId,
+  //     createdDate: new Date(),
+  //     blueprintID: blueprintId,
+  //     // Add default rotation/scale if needed, or get from ThreeViewer if you implement transform later
+  //     rotationX: 0,
+  //     rotationY: 0,
+  //     rotationZ: 0,
+  //     scaleX: 1,
+  //     scaleY: 1,
+  //     scaleZ: 1,
+  //     width: fileInfo.width || 1, // Default width if not provided
+  //     height: fileInfo.height || 1, // Default height if not provided
+  //   };
+
+  //   // 4. Update local state IMMEDIATELY
+  //   setFileAnchors((prev) => [...prev, newAnchor]);
+  //   console.log(
+  //     "[BlueprintEditor] Updated local fileAnchors state:",
+  //     newAnchor,
+  //   );
+
+  //   // 5. Save to Firestore (asynchronously)
+  //   try {
+  //     await setDoc(doc(db, "anchors", newAnchorId), {
+  //       id: newAnchorId,
+  //       createdDate: newAnchor.createdDate,
+  //       contentID: newAnchor.contentID,
+  //       contentType: "file",
+  //       fileType: newAnchor.fileType,
+  //       fileName: newAnchor.fileName,
+  //       fileUrl: newAnchor.fileUrl,
+  //       blueprintID: blueprintId,
+  //       x: newAnchor.x,
+  //       y: newAnchor.y,
+  //       z: newAnchor.z,
+  //       rotationX: newAnchor.rotationX,
+  //       rotationY: newAnchor.rotationY,
+  //       rotationZ: newAnchor.rotationZ,
+  //       scaleX: newAnchor.scaleX,
+  //       scaleY: newAnchor.scaleY,
+  //       scaleZ: newAnchor.scaleZ,
+  //       width: newAnchor.width,
+  //       height: newAnchor.height,
+  //       host: currentUser.uid,
+  //       isPrivate: false,
+  //     });
+
+  //     await updateDoc(doc(db, "blueprints", blueprintId), {
+  //       anchorIDs: arrayUnion(newAnchorId),
+  //     });
+  //     console.log(
+  //       "[BlueprintEditor] Creating new file anchor in Firestore for:",
+  //       fileInfo.name,
+  //     );
+
+  //     toast({
+  //       title: "File Placed",
+  //       description: `${newAnchor.fileName} added to your blueprint.`,
+  //       variant: "default",
+  //     });
+  //     console.log(
+  //       "[BlueprintEditor] Successfully saved file anchor to Firestore:",
+  //       newAnchorId,
+  //     );
+  //   } catch (error) {
+  //     console.error("Error saving file anchor to Firestore:", error);
+  //     toast({
+  //       title: "Save Error",
+  //       description: "Failed to save file anchor to the database.",
+  //       variant: "destructive",
+  //     });
+  //     // Optional: Rollback local state update if Firestore save fails
+  //     // setFileAnchors((prev) => prev.filter(anchor => anchor.id !== newAnchorId));
+  //   }
+  // };
 
   // ========================
   // TEXT LABEL HANDLING (NEW HANDLER)
@@ -6262,6 +6567,23 @@ export default function BlueprintEditor() {
           )}
 
           {/* Mode indicator */}
+          {originSettingStep !== "inactive" && (
+            <div className="absolute top-16 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium z-40 flex items-center gap-2 shadow-md">
+              <Compass className="h-4 w-4" />
+              {originSettingStep === "picking_position"
+                ? "Click to set origin location"
+                : "Click to set 'forward' direction"}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleCancelOriginSet}
+                className="h-6 w-6 ml-2 text-white hover:bg-white/20"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+
           {(isChoosingOrigin ||
             qrPlacementMode ||
             showTextBoxInputRef.current ||
@@ -6360,6 +6682,7 @@ export default function BlueprintEditor() {
               modelPath={model3DPath}
               ref={threeViewerRef}
               originPoint={originPoint}
+              originOrientation={originOrientation}
               qrCodeAnchors={qrCodeAnchors}
               textAnchors={textAnchors}
               fileAnchors={fileAnchors}
@@ -6371,6 +6694,13 @@ export default function BlueprintEditor() {
               showFileAnchors={showFileAnchors}
               showWebpageAnchors={showWebpageAnchors}
               showModelAnchors={showModelAnchors}
+              // NEW Props for the two-step process
+              originSettingStep={originSettingStep}
+              tempOriginPos={tempOriginPos}
+              onOriginPositionPicked={handleOriginPositionPicked}
+              onOriginDirectionPicked={handleOriginDirectionPicked}
+              isChoosingOrigin={false} // This is now controlled by originSettingStep
+              setIsChoosingOrigin={() => {}}
               onOriginSet={(point) => {
                 setOriginPoint(point);
                 setIsChoosingOrigin(false);
@@ -6547,15 +6877,23 @@ export default function BlueprintEditor() {
               {/* Separator */}
               <Separator orientation="vertical" className="h-8" />
 
-              {/* Origin Point */}
+              {/* Origin Point Button */}
               <Button
-                variant={isChoosingOrigin ? "secondary" : "ghost"}
+                variant={
+                  originSettingStep !== "inactive" ? "secondary" : "ghost"
+                }
                 size="sm"
-                onClick={() => setIsChoosingOrigin(!isChoosingOrigin)}
+                onClick={
+                  originSettingStep !== "inactive"
+                    ? handleCancelOriginSet
+                    : handleStartOriginSet
+                }
                 className="h-8 p-0"
               >
-                <Target className="h-4 w-4 mr-1.5" />
-                Choose Origin
+                <Compass className="h-4 w-4 mr-1.5" />
+                {originSettingStep !== "inactive"
+                  ? "Cancel Origin"
+                  : "Set Origin"}
               </Button>
 
               {/* Separator */}
@@ -7036,6 +7374,7 @@ export default function BlueprintEditor() {
                       ref={threeViewerRef}
                       originPoint={originPoint}
                       activeLabel={activeLabel}
+                      originOrientation={originOrientation}
                       awaiting3D={awaiting3D}
                       setReferencePoints3D={setReferencePoints3D}
                       isMarkingArea={isMarkingArea}
@@ -7047,6 +7386,13 @@ export default function BlueprintEditor() {
                       selectedArea={selectedArea}
                       placementMode={null}
                       webpageAnchors={[]}
+                      // NEW Props for the two-step process
+                      originSettingStep={originSettingStep}
+                      tempOriginPos={tempOriginPos}
+                      onOriginPositionPicked={handleOriginPositionPicked}
+                      onOriginDirectionPicked={handleOriginDirectionPicked}
+                      isChoosingOrigin={false} // This is now controlled by originSettingStep
+                      setIsChoosingOrigin={() => {}}
                       textAnchors={[]}
                       modelAnchors={[]}
                     />

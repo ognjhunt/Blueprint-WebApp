@@ -123,8 +123,8 @@ export default function PilotProgram() {
   const timeline = [
     {
       icon: <MapPin className="w-6 h-6" />,
-      title: "Day 0",
-      subtitle: "3D Space Mapping",
+      title: "Week 1",
+      subtitle: "Mapping Session",
       description:
         "We scan your venue in 30-60 minutes using advanced LiDAR technology to create a precise digital twin.",
       color: "from-blue-500 to-indigo-500",
@@ -137,32 +137,23 @@ export default function PilotProgram() {
     },
     {
       icon: <Sparkles className="w-6 h-6" />,
-      title: "Days 1-10",
-      subtitle: "AI-Powered Creation",
+      title: "Week 1",
+      subtitle: "Finalize Design",
       description:
-        "Our AI generates custom AR experiences tailored to your brand, products, and customer journey.",
+        "Our AI generates custom AR experiences, and we work with you to finalize the design and smart triggers.",
       color: "from-indigo-500 to-violet-500",
       benefit: "Fully customized for your business",
       details: [
         "AI-generated content",
         "Brand-aligned design",
         "Interactive elements",
+        "Final adjustments",
       ],
     },
     {
-      icon: <Palette className="w-6 h-6" />,
-      title: "Days 11-13",
-      subtitle: "Fine-Tuning",
-      description:
-        "We perfect every detail, place smart triggers, and prepare for your team's demo experience.",
-      color: "from-violet-500 to-purple-500",
-      benefit: "Polished to perfection",
-      details: ["QR code placement", "Final adjustments", "Team briefing prep"],
-    },
-    {
       icon: <PlayCircle className="w-6 h-6" />,
-      title: "Day 14",
-      subtitle: "Live Demo Day",
+      title: "Week 2",
+      subtitle: "Demo Day",
       description:
         "Experience your space transformed with AR using cutting-edge devices. See the magic firsthand!",
       color: "from-purple-500 to-pink-500",
@@ -202,7 +193,7 @@ export default function PilotProgram() {
     {
       icon: <Shield className="w-6 h-6" />,
       title: "Zero Risk",
-      description: "14-day pilot with absolutely no cost or obligation",
+      description: "2 week program with absolutely no cost or obligation",
       highlight: "100% FREE",
     },
     {
@@ -256,7 +247,7 @@ export default function PilotProgram() {
     },
     {
       q: "What does the pilot program cost?",
-      a: "Nothing. Zero. Nada. The entire 14-day pilot is completely free with no hidden fees, no credit card required, and no obligation to continue. This includes the space mapping, AI-generated AR content, hardware demos, and analytics. We're investing in showing you the future because we believe seeing is believing.",
+      a: "Nothing. Zero. Nada. The entire 2 week program is completely free with no hidden fees, no credit card required, and no obligation to continue. This includes the space mapping, AI-generated AR content, hardware demos, and analytics. We're investing in showing you the future because we believe seeing is believing.",
     },
     {
       q: "How long does the space mapping take?",
@@ -268,15 +259,15 @@ export default function PilotProgram() {
     },
     {
       q: "What do you need from us?",
-      a: "Just three things: 1) Access to your space for the initial mapping (30-60 min), 2) Basic information about your business, products, or exhibits, and 3) Your feedback during the coarse of the program. We handle everything else - the technology, content creation, and implementation.",
+      a: "Just three things: 1) Access to your space for the initial mapping (30-60 min), 2) Basic information about your business, products, or exhibits, and 3) Your feedback during the course of the program. We handle everything else - the technology, content creation, and implementation.",
     },
     {
       q: "What kinds of AR experiences can you create?",
       a: "The possibilities are endless! For retail: virtual try-ons, product demos, and interactive catalogs. For museums: digital guides, historical recreations, and interactive exhibits. For restaurants: 3D menu visualizations and tableside ordering. For real estate: virtual staging and property tours. Each experience is custom-built for your specific needs.",
     },
     {
-      q: "What happens after the 14-day pilot?",
-      a: "We'll send out a survey to all participants of the Demo Day asking about the whole Pilot Experience. Any feedback from this survey helps us improve Blueprint!",
+      q: "What happens after the 2 week program?",
+      a: "We'll send out a survey to all participants of the Demo Day asking about the whole Pilot Program experience. Any feedback from this survey helps us improve Blueprint!",
     },
     {
       q: "How do customers access the AR experience?",
@@ -294,17 +285,17 @@ export default function PilotProgram() {
         {/* Animated background */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute inset-0 opacity-5" />
-          <div
-            className="absolute top-20 -right-20 w-96 h-96 bg-indigo-100/30 rounded-full blur-3xl animated-bg-circle-1"
-          />
-          <div
-            className="absolute -bottom-20 -left-20 w-96 h-96 bg-violet-100/30 rounded-full blur-3xl animated-bg-circle-2"
-          />
+          <div className="absolute top-20 -right-20 w-96 h-96 bg-indigo-100/30 rounded-full blur-3xl animated-bg-circle-1" />
+          <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-violet-100/30 rounded-full blur-3xl animated-bg-circle-2" />
         </div>
 
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl relative z-10">
           <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-16">
-            <FadeIn yOffset={20} delay={0.1} className="flex-1 text-center lg:text-left">
+            <FadeIn
+              yOffset={20}
+              delay={0.1}
+              className="flex-1 text-center lg:text-left"
+            >
               {/* What Blueprint is - Crystal Clear */}
               <Badge className="inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 border-indigo-200 mb-6 px-4 py-2">
                 <Rocket className="w-4 h-4" />
@@ -354,7 +345,7 @@ export default function PilotProgram() {
                   className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white px-6 sm:px-8 py-6 text-base sm:text-lg font-bold shadow-xl hover:shadow-2xl transition-all"
                   onClick={showPilotToast}
                 >
-                  Start Your Free 14-Day Pilot
+                  Start Your Free 2 Week Program
                   <ArrowRight className="ml-2 w-5 h-5" />
                 </Button>
                 <Button
@@ -395,7 +386,12 @@ export default function PilotProgram() {
             </FadeIn>
 
             {/* Video Demo */}
-            <FadeIn yOffset={20} delay={0.2} className="flex-1 w-full max-w-2xl lg:max-w-none" id="demo-video">
+            <FadeIn
+              yOffset={20}
+              delay={0.2}
+              className="flex-1 w-full max-w-2xl lg:max-w-none"
+              id="demo-video"
+            >
               <div className="relative rounded-2xl overflow-hidden shadow-2xl">
                 <div className="absolute inset-0 bg-gradient-to-tr from-indigo-100/20 to-violet-100/20 z-10 pointer-events-none" />
                 <video
@@ -428,7 +424,12 @@ export default function PilotProgram() {
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {idealFor.map((item, idx) => (
-              <FadeIn key={idx} yOffset={20} delay={idx * 0.1} className="group">
+              <FadeIn
+                key={idx}
+                yOffset={20}
+                delay={idx * 0.1}
+                className="group"
+              >
                 <Card className="h-full bg-white/80 border-slate-200 hover:bg-white hover:border-indigo-300 hover:shadow-xl transition-all duration-300">
                   <CardContent className="p-4 md:p-6 text-center">
                     <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -461,7 +462,7 @@ export default function PilotProgram() {
             },
             {
               label: "Time to Launch",
-              value: "14 days",
+              value: "2 weeks",
               icon: <Clock className="w-6 h-6" />,
               description: "From scan to live experience",
               gradient: "from-blue-500 to-cyan-500",
@@ -509,28 +510,29 @@ export default function PilotProgram() {
         </div>
       </section>
 
-      {/* TIMELINE - Enhanced */}
+      {/* TIMELINE - Enhanced with Better Spacing */}
       <section className="py-16 md:py-24 bg-gradient-to-b from-slate-50 to-indigo-50/30">
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
-          <FadeIn yOffset={20} delay={0.1} className="text-center mb-16">
-            <Badge className="inline-flex items-center gap-2 bg-violet-100 text-violet-700 border-violet-200 mb-4 px-4 py-2">
+          <FadeIn yOffset={20} delay={0.1} className="text-center mb-20">
+            <Badge className="inline-flex items-center gap-2 bg-violet-100 text-violet-700 border-violet-200 mb-6 px-4 py-2">
               <CalendarCheck className="w-4 h-4" />
-              Simple 14-Day Process
+              Simple 2 Week Process
             </Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-slate-900">
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 text-slate-900">
               From First Scan to Live AR in Two Weeks
             </h2>
-            <p className="text-lg text-slate-600 max-w-3xl mx-auto">
+            <p className="text-lg md:text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed">
               Our streamlined process gets your AR experience up and running
               fast, with zero technical work on your end
             </p>
           </FadeIn>
 
-          <div className="relative">
-            {/* Desktop Timeline Line */}
-            <div className="hidden lg:block absolute top-24 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-violet-400 to-pink-400 rounded-full" />
+          <div className="relative max-w-6xl mx-auto">
+            {/* Desktop Timeline Line - Better positioned */}
+            <div className="hidden lg:block absolute top-[88px] left-[16.67%] right-[16.67%] h-[3px] bg-gradient-to-r from-blue-400 via-violet-400 to-pink-400 rounded-full shadow-sm" />
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 relative">
+            {/* Timeline Container with proper 3-column layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12 relative">
               {timeline.map((step, idx) => (
                 <FadeIn
                   key={idx}
@@ -538,67 +540,73 @@ export default function PilotProgram() {
                   delay={idx * 0.15}
                   className="relative"
                 >
-                  <div className="lg:absolute lg:-top-3 lg:left-1/2 lg:-translate-x-1/2 mb-6 lg:mb-0">
-                    <div
-                      className={`w-12 h-12 rounded-full bg-gradient-to-br ${step.color} flex items-center justify-center shadow-lg relative z-10 mx-auto lg:mx-0 text-white`}
-                    >
-                      {step.icon}
+                  {/* Timeline Icon - Better positioned */}
+                  <div className="flex justify-center mb-8 lg:mb-0">
+                    <div className="lg:absolute lg:-top-[10px] lg:z-20">
+                      <div
+                        className={`w-16 h-16 lg:w-14 lg:h-14 rounded-full bg-gradient-to-br ${step.color} flex items-center justify-center shadow-xl relative text-white border-4 border-white`}
+                      >
+                        {React.cloneElement(step.icon, {
+                          className: "w-7 h-7 lg:w-6 lg:h-6",
+                        })}
+                      </div>
                     </div>
                   </div>
 
-                  <Card className="h-full bg-white/90 border-slate-200 hover:shadow-2xl transition-all lg:mt-20">
-                    <CardContent className="p-4 md:p-6">
-                      <div className="text-center mb-3 md:mb-4">
-                        <h3 className="text-lg md:text-2xl font-bold mb-1 text-slate-900">
+                  {/* Timeline Card - Improved design */}
+                  <Card className="h-full bg-white border-slate-200 hover:shadow-2xl hover:border-indigo-300 transition-all duration-300 lg:mt-20 lg:pt-8">
+                    <CardContent className="p-6 lg:p-8">
+                      {/* Header Section */}
+                      <div className="text-center mb-6">
+                        <h3 className="text-xl lg:text-2xl font-bold mb-2 text-slate-900">
                           {step.title}
                         </h3>
-                        <p className="text-indigo-600 font-semibold text-sm md:text-base">
+                        <p className="text-indigo-600 font-semibold text-base lg:text-lg">
                           {step.subtitle}
                         </p>
                       </div>
 
-                      <p className="text-slate-600 mb-3 md:mb-4 text-center text-sm md:text-base">
-                        <span className="md:hidden">
-                          {step.description.split(".")[0]}.
-                        </span>
-                        <span className="hidden md:block">
-                          {step.description}
-                        </span>
+                      {/* Description */}
+                      <p className="text-slate-600 mb-6 text-center text-sm lg:text-base leading-relaxed">
+                        {step.description}
                       </p>
 
-                      {/* Mobile: Show only first 2 details, Desktop: Show all */}
-                      <div className="space-y-2">
-                        {step.details.slice(0, 2).map((detail, didx) => (
+                      {/* Features List - Consistent spacing */}
+                      <div className="space-y-3 mb-6">
+                        {step.details.map((detail, didx) => (
                           <div
                             key={didx}
-                            className="flex items-center gap-2 text-xs md:text-sm"
+                            className="flex items-start gap-3 text-sm lg:text-base"
                           >
-                            <CheckCircle2 className="w-3 h-3 md:w-4 md:h-4 text-green-600 flex-shrink-0" />
-                            <span className="text-slate-700">{detail}</span>
+                            <CheckCircle2 className="w-4 h-4 lg:w-5 lg:h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                            <span className="text-slate-700 leading-relaxed">
+                              {detail}
+                            </span>
                           </div>
                         ))}
-                        {/* Show remaining details only on desktop */}
-                        <div className="hidden md:block space-y-2">
-                          {step.details.slice(2).map((detail, didx) => (
-                            <div
-                              key={didx + 2}
-                              className="flex items-center gap-2 text-sm"
-                            >
-                              <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
-                              <span className="text-slate-700">{detail}</span>
-                            </div>
-                          ))}
-                        </div>
                       </div>
 
-                      <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-slate-200">
-                        <p className="text-xs md:text-sm font-semibold text-center text-violet-600">
-                          {step.benefit}
-                        </p>
+                      {/* Benefit Badge */}
+                      <div className="pt-4 border-t border-slate-200">
+                        <div className="text-center">
+                          <Badge className="bg-violet-100 text-violet-700 border-violet-200 px-3 py-1.5 text-sm font-semibold">
+                            ✨ {step.benefit}
+                          </Badge>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
                 </FadeIn>
+              ))}
+            </div>
+
+            {/* Progress Indicators - Mobile only */}
+            <div className="flex justify-center gap-2 mt-8 lg:hidden">
+              {timeline.map((_, idx) => (
+                <div
+                  key={idx}
+                  className={`w-2 h-2 rounded-full bg-gradient-to-r ${timeline[idx].color}`}
+                />
               ))}
             </div>
           </div>

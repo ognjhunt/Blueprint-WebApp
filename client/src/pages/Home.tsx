@@ -57,7 +57,7 @@ export default function Home() {
       title: "Join Waitlist",
       description:
         "Secure your spot in our exclusive early access program. Priority onboarding for our free pilot program available.",
-      benefits: ["Priority access", "Free 14-day pilot", "Dedicated support"],
+      benefits: ["Priority access", "Free 2 week program", "Dedicated support"],
       color: "from-emerald-500 to-teal-600",
       duration: "1 minute",
     },
