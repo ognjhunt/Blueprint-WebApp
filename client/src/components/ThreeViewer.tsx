@@ -928,15 +928,15 @@ const ThreeViewer = React.memo(
       return visualObject;
     };
 
-    const applyAnchorOffset = (realWorldPos: THREE.Vector3) => {
-      return new THREE.Vector3(
-        realWorldPos.x + 1.31, // Add 1.31 to x
-        realWorldPos.y, // Keep y unchanged
-        realWorldPos.z - 38, // Subtract 38 from z
-      );
-    };
+    // const applyAnchorOffset = (realWorldPos: THREE.Vector3) => {
+    //   return new THREE.Vector3(
+    //     realWorldPos.x + 1.31, // Add 1.31 to x
+    //     realWorldPos.y, // Keep y unchanged
+    //     realWorldPos.z - 38, // Subtract 38 from z
+    //   );
+    // };
 
-    // UPDATED: This function now correctly converts coordinates TO real-world
+    // UPDATED: This function now converts coordinates TO real-world using blueprint scale
     const convertToRealWorldCoords = (modelPosition: THREE.Vector3) => {
       if (!originNodeRef.current) {
         console.warn(
@@ -945,31 +945,27 @@ const ThreeViewer = React.memo(
         return modelPosition.clone().multiplyScalar(SCALE_FACTOR);
       }
 
-      // Get position relative to origin (this matches handleClick logic)
+      // Get position relative to origin
       const relativePos = modelPosition
         .clone()
         .sub(originNodeRef.current.position);
 
-      // Apply coordinate system correction based on yRotation (SAME as handleClick)
+      // Apply coordinate system correction based on yRotation
       let correctedPos = relativePos.clone();
       const rotationDegrees = yRotation || 0;
 
       if (rotationDegrees === 90 || rotationDegrees === -270) {
-        // Z -> X, X -> -Z (SAME as handleClick)
         correctedPos.set(-relativePos.z, relativePos.y, relativePos.x);
       } else if (rotationDegrees === -90 || rotationDegrees === 270) {
-        // Z -> -X, X -> Z (SAME as handleClick)
         correctedPos.set(relativePos.z, relativePos.y, -relativePos.x);
       } else if (rotationDegrees === 180 || rotationDegrees === -180) {
-        // Z -> -Z, X -> -X (SAME as handleClick)
         correctedPos.set(-relativePos.x, relativePos.y, -relativePos.z);
       }
-      // If rotationDegrees === 0, use relativePos as-is (no correction)
 
       return correctedPos.multiplyScalar(SCALE_FACTOR);
     };
 
-    // NEW: Create the exact inverse function for loading anchors
+    // UPDATED: This function converts FROM real-world coordinates using blueprint scale
     const convertFromRealWorldCoords = (realWorldPos: THREE.Vector3) => {
       if (!originNodeRef.current) {
         console.warn(
@@ -986,33 +982,26 @@ const ThreeViewer = React.memo(
       let correctedOffset = modelSpaceOffset.clone();
 
       if (rotationDegrees === 90 || rotationDegrees === -270) {
-        // INVERSE of: Z -> X, X -> -Z
-        // So: X -> Z, Z -> -X
         correctedOffset.set(
           modelSpaceOffset.z,
           modelSpaceOffset.y,
           -modelSpaceOffset.x,
         );
       } else if (rotationDegrees === -90 || rotationDegrees === 270) {
-        // INVERSE of: Z -> -X, X -> Z
-        // So: X -> -Z, Z -> X
         correctedOffset.set(
           -modelSpaceOffset.z,
           modelSpaceOffset.y,
           modelSpaceOffset.x,
         );
       } else if (rotationDegrees === 180 || rotationDegrees === -180) {
-        // INVERSE of: Z -> -Z, X -> -X
-        // So: X -> -X, Z -> -Z (same operation)
         correctedOffset.set(
           -modelSpaceOffset.x,
           modelSpaceOffset.y,
           -modelSpaceOffset.z,
         );
       }
-      // If rotationDegrees === 0, use modelSpaceOffset as-is (no correction)
 
-      // Add the offset to the origin position to get world position
+      // Add the offset to the origin position to get final model position
       return correctedOffset.add(originNodeRef.current.position);
     };
 
@@ -1232,40 +1221,33 @@ const ThreeViewer = React.memo(
     }, [originPoint, adjustAnchorsForOriginChange]);
 
     useEffect(() => {
-      if (!sceneRef.current) return;
-      if (!originNodeRef.current) {
-        // Create the origin node if it doesn't exist and add it to the scene
-        originNodeRef.current = new THREE.Object3D();
-        originNodeRef.current.name = "OriginNode";
-        sceneRef.current.add(originNodeRef.current);
+      console.log("🔄 Origin update effect triggered", {
+        hasScene: !!sceneRef.current,
+        hasOriginNode: !!originNodeRef.current,
+        originPoint: originPoint ? originPoint.toArray() : null,
+      });
+
+      // Only update if both scene and origin node exist
+      if (!sceneRef.current || !originNodeRef.current) {
+        console.log("⏳ Waiting for scene and origin node to be ready");
+        return;
       }
 
-      // Update position
+      // Update the origin position
       if (originPoint) {
         originNodeRef.current.position.copy(originPoint);
-      } else {
-        originNodeRef.current.position.set(0, 0, 0); // Default to scene origin if null
-      }
-
-      // Apply per-location yRotation if provided
-      if (yRotation !== null && yRotation !== undefined) {
-        const yRotationRadians = THREE.MathUtils.degToRad(yRotation);
-        const yQuaternion = new THREE.Quaternion().setFromAxisAngle(
-          new THREE.Vector3(0, 1, 0),
-          yRotationRadians,
+        console.log(
+          "✅ Updated origin node position to:",
+          originNodeRef.current.position.toArray(),
         );
-        originNodeRef.current.quaternion.copy(yQuaternion);
       } else {
-        originNodeRef.current.quaternion.set(0, 0, 0, 1); // Default to no rotation
+        originNodeRef.current.position.set(0, 0, 0);
+        console.log("✅ Reset origin node position to (0,0,0)");
       }
-
-      originNodeRef.current.updateMatrixWorld();
 
       // Update the visual marker
-      if (sceneRef.current && originNodeRef.current) {
-        updateOriginMarker(sceneRef.current, originNodeRef.current);
-      }
-    }, [originPoint, yRotation]); // CHANGED: removed originOrientation, added yRotation
+      updateOriginMarker(sceneRef.current, originNodeRef.current);
+    }, [originPoint, yRotation]); // Keep dependencies the same
 
     // UPDATED: This function now creates a full gizmo (sphere + axes)
     // and attaches it to the main origin node.
@@ -1445,10 +1427,7 @@ const ThreeViewer = React.memo(
           Number(anchor.z || 0),
         );
 
-        // ADD THIS LINE:
-        const offsetRealWorldPos = applyAnchorOffset(realWorldPos);
-
-        const worldPosition = convertFromRealWorldCoords(offsetRealWorldPos);
+        const worldPosition = convertFromRealWorldCoords(realWorldPos);
 
         console.log(
           `[ThreeViewer qrCodeAnchors] Calculated worldPosition for ${anchor.id}:`,
@@ -1742,10 +1721,7 @@ const ThreeViewer = React.memo(
           Number(anchor.z || 0),
         );
 
-        // UPDATED: Use consistent coordinate conversion
-        const offsetRealWorldPos = applyAnchorOffset(realWorldPos);
-
-        const worldPosition = convertFromRealWorldCoords(offsetRealWorldPos);
+        const worldPosition = convertFromRealWorldCoords(realWorldPos);
 
         console.log(
           `[ThreeViewer fileAnchors] Calculated worldPosition for ${anchor.id}:`,
@@ -2786,9 +2762,7 @@ const ThreeViewer = React.memo(
           Number(anchor.z || 0),
         );
 
-        const offsetRealWorldPos = applyAnchorOffset(realWorldPos);
-
-        const worldPosition = convertFromRealWorldCoords(offsetRealWorldPos);
+        const worldPosition = convertFromRealWorldCoords(realWorldPos);
 
         console.log("Adding model for anchor", anchor.id, "at", worldPosition);
 
@@ -3358,11 +3332,23 @@ const ThreeViewer = React.memo(
           Number(anchor.z || 0),
         );
 
-        // UPDATED: Use consistent coordinate conversion
-        const offsetRealWorldPos = applyAnchorOffset(realWorldAnchorPos);
+        console.log(`🏷️ [Text Anchor ${anchor.id}] Debug:`);
+        console.log("  Firebase coordinates:", realWorldAnchorPos.toArray());
+        console.log(
+          "  Current originNodeRef.current.position:",
+          originNodeRef.current?.position.toArray(),
+        );
+        console.log("  Current SCALE_FACTOR:", SCALE_FACTOR);
 
-        // UPDATED: Use consistent coordinate conversion
-        const worldPosition = convertFromRealWorldCoords(offsetRealWorldPos);
+        const worldPosition = convertFromRealWorldCoords(realWorldAnchorPos);
+
+        console.log("  Final worldPosition:", worldPosition.toArray());
+        console.log(
+          "  Distance from origin:",
+          worldPosition.distanceTo(
+            originNodeRef.current?.position || new THREE.Vector3(),
+          ),
+        );
 
         // --- CREATE A CSS3DObject FOR THE LABEL ---
         const labelDiv = document.createElement("div");
@@ -3944,14 +3930,7 @@ const ThreeViewer = React.memo(
           Number(anchor.z || 0),
         );
 
-        const offsetRealWorldPos = applyAnchorOffset(realWorldPos);
-
-        // REPLACE all the manual conversion code with this single line:
-        const worldPosition = convertFromRealWorldCoords(offsetRealWorldPos);
-        // console.log(
-        //   `[ThreeViewer webpageAnchors Effect] Calculated finalWorldPosition for ${anchor.id}:`,
-        //   finalWorldPosition.toArray(),
-        // );
+        const worldPosition = convertFromRealWorldCoords(realWorldPos);
 
         const webpageObject = await loadAndAddWebpage(
           // This function adds to scene
@@ -4175,6 +4154,24 @@ const ThreeViewer = React.memo(
 
       const scene = new THREE.Scene();
       sceneRef.current = scene;
+
+      // 🔥 ADD THE ORIGIN NODE CREATION RIGHT HERE:
+      const originNode = new THREE.Object3D();
+      originNode.name = "OriginNode";
+      // 🚨 CRITICAL FIX: Set the position immediately if originPoint exists
+      if (originPoint) {
+        originNode.position.copy(originPoint);
+        console.log(
+          "🎯 Origin node positioned at:",
+          originNode.position.toArray(),
+        );
+      } else {
+        originNode.position.set(0, 0, 0);
+        console.log("🎯 Origin node positioned at default (0,0,0)");
+      }
+
+      scene.add(originNode);
+      originNodeRef.current = originNode;
 
       {
         // Create an improved drag indicator system
