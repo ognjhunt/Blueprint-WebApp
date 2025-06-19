@@ -421,7 +421,7 @@ export default function BlueprintEditor() {
 
   // Onboarding pre-filled data - ADD THIS
   const [prefillData, setPrefillData] = useState<any | null>(null);
-
+  const [locationData, setLocationData] = useState<any | null>(null);
   // Core view states
   const [viewMode, setViewMode] = useState("3D");
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -431,6 +431,7 @@ export default function BlueprintEditor() {
   const [blueprintTitle, setBlueprintTitle] = useState("");
   const [blueprintStatus, setBlueprintStatus] = useState("pending");
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [isXZSwapped, setIsXZSwapped] = useState<boolean>(false);
   const [, setLocation] = useLocation();
   const navigateToDashboard = () => {
     setLocation("/dashboard");
@@ -440,6 +441,8 @@ export default function BlueprintEditor() {
   const [originPoint, setOriginPoint] = useState<any | null>(null);
   // NEW: State for origin's orientation
   const [originOrientation, setOriginOrientation] =
+    useState<THREE.Quaternion | null>(null);
+  const [displayOriginOrientation, setDisplayOriginOrientation] =
     useState<THREE.Quaternion | null>(null);
   // NEW: State to manage the two-step origin setting process
   const [originSettingStep, setOriginSettingStep] = useState<
@@ -1693,6 +1696,8 @@ export default function BlueprintEditor() {
 
         const blueprintData = blueprintSnap.data();
 
+        setLocationData(blueprintData); 
+
         // Set blueprint title
         setBlueprintTitle(
           blueprintData.name ||
@@ -1943,6 +1948,21 @@ export default function BlueprintEditor() {
 
     enableEarlyInteraction();
   }, []);
+
+  useEffect(() => {
+    const baseOrientation = originOrientation
+      ? originOrientation.clone()
+      : new THREE.Quaternion();
+    if (isXZSwapped) {
+      const rotationQuaternion = new THREE.Quaternion().setFromAxisAngle(
+        new THREE.Vector3(0, 1, 0),
+        Math.PI / 2,
+      );
+      setDisplayOriginOrientation(baseOrientation.multiply(rotationQuaternion));
+    } else {
+      setDisplayOriginOrientation(baseOrientation);
+    }
+  }, [originOrientation, isXZSwapped]);
 
   // ========================
   // INITIALIZATION & DATA LOADING
@@ -6682,7 +6702,8 @@ export default function BlueprintEditor() {
               modelPath={model3DPath}
               ref={threeViewerRef}
               originPoint={originPoint}
-              originOrientation={originOrientation}
+              yRotation={locationData?.yRotation || 0}
+              originOrientation={displayOriginOrientation}
               qrCodeAnchors={qrCodeAnchors}
               textAnchors={textAnchors}
               fileAnchors={fileAnchors}
@@ -6933,6 +6954,21 @@ export default function BlueprintEditor() {
               >
                 <QrCode className="h-4 w-4 mr-1.5" />
                 {qrPlacementMode ? "Cancel QR" : "Place QR"}
+              </Button>
+
+              {/* Separator */}
+              <Separator orientation="vertical" className="h-8" />
+
+              {/* Swap X/Z Button */}
+              <Button
+                variant={isXZSwapped ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setIsXZSwapped(!isXZSwapped)}
+                className="h-8 px-2"
+                title={isXZSwapped ? "Revert X/Z Axes" : "Swap X/Z Axes"}
+              >
+                <RotateCcw className="h-4 w-4 mr-1.5" />
+                {isXZSwapped ? "Revert X/Z" : "Swap X/Z"}
               </Button>
             </div>
           </div>
@@ -7374,7 +7410,8 @@ export default function BlueprintEditor() {
                       ref={threeViewerRef}
                       originPoint={originPoint}
                       activeLabel={activeLabel}
-                      originOrientation={originOrientation}
+                      yRotation={locationData?.yRotation || 0}
+                      originOrientation={displayOriginOrientation}
                       awaiting3D={awaiting3D}
                       setReferencePoints3D={setReferencePoints3D}
                       isMarkingArea={isMarkingArea}
