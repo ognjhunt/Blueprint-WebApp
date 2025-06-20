@@ -1801,7 +1801,7 @@ const ThreeViewer = React.memo(
                   `[ThreeViewer fileAnchors Image] Using dimensions from loaded image for ${anchor.id}: ${img.width}x${img.height}, Aspect: ${aspect}`,
                 );
               }
-              const planeWidth = 0.15; // Or some other default visual size
+              const planeWidth = 0.075; // Or some other default visual size
               const planeHeight = planeWidth / aspect;
               const canvas = document.createElement("canvas");
               canvas.width = img.width;
@@ -2005,7 +2005,8 @@ const ThreeViewer = React.memo(
 
           // 4.  turn the wrapper into a CSS3DObject
           const cssObj = new CSS3DObject(wrapper);
-          cssObj.scale.set(0.0015, 0.0015, 0.0015); // same size as textAnchor
+          // cssObj.scale.set(0.0015, 0.0015, 0.0015);
+          cssObj.scale.set(0.001, 0.001, 0.001); // same size as textAnchor
           cssObj.position.copy(worldPosition); // Use worldPosition
           cssObj.userData.anchorId = anchor.id;
           cssObj.userData.type = "file-audio";
@@ -2075,7 +2076,7 @@ const ThreeViewer = React.memo(
                   `[ThreeViewer fileAnchors Video] Using dimensions from loaded video for ${anchor.id}: ${video.videoWidth}x${video.videoHeight}, Aspect: ${aspect}`,
                 );
               }
-              const planeWidth = 0.25; // Or some other default visual size
+              const planeWidth = 0.125; // Or some other default visual size
               const planeHeight = planeWidth / aspect;
 
               const videoTexture = new THREE.VideoTexture(video);
@@ -2368,7 +2369,8 @@ const ThreeViewer = React.memo(
 
           const cssAnchorObject = new CSS3DObject(backgroundDiv);
           cssAnchorObject.position.copy(worldPosition); // Use worldPosition
-          cssAnchorObject.scale.set(0.0015, 0.0015, 0.0015); // Adjust scale if needed
+          // cssAnchorObject.scale.set(0.0015, 0.0015, 0.0015); // Adjust scale if needed
+          cssAnchorObject.scale.set(0.00075, 0.00075, 0.00075);
           cssAnchorObject.userData.anchorId = anchor.id;
           cssAnchorObject.userData.type = "file-pdf-css-anchor"; // New distinct type
           cssAnchorObject.userData.isCSS3DObject = true; // Explicitly mark
@@ -2473,7 +2475,8 @@ const ThreeViewer = React.memo(
 
           const cssAnchorObject = new CSS3DObject(backgroundDiv);
           cssAnchorObject.position.copy(worldPosition); // Use worldPosition
-          cssAnchorObject.scale.set(0.0015, 0.0015, 0.0015);
+          // cssAnchorObject.scale.set(0.0015, 0.0015, 0.0015);
+          cssAnchorObject.scale.set(0.00075, 0.00075, 0.00075);
           cssAnchorObject.userData.anchorId = anchor.id;
           cssAnchorObject.userData.type = "file-docx-css-anchor";
           cssAnchorObject.userData.isCSS3DObject = true;
@@ -2573,7 +2576,8 @@ const ThreeViewer = React.memo(
 
           const cssAnchorObject = new CSS3DObject(backgroundDiv);
           cssAnchorObject.position.copy(worldPosition); // Use worldPosition
-          cssAnchorObject.scale.set(0.0015, 0.0015, 0.0015);
+          // cssAnchorObject.scale.set(0.0015, 0.0015, 0.0015);
+          cssAnchorObject.scale.set(0.00075, 0.00075, 0.00075);
           cssAnchorObject.userData.anchorId = anchor.id;
           cssAnchorObject.userData.type = "file-pptx-css-anchor";
           cssAnchorObject.userData.isCSS3DObject = true;
@@ -3355,13 +3359,13 @@ const ThreeViewer = React.memo(
         labelDiv.textContent = anchor.textContent;
         labelDiv.style.pointerEvents = "auto"; // keep pointer events ON
 
-        labelDiv.style.padding = "10px 12px";
-        labelDiv.style.fontSize = "14px";
+        labelDiv.style.padding = "8px 10px";
+        labelDiv.style.fontSize = "10px";
         labelDiv.style.color = "#ffffff";
         labelDiv.style.backgroundColor = "rgba(120, 120, 130, 0.82)";
         labelDiv.style.borderRadius = "12px";
         labelDiv.style.whiteSpace = "normal";
-        labelDiv.style.maxWidth = "220px";
+        labelDiv.style.maxWidth = "140px";
         labelDiv.style.wordWrap = "break-word";
         labelDiv.style.overflowWrap = "break-word";
         labelDiv.style.textAlign = "left";
@@ -3374,7 +3378,8 @@ const ThreeViewer = React.memo(
         labelDiv.style.letterSpacing = "0.2px";
 
         const labelObject = new CSS3DObject(labelDiv); // Define labelObject here
-        labelObject.scale.set(0.0015, 0.0015, 0.0015);
+        //labelObject.scale.set(0.0015, 0.0015, 0.0015);
+        labelObject.scale.set(0.00075, 0.00075, 0.00075);
         labelObject.position.copy(worldPosition); // Use calculated worldPosition
         labelObject.userData.anchorId = anchor.id;
         labelObject.userData.isTextLabel = true;
@@ -3682,8 +3687,8 @@ const ThreeViewer = React.memo(
 
       // Create a container for the webpage with a better appearance
       const container = document.createElement("div");
-      container.style.width = "800px";
-      container.style.height = "600px";
+      container.style.width = "400px";
+      container.style.height = "300px";
       container.style.overflow = "hidden";
       container.style.borderRadius = "8px";
       container.style.boxShadow = "0 10px 30px rgba(0,0,0,0.3)";
