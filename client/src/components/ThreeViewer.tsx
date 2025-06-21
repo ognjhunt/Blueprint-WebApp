@@ -3359,13 +3359,13 @@ const ThreeViewer = React.memo(
         labelDiv.textContent = anchor.textContent;
         labelDiv.style.pointerEvents = "auto"; // keep pointer events ON
 
-        labelDiv.style.padding = "8px 10px";
-        labelDiv.style.fontSize = "10px";
+        labelDiv.style.padding = "10px 12px";
+        labelDiv.style.fontSize = "11px";
         labelDiv.style.color = "#ffffff";
         labelDiv.style.backgroundColor = "rgba(120, 120, 130, 0.82)";
         labelDiv.style.borderRadius = "12px";
         labelDiv.style.whiteSpace = "normal";
-        labelDiv.style.maxWidth = "140px";
+        labelDiv.style.maxWidth = "160px";
         labelDiv.style.wordWrap = "break-word";
         labelDiv.style.overflowWrap = "break-word";
         labelDiv.style.textAlign = "left";
@@ -4403,7 +4403,8 @@ const ThreeViewer = React.memo(
 
       const fullModelPath =
         //  "https://f005.backblazeb2.com/file/objectModels-dev/4_27_2025.glb";
-        "https://f005.backblazeb2.com/file/objectModels-dev/home.glb";
+        //"https://f005.backblazeb2.com/file/objectModels-dev/home.glb";
+        "https://f005.backblazeb2.com/file/objectModels-dev/+HLF+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+8k.glb";
 
       // Determine if modelPath is an external URL or local path
       // let fullModelPath = modelPath;
@@ -4665,7 +4666,26 @@ const ThreeViewer = React.memo(
             newSphere.position.copy(alignHitPoint);
             sceneRef.current.add(newSphere);
             newSphere.userData.label = activeLabelRef.current;
-            transformControlsRef.current.attach(newSphere);
+
+            // 1. ADD THIS: Immediately update the state with the new point's 3D coordinates.
+            const newPoint = {
+              id: `ref-${activeLabelRef.current}-${Date.now()}`, // Unique ID for the point
+              label: activeLabelRef.current,
+              x: 0,
+              y: 0,
+              z: 0, // 2D coords, not relevant for this action
+              x3D: alignHitPoint.x,
+              y3D: alignHitPoint.y,
+              z3D: alignHitPoint.z,
+            };
+            currentProps.setReferencePoints3D((prevPoints) => [
+              ...prevPoints,
+              newPoint,
+            ]);
+
+            // 2. REMOVED: The line below was causing the gizmo to appear.
+            // transformControlsRef.current.attach(newSphere);
+
             currentProps.setAwaiting3D?.(false);
           }
           return;

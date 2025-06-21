@@ -173,8 +173,10 @@ export default function ScannerPortal() {
     z3D?: number;
     label: "A" | "B" | "C";
   }
-  
-  const [referencePoints3D, setReferencePoints3D] = useState<ReferencePoint[]>([]);
+
+  const [referencePoints3D, setReferencePoints3D] = useState<ReferencePoint[]>(
+    [],
+  );
   const [activeLabel, setActiveLabel] = useState<"A" | "B" | "C" | null>(null);
   const [awaiting3D, setAwaiting3D] = useState(false);
   const [realDistance, setRealDistance] = useState<number>(10); // Default in feet
@@ -962,7 +964,7 @@ export default function ScannerPortal() {
 
       // Declare blueprintId variable to be used in both branches
       let blueprintId: string | undefined;
-      
+
       // Update blueprints collection if a blueprintId exists
       if (selectedBooking.blueprintId) {
         blueprintId = selectedBooking.blueprintId;
@@ -1086,8 +1088,8 @@ export default function ScannerPortal() {
       }
 
       // Initialize a variable to store the blueprint ID
-      const finalBlueprintId = selectedBooking.blueprintId || blueprintId || '';
-      
+      const finalBlueprintId = selectedBooking.blueprintId || blueprintId || "";
+
       try {
         await fetch(
           "https://public.lindy.ai/api/v1/webhooks/lindy/d4154987-467d-4387-b80c-3adf9b064b9f",
@@ -1889,11 +1891,11 @@ export default function ScannerPortal() {
             <div className="flex-1 overflow-hidden grid grid-cols-2 gap-4">
               {/* Left half: 2D floor plan */}
               <div
-                className="border rounded-md relative overflow-hidden"
+                className="border rounded-md relative overflow-auto"
                 style={{ height: "500px" }}
               >
                 {/* Content container */}
-                <div className="w-full h-full relative">
+                <div className="relative">
                   {/* PDF or Image display */}
                   {floorplanFile && (
                     <div className="w-full h-full">
@@ -1936,11 +1938,12 @@ export default function ScannerPortal() {
                           </div>
                         </div>
                       ) : (
-                        <img
-                          src={URL.createObjectURL(floorplanFile)}
-                          alt="Floor Plan"
-                          className="w-full h-auto object-contain"
-                        />
+                      <img
+                        src={URL.createObjectURL(floorplanFile)}
+                        alt="Floor Plan"
+                        className="w-auto h-auto"
+                        style={{ minWidth: "100%" }}
+                      />
                       )}
                     </div>
                   )}
