@@ -387,6 +387,7 @@ export default function BlueprintEditor() {
   const blueprintId = location.split("/").pop();
   const { toast } = useToast();
 
+  const [blueprintScale, setBlueprintScale] = useState<number>(34.85);
   // Onboarding states - ADD THESE
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [onboardingStep, setOnboardingStep] = useState(1);
@@ -6705,6 +6706,7 @@ export default function BlueprintEditor() {
               yRotation={locationData?.yRotation || 0}
               originOrientation={displayOriginOrientation}
               qrCodeAnchors={qrCodeAnchors}
+              scaleFactor={scaleFactor}
               textAnchors={textAnchors}
               fileAnchors={fileAnchors}
               webpageAnchors={webpageAnchors}

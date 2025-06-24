@@ -329,7 +329,7 @@ const ThreeViewer = React.memo(
     const [activeFileAnchorId, setActiveFileAnchorId] = useState<string | null>(
       null,
     );
-    const SCALE_FACTOR = 45.6;
+    const SCALE_FACTOR = scaleFactor || 34.85; //was for home: 46.5306122451 //was for office: 34.85
     const fileAnchorElementsRef = useRef<Map<string, FileAnchorElements>>(
       new Map(),
     );
@@ -950,17 +950,19 @@ const ThreeViewer = React.memo(
         .clone()
         .sub(originNodeRef.current.position);
 
-      // Apply coordinate system correction based on yRotation
+      // Apply coordinate system correction based on yRotation using proper rotation matrix
       let correctedPos = relativePos.clone();
       const rotationDegrees = yRotation || 0;
+      const rotationRadians = (rotationDegrees * Math.PI) / 180;
+      const cosTheta = Math.cos(rotationRadians);
+      const sinTheta = Math.sin(rotationRadians);
 
-      if (rotationDegrees === 90 || rotationDegrees === -270) {
-        correctedPos.set(-relativePos.z, relativePos.y, relativePos.x);
-      } else if (rotationDegrees === -90 || rotationDegrees === 270) {
-        correctedPos.set(relativePos.z, relativePos.y, -relativePos.x);
-      } else if (rotationDegrees === 180 || rotationDegrees === -180) {
-        correctedPos.set(-relativePos.x, relativePos.y, -relativePos.z);
-      }
+      // Apply Y-axis rotation matrix
+      correctedPos.set(
+        relativePos.x * cosTheta + relativePos.z * sinTheta, // x' = x*cos(θ) + z*sin(θ)
+        relativePos.y, // y' = y (unchanged)
+        -relativePos.x * sinTheta + relativePos.z * cosTheta, // z' = -x*sin(θ) + z*cos(θ)
+      );
 
       return correctedPos.multiplyScalar(SCALE_FACTOR);
     };
@@ -977,29 +979,19 @@ const ThreeViewer = React.memo(
       // Convert from real-world units to model units
       let modelSpaceOffset = realWorldPos.clone().divideScalar(SCALE_FACTOR);
 
-      // Apply INVERSE coordinate system correction based on yRotation
+      // Apply INVERSE coordinate system correction based on yRotation using proper rotation matrix
       const rotationDegrees = yRotation || 0;
-      let correctedOffset = modelSpaceOffset.clone();
+      const rotationRadians = (-rotationDegrees * Math.PI) / 180; // Negative for inverse rotation
+      const cosTheta = Math.cos(rotationRadians);
+      const sinTheta = Math.sin(rotationRadians);
 
-      if (rotationDegrees === 90 || rotationDegrees === -270) {
-        correctedOffset.set(
-          modelSpaceOffset.z,
-          modelSpaceOffset.y,
-          -modelSpaceOffset.x,
-        );
-      } else if (rotationDegrees === -90 || rotationDegrees === 270) {
-        correctedOffset.set(
-          -modelSpaceOffset.z,
-          modelSpaceOffset.y,
-          modelSpaceOffset.x,
-        );
-      } else if (rotationDegrees === 180 || rotationDegrees === -180) {
-        correctedOffset.set(
-          -modelSpaceOffset.x,
-          modelSpaceOffset.y,
-          -modelSpaceOffset.z,
-        );
-      }
+      // Apply inverse Y-axis rotation matrix
+      let correctedOffset = modelSpaceOffset.clone();
+      correctedOffset.set(
+        modelSpaceOffset.x * cosTheta + modelSpaceOffset.z * sinTheta, // x' = x*cos(-θ) + z*sin(-θ)
+        modelSpaceOffset.y, // y' = y (unchanged)
+        -modelSpaceOffset.x * sinTheta + modelSpaceOffset.z * cosTheta, // z' = -x*sin(-θ) + z*cos(-θ)
+      );
 
       // Add the offset to the origin position to get final model position
       return correctedOffset.add(originNodeRef.current.position);
@@ -3487,13 +3479,17 @@ const ThreeViewer = React.memo(
             break;
           case "s": // Scale
             // Prevent scaling for CSS3DObjects (text, webpages) as it often breaks layout/interaction
-            if (
-              !(
-                transformControlsRef.current.object &&
-                transformControlsRef.current.object.userData &&
-                transformControlsRef.current.object.userData.isCSS3DObject
-              )
-            ) {
+            const isCSS3DRelated =
+              transformControlsRef.current.object &&
+              (transformControlsRef.current.object.userData?.isCSS3DObject ||
+                transformControlsRef.current.object.userData?.type?.includes(
+                  "webpage",
+                ) ||
+                transformControlsRef.current.object.userData?.type?.includes(
+                  "text",
+                ));
+
+            if (!isCSS3DRelated) {
               setTransformMode("scale");
               transformControlsRef.current?.setMode("scale");
             } else {
@@ -3624,14 +3620,16 @@ const ThreeViewer = React.memo(
         if (originPoint) {
           const offsetInModelUnits = realWorldPosition
             .clone()
-            .divideScalar(45.64);
+            .divideScalar(SCALE_FACTOR); //45.64
           const originVector =
             originPoint instanceof THREE.Vector3
               ? originPoint.clone()
               : new THREE.Vector3(0, 0, 0);
           modelSpacePosition = originVector.clone().add(offsetInModelUnits);
         } else {
-          modelSpacePosition = realWorldPosition.clone().divideScalar(45.64);
+          modelSpacePosition = realWorldPosition
+            .clone()
+            .divideScalar(SCALE_FACTOR); //45.64
           console.warn(
             `[ThreeViewer qrCodeAnchors] No originPoint for anchor ${anchor.id}. Placing relative to world origin.`,
           );
@@ -4403,8 +4401,10 @@ const ThreeViewer = React.memo(
 
       const fullModelPath =
         //  "https://f005.backblazeb2.com/file/objectModels-dev/4_27_2025.glb";
-        //"https://f005.backblazeb2.com/file/objectModels-dev/home.glb";
-        "https://f005.backblazeb2.com/file/objectModels-dev/+HLF+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+8k.glb";
+       // "https://f005.backblazeb2.com/file/objectModels-dev/home.glb";
+      // "https://f005.backblazeb2.com/file/objectModels-dev/+HLF+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+8k.glb";
+
+      "https://f005.backblazeb2.com/file/objectModels-dev/Library+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+4k.glb";
 
       // Determine if modelPath is an external URL or local path
       // let fullModelPath = modelPath;
@@ -4516,7 +4516,7 @@ const ThreeViewer = React.memo(
 
           if (originPoint) {
             const offset = hitPoint.clone().sub(originPoint);
-            const msg = `Relative to origin: X:${(offset.x * 45.64).toFixed(2)}, Y:${(offset.y * 45.64).toFixed(2)}, Z:${(offset.z * 45.64).toFixed(2)}`;
+            const msg = `Relative to origin: X:${(offset.x * SCALE_FACTOR).toFixed(2)}, Y:${(offset.y * SCALE_FACTOR).toFixed(2)}, Z:${(offset.z * SCALE_FACTOR).toFixed(2)}`;
             setDistanceDisplay(msg);
           }
 
@@ -4751,35 +4751,22 @@ const ThreeViewer = React.memo(
               .clone()
               .sub(currentProps.originPoint);
 
-            // Apply coordinate system correction based on yRotation for display
+            // Apply coordinate system correction based on yRotation for display using proper rotation matrix
             let correctedDisplayOffset = displayOffset.clone();
             const rotationDegrees = yRotation || 0;
+            const rotationRadians = (rotationDegrees * Math.PI) / 180;
+            const cosTheta = Math.cos(rotationRadians);
+            const sinTheta = Math.sin(rotationRadians);
 
-            if (rotationDegrees === 90 || rotationDegrees === -270) {
-              // Z -> X, X -> -Z
-              correctedDisplayOffset.set(
-                -displayOffset.z,
-                displayOffset.y,
-                displayOffset.x,
-              );
-            } else if (rotationDegrees === -90 || rotationDegrees === 270) {
-              // Z -> -X, X -> Z
-              correctedDisplayOffset.set(
-                displayOffset.z,
-                displayOffset.y,
-                -displayOffset.x,
-              );
-            } else if (rotationDegrees === 180 || rotationDegrees === -180) {
-              // Z -> -Z, X -> -X
-              correctedDisplayOffset.set(
-                -displayOffset.x,
-                displayOffset.y,
-                -displayOffset.z,
-              );
-            }
+            // Apply Y-axis rotation matrix for display
+            correctedDisplayOffset.set(
+              displayOffset.x * cosTheta + displayOffset.z * sinTheta, // x' = x*cos(θ) + z*sin(θ)
+              displayOffset.y, // y' = y (unchanged)
+              -displayOffset.x * sinTheta + displayOffset.z * cosTheta, // z' = -x*sin(θ) + z*cos(θ)
+            );
             // If rotationDegrees === 0, use displayOffset as-is (no correction)
 
-            const msg = `Relative to origin: X:${(correctedDisplayOffset.x * 45.6).toFixed(2)}, Y:${(correctedDisplayOffset.y * 45.6).toFixed(2)}, Z:${(correctedDisplayOffset.z * 45.6).toFixed(2)} ft`;
+            const msg = `Relative to origin: X:${(correctedDisplayOffset.x * SCALE_FACTOR).toFixed(2)}, Y:${(correctedDisplayOffset.y * SCALE_FACTOR).toFixed(2)}, Z:${(correctedDisplayOffset.z * SCALE_FACTOR).toFixed(2)} ft`;
             setDistanceDisplay(msg);
           }
         }
@@ -5425,15 +5412,15 @@ const ThreeViewer = React.memo(
                       sceneRef.current?.remove(loadingIndicator);
 
                     // Calculate offset from origin if it exists
-                    let scaledX = dropPoint.x * 45.64;
-                    let scaledY = dropPoint.y * 45.64;
-                    let scaledZ = dropPoint.z * 45.64;
+                    let scaledX = dropPoint.x * SCALE_FACTOR;
+                    let scaledY = dropPoint.y * SCALE_FACTOR;
+                    let scaledZ = dropPoint.z * SCALE_FACTOR;
 
                     if (originPoint) {
                       const offset = dropPoint.clone().sub(originPoint);
-                      scaledX = offset.x * 45.64;
-                      scaledY = offset.y * 45.64;
-                      scaledZ = offset.z * 45.64;
+                      scaledX = offset.x * SCALE_FACTOR;
+                      scaledY = offset.y * SCALE_FACTOR;
+                      scaledZ = offset.z * SCALE_FACTOR;
                     }
 
                     // Create anchor in Firestore
@@ -5536,9 +5523,9 @@ const ThreeViewer = React.memo(
               if (originPoint) {
                 const offset = dropPoint.clone().sub(originPoint);
                 const scaledOffset = {
-                  x: offset.x * 45.64,
-                  y: offset.y * 45.64,
-                  z: offset.z * 45.64,
+                  x: offset.x * SCALE_FACTOR,
+                  y: offset.y * SCALE_FACTOR,
+                  z: offset.z * SCALE_FACTOR,
                 };
 
                 // Call the callback to notify BlueprintEditor
@@ -5878,12 +5865,16 @@ const ThreeViewer = React.memo(
             );
 
             // For WebGL visual objects (not CSS3D), also update scale live if needed
-            if (!visualLinkedToHelper.isCSS3DObject) {
+            // CSS3DObjects should maintain their original scale for proper rendering
+            if (
+              !visualLinkedToHelper.isCSS3DObject &&
+              !visualLinkedToHelper.userData?.isCSS3DObject
+            ) {
               const currentWorldScale = new THREE.Vector3();
               transformedObject.getWorldScale(currentWorldScale);
               visualLinkedToHelper.scale.copy(currentWorldScale);
             }
-            // Note: CSS3DObject.scale is for pixel-to-unit conversion, not typically changed by gizmo scale.
+            // Note: CSS3DObject.scale is for pixel-to-unit conversion, never changed by gizmo scale.
           }
         }
       };
@@ -5979,6 +5970,13 @@ const ThreeViewer = React.memo(
           originPoint ? originPoint.toArray() : null,
         );
 
+        // For CSS3D objects (webpages, text), always keep scale at 1,1,1
+        // For other objects (models, files), use the actual transformed scale
+        const finalScale =
+          selectedAnchorType === "webpage" || selectedAnchorType === "text"
+            ? { x: 1, y: 1, z: 1 }
+            : { x: worldScale.x, y: worldScale.y, z: worldScale.z };
+
         updateAnchorTransform(selectedAnchorId, {
           x: realWorldPos.x,
           y: realWorldPos.y,
@@ -5986,9 +5984,9 @@ const ThreeViewer = React.memo(
           rotationX: worldRotation.x,
           rotationY: worldRotation.y,
           rotationZ: worldRotation.z,
-          scaleX: worldScale.x, // Save the scale of the object that was transformed by the gizmo
-          scaleY: worldScale.y,
-          scaleZ: worldScale.z,
+          scaleX: finalScale.x,
+          scaleY: finalScale.y,
+          scaleZ: finalScale.z,
         });
       };
 
@@ -6372,14 +6370,14 @@ const ThreeViewer = React.memo(
 
           // Compute the offset relative to origin and then scale by 45.64.
           // If no origin is set, default to using selectedPoint directly.
-          let scaledX = selectedPoint.x * 45.64;
-          let scaledY = selectedPoint.y * 45.64;
-          let scaledZ = selectedPoint.z * 45.64;
+          let scaledX = selectedPoint.x * SCALE_FACTOR;
+          let scaledY = selectedPoint.y * SCALE_FACTOR;
+          let scaledZ = selectedPoint.z * SCALE_FACTOR;
           if (originPoint) {
             const offset = selectedPoint.clone().sub(originPoint);
-            scaledX = offset.x * 45.64;
-            scaledY = offset.y * 45.64;
-            scaledZ = offset.z * 45.64;
+            scaledX = offset.x * SCALE_FACTOR;
+            scaledY = offset.y * SCALE_FACTOR;
+            scaledZ = offset.z * SCALE_FACTOR;
           }
 
           // 2) Create the anchor document in Firestore
