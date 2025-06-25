@@ -4399,12 +4399,21 @@ const ThreeViewer = React.memo(
 
       const loader = new GLTFLoader();
 
-      const fullModelPath =
-        //  "https://f005.backblazeb2.com/file/objectModels-dev/4_27_2025.glb";
-       // "https://f005.backblazeb2.com/file/objectModels-dev/home.glb";
-      // "https://f005.backblazeb2.com/file/objectModels-dev/+HLF+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+8k.glb";
+     //  const fullModelPath =
+     //    //  "https://f005.backblazeb2.com/file/objectModels-dev/4_27_2025.glb";
+     //   // "https://f005.backblazeb2.com/file/objectModels-dev/home.glb";
+     //  // "https://f005.backblazeb2.com/file/objectModels-dev/+HLF+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+8k.glb";
 
-      "https://f005.backblazeb2.com/file/objectModels-dev/Library+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+4k.glb";
+     // // "https://f005.backblazeb2.com/file/objectModels-dev/Library+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+4k.glb";
+      // With this:
+      const fullModelPath = modelPath || ""; // Use the prop directly
+
+      // Add validation
+      if (!fullModelPath) {
+        console.error("No modelPath provided to ThreeViewer");
+        onError?.("No 3D model path provided");
+        return <div>No 3D model to display</div>;
+      }
 
       // Determine if modelPath is an external URL or local path
       // let fullModelPath = modelPath;

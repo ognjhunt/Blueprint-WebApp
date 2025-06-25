@@ -1676,6 +1676,24 @@ export default function BlueprintEditor() {
     );
   };
 
+  const [blueprintModelUrl, setBlueprintModelUrl] = useState<string>("");
+
+  useEffect(() => {
+    const fetchBlueprintModel = async () => {
+      if (blueprintId) {
+        const blueprintDoc = await getDoc(doc(db, "blueprints", blueprintId));
+        if (blueprintDoc.exists()) {
+          const data = blueprintDoc.data();
+          if (data.floorPlan3DUrl) {
+            setBlueprintModelUrl(data.floorPlan3DUrl);
+          }
+        }
+      }
+    };
+
+    fetchBlueprintModel();
+  }, [blueprintId]);
+
   useEffect(() => {
     const fetchBlueprintData = async () => {
       if (!blueprintId) {
@@ -1697,7 +1715,7 @@ export default function BlueprintEditor() {
 
         const blueprintData = blueprintSnap.data();
 
-        setLocationData(blueprintData); 
+        setLocationData(blueprintData);
 
         // Set blueprint title
         setBlueprintTitle(
@@ -6700,7 +6718,8 @@ export default function BlueprintEditor() {
             </div>
           ) : (
             <ThreeViewer
-              modelPath={model3DPath}
+              //modelPath={model3DPath}
+              modelPath={blueprintModelUrl}
               ref={threeViewerRef}
               originPoint={originPoint}
               yRotation={locationData?.yRotation || 0}
@@ -6856,7 +6875,6 @@ export default function BlueprintEditor() {
               setReferencePoints3D={setReferencePoints3D}
               setAwaiting3D={setAwaiting3D}
               setActiveLabel={setActiveLabel}
-              scaleFactor={scaleFactor}
               onFileDropped={handleFileAnchorPlaced}
               onTextAnchorClick={handleTextAnchorClicked}
               onWebpageAnchorClick={handleWebpageAnchorClicked}
@@ -7408,7 +7426,8 @@ export default function BlueprintEditor() {
                 {model3DPath ? (
                   <div className="w-full h-full">
                     <ThreeViewer
-                      modelPath={model3DPath}
+                      // modelPath={model3DPath}
+                      modelPath={blueprintModelUrl}
                       ref={threeViewerRef}
                       originPoint={originPoint}
                       activeLabel={activeLabel}
@@ -7423,6 +7442,7 @@ export default function BlueprintEditor() {
                       setAwaiting3D={setAwaiting3D}
                       setActiveLabel={setActiveLabel}
                       selectedArea={selectedArea}
+                      scaleFactor={scaleFactor}
                       placementMode={null}
                       webpageAnchors={[]}
                       // NEW Props for the two-step process
