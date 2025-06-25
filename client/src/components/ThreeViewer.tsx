@@ -319,9 +319,12 @@ const ThreeViewer = React.memo(
     } = props;
     console.log("ThreeViewer - modelPath prop:", modelPath); // ADD THIS LINE
     const mountRef = useRef<HTMLDivElement>(null);
-    const previousOriginPointRef = useRef<THREE.Vector3 | null>(
-      originPoint || null,
-    ); // Initialize with prop or null
+    // const previousOriginPointRef = useRef<THREE.Vector3 | null>(
+    //   originPoint || null,
+    // ); // Initialize with prop or null
+    // To this:
+    const previousOriginPointRef = useRef<THREE.Vector3 | null>(null);
+    const hasInitializedOriginRef = useRef(false);
     const qrPlacementModeRef = useRef(qrPlacementMode);
     useEffect(() => {
       qrPlacementModeRef.current = qrPlacementMode;
@@ -1064,12 +1067,29 @@ const ThreeViewer = React.memo(
         console.log(
           `[AdjustAnchors] Called. Old: ${oldOriginModel.toArray()}, New: ${newOriginModel.toArray()}`,
         );
+
+        // Calculate the delta in model space
         const deltaOriginModelSpace = newOriginModel
           .clone()
           .sub(oldOriginModel);
-        const deltaRealWorldOffset = deltaOriginModelSpace
-          .clone()
-          .multiplyScalar(SCALE_FACTOR);
+
+        // Apply rotation correction if needed
+        const rotationDegrees = yRotation || 0;
+        const rotationRadians = (rotationDegrees * Math.PI) / 180;
+        const cosTheta = Math.cos(rotationRadians);
+        const sinTheta = Math.sin(rotationRadians);
+
+        // Apply rotation to the delta
+        const rotatedDelta = new THREE.Vector3(
+          deltaOriginModelSpace.x * cosTheta +
+            deltaOriginModelSpace.z * sinTheta,
+          deltaOriginModelSpace.y,
+          -deltaOriginModelSpace.x * sinTheta +
+            deltaOriginModelSpace.z * cosTheta,
+        );
+
+        // Scale to real-world units
+        const deltaRealWorldOffset = rotatedDelta.multiplyScalar(SCALE_FACTOR);
 
         console.log(
           `[AdjustAnchors] Delta RealWorld Offset (to subtract): ${deltaRealWorldOffset.toArray()}`,
@@ -1085,6 +1105,7 @@ const ThreeViewer = React.memo(
           console.log(
             `[AdjustAnchors] Processing ${list.length} anchors of type "${type}".`,
           );
+
           list.forEach((anchor) => {
             if (
               anchor.id === undefined ||
@@ -1103,6 +1124,8 @@ const ThreeViewer = React.memo(
               Number(anchor.y),
               Number(anchor.z),
             );
+
+            // Subtract the delta to maintain the same physical position
             const newRealWorldPos = currentRealWorldPos
               .clone()
               .sub(deltaRealWorldOffset);
@@ -1138,11 +1161,12 @@ const ThreeViewer = React.memo(
                 anchor.scaleZ || (anchor.scale && anchor.scale.z) || 1,
               ),
             };
+
             updateAnchorTransform(anchor.id, payload);
           });
         };
 
-        // Use the destructured props directly, they are dependencies of this useCallback
+        // Update all anchor types
         updateList(fileAnchors, "file");
         updateList(modelAnchors, "model");
         updateList(textAnchors, "text");
@@ -1157,6 +1181,7 @@ const ThreeViewer = React.memo(
         qrCodeAnchors,
         updateAnchorTransform,
         SCALE_FACTOR,
+        yRotation, // Add yRotation as a dependency
       ],
     );
 
@@ -1173,7 +1198,22 @@ const ThreeViewer = React.memo(
         "[Origin Change Effect] Previous Origin (from ref):",
         previousOrigin ? previousOrigin.toArray() : null,
       );
+      console.log(
+        "[Origin Change Effect] Has initialized:",
+        hasInitializedOriginRef.current,
+      );
 
+      // Handle initial load - don't adjust anchors on first mount
+      if (!hasInitializedOriginRef.current && currentOrigin) {
+        console.log(
+          "[Origin Change Effect] Initial origin load - not adjusting anchors",
+        );
+        previousOriginPointRef.current = currentOrigin.clone();
+        hasInitializedOriginRef.current = true;
+        return;
+      }
+
+      // Handle origin changes after initialization
       if (
         currentOrigin &&
         previousOrigin &&
@@ -1183,26 +1223,9 @@ const ThreeViewer = React.memo(
           "[Origin Change Effect] Origin has changed. Calling adjustAnchorsForOriginChange.",
         );
         adjustAnchorsForOriginChange(previousOrigin, currentOrigin);
-      } else if (
-        currentOrigin &&
-        !previousOrigin &&
-        previousOriginPointRef.current !== undefined
-      ) {
-        // Check initial undefined state of ref
-        console.log(
-          "[Origin Change Effect] Origin set for the first time (previous was explicitly null or ref was undefined).",
-        );
       } else if (!currentOrigin && previousOrigin) {
         console.log(
-          "[Origin Change Effect] Origin has been cleared (set to null). No adjustment based on delta needed from a previous point.",
-        );
-      } else if (
-        currentOrigin &&
-        previousOrigin &&
-        currentOrigin.equals(previousOrigin)
-      ) {
-        console.log(
-          "[Origin Change Effect] Origin prop updated, but to the same value. No adjustment.",
+          "[Origin Change Effect] Origin has been cleared (set to null).",
         );
       }
 
@@ -4399,12 +4422,12 @@ const ThreeViewer = React.memo(
 
       const loader = new GLTFLoader();
 
-     //  const fullModelPath =
-     //    //  "https://f005.backblazeb2.com/file/objectModels-dev/4_27_2025.glb";
-     //   // "https://f005.backblazeb2.com/file/objectModels-dev/home.glb";
-     //  // "https://f005.backblazeb2.com/file/objectModels-dev/+HLF+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+8k.glb";
+      //  const fullModelPath =
+      //    //  "https://f005.backblazeb2.com/file/objectModels-dev/4_27_2025.glb";
+      //   // "https://f005.backblazeb2.com/file/objectModels-dev/home.glb";
+      //  // "https://f005.backblazeb2.com/file/objectModels-dev/+HLF+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+8k.glb";
 
-     // // "https://f005.backblazeb2.com/file/objectModels-dev/Library+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+4k.glb";
+      // // "https://f005.backblazeb2.com/file/objectModels-dev/Library+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+4k.glb";
       // With this:
       const fullModelPath = modelPath || ""; // Use the prop directly
 
