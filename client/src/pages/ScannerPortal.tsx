@@ -173,8 +173,10 @@ export default function ScannerPortal() {
     z3D?: number;
     label: "A" | "B" | "C";
   }
-  
-  const [referencePoints3D, setReferencePoints3D] = useState<ReferencePoint[]>([]);
+
+  const [referencePoints3D, setReferencePoints3D] = useState<ReferencePoint[]>(
+    [],
+  );
   const [activeLabel, setActiveLabel] = useState<"A" | "B" | "C" | null>(null);
   const [awaiting3D, setAwaiting3D] = useState(false);
   const [realDistance, setRealDistance] = useState<number>(10); // Default in feet
@@ -744,6 +746,11 @@ export default function ScannerPortal() {
     const customer = await fetchCustomerData(booking.userId);
     setCustomerData(customer);
 
+    // Fetch blueprint data if available
+    if (booking.blueprintId) {
+      await fetchBlueprintData(booking.blueprintId);
+    }
+
     // Reset upload form
     setModelFile(null);
     setFloorplanFile(null);
@@ -763,82 +770,6 @@ export default function ScannerPortal() {
   const controlsRef = useRef<OrbitControls | null>(null);
   const animationFrameRef = useRef<number>(0);
 
-  // // Function to handle 3D point selection
-  // const handle3DPointSelection = useCallback(
-  //   (event: React.MouseEvent) => {
-  //     if (
-  //       !awaiting3D ||
-  //       !activeLabel ||
-  //       !sceneRef.current ||
-  //       !cameraRef.current ||
-  //       !threeDContainerRef.current
-  //     )
-  //       return;
-
-  //     const container = threeDContainerRef.current;
-  //     const rect = container.getBoundingClientRect();
-
-  //     // Calculate normalized device coordinates
-  //     const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-  //     const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-  //     // Update raycaster
-  //     raycasterRef.current.setFromCamera({ x, y }, cameraRef.current);
-
-  //     // Get intersection with the model
-  //     const intersects = raycasterRef.current.intersectObjects(
-  //       sceneRef.current.children,
-  //       true,
-  //     );
-
-  //     if (intersects.length > 0) {
-  //       const hitPoint = intersects[0].point;
-
-  //       // Create a visual marker at the hit point
-  //       const markerGeometry = new THREE.SphereGeometry(0.02, 16, 16);
-  //       const markerMaterial = new THREE.MeshBasicMaterial({
-  //         color:
-  //           activeLabel === "A"
-  //             ? 0xff0000
-  //             : activeLabel === "B"
-  //               ? 0x00ff00
-  //               : 0x0000ff,
-  //       });
-  //       const marker = new THREE.Mesh(markerGeometry, markerMaterial);
-  //       marker.position.copy(hitPoint);
-  //       sceneRef.current.add(marker);
-
-  //       // Update the reference points state
-  //       setReferencePoints3D((prev) => [
-  //         ...prev,
-  //         {
-  //           label: activeLabel,
-  //           x3D: hitPoint.x,
-  //           y3D: hitPoint.y,
-  //           z3D: hitPoint.z,
-  //         },
-  //       ]);
-
-  //       // Reset awaiting3D and update activeLabel
-  //       setAwaiting3D(false);
-  //       if (activeLabel === "A") {
-  //         setActiveLabel("B");
-  //       } else if (activeLabel === "B") {
-  //         setActiveLabel("C");
-  //       } else {
-  //         setActiveLabel(null);
-  //       }
-  //     }
-  //   },
-  //   [
-  //     awaiting3D,
-  //     activeLabel,
-  //     setReferencePoints3D,
-  //     setAwaiting3D,
-  //     setActiveLabel,
-  //   ],
-  // );
-
   // Handle file selection
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -850,6 +781,32 @@ export default function ScannerPortal() {
       } else {
         setFloorplanFile(e.target.files[0]);
       }
+    }
+  };
+
+  // Add this state for storing the blueprint's 3D model URL
+  const [blueprint3DModelUrl, setBlueprint3DModelUrl] = useState<string>("");
+  const [loadingBlueprintData, setLoadingBlueprintData] = useState(false);
+
+  // Add this function to fetch blueprint data
+  const fetchBlueprintData = async (blueprintId: string) => {
+    setLoadingBlueprintData(true);
+    try {
+      const blueprintDoc = await getDoc(doc(db, "blueprints", blueprintId));
+      if (blueprintDoc.exists()) {
+        const data = blueprintDoc.data();
+        if (data.floorPlan3DUrl) {
+          setBlueprint3DModelUrl(data.floorPlan3DUrl);
+          console.log(
+            "Loaded floorPlan3DUrl from blueprint:",
+            data.floorPlan3DUrl,
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching blueprint data:", error);
+    } finally {
+      setLoadingBlueprintData(false);
     }
   };
 
@@ -962,7 +919,7 @@ export default function ScannerPortal() {
 
       // Declare blueprintId variable to be used in both branches
       let blueprintId: string | undefined;
-      
+
       // Update blueprints collection if a blueprintId exists
       if (selectedBooking.blueprintId) {
         blueprintId = selectedBooking.blueprintId;
@@ -1086,8 +1043,8 @@ export default function ScannerPortal() {
       }
 
       // Initialize a variable to store the blueprint ID
-      const finalBlueprintId = selectedBooking.blueprintId || blueprintId || '';
-      
+      const finalBlueprintId = selectedBooking.blueprintId || blueprintId || "";
+
       try {
         await fetch(
           "https://public.lindy.ai/api/v1/webhooks/lindy/d4154987-467d-4387-b80c-3adf9b064b9f",
@@ -1125,8 +1082,16 @@ export default function ScannerPortal() {
         ),
       );
 
-      // Close dialog
+      // After successful upload, fetch the updated blueprint data
+      if (selectedBooking?.blueprintId) {
+        await fetchBlueprintData(selectedBooking.blueprintId);
+      }
+
+      // Show the alignment wizard
       setIsUploadDialogOpen(false);
+      setShowAlignmentWizard(true);
+      setActiveLabel("A");
+      setModelLoaded(false);
     } catch (error) {
       console.error("Error uploading files:", error);
       toast({
@@ -1889,11 +1854,11 @@ export default function ScannerPortal() {
             <div className="flex-1 overflow-hidden grid grid-cols-2 gap-4">
               {/* Left half: 2D floor plan */}
               <div
-                className="border rounded-md relative overflow-hidden"
+                className="border rounded-md relative overflow-auto"
                 style={{ height: "500px" }}
               >
                 {/* Content container */}
-                <div className="w-full h-full relative">
+                <div className="relative">
                   {/* PDF or Image display */}
                   {floorplanFile && (
                     <div className="w-full h-full">
@@ -1939,7 +1904,8 @@ export default function ScannerPortal() {
                         <img
                           src={URL.createObjectURL(floorplanFile)}
                           alt="Floor Plan"
-                          className="w-full h-auto object-contain"
+                          className="w-auto h-auto"
+                          style={{ minWidth: "100%" }}
                         />
                       )}
                     </div>
@@ -2003,7 +1969,8 @@ export default function ScannerPortal() {
               {/* Right half: 3D Model */}
               <div className="border rounded-md relative bg-gray-100 overflow-hidden">
                 <ThreeViewer
-                  modelPath={model3DPath}
+                  //modelPath={model3DPath}
+                  modelPath={blueprint3DModelUrl}
                   activeLabel={activeLabel}
                   awaiting3D={awaiting3D}
                   setReferencePoints3D={setReferencePoints3D}

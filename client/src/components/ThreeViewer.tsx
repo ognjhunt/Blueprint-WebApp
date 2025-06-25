@@ -145,6 +145,7 @@ interface FileAnchor {
 interface ThreeViewerProps {
   modelPath: string;
   originPoint?: THREE.Vector3 | null;
+  yRotation?: number | null;
   onLoad?: () => void;
   onError?: (error: string) => void;
 
@@ -272,6 +273,7 @@ const ThreeViewer = React.memo(
   forwardRef<ThreeViewerImperativeHandle, ThreeViewerProps>((props, ref) => {
     const {
       modelPath,
+      yRotation,
       onLoad,
       onError,
       onTextAnchorClick,
@@ -327,7 +329,7 @@ const ThreeViewer = React.memo(
     const [activeFileAnchorId, setActiveFileAnchorId] = useState<string | null>(
       null,
     );
-    const SCALE_FACTOR = 45.6;
+    const SCALE_FACTOR = scaleFactor || 34.85; //was for home: 46.5306122451 //was for office: 34.85
     const fileAnchorElementsRef = useRef<Map<string, FileAnchorElements>>(
       new Map(),
     );
@@ -926,33 +928,73 @@ const ThreeViewer = React.memo(
       return visualObject;
     };
 
-    // UPDATED: This function now correctly converts coordinates TO real-world
+    // const applyAnchorOffset = (realWorldPos: THREE.Vector3) => {
+    //   return new THREE.Vector3(
+    //     realWorldPos.x + 1.31, // Add 1.31 to x
+    //     realWorldPos.y, // Keep y unchanged
+    //     realWorldPos.z - 38, // Subtract 38 from z
+    //   );
+    // };
+
+    // UPDATED: This function now converts coordinates TO real-world using blueprint scale
     const convertToRealWorldCoords = (modelPosition: THREE.Vector3) => {
-      if (!originNodeRef.current || !originPoint) {
-        // Added check for originPoint for consistency
-        // Fallback if origin isn't set (or only position part of origin is missing)
-        // This ensures that if originPoint is null, we still use the old behavior.
-        // If originNodeRef.current exists but originPoint is null, it implies an incomplete state.
+      if (!originNodeRef.current) {
         console.warn(
-          "[convertToRealWorldCoords] Origin not fully set. Using fallback conversion.",
+          "[convertToRealWorldCoords] OriginNode not set. Using fallback conversion.",
         );
-        return modelPosition.clone().multiplyScalar(45.6); // SCALE_FACTOR
+        return modelPosition.clone().multiplyScalar(SCALE_FACTOR);
       }
 
-      // 1. Get the inverse of the origin node's world matrix
-      // The originNodeRef.current.matrixWorld is the transform from origin's local space to world space.
-      // Its inverse transforms from world space to origin's local space.
-      const inverseOriginMatrix = originNodeRef.current.matrixWorld
+      // Get position relative to origin
+      const relativePos = modelPosition
         .clone()
-        .invert();
+        .sub(originNodeRef.current.position);
 
-      // 2. Apply the inverse matrix to the world position (modelPosition) to get coordinates local to the origin
-      const localPosition = modelPosition
-        .clone()
-        .applyMatrix4(inverseOriginMatrix);
+      // Apply coordinate system correction based on yRotation using proper rotation matrix
+      let correctedPos = relativePos.clone();
+      const rotationDegrees = yRotation || 0;
+      const rotationRadians = (rotationDegrees * Math.PI) / 180;
+      const cosTheta = Math.cos(rotationRadians);
+      const sinTheta = Math.sin(rotationRadians);
 
-      // 3. Scale by the factor to get real-world units (e.g., feet)
-      return localPosition.multiplyScalar(45.6); // SCALE_FACTOR
+      // Apply Y-axis rotation matrix
+      correctedPos.set(
+        relativePos.x * cosTheta + relativePos.z * sinTheta, // x' = x*cos(θ) + z*sin(θ)
+        relativePos.y, // y' = y (unchanged)
+        -relativePos.x * sinTheta + relativePos.z * cosTheta, // z' = -x*sin(θ) + z*cos(θ)
+      );
+
+      return correctedPos.multiplyScalar(SCALE_FACTOR);
+    };
+
+    // UPDATED: This function converts FROM real-world coordinates using blueprint scale
+    const convertFromRealWorldCoords = (realWorldPos: THREE.Vector3) => {
+      if (!originNodeRef.current) {
+        console.warn(
+          "[convertFromRealWorldCoords] OriginNode not set. Using fallback conversion.",
+        );
+        return realWorldPos.clone().divideScalar(SCALE_FACTOR);
+      }
+
+      // Convert from real-world units to model units
+      let modelSpaceOffset = realWorldPos.clone().divideScalar(SCALE_FACTOR);
+
+      // Apply INVERSE coordinate system correction based on yRotation using proper rotation matrix
+      const rotationDegrees = yRotation || 0;
+      const rotationRadians = (-rotationDegrees * Math.PI) / 180; // Negative for inverse rotation
+      const cosTheta = Math.cos(rotationRadians);
+      const sinTheta = Math.sin(rotationRadians);
+
+      // Apply inverse Y-axis rotation matrix
+      let correctedOffset = modelSpaceOffset.clone();
+      correctedOffset.set(
+        modelSpaceOffset.x * cosTheta + modelSpaceOffset.z * sinTheta, // x' = x*cos(-θ) + z*sin(-θ)
+        modelSpaceOffset.y, // y' = y (unchanged)
+        -modelSpaceOffset.x * sinTheta + modelSpaceOffset.z * cosTheta, // z' = -x*sin(-θ) + z*cos(-θ)
+      );
+
+      // Add the offset to the origin position to get final model position
+      return correctedOffset.add(originNodeRef.current.position);
     };
 
     // Ensure updateAnchorTransform is stable if it relies on props/state not listed in its own useCallback deps (if any)
@@ -1170,35 +1212,34 @@ const ThreeViewer = React.memo(
         : null;
     }, [originPoint, adjustAnchorsForOriginChange]);
 
-    // Located in ThreeViewer.tsx
-
     useEffect(() => {
-      if (!sceneRef.current) return;
-      if (!originNodeRef.current) {
-        originNodeRef.current = new THREE.Object3D();
-        originNodeRef.current.name = "OriginNode";
-        sceneRef.current.add(originNodeRef.current);
+      console.log("🔄 Origin update effect triggered", {
+        hasScene: !!sceneRef.current,
+        hasOriginNode: !!originNodeRef.current,
+        originPoint: originPoint ? originPoint.toArray() : null,
+      });
+
+      // Only update if both scene and origin node exist
+      if (!sceneRef.current || !originNodeRef.current) {
+        console.log("⏳ Waiting for scene and origin node to be ready");
+        return;
       }
 
+      // Update the origin position
       if (originPoint) {
         originNodeRef.current.position.copy(originPoint);
+        console.log(
+          "✅ Updated origin node position to:",
+          originNodeRef.current.position.toArray(),
+        );
       } else {
         originNodeRef.current.position.set(0, 0, 0);
+        console.log("✅ Reset origin node position to (0,0,0)");
       }
 
-      // This part is crucial: Use the orientation directly without any modifications.
-      if (originOrientation) {
-        originNodeRef.current.quaternion.copy(originOrientation);
-      } else {
-        originNodeRef.current.quaternion.set(0, 0, 0, 1);
-      }
-
-      originNodeRef.current.updateMatrixWorld();
-
-      if (sceneRef.current && originNodeRef.current) {
-        updateOriginMarker(sceneRef.current, originNodeRef.current);
-      }
-    }, [originPoint, originOrientation]);
+      // Update the visual marker
+      updateOriginMarker(sceneRef.current, originNodeRef.current);
+    }, [originPoint, yRotation]); // Keep dependencies the same
 
     // UPDATED: This function now creates a full gizmo (sphere + axes)
     // and attaches it to the main origin node.
@@ -1328,8 +1369,6 @@ const ThreeViewer = React.memo(
     };
 
     useEffect(() => {
-      if (!sceneRef.current) return;
-
       // --- Visibility Check ---
       if (!showQrCodes) {
         // If hidden, remove all existing QR markers and clear the map
@@ -1365,9 +1404,7 @@ const ThreeViewer = React.memo(
 
       // --- Create or update markers ---
       qrCodeAnchors.forEach((anchor) => {
-        // Skip if marker already exists (or update position if desired)
         if (qrCodeMarkersRef.current.has(anchor.id)) {
-          // (Optional update: you could update marker.position here)
           return;
         }
 
@@ -1375,54 +1412,35 @@ const ThreeViewer = React.memo(
           `[ThreeViewer qrCodeAnchors] Creating marker for Anchor ID: ${anchor.id}`,
         );
 
-        // --- Calculate Position (using your code logic) ---
-        const realWorldPosition = new THREE.Vector3(
+        // UPDATED: Use consistent coordinate conversion
+        const realWorldPos = new THREE.Vector3(
           Number(anchor.x || 0),
           Number(anchor.y || 0),
           Number(anchor.z || 0),
         );
-        let modelSpacePosition: THREE.Vector3;
-        if (originPoint) {
-          const offsetInModelUnits = realWorldPosition
-            .clone()
-            .divideScalar(45.64);
-          const originVector =
-            originPoint instanceof THREE.Vector3
-              ? originPoint.clone()
-              : new THREE.Vector3(0, 0, 0);
-          modelSpacePosition = originVector.clone().add(offsetInModelUnits);
-        } else {
-          modelSpacePosition = realWorldPosition.clone().divideScalar(45.64);
-          console.warn(
-            `[ThreeViewer qrCodeAnchors] No originPoint for anchor ${anchor.id}. Placing relative to world origin.`,
-          );
-        }
+
+        const worldPosition = convertFromRealWorldCoords(realWorldPos);
+
         console.log(
-          `[ThreeViewer qrCodeAnchors] Calculated modelSpacePosition for ${anchor.id}:`,
-          modelSpacePosition,
+          `[ThreeViewer qrCodeAnchors] Calculated worldPosition for ${anchor.id}:`,
+          worldPosition,
         );
 
-        // --- Create a marker mesh (you already use an orange sphere) ---
+        // --- Create a marker mesh ---
         const markerGeometry = new THREE.SphereGeometry(0.025, 16, 16);
         const markerMaterial = new THREE.MeshBasicMaterial({
-          color: 0xffa500, // Orange color
-          depthTest: false, // Render on top
+          color: 0xffa500,
+          depthTest: false,
           transparent: true,
           opacity: 0.9,
         });
         const markerMesh = new THREE.Mesh(markerGeometry, markerMaterial);
-        markerMesh.position.copy(modelSpacePosition);
+        markerMesh.position.copy(worldPosition);
         markerMesh.renderOrder = 9999;
         markerMesh.userData.anchorId = anchor.id;
         markerMesh.userData.type = "qrCode";
 
-        // Add marker to the scene
         sceneRef.current!.add(markerMesh);
-        console.log(
-          `[ThreeViewer qrCodeAnchors] Added marker for ${anchor.id}`,
-        );
-
-        // Store the marker so you can remove or update it later.
         qrCodeMarkersRef.current.set(anchor.id, markerMesh);
       });
 
@@ -1441,7 +1459,7 @@ const ThreeViewer = React.memo(
         `%c[ThreeViewer qrCodeAnchors Effect] END`,
         "color: purple; font-weight: bold;",
       );
-    }, [qrCodeAnchors, originPoint, sceneRef.current, showQrCodes]);
+    }, [qrCodeAnchors, originPoint, yRotation, sceneRef.current, showQrCodes]);
 
     // Then, in a useEffect:
     useEffect(() => {
@@ -1688,26 +1706,18 @@ const ThreeViewer = React.memo(
         );
 
         // --- 1. Calculate Position (NEW LOGIC) ---
-        const localPosition = new THREE.Vector3(
-          Number(anchor.x || 0) / SCALE_FACTOR,
-          Number(anchor.y || 0) / SCALE_FACTOR,
-          Number(anchor.z || 0) / SCALE_FACTOR,
+        // Convert real-world coordinates back to model space
+        const realWorldPos = new THREE.Vector3(
+          Number(anchor.x || 0),
+          Number(anchor.y || 0),
+          Number(anchor.z || 0),
         );
 
-        let worldPosition: THREE.Vector3;
-        const originMatrix = originNodeRef.current?.matrixWorld;
+        const worldPosition = convertFromRealWorldCoords(realWorldPos);
 
-        if (originMatrix) {
-          worldPosition = localPosition.clone().applyMatrix4(originMatrix);
-        } else {
-          worldPosition = localPosition;
-          console.warn(
-            `[ThreeViewer fileAnchors] No originMatrix for anchor ${anchor.id}. Placing relative to world origin (model units).`,
-          );
-        }
         console.log(
           `[ThreeViewer fileAnchors] Calculated worldPosition for ${anchor.id}:`,
-          worldPosition.toArray(), // Changed modelSpacePosition to worldPosition for logging
+          worldPosition.toArray(),
         );
 
         const fileNameLower = anchor.fileName?.toLowerCase() || "";
@@ -1746,32 +1756,6 @@ const ThreeViewer = React.memo(
         // --- 2. Create Visual based on fileType ---
         let anchorObject: THREE.Object3D | null = null;
 
-        // --- Create Label --- (Keep existing logic)
-        // if (
-        //   anchor.fileType !== "image" &&
-        //   anchor.fileType !== "video" &&
-        //   anchor.fileType !== "audio"
-        // ) {
-        //   const labelDiv = document.createElement("div");
-        //   labelDiv.textContent = anchor.fileName || "File";
-        //   labelDiv.style.padding = "2px 5px";
-        //   labelDiv.style.fontSize = "10px";
-        //   labelDiv.style.color = "#333";
-        //   labelDiv.style.backgroundColor = "rgba(255, 255, 255, 0.85)";
-        //   labelDiv.style.borderRadius = "3px";
-        //   labelDiv.style.border = "1px solid #ccc";
-        //   labelDiv.style.whiteSpace = "nowrap";
-        //   labelDiv.style.pointerEvents = "none";
-
-        //   const labelObject = createCSS3DObject(labelDiv);
-        //   labelObject.scale.set(0.003, 0.003, 0.003);
-        //   labelObject.position
-        //     .copy(modelSpacePosition)
-        //     .add(new THREE.Vector3(0, 0.15, 0));
-        //   labelObject.userData.isLabel = true;
-        //   labelObject.userData.anchorId = anchor.id;
-        //   sceneRef.current!.add(labelObject);
-        // }
         // --- Handle Media Types ---
         if (determinedFileType === "image") {
           console.log(
@@ -1809,7 +1793,7 @@ const ThreeViewer = React.memo(
                   `[ThreeViewer fileAnchors Image] Using dimensions from loaded image for ${anchor.id}: ${img.width}x${img.height}, Aspect: ${aspect}`,
                 );
               }
-              const planeWidth = 0.15; // Or some other default visual size
+              const planeWidth = 0.075; // Or some other default visual size
               const planeHeight = planeWidth / aspect;
               const canvas = document.createElement("canvas");
               canvas.width = img.width;
@@ -1866,8 +1850,6 @@ const ThreeViewer = React.memo(
               const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
               const imagePlane = new THREE.Mesh(geometry, material);
 
-              // imagePlane.position.copy(worldPosition); // Use worldPosition
-              // imagePlane.lookAt(cameraRef.current!.position);
               imagePlane.position.copy(worldPosition); // Use worldPosition
 
               imagePlane.userData.anchorId = anchor.id;
@@ -2015,7 +1997,8 @@ const ThreeViewer = React.memo(
 
           // 4.  turn the wrapper into a CSS3DObject
           const cssObj = new CSS3DObject(wrapper);
-          cssObj.scale.set(0.0015, 0.0015, 0.0015); // same size as textAnchor
+          // cssObj.scale.set(0.0015, 0.0015, 0.0015);
+          cssObj.scale.set(0.001, 0.001, 0.001); // same size as textAnchor
           cssObj.position.copy(worldPosition); // Use worldPosition
           cssObj.userData.anchorId = anchor.id;
           cssObj.userData.type = "file-audio";
@@ -2085,7 +2068,7 @@ const ThreeViewer = React.memo(
                   `[ThreeViewer fileAnchors Video] Using dimensions from loaded video for ${anchor.id}: ${video.videoWidth}x${video.videoHeight}, Aspect: ${aspect}`,
                 );
               }
-              const planeWidth = 0.25; // Or some other default visual size
+              const planeWidth = 0.125; // Or some other default visual size
               const planeHeight = planeWidth / aspect;
 
               const videoTexture = new THREE.VideoTexture(video);
@@ -2378,7 +2361,8 @@ const ThreeViewer = React.memo(
 
           const cssAnchorObject = new CSS3DObject(backgroundDiv);
           cssAnchorObject.position.copy(worldPosition); // Use worldPosition
-          cssAnchorObject.scale.set(0.0015, 0.0015, 0.0015); // Adjust scale if needed
+          // cssAnchorObject.scale.set(0.0015, 0.0015, 0.0015); // Adjust scale if needed
+          cssAnchorObject.scale.set(0.00075, 0.00075, 0.00075);
           cssAnchorObject.userData.anchorId = anchor.id;
           cssAnchorObject.userData.type = "file-pdf-css-anchor"; // New distinct type
           cssAnchorObject.userData.isCSS3DObject = true; // Explicitly mark
@@ -2483,7 +2467,8 @@ const ThreeViewer = React.memo(
 
           const cssAnchorObject = new CSS3DObject(backgroundDiv);
           cssAnchorObject.position.copy(worldPosition); // Use worldPosition
-          cssAnchorObject.scale.set(0.0015, 0.0015, 0.0015);
+          // cssAnchorObject.scale.set(0.0015, 0.0015, 0.0015);
+          cssAnchorObject.scale.set(0.00075, 0.00075, 0.00075);
           cssAnchorObject.userData.anchorId = anchor.id;
           cssAnchorObject.userData.type = "file-docx-css-anchor";
           cssAnchorObject.userData.isCSS3DObject = true;
@@ -2583,7 +2568,8 @@ const ThreeViewer = React.memo(
 
           const cssAnchorObject = new CSS3DObject(backgroundDiv);
           cssAnchorObject.position.copy(worldPosition); // Use worldPosition
-          cssAnchorObject.scale.set(0.0015, 0.0015, 0.0015);
+          // cssAnchorObject.scale.set(0.0015, 0.0015, 0.0015);
+          cssAnchorObject.scale.set(0.00075, 0.00075, 0.00075);
           cssAnchorObject.userData.anchorId = anchor.id;
           cssAnchorObject.userData.type = "file-pptx-css-anchor";
           cssAnchorObject.userData.isCSS3DObject = true;
@@ -2725,10 +2711,10 @@ const ThreeViewer = React.memo(
     }, [
       fileAnchors,
       originPoint,
-      originOrientation,
+      yRotation,
       cameraRef.current,
       showFileAnchors,
-    ]); // Added originOrientation
+    ]);
 
     useEffect(() => {
       if (!sceneRef.current || !modelAnchors) return;
@@ -2765,43 +2751,16 @@ const ThreeViewer = React.memo(
       modelAnchors.forEach((anchor) => {
         if (anchorModelsRef.current.has(anchor.id)) return;
 
-        // 1) Convert your anchor coords from feet to the model's local coords
-        let anchorPosition;
-        if (anchor.position) {
-          // If anchor has a nested position object
-          anchorPosition = new THREE.Vector3(
-            Number(anchor.position.x),
-            Number(anchor.position.y),
-            Number(anchor.position.z),
-          );
-        } else {
-          // If anchor has direct x, y, z properties
-          anchorPosition = new THREE.Vector3(
-            Number(anchor.x || 0),
-            Number(anchor.y || 0),
-            Number(anchor.z || 0),
-          );
-        }
+        // UPDATED: Use consistent coordinate conversion
+        const realWorldPos = new THREE.Vector3(
+          Number(anchor.x || 0),
+          Number(anchor.y || 0),
+          Number(anchor.z || 0),
+        );
 
-        // STORE ORIGINAL COORDS FOR REFERENCE
-        const originalX = anchorPosition.x;
-        const originalY = anchorPosition.y;
-        const originalZ = anchorPosition.z;
+        const worldPosition = convertFromRealWorldCoords(realWorldPos);
 
-        // Use originPoint directly for relative positioning
-        if (originPoint) {
-          console.log(
-            "Using originPoint for relative positioning:",
-            originPoint,
-          );
-          anchorPosition.sub(originPoint);
-          anchorPosition.divideScalar(45.6);
-        } else {
-          console.log("No originPoint available, using global origin");
-          anchorPosition.divideScalar(45.6);
-        }
-
-        console.log("Adding model for anchor", anchor.id, "at", anchorPosition);
+        console.log("Adding model for anchor", anchor.id, "at", worldPosition);
 
         // --- LOAD 3D MODEL INSTEAD OF CREATING ORANGE DOT ---
         const loader = new GLTFLoader();
@@ -2819,10 +2778,8 @@ const ThreeViewer = React.memo(
           tempMarkerGeometry,
           tempMarkerMaterial,
         );
-        tempMarker.position.copy(anchorPosition);
+        tempMarker.position.copy(worldPosition);
         sceneRef.current?.add(tempMarker);
-
-        // Load the actual model
         // Load the actual model
         loader.load(
           modelUrl,
@@ -2866,7 +2823,7 @@ const ThreeViewer = React.memo(
             }
 
             // Position the model at the anchor position
-            model.position.copy(anchorPosition);
+            model.position.copy(worldPosition);
 
             // Add the model to the scene
             sceneRef.current?.add(model);
@@ -2918,13 +2875,13 @@ const ThreeViewer = React.memo(
 
         // Shift label up a bit so it doesn't overlap the model
         labelObject.position
-          .copy(anchorPosition)
+          .copy(worldPosition)
           .add(new THREE.Vector3(0, 0.15, 0)); // Increased Y offset for models
 
         // Add label to scene
         sceneRef.current?.add(labelObject);
       });
-    }, [modelAnchors, originPoint, showModelAnchors]);
+    }, [modelAnchors, originPoint, yRotation, showModelAnchors]);
 
     // NEW: Centralized selection handler for ALL anchor types
     const handleAnchorSelect = (
@@ -3371,24 +3328,23 @@ const ThreeViewer = React.memo(
           Number(anchor.z || 0),
         );
 
-        // Convert to local model units (relative to an un-transformed origin at 0,0,0)
-        const localPosition = realWorldAnchorPos
-          .clone()
-          .divideScalar(SCALE_FACTOR);
+        console.log(`🏷️ [Text Anchor ${anchor.id}] Debug:`);
+        console.log("  Firebase coordinates:", realWorldAnchorPos.toArray());
+        console.log(
+          "  Current originNodeRef.current.position:",
+          originNodeRef.current?.position.toArray(),
+        );
+        console.log("  Current SCALE_FACTOR:", SCALE_FACTOR);
 
-        let worldPosition: THREE.Vector3;
-        const originMatrix = originNodeRef.current?.matrixWorld;
+        const worldPosition = convertFromRealWorldCoords(realWorldAnchorPos);
 
-        if (originMatrix) {
-          // Apply the origin node's full world transform (position + orientation)
-          worldPosition = localPosition.clone().applyMatrix4(originMatrix);
-        } else {
-          // Fallback if originNodeRef is not set (e.g., origin not defined yet)
-          worldPosition = localPosition; // Treat localPosition as world position in model units
-          console.warn(
-            `[ThreeViewer textAnchors] No originMatrix for anchor ${anchor.id}. Placing relative to world origin (model units).`,
-          );
-        }
+        console.log("  Final worldPosition:", worldPosition.toArray());
+        console.log(
+          "  Distance from origin:",
+          worldPosition.distanceTo(
+            originNodeRef.current?.position || new THREE.Vector3(),
+          ),
+        );
 
         // --- CREATE A CSS3DObject FOR THE LABEL ---
         const labelDiv = document.createElement("div");
@@ -3396,12 +3352,12 @@ const ThreeViewer = React.memo(
         labelDiv.style.pointerEvents = "auto"; // keep pointer events ON
 
         labelDiv.style.padding = "10px 12px";
-        labelDiv.style.fontSize = "14px";
+        labelDiv.style.fontSize = "11px";
         labelDiv.style.color = "#ffffff";
         labelDiv.style.backgroundColor = "rgba(120, 120, 130, 0.82)";
         labelDiv.style.borderRadius = "12px";
         labelDiv.style.whiteSpace = "normal";
-        labelDiv.style.maxWidth = "220px";
+        labelDiv.style.maxWidth = "160px";
         labelDiv.style.wordWrap = "break-word";
         labelDiv.style.overflowWrap = "break-word";
         labelDiv.style.textAlign = "left";
@@ -3414,7 +3370,8 @@ const ThreeViewer = React.memo(
         labelDiv.style.letterSpacing = "0.2px";
 
         const labelObject = new CSS3DObject(labelDiv); // Define labelObject here
-        labelObject.scale.set(0.0015, 0.0015, 0.0015);
+        //labelObject.scale.set(0.0015, 0.0015, 0.0015);
+        labelObject.scale.set(0.00075, 0.00075, 0.00075);
         labelObject.position.copy(worldPosition); // Use calculated worldPosition
         labelObject.userData.anchorId = anchor.id;
         labelObject.userData.isTextLabel = true;
@@ -3493,12 +3450,12 @@ const ThreeViewer = React.memo(
     }, [
       textAnchors,
       originPoint,
-      originOrientation, // Added originOrientation
+      yRotation,
       sceneRef.current,
       onTextAnchorClick,
       handleAnchorSelect,
       showTextAnchors,
-    ]); // Added dependencies
+    ]);
 
     // Update keyboard shortcuts useEffect
     useEffect(() => {
@@ -3522,13 +3479,17 @@ const ThreeViewer = React.memo(
             break;
           case "s": // Scale
             // Prevent scaling for CSS3DObjects (text, webpages) as it often breaks layout/interaction
-            if (
-              !(
-                transformControlsRef.current.object &&
-                transformControlsRef.current.object.userData &&
-                transformControlsRef.current.object.userData.isCSS3DObject
-              )
-            ) {
+            const isCSS3DRelated =
+              transformControlsRef.current.object &&
+              (transformControlsRef.current.object.userData?.isCSS3DObject ||
+                transformControlsRef.current.object.userData?.type?.includes(
+                  "webpage",
+                ) ||
+                transformControlsRef.current.object.userData?.type?.includes(
+                  "text",
+                ));
+
+            if (!isCSS3DRelated) {
               setTransformMode("scale");
               transformControlsRef.current?.setMode("scale");
             } else {
@@ -3659,14 +3620,16 @@ const ThreeViewer = React.memo(
         if (originPoint) {
           const offsetInModelUnits = realWorldPosition
             .clone()
-            .divideScalar(45.64);
+            .divideScalar(SCALE_FACTOR); //45.64
           const originVector =
             originPoint instanceof THREE.Vector3
               ? originPoint.clone()
               : new THREE.Vector3(0, 0, 0);
           modelSpacePosition = originVector.clone().add(offsetInModelUnits);
         } else {
-          modelSpacePosition = realWorldPosition.clone().divideScalar(45.64);
+          modelSpacePosition = realWorldPosition
+            .clone()
+            .divideScalar(SCALE_FACTOR); //45.64
           console.warn(
             `[ThreeViewer qrCodeAnchors] No originPoint for anchor ${anchor.id}. Placing relative to world origin.`,
           );
@@ -3710,7 +3673,7 @@ const ThreeViewer = React.memo(
         `%c[ThreeViewer qrCodeAnchors Effect] END`,
         "color: purple; font-weight: bold;",
       );
-    }, [qrCodeAnchors, originPoint, sceneRef.current, showQrCodes]);
+    }, [qrCodeAnchors, originPoint, yRotation, sceneRef.current, showQrCodes]);
 
     const loadAndAddWebpage = async (
       url: string,
@@ -3722,8 +3685,8 @@ const ThreeViewer = React.memo(
 
       // Create a container for the webpage with a better appearance
       const container = document.createElement("div");
-      container.style.width = "800px";
-      container.style.height = "600px";
+      container.style.width = "400px";
+      container.style.height = "300px";
       container.style.overflow = "hidden";
       container.style.borderRadius = "8px";
       container.style.boxShadow = "0 10px 30px rgba(0,0,0,0.3)";
@@ -3963,33 +3926,20 @@ const ThreeViewer = React.memo(
         );
 
         // Calculate localPosition from anchor's real-world coordinates
-        const localPosition = new THREE.Vector3(
-          Number(anchor.x || 0) / SCALE_FACTOR, // SCALE_FACTOR is 45.6
-          Number(anchor.y || 0) / SCALE_FACTOR,
-          Number(anchor.z || 0) / SCALE_FACTOR,
+        // Convert real-world coordinates back to model space
+        const realWorldPos = new THREE.Vector3(
+          Number(anchor.x || 0),
+          Number(anchor.y || 0),
+          Number(anchor.z || 0),
         );
 
-        let finalWorldPosition: THREE.Vector3;
-        const originMatrix = originNodeRef.current?.matrixWorld;
-
-        if (originMatrix) {
-          finalWorldPosition = localPosition.clone().applyMatrix4(originMatrix);
-        } else {
-          finalWorldPosition = localPosition;
-          console.warn(
-            `[ThreeViewer webpageAnchors] No originMatrix for anchor ${anchor.id}. Placing relative to world origin (model units).`,
-          );
-        }
-        console.log(
-          `[ThreeViewer webpageAnchors Effect] Calculated finalWorldPosition for ${anchor.id}:`,
-          finalWorldPosition.toArray(),
-        );
+        const worldPosition = convertFromRealWorldCoords(realWorldPos);
 
         const webpageObject = await loadAndAddWebpage(
           // This function adds to scene
           anchor.webpageUrl,
           anchor.id,
-          finalWorldPosition, // Use the newly calculated world position
+          worldPosition, // Use the newly calculated world position
         );
 
         if (webpageObject && sceneRef.current) {
@@ -4006,7 +3956,7 @@ const ThreeViewer = React.memo(
             // For clarity and robustness, explicitly use finalWorldPosition for the helper if its parent is the scene.
             // If the helper is meant to be a child of webpageObject, then its local position would be (0,0,0).
             // Assuming helper is added to scene and needs world coordinates:
-            helperMesh.position.copy(finalWorldPosition);
+            helperMesh.position.copy(worldPosition);
             // If helper is child of webpageObject, then:
             // helperMesh.position.set(0,0,0); // As it's local to webpageObject which is at finalWorldPosition
             // The current pattern seems to be adding helpers to the scene directly.
@@ -4057,9 +4007,9 @@ const ThreeViewer = React.memo(
     }, [
       webpageAnchors,
       originPoint,
-      originOrientation, // Added originOrientation
+      yRotation, // ADD THIS LINE
       sceneRef,
-      loadAndAddWebpage, // loadAndAddWebpage itself doesn't need to be in deps if stable
+      loadAndAddWebpage,
       showWebpageAnchors,
     ]);
 
@@ -4207,6 +4157,24 @@ const ThreeViewer = React.memo(
 
       const scene = new THREE.Scene();
       sceneRef.current = scene;
+
+      // 🔥 ADD THE ORIGIN NODE CREATION RIGHT HERE:
+      const originNode = new THREE.Object3D();
+      originNode.name = "OriginNode";
+      // 🚨 CRITICAL FIX: Set the position immediately if originPoint exists
+      if (originPoint) {
+        originNode.position.copy(originPoint);
+        console.log(
+          "🎯 Origin node positioned at:",
+          originNode.position.toArray(),
+        );
+      } else {
+        originNode.position.set(0, 0, 0);
+        console.log("🎯 Origin node positioned at default (0,0,0)");
+      }
+
+      scene.add(originNode);
+      originNodeRef.current = originNode;
 
       {
         // Create an improved drag indicator system
@@ -4431,9 +4399,21 @@ const ThreeViewer = React.memo(
 
       const loader = new GLTFLoader();
 
-      const fullModelPath =
-        //  "https://f005.backblazeb2.com/file/objectModels-dev/4_27_2025.glb";
-        "https://f005.backblazeb2.com/file/objectModels-dev/home.glb";
+     //  const fullModelPath =
+     //    //  "https://f005.backblazeb2.com/file/objectModels-dev/4_27_2025.glb";
+     //   // "https://f005.backblazeb2.com/file/objectModels-dev/home.glb";
+     //  // "https://f005.backblazeb2.com/file/objectModels-dev/+HLF+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+8k.glb";
+
+     // // "https://f005.backblazeb2.com/file/objectModels-dev/Library+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+4k.glb";
+      // With this:
+      const fullModelPath = modelPath || ""; // Use the prop directly
+
+      // Add validation
+      if (!fullModelPath) {
+        console.error("No modelPath provided to ThreeViewer");
+        onError?.("No 3D model path provided");
+        return <div>No 3D model to display</div>;
+      }
 
       // Determine if modelPath is an external URL or local path
       // let fullModelPath = modelPath;
@@ -4545,7 +4525,7 @@ const ThreeViewer = React.memo(
 
           if (originPoint) {
             const offset = hitPoint.clone().sub(originPoint);
-            const msg = `Relative to origin: X:${(offset.x * 45.64).toFixed(2)}, Y:${(offset.y * 45.64).toFixed(2)}, Z:${(offset.z * 45.64).toFixed(2)}`;
+            const msg = `Relative to origin: X:${(offset.x * SCALE_FACTOR).toFixed(2)}, Y:${(offset.y * SCALE_FACTOR).toFixed(2)}, Z:${(offset.z * SCALE_FACTOR).toFixed(2)}`;
             setDistanceDisplay(msg);
           }
 
@@ -4574,19 +4554,17 @@ const ThreeViewer = React.memo(
           return;
         }
 
-        // Ignore clicks if we are currently dragging a transform control
         if (transformControlsRef.current.dragging) {
           return;
         }
 
-        // --- Setup Raycasting ---
+        // --- Setup Raycasting (keep this part) ---
         const rect = mountRef.current.getBoundingClientRect();
         const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
         const mouse = new THREE.Vector2(x, y);
         raycasterRef.current.setFromCamera(mouse, cameraRef.current);
 
-        // Raycast against the main model first to check for intersections on it
         let modelIntersects: THREE.Intersection[] = [];
         if (parentModelRef.current) {
           modelIntersects = raycasterRef.current.intersectObject(
@@ -4610,7 +4588,7 @@ const ThreeViewer = React.memo(
           } else {
             console.log("Origin position picking click missed the model.");
           }
-          return; // Exit
+          return; // Exit after handling
         }
 
         // Two-step origin setting (direction)
@@ -4627,7 +4605,7 @@ const ThreeViewer = React.memo(
           } else {
             console.log("Origin direction picking click missed the model.");
           }
-          return; // Exit
+          return; // Exit after handling
         }
 
         // One-step (legacy) origin setting
@@ -4697,7 +4675,26 @@ const ThreeViewer = React.memo(
             newSphere.position.copy(alignHitPoint);
             sceneRef.current.add(newSphere);
             newSphere.userData.label = activeLabelRef.current;
-            transformControlsRef.current.attach(newSphere);
+
+            // 1. ADD THIS: Immediately update the state with the new point's 3D coordinates.
+            const newPoint = {
+              id: `ref-${activeLabelRef.current}-${Date.now()}`, // Unique ID for the point
+              label: activeLabelRef.current,
+              x: 0,
+              y: 0,
+              z: 0, // 2D coords, not relevant for this action
+              x3D: alignHitPoint.x,
+              y3D: alignHitPoint.y,
+              z3D: alignHitPoint.z,
+            };
+            currentProps.setReferencePoints3D((prevPoints) => [
+              ...prevPoints,
+              newPoint,
+            ]);
+
+            // 2. REMOVED: The line below was causing the gizmo to appear.
+            // transformControlsRef.current.attach(newSphere);
+
             currentProps.setAwaiting3D?.(false);
           }
           return;
@@ -4762,7 +4759,23 @@ const ThreeViewer = React.memo(
             const displayOffset = modelIntersects[0].point
               .clone()
               .sub(currentProps.originPoint);
-            const msg = `Relative to origin: X:${(displayOffset.x * 45.6).toFixed(2)}, Y:${(displayOffset.y * 45.6).toFixed(2)}, Z:${(displayOffset.z * 45.6).toFixed(2)} ft`;
+
+            // Apply coordinate system correction based on yRotation for display using proper rotation matrix
+            let correctedDisplayOffset = displayOffset.clone();
+            const rotationDegrees = yRotation || 0;
+            const rotationRadians = (rotationDegrees * Math.PI) / 180;
+            const cosTheta = Math.cos(rotationRadians);
+            const sinTheta = Math.sin(rotationRadians);
+
+            // Apply Y-axis rotation matrix for display
+            correctedDisplayOffset.set(
+              displayOffset.x * cosTheta + displayOffset.z * sinTheta, // x' = x*cos(θ) + z*sin(θ)
+              displayOffset.y, // y' = y (unchanged)
+              -displayOffset.x * sinTheta + displayOffset.z * cosTheta, // z' = -x*sin(θ) + z*cos(θ)
+            );
+            // If rotationDegrees === 0, use displayOffset as-is (no correction)
+
+            const msg = `Relative to origin: X:${(correctedDisplayOffset.x * SCALE_FACTOR).toFixed(2)}, Y:${(correctedDisplayOffset.y * SCALE_FACTOR).toFixed(2)}, Z:${(correctedDisplayOffset.z * SCALE_FACTOR).toFixed(2)} ft`;
             setDistanceDisplay(msg);
           }
         }
@@ -5408,15 +5421,15 @@ const ThreeViewer = React.memo(
                       sceneRef.current?.remove(loadingIndicator);
 
                     // Calculate offset from origin if it exists
-                    let scaledX = dropPoint.x * 45.64;
-                    let scaledY = dropPoint.y * 45.64;
-                    let scaledZ = dropPoint.z * 45.64;
+                    let scaledX = dropPoint.x * SCALE_FACTOR;
+                    let scaledY = dropPoint.y * SCALE_FACTOR;
+                    let scaledZ = dropPoint.z * SCALE_FACTOR;
 
                     if (originPoint) {
                       const offset = dropPoint.clone().sub(originPoint);
-                      scaledX = offset.x * 45.64;
-                      scaledY = offset.y * 45.64;
-                      scaledZ = offset.z * 45.64;
+                      scaledX = offset.x * SCALE_FACTOR;
+                      scaledY = offset.y * SCALE_FACTOR;
+                      scaledZ = offset.z * SCALE_FACTOR;
                     }
 
                     // Create anchor in Firestore
@@ -5519,9 +5532,9 @@ const ThreeViewer = React.memo(
               if (originPoint) {
                 const offset = dropPoint.clone().sub(originPoint);
                 const scaledOffset = {
-                  x: offset.x * 45.64,
-                  y: offset.y * 45.64,
-                  z: offset.z * 45.64,
+                  x: offset.x * SCALE_FACTOR,
+                  y: offset.y * SCALE_FACTOR,
+                  z: offset.z * SCALE_FACTOR,
                 };
 
                 // Call the callback to notify BlueprintEditor
@@ -5861,12 +5874,16 @@ const ThreeViewer = React.memo(
             );
 
             // For WebGL visual objects (not CSS3D), also update scale live if needed
-            if (!visualLinkedToHelper.isCSS3DObject) {
+            // CSS3DObjects should maintain their original scale for proper rendering
+            if (
+              !visualLinkedToHelper.isCSS3DObject &&
+              !visualLinkedToHelper.userData?.isCSS3DObject
+            ) {
               const currentWorldScale = new THREE.Vector3();
               transformedObject.getWorldScale(currentWorldScale);
               visualLinkedToHelper.scale.copy(currentWorldScale);
             }
-            // Note: CSS3DObject.scale is for pixel-to-unit conversion, not typically changed by gizmo scale.
+            // Note: CSS3DObject.scale is for pixel-to-unit conversion, never changed by gizmo scale.
           }
         }
       };
@@ -5962,6 +5979,13 @@ const ThreeViewer = React.memo(
           originPoint ? originPoint.toArray() : null,
         );
 
+        // For CSS3D objects (webpages, text), always keep scale at 1,1,1
+        // For other objects (models, files), use the actual transformed scale
+        const finalScale =
+          selectedAnchorType === "webpage" || selectedAnchorType === "text"
+            ? { x: 1, y: 1, z: 1 }
+            : { x: worldScale.x, y: worldScale.y, z: worldScale.z };
+
         updateAnchorTransform(selectedAnchorId, {
           x: realWorldPos.x,
           y: realWorldPos.y,
@@ -5969,9 +5993,9 @@ const ThreeViewer = React.memo(
           rotationX: worldRotation.x,
           rotationY: worldRotation.y,
           rotationZ: worldRotation.z,
-          scaleX: worldScale.x, // Save the scale of the object that was transformed by the gizmo
-          scaleY: worldScale.y,
-          scaleZ: worldScale.z,
+          scaleX: finalScale.x,
+          scaleY: finalScale.y,
+          scaleZ: finalScale.z,
         });
       };
 
@@ -6355,14 +6379,14 @@ const ThreeViewer = React.memo(
 
           // Compute the offset relative to origin and then scale by 45.64.
           // If no origin is set, default to using selectedPoint directly.
-          let scaledX = selectedPoint.x * 45.64;
-          let scaledY = selectedPoint.y * 45.64;
-          let scaledZ = selectedPoint.z * 45.64;
+          let scaledX = selectedPoint.x * SCALE_FACTOR;
+          let scaledY = selectedPoint.y * SCALE_FACTOR;
+          let scaledZ = selectedPoint.z * SCALE_FACTOR;
           if (originPoint) {
             const offset = selectedPoint.clone().sub(originPoint);
-            scaledX = offset.x * 45.64;
-            scaledY = offset.y * 45.64;
-            scaledZ = offset.z * 45.64;
+            scaledX = offset.x * SCALE_FACTOR;
+            scaledY = offset.y * SCALE_FACTOR;
+            scaledZ = offset.z * SCALE_FACTOR;
           }
 
           // 2) Create the anchor document in Firestore
