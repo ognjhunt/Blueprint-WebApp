@@ -4429,7 +4429,8 @@ const ThreeViewer = React.memo(
 
       // // "https://f005.backblazeb2.com/file/objectModels-dev/Library+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+4k.glb";
       // With this:
-      const fullModelPath = modelPath || ""; // Use the prop directly
+      const fullModelPath =
+        "https://f005.backblazeb2.com/file/objectModels-dev/6_26_2025.glb"; //modelPath || ""; // Use the prop directly
 
       // Add validation
       if (!fullModelPath) {
@@ -4471,9 +4472,14 @@ const ThreeViewer = React.memo(
 
       // Set up loading with retry logic
       const loadModelWithRetry = (attempt = 0, maxAttempts = 3) => {
+        console.log(
+          `Loading model attempt ${attempt + 1}/${maxAttempts}: ${fullModelPath}`,
+        );
+
         loader.load(
           fullModelPath,
           (gltf: any) => {
+            console.log("Model loaded successfully");
             const model = gltf.scene;
             parentModelRef.current = model;
             const box = new THREE.Box3().setFromObject(model);
@@ -4484,11 +4490,8 @@ const ThreeViewer = React.memo(
             model.scale.multiplyScalar(scale);
             model.position.copy(center).multiplyScalar(-scale);
             scene.add(model);
-
-            // When the model is added, set the progress to 100 and mark as loaded:
             setModelLoadProgress(100);
             setModelLoaded(true);
-
             onLoad?.();
             camera.position.set(0.55, 0.55, 0.55);
             orbitControls.target.set(0, 0, 0);
@@ -4503,29 +4506,137 @@ const ThreeViewer = React.memo(
             }
           },
           (error) => {
-            console.error("Error loading model:", error);
-            // Implement retry logic or error handling as needed…
-            if (
-              attempt < maxAttempts - 1 &&
-              fullModelPath.includes("firebasestorage.googleapis.com")
-            ) {
+            console.error(
+              `Error loading model (attempt ${attempt + 1}):`,
+              error,
+            );
+
+            // Check for network-related errors that shouldn't be retried
+            const errorMessage = error?.message || error?.toString() || "";
+            const isNetworkError =
+              errorMessage.includes("Failed to fetch") ||
+              errorMessage.includes("CORS") ||
+              errorMessage.includes("ERR_FAILED") ||
+              errorMessage.includes("ERR_NETWORK") ||
+              errorMessage.includes("ERR_INTERNET_DISCONNECTED") ||
+              errorMessage.includes("404") ||
+              errorMessage.includes("Not Found") ||
+              error?.code === "NetworkError" ||
+              error?.name === "NetworkError";
+
+            if (isNetworkError) {
               console.log(
-                `Retrying model load... Attempt ${attempt + 1}/${maxAttempts}`,
+                `Network error detected: ${errorMessage}. Immediately loading fallback model...`,
               );
-              setTimeout(() => {
-                loadModelWithRetry(attempt + 1, maxAttempts);
-              }, 1000);
+              loadFallbackModel();
+              return;
+            }
+
+            // For non-network errors (like parsing errors), try retrying
+            if (attempt < maxAttempts - 1) {
+              console.log(
+                `Retrying model load... Attempt ${attempt + 2}/${maxAttempts}`,
+              );
+              setTimeout(
+                () => {
+                  loadModelWithRetry(attempt + 1, maxAttempts);
+                },
+                1000 * (attempt + 1),
+              ); // Exponential backoff
             } else {
-              if (onError) {
-                onError(error.message || "Error loading model");
-              }
+              console.log("All retries exhausted, loading fallback model...");
+              loadFallbackModel();
             }
           },
         );
       };
 
-      // Start the loading process with retry
-      loadModelWithRetry(0, 3);
+      // Fallback model loader
+      const loadFallbackModel = () => {
+        const fallbackUrl =
+          "https://f005.backblazeb2.com/file/objectModels-dev/6_26_2025.glb";
+        console.log("Loading fallback model:", fallbackUrl);
+
+        loader.load(
+          fallbackUrl,
+          (gltf: any) => {
+            console.log("Fallback model loaded successfully");
+            const model = gltf.scene;
+            parentModelRef.current = model;
+            const box = new THREE.Box3().setFromObject(model);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const scale = 2 / maxDim;
+            model.scale.multiplyScalar(scale);
+            model.position.copy(center).multiplyScalar(-scale);
+            scene.add(model);
+            setModelLoadProgress(100);
+            setModelLoaded(true);
+            onLoad?.();
+            camera.position.set(0.55, 0.55, 0.55);
+            orbitControls.target.set(0, 0, 0);
+            orbitControls.update();
+          },
+          (xhr) => {
+            if (xhr.lengthComputable) {
+              const percentComplete = (xhr.loaded / xhr.total) * 100;
+              setModelLoadProgress(percentComplete);
+            }
+          },
+          (error) => {
+            console.error("Error loading fallback model:", error);
+
+            // Try a different fallback URL if the first one fails
+            const backupFallbackUrl =
+              "https://f005.backblazeb2.com/file/objectModels-dev/home.glb";
+            console.log("Trying backup fallback model:", backupFallbackUrl);
+
+            loader.load(
+              backupFallbackUrl,
+              (gltf: any) => {
+                console.log("Backup fallback model loaded successfully");
+                const model = gltf.scene;
+                parentModelRef.current = model;
+                const box = new THREE.Box3().setFromObject(model);
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const scale = 2 / maxDim;
+                model.scale.multiplyScalar(scale);
+                model.position.copy(center).multiplyScalar(-scale);
+                scene.add(model);
+                setModelLoadProgress(100);
+                setModelLoaded(true);
+                onLoad?.();
+                camera.position.set(0.55, 0.55, 0.55);
+                orbitControls.target.set(0, 0, 0);
+                orbitControls.update();
+              },
+              undefined,
+              (backupError) => {
+                console.error(
+                  "Error loading backup fallback model:",
+                  backupError,
+                );
+                // If all fallbacks fail, call the error handler
+                if (onError) {
+                  onError("All model loading attempts failed");
+                }
+              },
+            );
+          },
+        );
+      };
+
+      // Add a safety check before starting
+      try {
+        console.log("Starting model load process for:", fullModelPath);
+        loadModelWithRetry(0, 3);
+      } catch (error) {
+        console.error("Error starting model load:", error);
+        loadFallbackModel();
+      }
 
       const handleRightClick = (event: MouseEvent) => {
         event.preventDefault();
