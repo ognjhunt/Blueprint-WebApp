@@ -78,7 +78,7 @@ export default async function processWaitlistHandler(
           require_approval: "never",
           headers: {
             Authorization:
-              "YmQ5YzMxY2EtMWYzOC00NTViLTljYjItOWYyMmM0NWU3ODE0OjJkN2ZmMzRjLTQ1MTgtNDNkMC05ODg0LTc2MzA5NTYyMjFjYw==", //NEWER:  Bearer NGQzMmEwYWUtODI2Zi00NTBhLTlmZTUtMzBjMWUyZmQ0MWU3OjdmNjQ1YTVjLTBmY2UtNDg4ZS05NjIwLTMyOTY0YjI2ZWI0Mg==
+              "Bearer YmQ5YzMxY2EtMWYzOC00NTViLTljYjItOWYyMmM0NWU3ODE0OjJkN2ZmMzRjLTQ1MTgtNDNkMC05ODg0LTc2MzA5NTYyMjFjYw==", //NEWER:  Bearer NGQzMmEwYWUtODI2Zi00NTBhLTlmZTUtMzBjMWUyZmQ0MWU3OjdmNjQ1YTVjLTBmY2UtNDg4ZS05NjIwLTMyOTY0YjI2ZWI0Mg==
           },
         },
       ],
