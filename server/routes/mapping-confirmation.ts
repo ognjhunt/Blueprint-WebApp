@@ -256,12 +256,167 @@ export default async function processMappingConfirmationHandler(
     );
 
     console.log("Sending Prompt for Call 2 to OpenAI...");
+    // const mcpResponseCall2 = await openai.responses.create({
+    //   model: "o3",
+    //   reasoning: {
+    //     effort: "medium",
+    //   },
+    //   input: promptCall2,
+    //   tools: [
+    //     {
+    //       type: "mcp",
+    //       server_label: "zapier",
+    //       server_url:
+    //         "https://mcp.zapier.com/api/mcp/s/bd9c31ca-1f38-455b-9cb2-9f22c45e7814/mcp",
+    //       require_approval: "never",
+    //       allowed_tools: [
+    //         "perplexity_chat_completion",
+    //         "google_sheets_find_worksheet",
+    //         "google_sheets_lookup_spreadsheet_row",
+    //         "google_sheets_update_spreadsheet_row",
+    //         "notion_create_page",
+    //         "notion_add_content_to_page",
+    //         "notion_get_page_and_children",
+    //         "notion_find_page_by_title",
+    //       ],
+    //       headers: {
+    //         Authorization:
+    //           "Bearer YmQ5YzMxY2EtMWYzOC00NTViLTljYjItOWYyMmM0NWU3ODE0OjJkN2ZmMzRjLTQ1MTgtNDNkMC05ODg0LTc2MzA5NTYyMjFjYw==",
+    //       },
+    //     },
+    //   ],
+    // });
+    // Phase 2A: Deep Research using OpenAI's Deep Research API
+    // Phase 2A: Deep Research using OpenAI's Deep Research API
+    console.log("Starting Deep Research phase...");
+    try {
+      const deepResearchResponse = await openai.responses.create({
+        model: "o4-mini-deep-research",
+        input: `Research the company: ${companyUrlForCall2} (${company_name} at ${address})
+
+        RESEARCH TASKS:
+        1. Visit main website and find key information
+        2. Extract Key URLs: Menu, Reservations, Wait List, Online Ordering, Reviews, Loyalty Program, Specials/Promotions, Events/Calendar
+        3. Get full menu details (items, descriptions, prices) 
+        4. Find general info: Hours, Social Media links, Contact Info, About Us, Policies
+        5. Scrape content from each key URL found
+        6. Find up to 6 Google Reviews & 6 Yelp Reviews (4+ stars, recent, with text and ratings)
+        7. Create 5-10 personalized multiple-choice questions about the company based on research
+
+        Format your research findings in a comprehensive markdown report with clear sections for each task above.`,
+        tools: [
+          { type: "web_search_preview" },
+          { type: "code_interpreter", container: { type: "auto" } },
+        ],
+        background: false,
+        // Add max_tool_calls to control research depth vs speed
+        max_tool_calls: 20, // Adjust based on your needs - lower = faster, higher = more thorough
+      });
+    } catch (error) {
+      console.error("Deep Research API error:", error);
+      return res.status(500).json({
+        error: "Deep Research API failed",
+        details: error.message,
+      });
+    }
+
+    console.log("Deep Research completed, extracting findings...");
+
+    // Extract the research findings with better error handling
+    let deepResearchFindings: string;
+    try {
+      if (deepResearchResponse.output_text && typeof deepResearchResponse.output_text === "string") {
+        deepResearchFindings = deepResearchResponse.output_text;
+      } else if (deepResearchResponse.text && typeof deepResearchResponse.text === "string") {
+        deepResearchFindings = deepResearchResponse.text;
+      } else {
+        console.error("Deep Research Response Structure:", JSON.stringify(deepResearchResponse, null, 2));
+        throw new Error("Could not extract deep research findings from response - no valid text field found");
+      }
+
+      if (!deepResearchFindings.trim()) {
+        throw new Error("Deep research findings are empty");
+      }
+
+      console.log("Deep Research findings extracted successfully, length:", deepResearchFindings.length);
+    } catch (error) {
+      console.error("Error extracting deep research findings:", error);
+      return res.status(500).json({
+        error: "Failed to extract deep research findings",
+        details: error.message,
+        debug_info: {
+          available_keys: Object.keys(deepResearchResponse),
+          has_output_text: !!deepResearchResponse.output_text,
+          has_text: !!deepResearchResponse.text,
+        },
+      });
+    }
+
+    console.log("Deep Research findings extracted, proceeding to Phase 2B...");
+
+    // Phase 2B: Use MCP to update Google Sheets and Notion with the research findings
+    const maxPromptLength = 15000; // Adjust based on model limits
+    let researchSummary = deepResearchFindings;
+
+    // If research findings are too long, truncate for the MCP call
+    if (deepResearchFindings.length > maxPromptLength) {
+      researchSummary = deepResearchFindings.substring(0, maxPromptLength) + 
+        "\n\n[Research findings truncated for prompt length. Full findings saved to Firebase.]";
+      console.log("Research findings truncated for MCP call due to length");
+    }
+    const updatedPromptCall2 = `
+    Blueprint Post-Signup - Phase 2B: Update Systems with Deep Research for ${company_name}.
+
+    **DEEP RESEARCH FINDINGS:**
+    ${deepResearchFindings}
+
+    **INPUT DATA:**
+    - Company Name: ${company_name}
+    - Company URL: ${companyUrlForCall2}
+    - Company Address: ${address}
+    - Google Sheet Row ID to update: ${sheetRowId}
+
+    **TASK 1: UPDATE GOOGLE SHEET WITH DEEP RESEARCH**
+    Spreadsheet: "Blueprint Waitlist"
+    Sheet: "Inbound (Website)"
+    If the provided Google Sheet Row ID is "LOOKUP_REQUIRED" or "NOT_FOUND", first find the row where 'Website' column matches "${companyUrlForCall2}" and use that Row ID.
+    Update the column "Company Research" with the entire research findings above.
+
+    **TASK 2: CREATE NOTION PAGE**
+    In Notion database/page named "Blueprint Hub":
+    Title: "${company_name} - Blueprint Design Ideas & Research"
+    Icon: (AI-selected emoji based on company type)
+    Cover: (AI-selected stock image URL)
+    Content: Structure the deep research findings into a well-organized Notion page with:
+
+    ### Deep Research Summary
+    [3-5 sentence summary highlighting key findings]
+
+    ### Key URLs Found:
+    (CRITICAL for Firestore - use exact format)
+    - Menu: [URL or N/A]
+    - Reservations: [URL or N/A] 
+    - Wait List: [URL or N/A]
+    - Online Ordering: [URL or N/A]
+    - Reviews: [URL or N/A]
+    - Loyalty Program: [URL or N/A]
+    - Specials/Promotions: [URL or N/A]
+    - Events/Calendar: [URL or N/A]
+
+    ### AI-Generated Blueprint AR Experience Ideas:
+    [Generate 3-5 creative AR experience ideas based on the research, with suggestions for Text, 3D Models, Media, Webpages, and Uploaded Content for each idea]
+
+    ### Customer Engagement Questions:
+    [List the research-based MCQs with answers]
+
+    Execute both tasks and confirm completion.`;
+
     const mcpResponseCall2 = await openai.responses.create({
       model: "o3",
       reasoning: {
         effort: "medium",
       },
-      input: promptCall2,
+      input: updatedPromptCall2,
       tools: [
         {
           type: "mcp",
@@ -270,7 +425,7 @@ export default async function processMappingConfirmationHandler(
             "https://mcp.zapier.com/api/mcp/s/bd9c31ca-1f38-455b-9cb2-9f22c45e7814/mcp",
           require_approval: "never",
           allowed_tools: [
-            "perplexity_chat_completion",
+            // Remove perplexity_chat_completion from here
             "google_sheets_find_worksheet",
             "google_sheets_lookup_spreadsheet_row",
             "google_sheets_update_spreadsheet_row",
@@ -331,47 +486,36 @@ export default async function processMappingConfirmationHandler(
     let firebaseOpsError: string | null = null;
 
     if (blueprint_id) {
-      // Ensure blueprint_id is available
       try {
-        // Ensure Firebase Admin is initialized
         if (!admin.apps.length) {
-          // This is a critical error if not initialized. For this example, we log and proceed,
-          // but in a production app, this should be handled robustly, or initialization guaranteed.
           console.error(
             "CRITICAL: Firebase Admin SDK is not initialized. Firebase operations will fail.",
           );
           throw new Error("Firebase Admin SDK not initialized.");
         }
         const db = admin.firestore();
-        const bucket = admin.storage().bucket(); // Default bucket
+        const bucket = admin.storage().bucket();
 
-        // 1. Upload Deep Research output (responseTextCall2) to Firebase Storage
-        // The "IF THE output from deep research contains markdown files" implies that
-        // responseTextCall2 itself is the markdown content to be uploaded.
-        if (responseTextCall2) {
+        // 1. Upload Deep Research output to Firebase Storage
+        if (deepResearchFindings) {
           const storageFilePath = `blueprints/${blueprint_id}/deep_research_report.md`;
           const file = bucket.file(storageFilePath);
-
-          await file.save(responseTextCall2, {
-            metadata: {
-              contentType: "text/markdown; charset=utf-8", // Specify UTF-8
-            },
+          await file.save(deepResearchFindings, {
+            metadata: { contentType: "text/markdown; charset=utf-8" },
           });
           firebaseStoragePath = `gs://${bucket.name}/${storageFilePath}`;
-          console.log(
-            `Deep research report uploaded to Firebase Storage: ${firebaseStoragePath}`,
-          );
         }
 
         // 2. Update Firestore document
         const blueprintDocRef = db.collection("blueprints").doc(blueprint_id);
         const firestoreUpdateData: { [key: string]: any } = {
-          context: responseTextCall2, // Paste whole output from Deep Research
+          context: deepResearchFindings, // Use deepResearchFindings consistently
           researchLastUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
         };
 
-        // Extract Key URLs from responseTextCall2 and add them to the update object
-        const extractedUrls = extractUrlsFromDeepResearch(responseTextCall2);
+        // Extract URLs from the deep research findings for Firestore
+        const extractedUrls = extractUrlsFromDeepResearch(deepResearchFindings); // Use deepResearchFindings consistently
+
         if (Object.keys(extractedUrls).length > 0) {
           console.log("Extracted URLs for Firestore:", extractedUrls);
         } else {
@@ -384,7 +528,7 @@ export default async function processMappingConfirmationHandler(
           firestoreUpdateData[key] = extractedUrls[key];
         }
 
-        await blueprintDocRef.set(firestoreUpdateData, { merge: true }); // Use set with merge to create or update
+        await blueprintDocRef.set(firestoreUpdateData, { merge: true });
         firestoreUpdateDetails = {
           success: true,
           documentPath: blueprintDocRef.path,
@@ -398,8 +542,6 @@ export default async function processMappingConfirmationHandler(
         firebaseOpsError =
           fbError.message ||
           "An unknown error occurred during Firebase operations.";
-        // Optional: if Firebase ops are critical, you might re-throw or return 500 here
-        // For now, we'll report the error in the response.
       }
     } else {
       firebaseOpsError =
@@ -408,19 +550,22 @@ export default async function processMappingConfirmationHandler(
     }
     // --- END: New Firebase Operations ---
 
+    // Combine both deep research findings and system update results
+    const combinedResponse = `=== DEEP RESEARCH FINDINGS ===\n${deepResearchFindings}\n\n=== SYSTEM UPDATES ===\n${responseTextCall2}`;
+
     res.json({
       success: true,
       phase1_summary: responseTextCall1,
       phase1_extracted_data: extractedDataCall1,
-      phase2_summary: responseTextCall2,
+      phase2a_deep_research: deepResearchFindings, // ← Full research report
+      phase2b_system_updates: responseTextCall2, // ← Google Sheets/Notion updates
+      phase2_combined: `${deepResearchFindings}\n\n=== SYSTEM UPDATES ===\n${responseTextCall2}`,
       firebase_operations_status: {
-        // New section for Firebase results
         storage_upload_path: firebaseStoragePath,
         firestore_update: firestoreUpdateDetails,
         error: firebaseOpsError,
       },
-      message:
-        "Mapping confirmation workflow (Phases 1 & 2) processed. Review Firebase operations status.",
+      message: "Mapping confirmation workflow completed with Deep Research API",
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
