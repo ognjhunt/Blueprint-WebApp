@@ -205,10 +205,23 @@ export default function ContactForm() {
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    console.log("🟡 [DEBUG] Form submitted - handleSubmit called");
+    console.log("🟡 [DEBUG] Form data:", formData);
+
+    const isValid = validateForm();
+    console.log("🟡 [DEBUG] Form validation result:", isValid);
+    console.log("🟡 [DEBUG] Validation errors:", errors);
+
+    if (!isValid) {
+      console.log("❌ [DEBUG] Form validation failed, returning early");
+      return;
+    }
+
+    console.log("✅ [DEBUG] Form validation passed, proceeding...");
     setIsSubmitting(true);
 
     try {
+      console.log("🟡 [DEBUG] Creating Firebase token...");
       const token = uuidv4();
       const baseUrl = "https://blueprint-vision-fork-nijelhunt.replit.app";
       const offWaitlistUrl = `${baseUrl}/off-waitlist-signup?token=${token}`;
@@ -222,19 +235,11 @@ export default function ContactForm() {
         createdAt: serverTimestamp(),
       });
 
-      // Show success immediately
-      setIsSuccess(true);
-      setFormData({
-        name: "",
-        email: "",
-        company: "",
-        city: "",
-        state: "",
-        message: "",
-      });
+      console.log("✅ [DEBUG] Firebase token created successfully");
+      console.log("🔵 [FRONTEND] About to call process-waitlist API...");
 
-      // Fire MCP process in background (don't await)
-      fetch("/api/process-waitlist", {
+      // WAIT for the MCP response to debug issues
+      const mcpResponse = await fetch("/api/process-waitlist", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -249,13 +254,35 @@ export default function ContactForm() {
           companyWebsite: companyWebsite,
           offWaitlistUrl: offWaitlistUrl,
         }),
-      }).catch((error) => {
-        console.error("Background MCP process failed:", error);
-        // Optionally store this error in Firebase for debugging
+      });
+
+      console.log(
+        "🔵 [FRONTEND] Response received:",
+        mcpResponse.status,
+        mcpResponse.ok,
+      );
+
+      if (!mcpResponse.ok) {
+        const errorData = await mcpResponse.json();
+        console.error("❌ [FRONTEND] API Error:", errorData);
+        throw new Error(`API Error: ${JSON.stringify(errorData)}`);
+      }
+
+      const responseData = await mcpResponse.json();
+      console.log("✅ [FRONTEND] Success:", responseData);
+
+      setIsSuccess(true);
+      setFormData({
+        name: "",
+        email: "",
+        company: "",
+        city: "",
+        state: "",
+        message: "",
       });
     } catch (error) {
-      console.error("Error submitting form:", error);
-      alert("There was an error submitting your form. Please try again.");
+      console.error("❌ [FRONTEND] Form submission failed:", error);
+      alert(`Error: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
