@@ -238,9 +238,44 @@ export default function ContactForm() {
       console.log("✅ [DEBUG] Firebase token created successfully");
 
       // Fire-and-forget API call - don't wait for it to complete
-      fetch("/api/process-waitlist", {
+      // fetch("/api/process-waitlist", {
+      //   method: "POST",
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //   },
+      //   body: JSON.stringify({
+      //     name: formData.name,
+      //     company: formData.company,
+      //     email: formData.email,
+      //     city: formData.city,
+      //     state: formData.state,
+      //     message: formData.message,
+      //     companyWebsite: companyWebsite,
+      //     offWaitlistUrl: offWaitlistUrl,
+      //   }),
+      // })
+      //   .then((response) => {
+      //     console.log(
+      //       "🔵 [FRONTEND] Background API completed:",
+      //       response.status,
+      //     );
+      //     return response.json();
+      //   })
+      //   .then((data) => {
+      //     console.log("✅ [FRONTEND] Background API Success:", data);
+      //   })
+      //   .catch((error) => {
+      //     console.error(
+      //       "❌ [FRONTEND] Background API Error (non-blocking):",
+      //       error,
+      //     );
+      //   });
+
+      // Fire-and-forget Lindy webhook call - don't wait for it to complete
+      fetch("https://public.lindy.ai/api/v1/webhooks/lindy/163b37c0-2f5c-4969-9b2e-0d5ec61afb52", {
         method: "POST",
         headers: {
+          "Authorization": "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -256,17 +291,17 @@ export default function ContactForm() {
       })
         .then((response) => {
           console.log(
-            "🔵 [FRONTEND] Background API completed:",
+            "🔵 [FRONTEND] Lindy webhook completed:",
             response.status,
           );
           return response.json();
         })
         .then((data) => {
-          console.log("✅ [FRONTEND] Background API Success:", data);
+          console.log("✅ [FRONTEND] Lindy webhook Success:", data);
         })
         .catch((error) => {
           console.error(
-            "❌ [FRONTEND] Background API Error (non-blocking):",
+            "❌ [FRONTEND] Lindy webhook Error (non-blocking):",
             error,
           );
         });

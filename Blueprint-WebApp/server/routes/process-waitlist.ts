@@ -95,33 +95,25 @@ export default async function processWaitlistHandler(
     );
 
     // Add timeout and detailed error handling
-    const mcpResponse = await Promise.race([
-      openai.responses.create({
-        model: "o3",
-        input: aiPrompt,
-        reasoning: {
-          effort: "medium",
-        },
-        tools: [
-          {
-            type: "mcp",
-            server_label: "zapier",
-            server_url: "https://mcp.zapier.com/api/mcp/mcp",
-            require_approval: "never",
-            headers: {
-              Authorization:
-                "Bearer YmQ5YzMxY2EtMWYzOC00NTViLTljYjItOWYyMmM0NWU3ODE0OjJkN2ZmMzRjLTQ1MTgtNDNkMC05ODg0LTc2MzA5NTYyMjFjYw==",
-            },
+    const mcpResponse = await openai.responses.create({
+      model: "o3",
+      input: aiPrompt,
+      reasoning: {
+        effort: "medium",
+      },
+      tools: [
+        {
+          type: "mcp",
+          server_label: "zapier",
+          server_url: "https://mcp.zapier.com/api/mcp/mcp",
+          require_approval: "never",
+          headers: {
+            Authorization:
+              "Bearer YmQ5YzMxY2EtMWYzOC00NTViLTljYjItOWYyMmM0NWU3ODE0OjJkN2ZmMzRjLTQ1MTgtNDNkMC05ODg0LTc2MzA5NTYyMjFjYw==",
           },
-        ],
-      }),
-      new Promise((_, reject) =>
-        setTimeout(
-          () => reject(new Error("Request timeout after 60 seconds")),
-          60000,
-        ),
-      ),
-    ]);
+        },
+      ],
+    });
 
     console.log("✅ [DEBUG] OpenAI MCP call completed successfully");
     console.log("🔵 [DEBUG] Response type:", typeof mcpResponse);

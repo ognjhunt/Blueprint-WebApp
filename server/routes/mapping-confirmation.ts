@@ -120,7 +120,7 @@ export default async function processMappingConfirmationHandler(
           ],
           headers: {
             Authorization:
-              "YmQ5YzMxY2EtMWYzOC00NTViLTljYjItOWYyMmM0NWU3ODE0OjJkN2ZmMzRjLTQ1MTgtNDNkMC05ODg0LTc2MzA5NTYyMjFjYw==", //NEWER:  Bearer NGQzMmEwYWUtODI2Zi00NTBhLTlmZTUtMzBjMWUyZmQ0MWU3OjdmNjQ1YTVjLTBmY2UtNDg4ZS05NjIwLTMyOTY0YjI2ZWI0Mg==
+              "Bearer YmQ5YzMxY2EtMWYzOC00NTViLTljYjItOWYyMmM0NWU3ODE0OjJkN2ZmMzRjLTQ1MTgtNDNkMC05ODg0LTc2MzA5NTYyMjFjYw==", //NEWER:  Bearer NGQzMmEwYWUtODI2Zi00NTBhLTlmZTUtMzBjMWUyZmQ0MWU3OjdmNjQ1YTVjLTBmY2UtNDg4ZS05NjIwLTMyOTY0YjI2ZWI0Mg==
           },
         },
       ],
@@ -325,20 +325,34 @@ export default async function processMappingConfirmationHandler(
     // Extract the research findings with better error handling
     let deepResearchFindings: string;
     try {
-      if (deepResearchResponse.output_text && typeof deepResearchResponse.output_text === "string") {
+      if (
+        deepResearchResponse.output_text &&
+        typeof deepResearchResponse.output_text === "string"
+      ) {
         deepResearchFindings = deepResearchResponse.output_text;
-      } else if (deepResearchResponse.text && typeof deepResearchResponse.text === "string") {
+      } else if (
+        deepResearchResponse.text &&
+        typeof deepResearchResponse.text === "string"
+      ) {
         deepResearchFindings = deepResearchResponse.text;
       } else {
-        console.error("Deep Research Response Structure:", JSON.stringify(deepResearchResponse, null, 2));
-        throw new Error("Could not extract deep research findings from response - no valid text field found");
+        console.error(
+          "Deep Research Response Structure:",
+          JSON.stringify(deepResearchResponse, null, 2),
+        );
+        throw new Error(
+          "Could not extract deep research findings from response - no valid text field found",
+        );
       }
 
       if (!deepResearchFindings.trim()) {
         throw new Error("Deep research findings are empty");
       }
 
-      console.log("Deep Research findings extracted successfully, length:", deepResearchFindings.length);
+      console.log(
+        "Deep Research findings extracted successfully, length:",
+        deepResearchFindings.length,
+      );
     } catch (error) {
       console.error("Error extracting deep research findings:", error);
       return res.status(500).json({
@@ -360,7 +374,8 @@ export default async function processMappingConfirmationHandler(
 
     // If research findings are too long, truncate for the MCP call
     if (deepResearchFindings.length > maxPromptLength) {
-      researchSummary = deepResearchFindings.substring(0, maxPromptLength) + 
+      researchSummary =
+        deepResearchFindings.substring(0, maxPromptLength) +
         "\n\n[Research findings truncated for prompt length. Full findings saved to Firebase.]";
       console.log("Research findings truncated for MCP call due to length");
     }

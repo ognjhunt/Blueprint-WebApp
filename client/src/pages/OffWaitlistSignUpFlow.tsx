@@ -351,44 +351,89 @@ export default function OffWaitlistSignUpFlow() {
         const personName = contactName.trim();
         const contactPhone = phoneNumber.trim();
 
-        fetch("/api/mapping-confirmation", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+        // fetch("/api/mapping-confirmation", {
+        //   method: "POST",
+        //   headers: {
+        //     "Content-Type": "application/json",
+        //   },
+        //   body: JSON.stringify({
+        //     have_we_onboarded: "No",
+        //     chosen_time_of_mapping: chosenTime,
+        //     chosen_date_of_mapping: chosenDate,
+        //     have_user_chosen_date: "Yes",
+        //     address: cAddress,
+        //     company_url: cUrl || "",
+        //     company_name: cName,
+        //     contact_name: personName,
+        //     contact_phone_number: contactPhone,
+        //     estimated_square_footage: squareFootage,
+        //     blueprint_id: blueprintId,
+        //     // NEW: Add demo scheduling info to MCP call
+        //     chosen_date_of_demo: demoDate.toISOString().split("T")[0],
+        //     chosen_time_of_demo: demoTime,
+        //   }),
+        // })
+        //   .then(async (mcpResponse) => {
+        //     if (!mcpResponse.ok) {
+        //       const errorText = await mcpResponse.text();
+        //       console.error("Background MCP process failed:", errorText);
+        //       // Optionally update booking status to indicate processing failed
+        //       return;
+        //     }
+        //     const result = await mcpResponse.json();
+        //     console.log(
+        //       "Background MCP mapping confirmation completed:",
+        //       result,
+        //     );
+        //     // Optionally update booking status to indicate processing completed
+        //   })
+        //   .catch((error) => {
+        //     console.error("Background MCP process error:", error);
+        //     // Optionally update booking status to indicate processing failed
+        //   });
+        fetch(
+          "https://public.lindy.ai/api/v1/webhooks/lindy/43c7b7d7-bc40-4593-acfe-ba79ad6488b8",
+          {
+            method: "POST",
+            headers: {
+              Authorization:
+                "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              have_we_onboarded: "No",
+              chosen_time_of_mapping: chosenTime,
+              chosen_date_of_mapping: chosenDate,
+              have_user_chosen_date: "Yes",
+              address: cAddress,
+              company_url: cUrl || "",
+              company_name: cName,
+              contact_name: personName,
+              contact_phone_number: contactPhone,
+              estimated_square_footage: squareFootage,
+              blueprint_id: blueprintId,
+              // Demo scheduling info for Lindy workflow
+              chosen_date_of_demo: demoDate.toISOString().split("T")[0],
+              chosen_time_of_demo: demoTime,
+            }),
           },
-          body: JSON.stringify({
-            have_we_onboarded: "No",
-            chosen_time_of_mapping: chosenTime,
-            chosen_date_of_mapping: chosenDate,
-            have_user_chosen_date: "Yes",
-            address: cAddress,
-            company_url: cUrl || "",
-            company_name: cName,
-            contact_name: personName,
-            contact_phone_number: contactPhone,
-            estimated_square_footage: squareFootage,
-            blueprint_id: blueprintId,
-            // NEW: Add demo scheduling info to MCP call
-            demo_schedule_date: demoDate.toISOString().split("T")[0],
-            demo_schedule_time: demoTime,
-          }),
-        })
-          .then(async (mcpResponse) => {
-            if (!mcpResponse.ok) {
-              const errorText = await mcpResponse.text();
-              console.error("Background MCP process failed:", errorText);
+        )
+          .then(async (lindyResponse) => {
+            if (!lindyResponse.ok) {
+              const errorText = await lindyResponse.text();
+              console.error("Background Lindy webhook failed:", errorText);
               // Optionally update booking status to indicate processing failed
               return;
             }
-            const result = await mcpResponse.json();
+            const result = await lindyResponse.json();
             console.log(
-              "Background MCP mapping confirmation completed:",
+              "Background Lindy mapping confirmation completed:",
               result,
             );
             // Optionally update booking status to indicate processing completed
           })
           .catch((error) => {
-            console.error("Background MCP process error:", error);
+            console.error("Background Lindy webhook error:", error);
             // Optionally update booking status to indicate processing failed
           });
       } catch (error: unknown) {

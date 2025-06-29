@@ -236,10 +236,9 @@ export default function ContactForm() {
       });
 
       console.log("✅ [DEBUG] Firebase token created successfully");
-      console.log("🔵 [FRONTEND] About to call process-waitlist API...");
 
-      // WAIT for the MCP response to debug issues
-      const mcpResponse = await fetch("/api/process-waitlist", {
+      // Fire-and-forget API call - don't wait for it to complete
+      fetch("/api/process-waitlist", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -254,23 +253,26 @@ export default function ContactForm() {
           companyWebsite: companyWebsite,
           offWaitlistUrl: offWaitlistUrl,
         }),
-      });
+      })
+        .then((response) => {
+          console.log(
+            "🔵 [FRONTEND] Background API completed:",
+            response.status,
+          );
+          return response.json();
+        })
+        .then((data) => {
+          console.log("✅ [FRONTEND] Background API Success:", data);
+        })
+        .catch((error) => {
+          console.error(
+            "❌ [FRONTEND] Background API Error (non-blocking):",
+            error,
+          );
+        });
 
-      console.log(
-        "🔵 [FRONTEND] Response received:",
-        mcpResponse.status,
-        mcpResponse.ok,
-      );
-
-      if (!mcpResponse.ok) {
-        const errorData = await mcpResponse.json();
-        console.error("❌ [FRONTEND] API Error:", errorData);
-        throw new Error(`API Error: ${JSON.stringify(errorData)}`);
-      }
-
-      const responseData = await mcpResponse.json();
-      console.log("✅ [FRONTEND] Success:", responseData);
-
+      // Immediately show success without waiting for API
+      console.log("✅ [FRONTEND] Showing success immediately");
       setIsSuccess(true);
       setFormData({
         name: "",
