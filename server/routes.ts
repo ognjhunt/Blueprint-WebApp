@@ -4,7 +4,7 @@ import googlePlacesHandler from "../client/src/pages/api/googlePlaces";
 import generateImageHandler from "../client/src/pages/api/generate-image";
 import submitToSheetsHandler from "../client/src/pages/api/submit-to-sheets";
 import processWaitlistHandler from "./routes/process-waitlist";
-import processMappingConfirmationHandler from "./routes/mapping-confirmation";
+// import processMappingConfirmationHandler from "./routes/mapping-confirmation"; // Commented out - handler is not exported
 import demoDayConfirmationHandler from "./routes/demo-day-confirmation";
 
 export function registerRoutes(app: Express) {
@@ -14,6 +14,6 @@ export function registerRoutes(app: Express) {
   app.all("/api/generate-image", generateImageHandler);
   app.post("/api/submit-to-sheets", submitToSheetsHandler);
   app.post("/api/process-waitlist", processWaitlistHandler);
-  app.post("/api/mapping-confirmation", processMappingConfirmationHandler);
+  // app.post("/api/mapping-confirmation", processMappingConfirmationHandler); // Commented out - handler is not exported
   app.post("/api/demo-day-confirmation", demoDayConfirmationHandler);
 }

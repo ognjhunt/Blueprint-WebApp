@@ -319,7 +319,7 @@ export default function ContactForm() {
       });
     } catch (error) {
       console.error("❌ [FRONTEND] Form submission failed:", error);
-      alert(`Error: ${error.message}`);
+      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`);
     } finally {
       setIsSubmitting(false);
     }

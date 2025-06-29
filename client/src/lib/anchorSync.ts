@@ -79,6 +79,8 @@ export const createAnchorFromElement = async (
         mediaUrl: uploadResult.downloadUrl,
         storagePath: uploadResult.storagePath,
         mediaType: mediaFile.type.startsWith("video/") ? "video" : "image",
+        width: element.content.width || undefined,
+        height: element.content.height || undefined,
       };
     }
 
