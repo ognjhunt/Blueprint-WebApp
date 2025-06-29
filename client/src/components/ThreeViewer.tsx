@@ -4436,7 +4436,7 @@ const ThreeViewer = React.memo(
       if (!fullModelPath) {
         console.error("No modelPath provided to ThreeViewer");
         onError?.("No 3D model path provided");
-        return <div>No 3D model to display</div>;
+        return;
       }
 
       // Determine if modelPath is an external URL or local path
@@ -4521,8 +4521,8 @@ const ThreeViewer = React.memo(
               errorMessage.includes("ERR_INTERNET_DISCONNECTED") ||
               errorMessage.includes("404") ||
               errorMessage.includes("Not Found") ||
-              error?.code === "NetworkError" ||
-              error?.name === "NetworkError";
+              (error as any)?.code === "NetworkError" ||
+              (error as any)?.name === "NetworkError";
 
             if (isNetworkError) {
               console.log(
