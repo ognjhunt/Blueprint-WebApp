@@ -458,7 +458,7 @@ const ThreeViewer = React.memo(
     }>({ position: null, rotation: null, scale: null });
 
     const originRef = useRef<THREE.Vector3 | null>(null);
-    const originMarkerRef = useRef<THREE.Group | null>(null); // Changed to THREE.Group
+    const originMarkerRef = useRef<THREE.Object3D | null>(null); // Changed to THREE.Object3D to support both Mesh and Group
     const [distanceDisplay, setDistanceDisplay] = useState<string>("");
 
     const [markingCornerStart, setMarkingCornerStart] =
