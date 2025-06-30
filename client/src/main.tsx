@@ -20,6 +20,7 @@ import BlueprintEditor from "./pages/BlueprintEditor";
 import Discover from "./pages/Discover";
 import HowItWorks from "./pages/HowItWorks";
 import OffWaitlistSignUpFlow from "./pages/OffWaitlistSignUpFlow";
+import OutboundSignUpFlow from "./pages/OutboundSignUpFlow";
 import WorkflowHub from "@/components/WorkflowHub";
 //import WorkflowEditor from "@/components/WorkflowEditor";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -43,6 +44,7 @@ function Router() {
       <Route path="/how-it-works" component={HowItWorks} />
       <Route path="/create-account" component={CreateAccount} />
       <Route path="/off-waitlist-signup" component={OffWaitlistSignUpFlow} />
+      <Route path="/outbound-signup" component={OutboundSignUpFlow} />
       <Route path="/workspace" component={WorkspacePage} />
       <Route path="/help" component={Help} />
       <Route path="/manage-plan" component={ManagePlan} />
