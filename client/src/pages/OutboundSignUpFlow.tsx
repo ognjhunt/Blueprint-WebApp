@@ -373,6 +373,7 @@ export default function OutboundSignUpFlow() {
               company_url: cUrl || "",
               company_name: cName,
               contact_name: personName,
+              contact_email: email.trim(), // ADD THIS LINE
               contact_phone_number: contactPhone,
               estimated_square_footage: squareFootage,
               blueprint_id: blueprintId,
