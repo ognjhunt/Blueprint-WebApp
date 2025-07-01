@@ -6773,8 +6773,6 @@ export default function BlueprintEditor() {
                   variant: "destructive",
                 });
               }}
-              isChoosingOrigin={isChoosingOrigin}
-              setIsChoosingOrigin={setIsChoosingOrigin}
               qrPlacementMode={qrPlacementMode}
               onQRPlaced={handlePlaceQRCode}
               selectedArea={selectedArea}

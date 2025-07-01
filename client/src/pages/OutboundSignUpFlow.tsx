@@ -1,4 +1,4 @@
-// This file defines the OffWaitlistSignUpFlow component, a multi-step form for users
+// This file defines the OutboundSignUpFlow component, a multi-step form for users
 // who are invited off the waitlist to sign up for the Blueprint service.
 // It handles token validation, account creation, contact and location information input,
 // and scheduling for a 3D mapping session.
@@ -32,7 +32,7 @@ import {
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 import { db } from "@/lib/firebase";
 /**
- * OffWaitlistSignUpFlow
+ * OutboundSignUpFlow
  * - Step 1: Basic Account Setup (Organization Name, Email, Password)
  * - Step 2: Contact & Location (Contact Name, Phone, Address)
  * - Step 3: 3D Mapping Scheduling (Date, Time)
@@ -41,32 +41,14 @@ import { db } from "@/lib/firebase";
  */
 
 /**
- * The OffWaitlistSignUpFlow component guides users invited from the waitlist through a multi-step signup process.
+ * The OutboundSignUpFlow component guides users invited from the waitlist through a multi-step signup process.
  * This includes account creation, providing contact and location details, and scheduling a 3D mapping session.
  *
- * @returns {JSX.Element} The rendered OffWaitlistSignUpFlow component.
+ * @returns {JSX.Element} The rendered OutboundSignUpFlow component.
  */
-export default function OffWaitlistSignUpFlow() {
-  // ------------------------------
-  // TOKEN VALIDATION
-  // ------------------------------
+export default function OutboundSignUpFlow() {
   const [showStep2Errors, setShowStep2Errors] = useState(false);
   const [isAddressFocused, setIsAddressFocused] = useState(false);
-  const [isValidToken, setIsValidToken] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Define a type for the token data
-  type TokenData = {
-    id: string;
-    email?: string;
-    businessName?: string;
-    status?: string;
-    [key: string]: any; // For any other properties in the token data
-  };
-
-  const INTERNAL_TEST_TOKEN = "blueprint-internal-test-token-2025";
-
-  const [tokenData, setTokenData] = useState<TokenData | null>(null);
   const [userCreated, setUserCreated] = useState(false);
 
   // ------------------------------
@@ -142,14 +124,6 @@ export default function OffWaitlistSignUpFlow() {
    */
   async function handleNextStep() {
     if (step === 1) {
-      // Check token validity
-      if (!isValidToken || !tokenData) {
-        setErrorMessage("Invalid or expired signup token");
-        return;
-      }
-
-      // 1) Create the Firebase Auth user with email & password
-
       // Enforce password length before hitting Firebase
       if (password.trim().length < 8) {
         setErrorMessage("Your password must be at least 8 characters long.");
@@ -164,7 +138,7 @@ export default function OffWaitlistSignUpFlow() {
           password.trim(),
         );
 
-        // 2) Create a user document in Firestore with initial fields
+        // Create a user document in Firestore with initial fields
         const userId = userCredential.user.uid;
         await setDoc(doc(db, "users", userId), {
           uid: userId,
@@ -174,22 +148,12 @@ export default function OffWaitlistSignUpFlow() {
           createdDate: serverTimestamp(),
           planType: "free",
           finishedOnboarding: false,
-          waitlistTokenId: tokenData.id, // Store reference to the token
         });
-
-        // 3) Mark the token as used
-        if (tokenData.id !== "internal-test-token") {
-          await updateDoc(doc(db, "waitlistTokens", tokenData.id), {
-            status: "used",
-            usedAt: serverTimestamp(),
-            usedBy: userId,
-          });
-        }
 
         // ✅ SET THE FLAG THAT USER HAS BEEN CREATED
         setUserCreated(true);
 
-        // ✅ ADD THIS LINE - Move to next step after successful user creation
+        // ✅ Move to next step after successful user creation
         setStep((prev) => prev + 1);
       } catch (error: unknown) {
         console.error("Error creating user:", error);
@@ -409,6 +373,7 @@ export default function OffWaitlistSignUpFlow() {
               company_url: cUrl || "",
               company_name: cName,
               contact_name: personName,
+              contact_email: email.trim(), // ADD THIS LINE
               contact_phone_number: contactPhone,
               estimated_square_footage: squareFootage,
               blueprint_id: blueprintId,
@@ -639,163 +604,11 @@ export default function OffWaitlistSignUpFlow() {
     [autocomplete],
   );
 
-  // Check token validity on page load
-  useEffect(() => {
-    const validateToken = async () => {
-      setIsLoading(true);
-
-      // Use URL API instead of React Router's useSearchParams
-      const urlParams = new URLSearchParams(window.location.search);
-      const token = urlParams.get("token");
-
-      if (!token) {
-        setErrorMessage("Invalid or missing access token");
-        setIsLoading(false);
-        setIsValidToken(false);
-        return;
-      }
-
-      // Check for internal test token first
-      if (token === INTERNAL_TEST_TOKEN) {
-        // Create mock token data for testing
-        const mockTokenData: TokenData = {
-          id: "internal-test-token",
-          email: "test@blueprint.com",
-          company: "Blueprint Test Company",
-          status: "unused",
-        };
-
-        setOrganizationName("Blueprint Test Company");
-        setEmail("test@blueprint.com");
-        initialOrgNameSet.current = true;
-        setTokenData(mockTokenData);
-        setIsValidToken(true);
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        const q = query(
-          collection(db, "waitlistTokens"),
-          where("token", "==", token),
-          where("status", "==", "unused"),
-        );
-
-        const querySnapshot = await getDocs(q);
-
-        if (querySnapshot.empty) {
-          setErrorMessage(
-            "This signup link is invalid or has already been used",
-          );
-          setIsValidToken(false);
-        } else {
-          // Get the first matching document
-          const tokenDoc = querySnapshot.docs[0];
-          const data = tokenDoc.data();
-
-          // Pre-fill form fields if available
-          if (data.company) {
-            setOrganizationName(data.company);
-            initialOrgNameSet.current = true;
-          }
-          if (data.email) setEmail(data.email);
-
-          // Create properly typed token data
-          const typedTokenData: TokenData = {
-            id: tokenDoc.id,
-            ...data,
-          };
-          setTokenData(typedTokenData);
-          setIsValidToken(true);
-        }
-      } catch (error: unknown) {
-        console.error("Error validating token:", error);
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-        setErrorMessage("Error validating your access token: " + errorMessage);
-        setIsValidToken(false);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    validateToken();
-  }, []);
-
   useEffect(() => {
     if (companyWebsite) {
       console.log("Company website found:", companyWebsite);
     }
   }, [companyWebsite]);
-
-  // Fetch website for prefilled organization name
-  useEffect(() => {
-    const fetchWebsiteForPrefilledOrg = async () => {
-      // Only run if we have a prefilled org name and places service is ready
-      if (
-        organizationName &&
-        autocomplete &&
-        placesService &&
-        tokenData &&
-        !companyWebsite // Only if we don't already have a website
-      ) {
-        try {
-          const request: google.maps.places.AutocompletionRequest = {
-            input: organizationName,
-            componentRestrictions: { country: "us" },
-          };
-
-          const predictions = await new Promise<
-            google.maps.places.AutocompletePrediction[]
-          >((resolve, reject) => {
-            autocomplete.getPlacePredictions(request, (results, status) => {
-              if (
-                status !== google.maps.places.PlacesServiceStatus.OK ||
-                !results
-              ) {
-                return reject(new Error(`Places API error: ${status}`));
-              }
-              resolve(results);
-            });
-          });
-
-          // Get details for the first prediction (most likely match)
-          if (predictions.length > 0) {
-            placesService.getDetails(
-              {
-                placeId: predictions[0].place_id,
-                fields: ["website", "formatted_address"],
-              },
-              (placeResult, status) => {
-                if (
-                  status === google.maps.places.PlacesServiceStatus.OK &&
-                  placeResult
-                ) {
-                  if (placeResult.website) {
-                    setCompanyWebsite(placeResult.website);
-                  }
-                  if (placeResult.formatted_address) {
-                    setAddress(placeResult.formatted_address);
-                  }
-                }
-              },
-            );
-          }
-        } catch (error) {
-          console.error("Error fetching website for prefilled org:", error);
-          // Fail silently - this is just a nice-to-have
-        }
-      }
-    };
-
-    fetchWebsiteForPrefilledOrg();
-  }, [
-    organizationName,
-    autocomplete,
-    placesService,
-    tokenData,
-    companyWebsite,
-  ]);
 
   useEffect(() => {
     if (step === 2) {
@@ -1829,81 +1642,53 @@ export default function OffWaitlistSignUpFlow() {
           </div>
         </div>
       )}
-
       <Nav hideAuthenticatedFeatures={true} />
-
       <main className="flex-1 flex flex-col items-center justify-center px-4 pt-24 pb-12">
-        {isLoading ? (
-          <div className="bg-white rounded-lg shadow-lg p-8">
-            <div className="flex flex-col items-center justify-center">
-              <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-              <p className="text-lg">Validating your access...</p>
-            </div>
-          </div>
-        ) : !isValidToken ? (
-          <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-            <div className="text-red-600 text-5xl mb-4">⚠️</div>
-            <h2 className="text-2xl font-bold mb-4">Invalid Access Link</h2>
-            <p className="text-gray-600 mb-6">
-              This signup link is invalid or has already been used. Please
-              contact support if you believe this is an error.
-            </p>
-            <Button
-              onClick={() => (window.location.href = "/")}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Return to Homepage
-            </Button>
-          </div>
-        ) : (
-          <div className="w-full max-w-3xl bg-white rounded-lg shadow-lg p-8 relative">
-            {/* Progress Indicator */}
-            <div className="flex items-center justify-center mb-8">
-              {[1, 2, 3, 4].map((s) => (
-                <React.Fragment key={s}>
+        <div className="w-full max-w-3xl bg-white rounded-lg shadow-lg p-8 relative">
+          {/* Progress Indicator */}
+          <div className="flex items-center justify-center mb-8">
+            {[1, 2, 3, 4].map((s) => (
+              <React.Fragment key={s}>
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold transition-colors
+                  ${
+                    step === s
+                      ? "bg-blue-600 text-white"
+                      : step > s
+                        ? "bg-green-600 text-white"
+                        : "bg-gray-300 text-gray-600"
+                  }`}
+                >
+                  {s}
+                </div>
+                {s < 4 && (
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold transition-colors
-                    ${
-                      step === s
-                        ? "bg-blue-600 text-white"
-                        : step > s
-                          ? "bg-green-600 text-white"
-                          : "bg-gray-300 text-gray-600"
+                    className={`w-16 h-1 ${
+                      step > s ? "bg-green-600" : "bg-gray-300"
                     }`}
-                  >
-                    {s}
-                  </div>
-                  {s < 4 && (
-                    <div
-                      className={`w-16 h-1 ${
-                        step > s ? "bg-green-600" : "bg-gray-300"
-                      }`}
-                    />
-                  )}
-                </React.Fragment>
-              ))}
-            </div>
-
-            {/* Simplified AnimatePresence usage */}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={step}
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
-              >
-                {step === 1 && Step1}
-                {step === 2 && Step2}
-                {step === 3 && <Step3 />}
-                {step === 4 && <Step4 />}
-                {step === 5 && <Confirmation />}
-              </motion.div>
-            </AnimatePresence>
+                  />
+                )}
+              </React.Fragment>
+            ))}
           </div>
-        )}
+          {/* Simplified AnimatePresence usage */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={step}
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              {step === 1 && Step1}
+              {step === 2 && Step2}
+              {step === 3 && <Step3 />}
+              {step === 4 && <Step4 />}
+              {step === 5 && <Confirmation />}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </main>
-
       <Footer />
     </div>
   );

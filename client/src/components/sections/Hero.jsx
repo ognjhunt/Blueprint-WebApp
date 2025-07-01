@@ -25,7 +25,7 @@ export default function Hero() {
       text: "Boost Engagement 200%",
       highlight: "with Blueprint",
       description:
-        "Create memorable experiences that work instantly in any smart glasses browser. From product demos to virtual tours, engage customers like never before.",
+        "Create memorable experiences that work instantly in any browser. From product demos to virtual tours, engage customers like never before.", //smart glasses 
     },
     {
       text: "Customized In-Person UX",
@@ -49,6 +49,22 @@ export default function Hero() {
     }
   };
 
+  const industryTypes = [
+    { icon: "🏪", name: "Retail" },
+    { icon: "🏛️", name: "Museum" },
+    { icon: "🎨", name: "Gallery" },
+    { icon: "🏢", name: "Showroom" },
+    { icon: "🏨", name: "Hospitality" },
+  ];
+
+  const businessRoles = [
+    "Sarah Chen", // Retail Manager
+    "Marcus Johnson", // Museum Director
+    "Elena Rodriguez", // Gallery Owner
+    "David Kim", // Store Manager
+    "Amanda Foster", // Experience Director
+  ];
+
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % headlines.length);
@@ -63,7 +79,7 @@ export default function Hero() {
     },
     {
       icon: <Eye className="w-4 h-4 sm:w-5 sm:h-5" />,
-      text: "Works on All Glasses",
+      text: "Works on All Hardware", //Glasses
     },
     {
       icon: <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />,
@@ -189,7 +205,7 @@ export default function Hero() {
               transition={{ duration: 0.8, delay: 0.6 }}
             >
               <div className="flex -space-x-2 sm:-space-x-3">
-                {[1, 2, 3, 4, 5].map((i) => (
+                {/* {[1, 2, 3, 4, 5].map((i) => (
                   <div
                     key={i}
                     className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 sm:border-3 border-white overflow-hidden shadow-lg"
@@ -204,17 +220,26 @@ export default function Hero() {
                       }}
                     />
                   </div>
+                ))} */}
+                {industryTypes.map((industry, i) => (
+                  <div
+                    key={i}
+                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 sm:border-3 border-white bg-white flex items-center justify-center shadow-lg"
+                    title={industry.name}
+                  >
+                    <span className="text-lg sm:text-xl">{industry.icon}</span>
+                  </div>
                 ))}
                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-xs sm:text-sm flex items-center justify-center border-2 sm:border-3 border-white font-bold shadow-lg">
-                  2K+
+                  20+
                 </div>
               </div>
               <div className="text-xs sm:text-sm text-center sm:text-left">
                 <div className="font-bold text-slate-900 text-sm sm:text-base">
-                  2,000+ businesses
+                  20+ businesses
                 </div>
                 <div className="text-slate-600 text-xs sm:text-sm">
-                  already transforming customer experiences
+                  testing the future of customer engagement
                 </div>
               </div>
             </motion.div>

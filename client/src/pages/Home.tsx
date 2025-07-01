@@ -72,33 +72,59 @@ export default function Home() {
         "High-precision mapping",
       ],
       color: "from-blue-500 to-cyan-500",
-      duration: "1-2 hours",
+      duration: "30-60 minutes",
     },
+    // {
+    //   icon: <Brain className="w-6 h-6 md:w-8 md:h-8" />,
+    //   title: "AI-Powered Setup",
+    //   description:
+    //     "Our AI generates custom AR experiences tailored to your business goals and customer journey.",
+    //   benefits: [
+    //     "Intelligent content placement",
+    //     "Custom interactions",
+    //     "Brand integration",
+    //   ],
+    //   color: "from-violet-500 to-purple-600",
+    //   duration: "30 minutes",
+    // },
     {
       icon: <Brain className="w-6 h-6 md:w-8 md:h-8" />,
-      title: "AI-Powered Setup",
+      title: "Blueprint Design",
       description:
-        "Our AI generates custom AR experiences tailored to your business goals and customer journey.",
+        "Our designers work to create custom AR experiences tailored to your business goals and customer journey.",
       benefits: [
         "Intelligent content placement",
         "Custom interactions",
         "Brand integration",
       ],
       color: "from-violet-500 to-purple-600",
-      duration: "30 minutes",
+      duration: "1-2 Days",
     },
+    // {
+    //   icon: <Rocket className="w-6 h-6 md:w-8 md:h-8" />,
+    //   title: "Launch & Scale",
+    //   description:
+    //     "Go live instantly with QR codes. Track engagement and optimize your AR experience with real-time analytics.",
+    //   benefits: [
+    //     "Instant deployment",
+    //     "Performance analytics",
+    //     "Continuous optimization",
+    //   ],
+    //   color: "from-fuchsia-500 to-pink-600",
+    //   duration: "Same day",
+    // },
     {
       icon: <Rocket className="w-6 h-6 md:w-8 md:h-8" />,
-      title: "Launch & Scale",
+      title: "Demo Day",
       description:
-        "Go live instantly with QR codes. Track engagement and optimize your AR experience with real-time analytics.",
+        "We'll come in with an Apple Vision Pro to give a ~1 hour long demonstration. Open to any and everyone!",
       benefits: [
-        "Instant deployment",
+        "Feedback",
         "Performance analytics",
         "Continuous optimization",
       ],
       color: "from-fuchsia-500 to-pink-600",
-      duration: "Same day",
+      duration: "Next Week",
     },
   ];
 
@@ -303,7 +329,7 @@ export default function Home() {
               <p className="text-xl text-slate-600 leading-relaxed">
                 Our streamlined approach makes implementing cutting-edge AR
                 technology effortless. Get your interactive experience up and
-                running in under 24 hours.
+                running in under 24 hours. No hardware or expertise required. 
               </p>
             </motion.div>
 

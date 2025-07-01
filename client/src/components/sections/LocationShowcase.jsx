@@ -227,6 +227,31 @@ export default function LocationShowcase() {
         </motion.div>
 
         <div className="relative max-w-4xl mx-auto">
+          {/* Benefits section */}
+          <motion.div
+            className="mt-12 flex flex-wrap justify-center gap-6 max-w-4xl mx-auto mb-12"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+          >
+            {currentLocation.benefits.map((benefit, index) => (
+              <motion.div
+                key={benefit}
+                className="flex items-center gap-2 text-slate-700"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+              >
+                <div className="w-6 h-6 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="w-3 h-3 text-white" />
+                </div>
+                <span className="font-semibold text-sm">{benefit}</span>
+              </motion.div>
+            ))}
+          </motion.div>
+
           <AnimatePresence mode="wait">
             <motion.div
               key={selectedLocation}
@@ -307,35 +332,6 @@ export default function LocationShowcase() {
             </motion.div>
           </AnimatePresence>
 
-          {/* Benefits section */}
-          <motion.div
-            className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-          >
-            {currentLocation.benefits.map((benefit, index) => (
-              <motion.div
-                key={benefit}
-                className="text-center p-6 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-lg hover:shadow-xl transition-all duration-300"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                whileHover={{ y: -5 }}
-              >
-                <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <Sparkles className="w-6 h-6 text-white" />
-                </div>
-                <h4 className="font-bold text-slate-900 mb-2">{benefit}</h4>
-                <p className="text-sm text-slate-600">
-                  Real results from Blueprint customers
-                </p>
-              </motion.div>
-            ))}
-          </motion.div>
-
           {/* Call to action */}
           <motion.div
             className="text-center mt-16"
@@ -345,7 +341,7 @@ export default function LocationShowcase() {
             transition={{ duration: 0.6, delay: 0.6 }}
           >
             <p className="text-lg text-slate-600 mb-6">
-              Ready to transform your space like these success stories?
+              Ready to transform your space like these examples?
             </p>
             <motion.button
               className="inline-flex items-center gap-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-semibold px-8 py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"

@@ -319,9 +319,12 @@ const ThreeViewer = React.memo(
     } = props;
     console.log("ThreeViewer - modelPath prop:", modelPath); // ADD THIS LINE
     const mountRef = useRef<HTMLDivElement>(null);
-    const previousOriginPointRef = useRef<THREE.Vector3 | null>(
-      originPoint || null,
-    ); // Initialize with prop or null
+    // const previousOriginPointRef = useRef<THREE.Vector3 | null>(
+    //   originPoint || null,
+    // ); // Initialize with prop or null
+    // To this:
+    const previousOriginPointRef = useRef<THREE.Vector3 | null>(null);
+    const hasInitializedOriginRef = useRef(false);
     const qrPlacementModeRef = useRef(qrPlacementMode);
     useEffect(() => {
       qrPlacementModeRef.current = qrPlacementMode;
@@ -455,7 +458,7 @@ const ThreeViewer = React.memo(
     }>({ position: null, rotation: null, scale: null });
 
     const originRef = useRef<THREE.Vector3 | null>(null);
-    const originMarkerRef = useRef<THREE.Group | null>(null); // Changed to THREE.Group
+    const originMarkerRef = useRef<THREE.Object3D | null>(null); // Changed to THREE.Object3D to support both Mesh and Group
     const [distanceDisplay, setDistanceDisplay] = useState<string>("");
 
     const [markingCornerStart, setMarkingCornerStart] =
@@ -1064,12 +1067,29 @@ const ThreeViewer = React.memo(
         console.log(
           `[AdjustAnchors] Called. Old: ${oldOriginModel.toArray()}, New: ${newOriginModel.toArray()}`,
         );
+
+        // Calculate the delta in model space
         const deltaOriginModelSpace = newOriginModel
           .clone()
           .sub(oldOriginModel);
-        const deltaRealWorldOffset = deltaOriginModelSpace
-          .clone()
-          .multiplyScalar(SCALE_FACTOR);
+
+        // Apply rotation correction if needed
+        const rotationDegrees = yRotation || 0;
+        const rotationRadians = (rotationDegrees * Math.PI) / 180;
+        const cosTheta = Math.cos(rotationRadians);
+        const sinTheta = Math.sin(rotationRadians);
+
+        // Apply rotation to the delta
+        const rotatedDelta = new THREE.Vector3(
+          deltaOriginModelSpace.x * cosTheta +
+            deltaOriginModelSpace.z * sinTheta,
+          deltaOriginModelSpace.y,
+          -deltaOriginModelSpace.x * sinTheta +
+            deltaOriginModelSpace.z * cosTheta,
+        );
+
+        // Scale to real-world units
+        const deltaRealWorldOffset = rotatedDelta.multiplyScalar(SCALE_FACTOR);
 
         console.log(
           `[AdjustAnchors] Delta RealWorld Offset (to subtract): ${deltaRealWorldOffset.toArray()}`,
@@ -1085,6 +1105,7 @@ const ThreeViewer = React.memo(
           console.log(
             `[AdjustAnchors] Processing ${list.length} anchors of type "${type}".`,
           );
+
           list.forEach((anchor) => {
             if (
               anchor.id === undefined ||
@@ -1103,6 +1124,8 @@ const ThreeViewer = React.memo(
               Number(anchor.y),
               Number(anchor.z),
             );
+
+            // Subtract the delta to maintain the same physical position
             const newRealWorldPos = currentRealWorldPos
               .clone()
               .sub(deltaRealWorldOffset);
@@ -1138,11 +1161,12 @@ const ThreeViewer = React.memo(
                 anchor.scaleZ || (anchor.scale && anchor.scale.z) || 1,
               ),
             };
+
             updateAnchorTransform(anchor.id, payload);
           });
         };
 
-        // Use the destructured props directly, they are dependencies of this useCallback
+        // Update all anchor types
         updateList(fileAnchors, "file");
         updateList(modelAnchors, "model");
         updateList(textAnchors, "text");
@@ -1157,6 +1181,7 @@ const ThreeViewer = React.memo(
         qrCodeAnchors,
         updateAnchorTransform,
         SCALE_FACTOR,
+        yRotation, // Add yRotation as a dependency
       ],
     );
 
@@ -1173,7 +1198,22 @@ const ThreeViewer = React.memo(
         "[Origin Change Effect] Previous Origin (from ref):",
         previousOrigin ? previousOrigin.toArray() : null,
       );
+      console.log(
+        "[Origin Change Effect] Has initialized:",
+        hasInitializedOriginRef.current,
+      );
 
+      // Handle initial load - don't adjust anchors on first mount
+      if (!hasInitializedOriginRef.current && currentOrigin) {
+        console.log(
+          "[Origin Change Effect] Initial origin load - not adjusting anchors",
+        );
+        previousOriginPointRef.current = currentOrigin.clone();
+        hasInitializedOriginRef.current = true;
+        return;
+      }
+
+      // Handle origin changes after initialization
       if (
         currentOrigin &&
         previousOrigin &&
@@ -1183,26 +1223,9 @@ const ThreeViewer = React.memo(
           "[Origin Change Effect] Origin has changed. Calling adjustAnchorsForOriginChange.",
         );
         adjustAnchorsForOriginChange(previousOrigin, currentOrigin);
-      } else if (
-        currentOrigin &&
-        !previousOrigin &&
-        previousOriginPointRef.current !== undefined
-      ) {
-        // Check initial undefined state of ref
-        console.log(
-          "[Origin Change Effect] Origin set for the first time (previous was explicitly null or ref was undefined).",
-        );
       } else if (!currentOrigin && previousOrigin) {
         console.log(
-          "[Origin Change Effect] Origin has been cleared (set to null). No adjustment based on delta needed from a previous point.",
-        );
-      } else if (
-        currentOrigin &&
-        previousOrigin &&
-        currentOrigin.equals(previousOrigin)
-      ) {
-        console.log(
-          "[Origin Change Effect] Origin prop updated, but to the same value. No adjustment.",
+          "[Origin Change Effect] Origin has been cleared (set to null).",
         );
       }
 
@@ -4399,20 +4422,22 @@ const ThreeViewer = React.memo(
 
       const loader = new GLTFLoader();
 
-     //  const fullModelPath =
-     //    //  "https://f005.backblazeb2.com/file/objectModels-dev/4_27_2025.glb";
-     //   // "https://f005.backblazeb2.com/file/objectModels-dev/home.glb";
-     //  // "https://f005.backblazeb2.com/file/objectModels-dev/+HLF+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+8k.glb";
+      //  const fullModelPath =
+      //    //  "https://f005.backblazeb2.com/file/objectModels-dev/4_27_2025.glb";
+      //   // "https://f005.backblazeb2.com/file/objectModels-dev/home.glb";
+      //  // "https://f005.backblazeb2.com/file/objectModels-dev/+HLF+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+8k.glb";
 
-     // // "https://f005.backblazeb2.com/file/objectModels-dev/Library+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+4k.glb";
+      // // "https://f005.backblazeb2.com/file/objectModels-dev/Library+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+4k.glb";
+      //https://f005.backblazeb2.com/file/objectModels-dev/6_26_2025.glb
       // With this:
-      const fullModelPath = modelPath || ""; // Use the prop directly
+      const fullModelPath =
+        "https://f005.backblazeb2.com/file/objectModels-dev/+HLF+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+8k.glb"; //modelPath || ""; // Use the prop directly
 
       // Add validation
       if (!fullModelPath) {
         console.error("No modelPath provided to ThreeViewer");
         onError?.("No 3D model path provided");
-        return <div>No 3D model to display</div>;
+        return;
       }
 
       // Determine if modelPath is an external URL or local path
@@ -4448,9 +4473,14 @@ const ThreeViewer = React.memo(
 
       // Set up loading with retry logic
       const loadModelWithRetry = (attempt = 0, maxAttempts = 3) => {
+        console.log(
+          `Loading model attempt ${attempt + 1}/${maxAttempts}: ${fullModelPath}`,
+        );
+
         loader.load(
           fullModelPath,
           (gltf: any) => {
+            console.log("Model loaded successfully");
             const model = gltf.scene;
             parentModelRef.current = model;
             const box = new THREE.Box3().setFromObject(model);
@@ -4461,11 +4491,8 @@ const ThreeViewer = React.memo(
             model.scale.multiplyScalar(scale);
             model.position.copy(center).multiplyScalar(-scale);
             scene.add(model);
-
-            // When the model is added, set the progress to 100 and mark as loaded:
             setModelLoadProgress(100);
             setModelLoaded(true);
-
             onLoad?.();
             camera.position.set(0.55, 0.55, 0.55);
             orbitControls.target.set(0, 0, 0);
@@ -4480,29 +4507,137 @@ const ThreeViewer = React.memo(
             }
           },
           (error) => {
-            console.error("Error loading model:", error);
-            // Implement retry logic or error handling as needed…
-            if (
-              attempt < maxAttempts - 1 &&
-              fullModelPath.includes("firebasestorage.googleapis.com")
-            ) {
+            console.error(
+              `Error loading model (attempt ${attempt + 1}):`,
+              error,
+            );
+
+            // Check for network-related errors that shouldn't be retried
+            const errorMessage = error?.message || error?.toString() || "";
+            const isNetworkError =
+              errorMessage.includes("Failed to fetch") ||
+              errorMessage.includes("CORS") ||
+              errorMessage.includes("ERR_FAILED") ||
+              errorMessage.includes("ERR_NETWORK") ||
+              errorMessage.includes("ERR_INTERNET_DISCONNECTED") ||
+              errorMessage.includes("404") ||
+              errorMessage.includes("Not Found") ||
+              (error as any)?.code === "NetworkError" ||
+              (error as any)?.name === "NetworkError";
+
+            if (isNetworkError) {
               console.log(
-                `Retrying model load... Attempt ${attempt + 1}/${maxAttempts}`,
+                `Network error detected: ${errorMessage}. Immediately loading fallback model...`,
               );
-              setTimeout(() => {
-                loadModelWithRetry(attempt + 1, maxAttempts);
-              }, 1000);
+              loadFallbackModel();
+              return;
+            }
+
+            // For non-network errors (like parsing errors), try retrying
+            if (attempt < maxAttempts - 1) {
+              console.log(
+                `Retrying model load... Attempt ${attempt + 2}/${maxAttempts}`,
+              );
+              setTimeout(
+                () => {
+                  loadModelWithRetry(attempt + 1, maxAttempts);
+                },
+                1000 * (attempt + 1),
+              ); // Exponential backoff
             } else {
-              if (onError) {
-                onError(error.message || "Error loading model");
-              }
+              console.log("All retries exhausted, loading fallback model...");
+              loadFallbackModel();
             }
           },
         );
       };
 
-      // Start the loading process with retry
-      loadModelWithRetry(0, 3);
+      // Fallback model loader
+      const loadFallbackModel = () => {
+        const fallbackUrl =
+          "https://f005.backblazeb2.com/file/objectModels-dev/6_26_2025.glb";
+        console.log("Loading fallback model:", fallbackUrl);
+
+        loader.load(
+          fallbackUrl,
+          (gltf: any) => {
+            console.log("Fallback model loaded successfully");
+            const model = gltf.scene;
+            parentModelRef.current = model;
+            const box = new THREE.Box3().setFromObject(model);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const scale = 2 / maxDim;
+            model.scale.multiplyScalar(scale);
+            model.position.copy(center).multiplyScalar(-scale);
+            scene.add(model);
+            setModelLoadProgress(100);
+            setModelLoaded(true);
+            onLoad?.();
+            camera.position.set(0.55, 0.55, 0.55);
+            orbitControls.target.set(0, 0, 0);
+            orbitControls.update();
+          },
+          (xhr) => {
+            if (xhr.lengthComputable) {
+              const percentComplete = (xhr.loaded / xhr.total) * 100;
+              setModelLoadProgress(percentComplete);
+            }
+          },
+          (error) => {
+            console.error("Error loading fallback model:", error);
+
+            // Try a different fallback URL if the first one fails
+            const backupFallbackUrl =
+              "https://f005.backblazeb2.com/file/objectModels-dev/home.glb";
+            console.log("Trying backup fallback model:", backupFallbackUrl);
+
+            loader.load(
+              backupFallbackUrl,
+              (gltf: any) => {
+                console.log("Backup fallback model loaded successfully");
+                const model = gltf.scene;
+                parentModelRef.current = model;
+                const box = new THREE.Box3().setFromObject(model);
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const scale = 2 / maxDim;
+                model.scale.multiplyScalar(scale);
+                model.position.copy(center).multiplyScalar(-scale);
+                scene.add(model);
+                setModelLoadProgress(100);
+                setModelLoaded(true);
+                onLoad?.();
+                camera.position.set(0.55, 0.55, 0.55);
+                orbitControls.target.set(0, 0, 0);
+                orbitControls.update();
+              },
+              undefined,
+              (backupError) => {
+                console.error(
+                  "Error loading backup fallback model:",
+                  backupError,
+                );
+                // If all fallbacks fail, call the error handler
+                if (onError) {
+                  onError("All model loading attempts failed");
+                }
+              },
+            );
+          },
+        );
+      };
+
+      // Add a safety check before starting
+      try {
+        console.log("Starting model load process for:", fullModelPath);
+        loadModelWithRetry(0, 3);
+      } catch (error) {
+        console.error("Error starting model load:", error);
+        loadFallbackModel();
+      }
 
       const handleRightClick = (event: MouseEvent) => {
         event.preventDefault();

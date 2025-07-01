@@ -20,17 +20,26 @@ export default async function processWaitlistHandler(
   req: Request,
   res: Response,
 ) {
+  console.log("🔵 [DEBUG] Starting processWaitlistHandler");
+  console.log("🔵 [DEBUG] Request body:", JSON.stringify(req.body, null, 2));
+
   try {
     // Cast req.body to WaitlistData for type safety with validator and prompt builder
     const requestData = req.body as WaitlistData;
+    console.log(
+      "🔵 [DEBUG] Casted request data:",
+      JSON.stringify(requestData, null, 2),
+    );
 
     const validationErrors = validateWaitlistData(requestData);
     if (validationErrors.length > 0) {
+      console.log("❌ [DEBUG] Validation failed:", validationErrors);
       return res.status(400).json({
         error: "Validation failed",
         errors: validationErrors,
       });
     }
+    console.log("✅ [DEBUG] Validation passed");
 
     // Destructure after validation, using validated data (requestData)
     const {
@@ -45,27 +54,50 @@ export default async function processWaitlistHandler(
       offWaitlistUrl,
     } = requestData;
 
-    // Prepare data for the prompt builder, using validated fields
-    // All fields passed to buildWaitlistAIPrompt are guaranteed to be present and non-empty if required by WaitlistDataForPrompt
-    // because validateWaitlistData would have caught them.
-    // The types for buildWaitlistAIPrompt (WaitlistDataForPrompt) expect non-optional for required fields.
+    // Prepare data for the prompt builder
     const promptData = {
-      name: name!, // Assert non-null/undefined as validation passed
+      name: name!,
       email: email!,
       company: company!,
       city: city!,
       state: state!,
-      message: message, // Optional, so no assertion needed
-      companyWebsite: companyWebsite, // Optional
-      companyAddress: companyAddress, // Optional
+      message: message,
+      companyWebsite: companyWebsite,
+      companyAddress: companyAddress,
       offWaitlistUrl: offWaitlistUrl!,
     };
+    console.log(
+      "🔵 [DEBUG] Prompt data prepared:",
+      JSON.stringify(promptData, null, 2),
+    );
 
     const aiPrompt = buildWaitlistAIPrompt(promptData);
+    console.log(
+      "🔵 [DEBUG] AI Prompt generated (first 500 chars):",
+      aiPrompt.substring(0, 500) + "...",
+    );
+    console.log("🔵 [DEBUG] Full AI Prompt length:", aiPrompt.length);
 
+    // Check OpenAI client configuration
+    console.log(
+      "🔵 [DEBUG] OpenAI API Key exists:",
+      !!process.env.OPENAI_API_KEY,
+    );
+    console.log(
+      "🔵 [DEBUG] OpenAI API Key length:",
+      process.env.OPENAI_API_KEY?.length || 0,
+    );
+
+    console.log("🔵 [DEBUG] About to make OpenAI MCP call...");
+    console.log(
+      "🔵 [DEBUG] MCP Server URL:",
+      "https://mcp.zapier.com/api/mcp/mcp",
+    );
+
+    // Add timeout and detailed error handling
     const mcpResponse = await openai.responses.create({
       model: "o3",
-      input: aiPrompt, // Use the generated prompt
+      input: aiPrompt,
       reasoning: {
         effort: "medium",
       },
@@ -73,30 +105,45 @@ export default async function processWaitlistHandler(
         {
           type: "mcp",
           server_label: "zapier",
-          server_url:
-            "https://mcp.zapier.com/api/mcp/s/bd9c31ca-1f38-455b-9cb2-9f22c45e7814/mcp", //NEWER:  https://mcp.zapier.com/api/mcp/s/4d32a0ae-826f-450a-9fe5-30c1e2fd41e7/mcp
+          server_url: "https://mcp.zapier.com/api/mcp/mcp",
           require_approval: "never",
-          allowed_tools: [
-            "gmail_create_draft",
-            "gmail_send_email",
-            "perplexity_chat_completion",
-            "google_sheets_find_worksheet",
-            "google_sheets_lookup_spreadsheet_row",
-            "google_sheets_create_spreadsheet_row",
-            "google_sheets_update_spreadsheet_row",
-          ],
           headers: {
             Authorization:
-              "YmQ5YzMxY2EtMWYzOC00NTViLTljYjItOWYyMmM0NWU3ODE0OjJkN2ZmMzRjLTQ1MTgtNDNkMC05ODg0LTc2MzA5NTYyMjFjYw==", //NEWER:  Bearer NGQzMmEwYWUtODI2Zi00NTBhLTlmZTUtMzBjMWUyZmQ0MWU3OjdmNjQ1YTVjLTBmY2UtNDg4ZS05NjIwLTMyOTY0YjI2ZWI0Mg==
+              "Bearer YmQ5YzMxY2EtMWYzOC00NTViLTljYjItOWYyMmM0NWU3ODE0OjJkN2ZmMzRjLTQ1MTgtNDNkMC05ODg0LTc2MzA5NTYyMjFjYw==",
           },
         },
       ],
     });
 
+    console.log("✅ [DEBUG] OpenAI MCP call completed successfully");
+    console.log("🔵 [DEBUG] Response type:", typeof mcpResponse);
+    console.log("🔵 [DEBUG] Response keys:", Object.keys(mcpResponse || {}));
+    console.log(
+      "🔵 [DEBUG] Full response:",
+      JSON.stringify(mcpResponse, null, 2),
+    );
+
     res.json({ success: true, response: mcpResponse });
-  } catch (error) {
-    console.error("Error processing waitlist:", error);
-    res.status(500).json({ error: "Failed to process waitlist signup" });
+    console.log("✅ [DEBUG] Response sent successfully");
+  } catch (error: any) {
+    console.error("❌ [ERROR] Caught error in processWaitlistHandler:");
+    console.error("❌ [ERROR] Error type:", typeof error);
+    console.error("❌ [ERROR] Error constructor:", error?.constructor?.name);
+    console.error("❌ [ERROR] Error message:", error?.message);
+    console.error("❌ [ERROR] Error code:", error?.code);
+    console.error("❌ [ERROR] Error status:", error?.status);
+    console.error("❌ [ERROR] Error response:", error?.response?.data);
+    console.error(
+      "❌ [ERROR] Full error object:",
+      JSON.stringify(error, Object.getOwnPropertyNames(error), 2),
+    );
+    console.error("❌ [ERROR] Stack trace:", error?.stack);
+
+    res.status(500).json({
+      error: "Failed to process waitlist signup",
+      details: error?.message || "Unknown error",
+      errorType: error?.constructor?.name || "Unknown",
+    });
   }
 }
 

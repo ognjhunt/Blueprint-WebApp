@@ -103,25 +103,23 @@ export default async function processMappingConfirmationHandler(
         {
           type: "mcp",
           server_label: "zapier",
-          server_url:
-            "https://mcp.zapier.com/api/mcp/s/bd9c31ca-1f38-455b-9cb2-9f22c45e7814/mcp", //NEWER:  https://mcp.zapier.com/api/mcp/s/4d32a0ae-826f-450a-9fe5-30c1e2fd41e7/mcp
+          server_url: "https://mcp.zapier.com/api/mcp/mcp", //"https://mcp.zapier.com/api/mcp/s/bd9c31ca-1f38-455b-9cb2-9f22c45e7814/mcp", //NEWER:  https://mcp.zapier.com/api/mcp/s/4d32a0ae-826f-450a-9fe5-30c1e2fd41e7/mcp
           require_approval: "never",
           allowed_tools: [
             "gmail_create_draft",
             "gmail_send_email",
             "perplexity_chat_completion",
             "google_sheets_find_worksheet",
-            "google_sheets_update_spreadsheet_row",
             "google_sheets_lookup_spreadsheet_row",
-            "google_calendar_create_detailed_event",
-            "google_calendar_add_attendee_s_to_event",
+            "google_sheets_update_spreadsheet_row",
             "twilio_send_sms",
+            "google_calendar_create_detailed_event",
             "slack_send_channel_message",
-            "slack_send_private_channel_message",
+            "google_calendar_add_attendee_s_to_event",
           ],
           headers: {
             Authorization:
-              "YmQ5YzMxY2EtMWYzOC00NTViLTljYjItOWYyMmM0NWU3ODE0OjJkN2ZmMzRjLTQ1MTgtNDNkMC05ODg0LTc2MzA5NTYyMjFjYw==", //NEWER:  Bearer NGQzMmEwYWUtODI2Zi00NTBhLTlmZTUtMzBjMWUyZmQ0MWU3OjdmNjQ1YTVjLTBmY2UtNDg4ZS05NjIwLTMyOTY0YjI2ZWI0Mg==
+              "Bearer YmQ5YzMxY2EtMWYzOC00NTViLTljYjItOWYyMmM0NWU3ODE0OjJkN2ZmMzRjLTQ1MTgtNDNkMC05ODg0LTc2MzA5NTYyMjFjYw==", //NEWER:  Bearer NGQzMmEwYWUtODI2Zi00NTBhLTlmZTUtMzBjMWUyZmQ0MWU3OjdmNjQ1YTVjLTBmY2UtNDg4ZS05NjIwLTMyOTY0YjI2ZWI0Mg==
           },
         },
       ],
@@ -195,6 +193,46 @@ export default async function processMappingConfirmationHandler(
       });
     }
 
+    // ✅ ADD THIS NEW LINDY WEBHOOK CALL HERE:
+    // Trigger Lindy workflow for day-of and 1-hour reminder scheduling
+    const lindyReminderOptions = {
+      method: "POST",
+      headers: {
+        Authorization:
+          "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        company_name: company_name!,
+        contact_name: contact_name!,
+        contact_phone_number: contact_phone_number!,
+        address: address!,
+        company_url: company_url || "",
+        chosen_date_of_mapping: chosen_date_of_mapping!,
+        chosen_time_of_mapping: chosen_time_of_mapping!,
+        estimated_square_footage: estimated_square_footage!,
+        sheet_contact_name:
+          extractedDataCall1.SHEET_CONTACT_NAME || contact_name!,
+        sheet_contact_email:
+          extractedDataCall1.SHEET_CONTACT_EMAIL || "support@tryblueprint.io",
+        sheet_row_id: extractedDataCall1.SHEET_ROW_ID,
+        // Add any other data the Lindy workflow needs for scheduling reminders
+      }),
+    };
+
+    // Fire Lindy webhook for reminder scheduling (don't await - let it run in background)
+    fetch(
+      "https://public.lindy.ai/api/v1/webhooks/lindy/2b00a300-d573-4dcd-8b24-f1e5f1c8abf7",
+      lindyReminderOptions,
+    )
+      .then((lindyResponse) => lindyResponse.json())
+      .then((lindyData) =>
+        console.log("Lindy reminder scheduling webhook initiated:", lindyData),
+      )
+      .catch((lindyErr) =>
+        console.error("Lindy reminder webhook error:", lindyErr),
+      );
+
     const sheetRowId = extractedDataCall1.SHEET_ROW_ID;
     const companyUrlForCall2 = extractedDataCall1.COMPANY_URL_USED; // This comes from AI in phase 1
 
@@ -217,28 +255,197 @@ export default async function processMappingConfirmationHandler(
     );
 
     console.log("Sending Prompt for Call 2 to OpenAI...");
+    // const mcpResponseCall2 = await openai.responses.create({
+    //   model: "o3",
+    //   reasoning: {
+    //     effort: "medium",
+    //   },
+    //   input: promptCall2,
+    //   tools: [
+    //     {
+    //       type: "mcp",
+    //       server_label: "zapier",
+    //       server_url:
+    //         "https://mcp.zapier.com/api/mcp/s/bd9c31ca-1f38-455b-9cb2-9f22c45e7814/mcp",
+    //       require_approval: "never",
+    //       allowed_tools: [
+    //         "perplexity_chat_completion",
+    //         "google_sheets_find_worksheet",
+    //         "google_sheets_lookup_spreadsheet_row",
+    //         "google_sheets_update_spreadsheet_row",
+    //         "notion_create_page",
+    //         "notion_add_content_to_page",
+    //         "notion_get_page_and_children",
+    //         "notion_find_page_by_title",
+    //       ],
+    //       headers: {
+    //         Authorization:
+    //           "Bearer YmQ5YzMxY2EtMWYzOC00NTViLTljYjItOWYyMmM0NWU3ODE0OjJkN2ZmMzRjLTQ1MTgtNDNkMC05ODg0LTc2MzA5NTYyMjFjYw==",
+    //       },
+    //     },
+    //   ],
+    // });
+    // Phase 2A: Deep Research using OpenAI's Deep Research API
+    // Phase 2A: Deep Research using OpenAI's Deep Research API
+    console.log("Starting Deep Research phase...");
+    try {
+      const deepResearchResponse = await openai.responses.create({
+        model: "o4-mini-deep-research",
+        input: `Research the company: ${companyUrlForCall2} (${company_name} at ${address})
+
+        RESEARCH TASKS:
+        1. Visit main website and find key information
+        2. Extract Key URLs: Menu, Reservations, Wait List, Online Ordering, Reviews, Loyalty Program, Specials/Promotions, Events/Calendar
+        3. Get full menu details (items, descriptions, prices) 
+        4. Find general info: Hours, Social Media links, Contact Info, About Us, Policies
+        5. Scrape content from each key URL found
+        6. Find up to 6 Google Reviews & 6 Yelp Reviews (4+ stars, recent, with text and ratings)
+        7. Create 5-10 personalized multiple-choice questions about the company based on research
+
+        Format your research findings in a comprehensive markdown report with clear sections for each task above.`,
+        tools: [
+          { type: "web_search_preview" },
+          { type: "code_interpreter", container: { type: "auto" } },
+        ],
+        background: false,
+        // Add max_tool_calls to control research depth vs speed
+        max_tool_calls: 20, // Adjust based on your needs - lower = faster, higher = more thorough
+      });
+    } catch (error) {
+      console.error("Deep Research API error:", error);
+      return res.status(500).json({
+        error: "Deep Research API failed",
+        details: error.message,
+      });
+    }
+
+    console.log("Deep Research completed, extracting findings...");
+
+    // Extract the research findings with better error handling
+    let deepResearchFindings: string;
+    try {
+      if (
+        deepResearchResponse.output_text &&
+        typeof deepResearchResponse.output_text === "string"
+      ) {
+        deepResearchFindings = deepResearchResponse.output_text;
+      } else if (
+        deepResearchResponse.text &&
+        typeof deepResearchResponse.text === "string"
+      ) {
+        deepResearchFindings = deepResearchResponse.text;
+      } else {
+        console.error(
+          "Deep Research Response Structure:",
+          JSON.stringify(deepResearchResponse, null, 2),
+        );
+        throw new Error(
+          "Could not extract deep research findings from response - no valid text field found",
+        );
+      }
+
+      if (!deepResearchFindings.trim()) {
+        throw new Error("Deep research findings are empty");
+      }
+
+      console.log(
+        "Deep Research findings extracted successfully, length:",
+        deepResearchFindings.length,
+      );
+    } catch (error) {
+      console.error("Error extracting deep research findings:", error);
+      return res.status(500).json({
+        error: "Failed to extract deep research findings",
+        details: error.message,
+        debug_info: {
+          available_keys: Object.keys(deepResearchResponse),
+          has_output_text: !!deepResearchResponse.output_text,
+          has_text: !!deepResearchResponse.text,
+        },
+      });
+    }
+
+    console.log("Deep Research findings extracted, proceeding to Phase 2B...");
+
+    // Phase 2B: Use MCP to update Google Sheets and Notion with the research findings
+    const maxPromptLength = 15000; // Adjust based on model limits
+    let researchSummary = deepResearchFindings;
+
+    // If research findings are too long, truncate for the MCP call
+    if (deepResearchFindings.length > maxPromptLength) {
+      researchSummary =
+        deepResearchFindings.substring(0, maxPromptLength) +
+        "\n\n[Research findings truncated for prompt length. Full findings saved to Firebase.]";
+      console.log("Research findings truncated for MCP call due to length");
+    }
+    const updatedPromptCall2 = `
+    Blueprint Post-Signup - Phase 2B: Update Systems with Deep Research for ${company_name}.
+
+    **DEEP RESEARCH FINDINGS:**
+    ${deepResearchFindings}
+
+    **INPUT DATA:**
+    - Company Name: ${company_name}
+    - Company URL: ${companyUrlForCall2}
+    - Company Address: ${address}
+    - Google Sheet Row ID to update: ${sheetRowId}
+
+    **TASK 1: UPDATE GOOGLE SHEET WITH DEEP RESEARCH**
+    Spreadsheet: "Blueprint Waitlist"
+    Sheet: "Inbound (Website)"
+    If the provided Google Sheet Row ID is "LOOKUP_REQUIRED" or "NOT_FOUND", first find the row where 'Website' column matches "${companyUrlForCall2}" and use that Row ID.
+    Update the column "Company Research" with the entire research findings above.
+
+    **TASK 2: CREATE NOTION PAGE**
+    In Notion database/page named "Blueprint Hub":
+    Title: "${company_name} - Blueprint Design Ideas & Research"
+    Icon: (AI-selected emoji based on company type)
+    Cover: (AI-selected stock image URL)
+    Content: Structure the deep research findings into a well-organized Notion page with:
+
+    ### Deep Research Summary
+    [3-5 sentence summary highlighting key findings]
+
+    ### Key URLs Found:
+    (CRITICAL for Firestore - use exact format)
+    - Menu: [URL or N/A]
+    - Reservations: [URL or N/A] 
+    - Wait List: [URL or N/A]
+    - Online Ordering: [URL or N/A]
+    - Reviews: [URL or N/A]
+    - Loyalty Program: [URL or N/A]
+    - Specials/Promotions: [URL or N/A]
+    - Events/Calendar: [URL or N/A]
+
+    ### AI-Generated Blueprint AR Experience Ideas:
+    [Generate 3-5 creative AR experience ideas based on the research, with suggestions for Text, 3D Models, Media, Webpages, and Uploaded Content for each idea]
+
+    ### Customer Engagement Questions:
+    [List the research-based MCQs with answers]
+
+    Execute both tasks and confirm completion.`;
+
     const mcpResponseCall2 = await openai.responses.create({
       model: "o3",
       reasoning: {
         effort: "medium",
       },
-      input: promptCall2,
+      input: updatedPromptCall2,
       tools: [
         {
           type: "mcp",
           server_label: "zapier",
-          server_url:
-            "https://mcp.zapier.com/api/mcp/s/bd9c31ca-1f38-455b-9cb2-9f22c45e7814/mcp",
+          server_url: "https://mcp.zapier.com/api/mcp/mcp", //"https://mcp.zapier.com/api/mcp/s/bd9c31ca-1f38-455b-9cb2-9f22c45e7814/mcp",
           require_approval: "never",
           allowed_tools: [
-            "perplexity_chat_completion",
+            // Remove perplexity_chat_completion from here
             "google_sheets_find_worksheet",
-            "google_sheets_update_spreadsheet_row",
             "google_sheets_lookup_spreadsheet_row",
-            "notion_find_page_by_title",
-            "notion_get_page_and_children",
+            "google_sheets_update_spreadsheet_row",
             "notion_create_page",
             "notion_add_content_to_page",
+            "notion_get_page_and_children",
+            "notion_find_page_by_title",
           ],
           headers: {
             Authorization:
@@ -292,47 +499,36 @@ export default async function processMappingConfirmationHandler(
     let firebaseOpsError: string | null = null;
 
     if (blueprint_id) {
-      // Ensure blueprint_id is available
       try {
-        // Ensure Firebase Admin is initialized
         if (!admin.apps.length) {
-          // This is a critical error if not initialized. For this example, we log and proceed,
-          // but in a production app, this should be handled robustly, or initialization guaranteed.
           console.error(
             "CRITICAL: Firebase Admin SDK is not initialized. Firebase operations will fail.",
           );
           throw new Error("Firebase Admin SDK not initialized.");
         }
         const db = admin.firestore();
-        const bucket = admin.storage().bucket(); // Default bucket
+        const bucket = admin.storage().bucket();
 
-        // 1. Upload Deep Research output (responseTextCall2) to Firebase Storage
-        // The "IF THE output from deep research contains markdown files" implies that
-        // responseTextCall2 itself is the markdown content to be uploaded.
-        if (responseTextCall2) {
+        // 1. Upload Deep Research output to Firebase Storage
+        if (deepResearchFindings) {
           const storageFilePath = `blueprints/${blueprint_id}/deep_research_report.md`;
           const file = bucket.file(storageFilePath);
-
-          await file.save(responseTextCall2, {
-            metadata: {
-              contentType: "text/markdown; charset=utf-8", // Specify UTF-8
-            },
+          await file.save(deepResearchFindings, {
+            metadata: { contentType: "text/markdown; charset=utf-8" },
           });
           firebaseStoragePath = `gs://${bucket.name}/${storageFilePath}`;
-          console.log(
-            `Deep research report uploaded to Firebase Storage: ${firebaseStoragePath}`,
-          );
         }
 
         // 2. Update Firestore document
         const blueprintDocRef = db.collection("blueprints").doc(blueprint_id);
         const firestoreUpdateData: { [key: string]: any } = {
-          context: responseTextCall2, // Paste whole output from Deep Research
+          context: deepResearchFindings, // Use deepResearchFindings consistently
           researchLastUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
         };
 
-        // Extract Key URLs from responseTextCall2 and add them to the update object
-        const extractedUrls = extractUrlsFromDeepResearch(responseTextCall2);
+        // Extract URLs from the deep research findings for Firestore
+        const extractedUrls = extractUrlsFromDeepResearch(deepResearchFindings); // Use deepResearchFindings consistently
+
         if (Object.keys(extractedUrls).length > 0) {
           console.log("Extracted URLs for Firestore:", extractedUrls);
         } else {
@@ -345,7 +541,7 @@ export default async function processMappingConfirmationHandler(
           firestoreUpdateData[key] = extractedUrls[key];
         }
 
-        await blueprintDocRef.set(firestoreUpdateData, { merge: true }); // Use set with merge to create or update
+        await blueprintDocRef.set(firestoreUpdateData, { merge: true });
         firestoreUpdateDetails = {
           success: true,
           documentPath: blueprintDocRef.path,
@@ -359,8 +555,6 @@ export default async function processMappingConfirmationHandler(
         firebaseOpsError =
           fbError.message ||
           "An unknown error occurred during Firebase operations.";
-        // Optional: if Firebase ops are critical, you might re-throw or return 500 here
-        // For now, we'll report the error in the response.
       }
     } else {
       firebaseOpsError =
@@ -369,19 +563,22 @@ export default async function processMappingConfirmationHandler(
     }
     // --- END: New Firebase Operations ---
 
+    // Combine both deep research findings and system update results
+    const combinedResponse = `=== DEEP RESEARCH FINDINGS ===\n${deepResearchFindings}\n\n=== SYSTEM UPDATES ===\n${responseTextCall2}`;
+
     res.json({
       success: true,
       phase1_summary: responseTextCall1,
       phase1_extracted_data: extractedDataCall1,
-      phase2_summary: responseTextCall2,
+      phase2a_deep_research: deepResearchFindings, // ← Full research report
+      phase2b_system_updates: responseTextCall2, // ← Google Sheets/Notion updates
+      phase2_combined: `${deepResearchFindings}\n\n=== SYSTEM UPDATES ===\n${responseTextCall2}`,
       firebase_operations_status: {
-        // New section for Firebase results
         storage_upload_path: firebaseStoragePath,
         firestore_update: firestoreUpdateDetails,
         error: firebaseOpsError,
       },
-      message:
-        "Mapping confirmation workflow (Phases 1 & 2) processed. Review Firebase operations status.",
+      message: "Mapping confirmation workflow completed with Deep Research API",
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
@@ -402,408 +599,3 @@ export default async function processMappingConfirmationHandler(
     });
   }
 }
-//NEXT STEPS: Code-execution within API calls (Anthropic supports, i think OpenAI does too) - this is for uploading files + updating document field values, Real Deep Research / Agent API/MCP,
-//MAYBE: SPLIT UP API/MCP calls into 2 separate calls - might be too complex for one call
-
-// export default async function processMappingConfirmationHandler(
-//   req: Request,
-//   res: Response,
-// ) {
-//   try {
-//     // Extract webhook data from request body
-//     const {
-//       have_we_onboarded,
-//       chosen_time_of_mapping,
-//       chosen_date_of_mapping,
-//       have_user_chosen_date,
-//       address,
-//       company_url,
-//       company_name,
-//       contact_name,
-//       contact_phone_number,
-//       estimated_square_footage,
-//     } = req.body;
-
-//     // Validate required fields
-//     const requiredFields = {
-//       company_name,
-//       contact_name,
-//       contact_phone_number,
-//       address,
-//       chosen_date_of_mapping,
-//       chosen_time_of_mapping,
-//       estimated_square_footage,
-//     };
-
-//     const promptCall1 = `
-//       Blueprint Post-Signup - Phase 1: Initial Mapping Setup for ${company_name}.
-
-// **WEBHOOK DATA:**
-// - Company: ${company_name}
-// - Contact: ${contact_name} (${contact_phone_number})
-// - Address: ${address}
-// - Website: ${company_url || "Not provided"}
-// - Date: ${chosen_date_of_mapping}
-// - Time: ${chosen_time_of_mapping}
-// - EST. SQUARE FOOTAGE: ${estimated_square_footage}
-
-// **STEP 1: UPDATE GOOGLE SHEET**
-// Find row in "Blueprint Waitlist" spreadsheet where Website column matches "${company_url}" and update:
-// - "Have they picked a date+time for mapping?" = "Yes"
-// - "Have we Onboarded?" = "No"
-// - "Chosen Date of Mapping" = "${chosen_date_of_mapping}"
-// - "Chosen Time of Mapping" = "${chosen_time_of_mapping}"
-// - "Contact Name" = "${contact_name}"
-// - "Contact Phone Number" = "${contact_phone_number}"
-
-// **STEP 2: DRAFT CONFIRMATION EMAIL**
-// Create email draft to Name (column A) email (column B) from matched Google Sheet row - not necessarily the same as the contact from webhook - probably different:
-// Subject: "Confirmed for Blueprint Mapping!"
-// Body: "We've confirmed a Blueprint Mapping for ${company_name} at ${address.replace(", USA", "")} on ${chosen_date_of_mapping} at ${chosen_time_of_mapping}. You should get a Calendar Invite email soon, please confirm it.
-
-// We will also send a reminder email the day of the scheduled mapping. Based on the provided information, we estimate that the mapping will take ~[calculate: (estimated_square_footage / 100) + 15] minutes.
-
-// If you haven't already, check out our Pilot Details page: https://blueprint-vision-fork-nijelhunt.replit.app/pilot-program
-
-// Questions? Respond to this email or schedule a chat: https://calendly.com/blueprintar/30min
-
-// ____
-// Nijel Hunt
-// Co-Founder at Blueprint"
-
-// **STEP 3: CREATE GOOGLE CALENDAR EVENT**
-// Event: "Scheduled Blueprint Mapping"
-// Description: "Company: ${company_name}
-// Contact Name: ${contact_name}
-// Contact Phone Number: ${contact_phone_number}"
-// Location: ${address}
-// Start: ${chosen_date_of_mapping} ${chosen_time_of_mapping}
-// Duration: 60 minutes
-// Allow conflicts: Yes
-
-// **STEP 4: DRAFT DAY-OF REMINDER EMAIL**
-// Create draft email scheduled for ${chosen_date_of_mapping} at 9:00 AM EST:
-// Subject: "Scheduled Blueprint Mapping is Today!"
-// Body: Include calendar event details, mention ${contact_name} gets 1hr advance notice, contact founders@blueprint.com for questions.
-
-// **STEP 5: SEND TWILIO SMS MESSAGE IMMEDIATELY TO CONTACT**
-// TO: [CONTACT PHONE NUMBER - if not found/doesnt work - then use +19196389913]
-// MESSAGE: "Hi [Contact Name]! You'll ___________
-
-// We plan to meet you at [Address] on [Day] at [Time].
-
-// We also will send a reminder SMS message about 1 hour before the scheduled mapping. See you then!"
-
-// **STEP 6: SCHEDULE TWILIO SMS MESSAGE TO BE SENT 1-HR BEFORE THE START OF THE CREATED CALENDAR EVENT**
-// TO: [CONTACT PHONE NUMBER - if not found/doesnt work - then use +19196389913]
-// MESSAGE: "Hi [Contact Name], just a reminder that your Blueprint Mapping is scheduled for today at [Address of location] at ${chosen_time_of_mapping}. See you then!
-
-//     const promptCall2 = `
-// Blueprint Post-Signup - Phase 2:
-
-//     for (const [field, value] of Object.entries(requiredFields)) {
-//       if (!value) {
-//         return res.status(400).json({
-//           error: `Missing required field: ${field}`,
-//         });
-//       }
-//     }
-
-//     // Your existing MCP call logic goes here
-//     const mcpResponse = await openai.responses.create({
-//       model: "o4-mini",
-//       input: `Blueprint Post-Signup Mapping Automation - Execute complete workflow for ${company_name}:
-
-// **WEBHOOK DATA:**
-// - Company: ${company_name}
-// - Contact: ${contact_name} (${contact_phone_number})
-// - Address: ${address}
-// - Website: ${company_url || "Not provided"}
-// - Date: ${chosen_date_of_mapping}
-// - Time: ${chosen_time_of_mapping}
-// - EST. SQUARE FOOTAGE: ${estimated_square_footage}
-
-// **STEP 1: UPDATE GOOGLE SHEET**
-// Find row in "Blueprint Waitlist" spreadsheet where Website column matches "${company_url}" and update:
-// - "Have they picked a date+time for mapping?" = "Yes"
-// - "Have we Onboarded?" = "No"
-// - "Chosen Date of Mapping" = "${chosen_date_of_mapping}"
-// - "Chosen Time of Mapping" = "${chosen_time_of_mapping}"
-// - "Contact Name" = "${contact_name}"
-// - "Contact Phone Number" = "${contact_phone_number}"
-
-// **STEP 2: DRAFT CONFIRMATION EMAIL**
-// Create email draft to Name (column A) email (column B) from matched Google Sheet row - not necessarily the same as the contact from webhook - probably different:
-// Subject: "Confirmed for Blueprint Mapping!"
-// Body: "We've confirmed a Blueprint Mapping for ${company_name} at ${address.replace(", USA", "")} on ${chosen_date_of_mapping} at ${chosen_time_of_mapping}. You should get a Calendar Invite email soon, please confirm it.
-
-// We will also send a reminder email the day of the scheduled mapping. Based on the provided information, we estimate that the mapping will take ~[calculate: (estimated_square_footage / 100) + 15] minutes.
-
-// If you haven't already, check out our Pilot Details page: https://blueprint-vision-fork-nijelhunt.replit.app/pilot-program
-
-// Questions? Respond to this email or schedule a chat: https://calendly.com/blueprintar/30min
-
-// ____
-// Nijel Hunt
-// Co-Founder at Blueprint"
-
-// **STEP 3: CREATE GOOGLE CALENDAR EVENT**
-// Event: "Scheduled Blueprint Mapping"
-// Description: "Company: ${company_name}
-// Contact Name: ${contact_name}
-// Contact Phone Number: ${contact_phone_number}"
-// Location: ${address}
-// Start: ${chosen_date_of_mapping} ${chosen_time_of_mapping}
-// Duration: 60 minutes
-// Allow conflicts: Yes
-
-// **STEP 4: DRAFT DAY-OF REMINDER EMAIL**
-// Create draft email scheduled for ${chosen_date_of_mapping} at 9:00 AM EST:
-// Subject: "Scheduled Blueprint Mapping is Today!"
-// Body: Include calendar event details, mention ${contact_name} gets 1hr advance notice, contact founders@blueprint.com for questions.
-
-// **STEP 5: SEND TWILIO SMS MESSAGE IMMEDIATELY TO CONTACT**
-// TO: [CONTACT PHONE NUMBER - if not found/doesnt work - then use +19196389913]
-// MESSAGE: "Hi [Contact Name]! You'll ___________
-
-// We plan to meet you at [Address] on [Day] at [Time].
-
-// We also will send a reminder SMS message about 1 hour before the scheduled mapping. See you then!"
-
-// **STEP 6: SCHEDULE TWILIO SMS MESSAGE TO BE SENT 1-HR BEFORE THE START OF THE CREATED CALENDAR EVENT**
-// TO: [CONTACT PHONE NUMBER - if not found/doesnt work - then use +19196389913]
-// MESSAGE: "Hi [Contact Name], just a reminder that your Blueprint Mapping is scheduled for today at [Address of location] at ${chosen_time_of_mapping}. See you then!
-
-// **STEP 7: PERPLEXITY TRAVEL TIME QUERY**
-// Use Perplexity to get travel duration from "1005 Crete St, Durham, NC 27707" to "${address}" - return ONLY minutes for: car/uber travel time AND public transport travel time.
-
-// **STEP 8: SLACK MESSAGE**
-// Send to gumloop-experiment channel:
-// "NEW APPOINTMENT:
-// CONTACT NAME: ${contact_name}
-// LOCATION: ${address}
-// EST. TIME OF TRAVEL: [from Step 5]
-// DATE: ${chosen_date_of_mapping}
-// TIME: ${chosen_time_of_mapping}
-// CONTACT PHONE NUMBER: ${contact_phone_number}
-// EST. SQUARE FOOTAGE: [estimate from research]"
-
-// **STEP 9: PERPLEXITY DEEP RESEARCH**
-// Use Sonar Deep Research model for comprehensive analysis of the Company URL (found in Website column of Google Sheet - same row previously updated) - if can't find it, then just search the company regularly and find website for specific location:
-// 1. Visit main website page
-// 2. Extract URLs for: Menu, Reservations, Wait List, Online Ordering, Reviews, Loyalty Program, Specials/Promotions, Events/Calendar
-// 3. Scrape menu word-for-word with descriptions and prices (download PDFs/images if needed)
-// 4. Crawl entire website for: Hours, Social Media, Contact Info, About, Policies, etc.
-// 5. Scrape all URLs from step 2 word-for-word
-// 6. Find 6 Google Reviews + 6 Yelp Reviews (4+ stars, extract word-for-word)
-// 7. Create 10 personalized multiple choice questions with answers for customer engagement
-
-// **STEP 10: UPDATE GOOGLE SHEET WITH DEEP RESEARCH RESULT**
-// Find row in "Blueprint Waitlist" spreadsheet where Website column matches "${company_url}" and update:
-// - "Company Research" = "[Deep Research Results]" (from previous step - just copy and paste entire Deep Research result)
-
-// **STEP 11: CREATE NOTION PAGE**
-// Create page in Blueprint Hub:
-// Title: "${company_name} - Design Ideas"
-// Content: AI-generated Blueprint experience ideas based on research including content placement suggestions for Text, 3D models, Media, Webpages, and uploaded content (MP3/4, GLB, PNG, PDF, PPT).
-// Icon: AI-selected based on company type
-// Cover: AI-selected based on company branding
-
-// Execute all steps and confirm completion with summary.`,
-//       reasoning: {
-//         effort: "high",
-//       },
-//       tools: [
-//         {
-//           type: "mcp",
-//           server_label: "zapier",
-//           server_url:
-//             "https://mcp.zapier.com/api/mcp/s/bd9c31ca-1f38-455b-9cb2-9f22c45e7814/mcp",
-//           require_approval: "never",
-//           headers: {
-//             Authorization:
-//               "Bearer YmQ5YzMxY2EtMWYzOC00NTViLTljYjItOWYyMmM0NWU3ODE0OjJkN2ZmMzRjLTQ1MTgtNDNkMC05ODg0LTc2MzA5NTYyMjFjYw==",
-//           },
-//         },
-//       ],
-//     });
-
-//     res.json({ success: true, response: mcpResponse });
-//   } catch (error) {
-//     console.error("Error processing waitlist:", error);
-//     res.status(500).json({ error: "Failed to process waitlist signup" });
-//   }
-// }
-
-// export default async function processMappingConfirmationHandler(
-//   req: Request,
-//   res: Response,
-// ) {
-//   try {
-//     // Extract webhook data from request body
-//     const {
-//       have_we_onboarded,
-//       chosen_time_of_mapping,
-//       chosen_date_of_mapping,
-//       have_user_chosen_date,
-//       address,
-//       company_url,
-//       company_name,
-//       contact_name,
-//       contact_phone_number,
-//       estimated_square_footage,
-//     } = req.body;
-
-//     // Validate required fields
-//     const requiredFields = {
-//       company_name,
-//       contact_name,
-//       contact_phone_number,
-//       address,
-//       chosen_date_of_mapping,
-//       chosen_time_of_mapping,
-//       estimated_square_footage,
-//     };
-
-//     for (const [field, value] of Object.entries(requiredFields)) {
-//       if (!value) {
-//         return res.status(400).json({
-//           error: `Missing required field: ${field}`,
-//         });
-//       }
-//     }
-
-//     // Your existing MCP call logic goes here
-//     const mcpResponse = await anthropic.beta.messages.create({
-//       model: "claude-sonnet-4-20250514",
-//       max_tokens: 4000,
-//       messages: [
-//         {
-//           role: "user",
-//           content: `Blueprint Post-Signup Mapping Automation - Execute complete workflow for ${company_name}:
-
-// **WEBHOOK DATA:**
-// - Company: ${company_name}
-// - Contact: ${contact_name} (${contact_phone_number})
-// - Address: ${address}
-// - Website: ${company_url || "Not provided"}
-// - Date: ${chosen_date_of_mapping}
-// - Time: ${chosen_time_of_mapping}
-// - EST. SQUARE FOOTAGE: ${estimated_square_footage}
-
-// **STEP 1: UPDATE GOOGLE SHEET**
-// Find row in "Blueprint Waitlist" spreadsheet where Website column matches "${company_url}" and update:
-// - "Have they picked a date+time for mapping?" = "Yes"
-// - "Have we Onboarded?" = "No"
-// - "Chosen Date of Mapping" = "${chosen_date_of_mapping}"
-// - "Chosen Time of Mapping" = "${chosen_time_of_mapping}"
-// - "Contact Name" = "${contact_name}"
-// - "Contact Phone Number" = "${contact_phone_number}"
-
-// **STEP 2: DRAFT CONFIRMATION EMAIL**
-// Create email draft to Name (column A) email (column B) from matched Google Sheet row - not necessarily the same as the contact from webhook - probably different:
-// Subject: "Confirmed for Blueprint Mapping!"
-// Body: "We've confirmed a Blueprint Mapping for ${company_name} at ${address.replace(", USA", "")} on ${chosen_date_of_mapping} at ${chosen_time_of_mapping}. You should get a Calendar Invite email soon, please confirm it.
-
-// We will also send a reminder email the day of the scheduled mapping. Based on the provided information, we estimate that the mapping will take ~[calculate: (estimated_square_footage / 100) + 15] minutes.
-
-// If you haven't already, check out our Pilot Details page: https://blueprint-vision-fork-nijelhunt.replit.app/pilot-program
-
-// Questions? Respond to this email or schedule a chat: https://calendly.com/blueprintar/30min
-
-// ____
-// Nijel Hunt
-// Co-Founder at Blueprint"
-
-// **STEP 3: CREATE GOOGLE CALENDAR EVENT**
-// Event: "Scheduled Blueprint Mapping"
-// Description: "Company: ${company_name}
-// Contact Name: ${contact_name}
-// Contact Phone Number: ${contact_phone_number}"
-// Location: ${address}
-// Start: ${chosen_date_of_mapping} ${chosen_time_of_mapping}
-// Duration: 60 minutes
-// Allow conflicts: Yes
-
-// **STEP 4: DRAFT DAY-OF REMINDER EMAIL**
-// Create draft email scheduled for ${chosen_date_of_mapping} at 9:00 AM EST:
-// Subject: "Scheduled Blueprint Mapping is Today!"
-// Body: Include calendar event details, mention ${contact_name} gets 1hr advance notice, contact founders@blueprint.com for questions.
-
-// **STEP 5: SEND TWILIO SMS MESSAGE IMMEDIATELY TO CONTACT**
-// TO: [CONTACT PHONE NUMBER - if not found/doesnt work - then use +19196389913]
-// MESSAGE: "Hi [Contact Name]! You'll ___________
-
-// We plan to meet you at [Address] on [Day] at [Time].
-
-// We also will send a reminder SMS message about 1 hour before the scheduled mapping. See you then!"
-
-// **STEP 6: SCHEDULE TWILIO SMS MESSAGE TO BE SENT 1-HR BEFORE THE START OF THE CREATED CALENDAR EVENT**
-// TO: [CONTACT PHONE NUMBER - if not found/doesnt work - then use +19196389913]
-// MESSAGE: "Hi [Contact Name], just a reminder that your Blueprint Mapping is scheduled for today at [Address of location] at ${chosen_time_of_mapping}. See you then!
-
-// **STEP 7: PERPLEXITY TRAVEL TIME QUERY**
-// Use Perplexity to get travel duration from "1005 Crete St, Durham, NC 27707" to "${address}" - return ONLY minutes for: car/uber travel time AND public transport travel time.
-
-// **STEP 8: SLACK MESSAGE**
-// Send to gumloop-experiment channel:
-// "NEW APPOINTMENT:
-// CONTACT NAME: ${contact_name}
-// LOCATION: ${address}
-// EST. TIME OF TRAVEL: [from Step 5]
-// DATE: ${chosen_date_of_mapping}
-// TIME: ${chosen_time_of_mapping}
-// CONTACT PHONE NUMBER: ${contact_phone_number}
-// EST. SQUARE FOOTAGE: [estimate from research]"
-
-// **STEP 9: PERPLEXITY DEEP RESEARCH**
-// Use Sonar Deep Research model for comprehensive analysis of the Company URL (found in Website column of Google Sheet - same row previously updated) - if can't find it, then just search the company regularly and find website for specific location:
-// 1. Visit main website page
-// 2. Extract URLs for: Menu, Reservations, Wait List, Online Ordering, Reviews, Loyalty Program, Specials/Promotions, Events/Calendar
-// 3. Scrape menu word-for-word with descriptions and prices (download PDFs/images if needed)
-// 4. Crawl entire website for: Hours, Social Media, Contact Info, About, Policies, etc.
-// 5. Scrape all URLs from step 2 word-for-word
-// 6. Find 6 Google Reviews + 6 Yelp Reviews (4+ stars, extract word-for-word)
-// 7. Create 10 personalized multiple choice questions with answers for customer engagement
-
-// **STEP 10: UPDATE GOOGLE SHEET WITH DEEP RESEARCH RESULT**
-// Find row in "Blueprint Waitlist" spreadsheet where Website column matches "${company_url}" and update:
-// - "Company Research" = "[Deep Research Results]" (from previous step - just copy and paste entire Deep Research result)
-
-// **STEP 11: CREATE NOTION PAGE**
-// Create page in Blueprint Hub:
-// Title: "${company_name} - Design Ideas"
-// Content: AI-generated Blueprint experience ideas based on research including content placement suggestions for Text, 3D models, Media, Webpages, and uploaded content (MP3/4, GLB, PNG, PDF, PPT).
-// Icon: AI-selected based on company type
-// Cover: AI-selected based on company branding
-
-// Execute all steps and confirm completion with summary.`,
-//         },
-//       ],
-//       mcp_servers: [
-//         {
-//           type: "url",
-//           url: "https://mcp.zapier.com/api/mcp/s/4d602731-9c5e-4c56-a494-7d1cdef77199/mcp",
-//           name: "zapier",
-//           authorization_token:
-//             "NGQ2MDI3MzEtOWM1ZS00YzU2LWE0OTQtN2QxY2RlZjc3MTk5Ojc0ZWJlNTdlLWZlNzUtNDhjNC1hOGVkLWNjN2I2YzVjNGJmMA==",
-//         },
-//       ],
-//       betas: ["mcp-client-2025-04-04"],
-//     });
-
-//     // Return success response
-//     res.json({
-//       success: true,
-//       response: mcpResponse,
-//       message: "Mapping confirmation workflow completed successfully",
-//       timestamp: new Date().toISOString(),
-//     });
-//   } catch (error) {
-//     console.error("Error processing mapping confirmation:", error);
-//     res.status(500).json({
-//       error: "Failed to process mapping confirmation",
-//       message: error.message,
-//     });
-//   }
-// }

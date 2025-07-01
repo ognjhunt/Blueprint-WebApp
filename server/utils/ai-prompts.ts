@@ -273,7 +273,7 @@ export function buildMappingConfirmationPhase2AIPrompt(
     - Company Address: ${address}
     - Google Sheet Row ID to update: ${sheetRowId} (If "LOOKUP_REQUIRED" or "NOT_FOUND", your first step in TASK 2 must be to find the row by Website column matching "${companyUrlForCall2}")
 
-    **TASK 1: PERFORM DEEP COMPANY RESEARCH (Using Perplexity Sonar or similar advanced web research tool available via Zapier)**
+    **TASK 1: PROCESS DEEP RESEARCH FINDINGS** The following deep research has already been completed using OpenAI's Deep Research API:
     For company at URL: ${companyUrlForCall2} (and physical address: ${address} for local context if needed)
     1.  Visit main website. If it's a generic portal, find the specific page for the location. If no URL provided, attempt to find one.
     2.  Extract Key URLs: Menu, Reservations, Wait List, Online Ordering, Reviews, Loyalty Program, Specials/Promotions, Events/Calendar. List them. If a URL is not found, state "N/A".

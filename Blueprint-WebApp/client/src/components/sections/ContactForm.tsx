@@ -205,10 +205,23 @@ export default function ContactForm() {
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    console.log("🟡 [DEBUG] Form submitted - handleSubmit called");
+    console.log("🟡 [DEBUG] Form data:", formData);
+
+    const isValid = validateForm();
+    console.log("🟡 [DEBUG] Form validation result:", isValid);
+    console.log("🟡 [DEBUG] Validation errors:", errors);
+
+    if (!isValid) {
+      console.log("❌ [DEBUG] Form validation failed, returning early");
+      return;
+    }
+
+    console.log("✅ [DEBUG] Form validation passed, proceeding...");
     setIsSubmitting(true);
 
     try {
+      console.log("🟡 [DEBUG] Creating Firebase token...");
       const token = uuidv4();
       const baseUrl = "https://blueprint-vision-fork-nijelhunt.replit.app";
       const offWaitlistUrl = `${baseUrl}/off-waitlist-signup?token=${token}`;
@@ -222,18 +235,9 @@ export default function ContactForm() {
         createdAt: serverTimestamp(),
       });
 
-      // Show success immediately
-      setIsSuccess(true);
-      setFormData({
-        name: "",
-        email: "",
-        company: "",
-        city: "",
-        state: "",
-        message: "",
-      });
+      console.log("✅ [DEBUG] Firebase token created successfully");
 
-      // Fire MCP process in background (don't await)
+      // Fire-and-forget API call - don't wait for it to complete
       fetch("/api/process-waitlist", {
         method: "POST",
         headers: {
@@ -249,13 +253,38 @@ export default function ContactForm() {
           companyWebsite: companyWebsite,
           offWaitlistUrl: offWaitlistUrl,
         }),
-      }).catch((error) => {
-        console.error("Background MCP process failed:", error);
-        // Optionally store this error in Firebase for debugging
+      })
+        .then((response) => {
+          console.log(
+            "🔵 [FRONTEND] Background API completed:",
+            response.status,
+          );
+          return response.json();
+        })
+        .then((data) => {
+          console.log("✅ [FRONTEND] Background API Success:", data);
+        })
+        .catch((error) => {
+          console.error(
+            "❌ [FRONTEND] Background API Error (non-blocking):",
+            error,
+          );
+        });
+
+      // Immediately show success without waiting for API
+      console.log("✅ [FRONTEND] Showing success immediately");
+      setIsSuccess(true);
+      setFormData({
+        name: "",
+        email: "",
+        company: "",
+        city: "",
+        state: "",
+        message: "",
       });
     } catch (error) {
-      console.error("Error submitting form:", error);
-      alert("There was an error submitting your form. Please try again.");
+      console.error("❌ [FRONTEND] Form submission failed:", error);
+      alert(`Error: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }

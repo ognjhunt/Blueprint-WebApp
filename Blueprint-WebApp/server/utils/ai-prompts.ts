@@ -90,6 +90,28 @@ export interface MappingConfirmationDataForPrompt {
   estimated_square_footage: number | string; // Can be number or string from form
 }
 
+// **TASK 5: DRAFT DAY-OF REMINDER EMAIL**
+// To: [SheetContactEmail]
+// Subject: "REMINDER: Blueprint Mapping for ${company_name} is Today!"
+// Body:
+// "Hi [SheetContactName (just first name)],
+
+// Just a friendly reminder that your Blueprint Mapping for ${company_name} is scheduled for today, (chosen date of mapping, but in the format of Saturday, May 31st, 2025 instead of ${chosen_date_of_mapping}), at (chosen time of mapping, but in the format 1:00 PM instead of ${chosen_time_of_mapping}) at ${displayAddress}.
+
+// The webhook contact, ${contact_name}, will also receive an SMS reminder approximately 1 hour before.
+
+// If you have any questions, please contact support@tryblueprint.io.
+
+// See you soon,
+// Nijel Hunt
+// Co-Founder at Blueprint
+// This draft should be scheduled to be sent on ${chosen_date_of_mapping} at 9:00 AM EST.
+
+// **TASK 7: SCHEDULE 1-HOUR REMINDER TWILIO SMS TO WEBHOOK CONTACT**
+// To: ${contact_phone_number} (Fallback: +19196389913)
+// Message: "Reminder: Your Blueprint Mapping for ${company_name} at ${displayAddress} is in about 1 hour (${chosen_time_of_mapping}). See you soon! - Blueprint"
+// Schedule: 1 hour before ${chosen_date_of_mapping} ${chosen_time_of_mapping} (use the same timezone considerations as TASK 4 for the base time).
+
 /**
  * Builds the AI prompt for Phase 1 of mapping confirmation (initial setup).
  * @param {MappingConfirmationDataForPrompt} data The mapping confirmation data from the webhook.
@@ -173,38 +195,16 @@ End: Calculate end time based on a 60-minute duration from the start time.
 Attendees: Add [SheetContactEmail] AND support@tryblueprint.io.
 Allow conflicts: Yes
 
-**TASK 5: DRAFT DAY-OF REMINDER EMAIL**
-To: [SheetContactEmail]
-Subject: "REMINDER: Blueprint Mapping for ${company_name} is Today!"
-Body:
-"Hi [SheetContactName (just first name)],
-
-Just a friendly reminder that your Blueprint Mapping for ${company_name} is scheduled for today, (chosen date of mapping, but in the format of Saturday, May 31st, 2025 instead of ${chosen_date_of_mapping}), at (chosen time of mapping, but in the format 1:00 PM instead of ${chosen_time_of_mapping}) at ${displayAddress}.
-
-The webhook contact, ${contact_name}, will also receive an SMS reminder approximately 1 hour before.
-
-If you have any questions, please contact support@tryblueprint.io.
-
-See you soon,
-Nijel Hunt
-Co-Founder at Blueprint"
-This draft should be scheduled to be sent on ${chosen_date_of_mapping} at 9:00 AM EST.
-
-**TASK 6: SEND IMMEDIATE TWILIO SMS TO WEBHOOK CONTACT**
+**TASK 5: SEND IMMEDIATE TWILIO SMS TO WEBHOOK CONTACT**
 To: ${contact_phone_number} (Fallback: +19196389913 if primary is invalid/missing)
 Message: "Hi ${contact_name}! Your Blueprint Mapping for ${company_name} is confirmed for ${chosen_date_of_mapping} at ${chosen_time_of_mapping} (${displayAddress}). Email to [SheetContactEmail] & Calendar invite sent. Reminder SMS 1hr prior. - Blueprint"
 
-**TASK 7: SCHEDULE 1-HOUR REMINDER TWILIO SMS TO WEBHOOK CONTACT**
-To: ${contact_phone_number} (Fallback: +19196389913)
-Message: "Reminder: Your Blueprint Mapping for ${company_name} at ${displayAddress} is in about 1 hour (${chosen_time_of_mapping}). See you soon! - Blueprint"
-Schedule: 1 hour before ${chosen_date_of_mapping} ${chosen_time_of_mapping} (use the same timezone considerations as TASK 4 for the base time).
-
-**TASK 8: GET TRAVEL TIME (Use Google Maps via Zapier if available, otherwise Perplexity. Prioritize Zapier's Google Maps tool for reliability)**
+**TASK 6: GET TRAVEL TIME (Use Google Maps via Zapier if available, otherwise Perplexity. Prioritize Zapier's Google Maps tool for reliability)**
 Origin: "1005 Crete St, Durham, NC 27707"
 Destination: "${address}"
 Return ONLY minutes for car/Uber travel time as [CarTravelMinutes] AND public transport travel time as [PublicTransportMinutes]. If a mode is unavailable, return 'N/A' for it.
 
-**TASK 9: SEND SLACK MESSAGE**
+**TASK 7: SEND SLACK MESSAGE**
 Channel: gumloop-experiment
 Message:
 "✅ NEW APPOINTMENT (Phase 1 Complete): ${company_name}
@@ -273,7 +273,7 @@ export function buildMappingConfirmationPhase2AIPrompt(
     - Company Address: ${address}
     - Google Sheet Row ID to update: ${sheetRowId} (If "LOOKUP_REQUIRED" or "NOT_FOUND", your first step in TASK 2 must be to find the row by Website column matching "${companyUrlForCall2}")
 
-    **TASK 1: PERFORM DEEP COMPANY RESEARCH (Using Perplexity Sonar or similar advanced web research tool available via Zapier)**
+    **TASK 1: PROCESS DEEP RESEARCH FINDINGS** The following deep research has already been completed using OpenAI's Deep Research API:
     For company at URL: ${companyUrlForCall2} (and physical address: ${address} for local context if needed)
     1.  Visit main website. If it's a generic portal, find the specific page for the location. If no URL provided, attempt to find one.
     2.  Extract Key URLs: Menu, Reservations, Wait List, Online Ordering, Reviews, Loyalty Program, Specials/Promotions, Events/Calendar. List them. If a URL is not found, state "N/A".
