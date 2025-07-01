@@ -9,6 +9,7 @@ import Nav from "@/components/Nav";
 import { Link } from "wouter";
 import ContactForm from "@/components/sections/ContactForm";
 import Footer from "@/components/Footer";
+import { motion, useScroll, useTransform } from "framer-motion";
 import FadeIn from "@/components/FadeIn";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -286,7 +287,7 @@ const EnterpriseARSection = ({ scrollToContact }) => {
         </div>
 
         {/* Secondary Features - Compact Grid */}
-        <FadeIn yOffset={30} delay={0.4} className="mb-16">
+        {/* <FadeIn yOffset={30} delay={0.4} className="mb-16">
           <h3 className="text-3xl font-bold text-center mb-12 text-gray-900">
             Built for Scale & Security
           </h3>
@@ -317,7 +318,7 @@ const EnterpriseARSection = ({ scrollToContact }) => {
               </FadeIn>
             ))}
           </div>
-        </FadeIn>
+        </FadeIn> */}
 
         {/* Call to Action */}
         <FadeIn
@@ -367,14 +368,14 @@ const ImageCarousel = () => {
       alt: "Step 2: 3D Scanning",
       caption: "3D Space Scanning",
       description: "Advanced scanning creates a digital twin of your space",
-      time: "20 mins",
+      time: "30-60 mins",
     },
     {
       src: "/images/ChatGPT Image Apr 9, 2025, 10_28_16 AM.png",
       alt: "Step 3: AI Generation",
       caption: "AI-Powered Creation",
-      description: "Our AI instantly generates custom AR experiences",
-      time: "15 mins",
+      description: "Our AI helps our designers create custom AR experiences",
+      time: "1-2 days days",
     },
     {
       src: "/images/ChatGPT Image Apr 9, 2025, 09_03_13 AM.png",
@@ -530,57 +531,137 @@ const ImageCarousel = () => {
   );
 };
 
-// Enhanced step cards for the 4-step process
 const steps = [
   {
-    icon: <Rocket className="w-8 h-8" />,
-    title: "Join Early Access",
+    icon: <Users className="w-6 h-6 md:w-8 md:h-8" />,
+    title: "Join Waitlist",
     description:
-      "Reserve your spot for priority access to Blueprint's AR platform",
-    benefits: [
-      "Free 2 week program access",
-      "Priority support",
-      "Custom onboarding",
-    ],
-    color: "from-violet-500 to-purple-600",
+      "Secure your spot in our exclusive early access program. Priority onboarding for our free pilot program available.",
+    benefits: ["Priority access", "Free 2 week program", "Dedicated support"],
+    color: "from-emerald-500 to-teal-600",
+    duration: "1 minute",
   },
   {
-    icon: <Scan className="w-8 h-8" />,
-    title: "Quick 3D Mapping",
+    icon: <MapPin className="w-6 h-6 md:w-8 md:h-8" />,
+    title: "3D Space Mapping",
     description:
-      "Our team scans your space in under 30 minutes using advanced tech",
+      "Our expert team visits your location to create a precise 3D digital twin of your space.",
     benefits: [
-      "Non-intrusive process",
-      "Works during business hours",
-      "No setup required",
+      "Professional scanning",
+      "Flexible scheduling",
+      "High-precision mapping",
     ],
     color: "from-blue-500 to-cyan-500",
+    duration: "30-60 minutes",
   },
+  // {
+  //   icon: <Brain className="w-6 h-6 md:w-8 md:h-8" />,
+  //   title: "AI-Powered Setup",
+  //   description:
+  //     "Our AI generates custom AR experiences tailored to your business goals and customer journey.",
+  //   benefits: [
+  //     "Intelligent content placement",
+  //     "Custom interactions",
+  //     "Brand integration",
+  //   ],
+  //   color: "from-violet-500 to-purple-600",
+  //   duration: "30 minutes",
+  // },
   {
-    icon: <Wand2 className="w-8 h-8" />,
-    title: "AI Creates Your AR",
+    icon: <Brain className="w-6 h-6 md:w-8 md:h-8" />,
+    title: "Blueprint Design",
     description:
-      "Watch as AI instantly generates custom AR experiences for your space",
+      "Our designers work to create custom AR experiences tailored to your business goals and customer journey.",
     benefits: [
-      "Tailored to your brand",
-      "Preview in real-time",
-      "Unlimited revisions",
+      "Intelligent content placement",
+      "Custom interactions",
+      "Brand integration",
     ],
-    color: "from-emerald-500 to-teal-500",
+    color: "from-violet-500 to-purple-600",
+    duration: "1-2 Days",
   },
+  // {
+  //   icon: <Rocket className="w-6 h-6 md:w-8 md:h-8" />,
+  //   title: "Launch & Scale",
+  //   description:
+  //     "Go live instantly with QR codes. Track engagement and optimize your AR experience with real-time analytics.",
+  //   benefits: [
+  //     "Instant deployment",
+  //     "Performance analytics",
+  //     "Continuous optimization",
+  //   ],
+  //   color: "from-fuchsia-500 to-pink-600",
+  //   duration: "Same day",
+  // },
   {
-    icon: <Star className="w-8 h-8" />,
-    title: "Go Live Instantly",
+    icon: <Rocket className="w-6 h-6 md:w-8 md:h-8" />,
+    title: "Demo Day",
     description:
-      "Launch your AR experience and start delighting customers immediately",
-    benefits: [
-      "No app downloads",
-      "Analytics dashboard",
-      "Continuous optimization",
-    ],
-    color: "from-orange-500 to-red-500",
+      "We'll come in with an Apple Vision Pro to give a ~1 hour long demonstration. Open to any and everyone!",
+    benefits: ["Feedback", "Performance analytics", "Continuous optimization"],
+    color: "from-fuchsia-500 to-pink-600",
+    duration: "Next Week",
   },
 ];
+
+// Enhanced step cards for the 4-step process
+// const steps = [
+//   {
+//     icon: <Rocket className="w-8 h-8" />,
+//     title: "Join Early Access",
+//     description:
+//       "Reserve your spot for priority access to Blueprint's AR platform",
+//     benefits: [
+//       "Free 2 week program access",
+//       "Priority support",
+//       "Custom onboarding",
+//     ],
+//     color: "from-violet-500 to-purple-600",
+//   },
+//   {
+//     icon: <Scan className="w-8 h-8" />,
+//     title: "Quick 3D Mapping",
+//     description:
+//       "Our team scans your space in 30-60 minutes using advanced tech",
+//     benefits: [
+//       "Non-intrusive process",
+//       "Works during business hours",
+//       "No setup required",
+//     ],
+//     color: "from-blue-500 to-cyan-500",
+//   },
+//   {
+//     icon: <Wand2 className="w-8 h-8" />,
+//     title: "AI Creates Your AR",
+//     description:
+//       "Watch as AI instantly generates custom AR experiences for your space",
+//     benefits: [
+//       "Tailored to your brand",
+//       "Preview in real-time",
+//       "Unlimited revisions",
+//     ],
+//     color: "from-emerald-500 to-teal-500",
+//   },
+//   {
+//     icon: <Star className="w-8 h-8" />,
+//     title: "Go Live Instantly",
+//     description:
+//       "Launch your AR experience and start delighting customers immediately",
+//     benefits: [
+//       "No app downloads",
+//       "Analytics dashboard",
+//       "Continuous optimization",
+//     ],
+//     color: "from-orange-500 to-red-500",
+//   },
+// ];
+
+const handleScrollToContactForm = () => {
+  const contactFormElement = document.getElementById("contactForm");
+  if (contactFormElement) {
+    contactFormElement.scrollIntoView({ behavior: "smooth" });
+  }
+};
 
 // Enhanced technology features
 const techFeatures = [
@@ -755,12 +836,75 @@ export default function Discover() {
             </p>
           </FadeIn>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 relative">
-            {/* Connection line for desktop */}
-            <div className="hidden lg:block absolute top-24 left-[12.5%] right-[12.5%] h-0.5">
-              <div className="h-full bg-gradient-to-r from-violet-300 via-indigo-300 to-purple-300 rounded-full" />
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 relative">
+            {/* Enhanced connection line */}
+            <div className="hidden lg:block absolute top-20 left-[12.5%] right-[12.5%] h-1 bg-gradient-to-r from-emerald-400 via-blue-400 via-violet-400 to-fuchsia-400 rounded-full shadow-lg" />
 
+            {steps.map((step, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: idx * 0.15 }}
+                whileHover={{ y: -8 }}
+                className="relative z-10"
+              >
+                <Card className="h-full border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-white/90 backdrop-blur-sm overflow-hidden group">
+                  <CardContent className="p-6 md:p-8">
+                    <div className="flex flex-col items-center text-center mb-6">
+                      <div className="relative mb-6">
+                        <div
+                          className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center text-white bg-gradient-to-br ${step.color} shadow-xl group-hover:scale-110 transition-transform duration-300`}
+                        >
+                          {step.icon}
+                        </div>
+                        <div className="absolute -top-2 -right-2 bg-slate-900 text-white text-sm font-bold w-8 h-8 rounded-full flex items-center justify-center">
+                          {idx + 1}
+                        </div>
+                      </div>
+
+                      <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                        {step.duration}
+                      </div>
+
+                      <h3 className="text-xl md:text-2xl font-bold mb-3 text-slate-900">
+                        {step.title}
+                      </h3>
+
+                      <p className="text-slate-600 mb-6 leading-relaxed">
+                        {step.description}
+                      </p>
+                    </div>
+
+                    <div className="space-y-3">
+                      {step.benefits.map((benefit, bidx) => (
+                        <div
+                          key={bidx}
+                          className="flex items-center text-slate-700"
+                        >
+                          <CheckCircle2 className="w-5 h-5 text-emerald-500 mr-3 flex-shrink-0" />
+                          <span className="text-sm font-medium">{benefit}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {idx === 0 && (
+                      <Button
+                        className="w-full mt-8 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-base py-6 font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+                        onClick={handleScrollToContactForm}
+                      >
+                        Start Your AR Journey
+                        <ArrowRight className="w-5 h-5 ml-2" />
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* 
             {steps.map((step, idx) => (
               <FadeIn
                 key={idx}
@@ -782,7 +926,7 @@ export default function Discover() {
                     />
                     <CardContent className="relative p-8">
                       <div className="flex flex-col items-center text-center">
-                        {/* Step number and icon */}
+                        
                         <div className="relative mb-6">
                           <div
                             className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${step.color} p-5 shadow-xl`}
@@ -833,8 +977,7 @@ export default function Discover() {
                   </Card>
                 </div>
               </FadeIn>
-            ))}
-          </div>
+            ))}*/}
         </div>
       </section>
 

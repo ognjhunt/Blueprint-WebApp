@@ -191,16 +191,15 @@ export default function Nav({
               </Button>
             </Link>
           )}
-          {!currentUser ? (
-            <Link href="/sign-in">
-              <Button
-                variant="default"
-                className="rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg hover:shadow-indigo-200/50 hover:scale-105 transition-all duration-300 px-6 py-2 font-semibold"
-              >
-                Sign In
-              </Button>
-            </Link>
-          ) : (
+          {!currentUser ? null : (
+            // <Link href="/sign-in">
+            //   <Button
+            //     variant="default"
+            //     className="rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg hover:shadow-indigo-200/50 hover:scale-105 transition-all duration-300 px-6 py-2 font-semibold"
+            //   >
+            //     Sign In
+            //   </Button>
+            // </Link>
             <div className="flex items-center space-x-4">
               {/* Only show Dashboard button and other features if not hiding authenticated features */}
               {!hideAuthenticatedFeatures && location !== "/dashboard" && (
@@ -359,17 +358,16 @@ export default function Nav({
                 </Link>
               )}
 
-              {!currentUser ? (
-                <Link
-                  href="/sign-in"
-                  className="w-full"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <Button className="w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg font-semibold">
-                    Sign In
-                  </Button>
-                </Link>
-              ) : (
+              {!currentUser ? null : (
+                // <Link
+                //   href="/sign-in"
+                //   className="w-full"
+                //   onClick={() => setIsMobileMenuOpen(false)}
+                // >
+                //   <Button className="w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg font-semibold">
+                //     Sign In
+                //   </Button>
+                // </Link>
                 <>
                   {/* Only show Dashboard if not hiding authenticated features */}
                   {!hideAuthenticatedFeatures && (

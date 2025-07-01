@@ -84,28 +84,28 @@ export default function ContactForm() {
    * @returns {boolean} True if the form is valid, false otherwise.
    */
   // Enhanced trust indicators and benefits
-  const benefits = [
-    {
-      icon: <Clock className="w-5 h-5" />,
-      title: "Fast Implementation",
-      description: "Go live in 1 day",
-    },
-    {
-      icon: <Shield className="w-5 h-5" />,
-      title: "Enterprise Security",
-      description: "Bank-level data protection",
-    },
-    {
-      icon: <Users className="w-5 h-5" />,
-      title: "Dedicated Support",
-      description: "Personal success manager",
-    },
-    {
-      icon: <TrendingUp className="w-5 h-5" />,
-      title: "Proven Impact",
-      description: "200%+ engagement increase",
-    },
-  ];
+  // const benefits = [
+  //   {
+  //     icon: <Clock className="w-5 h-5" />,
+  //     title: "Fast Implementation",
+  //     description: "Go live in 1 day",
+  //   },
+  //   {
+  //     icon: <Shield className="w-5 h-5" />,
+  //     title: "Enterprise Security",
+  //     description: "Bank-level data protection",
+  //   },
+  //   {
+  //     icon: <Users className="w-5 h-5" />,
+  //     title: "Dedicated Support",
+  //     description: "Personal success manager",
+  //   },
+  //   {
+  //     icon: <TrendingUp className="w-5 h-5" />,
+  //     title: "Proven Impact",
+  //     description: "200%+ engagement increase",
+  //   },
+  // ];
 
   const priorityMarkets = [
     "Los Angeles",
@@ -451,7 +451,7 @@ export default function ContactForm() {
           </p>
 
           {/* Mobile: Show only 2 key benefits, Desktop: Show all 4 */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 max-w-3xl mx-auto">
+          {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 max-w-3xl mx-auto">
             {benefits.slice(0, 2).map((benefit, index) => (
               <motion.div
                 key={benefit.title}
@@ -470,9 +470,9 @@ export default function ContactForm() {
                   {benefit.description}
                 </p>
               </motion.div>
-            ))}
+            ))} */}
             {/* Show remaining benefits only on desktop */}
-            <div className="hidden md:contents">
+            {/* <div className="hidden md:contents">
               {benefits.slice(2).map((benefit, index) => (
                 <motion.div
                   key={benefit.title}
@@ -492,8 +492,8 @@ export default function ContactForm() {
                   </p>
                 </motion.div>
               ))}
-            </div>
-          </div>
+            </div> */}
+          {/* </div> */}
         </motion.div>
 
         <div className="max-w-6xl mx-auto">
@@ -582,7 +582,7 @@ export default function ContactForm() {
                         </div>
                       </div>
 
-                      <div className="flex items-start space-x-4">
+                      {/* <div className="flex items-start space-x-4">
                         <div className="bg-white/20 rounded-2xl p-3 mt-1">
                           <Zap className="w-6 h-6" />
                         </div>
@@ -595,7 +595,7 @@ export default function ContactForm() {
                             no waiting period
                           </p>
                         </div>
-                      </div>
+                      </div> */}
                     </div>
                   </div>
 

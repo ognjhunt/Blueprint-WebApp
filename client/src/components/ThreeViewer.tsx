@@ -4428,9 +4428,10 @@ const ThreeViewer = React.memo(
       //  // "https://f005.backblazeb2.com/file/objectModels-dev/+HLF+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+8k.glb";
 
       // // "https://f005.backblazeb2.com/file/objectModels-dev/Library+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+4k.glb";
+      //https://f005.backblazeb2.com/file/objectModels-dev/6_26_2025.glb
       // With this:
       const fullModelPath =
-        "https://f005.backblazeb2.com/file/objectModels-dev/6_26_2025.glb"; //modelPath || ""; // Use the prop directly
+        "https://f005.backblazeb2.com/file/objectModels-dev/+HLF+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+8k.glb"; //modelPath || ""; // Use the prop directly
 
       // Add validation
       if (!fullModelPath) {
