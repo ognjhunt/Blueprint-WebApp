@@ -4898,6 +4898,28 @@ export default function BlueprintEditor() {
     }
   };
 
+  // Save blueprint settings
+  const handleSaveBlueprintSettings = async () => {
+    if (!blueprintId) return;
+    try {
+      await updateDoc(doc(db, "blueprints", blueprintId), {
+        name: blueprintTitle,
+        status: blueprintStatus,
+      });
+      toast({
+        title: "Settings Saved",
+        description: "Blueprint settings updated.",
+      });
+    } catch (error) {
+      console.error("Error saving settings:", error);
+      toast({
+        title: "Save Failed",
+        description: "Unable to update blueprint.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // ========================
   // FILE & MODEL HANDLING
   // ========================
@@ -6897,7 +6919,40 @@ export default function BlueprintEditor() {
                                     Blueprint Properties
                                   </AccordionTrigger>
                                   <AccordionContent>
-                                    {/* ... content ... */}
+                                    <div className="space-y-4">
+                                      <div className="space-y-2">
+                                        <Label htmlFor="bp-name">Name</Label>
+                                        <Input
+                                          id="bp-name"
+                                          value={blueprintTitle}
+                                          onChange={(e) => setBlueprintTitle(e.target.value)}
+                                          placeholder="Enter blueprint name"
+                                        />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label htmlFor="bp-status">Status</Label>
+                                        <Select
+                                          value={blueprintStatus}
+                                          onValueChange={setBlueprintStatus}
+                                        >
+                                          <SelectTrigger id="bp-status">
+                                            <SelectValue placeholder="Select status" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="pending">Draft</SelectItem>
+                                            <SelectItem value="active">Published</SelectItem>
+                                            <SelectItem value="archived">Archived</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <Button
+                                        onClick={handleSaveBlueprintSettings}
+                                        className="w-full"
+                                      >
+                                        <Save className="h-4 w-4 mr-2" />
+                                        Save Settings
+                                      </Button>
+                                    </div>
                                   </AccordionContent>
                                 </AccordionItem>
                                 <AccordionItem value="3dsettings">
@@ -6905,7 +6960,71 @@ export default function BlueprintEditor() {
                                     3D View Settings
                                   </AccordionTrigger>
                                   <AccordionContent>
-                                    {/* ... content ... */}
+                                    <div className="space-y-4">
+                                      <div className="flex items-center justify-between">
+                                        <Label htmlFor="toggle-grid" className="text-sm">
+                                          Show Grid
+                                        </Label>
+                                        <Switch
+                                          id="toggle-grid"
+                                          checked={showGrid}
+                                          onCheckedChange={setShowGrid}
+                                        />
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <Label htmlFor="swap-axes" className="text-sm">
+                                          Swap X/Z Axes
+                                        </Label>
+                                        <Switch
+                                          id="swap-axes"
+                                          checked={isXZSwapped}
+                                          onCheckedChange={setIsXZSwapped}
+                                        />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label className="text-sm">Scale</Label>
+                                        <Slider
+                                          value={[scaleFactor]}
+                                          min={0.5}
+                                          max={3}
+                                          step={0.1}
+                                          onValueChange={(v) => setScaleFactor(v[0])}
+                                        />
+                                      </div>
+                                      <div className="pt-2 space-y-2">
+                                        <Label className="text-sm">Anchor Visibility</Label>
+                                        <div className="space-y-2">
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-sm">Text Anchors</span>
+                                            <Switch
+                                              checked={showTextAnchors}
+                                              onCheckedChange={setShowTextAnchors}
+                                            />
+                                          </div>
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-sm">File Anchors</span>
+                                            <Switch
+                                              checked={showFileAnchors}
+                                              onCheckedChange={setShowFileAnchors}
+                                            />
+                                          </div>
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-sm">Webpage Anchors</span>
+                                            <Switch
+                                              checked={showWebpageAnchors}
+                                              onCheckedChange={setShowWebpageAnchors}
+                                            />
+                                          </div>
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-sm">3D Model Anchors</span>
+                                            <Switch
+                                              checked={showModelAnchors}
+                                              onCheckedChange={setShowModelAnchors}
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
                                   </AccordionContent>
                                 </AccordionItem>
                                 <AccordionItem value="qrcodes">
@@ -6913,7 +7032,42 @@ export default function BlueprintEditor() {
                                     QR Codes
                                   </AccordionTrigger>
                                   <AccordionContent>
-                                    {/* ... content ... */}
+                                    <div className="space-y-4">
+                                      <div className="flex items-center justify-between">
+                                        <Label htmlFor="toggle-qr" className="text-sm">
+                                          Show QR Anchors
+                                        </Label>
+                                        <Switch
+                                          id="toggle-qr"
+                                          checked={showQrCodes}
+                                          onCheckedChange={setShowQrCodes}
+                                        />
+                                      </div>
+                                      <Button
+                                        className="w-full"
+                                        onClick={() => setQrPlacementMode(!qrPlacementMode)}
+                                      >
+                                        {qrPlacementMode ? (
+                                          <>
+                                            <X className="h-4 w-4 mr-2" />
+                                            Cancel Placement
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Plus className="h-4 w-4 mr-2" />
+                                            Place QR Code
+                                          </>
+                                        )}
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        className="w-full"
+                                        onClick={() => setQrGenerationActive(true)}
+                                      >
+                                        <Download className="h-4 w-4 mr-2" />
+                                        Generate & Print
+                                      </Button>
+                                    </div>
                                   </AccordionContent>
                                 </AccordionItem>
                                 <AccordionItem value="team">
@@ -6921,7 +7075,18 @@ export default function BlueprintEditor() {
                                     Team & Collaboration
                                   </AccordionTrigger>
                                   <AccordionContent>
-                                    {/* ... content ... */}
+                                    <div className="space-y-4">
+                                      <p className="text-sm text-muted-foreground">
+                                        Invite others to view or edit this blueprint.
+                                      </p>
+                                      <Button
+                                        className="w-full"
+                                        onClick={() => setShowInviteModal(true)}
+                                      >
+                                        <UserPlus className="h-4 w-4 mr-2" />
+                                        Invite Team Members
+                                      </Button>
+                                    </div>
                                   </AccordionContent>
                                 </AccordionItem>
                               </Accordion>
@@ -7095,6 +7260,7 @@ export default function BlueprintEditor() {
               showFileAnchors={showFileAnchors}
               showWebpageAnchors={showWebpageAnchors}
               showModelAnchors={showModelAnchors}
+              showGrid={showGrid}
               // NEW Props for the two-step process
               originSettingStep={originSettingStep}
               tempOriginPos={tempOriginPos}
@@ -7811,6 +7977,7 @@ export default function BlueprintEditor() {
                       setIsChoosingOrigin={() => {}}
                       textAnchors={[]}
                       modelAnchors={[]}
+                      showGrid={showGrid}
                     />
                   </div>
                 ) : (

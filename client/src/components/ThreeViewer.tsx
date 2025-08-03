@@ -217,6 +217,7 @@ interface ThreeViewerProps {
   showFileAnchors?: boolean;
   showWebpageAnchors?: boolean;
   showModelAnchors?: boolean;
+  showGrid?: boolean;
   originOrientation?: THREE.Quaternion | null;
   originSettingStep?: "inactive" | "picking_position" | "picking_direction";
   tempOriginPos?: THREE.Vector3 | null;
@@ -316,6 +317,7 @@ const ThreeViewer = React.memo(
       showFileAnchors,
       showWebpageAnchors,
       showModelAnchors,
+      showGrid,
       originOrientation, // Added originOrientation here
     } = props;
     console.log("ThreeViewer - modelPath prop:", modelPath); // ADD THIS LINE
@@ -344,6 +346,7 @@ const ThreeViewer = React.memo(
     const clickMarkerRef = useRef<THREE.Mesh | null>(null);
     const dragCircleRef = useRef<THREE.Mesh | null>(null);
     const sceneRef = useRef<THREE.Scene | null>(null);
+    const gridRef = useRef<THREE.GridHelper | null>(null);
     const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
     const transformControlsRef = useRef<TransformControls | null>(null);
     const orbitControlsRef = useRef<OrbitControls | null>(null);
@@ -351,6 +354,17 @@ const ThreeViewer = React.memo(
     const PDF_THUMBNAIL_URL = "/images/PDF_file_icon.svg";
     const DOCX_THUMBNAIL_URL = "/images/docx_icon.svg.png";
     const PPTX_THUMBNAIL_URL = "/images/pptx_thumbnail.png";
+
+    useEffect(() => {
+      if (!sceneRef.current) return;
+      if (!gridRef.current) {
+        gridRef.current = new THREE.GridHelper(10, 10);
+        (gridRef.current.material as THREE.Material).opacity = 0.25;
+        (gridRef.current.material as THREE.Material).transparent = true;
+        sceneRef.current.add(gridRef.current);
+      }
+      gridRef.current.visible = showGrid ?? true;
+    }, [showGrid]);
 
     useImperativeHandle(ref, () => ({
       zoomIn() {
