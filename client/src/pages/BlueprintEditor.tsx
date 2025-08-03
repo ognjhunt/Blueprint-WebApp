@@ -229,6 +229,8 @@ import {
   Coffee,
   Bell,
   Gift,
+  Sparkles,
+  Music2,
 } from "lucide-react";
 
 // Types
@@ -561,6 +563,7 @@ export default function BlueprintEditor() {
     { id: "media", name: "Media", icon: <ImageIcon size={24} /> }, // Combined Image & Video
     { id: "3d", name: "3D Content", icon: <Box size={24} /> },
     { id: "webpages", name: "Webpages", icon: <Link size={24} /> },
+    { id: "create", name: "Create", icon: <Sparkles size={24} /> },
     { id: "uploads", name: "Uploads", icon: <Upload size={24} /> },
     { id: "separator", type: "separator" }, // Special type for separator
     { id: "areas", name: "Areas", icon: <Square size={24} /> },
@@ -6147,6 +6150,32 @@ export default function BlueprintEditor() {
                           </div>
                         </div>
                         {/* --- END PASTE --- */}
+                      </div>
+                    )}
+                    {/* Create Panel */}
+                    {activeSection === "create" && (
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold mb-3">Create</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          {[
+                            { id: "image", label: "Image", icon: <ImageIcon className="h-8 w-8" />, gradient: "from-pink-500 to-rose-500" },
+                            { id: "video", label: "Video", icon: <Video className="h-8 w-8" />, gradient: "from-purple-500 to-indigo-500" },
+                            { id: "audio", label: "Audio", icon: <Music2 className="h-8 w-8" />, gradient: "from-orange-500 to-amber-500" },
+                            { id: "3d", label: "3D", icon: <Box className="h-8 w-8" />, gradient: "from-teal-500 to-green-500" },
+                          ].map((tool) => (
+                            <Card
+                              key={tool.id}
+                              className="overflow-hidden cursor-pointer transition-shadow hover:shadow-lg border-none"
+                            >
+                              <CardContent
+                                className={`p-6 flex flex-col items-center justify-center text-white bg-gradient-to-br ${tool.gradient}`}
+                              >
+                                {tool.icon}
+                                <span className="mt-2 font-medium">{tool.label}</span>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
                       </div>
                     )}
                     {/* Uploads Panel */}
