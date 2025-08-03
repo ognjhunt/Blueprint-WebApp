@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import * as THREE from "three";
 import ThreeViewer from "@/components/ThreeViewer";
+import CloudUpload from "@/components/CloudUpload";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
@@ -6182,6 +6183,7 @@ export default function BlueprintEditor() {
                               }
                             }}
                           />
+                          <CloudUpload onFileSelect={(file) => handleFileUpload(file)} />
                         </div>
                         {/* --- END PASTE --- */}
 
