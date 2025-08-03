@@ -3562,8 +3562,7 @@ const ThreeViewer = React.memo(
         if (
           !controls ||
           typeof controls.panLeft !== "function" ||
-          typeof controls.dollyIn !== "function" ||
-          typeof controls.dollyOut !== "function" ||
+          typeof controls.panUp !== "function" ||
           typeof controls.update !== "function"
         ) {
           // Log a warning if controls aren't fully ready
@@ -3573,33 +3572,36 @@ const ThreeViewer = React.memo(
           return; // Exit if controls are not valid
         }
 
-        // Define movement amounts
+        // Define movement amount
         const panSpeed = 0.02;
-        const dollySpeed = 0.98;
 
         // Now we can safely use 'controls'
         switch (e.key) {
           case "ArrowLeft":
             if (typeof controls.panLeft === "function") {
+              e.preventDefault();
               controls.panLeft(panSpeed);
             }
             controls.update();
             break;
           case "ArrowRight":
             if (typeof controls.panLeft === "function") {
+              e.preventDefault();
               controls.panLeft(-panSpeed);
             }
             controls.update();
             break;
           case "ArrowUp":
-            if (typeof controls.dollyIn === "function") {
-              controls.dollyIn(1 / dollySpeed);
+            if (typeof controls.panUp === "function") {
+              e.preventDefault();
+              controls.panUp(panSpeed);
             }
             controls.update();
             break;
           case "ArrowDown":
-            if (typeof controls.dollyOut === "function") {
-              controls.dollyOut(1 / dollySpeed);
+            if (typeof controls.panUp === "function") {
+              e.preventDefault();
+              controls.panUp(-panSpeed);
             }
             controls.update();
             break;
