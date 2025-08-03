@@ -3227,6 +3227,26 @@ export default function BlueprintEditor() {
           });
         }
 
+        try {
+          await fetch(
+            "https://public.lindy.ai/api/v1/webhooks/lindy/eadb6b53-64c0-450d-85c1-71cf4d2ce749",
+            {
+              method: "POST",
+              headers: {
+                Authorization:
+                  "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                blueprint_id: blueprintId,
+                status: "active",
+              }),
+            },
+          );
+        } catch (err) {
+          console.error("Error triggering Lindy webhook:", err);
+        }
+
         // Update local state
         setBlueprintStatus("active");
       }
