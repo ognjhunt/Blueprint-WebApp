@@ -6,7 +6,14 @@ export function useLocalStorage(key, initialValue) {
   const [value, setValue] = useState(() => {
     if (typeof window !== "undefined") {
       const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
+      if (item !== null) {
+        try {
+          return JSON.parse(item);
+        } catch (error) {
+          console.warn(`Failed to parse localStorage key "${key}":`, error);
+          window.localStorage.removeItem(key);
+        }
+      }
     }
     return initialValue;
   });
