@@ -17,6 +17,12 @@ export default async function handler(req: Request, res: Response) {
 
     const stripe = new Stripe(stripeSecretKey);
 
+    // Determine the base URL for redirects. `window.location.origin` isn't
+    // available in a server environment, so fall back to the request's origin
+    // header or a sensible default.
+    const baseUrl =
+      process.env.NEXT_PUBLIC_BASE_URL ?? req.headers.origin ?? "http://localhost:3000";
+
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -39,8 +45,8 @@ export default async function handler(req: Request, res: Response) {
         hours: hours.toString(),
         costPerHour: costPerHour.toString(),
       },
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL || window.location.origin}/pricing?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || window.location.origin}/pricing?canceled=true`,
+      success_url: `${baseUrl}/pricing?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/pricing?canceled=true`,
     });
 
     return res.json({ sessionId: session.id });
