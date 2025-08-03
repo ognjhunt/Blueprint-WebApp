@@ -197,7 +197,6 @@ import {
   Square,
   Palette,
   Library,
-  Landmark,
   ChevronsUpDown,
   MoreHorizontal,
   UserPlus,
@@ -1625,10 +1624,14 @@ export default function BlueprintEditor() {
       <div className="fixed inset-0 bg-white z-50 flex flex-col">
         {/* Header */}
         <div className="border-b py-4 px-6 flex justify-between items-center bg-white">
-          <div className="flex items-center">
-            <Landmark className="h-6 w-6 text-indigo-500 mr-2" />
-            <span className="font-semibold text-xl">Blueprint</span>
-          </div>
+            <div className="flex items-center">
+              <img
+                src="/gradientBPLogo.ico"
+                alt="Blueprint logo"
+                className="h-6 w-6 mr-2"
+              />
+              <span className="font-semibold text-xl">Blueprint</span>
+            </div>
           <Badge className="bg-indigo-100 text-indigo-800">
             Feature Setup {currentFeatureIndex + 1} of {selectedFeatures.length}
           </Badge>
@@ -2338,7 +2341,11 @@ export default function BlueprintEditor() {
             {/* Header */}
             <div className="sticky top-0 z-10 border-b py-3 px-4 bg-white flex justify-between items-center">
               <div className="flex items-center">
-                <Landmark className="h-5 w-5 text-indigo-500 mr-1.5" />
+                <img
+                  src="/gradientBPLogo.ico"
+                  alt="Blueprint logo"
+                  className="h-5 w-5 mr-1.5"
+                />
                 <span className="font-semibold">Blueprint Setup</span>
               </div>
               <Badge className="bg-indigo-100 text-indigo-800">
@@ -2852,10 +2859,14 @@ export default function BlueprintEditor() {
           <div className="fixed inset-0 bg-white z-50 flex flex-col">
             {/* Header */}
             <div className="border-b py-4 px-6 flex justify-between items-center bg-white">
-              <div className="flex items-center">
-                <Landmark className="h-6 w-6 text-indigo-500 mr-2" />
-                <span className="font-semibold text-xl">Blueprint</span>
-              </div>
+                <div className="flex items-center">
+                  <img
+                    src="/gradientBPLogo.ico"
+                    alt="Blueprint logo"
+                    className="h-6 w-6 mr-2"
+                  />
+                  <span className="font-semibold text-xl">Blueprint</span>
+                </div>
               <Badge className="bg-indigo-100 text-indigo-800">
                 Step {onboardingStep} of 5
               </Badge>
@@ -5750,7 +5761,11 @@ export default function BlueprintEditor() {
               if (e.key === "Enter" || e.key === " ") navigateToDashboard();
             }} // Added keyboard handler
           >
-            <Landmark className="h-5 w-5 text-indigo-500 group-hover:text-indigo-600 transition-colors" />{" "}
+            <img
+              src="/gradientBPLogo.ico"
+              alt="Blueprint logo"
+              className="h-5 w-5"
+            />{" "}
             {/* Added hover effect */}
             <span className="font-semibold text-lg group-hover:text-indigo-700 transition-colors">
               Blueprint
