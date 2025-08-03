@@ -7015,23 +7015,23 @@ export default function BlueprintEditor() {
 
           {/* Toggle QR Button - bottom right */}
 
-          <div className="absolute bottom-4 right-4 z-40 flex flex-col items-end gap-1">
+          <div className="absolute bottom-4 right-4 z-40 flex flex-col items-end gap-2">
             {/* --- Text Anchors Toggle --- */}
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setShowTextAnchors(!showTextAnchors)}
-              className="gap-1.5 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-2 py-1 h-auto rounded-md shadow"
+              className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow"
               title={
                 showTextAnchors ? "Hide Text Anchors" : "Show Text Anchors"
               }
             >
               {showTextAnchors ? (
-                <EyeOff className="h-4 w-4" />
+                <EyeOff className="h-6 w-6" />
               ) : (
-                <Eye className="h-4 w-4" />
+                <Eye className="h-6 w-6" />
               )}
-              <Type className="h-4 w-4" />
+              <Type className="h-6 w-6" />
             </Button>
 
             {/* --- File Anchors Toggle (incl. Images/Videos) --- */}
@@ -7039,17 +7039,17 @@ export default function BlueprintEditor() {
               variant="ghost"
               size="sm"
               onClick={() => setShowFileAnchors(!showFileAnchors)}
-              className="gap-1.5 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-2 py-1 h-auto rounded-md shadow"
+              className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow"
               title={
                 showFileAnchors ? "Hide File Anchors" : "Show File Anchors"
               }
             >
               {showFileAnchors ? (
-                <EyeOff className="h-4 w-4" />
+                <EyeOff className="h-6 w-6" />
               ) : (
-                <Eye className="h-4 w-4" />
+                <Eye className="h-6 w-6" />
               )}
-              <File className="h-4 w-4" /> {/* Using File icon */}
+              <File className="h-6 w-6" /> {/* Using File icon */}
             </Button>
 
             {/* --- Webpage Anchors Toggle --- */}
@@ -7057,7 +7057,7 @@ export default function BlueprintEditor() {
               variant="ghost"
               size="sm"
               onClick={() => setShowWebpageAnchors(!showWebpageAnchors)}
-              className="gap-1.5 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-2 py-1 h-auto rounded-md shadow"
+              className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow"
               title={
                 showWebpageAnchors
                   ? "Hide Webpage Anchors"
@@ -7065,11 +7065,11 @@ export default function BlueprintEditor() {
               }
             >
               {showWebpageAnchors ? (
-                <EyeOff className="h-4 w-4" />
+                <EyeOff className="h-6 w-6" />
               ) : (
-                <Eye className="h-4 w-4" />
+                <Eye className="h-6 w-6" />
               )}
-              <Link className="h-4 w-4" />
+              <Link className="h-6 w-6" />
             </Button>
 
             {/* --- 3D Model Anchors Toggle --- */}
@@ -7077,7 +7077,7 @@ export default function BlueprintEditor() {
               variant="ghost"
               size="sm"
               onClick={() => setShowModelAnchors(!showModelAnchors)}
-              className="gap-1.5 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-2 py-1 h-auto rounded-md shadow"
+              className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow"
               title={
                 showModelAnchors
                   ? "Hide 3D Model Anchors"
@@ -7085,11 +7085,11 @@ export default function BlueprintEditor() {
               }
             >
               {showModelAnchors ? (
-                <EyeOff className="h-4 w-4" />
+                <EyeOff className="h-6 w-6" />
               ) : (
-                <Eye className="h-4 w-4" />
+                <Eye className="h-6 w-6" />
               )}
-              <Box className="h-4 w-4" />
+              <Box className="h-6 w-6" />
             </Button>
 
             {/* --- QR Code Anchors Toggle (Existing) --- */}
@@ -7097,17 +7097,17 @@ export default function BlueprintEditor() {
               variant="ghost"
               size="sm"
               onClick={() => setShowQrCodes(!showQrCodes)}
-              className="gap-1.5 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-2 py-1 h-auto rounded-md shadow"
+              className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow"
               title={
                 showQrCodes ? "Hide QR Code Anchors" : "Show QR Code Anchors"
               }
             >
               {showQrCodes ? (
-                <EyeOff className="h-4 w-4" />
+                <EyeOff className="h-6 w-6" />
               ) : (
-                <Eye className="h-4 w-4" />
+                <Eye className="h-6 w-6" />
               )}
-              <QrCode className="h-4 w-4" />
+              <QrCode className="h-6 w-6" />
             </Button>
           </div>
 
