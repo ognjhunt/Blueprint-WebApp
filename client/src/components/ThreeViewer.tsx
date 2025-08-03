@@ -57,6 +57,7 @@ declare module "three" {
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import CloudUpload from "@/components/CloudUpload";
 import { useLocation } from "wouter";
 import { db } from "@/lib/firebase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6559,6 +6560,13 @@ const ThreeViewer = React.memo(
     return (
       <>
         <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
+        <div className="absolute top-4 left-4 z-50">
+          <CloudUpload
+            onFileSelect={(file) =>
+              props.onFileDropped?.({ file }, { x: 0, y: 0, z: 0 })
+            }
+          />
+        </div>
 
         {/* +++ ADD THIS PROGRESS BAR +++ */}
         {!modelLoaded && modelLoadProgress > 0 && (
