@@ -218,6 +218,7 @@ import {
   ScanText,
   Gamepad2,
   HelpCircle,
+  ArrowLeft,
   ArrowRight,
   Compass,
   ShoppingCart,
@@ -570,6 +571,39 @@ export default function BlueprintEditor() {
     { id: "settings", name: "Settings", icon: <Settings size={24} /> },
   ];
 
+  const createTools = [
+    {
+      id: "image",
+      label: "Image",
+      icon: ImageIcon,
+      gradient: "from-pink-500 to-rose-500",
+      description: "Generate stunning images from text prompts",
+    },
+    {
+      id: "video",
+      label: "Video",
+      icon: Video,
+      gradient: "from-purple-500 to-indigo-500",
+      description: "Bring motion to life with AI-generated videos",
+    },
+    {
+      id: "audio",
+      label: "Audio",
+      icon: Music2,
+      gradient: "from-orange-500 to-amber-500",
+      description: "Compose audio from simple descriptions",
+    },
+    {
+      id: "3d",
+      label: "3D",
+      icon: Box,
+      gradient: "from-teal-500 to-green-500",
+      description: "Create 3D models ready for your scenes",
+    },
+  ] as const;
+
+  type CreateToolId = (typeof createTools)[number]["id"];
+
   // Models and assets states
   const [modelAnchors, setModelAnchors] = useState<any[]>([]);
   const [webpageAnchors, setWebpageAnchors] = useState<any[]>([]);
@@ -588,10 +622,18 @@ export default function BlueprintEditor() {
   const isPanelOpen = activeSection !== null;
   const [fileAnchors, setFileAnchors] = useState<any[]>([]);
   const [qrCodeAnchors, setQrCodeAnchors] = useState<any[]>([]); // <<< ADD THIS LINE
+  const [activeCreateTool, setActiveCreateTool] =
+    useState<CreateToolId | null>(null);
   const [featuredModels, setFeaturedModels] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
   const [externalUrl, setExternalUrl] = useState("");
+
+  useEffect(() => {
+    if (activeSection !== "create") {
+      setActiveCreateTool(null);
+    }
+  }, [activeSection]);
 
   // Text editing states
   const pendingLabelTextRef = useRef("");
@@ -6155,27 +6197,278 @@ export default function BlueprintEditor() {
                     {/* Create Panel */}
                     {activeSection === "create" && (
                       <div className="space-y-4">
-                        <h3 className="text-lg font-semibold mb-3">Create</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                          {[
-                            { id: "image", label: "Image", icon: <ImageIcon className="h-8 w-8" />, gradient: "from-pink-500 to-rose-500" },
-                            { id: "video", label: "Video", icon: <Video className="h-8 w-8" />, gradient: "from-purple-500 to-indigo-500" },
-                            { id: "audio", label: "Audio", icon: <Music2 className="h-8 w-8" />, gradient: "from-orange-500 to-amber-500" },
-                            { id: "3d", label: "3D", icon: <Box className="h-8 w-8" />, gradient: "from-teal-500 to-green-500" },
-                          ].map((tool) => (
-                            <Card
-                              key={tool.id}
-                              className="overflow-hidden cursor-pointer transition-shadow hover:shadow-lg border-none"
+                        {activeCreateTool === null ? (
+                          <>
+                            <h3 className="text-lg font-semibold mb-3">
+                              Create
+                            </h3>
+                            <div className="grid grid-cols-2 gap-4">
+                              {createTools.map((tool) => (
+                                <Card
+                                  key={tool.id}
+                                  onClick={() => setActiveCreateTool(tool.id)}
+                                  className="overflow-hidden cursor-pointer transition-shadow hover:shadow-lg border-none"
+                                >
+                                  <CardContent
+                                    className={`p-6 flex flex-col items-center justify-center text-white bg-gradient-to-br ${tool.gradient}`}
+                                  >
+                                    <tool.icon className="h-8 w-8" />
+                                    <span className="mt-2 font-medium">
+                                      {tool.label}
+                                    </span>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="flex items-center gap-2 -ml-2"
+                              onClick={() => setActiveCreateTool(null)}
                             >
-                              <CardContent
-                                className={`p-6 flex flex-col items-center justify-center text-white bg-gradient-to-br ${tool.gradient}`}
-                              >
-                                {tool.icon}
-                                <span className="mt-2 font-medium">{tool.label}</span>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
+                              <ArrowLeft className="h-4 w-4" /> Back
+                            </Button>
+
+                            {activeCreateTool === "image" && (
+                              <div className="space-y-4">
+                                <div
+                                  className={`p-4 rounded-lg text-white bg-gradient-to-r ${createTools.find((t) => t.id === "image")?.gradient ?? ""}`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <ImageIcon className="h-6 w-6" />
+                                    <h3 className="text-lg font-semibold">
+                                      Image Generator
+                                    </h3>
+                                  </div>
+                                  <p className="text-sm opacity-90 mt-1">
+                                    Describe the image you want to create.
+                                  </p>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="image-prompt">Prompt</Label>
+                                  <Textarea
+                                    id="image-prompt"
+                                    placeholder="A serene sunset over the mountains"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                    <Label>Aspect Ratio</Label>
+                                    <Select>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="square">
+                                          Square (1:1)
+                                        </SelectItem>
+                                        <SelectItem value="landscape">
+                                          Landscape (16:9)
+                                        </SelectItem>
+                                        <SelectItem value="portrait">
+                                          Portrait (9:16)
+                                        </SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Style</Label>
+                                    <Select>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="photorealistic">
+                                          Photorealistic
+                                        </SelectItem>
+                                        <SelectItem value="illustration">
+                                          Illustration
+                                        </SelectItem>
+                                        <SelectItem value="cyberpunk">
+                                          Cyberpunk
+                                        </SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                                <Button className="w-full">
+                                  Generate Image
+                                </Button>
+                              </div>
+                            )}
+
+                            {activeCreateTool === "video" && (
+                              <div className="space-y-4">
+                                <div
+                                  className={`p-4 rounded-lg text-white bg-gradient-to-r ${createTools.find((t) => t.id === "video")?.gradient ?? ""}`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Video className="h-6 w-6" />
+                                    <h3 className="text-lg font-semibold">
+                                      Video Generator
+                                    </h3>
+                                  </div>
+                                  <p className="text-sm opacity-90 mt-1">
+                                    Describe the video scene you want to create.
+                                  </p>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="video-prompt">Prompt</Label>
+                                  <Textarea
+                                    id="video-prompt"
+                                    placeholder="A drone flight over a futuristic city"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                    <Label>Duration</Label>
+                                    <Select>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="5">5s</SelectItem>
+                                        <SelectItem value="10">10s</SelectItem>
+                                        <SelectItem value="15">15s</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Resolution</Label>
+                                    <Select>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="720">720p</SelectItem>
+                                        <SelectItem value="1080">1080p</SelectItem>
+                                        <SelectItem value="4k">4K</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                                <Button className="w-full">
+                                  Generate Video
+                                </Button>
+                              </div>
+                            )}
+
+                            {activeCreateTool === "audio" && (
+                              <div className="space-y-4">
+                                <div
+                                  className={`p-4 rounded-lg text-white bg-gradient-to-r ${createTools.find((t) => t.id === "audio")?.gradient ?? ""}`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Music2 className="h-6 w-6" />
+                                    <h3 className="text-lg font-semibold">
+                                      Audio Generator
+                                    </h3>
+                                  </div>
+                                  <p className="text-sm opacity-90 mt-1">
+                                    Describe the sound or music you want.
+                                  </p>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="audio-prompt">Prompt</Label>
+                                  <Textarea
+                                    id="audio-prompt"
+                                    placeholder="Upbeat electronic background music"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                    <Label>Duration</Label>
+                                    <Select>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="10">10s</SelectItem>
+                                        <SelectItem value="30">30s</SelectItem>
+                                        <SelectItem value="60">60s</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Style</Label>
+                                    <Select>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="ambient">Ambient</SelectItem>
+                                        <SelectItem value="classical">Classical</SelectItem>
+                                        <SelectItem value="rock">Rock</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                                <Button className="w-full">
+                                  Generate Audio
+                                </Button>
+                              </div>
+                            )}
+
+                            {activeCreateTool === "3d" && (
+                              <div className="space-y-4">
+                                <div
+                                  className={`p-4 rounded-lg text-white bg-gradient-to-r ${createTools.find((t) => t.id === "3d")?.gradient ?? ""}`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Box className="h-6 w-6" />
+                                    <h3 className="text-lg font-semibold">
+                                      3D Generator
+                                    </h3>
+                                  </div>
+                                  <p className="text-sm opacity-90 mt-1">
+                                    Describe the 3D object you want to create.
+                                  </p>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="model-prompt">Prompt</Label>
+                                  <Textarea
+                                    id="model-prompt"
+                                    placeholder="A low-poly tree with green leaves"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                    <Label>Detail</Label>
+                                    <Select>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="low">Low</SelectItem>
+                                        <SelectItem value="medium">Medium</SelectItem>
+                                        <SelectItem value="high">High</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Format</Label>
+                                    <Select>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="gltf">glTF</SelectItem>
+                                        <SelectItem value="obj">OBJ</SelectItem>
+                                        <SelectItem value="fbx">FBX</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                                <Button className="w-full">
+                                  Generate 3D Model
+                                </Button>
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
                     )}
                     {/* Uploads Panel */}
