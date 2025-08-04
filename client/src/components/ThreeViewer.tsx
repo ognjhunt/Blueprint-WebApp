@@ -57,6 +57,7 @@ declare module "three" {
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import CloudUpload from "@/components/CloudUpload";
 import { useLocation } from "wouter";
 import { db } from "@/lib/firebase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -216,6 +217,7 @@ interface ThreeViewerProps {
   showFileAnchors?: boolean;
   showWebpageAnchors?: boolean;
   showModelAnchors?: boolean;
+  showGrid?: boolean;
   originOrientation?: THREE.Quaternion | null;
   originSettingStep?: "inactive" | "picking_position" | "picking_direction";
   tempOriginPos?: THREE.Vector3 | null;
@@ -315,6 +317,7 @@ const ThreeViewer = React.memo(
       showFileAnchors,
       showWebpageAnchors,
       showModelAnchors,
+      showGrid,
       originOrientation, // Added originOrientation here
     } = props;
     console.log("ThreeViewer - modelPath prop:", modelPath); // ADD THIS LINE
@@ -343,6 +346,7 @@ const ThreeViewer = React.memo(
     const clickMarkerRef = useRef<THREE.Mesh | null>(null);
     const dragCircleRef = useRef<THREE.Mesh | null>(null);
     const sceneRef = useRef<THREE.Scene | null>(null);
+    const gridRef = useRef<THREE.GridHelper | null>(null);
     const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
     const transformControlsRef = useRef<TransformControls | null>(null);
     const orbitControlsRef = useRef<OrbitControls | null>(null);
@@ -350,6 +354,17 @@ const ThreeViewer = React.memo(
     const PDF_THUMBNAIL_URL = "/images/PDF_file_icon.svg";
     const DOCX_THUMBNAIL_URL = "/images/docx_icon.svg.png";
     const PPTX_THUMBNAIL_URL = "/images/pptx_thumbnail.png";
+
+    useEffect(() => {
+      if (!sceneRef.current) return;
+      if (!gridRef.current) {
+        gridRef.current = new THREE.GridHelper(10, 10);
+        (gridRef.current.material as THREE.Material).opacity = 0.25;
+        (gridRef.current.material as THREE.Material).transparent = true;
+        sceneRef.current.add(gridRef.current);
+      }
+      gridRef.current.visible = showGrid ?? true;
+    }, [showGrid]);
 
     useImperativeHandle(ref, () => ({
       zoomIn() {
@@ -3351,7 +3366,7 @@ const ThreeViewer = React.memo(
           Number(anchor.z || 0),
         );
 
-        console.log(`🏷️ [Text Anchor ${anchor.id}] Debug:`);
+        console.log(`in �️ [Text Anchor ${anchor.id}] Debug:`);
         console.log("  Firebase coordinates:", realWorldAnchorPos.toArray());
         console.log(
           "  Current originNodeRef.current.position:",
@@ -4677,6 +4692,8 @@ const ThreeViewer = React.memo(
       };
 
       async function handleClick(event: MouseEvent) {
+        // Prevent the click from bubbling to other handlers
+        event.stopPropagation();
         // Use a ref to get the latest props inside this event handler,
         // as it's defined in a useEffect that only runs once.
         const currentProps = propsRef.current;
@@ -5299,15 +5316,8 @@ const ThreeViewer = React.memo(
       }
 
       mountRef.current.addEventListener("contextmenu", handleRightClick);
-      mountRef.current.addEventListener("click", (e) => {
-        // Prevent other handlers from capturing the click
-        e.stopPropagation();
-        handleClick(e);
-      });
-      // mountRef.current.addEventListener("drop", handleFileDrop);
-      mountRef.current.addEventListener("dragover", (e) => {
-        e.preventDefault();
-      });
+      // Clicks should not bubble to parent elements
+      mountRef.current.addEventListener("click", handleClick);
 
       function animate() {
         requestAnimationFrame(animate);
@@ -5947,10 +5957,10 @@ const ThreeViewer = React.memo(
         if (mountRef.current) {
           mountRef.current.removeEventListener("contextmenu", handleRightClick);
           mountRef.current.removeEventListener("click", handleClick);
-          mountRef.current.removeEventListener("dragover", (e) => {
-            e.preventDefault();
-          });
-          mountRef.current.removeEventListener("drop", handleFileDrop);
+          mountRef.current.removeEventListener("dragenter", handleDragEnter);
+          mountRef.current.removeEventListener("dragover", handleDragOver);
+          mountRef.current.removeEventListener("dragleave", handleDragLeave);
+          mountRef.current.removeEventListener("drop", handleDrop);
           mountRef.current.removeChild(renderer.domElement);
           if (
             cssRenderer &&
@@ -6560,7 +6570,13 @@ const ThreeViewer = React.memo(
     return (
       <>
         <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
-
+        <div className="absolute top-4 left-4 z-50">
+          <CloudUpload
+            onFileSelect={(file) =>
+              props.onFileDropped?.({ file }, { x: 0, y: 0, z: 0 })
+            }
+          />
+        </div>
         {/* +++ ADD THIS PROGRESS BAR +++ */}
         {!modelLoaded && modelLoadProgress > 0 && (
           <div

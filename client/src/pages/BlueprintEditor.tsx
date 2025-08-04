@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import * as THREE from "three";
 import ThreeViewer from "@/components/ThreeViewer";
+import CloudUpload from "@/components/CloudUpload";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
@@ -218,6 +219,7 @@ import {
   Gamepad2,
   HelpCircle,
   ArrowRight,
+  ArrowLeft,
   Compass,
   ShoppingCart,
   PercentCircle,
@@ -228,6 +230,8 @@ import {
   Coffee,
   Bell,
   Gift,
+  Sparkles,
+  Music2,
 } from "lucide-react";
 
 // Types
@@ -560,11 +564,45 @@ export default function BlueprintEditor() {
     { id: "media", name: "Media", icon: <ImageIcon size={24} /> }, // Combined Image & Video
     { id: "3d", name: "3D Content", icon: <Box size={24} /> },
     { id: "webpages", name: "Webpages", icon: <Link size={24} /> },
+    { id: "create", name: "Create", icon: <Sparkles size={24} /> },
     { id: "uploads", name: "Uploads", icon: <Upload size={24} /> },
     { id: "separator", type: "separator" }, // Special type for separator
     { id: "areas", name: "Areas", icon: <Square size={24} /> },
     { id: "settings", name: "Settings", icon: <Settings size={24} /> },
   ];
+
+  const createTools = [
+    {
+      id: "image",
+      label: "Image",
+      icon: ImageIcon,
+      gradient: "from-pink-500 to-rose-500",
+      description: "Generate stunning images from text prompts",
+    },
+    {
+      id: "video",
+      label: "Video",
+      icon: Video,
+      gradient: "from-purple-500 to-indigo-500",
+      description: "Bring motion to life with AI-generated videos",
+    },
+    {
+      id: "audio",
+      label: "Audio",
+      icon: Music2,
+      gradient: "from-orange-500 to-amber-500",
+      description: "Compose audio from simple descriptions",
+    },
+    {
+      id: "3d",
+      label: "3D",
+      icon: Box,
+      gradient: "from-teal-500 to-green-500",
+      description: "Create 3D models ready for your scenes",
+    },
+  ] as const;
+
+  type CreateToolId = (typeof createTools)[number]["id"];
 
   // Models and assets states
   const [modelAnchors, setModelAnchors] = useState<any[]>([]);
@@ -584,14 +622,32 @@ export default function BlueprintEditor() {
   const isPanelOpen = activeSection !== null;
   const [fileAnchors, setFileAnchors] = useState<any[]>([]);
   const [qrCodeAnchors, setQrCodeAnchors] = useState<any[]>([]); // <<< ADD THIS LINE
+  const [activeCreateTool, setActiveCreateTool] = useState<CreateToolId | null>(
+    null,
+  );
   const [featuredModels, setFeaturedModels] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
   const [externalUrl, setExternalUrl] = useState("");
 
+  useEffect(() => {
+    if (activeSection !== "create") {
+      setActiveCreateTool(null);
+    }
+  }, [activeSection]);
+
   // Text editing states
   const pendingLabelTextRef = useRef("");
   const showTextBoxInputRef = useRef(false);
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (activeSection === "text" && textAreaRef.current) {
+      const textarea = textAreaRef.current;
+      textarea.style.height = "auto";
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+  }, [textContent, activeSection]);
 
   // QR code states
   const [qrPlacementMode, setQrPlacementMode] = useState(false);
@@ -3226,6 +3282,26 @@ export default function BlueprintEditor() {
           });
         }
 
+        try {
+          await fetch(
+            "https://public.lindy.ai/api/v1/webhooks/lindy/eadb6b53-64c0-450d-85c1-71cf4d2ce749",
+            {
+              method: "POST",
+              headers: {
+                Authorization:
+                  "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                blueprint_id: blueprintId,
+                status: "active",
+              }),
+            },
+          );
+        } catch (err) {
+          console.error("Error triggering Lindy webhook:", err);
+        }
+
         // Update local state
         setBlueprintStatus("active");
       }
@@ -3602,9 +3678,10 @@ export default function BlueprintEditor() {
 
   // Modify the text area onChange to call the update function
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newText = e.target.value;
-    setTextContent(newText);
-    // Remove the call to updateTextAnchorContent here
+    const textarea = e.target;
+    setTextContent(textarea.value);
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
   };
 
   // Modify the toggleSection function to clear editing state when closing text panel
@@ -4821,6 +4898,28 @@ export default function BlueprintEditor() {
     }
   };
 
+  // Save blueprint settings
+  const handleSaveBlueprintSettings = async () => {
+    if (!blueprintId) return;
+    try {
+      await updateDoc(doc(db, "blueprints", blueprintId), {
+        name: blueprintTitle,
+        status: blueprintStatus,
+      });
+      toast({
+        title: "Settings Saved",
+        description: "Blueprint settings updated.",
+      });
+    } catch (error) {
+      console.error("Error saving settings:", error);
+      toast({
+        title: "Save Failed",
+        description: "Unable to update blueprint.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // ========================
   // FILE & MODEL HANDLING
   // ========================
@@ -5849,10 +5948,11 @@ export default function BlueprintEditor() {
                                 ? "Edit the label text..."
                                 : "Enter text for new label..."
                             }
-                            className="resize-none mb-3 bg-white"
+                            ref={textAreaRef}
+                            className="resize-none overflow-hidden mb-3 bg-white"
                             rows={3}
                             value={textContent}
-                            onChange={handleTextChange} // Use the new handler
+                            onChange={handleTextChange}
                           />
                           <Button
                             variant="default"
@@ -6128,6 +6228,299 @@ export default function BlueprintEditor() {
                         {/* --- END PASTE --- */}
                       </div>
                     )}
+                    {/* Create Panel */}
+                    {activeSection === "create" && (
+                      <div className="space-y-4">
+                        {activeCreateTool === null ? (
+                          <>
+                            <h3 className="text-lg font-semibold mb-3">
+                              Create
+                            </h3>
+                            <div className="grid grid-cols-2 gap-4">
+                              {createTools.map((tool) => (
+                                <Card
+                                  key={tool.id}
+                                  onClick={() => setActiveCreateTool(tool.id)}
+                                  className="overflow-hidden cursor-pointer transition-shadow hover:shadow-lg border-none"
+                                >
+                                  <CardContent
+                                    className={`p-6 flex flex-col items-center justify-center text-white bg-gradient-to-br ${tool.gradient}`}
+                                  >
+                                    <tool.icon className="h-8 w-8" />
+                                    <span className="mt-2 font-medium">
+                                      {tool.label}
+                                    </span>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="flex items-center gap-2 -ml-2"
+                              onClick={() => setActiveCreateTool(null)}
+                            >
+                              <ArrowLeft className="h-4 w-4" /> Back
+                            </Button>
+
+                            {activeCreateTool === "image" && (
+                              <div className="space-y-4">
+                                <div
+                                  className={`p-4 rounded-lg text-white bg-gradient-to-r ${createTools.find((t) => t.id === "image")?.gradient ?? ""}`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <ImageIcon className="h-6 w-6" />
+                                    <h3 className="text-lg font-semibold">
+                                      Image Generator
+                                    </h3>
+                                  </div>
+                                  <p className="text-sm opacity-90 mt-1">
+                                    Describe the image you want to create.
+                                  </p>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="image-prompt">Prompt</Label>
+                                  <Textarea
+                                    id="image-prompt"
+                                    placeholder="A serene sunset over the mountains"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                    <Label>Aspect Ratio</Label>
+                                    <Select>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="square">
+                                          Square (1:1)
+                                        </SelectItem>
+                                        <SelectItem value="landscape">
+                                          Landscape (16:9)
+                                        </SelectItem>
+                                        <SelectItem value="portrait">
+                                          Portrait (9:16)
+                                        </SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Style</Label>
+                                    <Select>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="photorealistic">
+                                          Photorealistic
+                                        </SelectItem>
+                                        <SelectItem value="illustration">
+                                          Illustration
+                                        </SelectItem>
+                                        <SelectItem value="cyberpunk">
+                                          Cyberpunk
+                                        </SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                                <Button className="w-full">
+                                  Generate Image
+                                </Button>
+                              </div>
+                            )}
+
+                            {activeCreateTool === "video" && (
+                              <div className="space-y-4">
+                                <div
+                                  className={`p-4 rounded-lg text-white bg-gradient-to-r ${createTools.find((t) => t.id === "video")?.gradient ?? ""}`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Video className="h-6 w-6" />
+                                    <h3 className="text-lg font-semibold">
+                                      Video Generator
+                                    </h3>
+                                  </div>
+                                  <p className="text-sm opacity-90 mt-1">
+                                    Describe the video scene you want to create.
+                                  </p>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="video-prompt">Prompt</Label>
+                                  <Textarea
+                                    id="video-prompt"
+                                    placeholder="A drone flight over a futuristic city"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                    <Label>Duration</Label>
+                                    <Select>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="5">5s</SelectItem>
+                                        <SelectItem value="10">10s</SelectItem>
+                                        <SelectItem value="15">15s</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Resolution</Label>
+                                    <Select>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="720">
+                                          720p
+                                        </SelectItem>
+                                        <SelectItem value="1080">
+                                          1080p
+                                        </SelectItem>
+                                        <SelectItem value="4k">4K</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                                <Button className="w-full">
+                                  Generate Video
+                                </Button>
+                              </div>
+                            )}
+
+                            {activeCreateTool === "audio" && (
+                              <div className="space-y-4">
+                                <div
+                                  className={`p-4 rounded-lg text-white bg-gradient-to-r ${createTools.find((t) => t.id === "audio")?.gradient ?? ""}`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Music2 className="h-6 w-6" />
+                                    <h3 className="text-lg font-semibold">
+                                      Audio Generator
+                                    </h3>
+                                  </div>
+                                  <p className="text-sm opacity-90 mt-1">
+                                    Describe the sound or music you want.
+                                  </p>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="audio-prompt">Prompt</Label>
+                                  <Textarea
+                                    id="audio-prompt"
+                                    placeholder="Upbeat electronic background music"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                    <Label>Duration</Label>
+                                    <Select>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="10">10s</SelectItem>
+                                        <SelectItem value="30">30s</SelectItem>
+                                        <SelectItem value="60">60s</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Style</Label>
+                                    <Select>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="ambient">
+                                          Ambient
+                                        </SelectItem>
+                                        <SelectItem value="classical">
+                                          Classical
+                                        </SelectItem>
+                                        <SelectItem value="rock">
+                                          Rock
+                                        </SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                                <Button className="w-full">
+                                  Generate Audio
+                                </Button>
+                              </div>
+                            )}
+
+                            {activeCreateTool === "3d" && (
+                              <div className="space-y-4">
+                                <div
+                                  className={`p-4 rounded-lg text-white bg-gradient-to-r ${createTools.find((t) => t.id === "3d")?.gradient ?? ""}`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Box className="h-6 w-6" />
+                                    <h3 className="text-lg font-semibold">
+                                      3D Generator
+                                    </h3>
+                                  </div>
+                                  <p className="text-sm opacity-90 mt-1">
+                                    Describe the 3D object you want to create.
+                                  </p>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="model-prompt">Prompt</Label>
+                                  <Textarea
+                                    id="model-prompt"
+                                    placeholder="A low-poly tree with green leaves"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                    <Label>Detail</Label>
+                                    <Select>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="low">Low</SelectItem>
+                                        <SelectItem value="medium">
+                                          Medium
+                                        </SelectItem>
+                                        <SelectItem value="high">
+                                          High
+                                        </SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Format</Label>
+                                    <Select>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="gltf">
+                                          glTF
+                                        </SelectItem>
+                                        <SelectItem value="obj">OBJ</SelectItem>
+                                        <SelectItem value="fbx">FBX</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                                <Button className="w-full">
+                                  Generate 3D Model
+                                </Button>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
                     {/* Uploads Panel */}
                     {activeSection === "uploads" && (
                       <div className="space-y-4">
@@ -6181,6 +6574,9 @@ export default function BlueprintEditor() {
                                 e.target.value = "";
                               }
                             }}
+                          />
+                          <CloudUpload
+                            onFileSelect={(file) => handleFileUpload(file)}
                           />
                         </div>
                         {/* --- END PASTE --- */}
@@ -6538,7 +6934,50 @@ export default function BlueprintEditor() {
                                     Blueprint Properties
                                   </AccordionTrigger>
                                   <AccordionContent>
-                                    {/* ... content ... */}
+                                    <div className="space-y-4">
+                                      <div className="space-y-2">
+                                        <Label htmlFor="bp-name">Name</Label>
+                                        <Input
+                                          id="bp-name"
+                                          value={blueprintTitle}
+                                          onChange={(e) =>
+                                            setBlueprintTitle(e.target.value)
+                                          }
+                                          placeholder="Enter blueprint name"
+                                        />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label htmlFor="bp-status">
+                                          Status
+                                        </Label>
+                                        <Select
+                                          value={blueprintStatus}
+                                          onValueChange={setBlueprintStatus}
+                                        >
+                                          <SelectTrigger id="bp-status">
+                                            <SelectValue placeholder="Select status" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="pending">
+                                              Draft
+                                            </SelectItem>
+                                            <SelectItem value="active">
+                                              Published
+                                            </SelectItem>
+                                            <SelectItem value="archived">
+                                              Archived
+                                            </SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <Button
+                                        onClick={handleSaveBlueprintSettings}
+                                        className="w-full"
+                                      >
+                                        <Save className="h-4 w-4 mr-2" />
+                                        Save Settings
+                                      </Button>
+                                    </div>
                                   </AccordionContent>
                                 </AccordionItem>
                                 <AccordionItem value="3dsettings">
@@ -6546,7 +6985,97 @@ export default function BlueprintEditor() {
                                     3D View Settings
                                   </AccordionTrigger>
                                   <AccordionContent>
-                                    {/* ... content ... */}
+                                    <div className="space-y-4">
+                                      <div className="flex items-center justify-between">
+                                        <Label
+                                          htmlFor="toggle-grid"
+                                          className="text-sm"
+                                        >
+                                          Show Grid
+                                        </Label>
+                                        <Switch
+                                          id="toggle-grid"
+                                          checked={showGrid}
+                                          onCheckedChange={setShowGrid}
+                                        />
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <Label
+                                          htmlFor="swap-axes"
+                                          className="text-sm"
+                                        >
+                                          Swap X/Z Axes
+                                        </Label>
+                                        <Switch
+                                          id="swap-axes"
+                                          checked={isXZSwapped}
+                                          onCheckedChange={setIsXZSwapped}
+                                        />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label className="text-sm">Scale</Label>
+                                        <Slider
+                                          value={[scaleFactor]}
+                                          min={0.5}
+                                          max={3}
+                                          step={0.1}
+                                          onValueChange={(v) =>
+                                            setScaleFactor(v[0])
+                                          }
+                                        />
+                                      </div>
+                                      <div className="pt-2 space-y-2">
+                                        <Label className="text-sm">
+                                          Anchor Visibility
+                                        </Label>
+                                        <div className="space-y-2">
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-sm">
+                                              Text Anchors
+                                            </span>
+                                            <Switch
+                                              checked={showTextAnchors}
+                                              onCheckedChange={
+                                                setShowTextAnchors
+                                              }
+                                            />
+                                          </div>
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-sm">
+                                              File Anchors
+                                            </span>
+                                            <Switch
+                                              checked={showFileAnchors}
+                                              onCheckedChange={
+                                                setShowFileAnchors
+                                              }
+                                            />
+                                          </div>
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-sm">
+                                              Webpage Anchors
+                                            </span>
+                                            <Switch
+                                              checked={showWebpageAnchors}
+                                              onCheckedChange={
+                                                setShowWebpageAnchors
+                                              }
+                                            />
+                                          </div>
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-sm">
+                                              3D Model Anchors
+                                            </span>
+                                            <Switch
+                                              checked={showModelAnchors}
+                                              onCheckedChange={
+                                                setShowModelAnchors
+                                              }
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
                                   </AccordionContent>
                                 </AccordionItem>
                                 <AccordionItem value="qrcodes">
@@ -6554,7 +7083,49 @@ export default function BlueprintEditor() {
                                     QR Codes
                                   </AccordionTrigger>
                                   <AccordionContent>
-                                    {/* ... content ... */}
+                                    <div className="space-y-4">
+                                      <div className="flex items-center justify-between">
+                                        <Label
+                                          htmlFor="toggle-qr"
+                                          className="text-sm"
+                                        >
+                                          Show QR Anchors
+                                        </Label>
+                                        <Switch
+                                          id="toggle-qr"
+                                          checked={showQrCodes}
+                                          onCheckedChange={setShowQrCodes}
+                                        />
+                                      </div>
+                                      <Button
+                                        className="w-full"
+                                        onClick={() =>
+                                          setQrPlacementMode(!qrPlacementMode)
+                                        }
+                                      >
+                                        {qrPlacementMode ? (
+                                          <>
+                                            <X className="h-4 w-4 mr-2" />
+                                            Cancel Placement
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Plus className="h-4 w-4 mr-2" />
+                                            Place QR Code
+                                          </>
+                                        )}
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        className="w-full"
+                                        onClick={() =>
+                                          setQrGenerationActive(true)
+                                        }
+                                      >
+                                        <Download className="h-4 w-4 mr-2" />
+                                        Generate & Print
+                                      </Button>
+                                    </div>
                                   </AccordionContent>
                                 </AccordionItem>
                                 <AccordionItem value="team">
@@ -6562,7 +7133,19 @@ export default function BlueprintEditor() {
                                     Team & Collaboration
                                   </AccordionTrigger>
                                   <AccordionContent>
-                                    {/* ... content ... */}
+                                    <div className="space-y-4">
+                                      <p className="text-sm text-muted-foreground">
+                                        Invite others to view or edit this
+                                        blueprint.
+                                      </p>
+                                      <Button
+                                        className="w-full"
+                                        onClick={() => setShowInviteModal(true)}
+                                      >
+                                        <UserPlus className="h-4 w-4 mr-2" />
+                                        Invite Team Members
+                                      </Button>
+                                    </div>
                                   </AccordionContent>
                                 </AccordionItem>
                               </Accordion>
@@ -6736,6 +7319,7 @@ export default function BlueprintEditor() {
               showFileAnchors={showFileAnchors}
               showWebpageAnchors={showWebpageAnchors}
               showModelAnchors={showModelAnchors}
+              showGrid={showGrid}
               // NEW Props for the two-step process
               originSettingStep={originSettingStep}
               tempOriginPos={tempOriginPos}
@@ -6993,23 +7577,23 @@ export default function BlueprintEditor() {
 
           {/* Toggle QR Button - bottom right */}
 
-          <div className="absolute bottom-4 right-4 z-40 flex flex-col items-end gap-1">
+          <div className="absolute bottom-4 right-4 z-40 flex flex-col items-end gap-2">
             {/* --- Text Anchors Toggle --- */}
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setShowTextAnchors(!showTextAnchors)}
-              className="gap-1.5 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-2 py-1 h-auto rounded-md shadow"
+              className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow"
               title={
                 showTextAnchors ? "Hide Text Anchors" : "Show Text Anchors"
               }
             >
               {showTextAnchors ? (
-                <EyeOff className="h-4 w-4" />
+                <EyeOff className="h-6 w-6" />
               ) : (
-                <Eye className="h-4 w-4" />
+                <Eye className="h-6 w-6" />
               )}
-              <Type className="h-4 w-4" />
+              <Type className="h-6 w-6" />
             </Button>
 
             {/* --- File Anchors Toggle (incl. Images/Videos) --- */}
@@ -7017,17 +7601,17 @@ export default function BlueprintEditor() {
               variant="ghost"
               size="sm"
               onClick={() => setShowFileAnchors(!showFileAnchors)}
-              className="gap-1.5 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-2 py-1 h-auto rounded-md shadow"
+              className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow"
               title={
                 showFileAnchors ? "Hide File Anchors" : "Show File Anchors"
               }
             >
               {showFileAnchors ? (
-                <EyeOff className="h-4 w-4" />
+                <EyeOff className="h-6 w-6" />
               ) : (
-                <Eye className="h-4 w-4" />
+                <Eye className="h-6 w-6" />
               )}
-              <File className="h-4 w-4" /> {/* Using File icon */}
+              <File className="h-6 w-6" /> {/* Using File icon */}
             </Button>
 
             {/* --- Webpage Anchors Toggle --- */}
@@ -7043,11 +7627,11 @@ export default function BlueprintEditor() {
               }
             >
               {showWebpageAnchors ? (
-                <EyeOff className="h-4 w-4" />
+                <EyeOff className="h-6 w-6" />
               ) : (
-                <Eye className="h-4 w-4" />
+                <Eye className="h-6 w-6" />
               )}
-              <Link className="h-4 w-4" />
+              <Link className="h-6 w-6" />
             </Button>
 
             {/* --- 3D Model Anchors Toggle --- */}
@@ -7055,7 +7639,7 @@ export default function BlueprintEditor() {
               variant="ghost"
               size="sm"
               onClick={() => setShowModelAnchors(!showModelAnchors)}
-              className="gap-1.5 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-2 py-1 h-auto rounded-md shadow"
+              className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow"
               title={
                 showModelAnchors
                   ? "Hide 3D Model Anchors"
@@ -7063,11 +7647,11 @@ export default function BlueprintEditor() {
               }
             >
               {showModelAnchors ? (
-                <EyeOff className="h-4 w-4" />
+                <EyeOff className="h-6 w-6" />
               ) : (
-                <Eye className="h-4 w-4" />
+                <Eye className="h-6 w-6" />
               )}
-              <Box className="h-4 w-4" />
+              <Box className="h-6 w-6" />
             </Button>
 
             {/* --- QR Code Anchors Toggle (Existing) --- */}
@@ -7075,17 +7659,17 @@ export default function BlueprintEditor() {
               variant="ghost"
               size="sm"
               onClick={() => setShowQrCodes(!showQrCodes)}
-              className="gap-1.5 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-2 py-1 h-auto rounded-md shadow"
+              className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow"
               title={
                 showQrCodes ? "Hide QR Code Anchors" : "Show QR Code Anchors"
               }
             >
               {showQrCodes ? (
-                <EyeOff className="h-4 w-4" />
+                <EyeOff className="h-6 w-6" />
               ) : (
-                <Eye className="h-4 w-4" />
+                <Eye className="h-6 w-6" />
               )}
-              <QrCode className="h-4 w-4" />
+              <QrCode className="h-6 w-6" />
             </Button>
           </div>
 
@@ -7452,6 +8036,7 @@ export default function BlueprintEditor() {
                       setIsChoosingOrigin={() => {}}
                       textAnchors={[]}
                       modelAnchors={[]}
+                      showGrid={showGrid}
                     />
                   </div>
                 ) : (
