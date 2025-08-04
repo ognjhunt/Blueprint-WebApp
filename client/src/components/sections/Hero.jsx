@@ -90,7 +90,7 @@ export default function Hero() {
   return (
     <section
       ref={heroRef}
-      className="relative min-h-[85vh] sm:min-h-[95vh] flex items-center justify-center pt-16 sm:pt-24 pb-8 sm:pb-16 overflow-hidden bg-gradient-to-br from-slate-50 via-white to-indigo-50/30"
+      className="relative min-h-[85vh] sm:min-h-[95vh] flex items-center justify-center pt-8 sm:pt-24 pb-12 sm:pb-16 overflow-hidden bg-gradient-to-br from-slate-50 via-white to-indigo-50/30"
     >
       {/* Enhanced background elements */}
       <div className="absolute inset-0 overflow-hidden">
@@ -185,7 +185,7 @@ export default function Hero() {
                 <ArrowRightIcon className="w-4 h-4 sm:w-5 sm:h-5 ml-2 text-white" />
               </Button>
 
-              <Link href="/discover">
+              <Link href="/pilot-program">
                 <Button
                   size="lg"
                   variant="outline"
@@ -199,7 +199,7 @@ export default function Hero() {
 
             {/* Social proof */}
             <motion.div
-              className="mt-6 sm:mt-8 lg:mt-12 hidden sm:flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 lg:gap-8 px-4 sm:px-0"
+              className="mt-3 sm:mt-8 lg:mt-12 hidden sm:flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 lg:gap-8 px-4 sm:px-0"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 20 }}
               transition={{ duration: 0.8, delay: 0.6 }}

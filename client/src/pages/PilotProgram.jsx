@@ -1337,7 +1337,7 @@ export default function PilotProgram() {
       <Nav />
 
       {/* HERO SECTION - Improved clarity on what Blueprint does */}
-      <section className="pt-16 md:pt-20 lg:pt-32 pb-12 md:pb-16 lg:pb-24 relative overflow-hidden">
+        <section className="mt-6 md:mt-0 pt-16 md:pt-20 lg:pt-32 pb-12 md:pb-16 lg:pb-24 relative overflow-hidden">
         {/* Animated background */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute inset-0 opacity-5" />

@@ -711,7 +711,7 @@ export default function Home() {
         <Hero />
 
         {/* Trust metrics section */}
-        <section className="py-6 md:py-16 bg-gradient-to-b from-indigo-50/30 via-white/60 to-slate-50/40 backdrop-blur-sm">
+        <section className="py-3 md:py-16 bg-gradient-to-b from-indigo-50/30 via-white/60 to-slate-50/40 backdrop-blur-sm">
           <div className="container mx-auto px-4 md:px-6">
             {/* MOBILE VERSION */}
             <div className="block md:hidden">
