@@ -578,7 +578,9 @@ function MobileBusinessTypesCarousel({ idealFor }) {
               {React.cloneElement(business.icon, {
                 className: "w-4 h-4 flex-shrink-0",
               })}
-              <span className="truncate">{business.title.split(" ")[0]}</span>
+              <span className="truncate">
+                {business.title.split("&")[0].trim()}
+              </span>
             </button>
           ))}
         </div>
@@ -1268,6 +1270,7 @@ export default function PilotProgram() {
     },
   ];
 
+  /*
   const testimonials = [
     {
       quote:
@@ -1291,6 +1294,7 @@ export default function PilotProgram() {
       metric: "5-star visitor reviews",
     },
   ];
+  */
 
   const faqs = [
     {
@@ -1879,16 +1883,19 @@ export default function PilotProgram() {
                       </div>
                     </div>
 
+                    {/*
+                      Testimonials section temporarily hidden until real pilot feedback is collected.
                     <div className="space-y-6">
                       <h4 className="text-xl font-bold mb-4 text-slate-900">
                         What Pilot Participants Say
                       </h4>
                       {testimonials.map((testimonial, idx) => (
-                        <FadeIn
+                        <motion.div
                           key={idx}
-                          delay={idx * 0.15}
-                          yOffset={10}
                           className="bg-white border border-slate-200 rounded-xl p-6 shadow-lg"
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: idx * 0.15 }}
                         >
                           <div className="flex gap-1 mb-3">
                             {[...Array(5)].map((_, i) => (
@@ -1914,9 +1921,10 @@ export default function PilotProgram() {
                               {testimonial.metric}
                             </Badge>
                           </div>
-                        </FadeIn>
+                        </motion.div>
                       ))}
                     </div>
+                    */}
                   </div>
                 </motion.div>
               </TabsContent>
