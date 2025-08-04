@@ -637,6 +637,15 @@ export default function BlueprintEditor() {
   // Text editing states
   const pendingLabelTextRef = useRef("");
   const showTextBoxInputRef = useRef(false);
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (activeSection === "text" && textAreaRef.current) {
+      const textarea = textAreaRef.current;
+      textarea.style.height = "auto";
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+  }, [textContent, activeSection]);
 
   // QR code states
   const [qrPlacementMode, setQrPlacementMode] = useState(false);
@@ -3679,9 +3688,10 @@ export default function BlueprintEditor() {
 
   // Modify the text area onChange to call the update function
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newText = e.target.value;
-    setTextContent(newText);
-    // Remove the call to updateTextAnchorContent here
+    const textarea = e.target;
+    setTextContent(textarea.value);
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
   };
 
   // Modify the toggleSection function to clear editing state when closing text panel
@@ -5952,10 +5962,11 @@ export default function BlueprintEditor() {
                                 ? "Edit the label text..."
                                 : "Enter text for new label..."
                             }
-                            className="resize-none mb-3 bg-white"
+                            ref={textAreaRef}
+                            className="resize-none overflow-hidden mb-3 bg-white"
                             rows={3}
                             value={textContent}
-                            onChange={handleTextChange} // Use the new handler
+                            onChange={handleTextChange}
                           />
                           <Button
                             variant="default"
