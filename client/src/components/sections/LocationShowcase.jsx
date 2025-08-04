@@ -164,11 +164,12 @@ function MobileLocationShowcase({ locations, allImageUrls }) {
 
       {/* Compact Image Comparison */}
       <motion.div
-        className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-xl mb-6"
+        className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-xl mb-6 cursor-pointer"
         initial={{ opacity: 0, scale: 0.95 }}
         whileInView={{ opacity: 1, scale: 1 }}
         viewport={{ once: true }}
         transition={{ duration: 0.6, delay: 0.3 }}
+        onClick={() => setShowAfter(!showAfter)}
       >
         {/* Before Image */}
         <motion.div
@@ -260,7 +261,7 @@ function MobileLocationShowcase({ locations, allImageUrls }) {
           transition={{ delay: 1 }}
         >
           <div className="bg-black/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-medium">
-            👆 Tap toggle to see AR version
+            👆 Tap image or toggle to see AR version
           </div>
         </motion.div>
       </motion.div>
