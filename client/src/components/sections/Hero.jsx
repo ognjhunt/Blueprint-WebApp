@@ -25,7 +25,7 @@ export default function Hero() {
       text: "Boost Engagement 200%",
       highlight: "with Blueprint",
       description:
-        "Create memorable experiences that work instantly in any browser. From product demos to virtual tours, engage customers like never before.", //smart glasses 
+        "Create memorable experiences that work instantly in any browser. From product demos to virtual tours, engage customers like never before.", //smart glasses
     },
     {
       text: "Customized In-Person UX",
@@ -181,7 +181,7 @@ export default function Hero() {
                 className="w-full sm:w-auto text-sm sm:text-base lg:text-lg px-6 sm:px-8 lg:px-10 py-3 sm:py-4 lg:py-6 font-semibold tracking-wide shadow-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 hover:scale-105 transition-all duration-300 border-0 text-white"
                 onClick={handleScrollToContactForm}
               >
-                Get Early Access
+                Join Pilot Program (FREE)
                 <ArrowRightIcon className="w-4 h-4 sm:w-5 sm:h-5 ml-2 text-white" />
               </Button>
 
@@ -199,28 +199,12 @@ export default function Hero() {
 
             {/* Social proof */}
             <motion.div
-              className="mt-6 sm:mt-8 lg:mt-12 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 lg:gap-8 px-4 sm:px-0"
+              className="mt-6 sm:mt-8 lg:mt-12 hidden sm:flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 lg:gap-8 px-4 sm:px-0"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: isInView ? 1 : 0, y: isInView ? 0 : 20 }}
               transition={{ duration: 0.8, delay: 0.6 }}
             >
               <div className="flex -space-x-2 sm:-space-x-3">
-                {/* {[1, 2, 3, 4, 5].map((i) => (
-                  <div
-                    key={i}
-                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 sm:border-3 border-white overflow-hidden shadow-lg"
-                  >
-                    <img
-                      src={`/images/avatar-${i}.jpg`}
-                      alt="Customer avatar"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = `https://ui-avatars.com/api/?name=User+${i}&background=6366f1&color=fff&bold=true`;
-                      }}
-                    />
-                  </div>
-                ))} */}
                 {industryTypes.map((industry, i) => (
                   <div
                     key={i}

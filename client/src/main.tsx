@@ -32,6 +32,9 @@ import Settings from "./pages/Settings";
 import ScannerPortal from "./pages/ScannerPortal";
 import AcceptInvite from "./pages/AcceptInvite";
 import PilotProgram from "./pages/PilotProgram";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Terms from "./pages/Terms";
+import FAQ from "./pages/FAQ";
 
 function Router() {
   return (
@@ -53,6 +56,9 @@ function Router() {
       <Route path="/scanner-portal" component={ScannerPortal} />
       <Route path="/accept-invite" component={AcceptInvite} />
       <Route path="/pilot-program" component={PilotProgram} />
+      <Route path="/privacy" component={PrivacyPolicy} />
+      <Route path="/terms" component={Terms} />
+      <Route path="/faq" component={FAQ} />
 
       {/* Protected Routes */}
       <Route path="/create-blueprint">

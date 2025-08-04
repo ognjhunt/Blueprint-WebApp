@@ -795,7 +795,7 @@ export default function Help() {
                             <div>
                               <p className="text-sm text-gray-500">Email</p>
                               <p className="font-medium">
-                                support@tryblueprint.io
+                                nijel@tryblueprint.io
                               </p>
                             </div>
                           </div>

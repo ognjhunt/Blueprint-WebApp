@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
-// Import the Nav component. It doesn't export getInitials, so we define a helper below for tests.
-import Nav from '@/components/Nav';
+// Import the actual Nav component and the getInitials function
+import Nav, { getInitials as getInitialsInternal } from '@/components/Nav'; // Assuming getInitials is exported or accessible
 
 // Mock dependencies used by Nav component
 vi.mock('@/hooks/use-toast', () => ({
@@ -25,7 +25,12 @@ vi.mock('wouter', () => ({
 }));
 
 
-// Nav doesn't export getInitials, so copy its logic here for unit testing.
+// If getInitials is not directly exported, copy its logic here for testing
+// For this exercise, we'll assume it's exported or we test it via component rendering if needed.
+// If it was a named export from Nav.jsx:
+// import { getInitials } from '@/components/Nav';
+
+// If getInitials is NOT exported, we copy the function here for unit testing:
 const getInitials = (name) => {
   if (!name) return "";
   return name
@@ -39,12 +44,12 @@ const getInitials = (name) => {
 
 
 describe('Nav Component', () => {
-  // Basic Nav component rendering test
+  // Placeholder for Nav component rendering tests
   it('should render login/signup buttons if no currentUser', () => {
     render(<Nav />);
     expect(screen.getByText('Sign In')).toBeInTheDocument();
   });
-  // Additional Nav component tests can be added here later if needed
+  // Add more Nav component specific tests here later if needed
 
   describe('getInitials() utility function', () => {
     it('should return correct initials for a two-word name', () => {

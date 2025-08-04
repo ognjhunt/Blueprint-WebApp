@@ -467,43 +467,6 @@ export default function ScannerPortal() {
         await updateDoc(doc(db, "blueprints", selectedBooking.blueprintId), {
           scale: scaleFactor,
         });
-        let companyName = selectedBooking.businessName || "";
-        try {
-          const blueprintSnap = await getDoc(
-            doc(db, "blueprints", selectedBooking.blueprintId),
-          );
-          if (blueprintSnap.exists()) {
-            const data = blueprintSnap.data();
-            companyName =
-              data.locationName ||
-              data.businessName ||
-              data.name ||
-              companyName;
-          }
-        } catch (err) {
-          console.error("Error fetching blueprint info for webhook:", err);
-        }
-        try {
-          await fetch(
-            "https://public.lindy.ai/api/v1/webhooks/lindy/0a0433bc-9930-4a1e-9734-5912316f4a6c",
-            {
-              method: "POST",
-              headers: {
-                Authorization:
-                  "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                blueprint_id: selectedBooking.blueprintId,
-                scale: scaleFactor,
-                company_name: companyName,
-                location_name: companyName,
-              }),
-            },
-          );
-        } catch (err) {
-          console.error("Error triggering Lindy webhook:", err);
-        }
         console.log("Scale factor saved to Firestore:", scaleFactor);
       }
 

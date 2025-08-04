@@ -118,6 +118,61 @@ export default function ContactForm() {
     "Boston",
   ];
 
+  // // ADD THIS ARRAY RIGHT HERE:
+  // const US_STATES = [
+  //   { value: "", label: "Select State" },
+  //   { value: "AL", label: "Alabama" },
+  //   { value: "AK", label: "Alaska" },
+  //   { value: "AZ", label: "Arizona" },
+  //   { value: "AR", label: "Arkansas" },
+  //   { value: "CA", label: "California" },
+  //   { value: "CO", label: "Colorado" },
+  //   { value: "CT", label: "Connecticut" },
+  //   { value: "DE", label: "Delaware" },
+  //   { value: "FL", label: "Florida" },
+  //   { value: "GA", label: "Georgia" },
+  //   { value: "HI", label: "Hawaii" },
+  //   { value: "ID", label: "Idaho" },
+  //   { value: "IL", label: "Illinois" },
+  //   { value: "IN", label: "Indiana" },
+  //   { value: "IA", label: "Iowa" },
+  //   { value: "KS", label: "Kansas" },
+  //   { value: "KY", label: "Kentucky" },
+  //   { value: "LA", label: "Louisiana" },
+  //   { value: "ME", label: "Maine" },
+  //   { value: "MD", label: "Maryland" },
+  //   { value: "MA", label: "Massachusetts" },
+  //   { value: "MI", label: "Michigan" },
+  //   { value: "MN", label: "Minnesota" },
+  //   { value: "MS", label: "Mississippi" },
+  //   { value: "MO", label: "Missouri" },
+  //   { value: "MT", label: "Montana" },
+  //   { value: "NE", label: "Nebraska" },
+  //   { value: "NV", label: "Nevada" },
+  //   { value: "NH", label: "New Hampshire" },
+  //   { value: "NJ", label: "New Jersey" },
+  //   { value: "NM", label: "New Mexico" },
+  //   { value: "NY", label: "New York" },
+  //   { value: "NC", label: "North Carolina" },
+  //   { value: "ND", label: "North Dakota" },
+  //   { value: "OH", label: "Ohio" },
+  //   { value: "OK", label: "Oklahoma" },
+  //   { value: "OR", label: "Oregon" },
+  //   { value: "PA", label: "Pennsylvania" },
+  //   { value: "RI", label: "Rhode Island" },
+  //   { value: "SC", label: "South Carolina" },
+  //   { value: "SD", label: "South Dakota" },
+  //   { value: "TN", label: "Tennessee" },
+  //   { value: "TX", label: "Texas" },
+  //   { value: "UT", label: "Utah" },
+  //   { value: "VT", label: "Vermont" },
+  //   { value: "VA", label: "Virginia" },
+  //   { value: "WA", label: "Washington" },
+  //   { value: "WV", label: "West Virginia" },
+  //   { value: "WI", label: "Wisconsin" },
+  //   { value: "WY", label: "Wyoming" },
+  // ];
+
   useEffect(() => {
     const loader = new Loader({
       apiKey: "AIzaSyBgxzzgcT_9nyhz1D_JtfG7gevRUKQ5Vbs",
@@ -187,12 +242,12 @@ export default function ContactForm() {
     if (!formData.company || formData.company.length < 2) {
       newErrors.company = "Company name is required";
     }
-    if (!formData.city || formData.city.length < 2) {
-      newErrors.city = "City is required";
-    }
-    if (!formData.state || formData.state.length < 2) {
-      newErrors.state = "State is required";
-    }
+    // if (!formData.city || formData.city.length < 2) {
+    //   newErrors.city = "City is required";
+    // }
+    // if (!formData.state) {
+    //   newErrors.state = "Please select a state";
+    // }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -272,23 +327,27 @@ export default function ContactForm() {
       //   });
 
       // Fire-and-forget Lindy webhook call - don't wait for it to complete
-      fetch("https://public.lindy.ai/api/v1/webhooks/lindy/163b37c0-2f5c-4969-9b2e-0d5ec61afb52", {
-        method: "POST",
-        headers: {
-          "Authorization": "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
-          "Content-Type": "application/json",
+      fetch(
+        "https://public.lindy.ai/api/v1/webhooks/lindy/163b37c0-2f5c-4969-9b2e-0d5ec61afb52",
+        {
+          method: "POST",
+          headers: {
+            Authorization:
+              "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: formData.name,
+            company: formData.company,
+            email: formData.email,
+            city: formData.city,
+            state: formData.state,
+            message: formData.message,
+            companyWebsite: companyWebsite,
+            offWaitlistUrl: offWaitlistUrl,
+          }),
         },
-        body: JSON.stringify({
-          name: formData.name,
-          company: formData.company,
-          email: formData.email,
-          city: formData.city,
-          state: formData.state,
-          message: formData.message,
-          companyWebsite: companyWebsite,
-          offWaitlistUrl: offWaitlistUrl,
-        }),
-      })
+      )
         .then((response) => {
           console.log(
             "🔵 [FRONTEND] Lindy webhook completed:",
@@ -319,7 +378,9 @@ export default function ContactForm() {
       });
     } catch (error) {
       console.error("❌ [FRONTEND] Form submission failed:", error);
-      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`);
+      alert(
+        `Error: ${error instanceof Error ? error.message : "Unknown error occurred"}`,
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -434,7 +495,7 @@ export default function ContactForm() {
           <div className="inline-flex items-center justify-center gap-2 mb-4 md:mb-6 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 py-2 md:py-3 px-4 md:px-6 rounded-full border border-emerald-200">
             <RocketLaunchIcon className="w-4 h-4 md:w-5 md:h-5" />
             <span className="text-xs md:text-sm font-bold uppercase tracking-wider">
-              Limited Early Access Program
+              Limited Pilot Program
             </span>
           </div>
 
@@ -471,8 +532,8 @@ export default function ContactForm() {
                 </p>
               </motion.div>
             ))} */}
-            {/* Show remaining benefits only on desktop */}
-            {/* <div className="hidden md:contents">
+          {/* Show remaining benefits only on desktop */}
+          {/* <div className="hidden md:contents">
               {benefits.slice(2).map((benefit, index) => (
                 <motion.div
                   key={benefit.title}
@@ -521,13 +582,13 @@ export default function ContactForm() {
                   {/* Mobile: Show only key info, Desktop: Show full content */}
                   <p className="mb-4 md:mb-8 text-sm md:text-lg opacity-90 leading-relaxed">
                     <span className="md:hidden">
-                      Join our exclusive early access program with white-glove
+                      Join our exclusive Pilot Program with white-glove
                       onboarding.
                     </span>
                     <span className="hidden md:block">
                       Blueprint is transforming how businesses engage customers
                       across retail, hospitality, and commercial spaces. Join
-                      our exclusive early access program.
+                      our exclusive Pilot Program.
                     </span>
                   </p>
 
@@ -671,8 +732,8 @@ export default function ContactForm() {
                       Welcome to the Future! 🎉
                     </h3>
                     <p className="text-xl text-slate-600 mb-6 max-w-md">
-                      You're officially on our exclusive waitlist. Expect to
-                      hear from our team within 24 hours.
+                      You've successfully signed up for the Pilot Program!
+                      Expect to hear from our team within 24 hours.
                     </p>
                     <div className="text-sm text-slate-500 mb-8">
                       <p>• Check your email for confirmation</p>
@@ -788,7 +849,11 @@ export default function ContactForm() {
                                   if (companyPlacesService) {
                                     const request = {
                                       placeId: prediction.place_id,
-                                      fields: ["website", "formatted_address"],
+                                      fields: [
+                                        "website",
+                                        "formatted_address",
+                                        "address_components",
+                                      ],
                                     };
                                     companyPlacesService.getDetails(
                                       request,
@@ -805,6 +870,37 @@ export default function ContactForm() {
                                           setCompanyAddress(
                                             placeResult.formatted_address || "",
                                           );
+
+                                          // Extract city and state from address components
+                                          if (placeResult.address_components) {
+                                            let city = "";
+                                            let state = "";
+
+                                            placeResult.address_components.forEach(
+                                              (component) => {
+                                                if (
+                                                  component.types.includes(
+                                                    "locality",
+                                                  )
+                                                ) {
+                                                  city = component.long_name;
+                                                } else if (
+                                                  component.types.includes(
+                                                    "administrative_area_level_1",
+                                                  )
+                                                ) {
+                                                  state = component.short_name;
+                                                }
+                                              },
+                                            );
+
+                                            // Update form data with extracted city and state
+                                            setFormData((prevData) => ({
+                                              ...prevData,
+                                              city: city || prevData.city,
+                                              state: state || prevData.state,
+                                            }));
+                                          }
                                         }
                                       },
                                     );
@@ -821,7 +917,7 @@ export default function ContactForm() {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                    {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                       <div>
                         <label
                           className="block text-base md:text-lg font-bold mb-2 md:mb-3 flex items-center text-slate-900"
@@ -852,22 +948,34 @@ export default function ContactForm() {
                         >
                           State
                         </label>
-                        <Input
-                          type="text"
+                        <select
                           id="state"
                           name="state"
-                          placeholder="CA"
                           value={formData.state}
                           onChange={handleChange}
-                          className="border-2 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl md:rounded-2xl py-3 md:py-4 px-4 md:px-6 text-base md:text-lg bg-white/80 backdrop-blur-sm"
-                        />
+                          className="w-full border-2 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl md:rounded-2xl py-3 md:py-4 px-4 md:px-6 text-base md:text-lg bg-white/80 backdrop-blur-sm appearance-none cursor-pointer"
+                          style={{
+                            backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
+                            backgroundPosition: "right 0.5rem center",
+                            backgroundRepeat: "no-repeat",
+                            backgroundSize: "1.5em 1.5em",
+                            paddingRight: "2.5rem",
+                            height: "3.75rem",
+                          }}
+                        >
+                          {US_STATES.map((state) => (
+                            <option key={state.value} value={state.value}>
+                              {state.label}
+                            </option>
+                          ))}
+                        </select>
                         {errors.state && (
                           <p className="text-red-500 text-sm mt-2">
                             {errors.state}
                           </p>
                         )}
                       </div>
-                    </div>
+                    </div> */}
 
                     <div>
                       <label
@@ -920,7 +1028,7 @@ export default function ContactForm() {
                       ) : (
                         <div className="flex items-center justify-center gap-3">
                           <RocketLaunchIcon className="w-6 h-6" />
-                          Secure My Early Access
+                          Join Pilot Program
                         </div>
                       )}
                     </Button>

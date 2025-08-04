@@ -112,15 +112,20 @@ export default function Nav({
       <div className="flex items-center justify-between h-full w-full px-6 md:px-8 lg:px-12">
         {/* Enhanced brand logo */}
         <div className="flex items-center">
-            <Link href="/" className="flex items-center space-x-3 group">
-              <img
-                src="/gradientBPLogo.ico"
-                alt="Blueprint logo"
-                className={`w-11 h-11 rounded-xl transition-all duration-300 shadow-lg group-hover:shadow-indigo-300/50 ${
-                  isScrolled ? "scale-95" : ""
-                }`}
-              />
-              <span
+          <Link href="/" className="flex items-center space-x-3 group">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full overflow-hidden transition-all duration-300 shadow-lg">
+                <img
+                  src="/gradientBPLogo.png"
+                  alt="Blueprint Logo"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              {/* <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-300 to-indigo-300 inline-block text-transparent bg-clip-text">
+                Blueprint
+              </h3> */}
+            </div>
+            <span
               className={`text-2xl font-black transition-all duration-300 ${
                 isScrolled
                   ? "bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent"

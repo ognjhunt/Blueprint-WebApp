@@ -15,6 +15,317 @@ import {
   Camera,
 } from "lucide-react";
 
+export function useImagePreloader(imageUrls) {
+  const [loadedImages, setLoadedImages] = useState(new Set());
+  const [allLoaded, setAllLoaded] = useState(false);
+
+  useEffect(() => {
+    const imagePromises = imageUrls.map((url) => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          setLoadedImages((prev) => new Set([...prev, url]));
+          resolve(url);
+        };
+        img.onerror = reject;
+        img.src = url;
+      });
+    });
+
+    Promise.all(imagePromises)
+      .then(() => setAllLoaded(true))
+      .catch(console.error);
+  }, [imageUrls]);
+
+  return { loadedImages, allLoaded };
+}
+
+/**
+ * Mobile-specific location showcase with compact design and swipe gestures
+ */
+function MobileLocationShowcase({ locations, allImageUrls }) {
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [showAfter, setShowAfter] = useState(false);
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+
+  const currentLocation = locations[selectedIndex];
+
+  // Handle touch events for location swipe
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe && selectedIndex < locations.length - 1) {
+      setSelectedIndex(selectedIndex + 1);
+      setShowAfter(false); // Reset to before when changing location
+    }
+    if (isRightSwipe && selectedIndex > 0) {
+      setSelectedIndex(selectedIndex - 1);
+      setShowAfter(false); // Reset to before when changing location
+    }
+  };
+
+  return (
+    <div className="px-4">
+      {/* Compact Header */}
+      <motion.div
+        className="text-center mb-8"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6 }}
+      >
+        <div className="inline-flex items-center gap-2 mb-3 bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-700 py-1.5 px-3 rounded-full text-xs font-semibold border border-indigo-100">
+          <Camera className="w-3 h-3" />
+          AR Across Industries
+        </div>
+        <h2 className="text-2xl md:text-3xl font-black mb-3 text-slate-900">
+          See Blueprint in{" "}
+          <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 text-transparent bg-clip-text">
+            Action
+          </span>
+        </h2>
+        <p className="text-sm text-slate-600 leading-relaxed">
+          Transform ordinary spaces into extraordinary interactive experiences
+        </p>
+      </motion.div>
+
+      {/* Horizontal Scrollable Location Tabs */}
+      <motion.div
+        className="relative mb-6"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6, delay: 0.1 }}
+      >
+        <div
+          className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        >
+          {locations.map((location, index) => (
+            <motion.button
+              key={location.id}
+              onClick={() => {
+                setSelectedIndex(index);
+                setShowAfter(false);
+              }}
+              className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 border-2 ${
+                index === selectedIndex
+                  ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg"
+                  : "bg-white text-slate-600 border-slate-200 hover:border-indigo-200"
+              }`}
+              whileTap={{ scale: 0.95 }}
+            >
+              <div className="flex items-center gap-2 whitespace-nowrap">
+                {location.icon}
+                <span>{location.name}</span>
+              </div>
+            </motion.button>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Compact Benefits */}
+      <motion.div
+        className="flex flex-wrap gap-2 justify-center mb-6"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6, delay: 0.2 }}
+      >
+        {currentLocation.benefits.map((benefit, index) => (
+          <motion.div
+            key={benefit}
+            className="flex items-center gap-1.5 bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-700 px-3 py-1.5 rounded-full text-xs font-medium border border-indigo-100"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3, delay: index * 0.1 }}
+          >
+            <Sparkles className="w-3 h-3" />
+            {benefit}
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* Compact Image Comparison */}
+      <motion.div
+        className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-xl mb-6"
+        initial={{ opacity: 0, scale: 0.95 }}
+        whileInView={{ opacity: 1, scale: 1 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6, delay: 0.3 }}
+      >
+        {/* Before Image */}
+        <motion.div
+          className="absolute inset-0"
+          animate={{ opacity: showAfter ? 0 : 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <img
+            src={currentLocation.image}
+            alt={currentLocation.name}
+            className="w-full h-full object-cover"
+            loading="eager"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent">
+            <div className="absolute bottom-4 left-4 text-white">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-2 h-2 rounded-full bg-red-400"></div>
+                <span className="text-xs font-semibold uppercase tracking-wider">
+                  Before
+                </span>
+              </div>
+              <h3 className="text-lg font-bold">Standard Experience</h3>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* After Image */}
+        <motion.div
+          className="absolute inset-0"
+          animate={{ opacity: showAfter ? 1 : 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <img
+            src={currentLocation.secondaryImage}
+            alt={`AR-enhanced ${currentLocation.name}`}
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent">
+            <div className="absolute bottom-4 left-4 text-white">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                <span className="text-xs font-semibold uppercase tracking-wider">
+                  With Blueprint
+                </span>
+              </div>
+              <h3 className="text-lg font-bold">Interactive AR Experience</h3>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Compact Toggle */}
+        <motion.div
+          className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm rounded-full p-2 shadow-lg"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.5 }}
+        >
+          <div className="flex items-center gap-2 px-2 py-1">
+            <span
+              className={`text-xs font-medium ${!showAfter ? "text-slate-900" : "text-slate-400"}`}
+            >
+              Before
+            </span>
+            <motion.button
+              className="relative w-8 h-4 bg-slate-200 rounded-full"
+              onClick={() => setShowAfter(!showAfter)}
+              animate={{ backgroundColor: showAfter ? "#6366f1" : "#e2e8f0" }}
+            >
+              <motion.div
+                className="w-3 h-3 bg-white rounded-full shadow absolute top-0.5"
+                animate={{ x: showAfter ? 16 : 2 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              />
+            </motion.button>
+            <span
+              className={`text-xs font-medium ${showAfter ? "text-indigo-600" : "text-slate-400"}`}
+            >
+              AR
+            </span>
+          </div>
+        </motion.div>
+
+        {/* Tap indicator */}
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center pointer-events-none"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: showAfter ? 0 : 1 }}
+          transition={{ delay: 1 }}
+        >
+          <div className="bg-black/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-medium">
+            👆 Tap toggle to see AR version
+          </div>
+        </motion.div>
+      </motion.div>
+
+      {/* Navigation dots */}
+      <div className="flex justify-center gap-2 mb-6">
+        {locations.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => {
+              setSelectedIndex(index);
+              setShowAfter(false);
+            }}
+            className={`w-2 h-2 rounded-full transition-all duration-300 ${
+              index === selectedIndex ? "bg-indigo-600 w-4" : "bg-slate-300"
+            }`}
+          />
+        ))}
+      </div>
+
+      {/* Swipe hint */}
+      {selectedIndex === 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.5 }}
+          className="text-center mb-6"
+        >
+          <p className="text-xs text-slate-500">
+            👆 Swipe left/right to see more industries
+          </p>
+        </motion.div>
+      )}
+
+      {/* Compact CTA */}
+      <motion.div
+        className="text-center"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6, delay: 0.4 }}
+      >
+        <p className="text-sm text-slate-600 mb-4">
+          Ready to transform your {currentLocation.name.toLowerCase()}?
+        </p>
+        <motion.button
+          className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-semibold px-6 py-3 rounded-xl shadow-lg text-sm"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => {
+            const contactFormElement = document.getElementById("contactForm");
+            if (contactFormElement) {
+              contactFormElement.scrollIntoView({ behavior: "smooth" });
+            }
+          }}
+        >
+          <Sparkles className="w-4 h-4" />
+          Join Pilot Program (FREE)
+          <ArrowRight className="w-4 h-4" />
+        </motion.button>
+      </motion.div>
+    </div>
+  );
+}
+
 /**
  * The LocationShowcase component displays a showcase of different locations
  * and how AR technology can be applied to them.
@@ -39,13 +350,13 @@ export default function LocationShowcase() {
   // }, [selectedLocation]);
 
   const groceryBeforeImages = [
-    "/images/grocerystore1.png",
-    "/images/grocerystorebase2.png",
+    "/images/higgsfieldgrocery.png",
+    "/images/higgsfieldgrocery.png",
   ];
 
   const groceryAfterImages = [
-    "/images/grocery-ar.jpeg",
-    "/images/grocerystoreafter2.png",
+    "/images/higgsfieldgrocery2.png",
+    "/images/higgsfieldgrocery2.png",
   ];
 
   // Enhanced location data with more compelling descriptions and metrics
@@ -54,8 +365,8 @@ export default function LocationShowcase() {
       id: "grocery",
       name: "Grocery Store",
       category: "Retail",
-      image: "/images/grocerystore1.png",
-      secondaryImage: "/images/grocery-ar.jpeg",
+      image: "/images/higgsfieldgrocery.png",
+      secondaryImage: "/images/higgsfieldgrocery2.png",
       description:
         "Turn shopping into an interactive experience with AR product information, nutritional details, and personalized recommendations.",
       benefits: [
@@ -69,8 +380,8 @@ export default function LocationShowcase() {
       id: "retail",
       name: "Retail Store",
       category: "Commerce",
-      image: "/images/apple-store.jpeg",
-      secondaryImage: "/images/retail-ar.jpeg",
+      image: "/images/higgsfieldapple.png",
+      secondaryImage: "/images/higgsfieldwalmart2.png",
       description:
         "Create immersive try-before-you-buy experiences with virtual product demonstrations and interactive catalogs.",
       benefits: [
@@ -84,8 +395,8 @@ export default function LocationShowcase() {
       id: "hotel",
       name: "Hotel",
       category: "Hospitality",
-      image: "/images/hotel.jpeg",
-      secondaryImage: "/images/hotel-ar.jpeg",
+      image: "/images/higgsfieldhotel.png",
+      secondaryImage: "/images/higgsfieldhotel.png",
       description:
         "Elevate guest experiences with interactive room tours, amenity guides, and personalized concierge services.",
       benefits: [
@@ -99,8 +410,8 @@ export default function LocationShowcase() {
       id: "museum",
       name: "Museum",
       category: "Culture",
-      image: "/images/museum.jpeg",
-      secondaryImage: "/images/museum-ar.jpeg",
+      image: "/images/higgsfieldmuseum.png",
+      secondaryImage: "/images/higgsfieldmuseum.png",
       description:
         "Bring exhibits to life with immersive storytelling, interactive timelines, and augmented historical content.",
       benefits: [
@@ -114,8 +425,8 @@ export default function LocationShowcase() {
       id: "office",
       name: "Office",
       category: "Corporate",
-      image: "/images/office.jpeg",
-      secondaryImage: "/images/office-ar.jpeg",
+      image: "/images/higgsfieldoffice.png",
+      secondaryImage: "/images/geminiwalmart.jpeg",
       description:
         "Transform workspaces with AR-powered collaboration tools, interactive presentations, and virtual meeting spaces.",
       benefits: [
@@ -129,14 +440,23 @@ export default function LocationShowcase() {
       id: "apartment",
       name: "Real Estate",
       category: "Property",
-      image: "/images/apartment.jpeg",
-      secondaryImage: "/images/apartment-ar.jpeg",
+      image: "/images/higgsfieldhome.png",
+      secondaryImage: "/images/higgsfieldrealestate2.png",
       description:
         "Revolutionize property tours with AR staging, virtual furniture placement, and interactive floor plans.",
       benefits: ["Faster sales cycles", "Virtual staging", "Remote viewings"],
       icon: <MapPin className="w-5 h-5" />,
     },
   ];
+
+  // Collect all image URLs for preloading
+  const allImageUrls = [
+    ...groceryBeforeImages,
+    ...groceryAfterImages,
+    ...LOCATIONS.flatMap((loc) => [loc.image, loc.secondaryImage]),
+  ];
+
+  const { allLoaded } = useImagePreloader(allImageUrls);
 
   const currentLocation =
     LOCATIONS.find((loc) => loc.name === selectedLocation) || LOCATIONS[0];
@@ -151,355 +471,263 @@ export default function LocationShowcase() {
         transition={{ duration: 2 }}
       />
 
-      <div className="container mx-auto px-6">
-        {/* Enhanced header section */}
-        <motion.div
-          className="text-center mb-20"
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.2 }}
-          transition={{ duration: 0.8 }}
-        >
-          <div className="inline-flex items-center gap-2 mb-6 bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-700 py-2 px-4 rounded-full text-sm font-semibold border border-indigo-100">
-            <Camera className="w-4 h-4" />
-            Real Customer Transformations
-          </div>
-          <h2 className="text-4xl md:text-5xl font-black mb-6 text-slate-900">
-            See Blueprint in Action Across{" "}
-            <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 text-transparent bg-clip-text">
-              Every Industry
-            </span>
-          </h2>
-          <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed">
-            From retail to hospitality, our AR technology transforms ordinary
-            spaces into extraordinary interactive experiences that captivate
-            customers and drive results.
-          </p>
-        </motion.div>
+      {/* MOBILE VERSION */}
+      <div className="block md:hidden">
+        <MobileLocationShowcase
+          locations={LOCATIONS}
+          allImageUrls={allImageUrls}
+        />
+      </div>
 
-        {/* Enhanced location selector */}
-        <motion.div
-          className="flex flex-wrap justify-center gap-3 mb-16"
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.6 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
-        >
-          {LOCATIONS.map((location) => (
-            <motion.button
-              key={location.id}
-              onClick={() => setSelectedLocation(location.name)}
-              onMouseEnter={() => setIsHovering(location.id)}
-              onMouseLeave={() => setIsHovering(null)}
-              className={`group relative px-6 py-3 rounded-2xl transition-all duration-300 font-semibold text-sm border-2 overflow-hidden
-                ${
-                  selectedLocation === location.name
-                    ? "text-white shadow-xl shadow-indigo-200/50 border-transparent"
-                    : "text-slate-600 hover:text-indigo-600 border-slate-200 hover:border-indigo-200 bg-white/80 backdrop-blur-sm hover:shadow-lg"
-                }
-              `}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              {selectedLocation === location.name && (
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 -z-10"
-                  layoutId="activeLocationBackground"
-                  initial={false}
-                  transition={{
-                    type: "spring",
-                    stiffness: 300,
-                    damping: 30,
-                  }}
-                />
-              )}
-              <div className="flex items-center gap-2 relative z-10">
-                {location.icon}
-                <span>{location.name}</span>
-              </div>
-              {selectedLocation !== location.name && (
-                <span className="text-xs text-slate-400 block mt-1">
-                  {location.category}
-                </span>
-              )}
-            </motion.button>
-          ))}
-        </motion.div>
-
-        <div className="relative max-w-4xl mx-auto">
-          {/* Benefits section */}
+      {/* DESKTOP VERSION */}
+      <div className="hidden md:block">
+        <div className="container mx-auto px-6">
+          {/* Enhanced header section */}
           <motion.div
-            className="mt-12 flex flex-wrap justify-center gap-6 max-w-4xl mx-auto mb-12"
+            className="text-center mb-20"
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.8 }}
+          >
+            <div className="inline-flex items-center gap-2 mb-6 bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-700 py-2 px-4 rounded-full text-sm font-semibold border border-indigo-100">
+              <Camera className="w-4 h-4" />
+              Use Cases for Different Industries
+            </div>
+            <h2 className="text-4xl md:text-5xl font-black mb-6 text-slate-900">
+              See Blueprint in Action Across{" "}
+              <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 text-transparent bg-clip-text">
+                Every Industry
+              </span>
+            </h2>
+            <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed">
+              From retail to hospitality, our AR technology transforms ordinary
+              spaces into extraordinary interactive experiences that captivate
+              customers and drive results.
+            </p>
+          </motion.div>
+
+          {/* Enhanced location selector */}
+          <motion.div
+            className="flex flex-wrap justify-center gap-3 mb-16"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8, delay: 0.4 }}
+            viewport={{ once: true, amount: 0.6 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
           >
-            {currentLocation.benefits.map((benefit, index) => (
-              <motion.div
-                key={benefit}
-                className="flex items-center gap-2 text-slate-700"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
+            {LOCATIONS.map((location) => (
+              <motion.button
+                key={location.id}
+                onClick={() => setSelectedLocation(location.name)}
+                onMouseEnter={() => setIsHovering(location.id)}
+                onMouseLeave={() => setIsHovering(null)}
+                className={`group relative px-6 py-3 rounded-2xl transition-all duration-300 font-semibold text-sm border-2 overflow-hidden
+                  ${
+                    selectedLocation === location.name
+                      ? "text-white-600 hover:text-indigo-600 border-slate-200 hover:border-indigo-200 bg-white/80 backdrop-blur-sm hover:shadow-lg"
+                      : "text-slate-600 hover:text-indigo-600 border-slate-200 hover:border-indigo-200 bg-white/80 backdrop-blur-sm hover:shadow-lg"
+                  }
+                `}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <div className="w-6 h-6 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Sparkles className="w-3 h-3 text-white" />
+                {selectedLocation === location.name && (
+                  <motion.div
+                    className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 -z-10"
+                    layoutId="activeLocationBackground"
+                    initial={false}
+                    transition={{
+                      type: "spring",
+                      stiffness: 300,
+                      damping: 30,
+                    }}
+                  />
+                )}
+                <div className="flex items-center gap-2 relative z-10">
+                  {location.icon}
+                  <span>{location.name}</span>
                 </div>
-                <span className="font-semibold text-sm">{benefit}</span>
-              </motion.div>
+                {selectedLocation !== location.name && (
+                  <span className="text-xs text-slate-400 block mt-1">
+                    {location.category}
+                  </span>
+                )}
+              </motion.button>
             ))}
           </motion.div>
 
-          <AnimatePresence mode="wait">
+          <div className="relative max-w-4xl mx-auto">
+            {/* Benefits section */}
             <motion.div
-              key={selectedLocation}
-              className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl cursor-pointer"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.8 }}
-              onClick={() => setShowAfter(!showAfter)} // Tap to toggle on mobile
+              className="mt-12 flex flex-wrap justify-center gap-6 max-w-4xl mx-auto mb-12"
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, delay: 0.4 }}
             >
-              {/* Before Image */}
-              <motion.div
-                className="absolute inset-0"
-                animate={{ opacity: showAfter ? 0 : 1 }}
-                transition={{ duration: 0.5 }}
-              >
-                <img
-                  src={
-                    selectedLocation === "Grocery Store"
-                      ? groceryBeforeImages[groceryIndex]
-                      : currentLocation.image
-                  }
-                  alt={currentLocation.name}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent">
-                  <div className="absolute bottom-6 left-6 text-white">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-3 h-3 rounded-full bg-red-400"></div>
-                      <span className="text-sm font-semibold uppercase tracking-wider">
-                        Before
-                      </span>
-                    </div>
-                    <h3 className="text-xl md:text-3xl font-bold mb-2">
-                      Standard Experience
-                    </h3>
+              {currentLocation.benefits.map((benefit, index) => (
+                <motion.div
+                  key={benefit}
+                  className="flex items-center gap-2 text-slate-700"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: index * 0.1 }}
+                >
+                  <div className="w-6 h-6 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Sparkles className="w-3 h-3 text-white" />
                   </div>
-                </div>
-              </motion.div>
-
-              {/* After Image */}
-              <motion.div
-                className="absolute inset-0"
-                animate={{ opacity: showAfter ? 1 : 0 }}
-                transition={{ duration: 0.5 }}
-              >
-                <img
-                  src={
-                    selectedLocation === "Grocery Store"
-                      ? groceryAfterImages[groceryIndex]
-                      : currentLocation.secondaryImage
-                  }
-                  alt={`AR-enhanced ${currentLocation.name}`}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-indigo-900/80 via-indigo-900/30 to-transparent">
-                  <div className="absolute bottom-6 left-6 text-white">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></div>
-                      <span className="text-sm font-semibold uppercase tracking-wider">
-                        After Blueprint
-                      </span>
-                    </div>
-                    <h3 className="text-xl md:text-3xl font-bold mb-2">
-                      Interactive AR Experience
-                    </h3>
-                  </div>
-                </div>
-                {/* Keep your AR overlay elements here */}
-              </motion.div>
-
-              {/* Tap instruction for mobile */}
-              <div className="lg:hidden absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-full px-3 py-2 text-xs font-semibold text-slate-700">
-                Tap to compare
-              </div>
+                  <span className="font-semibold text-sm">{benefit}</span>
+                </motion.div>
+              ))}
             </motion.div>
-          </AnimatePresence>
 
-          {/* Call to action */}
-          <motion.div
-            className="text-center mt-16"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-          >
-            <p className="text-lg text-slate-600 mb-6">
-              Ready to transform your space like these examples?
-            </p>
-            <motion.button
-              className="inline-flex items-center gap-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-semibold px-8 py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => {
-                const contactFormElement =
-                  document.getElementById("contactForm");
-                if (contactFormElement) {
-                  contactFormElement.scrollIntoView({ behavior: "smooth" });
-                }
-              }}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={selectedLocation}
+                className="relative aspect-[16/9] rounded-3xl overflow-hidden shadow-2xl cursor-pointer"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                onClick={() => setShowAfter(!showAfter)} // Tap to toggle on mobile
+              >
+                {/* Before Image */}
+                <motion.div
+                  className="absolute inset-0"
+                  animate={{ opacity: showAfter ? 0 : 1 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <img
+                    src={
+                      selectedLocation === "Grocery Store"
+                        ? groceryBeforeImages[groceryIndex]
+                        : currentLocation.image
+                    }
+                    alt={currentLocation.name}
+                    className="w-full h-full object-cover"
+                    loading="eager" // Changed from "lazy"
+                    fetchPriority="high" // Added for faster loading
+                    decoding="async" // Added for better performance
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent">
+                    <div className="absolute bottom-6 left-6 text-white">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-3 h-3 rounded-full bg-red-400"></div>
+                        <span className="text-sm font-semibold uppercase tracking-wider">
+                          Before
+                        </span>
+                      </div>
+                      <h3 className="text-xl md:text-3xl font-bold mb-2">
+                        Standard Experience
+                      </h3>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* After Image */}
+                <motion.div
+                  className="absolute inset-0"
+                  animate={{ opacity: showAfter ? 1 : 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <img
+                    src={
+                      selectedLocation === "Grocery Store"
+                        ? groceryAfterImages[groceryIndex]
+                        : currentLocation.secondaryImage
+                    }
+                    alt={`AR-enhanced ${currentLocation.name}`}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent">
+                    <div className="absolute bottom-6 left-6 text-white">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></div>
+                        <span className="text-sm font-semibold uppercase tracking-wider">
+                          After Blueprint
+                        </span>
+                      </div>
+                      <h3 className="text-xl md:text-3xl font-bold mb-2">
+                        Interactive AR Experience
+                      </h3>
+                    </div>
+                  </div>
+                  {/* Keep your AR overlay elements here */}
+                </motion.div>
+
+                {/* Slider toggle at bottom of image */}
+                <motion.div
+                  className="absolute top-4 right-4 bg-white/95 backdrop-blur-sm rounded-full p-2 shadow-xl border border-slate-200"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.8 }}
+                >
+                  <div className="flex items-center gap-4 px-4 py-2">
+                    <span
+                      className={`text-sm font-medium transition-colors ${!showAfter ? "text-slate-900" : "text-slate-400"}`}
+                    >
+                      Before
+                    </span>
+                    <motion.button
+                      className="relative w-12 h-6 bg-slate-200 rounded-full p-1 cursor-pointer"
+                      onClick={() => setShowAfter(!showAfter)}
+                      animate={{
+                        backgroundColor: showAfter ? "#6366f1" : "#e2e8f0",
+                      }}
+                    >
+                      <motion.div
+                        className="w-4 h-4 bg-white rounded-full shadow"
+                        animate={{ x: showAfter ? 24 : 0 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 300,
+                          damping: 30,
+                        }}
+                      />
+                    </motion.button>
+                    <span
+                      className={`text-sm font-medium transition-colors ${showAfter ? "text-indigo-600" : "text-slate-400"}`}
+                    >
+                      With AR
+                    </span>
+                  </div>
+                </motion.div>
+              </motion.div>
+            </AnimatePresence>
+
+            {/* Call to action */}
+            <motion.div
+              className="text-center mt-16"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.6 }}
             >
-              <Sparkles className="w-5 h-5" />
-              Start Your AR Journey
-              <ArrowRight className="w-5 h-5" />
-            </motion.button>
-          </motion.div>
+              <p className="text-lg text-slate-600 mb-6">
+                Ready to transform your space like these examples?
+              </p>
+              <motion.button
+                className="inline-flex items-center gap-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-semibold px-8 py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  const contactFormElement =
+                    document.getElementById("contactForm");
+                  if (contactFormElement) {
+                    contactFormElement.scrollIntoView({ behavior: "smooth" });
+                  }
+                }}
+              >
+                <Sparkles className="w-5 h-5" />
+                Join Pilot Program (FREE)
+                <ArrowRight className="w-5 h-5" />
+              </motion.button>
+            </motion.div>
+          </div>
         </div>
       </div>
     </section>
   );
 }
-
-// <div className="relative max-w-7xl mx-auto">
-//   <AnimatePresence mode="wait">
-//     <motion.div
-//       key={selectedLocation}
-//       className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12"
-//       initial={{ opacity: 0, y: 50 }}
-//       animate={{ opacity: 1, y: 0 }}
-//       exit={{ opacity: 0, y: -50 }}
-//       transition={{ duration: 0.8 }}
-//     >
-//       {/* Before Image */}
-//       <motion.div
-//         className="relative group"
-//         layoutId={`container-${currentLocation.id}`}
-//         transition={{ duration: 0.6 }}
-//       >
-//         <div className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl">
-//           <motion.img
-//             src={
-//               selectedLocation === "Grocery Store"
-//                 ? groceryBeforeImages[groceryIndex]
-//                 : currentLocation.image
-//             }
-//             alt={currentLocation.name}
-//             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-//             initial={{ scale: 1.1 }}
-//             animate={{ scale: 1 }}
-//             transition={{ duration: 1 }}
-//           />
-
-//           {/* Before overlay */}
-//           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent">
-//             <div className="absolute bottom-6 left-6 text-white">
-//               <div className="flex items-center gap-2 mb-2">
-//                 <div className="w-3 h-3 rounded-full bg-red-400"></div>
-//                 <span className="text-sm font-semibold uppercase tracking-wider">
-//                   Before
-//                 </span>
-//               </div>
-//               <h3 className="text-2xl md:text-3xl font-bold mb-2">
-//                 Standard Experience
-//               </h3>
-//               <p className="text-white/90 text-sm">
-//                 Traditional {currentLocation.category.toLowerCase()}
-//               </p>
-//             </div>
-//           </div>
-//         </div>
-//       </motion.div>
-
-//       {/* After Image */}
-//       <motion.div
-//         className="relative group"
-//         layoutId={`container-ar-${currentLocation.id}`}
-//         transition={{ duration: 0.6 }}
-//       >
-//         <div className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl">
-//           <motion.img
-//             src={
-//               selectedLocation === "Grocery Store"
-//                 ? groceryAfterImages[groceryIndex]
-//                 : currentLocation.secondaryImage
-//             }
-//             alt={`AR-enhanced ${currentLocation.name}`}
-//             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-//             initial={{ scale: 1.1 }}
-//             animate={{ scale: 1 }}
-//             transition={{ duration: 1 }}
-//           />
-
-//           {/* After overlay */}
-//           <div className="absolute inset-0 bg-gradient-to-t from-indigo-900/80 via-indigo-900/30 to-transparent">
-//             <div className="absolute bottom-6 left-6 text-white">
-//               <div className="flex items-center gap-2 mb-2">
-//                 <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></div>
-//                 <span className="text-sm font-semibold uppercase tracking-wider">
-//                   After Blueprint
-//                 </span>
-//               </div>
-//               <h3 className="text-2xl md:text-3xl font-bold mb-2">
-//                 Interactive AR Experience
-//               </h3>
-//               <p className="text-white/90 text-sm mb-3">
-//                 {currentLocation.description}
-//               </p>
-//             </div>
-//           </div>
-
-//           {/* Enhanced AR elements overlay */}
-//           <div className="absolute inset-0 pointer-events-none">
-//             <motion.div
-//               className="absolute top-[25%] right-[20%] bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-xl border border-indigo-100 transform -rotate-2"
-//               initial={{ opacity: 0, y: 30, scale: 0.8 }}
-//               animate={{ opacity: 1, y: 0, scale: 1 }}
-//               transition={{ delay: 0.6, duration: 0.8 }}
-//             >
-//               <div className="flex items-center gap-2 mb-2">
-//                 <Star className="w-4 h-4 text-yellow-500" />
-//                 <span className="text-xs font-semibold text-slate-600">
-//                   Live Rating
-//                 </span>
-//               </div>
-//               <div className="text-lg font-black text-slate-900">
-//                 4.8 ⭐⭐⭐⭐⭐
-//               </div>
-//             </motion.div>
-
-//             <motion.div
-//               className="absolute top-[45%] left-[15%] bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-xl border border-indigo-100 transform rotate-1"
-//               initial={{ opacity: 0, y: 30, scale: 0.8 }}
-//               animate={{ opacity: 1, y: 0, scale: 1 }}
-//               transition={{ delay: 0.8, duration: 0.8 }}
-//             >
-//               <div className="flex items-center gap-2 mb-2">
-//                 <Eye className="w-4 h-4 text-indigo-500" />
-//                 <span className="text-xs font-semibold text-slate-600">
-//                   Interactive Info
-//                 </span>
-//               </div>
-//               <div className="text-sm font-bold text-slate-900">
-//                 Tap to explore
-//               </div>
-//             </motion.div>
-
-//             <motion.div
-//               className="absolute bottom-[20%] right-[15%] bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl px-3 py-2 shadow-lg transform rotate-3"
-//               initial={{ opacity: 0, scale: 0 }}
-//               animate={{ opacity: 1, scale: 1 }}
-//               transition={{ delay: 1, duration: 0.6 }}
-//             >
-//               <div className="text-xs font-bold">+200% Engagement</div>
-//             </motion.div>
-//           </div>
-//         </div>
-//       </motion.div>
-//     </motion.div>
-//   </AnimatePresence>

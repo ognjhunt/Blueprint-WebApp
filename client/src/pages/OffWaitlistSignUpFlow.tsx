@@ -1111,6 +1111,8 @@ export default function OffWaitlistSignUpFlow() {
           </Button>
         </div>
 
+        {/* Comment out from here */}
+        {/*
         <div className="flex items-center w-full">
           <div className="flex-grow border-t border-gray-300"></div>
           <span className="px-2 text-gray-500 text-sm">OR</span>
@@ -1132,6 +1134,8 @@ export default function OffWaitlistSignUpFlow() {
             onError={() => alert("Google Sign-In Failed")}
           />
         </GoogleOAuthProvider>
+        */}
+        {/* Comment out to here */}
       </div>
     </div>
   );

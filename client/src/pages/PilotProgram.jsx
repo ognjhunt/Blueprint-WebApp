@@ -3,7 +3,7 @@
 // including its benefits, timeline, ideal candidates, and FAQs.
 // It also includes a call-to-action to join the waitlist via a contact form.
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import FadeIn from "@/components/FadeIn";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ import {
   ClipboardList,
   CalendarCheck,
   CheckCircle2,
+  UtensilsCrossed,
   Clock,
   DollarSign,
   Award,
@@ -50,14 +51,1065 @@ import {
 } from "lucide-react";
 
 /**
+ * Mobile-specific benefits carousel component
+ */
+function MobileBenefitsCarousel({ benefits }) {
+  const [currentBenefit, setCurrentBenefit] = useState(0);
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+
+  const currentBenefitData = benefits[currentBenefit];
+
+  // Handle touch events for swipe
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe && currentBenefit < benefits.length - 1) {
+      setCurrentBenefit(currentBenefit + 1);
+    }
+    if (isRightSwipe && currentBenefit > 0) {
+      setCurrentBenefit(currentBenefit - 1);
+    }
+  };
+
+  return (
+    <div className="relative px-4">
+      {/* Compact Header */}
+      <motion.div
+        className="text-center mb-8"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6 }}
+      >
+        <h2 className="text-2xl md:text-3xl font-black mb-3 text-slate-900">
+          Why Join the Pilot Program?
+        </h2>
+        <p className="text-sm text-slate-600 leading-relaxed">
+          Experience the future of customer engagement with zero risk
+        </p>
+      </motion.div>
+
+      {/* Benefit Counter */}
+      <div className="text-center mb-4">
+        <span className="text-sm font-medium text-slate-500">
+          Benefit {currentBenefit + 1} of {benefits.length}
+        </span>
+      </div>
+
+      {/* Benefit Card */}
+      <div
+        className="relative overflow-hidden"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentBenefit}
+            initial={{ x: 300, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -300, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          >
+            <Card className="bg-white border-slate-200 shadow-xl">
+              <CardContent className="p-6 text-center">
+                {/* Icon */}
+                <div className="flex justify-center mb-6">
+                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center shadow-lg">
+                    {React.cloneElement(currentBenefitData.icon, {
+                      className: "w-10 h-10 text-indigo-600",
+                    })}
+                  </div>
+                </div>
+
+                {/* Highlight Badge */}
+                <Badge className="bg-green-100 text-green-700 border-green-200 text-sm mb-4 px-4 py-2 font-bold">
+                  ✨ {currentBenefitData.highlight}
+                </Badge>
+
+                {/* Title */}
+                <h3 className="text-2xl font-bold mb-4 text-slate-900">
+                  {currentBenefitData.title}
+                </h3>
+
+                {/* Description */}
+                <p className="text-slate-600 leading-relaxed text-base mb-6">
+                  {currentBenefitData.description}
+                </p>
+
+                {/* Key Points */}
+                <div className="bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200 rounded-xl p-4">
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    <h4 className="font-bold text-slate-900 mb-3 text-sm">
+                      What This Means For You:
+                    </h4>
+                    <div className="grid grid-cols-1 gap-2 text-xs">
+                      {getBenefitDetails(currentBenefitData.title).map(
+                        (detail, idx) => (
+                          <motion.div
+                            key={idx}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.3 + idx * 0.1 }}
+                            className="flex items-center gap-2"
+                          >
+                            <CheckCircle2 className="w-3 h-3 text-green-600 flex-shrink-0" />
+                            <span className="text-slate-700">{detail}</span>
+                          </motion.div>
+                        ),
+                      )}
+                    </div>
+                  </motion.div>
+                </div>
+
+                {/* CTA for first benefit */}
+                {currentBenefit === 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className="mt-6"
+                  >
+                    <Button
+                      className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-4 font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+                      onClick={() => {
+                        // Scroll to contact form or show pilot toast
+                        const contactFormElement =
+                          document.getElementById("pilot-waitlist");
+                        if (contactFormElement) {
+                          contactFormElement.scrollIntoView({
+                            behavior: "smooth",
+                          });
+                        }
+                      }}
+                    >
+                      Reserve Your Free Pilot Spot
+                      <ArrowRight className="w-5 h-5 ml-2" />
+                    </Button>
+                  </motion.div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* Navigation Controls */}
+      <div className="flex justify-between items-center mt-6">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            currentBenefit > 0 && setCurrentBenefit(currentBenefit - 1)
+          }
+          disabled={currentBenefit === 0}
+          className="flex items-center gap-2 disabled:opacity-50"
+        >
+          <ChevronRight className="w-4 h-4 rotate-180" />
+          Previous
+        </Button>
+
+        <div className="flex gap-1">
+          {benefits.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentBenefit(idx)}
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                idx === currentBenefit ? "bg-indigo-600 w-4" : "bg-slate-300"
+              }`}
+            />
+          ))}
+        </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            currentBenefit < benefits.length - 1 &&
+            setCurrentBenefit(currentBenefit + 1)
+          }
+          disabled={currentBenefit === benefits.length - 1}
+          className="flex items-center gap-2 disabled:opacity-50"
+        >
+          Next
+          <ChevronRight className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {/* Swipe Hint */}
+      {currentBenefit === 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1 }}
+          className="text-center mt-4"
+        >
+          <p className="text-xs text-slate-500">
+            👆 Swipe left/right to see all benefits
+          </p>
+        </motion.div>
+      )}
+
+      {/* Quick Access Icons */}
+      <motion.div
+        className="mt-8 bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200 rounded-xl p-4"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6, delay: 0.3 }}
+      >
+        <h4 className="font-bold text-slate-900 mb-3 text-sm text-center">
+          All Benefits at a Glance
+        </h4>
+        <div className="flex justify-center gap-3">
+          {benefits.map((benefit, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentBenefit(idx)}
+              className={`p-3 rounded-xl transition-all ${
+                idx === currentBenefit
+                  ? "bg-indigo-600 text-white shadow-lg scale-110"
+                  : "bg-white text-slate-600 border border-slate-200 hover:border-indigo-200"
+              }`}
+              title={benefit.title}
+            >
+              {React.cloneElement(benefit.icon, {
+                className: "w-5 h-5",
+              })}
+            </button>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Final CTA */}
+      <motion.div
+        className="mt-6 text-center"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6, delay: 0.4 }}
+      >
+        <p className="text-sm text-slate-600 mb-3">
+          Ready to experience the future of customer engagement?
+        </p>
+        <div className="flex flex-col gap-2">
+          <Button
+            className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-700 hover:to-violet-700 px-6 py-3 text-sm font-semibold"
+            onClick={() => {
+              const contactFormElement =
+                document.getElementById("pilot-waitlist");
+              if (contactFormElement) {
+                contactFormElement.scrollIntoView({ behavior: "smooth" });
+              }
+            }}
+          >
+            Start Your Free 2-Week Program
+            <ArrowRight className="ml-2 w-4 h-4" />
+          </Button>
+          <p className="text-xs text-slate-500">No credit card required</p>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// Helper function to get benefit details
+function getBenefitDetails(benefitTitle) {
+  const details = {
+    "Zero Risk": [
+      "No upfront costs or commitments",
+      "Test before you invest",
+      "Full support throughout trial",
+      "No hidden fees or surprises",
+    ],
+    "Premium Hardware": [
+      "Apple Vision Pro demos included",
+      "Latest AR technology access",
+      "Professional setup & training",
+      "Hardware experts on-site",
+    ],
+    "Real Analytics": [
+      "Customer engagement metrics",
+      "ROI measurement tools",
+      "Actionable insights provided",
+      "Performance optimization tips",
+    ],
+    "Future-Ready": [
+      "First-mover advantage",
+      "Next-gen customer experiences",
+      "Competitive differentiation",
+      "Innovation leadership",
+    ],
+  };
+
+  return (
+    details[benefitTitle] || [
+      "Enhanced customer experience",
+      "Business growth opportunities",
+      "Technology advancement",
+      "Competitive advantage",
+    ]
+  );
+}
+
+/**
+ * Mobile-specific business types carousel component
+ */
+function MobileBusinessTypesCarousel({ idealFor }) {
+  const [currentType, setCurrentType] = useState(0);
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+
+  const currentBusiness = idealFor[currentType];
+
+  // Handle touch events for swipe
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe && currentType < idealFor.length - 1) {
+      setCurrentType(currentType + 1);
+    }
+    if (isRightSwipe && currentType > 0) {
+      setCurrentType(currentType - 1);
+    }
+  };
+
+  return (
+    <div className="relative px-4">
+      {/* Compact Header */}
+      <motion.div
+        className="text-center mb-8"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6 }}
+      >
+        <h2 className="text-2xl md:text-3xl font-black mb-3 text-slate-900">
+          Perfect For Forward-Thinking Businesses
+        </h2>
+        <p className="text-sm text-slate-600 leading-relaxed">
+          If you have a physical space, Blueprint is for you
+        </p>
+      </motion.div>
+
+      {/* Business Type Counter */}
+      <div className="text-center mb-4">
+        <span className="text-sm font-medium text-slate-500">
+          {currentType + 1} of {idealFor.length} Business Types
+        </span>
+      </div>
+
+      {/* Business Type Card */}
+      <div
+        className="relative overflow-hidden"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentType}
+            initial={{ x: 300, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -300, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          >
+            <Card className="bg-white border-slate-200 shadow-xl">
+              <CardContent className="p-6 text-center">
+                {/* Icon */}
+                <div className="flex justify-center mb-6">
+                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center shadow-lg">
+                    {React.cloneElement(currentBusiness.icon, {
+                      className: "w-10 h-10 text-indigo-600",
+                    })}
+                  </div>
+                </div>
+
+                {/* Title */}
+                <h3 className="text-2xl font-bold mb-4 text-slate-900">
+                  {currentBusiness.title}
+                </h3>
+
+                {/* Description */}
+                <p className="text-slate-600 leading-relaxed text-base mb-6">
+                  {currentBusiness.description}
+                </p>
+
+                {/* Use Case Examples */}
+                <div className="bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200 rounded-xl p-4">
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    <h4 className="font-bold text-slate-900 mb-3 text-sm">
+                      Perfect For:
+                    </h4>
+                    <div className="grid grid-cols-1 gap-2 text-xs">
+                      {getUseCaseExamples(currentBusiness.title).map(
+                        (useCase, idx) => (
+                          <motion.div
+                            key={idx}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.3 + idx * 0.1 }}
+                            className="flex items-center gap-2"
+                          >
+                            <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>
+                            <span className="text-slate-700">{useCase}</span>
+                          </motion.div>
+                        ),
+                      )}
+                    </div>
+                  </motion.div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* Navigation Controls */}
+      <div className="flex justify-between items-center mt-6">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => currentType > 0 && setCurrentType(currentType - 1)}
+          disabled={currentType === 0}
+          className="flex items-center gap-2 disabled:opacity-50"
+        >
+          <ChevronRight className="w-4 h-4 rotate-180" />
+          Previous
+        </Button>
+
+        <div className="flex gap-1">
+          {idealFor.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentType(idx)}
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                idx === currentType ? "bg-indigo-600 w-4" : "bg-slate-300"
+              }`}
+            />
+          ))}
+        </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            currentType < idealFor.length - 1 && setCurrentType(currentType + 1)
+          }
+          disabled={currentType === idealFor.length - 1}
+          className="flex items-center gap-2 disabled:opacity-50"
+        >
+          Next
+          <ChevronRight className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {/* Swipe Hint */}
+      {currentType === 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1 }}
+          className="text-center mt-4"
+        >
+          <p className="text-xs text-slate-500">
+            👆 Swipe left/right to see more business types
+          </p>
+        </motion.div>
+      )}
+
+      {/* Quick Access Buttons */}
+      <motion.div
+        className="mt-8 bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200 rounded-xl p-4"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6, delay: 0.3 }}
+      >
+        <h4 className="font-bold text-slate-900 mb-3 text-sm text-center">
+          Quick Access
+        </h4>
+        <div className="grid grid-cols-2 gap-2">
+          {idealFor.map((business, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentType(idx)}
+              className={`p-2 rounded-lg text-xs font-medium transition-all flex items-center gap-2 ${
+                idx === currentType
+                  ? "bg-indigo-600 text-white"
+                  : "bg-white text-slate-600 border border-slate-200 hover:border-indigo-200"
+              }`}
+            >
+              {React.cloneElement(business.icon, {
+                className: "w-4 h-4 flex-shrink-0",
+              })}
+              <span className="truncate">{business.title.split(" ")[0]}</span>
+            </button>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Compact Summary */}
+      <motion.div
+        className="mt-6 text-center"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6, delay: 0.4 }}
+      >
+        <p className="text-sm text-slate-600 mb-3">
+          Ready to transform your space?
+        </p>
+        <Button
+          size="sm"
+          className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-700 hover:to-violet-700 px-6 py-2 text-sm"
+          onClick={() => {
+            // Scroll to contact form or pilot signup
+            const contactFormElement =
+              document.getElementById("pilot-waitlist");
+            if (contactFormElement) {
+              contactFormElement.scrollIntoView({ behavior: "smooth" });
+            }
+          }}
+        >
+          Start Free Pilot Program
+          <ArrowRight className="ml-2 w-4 h-4" />
+        </Button>
+      </motion.div>
+    </div>
+  );
+}
+
+// Helper function to get use case examples for each business type
+function getUseCaseExamples(businessType) {
+  const examples = {
+    "Retail & Grocery Stores": [
+      "Product information on demand",
+      "Virtual try-on experiences",
+      "Interactive shopping lists",
+      "Promotional offers",
+    ],
+    "Museums & Galleries": [
+      "Immersive historical tours",
+      "Interactive art experiences",
+      "Multi-language guides",
+      "Educational content",
+    ],
+    "Restaurants & Cafes": [
+      "3D menu visualization",
+      "Nutritional information",
+      "Order customization",
+      "Table service enhancement",
+    ],
+    "Real Estate & Showrooms": [
+      "Virtual property staging",
+      "Product customization",
+      "Space visualization",
+      "Feature highlights",
+    ],
+  };
+
+  return (
+    examples[businessType] || [
+      "Interactive experiences",
+      "Customer engagement",
+      "Information access",
+      "Enhanced service",
+    ]
+  );
+}
+
+/**
+ * Mobile-specific FAQ carousel component
+ */
+function MobileFAQCarousel({ faqs }) {
+  const [currentFaq, setCurrentFaq] = useState(0);
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+
+  const currentFaqData = faqs[currentFaq];
+
+  // Handle touch events for swipe
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe && currentFaq < faqs.length - 1) {
+      setCurrentFaq(currentFaq + 1);
+    }
+    if (isRightSwipe && currentFaq > 0) {
+      setCurrentFaq(currentFaq - 1);
+    }
+  };
+
+  return (
+    <div className="relative">
+      {/* Compact Header */}
+      <motion.div
+        className="text-center mb-6"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6 }}
+      >
+        <h2 className="text-2xl md:text-3xl font-black mb-3 text-slate-900">
+          Frequently Asked Questions
+        </h2>
+        <p className="text-sm text-slate-600">
+          Got questions? We've got answers.
+        </p>
+      </motion.div>
+
+      {/* FAQ Counter */}
+      <div className="text-center mb-4">
+        <span className="text-sm font-medium text-slate-500">
+          Question {currentFaq + 1} of {faqs.length}
+        </span>
+      </div>
+
+      {/* FAQ Card */}
+      <div
+        className="relative overflow-hidden"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentFaq}
+            initial={{ x: 300, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -300, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          >
+            <Card className="bg-white border-slate-200 shadow-xl">
+              <CardContent className="p-6">
+                {/* Question */}
+                <div className="mb-4">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-bold text-sm">Q</span>
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900 leading-tight">
+                      {currentFaqData.q}
+                    </h3>
+                  </div>
+                </div>
+
+                {/* Answer */}
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-center flex-shrink-0">
+                    <span className="text-white font-bold text-sm">A</span>
+                  </div>
+                  <div className="flex-1">
+                    <motion.p
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                      className="text-slate-600 leading-relaxed text-sm"
+                    >
+                      {currentFaqData.a}
+                    </motion.p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* Navigation Controls */}
+      <div className="flex justify-between items-center mt-6">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => currentFaq > 0 && setCurrentFaq(currentFaq - 1)}
+          disabled={currentFaq === 0}
+          className="flex items-center gap-2 disabled:opacity-50"
+        >
+          <ChevronRight className="w-4 h-4 rotate-180" />
+          Previous
+        </Button>
+
+        <div className="flex gap-1">
+          {faqs.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentFaq(idx)}
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                idx === currentFaq ? "bg-indigo-600 w-4" : "bg-slate-300"
+              }`}
+            />
+          ))}
+        </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            currentFaq < faqs.length - 1 && setCurrentFaq(currentFaq + 1)
+          }
+          disabled={currentFaq === faqs.length - 1}
+          className="flex items-center gap-2 disabled:opacity-50"
+        >
+          Next
+          <ChevronRight className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {/* Swipe Hint */}
+      {currentFaq === 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1 }}
+          className="text-center mt-4"
+        >
+          <p className="text-xs text-slate-500">
+            👆 Swipe left/right to see more questions
+          </p>
+        </motion.div>
+      )}
+
+      {/* Quick Jump to Popular Questions */}
+      <motion.div
+        className="mt-8 bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200 rounded-xl p-4"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6, delay: 0.3 }}
+      >
+        <h4 className="font-bold text-slate-900 mb-3 text-sm text-center">
+          Popular Questions
+        </h4>
+        <div className="flex flex-wrap gap-2 justify-center">
+          {[0, 1, 2, 3].map((idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentFaq(idx)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                idx === currentFaq
+                  ? "bg-indigo-600 text-white"
+                  : "bg-white text-slate-600 border border-slate-200 hover:border-indigo-200"
+              }`}
+            >
+              Q{idx + 1}
+            </button>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Contact CTA */}
+      <motion.div
+        className="mt-6 text-center"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6, delay: 0.4 }}
+      >
+        <p className="text-sm text-slate-600 mb-3">Still have questions?</p>
+        <div className="flex flex-col gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-slate-300 text-slate-700 hover:bg-slate-50 text-sm"
+            asChild
+          >
+            <a href="mailto:nijel@tryblueprint.io">
+              <Send className="mr-2 w-4 h-4" />
+              Email Us
+            </a>
+          </Button>
+          <Button
+            size="sm"
+            className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-700 hover:to-violet-700 text-sm"
+            asChild
+          >
+            <a href="https://calendly.com/blueprintar/30min">
+              Schedule a Call
+              <ArrowRight className="ml-2 w-4 h-4" />
+            </a>
+          </Button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+/**
+ * Mobile-specific timeline carousel component
+ */
+function MobileTimelineCarousel({ timeline }) {
+  const [currentStep, setCurrentStep] = useState(0);
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+
+  // Handle touch events for swipe
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe && currentStep < timeline.length - 1) {
+      setCurrentStep(currentStep + 1);
+    }
+    if (isRightSwipe && currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const nextStep = () => {
+    if (currentStep < timeline.length - 1) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const prevStep = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const step = timeline[currentStep];
+
+  return (
+    <div className="relative">
+      {/* Progress Bar */}
+      <div className="flex justify-center mb-8">
+        <div className="flex items-center gap-2">
+          {timeline.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentStep(idx)}
+              className={`h-2 rounded-full transition-all duration-300 ${
+                idx === currentStep
+                  ? `w-8 bg-gradient-to-r ${step.color}`
+                  : idx < currentStep
+                    ? "w-2 bg-green-400"
+                    : "w-2 bg-slate-300"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Step Counter */}
+      <div className="text-center mb-6">
+        <span className="text-sm font-medium text-slate-500">
+          Step {currentStep + 1} of {timeline.length}
+        </span>
+      </div>
+
+      {/* Card Container */}
+      <div
+        className="relative overflow-hidden"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentStep}
+            initial={{ x: 300, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -300, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          >
+            <Card className="bg-white border-slate-200 shadow-xl">
+              <CardContent className="p-6">
+                {/* Icon */}
+                <div className="flex justify-center mb-6">
+                  <div
+                    className={`w-16 h-16 rounded-full bg-gradient-to-br ${step.color} flex items-center justify-center shadow-lg text-white`}
+                  >
+                    {React.cloneElement(step.icon, {
+                      className: "w-7 h-7",
+                    })}
+                  </div>
+                </div>
+
+                {/* Header */}
+                <div className="text-center mb-6">
+                  <h3 className="text-2xl font-bold mb-2 text-slate-900">
+                    {step.title}
+                  </h3>
+                  <p className="text-indigo-600 font-semibold text-lg">
+                    {step.subtitle}
+                  </p>
+                </div>
+
+                {/* Description */}
+                <p className="text-slate-600 mb-6 text-center leading-relaxed">
+                  {step.description}
+                </p>
+
+                {/* Features List */}
+                <div className="space-y-3 mb-6">
+                  {step.details.map((detail, didx) => (
+                    <motion.div
+                      key={didx}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.2 + didx * 0.1 }}
+                      className="flex items-start gap-3"
+                    >
+                      <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <span className="text-slate-700">{detail}</span>
+                    </motion.div>
+                  ))}
+                </div>
+
+                {/* Benefit Badge */}
+                <div className="text-center">
+                  <Badge className="bg-violet-100 text-violet-700 border-violet-200 px-4 py-2 text-sm font-semibold">
+                    ✨ {step.benefit}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* Navigation Buttons */}
+      <div className="flex justify-between items-center mt-6">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={prevStep}
+          disabled={currentStep === 0}
+          className="flex items-center gap-2 disabled:opacity-50"
+        >
+          <ChevronRight className="w-4 h-4 rotate-180" />
+          Previous
+        </Button>
+
+        <div className="flex gap-1">
+          {timeline.map((_, idx) => (
+            <div
+              key={idx}
+              className={`w-2 h-2 rounded-full transition-colors ${
+                idx === currentStep ? "bg-indigo-600" : "bg-slate-300"
+              }`}
+            />
+          ))}
+        </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={nextStep}
+          disabled={currentStep === timeline.length - 1}
+          className="flex items-center gap-2 disabled:opacity-50"
+        >
+          Next
+          <ChevronRight className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {/* Swipe Hint */}
+      {currentStep === 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1 }}
+          className="text-center mt-4"
+        >
+          <p className="text-xs text-slate-500">
+            👆 Swipe left/right or use buttons to navigate
+          </p>
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
+/**
  * The PilotProgram component renders a page with detailed information about the Blueprint pilot program.
  * It showcases the benefits, timeline, ideal candidates, FAQs, and includes a contact form to join the waitlist.
  *
  * @returns {JSX.Element} The rendered PilotProgram page.
  */
 export default function PilotProgram() {
+  const videoRef = useRef(null);
   const [activeTab, setActiveTab] = useState("what");
   const [selectedFaq, setSelectedFaq] = useState(null);
+  const industryTypes = [
+    { icon: "🏪", name: "Retail" },
+    { icon: "🏛️", name: "Museum" },
+    { icon: "🎨", name: "Gallery" },
+    { icon: "🏢", name: "Showroom" },
+    { icon: "🏨", name: "Hospitality" },
+  ];
+
+  const handleWatchDemo = () => {
+    const videoElement = videoRef.current;
+    if (videoElement) {
+      // Just play the video, no scrolling needed
+      videoElement.play().catch((error) => {
+        console.log("Auto-play prevented:", error);
+        // Some browsers prevent autoplay, so this is expected
+      });
+    }
+  };
 
   /**
    * Displays a custom toast notification prompting the user to check their email for a pilot invitation.
@@ -102,7 +1154,7 @@ export default function PilotProgram() {
               }}
               className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-200 hover:scale-105"
             >
-              Join the Waitlist Instead
+              Sign up for the Pilot Program
             </button>
             <button
               onClick={() => toast.dismiss(t)}
@@ -140,7 +1192,7 @@ export default function PilotProgram() {
       title: "Week 1",
       subtitle: "Finalize Design",
       description:
-        "Our AI generates custom AR experiences, and we work with you to finalize the design and smart triggers.",
+        "Our AI helps our designers create custom AR experiences, and we work with you to finalize the design and smart triggers.",
       color: "from-indigo-500 to-violet-500",
       benefit: "Fully customized for your business",
       details: [
@@ -165,7 +1217,7 @@ export default function PilotProgram() {
   const idealFor = [
     {
       icon: <Store className="w-8 h-8" />,
-      title: "Retail Stores",
+      title: "Retail & Grocery Stores",
       description:
         "Transform shopping with interactive product demos and virtual try-ons",
     },
@@ -176,16 +1228,16 @@ export default function PilotProgram() {
         "Bring exhibits to life with immersive storytelling and digital guides",
     },
     {
-      icon: <Users className="w-8 h-8" />,
-      title: "Showrooms",
+      icon: <UtensilsCrossed className="w-8 h-8" />,
+      title: "Restaurants & Cafes",
       description:
-        "Let customers visualize products in their space before buying",
+        "Interactive menus, 3D food visualization, and tableside ordering experiences",
     },
     {
-      icon: <Award className="w-8 h-8" />,
-      title: "Event Spaces",
+      icon: <Users className="w-8 h-8" />,
+      title: "Real Estate & Showrooms",
       description:
-        "Create unforgettable experiences with interactive AR installations",
+        "Let customers visualize products in their space before buying",
     },
   ];
 
@@ -243,7 +1295,7 @@ export default function PilotProgram() {
   const faqs = [
     {
       q: "What exactly is Blueprint?",
-      a: "Blueprint is the easiest way to create custom augmented reality experiences for physical spaces. Using AI and spatial computing, we transform your venue into an interactive digital environment. Customers access these experiences through their smart glasses - no app download required. Think of it as adding a smart, invisible layer to your space that enhances customer engagement, provides information, and creates memorable experiences.",
+      a: "Blueprint is the easiest way to create custom augmented reality experiences for physical spaces. Using AI and spatial computing, we transform your venue into an interactive digital environment. We call these 'Blueprints'. Customers access Blueprints through their smart glasses - no app download required. Think of it as adding a smart, invisible layer to your space that enhances customer engagement, provides information, and creates memorable experiences.",
     },
     {
       q: "What does the pilot program cost?",
@@ -299,13 +1351,19 @@ export default function PilotProgram() {
               {/* What Blueprint is - Crystal Clear */}
               <Badge className="inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 border-indigo-200 mb-6 px-4 py-2">
                 <Rocket className="w-4 h-4" />
-                Limited Pilot Program - 13 Spots Left
+                Limited Pilot Program
               </Badge>
 
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-6 leading-tight text-slate-900">
-                Turn Your Physical Space Into an
+              {/* <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-6 leading-tight text-slate-900">
+                Turn Your Physical Space
                 <span className="block bg-gradient-to-r from-indigo-600 via-violet-600 to-pink-600 bg-clip-text text-transparent">
-                  Interactive AR Experience
+                  Into an Interactive AR Experience
+                </span>
+              </h1> */}
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-6 leading-tight text-slate-900">
+                Turn Your Physical Space{" "}
+                <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-pink-600 bg-clip-text text-transparent">
+                  Into an Interactive AR Experience
                 </span>
               </h1>
 
@@ -352,18 +1410,30 @@ export default function PilotProgram() {
                   size="lg"
                   variant="outline"
                   className="border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 px-6 sm:px-8 py-6 text-base sm:text-lg"
-                  asChild
+                  onClick={handleWatchDemo} // Add this
+                  // Remove the asChild prop and anchor tag
                 >
-                  <a href="#demo-video">
-                    <Video className="mr-2 w-5 h-5" />
-                    Watch 2-Min Demo
-                  </a>
+                  <Video className="mr-2 w-5 h-5" />
+                  Watch 2-Min Demo
                 </Button>
               </div>
 
               {/* Social proof */}
               <div className="flex items-center justify-center lg:justify-start gap-3 md:gap-4">
                 <div className="flex -space-x-1 md:-space-x-2">
+                  {industryTypes.map((industry, i) => (
+                    <div
+                      key={i}
+                      className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-white bg-white flex items-center justify-center shadow-lg"
+                      title={industry.name}
+                    >
+                      <span className="text-lg md:text-xl">
+                        {industry.icon}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {/* <div className="flex -space-x-1 md:-space-x-2">
                   {[1, 2, 3, 4].map((i) => (
                     <div
                       key={i}
@@ -372,11 +1442,9 @@ export default function PilotProgram() {
                       {String.fromCharCode(64 + i)}
                     </div>
                   ))}
-                </div>
+                </div> */}
                 <p className="text-xs md:text-sm text-slate-600">
-                  <span className="font-bold text-slate-900">
-                    47 businesses
-                  </span>{" "}
+                  <span className="font-bold text-slate-900">6 businesses</span>{" "}
                   <span className="hidden sm:inline">
                     transformed this month
                   </span>
@@ -388,6 +1456,7 @@ export default function PilotProgram() {
             {/* Video Demo */}
             <FadeIn
               yOffset={20}
+              a
               delay={0.2}
               className="flex-1 w-full max-w-2xl lg:max-w-none"
               id="demo-video"
@@ -395,14 +1464,23 @@ export default function PilotProgram() {
               <div className="relative rounded-2xl overflow-hidden shadow-2xl">
                 <div className="absolute inset-0 bg-gradient-to-tr from-indigo-100/20 to-violet-100/20 z-10 pointer-events-none" />
                 <video
+                  ref={videoRef} // Add this ref
                   className="w-full aspect-video object-cover"
-                  src="/videos/Pilot Program.mp4"
+                  src="/videos/blueprint-website-demo2.mp4"
                   controls
                   preload="metadata"
                 />
               </div>
+              {/* <iframe
+                className="w-full aspect-video"
+                src="https://www.youtube.com/embed/OKaamZtSxtw?rel=0&modestbranding=1&showinfo=0&controls=1"
+                title="Blueprint Website Demo"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              /> */}
               <p className="text-center text-sm text-slate-600 mt-4">
-                See Blueprint in action at a retail store
+                See Blueprint in action at an art museum
               </p>
             </FadeIn>
           </div>
@@ -412,39 +1490,49 @@ export default function PilotProgram() {
       {/* WHO IT'S FOR - New Section */}
       <section className="py-16 md:py-24 relative bg-gradient-to-b from-indigo-50/20 to-slate-50">
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
-          <FadeIn yOffset={20} delay={0.1} className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-slate-900">
-              Perfect For Forward-Thinking Businesses
-            </h2>
-            <p className="text-lg text-slate-600 max-w-3xl mx-auto">
-              If you have a physical space and want to create unforgettable
-              customer experiences, Blueprint is for you
-            </p>
-          </FadeIn>
+          {/* MOBILE VERSION */}
+          <div className="block md:hidden">
+            <MobileBusinessTypesCarousel idealFor={idealFor} />
+          </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-            {idealFor.map((item, idx) => (
-              <FadeIn
-                key={idx}
-                yOffset={20}
-                delay={idx * 0.1}
-                className="group"
-              >
-                <Card className="h-full bg-white/80 border-slate-200 hover:bg-white hover:border-indigo-300 hover:shadow-xl transition-all duration-300">
-                  <CardContent className="p-4 md:p-6 text-center">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center group-hover:scale-110 transition-transform">
-                      {React.cloneElement(item.icon, {
-                        className: "w-8 h-8 text-indigo-600",
-                      })}
-                    </div>
-                    <h3 className="text-xl font-bold mb-2 text-slate-900">
-                      {item.title}
-                    </h3>
-                    <p className="text-slate-600 text-sm">{item.description}</p>
-                  </CardContent>
-                </Card>
-              </FadeIn>
-            ))}
+          {/* DESKTOP VERSION */}
+          <div className="hidden md:block">
+            <FadeIn yOffset={20} delay={0.1} className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4 text-slate-900">
+                Perfect For Forward-Thinking Businesses
+              </h2>
+              <p className="text-lg text-slate-600 max-w-3xl mx-auto">
+                If you have a physical space and want to create unforgettable
+                customer experiences, Blueprint is for you
+              </p>
+            </FadeIn>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+              {idealFor.map((item, idx) => (
+                <FadeIn
+                  key={idx}
+                  yOffset={20}
+                  delay={idx * 0.1}
+                  className="group"
+                >
+                  <Card className="h-full bg-white/80 border-slate-200 hover:bg-white hover:border-indigo-300 hover:shadow-xl transition-all duration-300">
+                    <CardContent className="p-4 md:p-6 text-center">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        {React.cloneElement(item.icon, {
+                          className: "w-8 h-8 text-indigo-600",
+                        })}
+                      </div>
+                      <h3 className="text-xl font-bold mb-2 text-slate-900">
+                        {item.title}
+                      </h3>
+                      <p className="text-slate-600 text-sm">
+                        {item.description}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </FadeIn>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -462,14 +1550,14 @@ export default function PilotProgram() {
             },
             {
               label: "Time to Launch",
-              value: "2 weeks",
+              value: "< 2 weeks",
               icon: <Clock className="w-6 h-6" />,
               description: "From scan to live experience",
               gradient: "from-blue-500 to-cyan-500",
             },
             {
               label: "Setup Time",
-              value: "< 1 hour",
+              value: "30-60 mins",
               icon: <Zap className="w-6 h-6" />,
               description: "Quick venue scanning process",
               gradient: "from-violet-500 to-purple-500",
@@ -510,10 +1598,14 @@ export default function PilotProgram() {
         </div>
       </section>
 
-      {/* TIMELINE - Enhanced with Better Spacing */}
+      {/* TIMELINE - Mobile Carousel + Desktop Grid */}
       <section className="py-16 md:py-24 bg-gradient-to-b from-slate-50 to-indigo-50/30">
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
-          <FadeIn yOffset={20} delay={0.1} className="text-center mb-20">
+          <FadeIn
+            yOffset={20}
+            delay={0.1}
+            className="text-center mb-12 md:mb-20"
+          >
             <Badge className="inline-flex items-center gap-2 bg-violet-100 text-violet-700 border-violet-200 mb-6 px-4 py-2">
               <CalendarCheck className="w-4 h-4" />
               Simple 2 Week Process
@@ -527,7 +1619,13 @@ export default function PilotProgram() {
             </p>
           </FadeIn>
 
-          <div className="relative max-w-6xl mx-auto">
+          {/* MOBILE TIMELINE CAROUSEL */}
+          <div className="block md:hidden">
+            <MobileTimelineCarousel timeline={timeline} />
+          </div>
+
+          {/* DESKTOP TIMELINE - Keep existing */}
+          <div className="hidden md:block relative max-w-6xl mx-auto">
             {/* Desktop Timeline Line - Better positioned */}
             <div className="hidden lg:block absolute top-[88px] left-[16.67%] right-[16.67%] h-[3px] bg-gradient-to-r from-blue-400 via-violet-400 to-pink-400 rounded-full shadow-sm" />
 
@@ -597,16 +1695,6 @@ export default function PilotProgram() {
                     </CardContent>
                   </Card>
                 </FadeIn>
-              ))}
-            </div>
-
-            {/* Progress Indicators - Mobile only */}
-            <div className="flex justify-center gap-2 mt-8 lg:hidden">
-              {timeline.map((_, idx) => (
-                <div
-                  key={idx}
-                  className={`w-2 h-2 rounded-full bg-gradient-to-r ${timeline[idx].color}`}
-                />
               ))}
             </div>
           </div>
@@ -915,143 +2003,157 @@ export default function PilotProgram() {
         className="py-16 md:py-24 bg-gradient-to-b from-indigo-50/20 to-slate-50"
       >
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
-          <FadeIn yOffset={20} delay={0.1} className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-slate-900">
-              Why Join the Pilot Program?
-            </h2>
-            <p className="text-lg text-slate-600 max-w-3xl mx-auto">
-              Experience the future of customer engagement with zero risk and
-              maximum support
-            </p>
-          </FadeIn>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-            {benefits.map((benefit, idx) => (
-              <FadeIn key={idx} yOffset={20} delay={idx * 0.1}>
-                <Card className="h-full bg-white/90 border-slate-200 hover:shadow-2xl hover:border-indigo-300 transition-all group">
-                  <CardContent className="p-4 md:p-6">
-                    <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform">
-                      {React.cloneElement(benefit.icon, {
-                        className: "w-5 h-5 md:w-6 md:h-6 text-indigo-600",
-                      })}
-                    </div>
-                    <Badge className="bg-green-100 text-green-700 border-green-200 text-xs mb-2 md:mb-3">
-                      {benefit.highlight}
-                    </Badge>
-                    <h3 className="text-lg md:text-xl font-bold mb-2 text-slate-900">
-                      {benefit.title}
-                    </h3>
-                    <p className="text-slate-600 text-sm md:text-base">
-                      {benefit.description}
-                    </p>
-                  </CardContent>
-                </Card>
-              </FadeIn>
-            ))}
+          {/* MOBILE VERSION */}
+          <div className="block md:hidden">
+            <MobileBenefitsCarousel benefits={benefits} />
           </div>
 
-          <FadeIn yOffset={20} delay={0.3} className="mt-12 text-center">
-            <Button
-              size="lg"
-              className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white px-8 py-6 text-lg font-bold shadow-xl hover:shadow-2xl transition-all"
-              onClick={showPilotToast}
-            >
-              Reserve Your Free Pilot Spot
-              <ArrowRight className="ml-2 w-5 h-5" />
-            </Button>
-            <p className="text-slate-500 mt-4">
-              Only 13 spots remaining this month • No credit card required
-            </p>
-          </FadeIn>
+          {/* DESKTOP VERSION */}
+          <div className="hidden md:block">
+            <FadeIn yOffset={20} delay={0.1} className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4 text-slate-900">
+                Why Join the Pilot Program?
+              </h2>
+              <p className="text-lg text-slate-600 max-w-3xl mx-auto">
+                Experience the future of customer engagement with zero risk and
+                maximum support
+              </p>
+            </FadeIn>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+              {benefits.map((benefit, idx) => (
+                <FadeIn key={idx} yOffset={20} delay={idx * 0.1}>
+                  <Card className="h-full bg-white/90 border-slate-200 hover:shadow-2xl hover:border-indigo-300 transition-all group">
+                    <CardContent className="p-4 md:p-6">
+                      <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform">
+                        {React.cloneElement(benefit.icon, {
+                          className: "w-5 h-5 md:w-6 md:h-6 text-indigo-600",
+                        })}
+                      </div>
+                      <Badge className="bg-green-100 text-green-700 border-green-200 text-xs mb-2 md:mb-3">
+                        {benefit.highlight}
+                      </Badge>
+                      <h3 className="text-lg md:text-xl font-bold mb-2 text-slate-900">
+                        {benefit.title}
+                      </h3>
+                      <p className="text-slate-600 text-sm md:text-base">
+                        {benefit.description}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </FadeIn>
+              ))}
+            </div>
+
+            <FadeIn yOffset={20} delay={0.3} className="mt-12 text-center">
+              <Button
+                size="lg"
+                className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white px-8 py-6 text-lg font-bold shadow-xl hover:shadow-2xl transition-all"
+                onClick={showPilotToast}
+              >
+                Reserve Your Free Pilot Spot
+                <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
+              <p className="text-slate-500 mt-4">No credit card required</p>
+            </FadeIn>
+          </div>
         </div>
       </section>
 
       {/* FAQ - Enhanced */}
       <section className="py-16 md:py-24 bg-white">
         <div className="container mx-auto px-4 sm:px-6 max-w-4xl">
-          <FadeIn yOffset={20} delay={0.1} className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-slate-900">
-              Frequently Asked Questions
-            </h2>
-            <p className="text-lg text-slate-600">
-              Got questions? We've got answers.
-            </p>
-          </FadeIn>
-
-          <div className="space-y-4">
-            {faqs.map((faq, idx) => (
-              <FadeIn key={idx} yOffset={20} delay={idx * 0.05}>
-                <button
-                  className="w-full text-left bg-white hover:bg-slate-50 border border-slate-200 rounded-xl p-6 transition-all"
-                  onClick={() =>
-                    setSelectedFaq(selectedFaq === idx ? null : idx)
-                  }
-                >
-                  <div className="flex justify-between items-start gap-4">
-                    <h3 className="font-semibold text-lg pr-8 text-slate-900">
-                      {faq.q}
-                    </h3>
-                    <ChevronDown
-                      className={`w-5 h-5 text-slate-400 flex-shrink-0 transition-transform ${
-                        selectedFaq === idx ? "rotate-180" : ""
-                      }`}
-                    />
-                  </div>
-
-                  <AnimatePresence>
-                    {selectedFaq === idx && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}.mp
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="overflow-hidden"
-                      >
-                        <p className="text-slate-600 mt-4 leading-relaxed">
-                          {faq.a}
-                        </p>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </button>
-              </FadeIn>
-            ))}
+          {/* MOBILE VERSION */}
+          <div className="block md:hidden">
+            <MobileFAQCarousel faqs={faqs} />
           </div>
 
-          <FadeIn
-            yOffset={20}
-            delay={0.1}
-            className="mt-12 p-8 rounded-2xl bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-200 text-center"
-          >
-            <h3 className="text-2xl font-bold mb-4 text-slate-900">
-              Still Have Questions?
-            </h3>
-            <p className="text-slate-600 mb-6">
-              Our team is here to help you understand how Blueprint can
-              transform your business
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button
-                variant="outline"
-                className="border-slate-300 text-slate-700 hover:bg-slate-50"
-                asChild
-              >
-                <a href="mailto:support@tryblueprint.io">
-                  <Send className="mr-2 w-4 h-4" />
-                  Email Us
-                </a>
-              </Button>
-              <Button
-                className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-700 hover:to-violet-700"
-                asChild
-              >
-                <a href="https://calendly.com/blueprintar/30min">
-                  Schedule a Call
-                  <ArrowRight className="ml-2 w-5 h-5" />
-                </a>
-              </Button>
+          {/* DESKTOP VERSION */}
+          <div className="hidden md:block">
+            <FadeIn yOffset={20} delay={0.1} className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4 text-slate-900">
+                Frequently Asked Questions
+              </h2>
+              <p className="text-lg text-slate-600">
+                Got questions? We've got answers.
+              </p>
+            </FadeIn>
+
+            <div className="space-y-4">
+              {faqs.map((faq, idx) => (
+                <FadeIn key={idx} yOffset={20} delay={idx * 0.05}>
+                  <button
+                    className="w-full text-left bg-white hover:bg-slate-50 border border-slate-200 rounded-xl p-6 transition-all"
+                    onClick={() =>
+                      setSelectedFaq(selectedFaq === idx ? null : idx)
+                    }
+                  >
+                    <div className="flex justify-between items-start gap-4">
+                      <h3 className="font-semibold text-lg pr-8 text-slate-900">
+                        {faq.q}
+                      </h3>
+                      <ChevronDown
+                        className={`w-5 h-5 text-slate-400 flex-shrink-0 transition-transform ${
+                          selectedFaq === idx ? "rotate-180" : ""
+                        }`}
+                      />
+                    </div>
+
+                    <AnimatePresence>
+                      {selectedFaq === idx && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.3 }}
+                          className="overflow-hidden"
+                        >
+                          <p className="text-slate-600 mt-4 leading-relaxed">
+                            {faq.a}
+                          </p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </button>
+                </FadeIn>
+              ))}
             </div>
-          </FadeIn>
+
+            <FadeIn
+              yOffset={20}
+              delay={0.1}
+              className="mt-12 p-8 rounded-2xl bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-200 text-center"
+            >
+              <h3 className="text-2xl font-bold mb-4 text-slate-900">
+                Still Have Questions?
+              </h3>
+              <p className="text-slate-600 mb-6">
+                Our team is here to help you understand how Blueprint can
+                transform your business
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Button
+                  variant="outline"
+                  className="border-slate-300 text-slate-700 hover:bg-slate-50"
+                  asChild
+                >
+                  <a href="mailto:nijel@tryblueprint.io">
+                    <Send className="mr-2 w-4 h-4" />
+                    Email Us
+                  </a>
+                </Button>
+                <Button
+                  className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-700 hover:to-violet-700"
+                  asChild
+                >
+                  <a href="https://calendly.com/blueprintar/30min">
+                    Schedule a Call
+                    <ArrowRight className="ml-2 w-5 h-5" />
+                  </a>
+                </Button>
+              </div>
+            </FadeIn>
+          </div>
         </div>
       </section>
 

@@ -22,4 +22,4 @@ Encourage app downloads or sign-ups: "Experience the World Through Blueprint." R
 
 Use dynamic content that adjusts based on the visitor type (e.g., "For Businesses" vs. "For Users"). Separate detailed pages for each audience: For Businesses: Detailed setup guide, pricing, case studies. For Users: How-to guides, benefits, and rewards. This approach ensures a strong focus on onboarding businesses while building awareness and excitement among users, creating a virtuous cycle that fuels growth for both sides.
 
-I want to market the Blueprint website towards businesses - most likely users wont have a need to visit our website but businesses will in order to create/claim/learn about our platform. Please recreate the insane animated landing page w/ a focus on Businesses
+I want to market the Bluepritn website towards businesses - most likely users wont have a need to visit our website but businesses will in order to create/claim/learn about our platform. Please recreate the insane animated landing page w/ a focus on Businesses

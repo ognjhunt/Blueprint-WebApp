@@ -924,6 +924,8 @@ export default function OutboundSignUpFlow() {
           </Button>
         </div>
 
+        {/* Comment out from here */}
+        {/*
         <div className="flex items-center w-full">
           <div className="flex-grow border-t border-gray-300"></div>
           <span className="px-2 text-gray-500 text-sm">OR</span>
@@ -945,6 +947,8 @@ export default function OutboundSignUpFlow() {
             onError={() => alert("Google Sign-In Failed")}
           />
         </GoogleOAuthProvider>
+        */}
+        {/* Comment out to here */}
       </div>
     </div>
   );
@@ -1093,6 +1097,13 @@ export default function OutboundSignUpFlow() {
           Please enter a valid 10‑digit phone number.
         </p>
       )}
+      {/* SMS Consent Text */}
+      <p className="text-xs text-gray-600 mt-2 leading-relaxed">
+        ☑️ By providing your phone number, you consent to receive SMS text
+        messages from Blueprint regarding property updates and notifications.
+        Message frequency varies. Message and data rates may apply. Reply STOP
+        to opt out or HELP for help.
+      </p>
 
       <Input
         type="text"

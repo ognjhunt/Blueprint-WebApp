@@ -155,9 +155,9 @@ export default function Dashboard() {
   const apiKey = "AIzaSyCyyCfGsXRnIRC9HSVVuCMN5grzPkyTtkY";
   const genAI = new GoogleGenerativeAI(apiKey);
 
-  const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
-  });
+  // const model = genAI.getGenerativeModel({
+  //   model: "gemini-1.5-flash",
+  // });
 
   const generationConfig = {
     temperature: 0.3,
@@ -171,17 +171,17 @@ export default function Dashboard() {
    * Initializes a chat session with the Gemini model and sends an initial message.
    * This function is likely used for an AI chat feature within the dashboard.
    */
-  async function run() {
-    const chatSession = model.startChat({
-      generationConfig,
-      history: [],
-    });
+  // async function run() {
+  //   const chatSession = model.startChat({
+  //     generationConfig,
+  //     history: [],
+  //   });
 
-    const result = await chatSession.sendMessage(
-      "Tell the user to try out Multimodal (Share screen) w/ AI Studio and then ask it about the editor.",
-    );
-    console.log(result.response.text());
-  }
+  //   const result = await chatSession.sendMessage(
+  //     "Tell the user to try out Multimodal (Share screen) w/ AI Studio and then ask it about the editor.",
+  //   );
+  //   console.log(result.response.text());
+  // }
 
   const {
     onboardingCompleted,
@@ -625,7 +625,7 @@ export default function Dashboard() {
     };
 
     fetchBlueprintsData();
-    run();
+    //  run();
   }, [currentUser]);
 
   /**
