@@ -4693,6 +4693,8 @@ const ThreeViewer = React.memo(
       };
 
       async function handleClick(event: MouseEvent) {
+        // Prevent the click from bubbling to other handlers
+        event.stopPropagation();
         // Use a ref to get the latest props inside this event handler,
         // as it's defined in a useEffect that only runs once.
         const currentProps = propsRef.current;
@@ -5315,15 +5317,9 @@ const ThreeViewer = React.memo(
       }
 
       mountRef.current.addEventListener("contextmenu", handleRightClick);
-      mountRef.current.addEventListener("click", (e) => {
-        // Prevent other handlers from capturing the click
-        e.stopPropagation();
-        handleClick(e);
-      });
+      // Clicks should not bubble to parent elements
+      mountRef.current.addEventListener("click", handleClick);
       // mountRef.current.addEventListener("drop", handleFileDrop);
-      mountRef.current.addEventListener("dragover", (e) => {
-        e.preventDefault();
-      });
 
       function animate() {
         requestAnimationFrame(animate);
@@ -5963,10 +5959,10 @@ const ThreeViewer = React.memo(
         if (mountRef.current) {
           mountRef.current.removeEventListener("contextmenu", handleRightClick);
           mountRef.current.removeEventListener("click", handleClick);
-          mountRef.current.removeEventListener("dragover", (e) => {
-            e.preventDefault();
-          });
-          mountRef.current.removeEventListener("drop", handleFileDrop);
+          mountRef.current.removeEventListener("dragenter", handleDragEnter);
+          mountRef.current.removeEventListener("dragover", handleDragOver);
+          mountRef.current.removeEventListener("dragleave", handleDragLeave);
+          mountRef.current.removeEventListener("drop", handleDrop);
           mountRef.current.removeChild(renderer.domElement);
           if (
             cssRenderer &&
