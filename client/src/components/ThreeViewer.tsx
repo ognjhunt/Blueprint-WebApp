@@ -4908,6 +4908,8 @@ const ThreeViewer = React.memo(
         // --- 4. Fallback Behavior (like showing distance) ---
         if (!foundAnchor) {
           handleDeselect(); // Deselect if click didn't result in selecting a new anchor
+          // Notify parent (e.g., BlueprintEditor) that background was clicked
+          currentProps.onBackgroundClick?.();
 
           if (currentProps.originPoint && modelIntersects.length > 0) {
             const displayOffset = modelIntersects[0].point
