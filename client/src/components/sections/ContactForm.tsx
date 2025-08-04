@@ -54,6 +54,22 @@ export default function ContactForm() {
   const formRef = useRef(null);
   const isInView = useInView(formRef, { once: true, amount: 0.3 });
 
+  // Refs for sequential input focus handling
+  const nameRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const companyRef = useRef<HTMLInputElement>(null);
+  const messageRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    nextRef: React.RefObject<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      nextRef.current?.focus();
+    }
+  };
+
   const [formData, setFormData] = useState<FormData>({
     name: "",
     email: "",
@@ -764,12 +780,14 @@ export default function ContactForm() {
                         Full Name
                       </label>
                       <Input
+                        ref={nameRef}
                         type="text"
                         id="name"
                         name="name"
                         placeholder="John Doe"
                         value={formData.name}
                         onChange={handleChange}
+                        onKeyDown={(e) => handleKeyDown(e, emailRef)}
                         className="border-2 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl md:rounded-2xl py-3 md:py-4 px-4 md:px-6 text-base md:text-lg bg-white/80 backdrop-blur-sm"
                       />
                       {errors.name && (
@@ -788,12 +806,14 @@ export default function ContactForm() {
                         Business Email
                       </label>
                       <Input
+                        ref={emailRef}
                         type="email"
                         id="email"
                         name="email"
                         placeholder="john@company.com"
                         value={formData.email}
                         onChange={handleChange}
+                        onKeyDown={(e) => handleKeyDown(e, companyRef)}
                         className="border-2 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-2xl py-4 px-6 text-lg bg-white/80 backdrop-blur-sm"
                       />
                       {errors.email && (
@@ -812,6 +832,7 @@ export default function ContactForm() {
                         Company Name
                       </label>
                       <Input
+                        ref={companyRef}
                         type="text"
                         id="company"
                         name="company"
@@ -823,6 +844,7 @@ export default function ContactForm() {
                             setCompanyPredictions([]);
                           }, 150);
                         }}
+                        onKeyDown={(e) => handleKeyDown(e, messageRef)}
                         className="border-2 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-2xl py-4 px-6 text-lg bg-white/80 backdrop-blur-sm"
                       />
                       {errors.company && (
@@ -986,6 +1008,7 @@ export default function ContactForm() {
                         Tell Us About Your Vision (Optional)
                       </label>
                       <Textarea
+                        ref={messageRef}
                         id="message"
                         name="message"
                         placeholder="Describe your space, goals, or any specific AR experiences you have in mind..."
