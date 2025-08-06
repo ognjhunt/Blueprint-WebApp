@@ -1818,7 +1818,7 @@ export default function PilotProgram() {
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                    <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
                     <div>
                       <h3 className="text-2xl font-bold mb-6 text-slate-900">
                         Proven Business Impact
@@ -1869,65 +1869,68 @@ export default function PilotProgram() {
                         ))}
                       </div>
 
-                      <div className="bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200 rounded-xl p-6">
-                        <h4 className="font-bold mb-2 text-slate-900">
-                          Why AR Works So Well:
-                        </h4>
-                        <ul className="space-y-2 text-sm text-slate-600">
-                          <li>• Creates memorable, shareable experiences</li>
-                          <li>• Provides instant product information</li>
-                          <li>• Reduces decision friction</li>
-                          <li>• Appeals to tech-savvy consumers</li>
-                          <li>• Differentiates from competitors</li>
-                        </ul>
                       </div>
-                    </div>
 
-                    {/*
+                      <div className="lg:pl-6">
+                        <div className="bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200 rounded-xl p-6 h-full flex flex-col justify-center">
+                          <h4 className="font-bold mb-4 text-slate-900">
+                            Why AR Works So Well:
+                          </h4>
+                          <ul className="space-y-2 text-sm text-slate-600">
+                            <li>• Creates memorable, shareable experiences</li>
+                            <li>• Provides instant product information</li>
+                            <li>• Reduces decision friction</li>
+                            <li>• Appeals to tech-savvy consumers</li>
+                            <li>• Differentiates from competitors</li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      {/*
                       Testimonials section temporarily hidden until real pilot feedback is collected.
-                    <div className="space-y-6">
-                      <h4 className="text-xl font-bold mb-4 text-slate-900">
-                        What Pilot Participants Say
-                      </h4>
-                      {testimonials.map((testimonial, idx) => (
-                        <motion.div
-                          key={idx}
-                          className="bg-white border border-slate-200 rounded-xl p-6 shadow-lg"
-                          initial={{ opacity: 0, x: 20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: idx * 0.15 }}
-                        >
-                          <div className="flex gap-1 mb-3">
-                            {[...Array(5)].map((_, i) => (
-                              <Star
-                                key={i}
-                                className="w-4 h-4 text-yellow-500 fill-yellow-500"
-                              />
-                            ))}
-                          </div>
-                          <p className="text-slate-600 italic mb-4">
-                            "{testimonial.quote}"
-                          </p>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-semibold text-slate-900">
-                                {testimonial.author}
-                              </p>
-                              <p className="text-sm text-slate-500">
-                                {testimonial.role}
-                              </p>
+                      <div className="space-y-6">
+                        <h4 className="text-xl font-bold mb-4 text-slate-900">
+                          What Pilot Participants Say
+                        </h4>
+                        {testimonials.map((testimonial, idx) => (
+                          <motion.div
+                            key={idx}
+                            className="bg-white border border-slate-200 rounded-xl p-6 shadow-lg"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: idx * 0.15 }}
+                          >
+                            <div className="flex gap-1 mb-3">
+                              {[...Array(5)].map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className="w-4 h-4 text-yellow-500 fill-yellow-500"
+                                />
+                              ))}
                             </div>
-                            <Badge className="bg-green-100 text-green-700 border-green-200">
-                              {testimonial.metric}
-                            </Badge>
-                          </div>
-                        </motion.div>
-                      ))}
+                            <p className="text-slate-600 italic mb-4">
+                              "{testimonial.quote}"
+                            </p>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-semibold text-slate-900">
+                                  {testimonial.author}
+                                </p>
+                                <p className="text-sm text-slate-500">
+                                  {testimonial.role}
+                                </p>
+                              </div>
+                              <Badge className="bg-green-100 text-green-700 border-green-200">
+                                {testimonial.metric}
+                              </Badge>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                      */}
                     </div>
-                    */}
-                  </div>
-                </motion.div>
-              </TabsContent>
+                  </motion.div>
+                </TabsContent>
 
               <TabsContent value="how" className="mt-0">
                 <motion.div
