@@ -46,7 +46,7 @@ export default function FAQ() {
     },
     {
       q: "What happens after the 2 week program?",
-      a: "We'll send out a survey to all participants of the Demo Day asking about the whole Pilot Program experience. Any feedback from this survey helps us improve Blueprint!",
+      a: "We'll send out a survey to all participants of the Demo Day asking about the whole Pilot Program experience. Any feedback from this survey helps us improve Blueprint! As of today, there are no options to discuss continuing with a full implementation of Blueprint for your space.",
     },
     {
       q: "How do customers access the AR experience?",
