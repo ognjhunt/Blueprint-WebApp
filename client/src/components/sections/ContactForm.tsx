@@ -1,12 +1,12 @@
 // ==========================================
-// File: src/components/sections/ContactForm.jsx
+// File: src/components/sections/ContactForm.tsx
 // ==========================================
 
 "use client";
 
 import { Anthropic } from "@anthropic-ai/sdk"; // (kept import; not used here)
 import OpenAI from "openai"; // (kept import; not used here)
-import { Loader } from "@googlemaps/js-api-loader";24
+import { Loader } from "@googlemaps/js-api-loader";
 import { motion, useInView } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,24 +31,52 @@ import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { v4 as uuidv4 } from "uuid";
 
+// Type definitions for form data and Google Maps API
+interface ContactFormData {
+  name: string;
+  email: string;
+  company: string;
+  city: string;
+  state: string;
+  message: string;
+}
+
+interface ContactFormErrors {
+  name?: string;
+  email?: string;
+  company?: string;
+  city?: string;
+  state?: string;
+  message?: string;
+}
+
+interface GoogleMapsState {
+  autocompleteService: google.maps.places.AutocompleteService | null;
+  placesService: google.maps.places.PlacesService | null;
+  predictions: google.maps.places.AutocompletePrediction[];
+}
+
 export default function ContactForm() {
-  const formRef = useRef(null);
+  const formRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(formRef, { once: true, amount: 0.3 });
 
   // Refs for sequential input focus handling
-  const nameRef = useRef(null);
-  const emailRef = useRef(null);
-  const companyRef = useRef(null);
-  const messageRef = useRef(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const companyRef = useRef<HTMLInputElement>(null);
+  const messageRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleKeyDown = (e, nextRef) => {
+  const handleKeyDown = (
+    e: React.KeyboardEvent,
+    nextRef: React.RefObject<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     if (e.key === "Enter") {
       e.preventDefault();
       if (nextRef && nextRef.current) nextRef.current.focus();
     }
   };
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ContactFormData>({
     name: "",
     email: "",
     company: "",
@@ -56,17 +84,17 @@ export default function ContactForm() {
     state: "",
     message: "",
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const wasSelection = useRef(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isSuccess, setIsSuccess] = useState<boolean>(false);
+  const wasSelection = useRef<boolean>(false);
 
-  const [companyWebsite, setCompanyWebsite] = useState("");
-  const [companyAddress, setCompanyAddress] = useState("");
-  const [companyAutocomplete, setCompanyAutocomplete] = useState(null);
-  const [companyPlacesService, setCompanyPlacesService] = useState(null);
-  const [companyPredictions, setCompanyPredictions] = useState([]);
+  const [companyWebsite, setCompanyWebsite] = useState<string>("");
+  const [companyAddress, setCompanyAddress] = useState<string>("");
+  const [companyAutocomplete, setCompanyAutocomplete] = useState<google.maps.places.AutocompleteService | null>(null);
+  const [companyPlacesService, setCompanyPlacesService] = useState<google.maps.places.PlacesService | null>(null);
+  const [companyPredictions, setCompanyPredictions] = useState<google.maps.places.AutocompletePrediction[]>([]);
 
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<ContactFormErrors>({});
 
   const priorityMarkets = [
     "Los Angeles",
@@ -108,13 +136,13 @@ export default function ContactForm() {
     }
     const timer = setTimeout(() => {
       if (formData.company.length >= 3 && companyAutocomplete) {
-        const request = {
+        const request: google.maps.places.AutocompletionRequest = {
           input: formData.company,
           componentRestrictions: { country: "us" },
         };
         companyAutocomplete.getPlacePredictions(
           request,
-          (predictions, status) => {
+          (predictions: google.maps.places.AutocompletePrediction[] | null, status: google.maps.places.PlacesServiceStatus) => {
             if (
               status !== google.maps.places.PlacesServiceStatus.OK ||
               !predictions
@@ -132,8 +160,8 @@ export default function ContactForm() {
     return () => clearTimeout(timer);
   }, [formData.company, companyAutocomplete]);
 
-  const validateForm = () => {
-    const newErrors = {};
+  const validateForm = (): boolean => {
+    const newErrors: ContactFormErrors = {};
     if (!formData.name || formData.name.length < 2)
       newErrors.name = "Name is required";
     if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
@@ -144,7 +172,7 @@ export default function ContactForm() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!validateForm()) return;
@@ -197,15 +225,14 @@ export default function ContactForm() {
       });
     } catch (error) {
       console.error("Form submission failed:", error);
-      alert(
-        `Error: ${error && error.message ? error.message : "Unknown error"}`,
-      );
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      alert(`Error: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
