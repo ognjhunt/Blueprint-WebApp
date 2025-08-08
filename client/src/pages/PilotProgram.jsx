@@ -1100,10 +1100,10 @@ export default function PilotProgram() {
                       </p>
                     </div>
                     <div
-                      className={`p-3 rounded-xl bg-gradient-to-br ${stat.gradient} opacity-10 group-hover:opacity-20 transition-opacity`}
+                      className={`p-3 rounded-xl bg-gradient-to-br ${stat.gradient} ring-1 ring-white/20 shadow-md transition-all`}
                     >
                       {React.cloneElement(stat.icon, {
-                        className: "w-6 h-6 text-slate-900",
+                        className: "w-6 h-6 text-white",
                       })}
                     </div>
                   </div>
@@ -1651,7 +1651,7 @@ export default function PilotProgram() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button
                   variant="outline"
-                  className="border-white/30 text-white hover:bg-white/10"
+                  className="border-white/30 text-slate-900 hover:bg-white/90 hover:text-slate-900"
                   asChild
                 >
                   <a
@@ -1683,11 +1683,11 @@ export default function PilotProgram() {
       {/* WAITLIST CONTACT FORM (light surface for readability) */}
       <section
         id="pilot-waitlist"
-        className="bg-gradient-to-b from-white to-slate-50"
+        className="bg-[#0B1220] border-t border-white/10"
       >
         <ContactForm />
         <div className="px-4 sm:px-6 max-w-4xl mx-auto pb-12">
-          <p className="text-center text-slate-600 text-sm mt-4">
+          <p className="text-center text-slate-300 text-sm mt-4">
             Durham, NC pilot enrolling now. Austin, TX may open next—join the
             list to be notified.
           </p>

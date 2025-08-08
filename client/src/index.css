@@ -20,6 +20,7 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
@@ -44,6 +45,33 @@
 .react-flow__node .nodrag {
   pointer-events: all !important;
 }
+
+/* React Datepicker: keep weekday names aligned with day cells */
+.reactpicker-dark .react-datepicker__day-name,
+.reactpicker-dark .react-datepicker__day {
+  width: 2.25rem !important;
+  /* match your old !w-9 */
+  height: 2.25rem !important;
+  /* match your old !h-9 */
+  line-height: 2.25rem !important;
+  margin: 0.125rem !important;
+  /* same margin for both */
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem !important;
+  /* rounded-md */
+}
+
+/* optional: center the 7-column grid nicely */
+.reactpicker-dark .react-datepicker__day-names,
+.reactpicker-dark .react-datepicker__week {
+  display: grid !important;
+  grid-template-columns: repeat(7, 2.25rem);
+  justify-content: center;
+  column-gap: 0.25rem;
+}
+
 
 .my-react-datepicker .react-datepicker__day--selected,
 .my-react-datepicker .react-datepicker__day--keyboard-selected {
@@ -293,13 +321,27 @@
 
 /* Added for PilotProgram.jsx background animations */
 @keyframes pulse-circle-1 {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(50px, -30px); }
+
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  50% {
+    transform: translate(50px, -30px);
+  }
 }
 
 @keyframes pulse-circle-2 {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(-50px, 30px); }
+
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  50% {
+    transform: translate(-50px, 30px);
+  }
 }
 
 .animated-bg-circle-1 {

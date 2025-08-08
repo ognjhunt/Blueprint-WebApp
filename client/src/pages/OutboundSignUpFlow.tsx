@@ -84,16 +84,40 @@ export default function OutboundSignUpFlow() {
   const [scheduleDate, setScheduleDate] = useState(new Date());
   const [scheduleTime, setScheduleTime] = useState("08:00");
 
+  // When mapping date changes, keep demo date in the valid window (7–14 days later).
+  useEffect(() => {
+    const min = addDays(scheduleDate, 7);
+    const max = addDays(scheduleDate, 14);
+
+    setDemoDate((prev) => (prev < min || prev > max ? min : prev));
+  }, [scheduleDate]);
+
   // Step 4 — Demo
-  const [demoDate, setDemoDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 7);
-    return d;
-  });
+  // const [demoDate, setDemoDate] = useState(() => {
+  //   const d = new Date();
+  //   d.setDate(d.getDate() + 7);
+  //   return d;
+  // });
+  // Step 4 — Demo
+  const [demoDate, setDemoDate] = useState(new Date()); // effect will snap to 7 days after mapping
+
   const [demoTime, setDemoTime] = useState("11:00");
 
   const [errorMessage, setErrorMessage] = useState("");
 
+  // --- date helpers ---
+  const addDays = (d: Date, days: number) => {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    x.setDate(x.getDate() + days);
+    return x;
+  };
+
+  const clampDate = (d: Date, min: Date, max: Date) => {
+    if (d < min) return min;
+    if (d > max) return max;
+    return d;
+  };
   // Validation helpers
   function isValidEmail(val: string) {
     const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -335,12 +359,24 @@ export default function OutboundSignUpFlow() {
         return;
       }
     } else if (step === 4) {
+      const min = addDays(scheduleDate, 7);
+      const max = addDays(scheduleDate, 14);
+      if (demoDate < min || demoDate > max) {
+        setErrorMessage(
+          "Demo must be scheduled 7–14 days after your mapping date.",
+        );
+        return;
+      }
+
+      // ⬇️ ADD THIS
       const auth = getAuth();
       const user = auth.currentUser;
       if (!user) {
         setErrorMessage("No user found. Please sign up first.");
         return;
       }
+      // ⬆️ ADD THIS
+
       try {
         // Update user with demo info
         await updateDoc(doc(db, "users", user.uid), {
@@ -943,8 +979,7 @@ export default function OutboundSignUpFlow() {
               calendarClassName="!bg-transparent !border-0 !shadow-none reactpicker-dark"
               wrapperClassName="!block w-full"
               dayClassName={(date) => {
-                const base =
-                  "rounded-md !w-9 !h-9 flex items-center justify-center";
+                const base = "rounded-md flex items-center justify-center";
                 const isSel =
                   date.toDateString() === scheduleDate.toDateString();
                 return isSel
@@ -1064,17 +1099,9 @@ export default function OutboundSignUpFlow() {
     const [demoBookedTimes, setDemoBookedTimes] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    const minDemoDate = useCallback(() => {
-      const date = new Date(scheduleDate);
-      date.setDate(date.getDate() + 8); // must be >= 8 days after mapping
-      return date;
-    }, [scheduleDate]);
-
-    const maxDemoDate = useCallback(() => {
-      const date = new Date(scheduleDate);
-      date.setDate(date.getDate() + 14); // <= 14 days after mapping
-      return date;
-    }, [scheduleDate]);
+    // Valid demo window = 7–14 days after mapping
+    const demoMin = addDays(scheduleDate, 7);
+    const demoMax = addDays(scheduleDate, 14);
 
     const formatSlot = (time: string) => {
       const [hh, mm] = time.split(":");
@@ -1155,19 +1182,30 @@ export default function OutboundSignUpFlow() {
               <Label className="font-medium text-slate-200">
                 Select Demo Date
               </Label>
+              <p className="text-xs text-slate-400 -mt-1 mb-2">
+                Demo must be 7–14 days after your mapping date.
+              </p>
             </div>
             <DatePicker
               selected={demoDate}
-              onChange={(d: Date | null) => d && setDemoDate(d)}
+              onChange={(d: Date | null) => {
+                if (!d) return;
+                setDemoDate(clampDate(d, demoMin, demoMax));
+              }}
               inline
-              minDate={minDemoDate()}
-              maxDate={maxDemoDate()}
+              minDate={demoMin}
+              maxDate={demoMax}
+              // Disable anything not in the 7–14 day window so the UI shows what's possible
+              filterDate={(date) => date >= demoMin && date <= demoMax}
               calendarClassName="!bg-transparent !border-0 !shadow-none reactpicker-dark"
               wrapperClassName="!block w-full"
               dayClassName={(date) => {
-                const base =
-                  "rounded-md !w-9 !h-9 flex items-center justify-center";
+                const base = "rounded-md flex items-center justify-center";
+                const isDisabled = date < demoMin || date > demoMax;
                 const isSel = date.toDateString() === demoDate.toDateString();
+
+                if (isDisabled)
+                  return `${base} !opacity-30 !pointer-events-none`;
                 return isSel
                   ? `${base} !bg-gradient-to-r from-emerald-500 to-cyan-600 !text-white`
                   : `${base} hover:!bg-white/10 !text-slate-200`;
@@ -1382,42 +1420,6 @@ export default function OutboundSignUpFlow() {
               {/* Left Rail — persuasion + trust */}
               <aside className="lg:col-span-1">
                 <div className="sticky top-28 space-y-6">
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/30 to-cyan-500/30 flex items-center justify-center">
-                        <Sparkles className="w-5 h-5 text-emerald-300" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-slate-300">Why join</p>
-                        <h3 className="text-lg font-bold text-white">
-                          AR that drives results
-                        </h3>
-                      </div>
-                    </div>
-                    <ul className="space-y-2 text-sm">
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-300 mt-0.5" />
-                        <span>
-                          Delight visitors with interactive product & exhibit
-                          moments
-                        </span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-300 mt-0.5" />
-                        <span>No app downloads—instant access via QR</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-300 mt-0.5" />
-                        <span>
-                          Full support; we handle mapping, content & analytics
-                        </span>
-                      </li>
-                    </ul>
-                    <div className="mt-4 text-xs text-slate-400">
-                      Serving businesses within ~30 minutes of Durham, NC.
-                    </div>
-                  </div>
-
                   {/* Live summary */}
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
                     <div className="flex items-center gap-2 mb-3">
