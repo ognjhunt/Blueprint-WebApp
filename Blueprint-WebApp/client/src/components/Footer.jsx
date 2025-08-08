@@ -199,7 +199,7 @@ export default function Footer() {
               </li>
               <li>
                 <a
-                  href="#"
+                  href="/privacy"
                   className="text-gray-400 hover:text-white transition-colors duration-300 flex items-center"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 mr-2"></span>
@@ -208,7 +208,7 @@ export default function Footer() {
               </li>
               <li>
                 <a
-                  href="#"
+                  href="/terms"
                   className="text-gray-400 hover:text-white transition-colors duration-300 flex items-center"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 mr-2"></span>
@@ -349,13 +349,13 @@ export default function Footer() {
           </p>
           <div className="mt-4 md:mt-0 flex justify-center md:justify-end space-x-6">
             <a
-              href="#"
+              href="/privacy"
               className="text-sm text-gray-500 hover:text-gray-300 transition-colors duration-300"
             >
               Privacy Policy
             </a>
             <a
-              href="#"
+              href="/terms"
               className="text-sm text-gray-500 hover:text-gray-300 transition-colors duration-300"
             >
               Terms of Service
