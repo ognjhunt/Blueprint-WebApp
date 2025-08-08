@@ -854,11 +854,11 @@ export default function PilotProgram() {
       title: "Visit 2",
       subtitle: "Live Demo Day (1–2 hrs)",
       description:
-        "See your space come alive on Apple Vision Pro and phones. Collect instant feedback. The AR is live during the demo window only.",
+        "We bring Apple Vision Pro and run the demo end-to-end. Your team tries it hands-on; we handle devices, setup, and sanitization. The AR is live during the scheduled demo window only.",
       color: "from-emerald-400 to-cyan-400",
       benefit: "Hands-on, on-site",
       details: [
-        "Vision Pro + phones",
+        "Vision Pro",
         "Team walkthrough",
         "Immediate insights",
       ],
@@ -954,7 +954,7 @@ export default function PilotProgram() {
       icon: <Monitor className="w-6 h-6" />,
       title: "Premium Hardware",
       description:
-        "We bring Apple Vision Pro and other devices to your demo day.",
+        "We bring an Apple Vision Pro to your demo day.",
       highlight: "No hardware needed",
     },
     {
@@ -976,7 +976,7 @@ export default function PilotProgram() {
   const faqs = [
     {
       q: "What is Blueprint in one sentence?",
-      a: "It’s a custom AR layer for your physical space—scan a QR, and visitors instantly get interactive guidance, stories, and offers on their device.",
+      a: "It’s a custom AR layer for your physical space—scan a QR code, and visitors instantly get interactive guidance, stories, and offers on their device.",
     },
     {
       q: "What does the pilot cost?",
@@ -988,7 +988,7 @@ export default function PilotProgram() {
     },
     {
       q: "Do customers need special hardware?",
-      a: "No. The AR runs in the browser via QR codes. For demo day, we bring Apple Vision Pro and other devices so your team can try it hands-on.",
+      a: "No. The AR runs in the browser via QR codes. For demo day, we bring an Apple Vision Pro so your team can try it hands-on.",
     },
     {
       q: "What do you need from us?",
@@ -1043,7 +1043,7 @@ export default function PilotProgram() {
               <p className="text-base sm:text-lg md:text-xl text-slate-300 mb-6 md:mb-8 max-w-2xl mx-auto lg:mx-0">
                 Two quick visits about a week apart: mapping (~60 min) and an
                 on-site demo (1–2 hrs). Free and feedback-only. No apps to
-                install—guests just scan a QR.
+                install—guests just scan a QR code.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-8">

@@ -163,7 +163,7 @@ export default function Home() {
                 },
                 {
                   icon: <Sparkles className="w-4 h-4" />,
-                  label: "Works on phones & glasses",
+                  label: "Works on headsets & glasses",
                 },
                 {
                   icon: <Clock className="w-4 h-4" />,
@@ -198,7 +198,7 @@ export default function Home() {
                   },
                   {
                     icon: <Sparkles className="w-4 h-4" />,
-                    label: "Works on phones & glasses",
+                    label: "Works on headsets & glasses",
                   },
                   {
                     icon: <Clock className="w-4 h-4" />,
