@@ -6579,41 +6579,20 @@ const ThreeViewer = React.memo(
         </div>
         {/* +++ ADD THIS PROGRESS BAR +++ */}
         {!modelLoaded && modelLoadProgress > 0 && (
-          <div
-            style={{
-              position: "absolute",
-              top: "1rem",
-              left: "50%",
-              transform: "translateX(-50%)",
-              width: "240px",
-              height: "10px",
-              background: "#e2e8f0", // a light gray
-              borderRadius: "4px",
-              overflow: "hidden",
-              zIndex: 9999,
-            }}
-          >
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 w-60 h-2 bg-slate-800 rounded overflow-hidden z-50">
             <div
-              style={{
-                width: `${modelLoadProgress}%`,
-                height: "100%",
-                background: "#3b82f6", // a blue color
-                transition: "width 0.2s ease-in-out",
-              }}
+              className="h-full bg-blue-500 transition-all"
+              style={{ width: `${modelLoadProgress}%` }}
             />
           </div>
         )}
 
         {showTextBoxInputRef && selectedPoint && (
           <div
+            className="absolute z-50 p-1 bg-slate-900 border border-slate-700 rounded"
             style={{
-              position: "absolute",
               left: `${projectToScreen(selectedPoint).x}px`,
               top: `${projectToScreen(selectedPoint).y}px`,
-              zIndex: 1000,
-              background: "white",
-              border: "1px solid #ccc",
-              padding: "4px",
             }}
           >
             <input
@@ -6626,6 +6605,7 @@ const ThreeViewer = React.memo(
                 // Optionally, if you want to hide the overlay:
                 // setShowTextBoxInput(false);
               }}
+              className="bg-transparent border-none text-slate-100 outline-none"
               autoFocus
             />
           </div>
@@ -6633,7 +6613,7 @@ const ThreeViewer = React.memo(
 
         {originConfirmation && (
           <motion.div
-            className="absolute top-16 left-1/2 -translate-x-1/2 bg-yellow-100 border border-yellow-300 text-yellow-900 px-4 py-2 rounded shadow"
+            className="absolute top-16 left-1/2 -translate-x-1/2 bg-amber-400/20 border border-amber-400 text-amber-200 px-4 py-2 rounded shadow-lg backdrop-blur-sm"
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
@@ -6651,9 +6631,9 @@ const ThreeViewer = React.memo(
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed top-16 right-0 w-96 h-[calc(100vh-4rem)] bg-white shadow-lg p-6 overflow-y-auto"
+              className="fixed top-16 right-0 w-96 h-[calc(100vh-4rem)] bg-slate-950/90 backdrop-blur-xl border-l border-slate-800 p-6 overflow-y-auto text-slate-100"
             >
-              <Card className="border-0 shadow-none">
+              <Card className="border-0 shadow-none bg-transparent text-slate-100">
                 <CardHeader className="pb-4">
                   <div className="flex justify-between items-center">
                     <CardTitle>Add to Scene</CardTitle>
@@ -6675,7 +6655,7 @@ const ThreeViewer = React.memo(
                       value={promptInput}
                       onChange={(e) => setPromptInput(e.target.value)}
                       placeholder="Describe what you want to add..."
-                      className="w-full"
+                      className="w-full bg-slate-800 border-slate-700 text-slate-100 placeholder-slate-400"
                     />
                   </div>
 
@@ -6683,10 +6663,10 @@ const ThreeViewer = React.memo(
                     {options.map((option, index) => (
                       <button
                         key={index}
-                        className="p-4 border rounded-lg hover:bg-gray-50 transition-colors flex flex-col items-center justify-center gap-2 text-center"
+                        className="p-4 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors flex flex-col items-center justify-center gap-2 text-center"
                       >
                         {option.icon}
-                        <span className="text-sm">{option.label}</span>
+                        <span className="text-sm text-slate-200">{option.label}</span>
                       </button>
                     ))}
                   </div>
@@ -6705,7 +6685,7 @@ const ThreeViewer = React.memo(
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="fixed top-4 right-4 bg-green-100 border border-green-500 text-green-800 px-4 py-2 rounded shadow-lg z-50"
+            className="fixed top-4 right-4 bg-emerald-400/20 border border-emerald-500 text-emerald-200 px-4 py-2 rounded shadow-lg backdrop-blur-sm z-50"
           >
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4" />
@@ -6719,7 +6699,7 @@ const ThreeViewer = React.memo(
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="fixed top-4 right-4 bg-red-100 border border-red-500 text-red-800 px-4 py-2 rounded shadow-lg z-50"
+            className="fixed top-4 right-4 bg-rose-400/20 border border-rose-500 text-rose-200 px-4 py-2 rounded shadow-lg backdrop-blur-sm z-50"
           >
             <div className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4" />
@@ -6730,7 +6710,7 @@ const ThreeViewer = React.memo(
 
         {distanceDisplay && (
           <motion.div
-            className="absolute top-20 right-4 bg-blue-100 border border-blue-300 text-blue-900 px-4 py-2 rounded shadow-lg"
+            className="absolute top-20 right-4 bg-sky-400/20 border border-sky-500 text-sky-200 px-4 py-2 rounded shadow-lg backdrop-blur-sm"
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 50 }}
