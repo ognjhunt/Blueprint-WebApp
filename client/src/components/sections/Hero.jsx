@@ -19,22 +19,23 @@ import { MapPin, Sparkles } from "lucide-react";
 export default function Hero({ onPrimaryCta }) {
   const lines = [
     {
+      k: "what",
+      pre: "Blueprint in one line:",
+      highlight:
+        "Turn your space into a guided, interactive AR layer—just by scanning a QR code.",
+      sub: "Guests use their phones (or smart glasses). No app to install. No hardware to buy.",
+    },
+    {
+      k: "how",
+      pre: "We do the heavy lifting:",
+      highlight: "Map your location → design the content → launch in ~10 days.",
+      sub: "Our team handles mapping, content, QR placement, and training. You just pick a time.",
+    },
+    {
       k: "pilot",
-      pre: "Durham-area Pilot:",
-      highlight: "Turn your space into an interactive AR experience",
-      sub: "We design, install, and launch a custom AR layer for your business — at no cost during the pilot.",
-    },
-    {
-      k: "noapp",
-      pre: "No app. No hardware.",
-      highlight: "Guests scan a QR. Magic happens in your space.",
-      sub: "Frictionless for customers and staff. Works on phones and smart glasses.",
-    },
-    {
-      k: "speed",
-      pre: "On-site in about an hour:",
-      highlight: "Map, design, and go live in a single visit",
-      sub: "Our team maps your location and activates a tailored AR experience in ~60 minutes.",
+      pre: "Now enrolling in Durham:",
+      highlight: "$0 to try Blueprint at your location.",
+      sub: "Free, no-obligation pilot for businesses within ~30 minutes of Durham. Limited spots.",
     },
   ];
 
@@ -92,7 +93,7 @@ export default function Hero({ onPrimaryCta }) {
           className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs md:text-sm text-slate-200"
         >
           <MapPin className="w-3.5 h-3.5 text-emerald-300" />
-          Durham & Nearby (≤ 30-min drive)
+          Durham area • Free 10-day pilot
         </motion.div>
 
         {/* Headline block */}
@@ -126,9 +127,10 @@ export default function Hero({ onPrimaryCta }) {
           className="mt-5 flex flex-wrap gap-2"
         >
           {[
-            "Free pilot setup",
+            "AR layer for your space",
+            "Free setup",
             "~60-minute visit",
-            "No app required",
+            "Works on phones & glasses",
             "Analytics included",
           ].map((t) => (
             <span
@@ -157,7 +159,7 @@ export default function Hero({ onPrimaryCta }) {
           <Link href="/pilot-program">
             <Button
               variant="outline"
-              className="h-12 w-full sm:w-auto rounded-xl border-white/20 px-6 text-base text-black hover:bg-white/10"
+              className="h-12 w-full sm:w-auto rounded-xl border-white/20 px-6 text-base text-slate-200 hover:bg-white/10"
             >
               <Sparkles className="mr-2 h-5 w-5 text-emerald-300" />
               See examples & how it works
@@ -180,6 +182,189 @@ export default function Hero({ onPrimaryCta }) {
     </section>
   );
 }
+
+// // ===============================================
+// // FILE: src/components/sections/Hero.jsx
+// // PURPOSE: Conversion-optimized hero w/ premium motion & reduced-motion guard (JSX)
+// // ===============================================
+
+// "use client";
+// import React, { useEffect, useRef, useState } from "react";
+// import {
+//   motion,
+//   AnimatePresence,
+//   useInView,
+//   useReducedMotion,
+// } from "framer-motion";
+// import { Button } from "@/components/ui/button";
+// import { Link } from "wouter";
+// import { ArrowRightIcon } from "@heroicons/react/24/solid";
+// import { MapPin, Sparkles } from "lucide-react";
+
+// export default function Hero({ onPrimaryCta }) {
+//   const lines = [
+//     {
+//       k: "pilot",
+//       pre: "Durham-area Pilot:",
+//       highlight: "Turn your space into an interactive AR experience",
+//       sub: "We design, install, and launch a custom AR layer for your business — at no cost during the pilot.",
+//     },
+//     {
+//       k: "noapp",
+//       pre: "No app. No hardware.",
+//       highlight: "Guests scan a QR. Magic happens in your space.",
+//       sub: "Frictionless for customers and staff. Works on phones and smart glasses.",
+//     },
+//     {
+//       k: "speed",
+//       pre: "On-site in about an hour:",
+//       highlight: "Map, design, and go live in a single visit",
+//       sub: "Our team maps your location and activates a tailored AR experience in ~60 minutes.",
+//     },
+//   ];
+
+//   const [idx, setIdx] = useState(0);
+//   const wrapRef = useRef(null);
+//   const inView = useInView(wrapRef, { once: true, margin: "-10% 0px" });
+//   const shouldReduce = useReducedMotion();
+
+//   useEffect(() => {
+//     if (shouldReduce) return;
+//     const id = setInterval(() => setIdx((p) => (p + 1) % lines.length), 6500);
+//     return () => clearInterval(id);
+//   }, [shouldReduce]);
+
+//   const handlePrimary = () => {
+//     if (typeof onPrimaryCta === "function") onPrimaryCta();
+//     const el = document.getElementById("contactForm");
+//     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+//   };
+
+//   return (
+//     <section className="relative overflow-hidden bg-[#0B1220]">
+//       {/* Background accents */}
+//       <div className="absolute inset-0 -z-10 pointer-events-none" aria-hidden>
+//         {/* Soft spotlight */}
+//         <div className="absolute inset-0 bg-[radial-gradient(60%_60%_at_50%_10%,rgba(16,185,129,0.08)_0%,rgba(59,130,246,0.05)_35%,transparent_70%)]" />
+//         {/* Floating orbs */}
+//         {!shouldReduce && (
+//           <>
+//             <motion.div
+//               initial={{ opacity: 0, scale: 0.95, y: -20 }}
+//               animate={{ opacity: 0.35, scale: 1, y: 0 }}
+//               transition={{ duration: 1 }}
+//               className="absolute -top-40 -right-20 h-[36rem] w-[36rem] rounded-full blur-3xl bg-gradient-to-br from-emerald-500/30 via-cyan-500/25 to-sky-500/10"
+//             />
+//             <motion.div
+//               initial={{ opacity: 0, scale: 0.95, y: 20 }}
+//               animate={{ opacity: 0.25, scale: 1, y: 0 }}
+//               transition={{ duration: 1.1, delay: 0.1 }}
+//               className="absolute -bottom-40 -left-20 h-[30rem] w-[30rem] rounded-full blur-3xl bg-gradient-to-tr from-sky-500/10 via-emerald-500/15 to-amber-400/10"
+//             />
+//           </>
+//         )}
+//       </div>
+
+//       <div
+//         ref={wrapRef}
+//         className="container mx-auto px-4 pt-[88px] md:pt-20 pb-10 md:pb-16"
+//       >
+//         {/* Durham badge */}
+//         <motion.div
+//           initial={{ y: 10, opacity: 0 }}
+//           animate={{ y: 0, opacity: 1 }}
+//           transition={{ duration: 0.6 }}
+//           className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs md:text-sm text-slate-200"
+//         >
+//           <MapPin className="w-3.5 h-3.5 text-emerald-300" />
+//           Durham & Nearby (≤ 30-min drive)
+//         </motion.div>
+
+//         {/* Headline block */}
+//         <div className="mt-4 md:mt-6 min-h-[7.5rem] md:min-h-[9.5rem]">
+//           <AnimatePresence mode="wait">
+//             <motion.div
+//               key={lines[idx].k}
+//               initial={{ opacity: 0, y: 18 }}
+//               animate={{ opacity: 1, y: 0 }}
+//               exit={{ opacity: 0, y: -14 }}
+//               transition={{ duration: 0.55 }}
+//             >
+//               <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight text-white">
+//                 <span className="block text-slate-100">{lines[idx].pre}</span>
+//                 <span className="block bg-gradient-to-r from-emerald-400 via-cyan-300 to-emerald-200 bg-clip-text text-transparent">
+//                   {lines[idx].highlight}
+//                 </span>
+//               </h1>
+//               <p className="mt-3 max-w-2xl text-sm sm:text-base md:text-lg text-slate-300">
+//                 {lines[idx].sub}
+//               </p>
+//             </motion.div>
+//           </AnimatePresence>
+//         </div>
+
+//         {/* Feature chips */}
+//         <motion.div
+//           initial={{ opacity: 0, y: 10 }}
+//           animate={{ opacity: inView ? 1 : 0, y: inView ? 0 : 10 }}
+//           transition={{ delay: 0.15 }}
+//           className="mt-5 flex flex-wrap gap-2"
+//         >
+//           {[
+//             "Free pilot setup",
+//             "~60-minute visit",
+//             "No app required",
+//             "Analytics included",
+//           ].map((t) => (
+//             <span
+//               key={t}
+//               className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs md:text-sm text-slate-200"
+//             >
+//               {t}
+//             </span>
+//           ))}
+//         </motion.div>
+
+//         {/* CTAs */}
+//         <motion.div
+//           initial={{ opacity: 0, y: 10 }}
+//           animate={{ opacity: inView ? 1 : 0, y: inView ? 0 : 10 }}
+//           transition={{ delay: 0.25 }}
+//           className="mt-6 flex flex-col sm:flex-row gap-3"
+//         >
+//           <Button
+//             onClick={handlePrimary}
+//             className="h-12 w-full sm:w-auto rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 px-6 text-base font-semibold text-white shadow-xl border-0 hover:shadow-2xl hover:scale-[1.02] transition"
+//           >
+//             Join the Durham Pilot (Free)
+//             <ArrowRightIcon className="ml-2 h-5 w-5" />
+//           </Button>
+//           <Link href="/pilot-program">
+//             <Button
+//               variant="outline"
+//               className="h-12 w-full sm:w-auto rounded-xl border-white/20 px-6 text-base text-black hover:bg-white/10"
+//             >
+//               <Sparkles className="mr-2 h-5 w-5 text-emerald-300" />
+//               See examples & how it works
+//             </Button>
+//           </Link>
+//         </motion.div>
+
+//         {/* Scroll cue (desktop) */}
+//         <div className="hidden md:block mt-10">
+//           <motion.div
+//             initial={{ opacity: 0 }}
+//             animate={{ opacity: 0.7 }}
+//             transition={{ delay: 0.8, duration: 0.8 }}
+//             className="text-xs text-slate-400"
+//           >
+//             Scroll to see Blueprint in action
+//           </motion.div>
+//         </div>
+//       </div>
+//     </section>
+//   );
+// }
 
 // "use client";
 // import { useState, useEffect, useRef } from "react";
