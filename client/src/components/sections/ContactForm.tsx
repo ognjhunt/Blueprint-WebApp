@@ -405,8 +405,9 @@ export default function ContactForm() {
                       value={formData.name}
                       onChange={handleChange}
                       onKeyDown={(e) => handleKeyDown(e, emailRef)}
-                      className="border-2 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 rounded-xl py-3 px-4"
+                      className="border-2 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 rounded-xl py-3 px-4 text-slate-900"
                     />
+
                     {errors.name && (
                       <p className="text-red-500 text-sm mt-2">{errors.name}</p>
                     )}
@@ -431,7 +432,7 @@ export default function ContactForm() {
                       value={formData.email}
                       onChange={handleChange}
                       onKeyDown={(e) => handleKeyDown(e, companyRef)}
-                      className="border-2 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 rounded-xl py-3 px-4"
+                      className="border-2 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 rounded-xl py-3 px-4 text-slate-900"
                     />
                     {errors.email && (
                       <p className="text-red-500 text-sm mt-2">
@@ -462,7 +463,7 @@ export default function ContactForm() {
                         setTimeout(() => setCompanyPredictions([]), 150)
                       }
                       onKeyDown={(e) => handleKeyDown(e, messageRef)}
-                      className="border-2 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 rounded-xl py-3 px-4"
+                      className="border-2 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 rounded-xl py-3 px-4 text-slate-900"
                     />
                     {errors.company && (
                       <p className="text-red-500 text-sm mt-2">
@@ -569,7 +570,7 @@ export default function ContactForm() {
                       rows={3}
                       value={formData.message}
                       onChange={handleChange}
-                      className="border-2 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 rounded-xl py-3 px-4 resize-none"
+                      className="border-2 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 rounded-xl py-3 px-4 text-slate-900"
                     />
                   </div>
 

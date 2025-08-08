@@ -121,34 +121,85 @@ export default function Home() {
 
         {/* Benefit strip */}
         <section className="bg-[#0E172A]/90 py-4 border-y border-white/5 backdrop-blur-sm">
-          <div className="container mx-auto px-4">
-            <div className="hidden md:grid grid-cols-4 gap-4">
-              {benefits.map((b) => (
-                <motion.div
-                  key={b.label}
-                  initial={{ opacity: 0, y: 6 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.4 }}
-                >
-                  <Card className="bg-white/[0.045] backdrop-blur-sm border-white/10">
-                    <CardContent className="flex items-center gap-3 py-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500/30 to-cyan-500/30 text-emerald-200">
-                        {b.icon}
-                      </div>
-                      <p className="font-semibold text-slate-100">{b.label}</p>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-
-            {/* Mobile horizontal chips */}
-            <div className="md:hidden -mx-4 overflow-x-auto no-scrollbar">
-              <div className="flex gap-2 px-4 w-max">
-                {benefits.map((b) => (
+          <div className="container mx-auto px-4 overflow-hidden">
+            <motion.div
+              initial={{ x: 0 }}
+              animate={{ x: "-50%" }}
+              transition={{ repeat: Infinity, duration: 28.75, ease: "linear" }}
+              className="flex gap-4 w-max"
+            >
+              {[
+                {
+                  icon: <Clock className="w-4 h-4" />,
+                  label: "60-min on-site setup",
+                },
+                {
+                  icon: <Smartphone className="w-4 h-4" />,
+                  label: "No app required",
+                },
+                {
+                  icon: <Sparkles className="w-4 h-4" />,
+                  label: "Custom AR for your space",
+                },
+                {
+                  icon: <BarChart3 className="w-4 h-4" />,
+                  label: "Live engagement analytics",
+                },
+                {
+                  icon: <ShieldCheck className="w-4 h-4" />,
+                  label: "No hardware cost",
+                },
+                {
+                  icon: <Sparkles className="w-4 h-4" />,
+                  label: "Works on phones & glasses",
+                },
+                {
+                  icon: <Clock className="w-4 h-4" />,
+                  label: "White-glove onboarding",
+                },
+                {
+                  icon: <BarChart3 className="w-4 h-4" />,
+                  label: "Boosts customer engagement",
+                },
+              ]
+                // Duplicate array for seamless looping
+                .concat([
+                  {
+                    icon: <Clock className="w-4 h-4" />,
+                    label: "60-min on-site setup",
+                  },
+                  {
+                    icon: <Smartphone className="w-4 h-4" />,
+                    label: "No app required",
+                  },
+                  {
+                    icon: <Sparkles className="w-4 h-4" />,
+                    label: "Custom AR for your space",
+                  },
+                  {
+                    icon: <BarChart3 className="w-4 h-4" />,
+                    label: "Live engagement analytics",
+                  },
+                  {
+                    icon: <ShieldCheck className="w-4 h-4" />,
+                    label: "No hardware cost",
+                  },
+                  {
+                    icon: <Sparkles className="w-4 h-4" />,
+                    label: "Works on phones & glasses",
+                  },
+                  {
+                    icon: <Clock className="w-4 h-4" />,
+                    label: "White-glove onboarding",
+                  },
+                  {
+                    icon: <BarChart3 className="w-4 h-4" />,
+                    label: "Boosts customer engagement",
+                  },
+                ])
+                .map((b, i) => (
                   <div
-                    key={b.label}
+                    key={i}
                     className="shrink-0 rounded-xl border border-white/10 bg-white/5 px-3 py-2 flex items-center gap-2"
                   >
                     <span className="text-emerald-300">{b.icon}</span>
@@ -157,8 +208,7 @@ export default function Home() {
                     </span>
                   </div>
                 ))}
-              </div>
-            </div>
+            </motion.div>
           </div>
         </section>
 
@@ -227,7 +277,7 @@ export default function Home() {
                 <a href="/pilot-program" className="inline-block">
                   <Button
                     variant="outline"
-                    className="h-12 px-6 text-base rounded-xl border-white/20 text-slate-100 hover:bg-white/10"
+                    className="h-12 px-6 text-base rounded-xl border-white/20 text-black hover:bg-white/10"
                   >
                     How the Pilot Works
                   </Button>

@@ -82,7 +82,7 @@ export default function Hero({ onPrimaryCta }) {
 
       <div
         ref={wrapRef}
-        className="container mx-auto px-4 pt-12 pb-10 md:pt-20 md:pb-16"
+        className="container mx-auto px-4 pt-[88px] md:pt-20 pb-10 md:pb-16"
       >
         {/* Durham badge */}
         <motion.div
@@ -157,7 +157,7 @@ export default function Hero({ onPrimaryCta }) {
           <Link href="/pilot-program">
             <Button
               variant="outline"
-              className="h-12 w-full sm:w-auto rounded-xl border-white/20 px-6 text-base text-slate-100 hover:bg-white/10"
+              className="h-12 w-full sm:w-auto rounded-xl border-white/20 px-6 text-base text-black hover:bg-white/10"
             >
               <Sparkles className="mr-2 h-5 w-5 text-emerald-300" />
               See examples & how it works

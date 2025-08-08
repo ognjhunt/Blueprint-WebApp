@@ -202,27 +202,66 @@ export default function LocationShowcase() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35 }}
-            className="relative aspect-[16/9] overflow-hidden rounded-3xl border border-white/10 bg-black"
+            className="relative aspect-[16/9] overflow-hidden rounded-3xl border border-white/10 bg-black select-none"
+            onMouseDown={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+
+              // Jump instantly on click
+              const x = e.clientX - rect.left;
+              setSlider(Math.min(100, Math.max(0, (x / rect.width) * 100)));
+
+              // Start dragging
+              const move = (ev) => {
+                const moveX = ev.clientX - rect.left;
+                setSlider(
+                  Math.min(100, Math.max(0, (moveX / rect.width) * 100)),
+                );
+              };
+              const up = () => {
+                window.removeEventListener("mousemove", move);
+                window.removeEventListener("mouseup", up);
+              };
+              window.addEventListener("mousemove", move);
+              window.addEventListener("mouseup", up);
+            }}
+            onTouchStart={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+
+              // Jump instantly on tap
+              const x = e.touches[0].clientX - rect.left;
+              setSlider(Math.min(100, Math.max(0, (x / rect.width) * 100)));
+
+              // Start dragging
+              const move = (ev) => {
+                const moveX = ev.touches[0].clientX - rect.left;
+                setSlider(
+                  Math.min(100, Math.max(0, (moveX / rect.width) * 100)),
+                );
+              };
+              const end = () => {
+                window.removeEventListener("touchmove", move);
+                window.removeEventListener("touchend", end);
+              };
+              window.addEventListener("touchmove", move);
+              window.addEventListener("touchend", end);
+            }}
           >
             {/* Before */}
             <img
               src={active.before}
               alt={`${active.name} (before)`}
-              className="absolute inset-0 h-full w-full object-cover select-none"
-              loading="eager"
+              className="absolute inset-0 h-full w-full object-cover"
             />
 
-            {/* After clipped by slider */}
+            {/* After clipped */}
             <div
               className="absolute inset-0"
               style={{ clipPath: `inset(0 ${100 - slider}% 0 0)` }}
-              aria-hidden
             >
               <img
                 src={active.after}
                 alt={`${active.name} (after)`}
-                className="absolute inset-0 h-full w-full object-cover select-none"
-                loading="lazy"
+                className="absolute inset-0 h-full w-full object-cover"
               />
             </div>
 
@@ -234,31 +273,16 @@ export default function LocationShowcase() {
               With Blueprint
             </div>
 
-            {/* Slider control */}
+            {/* Handle */}
             <div
-              className="absolute inset-y-0 left-0"
-              style={{ width: `${slider}%` }}
+              className="absolute top-0 bottom-0"
+              style={{ left: `${slider}%`, transform: "translateX(-50%)" }}
             >
-              {/* Handle */}
-              <div className="absolute top-1/2 -right-3 -translate-y-1/2">
-                <div className="h-9 w-9 rounded-full bg-white/90 border border-white/40 shadow-lg backdrop-blur-md grid place-items-center">
-                  <div className="h-1.5 w-5 rounded-full bg-slate-700" />
-                </div>
+              <div className="h-full w-[2px] bg-white/70 mix-blend-overlay" />
+              <div className="absolute top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-white/90 border border-white/40 shadow-lg backdrop-blur-md grid place-items-center">
+                <div className="h-1.5 w-5 rounded-full bg-slate-700" />
               </div>
-              {/* Divider line */}
-              <div className="absolute top-0 right-0 h-full w-[2px] bg-white/70 mix-blend-overlay" />
             </div>
-
-            {/* Invisible input overlays full image for scrubbing (accessible) */}
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={slider}
-              onChange={(e) => setSlider(parseInt(e.target.value, 10))}
-              aria-label="Compare before and after"
-              className="absolute inset-x-0 bottom-4 mx-auto w-2/3 h-2 appearance-none bg-white/20 rounded-full accent-white"
-            />
           </motion.div>
         </div>
 
