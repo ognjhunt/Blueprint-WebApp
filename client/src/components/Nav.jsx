@@ -153,16 +153,16 @@ export default function Nav({
           ))}
 
           {/* Invite Team if logged in */}
-          {currentUser && !hideAuthenticatedFeatures && (
+          {/* {currentUser && !hideAuthenticatedFeatures && (
             <InviteTeamButtonInternal />
-          )}
+          )} */}
 
           {/* Auth controls */}
           {!currentUser ? (
             <SignInButtonInternal />
           ) : (
             <div className="flex items-center gap-3">
-              {!hideAuthenticatedFeatures && path !== "/dashboard" && (
+              {/* {!hideAuthenticatedFeatures && path !== "/dashboard" && (
                 <Link href="/dashboard">
                   <Button
                     variant="outline"
@@ -171,7 +171,7 @@ export default function Nav({
                     Dashboard
                   </Button>
                 </Link>
-              )}
+              )} */}
 
               {/* Avatar dropdown */}
               <DropdownMenu>
@@ -258,7 +258,7 @@ export default function Nav({
                 </Link>
               ))}
 
-              {currentUser && !hideAuthenticatedFeatures && (
+              {/* {currentUser && !hideAuthenticatedFeatures && (
                 <Link
                   href="/workspace"
                   className="w-full"
@@ -268,7 +268,7 @@ export default function Nav({
                     <UserPlus className="h-4 w-4 mr-2" /> Invite Team
                   </Button>
                 </Link>
-              )}
+              )} */}
 
               {!currentUser ? (
                 <Link
@@ -282,7 +282,7 @@ export default function Nav({
                 </Link>
               ) : (
                 <>
-                  {!hideAuthenticatedFeatures && (
+                  {/* {!hideAuthenticatedFeatures && (
                     <Link
                       href="/dashboard"
                       className="w-full"
@@ -295,7 +295,7 @@ export default function Nav({
                         Dashboard
                       </Button>
                     </Link>
-                  )}
+                  )} */}
 
                   {!hideAuthenticatedFeatures && (
                     <Link
