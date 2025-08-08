@@ -224,41 +224,180 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Social proof / assurances */}
-        <section className="bg-[#0B1220] py-12">
+        {/* Quick Qualify (replaces the "Social proof / assurances" section) */}
+        <section className="bg-[#0B1220] py-8 md:py-12">
           <div className="container mx-auto px-4">
-            <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-              <AssuranceCard
-                title="2-Week"
-                accentClass="text-emerald-300"
-                headlineSuffix=" Free Pilot"
-                body="We design and activate a custom AR layer for your location at no cost during the pilot."
-                icon={null}
-              />
-              <AssuranceCard
-                title="0"
-                accentClass="text-cyan-300"
-                headlineSuffix=" Hardware"
-                body="Guests scan a QR with their phone or glasses—nothing for your team to install."
-                icon={null}
-              />
-              <AssuranceCard
-                title={
-                  <ShieldCheck className="inline-block w-7 h-7 mr-2 align-[-2px]" />
-                }
-                accentClass="text-amber-300"
-                headlineSuffix=" QA"
-                body="Every experience is tested before and after activation to ensure reliability on-site."
-                icon={null}
-              />
+            {/* MOBILE: stacked, compact */}
+            <div className="md:hidden space-y-4">
+              {/* Are you a fit? */}
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <p className="text-sm font-semibold text-emerald-300 mb-1">
+                  Eligibility
+                </p>
+                <h3 className="text-lg font-bold text-white mb-3">
+                  Are you a fit?
+                </h3>
+                <ul className="grid grid-cols-2 gap-2 text-sm">
+                  {[
+                    "Durham ≤ 30-min drive",
+                    "Customer-facing space",
+                    "On-site point of contact",
+                    "~60-min access window",
+                  ].map((t) => (
+                    <li
+                      key={t}
+                      className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-slate-200"
+                    >
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* What’s included */}
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <p className="text-sm font-semibold text-cyan-300 mb-1">
+                  Included
+                </p>
+                <h3 className="text-lg font-bold text-white mb-3">
+                  What you’ll get
+                </h3>
+                <ul className="space-y-2 text-sm text-slate-300">
+                  <li>• LiDAR mapping of your space</li>
+                  <li>• Custom AR layer tailored to your brand</li>
+                  <li>• QR kit for instant access on-site</li>
+                  <li>• Apple Vision Pro demo day for your team</li>
+                  <li>• Simple engagement recap & next-step options</li>
+                </ul>
+              </div>
+
+              {/* Who does what + availability */}
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <p className="text-xs font-semibold text-emerald-300 mb-1">
+                      We handle
+                    </p>
+                    <ul className="space-y-1 text-sm text-slate-300">
+                      <li>• Mapping & design</li>
+                      <li>• Setup & devices</li>
+                      <li>• Analytics recap</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-cyan-300 mb-1">
+                      You provide
+                    </p>
+                    <ul className="space-y-1 text-sm text-slate-300">
+                      <li>• 60-min window</li>
+                      <li>• Logo/menu/product list</li>
+                      <li>• Quick feedback</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                  <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
+                    14-day pilot
+                  </span>
+                  <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
+                    Replies &lt; 24h
+                  </span>
+                  <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
+                    Limited spots
+                  </span>
+                </div>
+
+                <Button
+                  onClick={handleScrollToContact}
+                  className="w-full rounded-xl h-12 bg-gradient-to-r from-emerald-500 to-cyan-600 text-white font-semibold shadow-xl"
+                >
+                  Check my eligibility
+                </Button>
+              </div>
             </div>
 
-            {/* Animated stats */}
-            <div className="mt-10 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto">
-              <Stat label="Avg. setup time" value="~60 min" />
-              <Stat label="Coverage radius" value="≤ 30 min" />
-              <Stat label="Apps to install" value="0" />
-              <Stat label="Support" value="24/7" />
+            {/* DESKTOP: compact 3-card grid */}
+            <div className="hidden md:grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                <p className="text-sm font-semibold text-emerald-300 mb-1">
+                  Eligibility
+                </p>
+                <h3 className="text-xl font-bold text-white mb-3">
+                  Are you a fit?
+                </h3>
+                <ul className="grid grid-cols-2 gap-2 text-sm">
+                  {[
+                    "Durham ≤ 30-min",
+                    "Customer-facing",
+                    "POC on-site",
+                    "~60-min access",
+                  ].map((t) => (
+                    <li
+                      key={t}
+                      className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-slate-200"
+                    >
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                <p className="text-sm font-semibold text-cyan-300 mb-1">
+                  Included
+                </p>
+                <h3 className="text-xl font-bold text-white mb-3">
+                  What you’ll get
+                </h3>
+                <ul className="space-y-2 text-sm text-slate-300">
+                  <li>• LiDAR mapping</li>
+                  <li>• Custom AR layer</li>
+                  <li>• QR kit</li>
+                  <li>• Vision Pro demo day</li>
+                  <li>• Engagement recap</li>
+                </ul>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-6 flex flex-col">
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <p className="text-xs font-semibold text-emerald-300 mb-1">
+                      We handle
+                    </p>
+                    <ul className="space-y-1 text-sm text-slate-300">
+                      <li>• Mapping & design</li>
+                      <li>• Setup & devices</li>
+                      <li>• Analytics recap</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-cyan-300 mb-1">
+                      You provide
+                    </p>
+                    <ul className="space-y-1 text-sm text-slate-300">
+                      <li>• 60-min window</li>
+                      <li>• Brand assets</li>
+                      <li>• Feedback</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="mt-auto flex items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
+                      Replies &lt; 24h
+                    </span>
+                    <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
+                      Limited spots
+                    </span>
+                  </div>
+                  <Button
+                    onClick={handleScrollToContact}
+                    className="rounded-xl h-10 bg-gradient-to-r from-emerald-500 to-cyan-600 text-white"
+                  >
+                    Join the Pilot
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         </section>
