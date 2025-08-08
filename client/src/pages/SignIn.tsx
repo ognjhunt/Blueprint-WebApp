@@ -96,7 +96,7 @@ export default function SignIn() {
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-[#0B1220] text-slate-100">
+    <div className="min-h-screen relative overflow-hidden bg-white text-slate-900 dark:bg-[#0B1220] dark:text-slate-100">
       {/* Brand glows */}
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-32 -right-24 h-[45rem] w-[45rem] rounded-full blur-3xl opacity-40 bg-gradient-to-br from-emerald-500/20 via-cyan-500/20 to-sky-500/10" />

@@ -8,7 +8,6 @@ import { useState, useEffect } from "react";
 import GeminiChat from "@/components/GeminiChat";
 import GeminiMultimodal from "@/components/GeminiMultimodal";
 import { motion, AnimatePresence } from "framer-motion";
-import DarkModeToggle from "@/components/DarkModeToggle";
 import { LiveAPIProvider } from "@/contexts/LiveAPIContext";
 import BlueprintImage from "@/components/BlueprintImage";
 import { useToast } from "@/hooks/use-toast";
@@ -1259,7 +1258,7 @@ export default function Dashboard() {
 
   return (
     <LiveAPIProvider>
-      <div className="min-h-screen bg-[#0B1220] text-slate-100">
+      <div className="min-h-screen bg-white text-slate-900 dark:bg-[#0B1220] dark:text-slate-100">
         <Nav hideAuthenticatedFeatures={isWaitingForMapping} />
 
         {isLoading ? (

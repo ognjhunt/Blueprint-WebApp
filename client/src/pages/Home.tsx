@@ -90,7 +90,7 @@ export default function Home() {
 
   return (
     <div
-      className="min-h-screen flex flex-col bg-[#0B1220] text-slate-100"
+      className="min-h-screen flex flex-col bg-white text-slate-900 dark:bg-[#0B1220] dark:text-slate-100"
       onMouseMove={onMouseMove}
     >
       {/* BACKGROUND: aurora + grid + parallax blobs */}
@@ -225,7 +225,7 @@ export default function Home() {
         </section>
 
         {/* Quick Qualify (replaces the "Social proof / assurances" section) */}
-        <section className="bg-[#0B1220] py-8 md:py-12">
+        <section className="bg-white dark:bg-[#0B1220] py-8 md:py-12">
           <div className="container mx-auto px-4">
             {/* MOBILE: stacked, compact */}
             <div className="md:hidden space-y-4">

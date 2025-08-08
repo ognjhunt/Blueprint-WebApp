@@ -950,7 +950,7 @@ export default function PilotProgram() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden bg-[#0B1220] text-slate-100">
+    <div className="min-h-screen flex flex-col relative overflow-hidden bg-white text-slate-900 dark:bg-[#0B1220] dark:text-slate-100">
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-32 -right-24 h-[45rem] w-[45rem] rounded-full blur-3xl opacity-40 bg-gradient-to-br from-emerald-500/20 via-cyan-500/20 to-sky-500/10" />
         <div className="absolute -bottom-32 -left-24 h-[40rem] w-[40rem] rounded-full blur-3xl opacity-30 bg-gradient-to-tr from-cyan-500/10 via-emerald-500/10 to-amber-400/10" />
@@ -960,7 +960,7 @@ export default function PilotProgram() {
       <Nav />
 
       {/* HERO */}
-      <section className="mt-6 md:mt-0 pt-16 md:pt-20 lg:pt-32 pb-12 md:pb-16 lg:pb-24 relative overflow-hidden bg-[#0B1220]">
+      <section className="mt-6 md:mt-0 pt-16 md:pt-20 lg:pt-32 pb-12 md:pb-16 lg:pb-24 relative overflow-hidden bg-white dark:bg-[#0B1220]">
         <div className="absolute inset-0 -z-10 pointer-events-none">
           <div className="absolute top-20 -right-20 w-96 h-96 bg-emerald-300/10 rounded-full blur-3xl" />
           <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-cyan-300/10 rounded-full blur-3xl" />
@@ -1250,7 +1250,7 @@ export default function PilotProgram() {
       </section>
 
       {/* EXPLAINER TABS */}
-      <section className="py-16 md:py-24 relative bg-[#0B1220]">
+      <section className="py-16 md:py-24 relative bg-white dark:bg-[#0B1220]">
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
           <FadeIn yOffset={20} delay={0.1} className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
@@ -1577,7 +1577,7 @@ export default function PilotProgram() {
       </section>
 
       {/* FAQ */}
-      <section className="py-16 md:py-24 bg-[#0B1220]">
+      <section className="py-16 md:py-24 bg-white dark:bg-[#0B1220]">
         <div className="container mx-auto px-4 sm:px-6 max-w-4xl">
           {/* Mobile */}
           <div className="block md:hidden">
@@ -1683,7 +1683,7 @@ export default function PilotProgram() {
       {/* WAITLIST CONTACT FORM (light surface for readability) */}
       <section
         id="pilot-waitlist"
-        className="bg-[#0B1220] border-t border-white/10"
+        className="bg-white dark:bg-[#0B1220] border-t border-white/10"
       >
         <ContactForm />
         <div className="px-4 sm:px-6 max-w-4xl mx-auto pb-12">

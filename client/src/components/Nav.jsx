@@ -85,7 +85,7 @@ export default function Nav({
       aria-label="Primary"
       className={`fixed top-0 left-0 right-0 z-50 h-16 md:h-20 transition-all duration-500 ${
         isScrolled
-          ? "bg-slate-900/85 backdrop-blur-xl border-b border-slate-800 shadow-[0_1px_0_0_rgba(255,255,255,0.04)]"
+          ? "bg-white/80 backdrop-blur-xl border-b border-slate-200 shadow-sm dark:bg-slate-900/85 dark:border-slate-800 dark:shadow-[0_1px_0_0_rgba(255,255,255,0.04)]"
           : "bg-transparent"
       }`}
       initial={{ y: -100 }}
@@ -104,8 +104,8 @@ export default function Nav({
             <span
               className={`text-xl md:text-2xl font-black tracking-tight bg-clip-text text-transparent ${
                 isScrolled
-                  ? "bg-gradient-to-r from-slate-200 to-slate-300"
-                  : "bg-gradient-to-r from-white to-slate-200"
+                  ? "bg-gradient-to-r from-slate-800 to-slate-900 dark:from-slate-200 dark:to-slate-300"
+                  : "bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-200"
               }`}
             >
               Blueprint
@@ -137,7 +137,7 @@ export default function Nav({
             <Link key={link.href} href={link.href}>
               <motion.div
                 className={`text-sm font-semibold relative group flex items-center gap-2 ${
-                  isScrolled ? "text-slate-200" : "text-white"
+                  isScrolled ? "text-slate-800 dark:text-slate-200" : "text-slate-900 dark:text-white"
                 }`}
                 whileHover={{ scale: 1.05 }}
               >
