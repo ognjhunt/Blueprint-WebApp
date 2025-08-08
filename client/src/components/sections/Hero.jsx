@@ -28,14 +28,15 @@ export default function Hero({ onPrimaryCta }) {
     {
       k: "how",
       pre: "We do the heavy lifting:",
-      highlight: "Map your location → design the content → launch in ~10 days.",
-      sub: "Our team handles mapping, content, QR placement, and training. You just pick a time.",
+      highlight:
+        "Map your location → design the content → on-site demo in ~10 days.",
+      sub: "Two short visits from us: Day 1 mapping (~60 min), then a demo 1–2 hrs about a week later.",
     },
     {
       k: "pilot",
       pre: "Now enrolling in Durham:",
       highlight: "$0 to try Blueprint at your location.",
-      sub: "Free, no-obligation pilot for businesses within ~30 minutes of Durham. Limited spots.",
+      sub: "Free, feedback-only pilot. Two visits: mapping (~60 min) + demo (1–2 hrs). No contract; no purchase option yet.",
     },
   ];
 
@@ -93,7 +94,7 @@ export default function Hero({ onPrimaryCta }) {
           className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs md:text-sm text-slate-200"
         >
           <MapPin className="w-3.5 h-3.5 text-emerald-300" />
-          Durham area • Free 10-day pilot
+          Durham area • Free two-visit pilot
         </motion.div>
 
         {/* Headline block */}
@@ -127,9 +128,9 @@ export default function Hero({ onPrimaryCta }) {
           className="mt-5 flex flex-wrap gap-2"
         >
           {[
-            "AR layer for your space",
-            "Free setup",
-            "~60-minute visit",
+            "Two visits (~10 days)",
+            "Mapping ~60 min",
+            "Live demo 1–2 hrs",
             "Works on phones & glasses",
             "Analytics included",
           ].map((t) => (
@@ -166,6 +167,11 @@ export default function Hero({ onPrimaryCta }) {
             </Button>
           </Link>
         </motion.div>
+
+        <p className="mt-2 text-xs text-slate-400">
+          Pilot includes one on-site demo window; the AR experience is live
+          during that session only.
+        </p>
 
         {/* Scroll cue (desktop) */}
         <div className="hidden md:block mt-10">

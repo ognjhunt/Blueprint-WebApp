@@ -234,8 +234,8 @@ function MobileBenefitsCarousel({ benefits }) {
 function getBenefitDetails(title) {
   const details = {
     "Zero Risk": [
-      "Free 10-day program",
-      "No credit card or commitment",
+      "Free two-visit pilot (~10 days)",
+      "No credit card or contract",
       "We handle setup end-to-end",
       "Clear next steps after demo",
     ],
@@ -817,7 +817,7 @@ export default function PilotProgram() {
   const timeline = [
     {
       icon: <MapPin className="w-6 h-6" />,
-      title: "Day 1",
+      title: "Visit 1",
       subtitle: "30–60 min Mapping",
       description:
         "We scan your venue with LiDAR to create a precise digital twin—fast, quiet, and disruption-free.",
@@ -831,39 +831,89 @@ export default function PilotProgram() {
     },
     {
       icon: <Sparkles className="w-6 h-6" />,
-      title: "Week 1",
-      subtitle: "AI-Powered Creation",
+      title: "Between Visits (~1 week)",
+      subtitle: "Design & Build",
       description:
-        "We design a custom AR layer for your space—brand-aligned, interactive, and purposeful.",
+        "We design a brand-aligned AR layer with smart placements and interactions.",
       color: "from-cyan-500 to-teal-500",
       benefit: "Tailored to your venue",
-      details: [
-        "AI-generated content",
-        "Smart triggers & placements",
-        "Review checkpoints",
-      ],
+      details: ["AI-assisted content", "Review checkpoint (async)", "QR plan"],
     },
     {
       icon: <Wand2 className="w-6 h-6" />,
-      title: "Week 1",
-      subtitle: "Fine-Tune & Prep",
+      title: "Prep & Briefing",
+      subtitle: "We get your team ready",
       description:
-        "We place QR codes, finish polish, and brief your team for a smooth reveal.",
+        "We place/ship QR kits, finish polish, and share a quick briefing so demo day runs smoothly.",
       color: "from-teal-500 to-emerald-500",
-      benefit: "Polished to perfection",
-      details: ["QR placement plan", "Final adjustments", "Staff briefing"],
+      benefit: "Smooth demo day",
+      details: ["QR placement", "Final adjustments", "Team briefing"],
     },
     {
       icon: <PlayCircle className="w-6 h-6" />,
-      title: "Week 2",
-      subtitle: "Live Demo Day",
+      title: "Visit 2",
+      subtitle: "Live Demo Day (1–2 hrs)",
       description:
-        "See your space come alive on Apple Vision Pro and other devices. Collect instant feedback.",
+        "See your space come alive on Apple Vision Pro and phones. Collect instant feedback. The AR is live during the demo window only.",
       color: "from-emerald-400 to-cyan-400",
       benefit: "Hands-on, on-site",
-      details: ["Vision Pro demo", "Team training", "Immediate insights"],
+      details: [
+        "Vision Pro + phones",
+        "Team walkthrough",
+        "Immediate insights",
+      ],
     },
   ];
+  // const timeline = [
+  //   {
+  //     icon: <MapPin className="w-6 h-6" />,
+  //     title: "Day 1",
+  //     subtitle: "30–60 min Mapping",
+  //     description:
+  //       "We scan your venue with LiDAR to create a precise digital twin—fast, quiet, and disruption-free.",
+  //     color: "from-emerald-500 to-cyan-500",
+  //     benefit: "Zero prep on your side",
+  //     details: [
+  //       "Under 5,000 sq ft in ~30–60 min",
+  //       "Larger spaces in 1–2 hrs",
+  //       "Millimeter-accurate model",
+  //     ],
+  //   },
+  //   {
+  //     icon: <Sparkles className="w-6 h-6" />,
+  //     title: "Week 1",
+  //     subtitle: "AI-Powered Creation",
+  //     description:
+  //       "We design a custom AR layer for your space—brand-aligned, interactive, and purposeful.",
+  //     color: "from-cyan-500 to-teal-500",
+  //     benefit: "Tailored to your venue",
+  //     details: [
+  //       "AI-generated content",
+  //       "Smart triggers & placements",
+  //       "Review checkpoints",
+  //     ],
+  //   },
+  //   {
+  //     icon: <Wand2 className="w-6 h-6" />,
+  //     title: "Week 1",
+  //     subtitle: "Fine-Tune & Prep",
+  //     description:
+  //       "We place QR codes, finish polish, and brief your team for a smooth reveal.",
+  //     color: "from-teal-500 to-emerald-500",
+  //     benefit: "Polished to perfection",
+  //     details: ["QR placement plan", "Final adjustments", "Staff briefing"],
+  //   },
+  //   {
+  //     icon: <PlayCircle className="w-6 h-6" />,
+  //     title: "Week 2",
+  //     subtitle: "Live Demo Day",
+  //     description:
+  //       "See your space come alive on Apple Vision Pro and other devices. Collect instant feedback.",
+  //     color: "from-emerald-400 to-cyan-400",
+  //     benefit: "Hands-on, on-site",
+  //     details: ["Vision Pro demo", "Team training", "Immediate insights"],
+  //   },
+  // ];
 
   const idealFor = [
     {
@@ -896,7 +946,8 @@ export default function PilotProgram() {
     {
       icon: <Shield className="w-6 h-6" />,
       title: "Zero Risk",
-      description: "A 2-week pilot that’s completely free and obligation-free.",
+      description:
+        "A two-visit pilot (~10 days) that’s free and feedback-only.",
       highlight: "100% FREE",
     },
     {
@@ -929,7 +980,7 @@ export default function PilotProgram() {
     },
     {
       q: "What does the pilot cost?",
-      a: "Nothing. The 2-week pilot is completely free—no credit card, no hidden fees, no obligation.",
+      a: "Nothing. The two-visit pilot (~10 days) is free and feedback-only. No contract, and there’s no purchase option yet.",
     },
     {
       q: "How long does mapping take?",
@@ -942,6 +993,10 @@ export default function PilotProgram() {
     {
       q: "What do you need from us?",
       a: "Access for mapping, some basic business info, and your feedback after demo day. We handle the rest—design, setup, and analytics.",
+    },
+    {
+      q: "Is the AR experience live for two weeks?",
+      a: "No. The experience is live during the scheduled demo window (1–2 hours) on Visit 2. The goal is to gather feedback and learn, not to run the experience continuously yet.",
     },
     {
       q: "What happens after the pilot?",
@@ -975,7 +1030,7 @@ export default function PilotProgram() {
             >
               <Badge className="inline-flex items-center gap-2 bg-emerald-400/10 text-emerald-300 border-emerald-500/30 mb-6 px-4 py-2">
                 <Rocket className="w-4 h-4" />
-                Durham Pilot — Limited Spots
+                Durham Pilot — Two visits (~10 days)
               </Badge>
 
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-6 leading-tight text-white">
@@ -986,9 +1041,9 @@ export default function PilotProgram() {
               </h1>
 
               <p className="text-base sm:text-lg md:text-xl text-slate-300 mb-6 md:mb-8 max-w-2xl mx-auto lg:mx-0">
-                We scan your venue, design a custom AR layer, and launch
-                it—free. No apps to install. Just scan a QR and wow your
-                visitors.
+                Two quick visits about a week apart: mapping (~60 min) and an
+                on-site demo (1–2 hrs). Free and feedback-only. No apps to
+                install—guests just scan a QR.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-8">
@@ -1027,6 +1082,10 @@ export default function PilotProgram() {
                   <span className="text-slate-200">We handle everything</span>
                 </div>
               </div>
+              <p className="mt-2 text-xs text-slate-400">
+                Note: The AR experience is live during the scheduled demo window
+                only.
+              </p>
             </FadeIn>
 
             <FadeIn
@@ -1068,7 +1127,7 @@ export default function PilotProgram() {
               label: "Time to Launch",
               value: "10 days",
               icon: <Clock className="w-6 h-6" />,
-              description: "From scan to live experience",
+              description: "From mapping to on-site demo", // ← replace this line
               gradient: "from-cyan-500 to-teal-500",
             },
             {
@@ -1172,10 +1231,10 @@ export default function PilotProgram() {
           >
             <Badge className="inline-flex items-center gap-2 bg-cyan-500/10 text-cyan-300 border-cyan-500/30 mb-6 px-4 py-2">
               <CalendarCheck className="w-4 h-4" />
-              Simple 2-Week Process
+              Simple Two-Visit Process (~10 days)
             </Badge>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 text-white">
-              From First Scan to Live AR in Two Weeks
+              From First Scan to a Live Demo in ~10 Days
             </h2>
             <p className="text-lg md:text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
               We do the heavy lifting—your team just shows up to try it and give

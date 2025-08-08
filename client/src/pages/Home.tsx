@@ -298,7 +298,10 @@ export default function Home() {
 
                 <div className="flex flex-wrap items-center gap-2 mb-4">
                   <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
-                    14-day pilot
+                    Two visits (~10 days)
+                  </span>
+                  <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
+                    Live demo 1–2 hrs
                   </span>
                   <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
                     Replies &lt; 24h
@@ -416,7 +419,8 @@ export default function Home() {
               </h3>
               <p className="mt-3 text-slate-300 max-w-2xl mx-auto">
                 We’re onboarding businesses within a 30-minute drive of Durham.
-                Mapping + setup takes ~60 minutes, and the pilot is free.
+                Two quick visits about a week apart: mapping (~60 min) and an
+                on-site demo (1–2 hrs). The pilot is free.
               </p>
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 justify-center">
                 <Button
