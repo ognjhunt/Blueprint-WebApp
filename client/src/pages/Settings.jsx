@@ -534,12 +534,21 @@ export default function SettingsPage() {
   return (
     <>
       <Nav />
-      <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50/30 pt-20 pb-16">
+      <main className="relative min-h-screen bg-[#0B1220] text-slate-100 pt-20 pb-16 overflow-hidden">
         {/* Background elements for visual appeal */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-20 -left-20 w-96 h-96 bg-gradient-to-br from-indigo-200/20 to-violet-200/20 rounded-full blur-3xl"></div>
-          <div className="absolute top-1/3 right-0 w-72 h-72 bg-gradient-to-br from-blue-200/20 to-indigo-200/20 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-gradient-to-br from-purple-200/20 to-pink-200/20 rounded-full blur-3xl"></div>
+        <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+          <div
+            className="absolute inset-0 opacity-[0.08]"
+            style={{
+              background:
+                "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.2) 1px, transparent 1px)",
+              backgroundSize: "32px 32px",
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/[0.05] via-cyan-500/[0.05] to-transparent" />
+          <div className="absolute -top-20 -left-20 w-96 h-96 bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute top-1/3 right-0 w-72 h-72 bg-gradient-to-br from-cyan-500/10 to-emerald-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-3xl"></div>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -550,10 +559,10 @@ export default function SettingsPage() {
             transition={{ duration: 0.5 }}
             className="text-center mb-8"
           >
-            <h1 className="text-4xl font-extrabold text-gray-900 sm:text-5xl bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600">
+            <h1 className="text-4xl font-extrabold text-slate-100 sm:text-5xl bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">
               Settings
             </h1>
-            <p className="mt-4 text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="mt-4 text-xl text-slate-400 max-w-3xl mx-auto">
               Customize your Blueprint experience and manage your account
               preferences.
             </p>
@@ -561,7 +570,7 @@ export default function SettingsPage() {
 
           {isLoading ? (
             <div className="flex justify-center items-center h-64">
-              <div className="w-12 h-12 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin"></div>
+              <div className="w-12 h-12 rounded-full border-4 border-emerald-200 border-t-emerald-500 animate-spin"></div>
             </div>
           ) : (
             <div className="flex flex-col lg:flex-row gap-8">
@@ -572,7 +581,7 @@ export default function SettingsPage() {
                 transition={{ duration: 0.5, delay: 0.1 }}
                 className="lg:w-64 space-y-2"
               >
-                <Card className="sticky top-24 border-0 shadow-md overflow-hidden bg-white/80 backdrop-blur-sm">
+                <Card className="sticky top-24 border-0 shadow-md overflow-hidden bg-[#0E172A]/80 backdrop-blur-sm">
                   <CardContent className="p-3">
                     {settingsSections.map((section) => (
                       <motion.button
@@ -580,8 +589,8 @@ export default function SettingsPage() {
                         onClick={() => setActiveSection(section.id)}
                         className={`w-full flex items-center py-2.5 px-3 rounded-lg text-sm font-medium transition-colors ${
                           activeSection === section.id
-                            ? "bg-gradient-to-r from-indigo-50 to-indigo-100 text-indigo-700"
-                            : "text-gray-700 hover:bg-gray-50"
+                            ? "bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 text-emerald-300"
+                            : "text-slate-300 hover:bg-[#1a2234]"
                         }`}
                         whileHover={{ x: activeSection === section.id ? 0 : 5 }}
                         whileTap={{ scale: 0.98 }}
@@ -589,8 +598,8 @@ export default function SettingsPage() {
                         <span
                           className={`mr-3 ${
                             activeSection === section.id
-                              ? "text-indigo-600"
-                              : "text-gray-400"
+                              ? "text-emerald-400"
+                              : "text-slate-500"
                           }`}
                         >
                           {section.icon}
@@ -598,7 +607,7 @@ export default function SettingsPage() {
                         {section.label}
                         {activeSection === section.id && (
                           <motion.div
-                            className="ml-auto w-1.5 h-5 rounded-full bg-indigo-600"
+                            className="ml-auto w-1.5 h-5 rounded-full bg-emerald-600"
                             layoutId="activeSection"
                           />
                         )}
@@ -611,14 +620,14 @@ export default function SettingsPage() {
                 {userData && (
                   <Card className="border-0 shadow-md overflow-hidden">
                     <div
-                      className={`p-4 text-white ${userData.planType === "pro" ? "bg-gradient-to-br from-indigo-500 to-violet-600" : "bg-gradient-to-br from-blue-400 to-blue-500"}`}
+                      className={`p-4 text-white ${userData.planType === "pro" ? "bg-gradient-to-br from-emerald-500 to-cyan-600" : "bg-gradient-to-br from-emerald-500 to-cyan-500"}`}
                     >
                       <h3 className="font-semibold">
                         {userData.planType === "pro"
                           ? "Pro Subscription"
                           : "Free Tier"}
                       </h3>
-                      <p className="text-xs text-indigo-100 mt-1 mb-3">
+                      <p className="text-xs text-emerald-100 mt-1 mb-3">
                         {userData.planType === "pro" && userData.planExpiryDate
                           ? `Valid until ${new Date(userData.planExpiryDate.toDate()).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
                           : userData.planType === "free"
@@ -635,7 +644,7 @@ export default function SettingsPage() {
                       </div>
                       <div className="w-full bg-white/20 rounded-full h-1.5 mt-1 mb-3">
                         <div
-                          className="bg-white rounded-full h-1.5"
+                          className="bg-emerald-400 rounded-full h-1.5"
                           style={{ width: `${userData.planUsage || 0}%` }}
                         ></div>
                       </div>
@@ -681,8 +690,8 @@ export default function SettingsPage() {
                           <CardHeader>
                             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                               <div>
-                                <CardTitle className="text-xl font-bold text-gray-800 flex items-center">
-                                  <User className="mr-2 h-5 w-5 text-indigo-500" />
+                                <CardTitle className="text-xl font-bold text-slate-100 flex items-center">
+                                  <User className="mr-2 h-5 w-5 text-emerald-400" />
                                   Profile Information
                                 </CardTitle>
                                 <CardDescription>
@@ -693,7 +702,7 @@ export default function SettingsPage() {
                               <Button
                                 onClick={handleSaveSettings}
                                 disabled={isSaving || isUploading} // Disable save if uploading too
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white"
                               >
                                 {isSaving ? (
                                   <>
@@ -727,7 +736,7 @@ export default function SettingsPage() {
                                       "User Avatar"
                                     }
                                   />
-                                  <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-500 text-xl font-bold text-white">
+                                  <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-cyan-500 text-xl font-bold text-white">
                                     {isUploading ? (
                                       <RefreshCw className="h-6 w-6 animate-spin" /> // Show spinner during upload
                                     ) : profileSettings.displayName ? (
@@ -754,7 +763,7 @@ export default function SettingsPage() {
                                 <Button
                                   size="sm"
                                   variant="secondary"
-                                  className="absolute -bottom-2 -right-2 rounded-full w-8 h-8 p-0 bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
+                                  className="absolute -bottom-2 -right-2 rounded-full w-8 h-8 p-0 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md"
                                   onClick={handleUploadClick}
                                   disabled={isUploading}
                                   aria-label="Upload profile picture"
@@ -798,7 +807,7 @@ export default function SettingsPage() {
                                       type="email"
                                       value={profileSettings.email}
                                       disabled // Email usually not changed here
-                                      className="bg-gray-100 cursor-not-allowed"
+                                      className="bg-[#1a2234] cursor-not-allowed"
                                     />
                                   </div>
                                 </div>
@@ -822,7 +831,7 @@ export default function SettingsPage() {
 
                             {/* Professional Information */}
                             <motion.div variants={itemVariants}>
-                              <h3 className="text-lg font-medium text-gray-800 mb-4">
+                              <h3 className="text-lg font-medium text-slate-100 mb-4">
                                 Professional Information
                               </h3>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -855,7 +864,7 @@ export default function SettingsPage() {
 
                             {/* Location and Contact */}
                             <motion.div variants={itemVariants}>
-                              <h3 className="text-lg font-medium text-gray-800 mb-4">
+                              <h3 className="text-lg font-medium text-slate-100 mb-4">
                                 Location & Contact
                               </h3>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -972,8 +981,8 @@ export default function SettingsPage() {
                           <CardHeader>
                             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                               <div>
-                                <CardTitle className="text-xl font-bold text-gray-800 flex items-center">
-                                  <Lock className="mr-2 h-5 w-5 text-indigo-500" />
+                                <CardTitle className="text-xl font-bold text-slate-100 flex items-center">
+                                  <Lock className="mr-2 h-5 w-5 text-emerald-400" />
                                   Account Security
                                 </CardTitle>
                                 <CardDescription>
@@ -984,7 +993,7 @@ export default function SettingsPage() {
                               <Button
                                 onClick={handleSaveSettings}
                                 disabled={isSaving}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white"
                               >
                                 {isSaving ? (
                                   <>
@@ -1006,7 +1015,7 @@ export default function SettingsPage() {
                               variants={itemVariants}
                               className="space-y-4"
                             >
-                              <h3 className="text-lg font-medium text-gray-800">
+                              <h3 className="text-lg font-medium text-slate-100">
                                 Password
                               </h3>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1057,10 +1066,10 @@ export default function SettingsPage() {
                               variants={itemVariants}
                               className="space-y-4"
                             >
-                              <h3 className="text-lg font-medium text-gray-800">
+                              <h3 className="text-lg font-medium text-slate-100">
                                 Two-Factor Authentication
                               </h3>
-                              <p className="text-sm text-gray-500">
+                              <p className="text-sm text-slate-400">
                                 Add an extra layer of security to your account
                                 by enabling two-factor authentication.
                               </p>
@@ -1071,7 +1080,7 @@ export default function SettingsPage() {
                                     <div className="text-sm font-medium">
                                       Email Authentication
                                     </div>
-                                    <div className="text-xs text-gray-500">
+                                    <div className="text-xs text-slate-400">
                                       Receive authentication codes via email
                                     </div>
                                   </div>
@@ -1088,7 +1097,7 @@ export default function SettingsPage() {
                                     <div className="text-sm font-medium">
                                       SMS Authentication
                                     </div>
-                                    <div className="text-xs text-gray-500">
+                                    <div className="text-xs text-slate-400">
                                       Receive authentication codes via SMS
                                     </div>
                                   </div>
@@ -1109,7 +1118,7 @@ export default function SettingsPage() {
                               variants={itemVariants}
                               className="space-y-4"
                             >
-                              <h3 className="text-lg font-medium text-gray-800">
+                              <h3 className="text-lg font-medium text-slate-100">
                                 Security Alerts
                               </h3>
 
@@ -1119,7 +1128,7 @@ export default function SettingsPage() {
                                     <div className="text-sm font-medium">
                                       Login Alerts
                                     </div>
-                                    <div className="text-xs text-gray-500">
+                                    <div className="text-xs text-slate-400">
                                       Receive alerts for new login attempts
                                     </div>
                                   </div>
@@ -1139,7 +1148,7 @@ export default function SettingsPage() {
                                     <div className="text-sm font-medium">
                                       Security Notifications
                                     </div>
-                                    <div className="text-xs text-gray-500">
+                                    <div className="text-xs text-slate-400">
                                       Get notified about important security
                                       events
                                     </div>
@@ -1170,12 +1179,12 @@ export default function SettingsPage() {
                                   account.
                                 </p>
                                 <div className="space-y-4">
-                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3 rounded-lg bg-white border border-red-100">
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3 rounded-lg bg-[#0E172A] border border-red-100">
                                     <div>
-                                      <h4 className="font-medium text-gray-900">
+                                      <h4 className="font-medium text-slate-100">
                                         Delete Account
                                       </h4>
-                                      <p className="text-sm text-gray-500">
+                                      <p className="text-sm text-slate-400">
                                         Permanently delete your account and all
                                         associated data.
                                       </p>
@@ -1210,12 +1219,12 @@ export default function SettingsPage() {
                                     </AlertDialog>
                                   </div>
 
-                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3 rounded-lg bg-white border border-red-100">
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3 rounded-lg bg-[#0E172A] border border-red-100">
                                     <div>
-                                      <h4 className="font-medium text-gray-900">
+                                      <h4 className="font-medium text-slate-100">
                                         Log Out Everywhere
                                       </h4>
-                                      <p className="text-sm text-gray-500">
+                                      <p className="text-sm text-slate-400">
                                         Sign out from all devices where you're
                                         currently logged in.
                                       </p>
@@ -1248,8 +1257,8 @@ export default function SettingsPage() {
                           <CardHeader>
                             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                               <div>
-                                <CardTitle className="text-xl font-bold text-gray-800 flex items-center">
-                                  <Bell className="mr-2 h-5 w-5 text-indigo-500" />
+                                <CardTitle className="text-xl font-bold text-slate-100 flex items-center">
+                                  <Bell className="mr-2 h-5 w-5 text-emerald-400" />
                                   Notification Preferences
                                 </CardTitle>
                                 <CardDescription>
@@ -1259,7 +1268,7 @@ export default function SettingsPage() {
                               <Button
                                 onClick={handleSaveSettings}
                                 disabled={isSaving}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white"
                               >
                                 {isSaving ? (
                                   <>
@@ -1298,7 +1307,7 @@ export default function SettingsPage() {
                                       <div className="text-sm font-medium">
                                         Email Notifications
                                       </div>
-                                      <div className="text-xs text-gray-500">
+                                      <div className="text-xs text-slate-400">
                                         Receive notifications via email
                                       </div>
                                     </div>
@@ -1320,7 +1329,7 @@ export default function SettingsPage() {
                                       <div className="text-sm font-medium">
                                         Push Notifications
                                       </div>
-                                      <div className="text-xs text-gray-500">
+                                      <div className="text-xs text-slate-400">
                                         Receive notifications in your browser
                                       </div>
                                     </div>
@@ -1340,7 +1349,7 @@ export default function SettingsPage() {
                                   <Separator />
 
                                   <div className="pt-2">
-                                    <h3 className="text-sm font-medium text-gray-800 mb-2">
+                                    <h3 className="text-sm font-medium text-slate-100 mb-2">
                                       Email Frequency
                                     </h3>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -1349,7 +1358,7 @@ export default function SettingsPage() {
                                           type="radio"
                                           id="realtime"
                                           name="emailFrequency"
-                                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                          className="h-4 w-4 text-emerald-400 focus:ring-emerald-500 border-gray-300 rounded"
                                           defaultChecked
                                         />
                                         <Label htmlFor="realtime">
@@ -1361,7 +1370,7 @@ export default function SettingsPage() {
                                           type="radio"
                                           id="daily"
                                           name="emailFrequency"
-                                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                          className="h-4 w-4 text-emerald-400 focus:ring-emerald-500 border-gray-300 rounded"
                                         />
                                         <Label htmlFor="daily">
                                           Daily digest
@@ -1372,7 +1381,7 @@ export default function SettingsPage() {
                                           type="radio"
                                           id="weekly"
                                           name="emailFrequency"
-                                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                          className="h-4 w-4 text-emerald-400 focus:ring-emerald-500 border-gray-300 rounded"
                                         />
                                         <Label htmlFor="weekly">
                                           Weekly digest
@@ -1396,7 +1405,7 @@ export default function SettingsPage() {
                                       <div className="text-sm font-medium">
                                         Blueprint Changes
                                       </div>
-                                      <div className="text-xs text-gray-500">
+                                      <div className="text-xs text-slate-400">
                                         Notifications about changes to your
                                         blueprints
                                       </div>
@@ -1419,7 +1428,7 @@ export default function SettingsPage() {
                                       <div className="text-sm font-medium">
                                         Team Updates
                                       </div>
-                                      <div className="text-xs text-gray-500">
+                                      <div className="text-xs text-slate-400">
                                         Notifications about team activity and
                                         members
                                       </div>
@@ -1440,7 +1449,7 @@ export default function SettingsPage() {
                                       <div className="text-sm font-medium">
                                         Usage Alerts
                                       </div>
-                                      <div className="text-xs text-gray-500">
+                                      <div className="text-xs text-slate-400">
                                         Notifications about your plan usage and
                                         limits
                                       </div>
@@ -1461,7 +1470,7 @@ export default function SettingsPage() {
                                       <div className="text-sm font-medium">
                                         Security Notifications
                                       </div>
-                                      <div className="text-xs text-gray-500">
+                                      <div className="text-xs text-slate-400">
                                         Important alerts related to your account
                                         security
                                       </div>
@@ -1484,7 +1493,7 @@ export default function SettingsPage() {
                                       <div className="text-sm font-medium">
                                         Weekly Digest
                                       </div>
-                                      <div className="text-xs text-gray-500">
+                                      <div className="text-xs text-slate-400">
                                         Weekly summary of activity and metrics
                                       </div>
                                     </div>
@@ -1506,7 +1515,7 @@ export default function SettingsPage() {
                                       <div className="text-sm font-medium">
                                         Marketing Emails
                                       </div>
-                                      <div className="text-xs text-gray-500">
+                                      <div className="text-xs text-slate-400">
                                         Promotional emails and product updates
                                       </div>
                                     </div>
@@ -1558,8 +1567,8 @@ export default function SettingsPage() {
                           <CardHeader>
                             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                               <div>
-                                <CardTitle className="text-xl font-bold text-gray-800 flex items-center">
-                                  <Palette className="mr-2 h-5 w-5 text-indigo-500" />
+                                <CardTitle className="text-xl font-bold text-slate-100 flex items-center">
+                                  <Palette className="mr-2 h-5 w-5 text-emerald-400" />
                                   Appearance Settings
                                 </CardTitle>
                                 <CardDescription>
@@ -1569,7 +1578,7 @@ export default function SettingsPage() {
                               <Button
                                 onClick={handleSaveSettings}
                                 disabled={isSaving}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white"
                               >
                                 {isSaving ? (
                                   <>
@@ -1591,21 +1600,21 @@ export default function SettingsPage() {
                               variants={itemVariants}
                               className="space-y-4"
                             >
-                              <h3 className="text-lg font-medium text-gray-800">
+                              <h3 className="text-lg font-medium text-slate-100">
                                 Theme
                               </h3>
                               <div className="grid grid-cols-3 gap-4">
                                 <div
                                   className={`cursor-pointer rounded-lg border p-4 flex flex-col items-center ${
                                     appearanceSettings.theme === "light"
-                                      ? "border-indigo-500 bg-indigo-50"
-                                      : "border-gray-200 hover:border-indigo-200 hover:bg-gray-50"
+                                      ? "border-emerald-500 bg-emerald-500/10"
+                                      : "border-gray-200 hover:border-emerald-200 hover:bg-[#1a2234]"
                                   }`}
                                   onClick={() =>
                                     handleAppearanceChange("theme", "light")
                                   }
                                 >
-                                  <div className="h-14 w-14 bg-white border border-gray-200 rounded-full flex items-center justify-center mb-2">
+                                  <div className="h-14 w-14 bg-[#0E172A] border border-gray-200 rounded-full flex items-center justify-center mb-2">
                                     <Sun className="h-6 w-6 text-amber-500" />
                                   </div>
                                   <span className="text-sm font-medium">
@@ -1616,15 +1625,15 @@ export default function SettingsPage() {
                                 <div
                                   className={`cursor-pointer rounded-lg border p-4 flex flex-col items-center ${
                                     appearanceSettings.theme === "dark"
-                                      ? "border-indigo-500 bg-indigo-50"
-                                      : "border-gray-200 hover:border-indigo-200 hover:bg-gray-50"
+                                      ? "border-emerald-500 bg-emerald-500/10"
+                                      : "border-gray-200 hover:border-emerald-200 hover:bg-[#1a2234]"
                                   }`}
                                   onClick={() =>
                                     handleAppearanceChange("theme", "dark")
                                   }
                                 >
                                   <div className="h-14 w-14 bg-gray-900 border border-gray-700 rounded-full flex items-center justify-center mb-2">
-                                    <Moon className="h-6 w-6 text-gray-400" />
+                                    <Moon className="h-6 w-6 text-slate-500" />
                                   </div>
                                   <span className="text-sm font-medium">
                                     Dark
@@ -1634,15 +1643,15 @@ export default function SettingsPage() {
                                 <div
                                   className={`cursor-pointer rounded-lg border p-4 flex flex-col items-center ${
                                     appearanceSettings.theme === "system"
-                                      ? "border-indigo-500 bg-indigo-50"
-                                      : "border-gray-200 hover:border-indigo-200 hover:bg-gray-50"
+                                      ? "border-emerald-500 bg-emerald-500/10"
+                                      : "border-gray-200 hover:border-emerald-200 hover:bg-[#1a2234]"
                                   }`}
                                   onClick={() =>
                                     handleAppearanceChange("theme", "system")
                                   }
                                 >
                                   <div className="h-14 w-14 bg-gradient-to-br from-white to-gray-900 border border-gray-200 rounded-full flex items-center justify-center mb-2">
-                                    <div className="h-6 w-6 bg-white rounded-l-full border-t border-l border-b border-gray-300"></div>
+                                    <div className="h-6 w-6 bg-[#0E172A] rounded-l-full border-t border-l border-b border-gray-300"></div>
                                     <div className="h-6 w-6 bg-gray-900 rounded-r-full border-t border-r border-b border-gray-700"></div>
                                   </div>
                                   <span className="text-sm font-medium">
@@ -1659,7 +1668,7 @@ export default function SettingsPage() {
                               variants={itemVariants}
                               className="space-y-4"
                             >
-                              <h3 className="text-lg font-medium text-gray-800">
+                              <h3 className="text-lg font-medium text-slate-100">
                                 Visual Preferences
                               </h3>
 
@@ -1670,7 +1679,7 @@ export default function SettingsPage() {
                                       <div className="text-sm font-medium">
                                         Animations
                                       </div>
-                                      <div className="text-xs text-gray-500">
+                                      <div className="text-xs text-slate-400">
                                         Enable UI animations and transitions
                                       </div>
                                     </div>
@@ -1692,7 +1701,7 @@ export default function SettingsPage() {
                                       <div className="text-sm font-medium">
                                         Compact Mode
                                       </div>
-                                      <div className="text-xs text-gray-500">
+                                      <div className="text-xs text-slate-400">
                                         Reduce spacing to fit more content
                                       </div>
                                     </div>
@@ -1714,7 +1723,7 @@ export default function SettingsPage() {
                                       <div className="text-sm font-medium">
                                         High Contrast
                                       </div>
-                                      <div className="text-xs text-gray-500">
+                                      <div className="text-xs text-slate-400">
                                         Increase contrast for better visibility
                                       </div>
                                     </div>
@@ -1772,15 +1781,15 @@ export default function SettingsPage() {
                               variants={itemVariants}
                               className="space-y-4"
                             >
-                              <h3 className="text-lg font-medium text-gray-800">
+                              <h3 className="text-lg font-medium text-slate-100">
                                 Color Scheme
                               </h3>
                               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                 <div
                                   className={`cursor-pointer rounded-lg border p-4 flex flex-col items-center ${
                                     appearanceSettings.colorScheme === "default"
-                                      ? "border-indigo-500 bg-indigo-50"
-                                      : "border-gray-200 hover:border-indigo-200 hover:bg-gray-50"
+                                      ? "border-emerald-500 bg-emerald-500/10"
+                                      : "border-gray-200 hover:border-emerald-200 hover:bg-[#1a2234]"
                                   }`}
                                   onClick={() =>
                                     handleAppearanceChange(
@@ -1789,7 +1798,7 @@ export default function SettingsPage() {
                                     )
                                   }
                                 >
-                                  <div className="h-10 w-10 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-lg mb-2"></div>
+                                  <div className="h-10 w-10 bg-gradient-to-br from-emerald-500 to-cyan-600 rounded-lg mb-2"></div>
                                   <span className="text-sm font-medium">
                                     Default
                                   </span>
@@ -1798,8 +1807,8 @@ export default function SettingsPage() {
                                 <div
                                   className={`cursor-pointer rounded-lg border p-4 flex flex-col items-center ${
                                     appearanceSettings.colorScheme === "blue"
-                                      ? "border-indigo-500 bg-indigo-50"
-                                      : "border-gray-200 hover:border-indigo-200 hover:bg-gray-50"
+                                      ? "border-emerald-500 bg-emerald-500/10"
+                                      : "border-gray-200 hover:border-emerald-200 hover:bg-[#1a2234]"
                                   }`}
                                   onClick={() =>
                                     handleAppearanceChange(
@@ -1808,7 +1817,7 @@ export default function SettingsPage() {
                                     )
                                   }
                                 >
-                                  <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg mb-2"></div>
+                                  <div className="h-10 w-10 bg-gradient-to-br from-emerald-500 to-cyan-600 rounded-lg mb-2"></div>
                                   <span className="text-sm font-medium">
                                     Ocean
                                   </span>
@@ -1817,8 +1826,8 @@ export default function SettingsPage() {
                                 <div
                                   className={`cursor-pointer rounded-lg border p-4 flex flex-col items-center ${
                                     appearanceSettings.colorScheme === "green"
-                                      ? "border-indigo-500 bg-indigo-50"
-                                      : "border-gray-200 hover:border-indigo-200 hover:bg-gray-50"
+                                      ? "border-emerald-500 bg-emerald-500/10"
+                                      : "border-gray-200 hover:border-emerald-200 hover:bg-[#1a2234]"
                                   }`}
                                   onClick={() =>
                                     handleAppearanceChange(
@@ -1836,8 +1845,8 @@ export default function SettingsPage() {
                                 <div
                                   className={`cursor-pointer rounded-lg border p-4 flex flex-col items-center ${
                                     appearanceSettings.colorScheme === "purple"
-                                      ? "border-indigo-500 bg-indigo-50"
-                                      : "border-gray-200 hover:border-indigo-200 hover:bg-gray-50"
+                                      ? "border-emerald-500 bg-emerald-500/10"
+                                      : "border-gray-200 hover:border-emerald-200 hover:bg-[#1a2234]"
                                   }`}
                                   onClick={() =>
                                     handleAppearanceChange(
@@ -1868,8 +1877,8 @@ export default function SettingsPage() {
                       >
                         <Card className="border-0 shadow-md">
                           <CardHeader>
-                            <CardTitle className="text-xl font-bold text-gray-800 flex items-center">
-                              <CreditCard className="mr-2 h-5 w-5 text-indigo-500" />
+                            <CardTitle className="text-xl font-bold text-slate-100 flex items-center">
+                              <CreditCard className="mr-2 h-5 w-5 text-emerald-400" />
                               Billing & Subscription
                             </CardTitle>
                             <CardDescription>
@@ -1883,30 +1892,30 @@ export default function SettingsPage() {
                               variants={itemVariants}
                               className="space-y-4"
                             >
-                              <h3 className="text-lg font-medium text-gray-800">
+                              <h3 className="text-lg font-medium text-slate-100">
                                 Current Plan
                               </h3>
                               <div
-                                className={`rounded-lg border p-4 ${userData?.planType === "pro" ? "border-indigo-100 bg-indigo-50" : "border-blue-100 bg-blue-50"}`}
+                                className={`rounded-lg border p-4 ${userData?.planType === "pro" ? "border-emerald-100 bg-emerald-500/10" : "border-cyan-200 bg-cyan-500/10"}`}
                               >
                                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                                   <div>
                                     <div className="flex items-center gap-2">
                                       <h4
-                                        className={`text-lg font-semibold ${userData?.planType === "pro" ? "text-indigo-700" : "text-blue-700"}`}
+                                        className={`text-lg font-semibold ${userData?.planType === "pro" ? "text-emerald-400" : "text-cyan-400"}`}
                                       >
                                         {userData?.planType === "pro"
                                           ? "Pro Subscription"
                                           : "Free Tier"}
                                       </h4>
                                       <Badge
-                                        className={`${userData?.planType === "pro" ? "bg-indigo-100 text-indigo-800 hover:bg-indigo-100" : "bg-blue-100 text-blue-800 hover:bg-blue-100"}`}
+                                        className={`${userData?.planType === "pro" ? "bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20" : "bg-cyan-500/20 text-cyan-600 hover:bg-cyan-500/20"}`}
                                       >
                                         Active
                                       </Badge>
                                     </div>
                                     <p
-                                      className={`text-sm mt-1 ${userData?.planType === "pro" ? "text-indigo-600" : "text-blue-600"}`}
+                                      className={`text-sm mt-1 ${userData?.planType === "pro" ? "text-emerald-400" : "text-cyan-400"}`}
                                     >
                                       {userData?.planType === "pro"
                                         ? `$${userData.planCost || "50"}/month · Renews on ${userData.planExpiryDate ? new Date(userData.planExpiryDate.toDate()).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "N/A"}`
@@ -1914,7 +1923,7 @@ export default function SettingsPage() {
                                     </p>
                                   </div>
                                   <Button
-                                    className={`bg-white border hover:bg-opacity-50 ${userData?.planType === "pro" ? "text-indigo-600 border-indigo-200 hover:bg-indigo-50" : "text-blue-600 border-blue-200 hover:bg-blue-50"}`}
+                                    className={`bg-[#0E172A] border hover:bg-opacity-50 ${userData?.planType === "pro" ? "text-emerald-400 border-emerald-200 hover:bg-emerald-500/10" : "text-cyan-400 border-cyan-200 hover:bg-cyan-500/10"}`}
                                     onClick={() =>
                                       (window.location.href = "/pricing")
                                     }
@@ -1927,14 +1936,14 @@ export default function SettingsPage() {
                               </div>
 
                               <div className="space-y-2">
-                                <Label className="text-sm text-gray-500">
+                                <Label className="text-sm text-slate-400">
                                   Usage this billing cycle
                                 </Label>
                                 <Progress
                                   value={userData?.planUsage || 0}
-                                  className="h-2 bg-gray-100"
+                                  className="h-2 bg-[#1a2234]"
                                 />
-                                <div className="flex justify-between text-xs text-gray-500">
+                                <div className="flex justify-between text-xs text-slate-400">
                                   <span>
                                     {userData?.currentMonthHours || 0} hours
                                     used
@@ -1957,7 +1966,7 @@ export default function SettingsPage() {
                               className="space-y-4"
                             >
                               <div className="flex justify-between items-center">
-                                <h3 className="text-lg font-medium text-gray-800">
+                                <h3 className="text-lg font-medium text-slate-100">
                                   Payment Method
                                 </h3>
                                 <Button variant="outline" size="sm">
@@ -1970,14 +1979,14 @@ export default function SettingsPage() {
                                   {userData?.paymentMethods &&
                                   userData.paymentMethods.length > 0 ? (
                                     <div className="flex items-center gap-3">
-                                      <div className="w-10 h-6 bg-gradient-to-r from-blue-600 to-blue-400 rounded"></div>
+                                      <div className="w-10 h-6 bg-gradient-to-r from-emerald-600 to-cyan-400 rounded"></div>
                                       <div>
                                         <p className="text-sm font-medium">
                                           {userData.paymentMethods[0]
                                             .maskedNumber ||
                                             "•••• •••• •••• ••••"}
                                         </p>
-                                        <p className="text-xs text-gray-500">
+                                        <p className="text-xs text-slate-400">
                                           {userData.paymentMethods[0].expiryDate
                                             ? `Expires ${userData.paymentMethods[0].expiryDate}`
                                             : "No expiry information"}
@@ -1985,7 +1994,7 @@ export default function SettingsPage() {
                                       </div>
                                     </div>
                                   ) : (
-                                    <div className="text-sm text-gray-500">
+                                    <div className="text-sm text-slate-400">
                                       No payment method on file
                                     </div>
                                   )}
@@ -2002,7 +2011,7 @@ export default function SettingsPage() {
                               className="space-y-4"
                             >
                               <div className="flex justify-between items-center">
-                                <h3 className="text-lg font-medium text-gray-800">
+                                <h3 className="text-lg font-medium text-slate-100">
                                   Billing History
                                 </h3>
                                 <Button variant="outline" size="sm">
@@ -2016,15 +2025,15 @@ export default function SettingsPage() {
                                   userData.billingHistory.map((invoice, i) => (
                                     <div
                                       key={i}
-                                      className="flex items-center justify-between p-4 hover:bg-gray-50"
+                                      className="flex items-center justify-between p-4 hover:bg-[#1a2234]"
                                     >
                                       <div className="flex items-center gap-3">
-                                        <FileText className="h-5 w-5 text-gray-400" />
+                                        <FileText className="h-5 w-5 text-slate-500" />
                                         <div>
                                           <p className="text-sm font-medium">
                                             Invoice #{invoice.id || `INV-${i}`}
                                           </p>
-                                          <p className="text-xs text-gray-500">
+                                          <p className="text-xs text-slate-400">
                                             {invoice.date}
                                           </p>
                                         </div>
@@ -2045,8 +2054,8 @@ export default function SettingsPage() {
                                     </div>
                                   ))
                                 ) : (
-                                  <div className="p-8 text-center text-gray-500">
-                                    <FileText className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+                                  <div className="p-8 text-center text-slate-400">
+                                    <FileText className="h-12 w-12 mx-auto text-slate-500 mb-3" />
                                     <p>No billing history available</p>
                                   </div>
                                 )}
@@ -2069,8 +2078,8 @@ export default function SettingsPage() {
                           <CardHeader>
                             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                               <div>
-                                <CardTitle className="text-xl font-bold text-gray-800 flex items-center">
-                                  <Users className="mr-2 h-5 w-5 text-indigo-500" />
+                                <CardTitle className="text-xl font-bold text-slate-100 flex items-center">
+                                  <Users className="mr-2 h-5 w-5 text-emerald-400" />
                                   Teams & Permissions
                                 </CardTitle>
                                 <CardDescription>
@@ -2079,7 +2088,7 @@ export default function SettingsPage() {
                                 </CardDescription>
                               </div>
                               <Button
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white"
                                 onClick={() =>
                                   (window.location.href = "/team-members")
                                 }
@@ -2095,13 +2104,13 @@ export default function SettingsPage() {
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 {/* Team Members */}
                                 <div className="border border-gray-200 rounded-lg p-4">
-                                  <div className="text-sm text-gray-500 mb-1">
+                                  <div className="text-sm text-slate-400 mb-1">
                                     Team Members
                                   </div>
                                   <div className="text-2xl font-bold">
                                     {userData?.teamMembers?.count || 0}
                                   </div>
-                                  <div className="text-xs text-gray-500 mt-1">
+                                  <div className="text-xs text-slate-400 mt-1">
                                     {userData?.teamMembers?.pending
                                       ? `+${userData.teamMembers.pending} pending invitations`
                                       : "No pending invitations"}
@@ -2110,13 +2119,13 @@ export default function SettingsPage() {
 
                                 {/* Blueprints Shared */}
                                 <div className="border border-gray-200 rounded-lg p-4">
-                                  <div className="text-sm text-gray-500 mb-1">
+                                  <div className="text-sm text-slate-400 mb-1">
                                     Blueprints Shared
                                   </div>
                                   <div className="text-2xl font-bold">
                                     {userData?.blueprintsShared?.count || 0}
                                   </div>
-                                  <div className="text-xs text-gray-500 mt-1">
+                                  <div className="text-xs text-slate-400 mt-1">
                                     {userData?.blueprintsShared?.sharedWith > 0
                                       ? `Across ${userData.blueprintsShared.sharedWith} team member${userData.blueprintsShared.sharedWith !== 1 ? "s" : ""}`
                                       : "Not shared yet"}
@@ -2125,11 +2134,11 @@ export default function SettingsPage() {
 
                                 {/* Roles */}
                                 <div className="border border-gray-200 rounded-lg p-4">
-                                  <div className="text-sm text-gray-500 mb-1">
+                                  <div className="text-sm text-slate-400 mb-1">
                                     Roles
                                   </div>
                                   <div className="text-2xl font-bold">3</div>
-                                  <div className="text-xs text-gray-500 mt-1">
+                                  <div className="text-xs text-slate-400 mt-1">
                                     Admin, Editor, Viewer
                                   </div>
                                 </div>
@@ -2144,7 +2153,7 @@ export default function SettingsPage() {
                               className="space-y-4"
                             >
                               <div className="flex justify-between items-center">
-                                <h3 className="text-lg font-medium text-gray-800">
+                                <h3 className="text-lg font-medium text-slate-100">
                                   Team Roles
                                 </h3>
                                 <Button variant="outline" size="sm">
@@ -2185,20 +2194,20 @@ export default function SettingsPage() {
                                     ],
                                   },
                                 ].map((role, i) => (
-                                  <div key={i} className="p-4 hover:bg-gray-50">
+                                  <div key={i} className="p-4 hover:bg-[#1a2234]">
                                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                                       <div>
                                         <div className="flex items-center">
-                                          <h4 className="text-base font-medium text-gray-900">
+                                          <h4 className="text-base font-medium text-slate-100">
                                             {role.name}
                                           </h4>
                                           {role.name === "Admin" && (
-                                            <Badge className="ml-2 bg-indigo-100 text-indigo-800">
+                                            <Badge className="ml-2 bg-emerald-500/20 text-emerald-600">
                                               Your Role
                                             </Badge>
                                           )}
                                         </div>
-                                        <p className="text-sm text-gray-500 mt-1">
+                                        <p className="text-sm text-slate-400 mt-1">
                                           {role.description}
                                         </p>
                                       </div>
@@ -2206,7 +2215,7 @@ export default function SettingsPage() {
                                         {role.permissions.map((perm, j) => (
                                           <span
                                             key={j}
-                                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+                                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#1a2234] text-slate-100"
                                           >
                                             {perm}
                                           </span>
@@ -2225,7 +2234,7 @@ export default function SettingsPage() {
                               variants={itemVariants}
                               className="space-y-4"
                             >
-                              <h3 className="text-lg font-medium text-gray-800">
+                              <h3 className="text-lg font-medium text-slate-100">
                                 Default Access Settings
                               </h3>
 
@@ -2233,10 +2242,10 @@ export default function SettingsPage() {
                                 <div className="rounded-lg border border-gray-200 p-4">
                                   <div className="flex items-center justify-between mb-4">
                                     <div>
-                                      <h4 className="text-base font-medium text-gray-900">
+                                      <h4 className="text-base font-medium text-slate-100">
                                         New Blueprint Visibility
                                       </h4>
-                                      <p className="text-sm text-gray-500">
+                                      <p className="text-sm text-slate-400">
                                         Default sharing settings for new
                                         blueprints
                                       </p>
@@ -2261,10 +2270,10 @@ export default function SettingsPage() {
 
                                   <div className="flex items-center justify-between">
                                     <div>
-                                      <h4 className="text-base font-medium text-gray-900">
+                                      <h4 className="text-base font-medium text-slate-100">
                                         New Team Member Role
                                       </h4>
-                                      <p className="text-sm text-gray-500">
+                                      <p className="text-sm text-slate-400">
                                         Default role for new team members
                                       </p>
                                     </div>
@@ -2305,8 +2314,8 @@ export default function SettingsPage() {
                           <CardHeader>
                             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                               <div>
-                                <CardTitle className="text-xl font-bold text-gray-800 flex items-center">
-                                  <PlugZap className="mr-2 h-5 w-5 text-indigo-500" />
+                                <CardTitle className="text-xl font-bold text-slate-100 flex items-center">
+                                  <PlugZap className="mr-2 h-5 w-5 text-emerald-400" />
                                   API & Integrations
                                 </CardTitle>
                                 <CardDescription>
@@ -2336,7 +2345,7 @@ export default function SettingsPage() {
                               className="space-y-4"
                             >
                               <div className="flex justify-between items-center">
-                                <h3 className="text-lg font-medium text-gray-800">
+                                <h3 className="text-lg font-medium text-slate-100">
                                   API Keys
                                 </h3>
                                 <AlertDialog>
@@ -2374,7 +2383,7 @@ export default function SettingsPage() {
                                         Cancel
                                       </AlertDialogCancel>
                                       <AlertDialogAction
-                                        className="bg-indigo-600 hover:bg-indigo-700"
+                                        className="bg-emerald-600 hover:bg-emerald-700"
                                         onClick={() =>
                                           handleGenerateApiKey("New API Key")
                                         }
@@ -2399,14 +2408,14 @@ export default function SettingsPage() {
 
                               <div className="rounded-lg border border-gray-200 divide-y divide-gray-100 overflow-hidden">
                                 {apiKeys.map((apiKey, i) => (
-                                  <div key={i} className="p-4 hover:bg-gray-50">
+                                  <div key={i} className="p-4 hover:bg-[#1a2234]">
                                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                                       <div>
-                                        <h4 className="text-base font-medium text-gray-900">
+                                        <h4 className="text-base font-medium text-slate-100">
                                           {apiKey.name}
                                         </h4>
                                         <div className="mt-1 flex items-center">
-                                          <code className="text-sm bg-gray-100 px-2 py-0.5 rounded font-mono">
+                                          <code className="text-sm bg-[#1a2234] px-2 py-0.5 rounded font-mono">
                                             {apiKey.key.substring(0, 8)}
                                             ••••••••••••••
                                           </code>
@@ -2419,7 +2428,7 @@ export default function SettingsPage() {
                                           </Button>
                                         </div>
                                       </div>
-                                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                                      <div className="flex items-center gap-2 text-sm text-slate-400">
                                         <div className="flex items-center">
                                           <Calendar className="h-4 w-4 mr-1" />
                                           <span>Created: {apiKey.created}</span>
@@ -2454,30 +2463,30 @@ export default function SettingsPage() {
                               variants={itemVariants}
                               className="space-y-4"
                             >
-                              <h3 className="text-lg font-medium text-gray-800">
+                              <h3 className="text-lg font-medium text-slate-100">
                                 Integrations
                               </h3>
 
                               <div className="rounded-lg border border-gray-200 divide-y divide-gray-100 overflow-hidden">
                                 {integrations.map((integration, i) => (
-                                  <div key={i} className="p-4 hover:bg-gray-50">
+                                  <div key={i} className="p-4 hover:bg-[#1a2234]">
                                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                                       <div className="flex items-center">
-                                        <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center mr-3">
-                                          <Webhook className="h-5 w-5 text-gray-500" />
+                                        <div className="h-10 w-10 rounded-lg bg-[#1a2234] flex items-center justify-center mr-3">
+                                          <Webhook className="h-5 w-5 text-slate-400" />
                                         </div>
                                         <div>
-                                          <h4 className="text-base font-medium text-gray-900">
+                                          <h4 className="text-base font-medium text-slate-100">
                                             {integration.name}
                                           </h4>
                                           {integration.status ===
                                           "connected" ? (
-                                            <p className="text-sm text-gray-500">
+                                            <p className="text-sm text-slate-400">
                                               Connected on{" "}
                                               {integration.connectedAt}
                                             </p>
                                           ) : (
-                                            <p className="text-sm text-gray-500">
+                                            <p className="text-sm text-slate-400">
                                               Not connected
                                             </p>
                                           )}
@@ -2517,7 +2526,7 @@ export default function SettingsPage() {
                               </div>
 
                               <div className="mt-6 text-center">
-                                <p className="text-sm text-gray-500 mb-4">
+                                <p className="text-sm text-slate-400 mb-4">
                                   Looking for other integrations?
                                 </p>
                                 <Button variant="outline">
@@ -2542,8 +2551,8 @@ export default function SettingsPage() {
                           <CardHeader>
                             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                               <div>
-                                <CardTitle className="text-xl font-bold text-gray-800 flex items-center">
-                                  <Code className="mr-2 h-5 w-5 text-indigo-500" />
+                                <CardTitle className="text-xl font-bold text-slate-100 flex items-center">
+                                  <Code className="mr-2 h-5 w-5 text-emerald-400" />
                                   Developer Settings
                                 </CardTitle>
                                 <CardDescription>
@@ -2573,7 +2582,7 @@ export default function SettingsPage() {
                               className="space-y-4"
                             >
                               <div className="flex justify-between items-center">
-                                <h3 className="text-lg font-medium text-gray-800">
+                                <h3 className="text-lg font-medium text-slate-100">
                                   Webhooks
                                 </h3>
                                 <Button variant="outline" size="sm">
@@ -2584,11 +2593,11 @@ export default function SettingsPage() {
 
                               <div className="rounded-lg border border-gray-200 p-4">
                                 <div className="text-center py-6">
-                                  <Terminal className="h-12 w-12 mx-auto text-gray-400 mb-3" />
-                                  <h4 className="text-base font-medium text-gray-900">
+                                  <Terminal className="h-12 w-12 mx-auto text-slate-500 mb-3" />
+                                  <h4 className="text-base font-medium text-slate-100">
                                     No webhooks configured
                                   </h4>
-                                  <p className="text-sm text-gray-500 mt-1 mb-4 max-w-md mx-auto">
+                                  <p className="text-sm text-slate-400 mt-1 mb-4 max-w-md mx-auto">
                                     Webhooks allow you to receive real-time HTTP
                                     notifications when certain events occur in
                                     your account.
@@ -2608,16 +2617,16 @@ export default function SettingsPage() {
                               variants={itemVariants}
                               className="space-y-4"
                             >
-                              <h3 className="text-lg font-medium text-gray-800">
+                              <h3 className="text-lg font-medium text-slate-100">
                                 Environment
                               </h3>
 
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="rounded-lg border border-gray-200 p-4">
-                                  <h4 className="text-base font-medium text-gray-900 mb-3">
+                                  <h4 className="text-base font-medium text-slate-100 mb-3">
                                     Development Mode
                                   </h4>
-                                  <p className="text-sm text-gray-500 mb-4">
+                                  <p className="text-sm text-slate-400 mb-4">
                                     Enable development mode to access additional
                                     debugging tools and features.
                                   </p>
@@ -2630,10 +2639,10 @@ export default function SettingsPage() {
                                 </div>
 
                                 <div className="rounded-lg border border-gray-200 p-4">
-                                  <h4 className="text-base font-medium text-gray-900 mb-3">
+                                  <h4 className="text-base font-medium text-slate-100 mb-3">
                                     Sandbox Environment
                                   </h4>
-                                  <p className="text-sm text-gray-500 mb-4">
+                                  <p className="text-sm text-slate-400 mb-4">
                                     Test features in a sandbox environment
                                     without affecting production data.
                                   </p>
@@ -2665,7 +2674,7 @@ export default function SettingsPage() {
                               className="space-y-4"
                             >
                               <div className="flex justify-between items-center">
-                                <h3 className="text-lg font-medium text-gray-800">
+                                <h3 className="text-lg font-medium text-slate-100">
                                   Debug Logs
                                 </h3>
                                 <div className="flex gap-2">
@@ -2682,21 +2691,21 @@ export default function SettingsPage() {
                                 </div>
                               </div>
 
-                              <div className="rounded-lg border border-gray-200 p-4 bg-gray-50">
-                                <div className="font-mono text-xs text-gray-600 h-48 overflow-y-auto p-2">
+                              <div className="rounded-lg border border-gray-200 p-4 bg-[#1a2234]">
+                                <div className="font-mono text-xs text-slate-400 h-48 overflow-y-auto p-2">
                                   <div className="text-green-600">
                                     [2024-10-25 15:42:23] INFO: Application
                                     started
                                   </div>
-                                  <div className="text-gray-600">
+                                  <div className="text-slate-400">
                                     [2024-10-25 15:42:24] DEBUG: Loading user
                                     configuration
                                   </div>
-                                  <div className="text-gray-600">
+                                  <div className="text-slate-400">
                                     [2024-10-25 15:42:25] DEBUG: User
                                     authenticated
                                   </div>
-                                  <div className="text-blue-600">
+                                  <div className="text-cyan-400">
                                     [2024-10-25 15:42:26] NOTICE: Blueprint
                                     loaded successfully
                                   </div>
@@ -2704,22 +2713,22 @@ export default function SettingsPage() {
                                     [2024-10-25 15:42:30] WARNING: Slow response
                                     time detected
                                   </div>
-                                  <div className="text-gray-600">
+                                  <div className="text-slate-400">
                                     [2024-10-25 15:42:35] DEBUG: API request
                                     processed
                                   </div>
-                                  <div className="text-gray-600">
+                                  <div className="text-slate-400">
                                     [2024-10-25 15:43:01] DEBUG: Data saved to
                                     database
                                   </div>
-                                  <div className="text-blue-600">
+                                  <div className="text-cyan-400">
                                     [2024-10-25 15:43:15] NOTICE: New blueprint
                                     created
                                   </div>
-                                  <div className="text-gray-600">
+                                  <div className="text-slate-400">
                                     [2024-10-25 15:44:22] DEBUG: Cache refreshed
                                   </div>
-                                  <div className="text-gray-600">
+                                  <div className="text-slate-400">
                                     [2024-10-25 15:45:07] DEBUG: Session
                                     extended
                                   </div>
@@ -2727,7 +2736,7 @@ export default function SettingsPage() {
                               </div>
 
                               <div className="flex items-center justify-between">
-                                <div className="text-sm font-medium text-gray-800">
+                                <div className="text-sm font-medium text-slate-100">
                                   Log Level
                                 </div>
                                 <Select defaultValue="info">
