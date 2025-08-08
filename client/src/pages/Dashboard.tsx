@@ -1902,11 +1902,11 @@ export default function Dashboard() {
                         </motion.div>
 
                         <motion.div variants={itemVariants}>
-                          <Card className="border border-white/10 bg-white/5 shadow-md overflow-hidden">
-                            <CardHeader className="border-b border-white/10 bg-white/5">
+                          <Card className="border border-gray-200 bg-white shadow-md overflow-hidden">
+                            <CardHeader className="border-b border-gray-100 bg-white">
                               <div className="flex flex-col md:flex-row justify-between md:items-center space-y-3 md:space-y-0">
                                 <div>
-                                  <CardTitle className="text-xl font-bold text-white">
+                                  <CardTitle className="text-xl font-bold text-black">
                                     My Blueprints
                                   </CardTitle>
                                   <CardDescription className="text-sm text-slate-400">
@@ -1969,7 +1969,7 @@ export default function Dashboard() {
                                 </div>
                               </div>
                             </CardHeader>
-                            <CardContent className="p-0">
+                            <CardContent className="p-0 bg-white">
                               <Table>
                                 <TableHeader className="bg-gray-50/80">
                                   <TableRow>
