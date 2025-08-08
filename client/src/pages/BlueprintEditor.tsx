@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import * as THREE from "three";
 import ThreeViewer from "@/components/ThreeViewer";
 import CloudUpload from "@/components/CloudUpload";
+import Nav from "@/components/Nav";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
@@ -5780,115 +5781,89 @@ export default function BlueprintEditor() {
 
   // Render the main editor UI
   return (
-    <div className="h-screen w-screen flex flex-col bg-background overflow-hidden">
-      {/* Top navigation bar */}
-      <header className="h-14 border-b flex items-center justify-between px-4 z-10">
-        <div className="flex items-center space-x-4">
-          {/* Add onClick and cursor-pointer to this div */}
-          <div
-            className="flex items-center space-x-2 cursor-pointer group" // Added cursor-pointer and group
-            onClick={navigateToDashboard} // Added onClick handler
-            role="button" // Added role for accessibility
-            tabIndex={0} // Added tabIndex for keyboard navigation
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") navigateToDashboard();
-            }} // Added keyboard handler
-          >
-            <img
-              src="/gradientBPLogo.ico"
-              alt="Blueprint logo"
-              className="h-5 w-5"
-            />{" "}
-            {/* Added hover effect */}
-            <span className="font-semibold text-lg group-hover:text-indigo-700 transition-colors">
-              Blueprint
-            </span>{" "}
-            {/* Added hover effect */}
-          </div>
-
-          <span className="text-muted-foreground text-sm truncate max-w-md">
-            {blueprintTitle || "Untitled Blueprint"}
-          </span>
-        </div>
-
-        <div className="flex items-center space-x-4">
-          {/* Blueprint status badge */}
-          <div
-            className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
-              blueprintStatus === "active"
-                ? "bg-green-100 text-green-800"
-                : "bg-amber-100 text-amber-800"
-            }`}
-          >
+    <div className="min-h-screen w-full flex flex-col bg-[#0B1220] text-slate-100 overflow-hidden">
+      <Nav blueprintTitle={blueprintTitle} />
+      <div className="pt-20 flex flex-col flex-1 overflow-hidden">
+        {/* Editor toolbar */}
+        <header className="h-14 flex items-center justify-between px-4 border-b border-white/5 bg-[#0E172A]/80 backdrop-blur z-10">
+          <div className="flex items-center space-x-4">
             <div
-              className={`w-1.5 h-1.5 rounded-full ${
-                blueprintStatus === "active" ? "bg-green-500" : "bg-amber-500"
+              className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
+                blueprintStatus === "active"
+                  ? "bg-green-500/20 text-green-300"
+                  : "bg-amber-500/20 text-amber-300"
               }`}
-            />
-            {blueprintStatus === "active" ? "Active" : "Pending"}
+            >
+              <div
+                className={`w-1.5 h-1.5 rounded-full ${
+                  blueprintStatus === "active" ? "bg-green-400" : "bg-amber-400"
+                }`}
+              />
+              {blueprintStatus === "active" ? "Active" : "Pending"}
+            </div>
           </div>
 
-          {/* Save changes button */}
-          <Button variant="ghost" size="sm" className="gap-1.5">
-            <Save className="h-4 w-4" />
-            <span>Save</span>
-          </Button>
-
-          {/* Share button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => setShowShareDialog(true)}
-          >
-            <Share2 className="h-4 w-4" />
-            <span>Share</span>
-          </Button>
-
-          {/* Activation button */}
-          {blueprintStatus !== "active" && (
+          <div className="flex items-center space-x-4">
             <Button
+              variant="ghost"
               size="sm"
-              className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white"
-              onClick={handleActivateBlueprint}
-              disabled={isActivating}
+              className="gap-1.5 text-slate-200 hover:bg-slate-800"
             >
-              {isActivating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                  Activating...
-                </>
-              ) : (
-                <>
-                  <Zap className="h-4 w-4 mr-1.5" />
-                  Activate Blueprint
-                </>
-              )}
+              <Save className="h-4 w-4" />
+              <span>Save</span>
             </Button>
-          )}
-        </div>
-      </header>
 
-      {/* Main content area */}
-      <div className="flex-1 flex relative overflow-hidden">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-slate-200 hover:bg-slate-800"
+              onClick={() => setShowShareDialog(true)}
+            >
+              <Share2 className="h-4 w-4" />
+              <span>Share</span>
+            </Button>
+
+            {blueprintStatus !== "active" && (
+              <Button
+                size="sm"
+                className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white"
+                onClick={handleActivateBlueprint}
+                disabled={isActivating}
+              >
+                {isActivating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                    Activating...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-4 w-4 mr-1.5" />
+                    Activate Blueprint
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        </header>
+
+        {/* Main content area */}
+        <div className="flex-1 flex relative overflow-hidden">
         {/* NEW: Vertical Icon Bar */}
-        <div className="w-20 bg-neutral-100 border-r flex flex-col items-center py-4 space-y-1 z-20 flex-shrink-0">
+        <div className="w-20 bg-[#0E172A] border-r border-white/5 flex flex-col items-center py-4 space-y-1 z-20 flex-shrink-0">
           {sections.map((section) =>
             section.type === "separator" ? (
-              <Separator key="separator" className="my-2 bg-neutral-300" />
+              <Separator key="separator" className="my-2 bg-white/10" />
             ) : (
               <TooltipProvider key={section.id} delayDuration={100}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
-                      variant={
-                        activeSection === section.id ? "secondary" : "ghost"
-                      }
-                      size="lg" // Make button larger for easier clicking
-                      className={`w-16 h-16 flex flex-col items-center justify-center rounded-lg group transition-colors duration-150 ${
+                      variant="ghost"
+                      size="lg"
+                      className={`w-16 h-16 flex flex-col items-center justify-center rounded-lg transition-colors duration-150 ${
                         activeSection === section.id
-                          ? "bg-indigo-100 text-indigo-700"
-                          : "text-neutral-600 hover:bg-neutral-200 hover:text-neutral-800"
+                          ? "bg-emerald-500/20 text-emerald-300"
+                          : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
                       }`}
                       onClick={() => toggleSection(section.id)}
                     >
@@ -5909,18 +5884,16 @@ export default function BlueprintEditor() {
 
         {/* NEW: Sliding Panel Container */}
         <div className="relative z-10">
-          {" "}
           {/* Container for the animated panel */}
           <AnimatePresence>
-            {isPanelOpen && ( // <<< New visibility logic
+            {isPanelOpen && (
               <motion.div
-                // ref={sidebarRef} // Keep ref if resizing is needed
-                initial={{ x: "-100%", opacity: 0 }} // <<< New animation
-                animate={{ x: 0, opacity: 1 }} // <<< New animation
-                exit={{ x: "-100%", opacity: 0 }} // <<< New animation
+                initial={{ x: "-100%", opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: "-100%", opacity: 0 }}
                 transition={{ type: "spring", bounce: 0.1, duration: 0.4 }}
-                className="h-full bg-background border-r shadow-lg flex flex-col absolute top-0 left-0" // Use absolute positioning
-                style={{ width: panelWidth }} // Use new panelWidth state
+                className="h-full bg-[#0E172A] border-r border-white/5 shadow-lg flex flex-col absolute top-0 left-0"
+                style={{ width: panelWidth }}
               >
                 {/* Panel Header (Optional but good UX) */}
                 <div className="p-3 border-b flex items-center justify-between h-14">
@@ -8829,5 +8802,6 @@ export default function BlueprintEditor() {
         </div>
       )}
     </div>
+  </div>
   );
 }
