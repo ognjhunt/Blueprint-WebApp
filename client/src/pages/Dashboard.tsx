@@ -1054,7 +1054,7 @@ export default function Dashboard() {
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ delay: 0.5, duration: 0.5 }}
-                className="bg-white rounded-xl p-8 shadow-md mb-8"
+                className="bg-white/5 backdrop-blur-sm rounded-xl p-8 shadow-md mb-8"
               >
                 <CountdownTimer
                   targetDate={mappingDate}
@@ -1070,85 +1070,85 @@ export default function Dashboard() {
                 className="space-y-6"
               >
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card className="bg-white border-none shadow-md hover:shadow-lg transition-shadow">
+                  <Card className="bg-white/5 border border-white/10 shadow-md hover:shadow-lg transition-shadow">
                     <CardHeader className="pb-2">
-                      <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-4">
-                        <Calendar className="w-6 h-6 text-blue-600" />
+                      <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center mb-4">
+                        <Calendar className="w-6 h-6 text-emerald-300" />
                       </div>
-                      <CardTitle className="text-lg">
+                      <CardTitle className="text-lg text-white">
                         Before Your Session
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <ul className="space-y-2 text-gray-600">
+                      <ul className="space-y-2 text-slate-300">
                         <li className="flex items-start">
-                          <div className="mr-2 mt-1 text-green-500">✓</div>
+                          <div className="mr-2 mt-1 text-green-400">✓</div>
                           <span>Clear walkways for easy access</span>
                         </li>
                         <li className="flex items-start">
-                          <div className="mr-2 mt-1 text-green-500">✓</div>
+                          <div className="mr-2 mt-1 text-green-400">✓</div>
                           <span>Ensure good lighting conditions</span>
                         </li>
                         <li className="flex items-start">
-                          <div className="mr-2 mt-1 text-green-500">✓</div>
+                          <div className="mr-2 mt-1 text-green-400">✓</div>
                           <span>Tidy up the space being mapped</span>
                         </li>
                       </ul>
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-white border-none shadow-md hover:shadow-lg transition-shadow">
+                  <Card className="bg-white/5 border border-white/10 shadow-md hover:shadow-lg transition-shadow">
                     <CardHeader className="pb-2">
-                      <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center mb-4">
-                        <Users className="w-6 h-6 text-purple-600" />
+                      <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center mb-4">
+                        <Users className="w-6 h-6 text-purple-300" />
                       </div>
-                      <CardTitle className="text-lg">
+                      <CardTitle className="text-lg text-white">
                         During Your Session
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <ul className="space-y-2 text-gray-600">
+                      <ul className="space-y-2 text-slate-300">
                         <li className="flex items-start">
-                          <div className="mr-2 mt-1 text-green-500">✓</div>
+                          <div className="mr-2 mt-1 text-green-400">✓</div>
                           <span>
                             Our specialist will guide you through the process
                           </span>
                         </li>
                         <li className="flex items-start">
-                          <div className="mr-2 mt-1 text-green-500">✓</div>
+                          <div className="mr-2 mt-1 text-green-400">✓</div>
                           <span>Session typically takes 30-60 minutes</span>
                         </li>
                         <li className="flex items-start">
-                          <div className="mr-2 mt-1 text-green-500">✓</div>
+                          <div className="mr-2 mt-1 text-green-400">✓</div>
                           <span>Be available to answer any questions</span>
                         </li>
                       </ul>
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-white border-none shadow-md hover:shadow-lg transition-shadow">
+                  <Card className="bg-white/5 border border-white/10 shadow-md hover:shadow-lg transition-shadow">
                     <CardHeader className="pb-2">
-                      <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
-                        <Building2 className="w-6 h-6 text-green-600" />
+                      <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center mb-4">
+                        <Building2 className="w-6 h-6 text-green-300" />
                       </div>
-                      <CardTitle className="text-lg">
+                      <CardTitle className="text-lg text-white">
                         After Your Session
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <ul className="space-y-2 text-gray-600">
+                      <ul className="space-y-2 text-slate-300">
                         <li className="flex items-start">
-                          <div className="mr-2 mt-1 text-green-500">✓</div>
+                          <div className="mr-2 mt-1 text-green-400">✓</div>
                           <span>Processing takes approximately 1-2 hours</span>
                         </li>
                         <li className="flex items-start">
-                          <div className="mr-2 mt-1 text-green-500">✓</div>
+                          <div className="mr-2 mt-1 text-green-400">✓</div>
                           <span>
                             You'll receive an email when your Blueprint is ready
                           </span>
                         </li>
                         <li className="flex items-start">
-                          <div className="mr-2 mt-1 text-green-500">✓</div>
+                          <div className="mr-2 mt-1 text-green-400">✓</div>
                           <span>Access your 3D space from this dashboard</span>
                         </li>
                       </ul>
@@ -1158,7 +1158,7 @@ export default function Dashboard() {
 
                 <div className="flex justify-center mt-8">
                   <Button
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md shadow-md hover:shadow-lg transition-all transform hover:-translate-y-1"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-md shadow-md hover:shadow-lg transition-all transform hover:-translate-y-1"
                     onClick={() => (window.location.href = "/help")}
                   >
                     Need to reschedule? Contact support
@@ -1169,7 +1169,7 @@ export default function Dashboard() {
           </Card>
         ) : (
           // New UI when timer has ended
-          <Card className="bg-white border-none shadow-xl overflow-hidden">
+          <Card className="bg-white/5 border border-white/10 shadow-xl overflow-hidden">
             <CardContent className="p-8 md:p-12">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -1177,13 +1177,13 @@ export default function Dashboard() {
                 transition={{ duration: 0.6 }}
                 className="text-center max-w-3xl mx-auto mb-10"
               >
-                <div className="w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center mx-auto mb-6">
-                  <User className="w-10 h-10 text-indigo-600" />
+                <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-6">
+                  <User className="w-10 h-10 text-emerald-300" />
                 </div>
-                <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
                   Your mapper should be with you soon
                 </h1>
-                <p className="text-xl text-gray-600">
+                <p className="text-xl text-slate-300">
                   {mapperName} will be arriving shortly to scan your location
                 </p>
 
@@ -1192,7 +1192,7 @@ export default function Dashboard() {
                     size="lg"
                     onClick={checkMappingCompletion}
                     disabled={checkingCompletion}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-4 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all"
                   >
                     {checkingCompletion ? (
                       <>
@@ -1206,21 +1206,20 @@ export default function Dashboard() {
                       </>
                     )}
                   </Button>
-                  <p className="text-sm text-gray-500 mt-3">
+                  <p className="text-sm text-slate-400 mt-3">
                     Click this button after your mapping session is complete
                   </p>
                 </div>
               </motion.div>
-
               {/* FAQ Section */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.6, delay: 0.3 }}
-                className="mt-12 bg-gray-50 rounded-xl p-6"
+                className="mt-12 bg-white/5 rounded-xl p-6"
               >
-                <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center">
-                  <HelpCircle className="w-5 h-5 mr-2 text-indigo-500" />
+                <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
+                  <HelpCircle className="w-5 h-5 mr-2 text-emerald-400" />
                   Frequently Asked Questions
                 </h2>
 
@@ -1228,12 +1227,12 @@ export default function Dashboard() {
                   {faqs.map((faq, index) => (
                     <div
                       key={index}
-                      className="bg-white rounded-lg p-4 shadow-sm"
+                      className="bg-white/5 border border-white/10 rounded-lg p-4 shadow-sm"
                     >
-                      <h3 className="font-medium text-gray-900 mb-2">
+                      <h3 className="font-medium text-white mb-2">
                         {faq.question}
                       </h3>
-                      <p className="text-gray-600 text-sm">{faq.answer}</p>
+                      <p className="text-slate-300 text-sm">{faq.answer}</p>
                     </div>
                   ))}
 
@@ -1241,7 +1240,7 @@ export default function Dashboard() {
                     <Button
                       variant="outline"
                       onClick={() => (window.location.href = "/help")}
-                      className="border-indigo-300 text-indigo-600 hover:bg-indigo-50"
+                      className="border-emerald-300 text-emerald-300 hover:bg-emerald-500/10"
                     >
                       View All FAQs
                     </Button>
@@ -1260,17 +1259,17 @@ export default function Dashboard() {
 
   return (
     <LiveAPIProvider>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-indigo-50/20">
+      <div className="min-h-screen bg-[#0B1220] text-slate-100">
         <Nav hideAuthenticatedFeatures={isWaitingForMapping} />
 
         {isLoading ? (
           <div className="min-h-screen flex items-center justify-center">
             <div className="flex flex-col items-center">
               <div className="w-16 h-16 relative">
-                <div className="absolute inset-0 rounded-full border-4 border-indigo-200 opacity-25"></div>
-                <div className="absolute inset-0 rounded-full border-4 border-t-indigo-600 animate-spin"></div>
+                <div className="absolute inset-0 rounded-full border-4 border-emerald-300/30"></div>
+                <div className="absolute inset-0 rounded-full border-4 border-t-emerald-500 animate-spin"></div>
               </div>
-              <p className="mt-4 text-gray-600 font-medium">
+              <p className="mt-4 text-slate-300 font-medium">
                 Loading your dashboard...
               </p>
             </div>
@@ -1285,20 +1284,18 @@ export default function Dashboard() {
         ) : (
           <div className="pt-20 pb-12">
             {/* Dashboard Header */}
-            <div className="bg-gradient-to-r from-gray-50 to-indigo-50/30">
+            <div className="bg-[#0E172A]/90 backdrop-blur-sm border-b border-white/5">
               <div className="max-w-full px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center py-4">
                   <div>
-                    <h1 className="text-2xl font-bold text-gray-900">
-                      Dashboard
-                    </h1>
-                    <p className="text-gray-500">Welcome back to Blueprint</p>
+                    <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+                    <p className="text-slate-400">Welcome back to Blueprint</p>
                   </div>
 
                   <div className="flex items-center space-x-4">
                     <Link href="/create-blueprint">
                       <Button
-                        className="hidden md:flex items-center text-white bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 shadow-md hover:shadow-indigo-200/50 transition-all"
+                        className="hidden md:flex items-center text-white bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 shadow-md hover:shadow-emerald-400/50 transition-all"
                         ref={createBlueprintRef}
                       >
                         <Plus className="mr-2 h-4 w-4" /> Create Blueprint
@@ -1314,81 +1311,81 @@ export default function Dashboard() {
               <div className="flex flex-col md:flex-row gap-8">
                 {/* Left Sidebar */}
                 <div className="md:w-72 flex-shrink-0 md:pl-0">
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden sticky top-24">
+                  <div className="bg-white/[0.04] backdrop-blur-sm rounded-xl border border-white/10 overflow-hidden sticky top-24">
                     <div className="p-4">
-                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-4">
+                      <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-4">
                         Main Menu
                       </p>
                       <nav className="space-y-1">
                         <button
                           className={`w-full flex items-center px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
                             activeTab === "overview"
-                              ? "bg-gradient-to-r from-indigo-50 to-indigo-100 text-indigo-700"
-                              : "text-gray-700 hover:bg-gray-50"
+                              ? "bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 text-emerald-300"
+                              : "text-slate-300 hover:bg-white/5"
                           }`}
                           onClick={() => setActiveTab("overview")}
                           ref={overviewTabRef}
                         >
                           <Home
-                            className={`mr-3 h-5 w-5 ${activeTab === "overview" ? "text-indigo-600" : "text-gray-400"}`}
+                            className={`mr-3 h-5 w-5 ${activeTab === "overview" ? "text-emerald-400" : "text-slate-400"}`}
                           />
                           Overview
                           {activeTab === "overview" && (
-                            <div className="ml-auto w-1.5 h-5 rounded-full bg-indigo-500" />
+                            <div className="ml-auto w-1.5 h-5 rounded-full bg-emerald-500" />
                           )}
                         </button>
 
                         <button
                           className={`w-full flex items-center px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
                             activeTab === "blueprints"
-                              ? "bg-gradient-to-r from-indigo-50 to-indigo-100 text-indigo-700"
-                              : "text-gray-700 hover:bg-gray-50"
+                              ? "bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 text-emerald-300"
+                              : "text-slate-300 hover:bg-white/5"
                           }`}
                           onClick={() => setActiveTab("blueprints")}
                           ref={blueprintsTabRef}
                         >
                           <Building2
-                            className={`mr-3 h-5 w-5 ${activeTab === "blueprints" ? "text-indigo-600" : "text-gray-400"}`}
+                            className={`mr-3 h-5 w-5 ${activeTab === "blueprints" ? "text-emerald-400" : "text-slate-400"}`}
                           />
                           My Blueprints
                           {activeTab === "blueprints" && (
-                            <div className="ml-auto w-1.5 h-5 rounded-full bg-indigo-500" />
+                            <div className="ml-auto w-1.5 h-5 rounded-full bg-emerald-500" />
                           )}
                         </button>
 
                         <button
                           className={`w-full flex items-center px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
                             activeTab === "analytics"
-                              ? "bg-gradient-to-r from-indigo-50 to-indigo-100 text-indigo-700"
-                              : "text-gray-700 hover:bg-gray-50"
+                              ? "bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 text-emerald-300"
+                              : "text-slate-300 hover:bg-white/5"
                           }`}
                           onClick={() => setActiveTab("analytics")}
                         >
                           <BarChart
-                            className={`mr-3 h-5 w-5 ${activeTab === "analytics" ? "text-indigo-600" : "text-gray-400"}`}
+                            className={`mr-3 h-5 w-5 ${activeTab === "analytics" ? "text-emerald-400" : "text-slate-400"}`}
                           />
                           Analytics
                           {activeTab === "analytics" && (
-                            <div className="ml-auto w-1.5 h-5 rounded-full bg-indigo-500" />
+                            <div className="ml-auto w-1.5 h-5 rounded-full bg-emerald-500" />
                           )}
                         </button>
                       </nav>
                     </div>
 
-                    <div className="border-t border-gray-100 p-4">
-                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-4">
+                    <div className="border-t border-white/10 p-4">
+                      <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-4">
                         Workspace
                       </p>
                       <nav className="space-y-1">
                         <Link href="/team-members">
-                          <div className="flex items-center px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer">
-                            <Users className="mr-3 h-5 w-5 text-gray-400" />
+                          <div className="flex items-center px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/5 transition-colors cursor-pointer">
+                            <Users className="mr-3 h-5 w-5 text-slate-400" />
                             Team Members
                           </div>
                         </Link>
                         <Link href="/settings">
-                          <div className="flex items-center px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer">
-                            <Settings className="mr-3 h-5 w-5 text-gray-400" />
+                          <div className="flex items-center px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/5 transition-colors cursor-pointer">
+                            <Settings className="mr-3 h-5 w-5 text-slate-400" />
                             Settings
                           </div>
                         </Link>
@@ -1396,11 +1393,11 @@ export default function Dashboard() {
                     </div>
 
                     {/* Subscription Status */}
-                    <div className="border-t border-gray-100 p-4">
+                    <div className="border-t border-white/10 p-4">
                       {userData?.planType === "pro" ? (
-                        <div className="bg-gradient-to-br from-indigo-500 to-violet-600 rounded-lg p-4 text-white">
+                        <div className="bg-gradient-to-br from-emerald-500 to-cyan-600 rounded-lg p-4 text-white">
                           <h3 className="font-semibold">Pro Subscription</h3>
-                          <p className="text-xs text-indigo-100 mt-1 mb-3">
+                          <p className="text-xs text-emerald-100 mt-1 mb-3">
                             Valid until{" "}
                             {userData?.planExpiryDate
                               ? "toDate" in userData.planExpiryDate
@@ -1449,9 +1446,9 @@ export default function Dashboard() {
                           </Button>
                         </div>
                       ) : (
-                        <div className="bg-gradient-to-br from-blue-400 to-blue-500 rounded-lg p-4 text-white">
+                        <div className="bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg p-4 text-white">
                           <h3 className="font-semibold">Free Tier</h3>
-                          <p className="text-xs text-blue-100 mt-1 mb-3">
+                          <p className="text-xs text-cyan-100 mt-1 mb-3">
                             Unlock more features with Pro
                           </p>
                           <div className="flex justify-between items-center">
@@ -1493,7 +1490,7 @@ export default function Dashboard() {
                     {/* Mobile Create Button */}
                     <div className="md:hidden flex justify-center mb-4">
                       <Link href="/create-blueprint">
-                        <Button className="w-full flex items-center justify-center text-white bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 shadow-md">
+                        <Button className="w-full flex items-center justify-center text-white bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 shadow-md">
                           <Plus className="mr-2 h-4 w-4" /> Create Blueprint
                         </Button>
                       </Link>
@@ -1509,29 +1506,29 @@ export default function Dashboard() {
                           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
                         >
                           <Card
-                            className="border-0 shadow-md hover:shadow-lg transition-all overflow-hidden"
+                            className="bg-white/5 border border-white/10 shadow-md hover:shadow-lg transition-all overflow-hidden"
                             ref={statsCardRef}
                           >
                             <CardHeader className="pb-2 relative">
-                              <div className="absolute top-0 right-0 w-16 h-16 rounded-bl-full bg-indigo-50 flex items-end justify-end">
-                                <Building2 className="mb-2 mr-2 h-6 w-6 text-indigo-400" />
+                              <div className="absolute top-0 right-0 w-16 h-16 rounded-bl-full bg-emerald-500/20 flex items-end justify-end">
+                                <Building2 className="mb-2 mr-2 h-6 w-6 text-emerald-300" />
                               </div>
-                              <CardTitle className="text-sm font-medium text-gray-500">
+                              <CardTitle className="text-sm font-medium text-slate-400">
                                 Total Blueprints
                               </CardTitle>
                             </CardHeader>
                             <CardContent>
                               <div className="flex items-baseline">
-                                <div className="text-3xl font-bold text-gray-900">
+                                <div className="text-3xl font-bold text-white">
                                   {totalBlueprints}
                                 </div>
                                 {blueprintsLastMonth > 0 && (
-                                  <div className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-800">
+                                  <div className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-500/20 text-green-300">
                                     +{blueprintsLastMonth} new
                                   </div>
                                 )}
                               </div>
-                              <p className="text-xs text-gray-500 mt-2">
+                              <p className="text-xs text-slate-400 mt-2">
                                 {blueprintsLastMonth > 0
                                   ? `Added ${blueprintsLastMonth} blueprint${blueprintsLastMonth > 1 ? "s" : ""} this month`
                                   : "No new blueprints this month"}
@@ -1539,28 +1536,28 @@ export default function Dashboard() {
                             </CardContent>
                           </Card>
 
-                          <Card className="border-0 shadow-md hover:shadow-lg transition-all overflow-hidden">
+                          <Card className="bg-white/5 border border-white/10 shadow-md hover:shadow-lg transition-all overflow-hidden">
                             <CardHeader className="pb-2 relative">
-                              <div className="absolute top-0 right-0 w-16 h-16 rounded-bl-full bg-blue-50 flex items-end justify-end">
-                                <Users className="mb-2 mr-2 h-6 w-6 text-blue-400" />
+                              <div className="absolute top-0 right-0 w-16 h-16 rounded-bl-full bg-cyan-500/20 flex items-end justify-end">
+                                <Users className="mb-2 mr-2 h-6 w-6 text-cyan-300" />
                               </div>
-                              <CardTitle className="text-sm font-medium text-gray-500">
+                              <CardTitle className="text-sm font-medium text-slate-400">
                                 Total Customers
                               </CardTitle>
                             </CardHeader>
                             <CardContent>
                               <div className="flex items-baseline">
-                                <div className="text-3xl font-bold text-gray-900">
+                                <div className="text-3xl font-bold text-white">
                                   {userData?.totalCustomers || 0}
                                 </div>
                                 {userData?.customerGrowth &&
                                   userData.customerGrowth > 0 && (
-                                    <div className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-800">
+                                    <div className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-500/20 text-green-300">
                                       +{userData.customerGrowth}%
                                     </div>
                                   )}
                               </div>
-                              <p className="text-xs text-gray-500 mt-2">
+                              <p className="text-xs text-slate-400 mt-2">
                                 {userData?.newCustomersThisMonth
                                   ? `${userData.newCustomersThisMonth} new customers this month`
                                   : "No new customers this month"}
@@ -1568,28 +1565,28 @@ export default function Dashboard() {
                             </CardContent>
                           </Card>
 
-                          <Card className="border-0 shadow-md hover:shadow-lg transition-all overflow-hidden">
+                          <Card className="bg-white/5 border border-white/10 shadow-md hover:shadow-lg transition-all overflow-hidden">
                             <CardHeader className="pb-2 relative">
-                              <div className="absolute top-0 right-0 w-16 h-16 rounded-bl-full bg-purple-50 flex items-end justify-end">
-                                <ShoppingBag className="mb-2 mr-2 h-6 w-6 text-purple-400" />
+                              <div className="absolute top-0 right-0 w-16 h-16 rounded-bl-full bg-purple-500/20 flex items-end justify-end">
+                                <ShoppingBag className="mb-2 mr-2 h-6 w-6 text-purple-300" />
                               </div>
-                              <CardTitle className="text-sm font-medium text-gray-500">
+                              <CardTitle className="text-sm font-medium text-slate-400">
                                 Total Sessions
                               </CardTitle>
                             </CardHeader>
                             <CardContent>
                               <div className="flex items-baseline">
-                                <div className="text-3xl font-bold text-gray-900">
+                                <div className="text-3xl font-bold text-white">
                                   {userData?.numSessions || 0}
                                 </div>
                                 {userData?.sessionGrowth &&
                                   userData.sessionGrowth > 0 && (
-                                    <div className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-800">
+                                    <div className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-500/20 text-green-300">
                                       +{userData.sessionGrowth}%
                                     </div>
                                   )}
                               </div>
-                              <p className="text-xs text-gray-500 mt-2">
+                              <p className="text-xs text-slate-400 mt-2">
                                 {userData?.newSessionsThisMonth
                                   ? `${userData.newSessionsThisMonth} more sessions than last month`
                                   : "No new sessions this month"}
@@ -1597,23 +1594,23 @@ export default function Dashboard() {
                             </CardContent>
                           </Card>
 
-                          <Card className="border-0 shadow-md hover:shadow-lg transition-all overflow-hidden">
+                          <Card className="bg-white/5 border border-white/10 shadow-md hover:shadow-lg transition-all overflow-hidden">
                             <CardHeader className="pb-2 relative">
-                              <div className="absolute top-0 right-0 w-16 h-16 rounded-bl-full bg-amber-50 flex items-end justify-end">
-                                <Star className="mb-2 mr-2 h-6 w-6 text-amber-400" />
+                              <div className="absolute top-0 right-0 w-16 h-16 rounded-bl-full bg-amber-500/20 flex items-end justify-end">
+                                <Star className="mb-2 mr-2 h-6 w-6 text-amber-300" />
                               </div>
-                              <CardTitle className="text-sm font-medium text-gray-500">
+                              <CardTitle className="text-sm font-medium text-slate-400">
                                 Average Rating
                               </CardTitle>
                             </CardHeader>
                             <CardContent>
                               <div className="flex items-baseline">
-                                <div className="text-3xl font-bold text-gray-900">
+                                <div className="text-3xl font-bold text-white">
                                   {userData?.averageRating?.toFixed(1) || "N/A"}
                                 </div>
                                 {userData?.ratingGrowth !== undefined &&
                                   userData.ratingGrowth > 0 && (
-                                    <div className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-800">
+                                    <div className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-500/20 text-green-300">
                                       +{userData.ratingGrowth.toFixed(1)}
                                     </div>
                                   )}
@@ -1627,11 +1624,11 @@ export default function Dashboard() {
                                         rating <=
                                         Math.round(userData.averageRating || 0)
                                           ? "text-amber-400 fill-amber-400"
-                                          : "text-gray-300"
+                                          : "text-slate-600"
                                       }`}
                                     />
                                   ))}
-                                  <span className="text-xs text-gray-500 ml-2">
+                                  <span className="text-xs text-slate-400 ml-2">
                                     {userData.totalReviews
                                       ? `from ${userData.totalReviews} reviews`
                                       : "No reviews yet"}
@@ -1905,27 +1902,27 @@ export default function Dashboard() {
                         </motion.div>
 
                         <motion.div variants={itemVariants}>
-                          <Card className="border-0 shadow-md overflow-hidden">
-                            <CardHeader className="border-b border-gray-100 bg-gray-50">
+                          <Card className="border border-white/10 bg-white/5 shadow-md overflow-hidden">
+                            <CardHeader className="border-b border-white/10 bg-white/5">
                               <div className="flex flex-col md:flex-row justify-between md:items-center space-y-3 md:space-y-0">
                                 <div>
-                                  <CardTitle className="text-xl font-bold text-gray-800">
+                                  <CardTitle className="text-xl font-bold text-white">
                                     My Blueprints
                                   </CardTitle>
-                                  <CardDescription className="text-sm text-gray-500">
+                                  <CardDescription className="text-sm text-slate-400">
                                     Manage and monitor your Blueprint locations
                                   </CardDescription>
                                 </div>
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                                   <div className="relative">
-                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
                                     <Input
                                       placeholder="Search blueprints..."
                                       value={searchQuery}
                                       onChange={(e) =>
                                         setSearchQuery(e.target.value)
                                       }
-                                      className="pl-9 bg-white text-sm focus-visible:ring-indigo-500"
+                                      className="pl-9 bg-white/5 border border-white/10 text-sm text-slate-200 placeholder-slate-400 focus-visible:ring-emerald-500"
                                     />
                                   </div>
                                   <DropdownMenu>
@@ -1933,7 +1930,7 @@ export default function Dashboard() {
                                       <Button
                                         variant="outline"
                                         size="sm"
-                                        className="bg-white"
+                                        className="bg-white/5 hover:bg-white/10"
                                       >
                                         <Filter className="h-3.5 w-3.5 mr-1" />{" "}
                                         Filter
@@ -2220,17 +2217,17 @@ export default function Dashboard() {
                               </div>
                             </CardHeader>
                             <CardContent className="pb-6">
-                              <div className="h-80 bg-white flex items-center justify-center">
+                              <div className="h-80 bg-white/5 flex items-center justify-center">
                                 {/* Here you would render a real chart */}
                                 <div className="w-full h-full flex flex-col">
                                   {/* Simple chart mockup */}
-                                  <div className="flex justify-between mb-2 text-xs text-gray-500">
+                                  <div className="flex justify-between mb-2 text-xs text-slate-400">
                                     <div>Visitors</div>
                                     <div>Engagement</div>
                                   </div>
                                   <div className="flex-1 relative">
-                                    <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gray-200"></div>
-                                    <div className="absolute top-0 bottom-0 left-0 w-[1px] bg-gray-200"></div>
+                                    <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-white/10"></div>
+                                    <div className="absolute top-0 bottom-0 left-0 w-[1px] bg-white/10"></div>
 
                                     {/* X-axis labels */}
                                     <div className="absolute bottom-[-20px] left-0 right-0 flex justify-between text-xs text-gray-500">
