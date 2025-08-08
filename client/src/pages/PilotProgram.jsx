@@ -45,6 +45,9 @@ import {
   Smartphone,
 } from "lucide-react";
 
+const mobileNavBtnClass =
+  "flex items-center gap-2 border-white/30 bg-white/90 text-slate-900 hover:bg-white hover:text-slate-900 disabled:bg-white disabled:text-slate-400 disabled:opacity-100";
+
 // -----------------------------------------------
 // Mobile: Benefits Carousel (dark theme)
 // -----------------------------------------------
@@ -184,7 +187,7 @@ function MobileBenefitsCarousel({ benefits }) {
             currentBenefit > 0 && setCurrentBenefit(currentBenefit - 1)
           }
           disabled={currentBenefit === 0}
-          className="flex items-center gap-2 disabled:opacity-50 border-white/20 text-slate-200"
+          className={mobileNavBtnClass}
         >
           <ChevronRight className="w-4 h-4 rotate-180" />
           Previous
@@ -208,7 +211,7 @@ function MobileBenefitsCarousel({ benefits }) {
             setCurrentBenefit(currentBenefit + 1)
           }
           disabled={currentBenefit === benefits.length - 1}
-          className="flex items-center gap-2 disabled:opacity-50 border-white/20 text-slate-200"
+          className={mobileNavBtnClass}
         >
           Next
           <ChevronRight className="w-4 h-4" />
@@ -379,7 +382,7 @@ function MobileBusinessTypesCarousel({ idealFor }) {
           size="sm"
           onClick={() => currentType > 0 && setCurrentType(currentType - 1)}
           disabled={currentType === 0}
-          className="flex items-center gap-2 disabled:opacity-50 border-white/20 text-slate-200"
+          className={mobileNavBtnClass}
         >
           <ChevronRight className="w-4 h-4 rotate-180" />
           Previous
@@ -400,7 +403,7 @@ function MobileBusinessTypesCarousel({ idealFor }) {
             currentType < idealFor.length - 1 && setCurrentType(currentType + 1)
           }
           disabled={currentType === idealFor.length - 1}
-          className="flex items-center gap-2 disabled:opacity-50 border-white/20 text-slate-200"
+          className={mobileNavBtnClass}
         >
           Next
           <ChevronRight className="w-4 h-4" />
@@ -568,7 +571,7 @@ function MobileTimelineCarousel({ timeline }) {
           size="sm"
           onClick={() => setCurrentStep((s) => Math.max(0, s - 1))}
           disabled={currentStep === 0}
-          className="flex items-center gap-2 disabled:opacity-50 border-white/20 text-slate-200"
+          className={mobileNavBtnClass}
         >
           <ChevronRight className="w-4 h-4 rotate-180" />
           Previous
@@ -588,7 +591,7 @@ function MobileTimelineCarousel({ timeline }) {
             setCurrentStep((s) => Math.min(timeline.length - 1, s + 1))
           }
           disabled={currentStep === timeline.length - 1}
-          className="flex items-center gap-2 disabled:opacity-50 border-white/20 text-slate-200"
+          className={mobileNavBtnClass}
         >
           Next
           <ChevronRight className="w-4 h-4" />
@@ -708,7 +711,7 @@ function MobileFAQCarousel({ faqs = [] }) {
           size="sm"
           onClick={() => currentFaq > 0 && setCurrentFaq(currentFaq - 1)}
           disabled={currentFaq === 0}
-          className="flex items-center gap-2 disabled:opacity-50 border-white/20 text-slate-200"
+          className={mobileNavBtnClass}
         >
           <ChevronRight className="w-4 h-4 rotate-180" />
           Previous
@@ -731,7 +734,7 @@ function MobileFAQCarousel({ faqs = [] }) {
             currentFaq < faqs.length - 1 && setCurrentFaq(currentFaq + 1)
           }
           disabled={currentFaq === faqs.length - 1}
-          className="flex items-center gap-2 disabled:opacity-50 border-white/20 text-slate-200"
+          className={mobileNavBtnClass}
         >
           Next
           <ChevronRight className="w-4 h-4" />
@@ -857,11 +860,7 @@ export default function PilotProgram() {
         "We bring Apple Vision Pro and run the demo end-to-end. Your team tries it hands-on; we handle devices, setup, and sanitization. The AR is live during the scheduled demo window only.",
       color: "from-emerald-400 to-cyan-400",
       benefit: "Hands-on, on-site",
-      details: [
-        "Vision Pro",
-        "Team walkthrough",
-        "Immediate insights",
-      ],
+      details: ["Vision Pro", "Team walkthrough", "Immediate insights"],
     },
   ];
   // const timeline = [
@@ -953,8 +952,7 @@ export default function PilotProgram() {
     {
       icon: <Monitor className="w-6 h-6" />,
       title: "Premium Hardware",
-      description:
-        "We bring an Apple Vision Pro to your demo day.",
+      description: "We bring an Apple Vision Pro to your demo day.",
       highlight: "No hardware needed",
     },
     {
