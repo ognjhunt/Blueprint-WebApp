@@ -193,7 +193,7 @@ const HoursSelector = ({ value, onChange, tiers }) => (
     <select
       value={value}
       onChange={(e) => onChange(Number(e.target.value))}
-      className="w-full p-2 border rounded-md border-indigo-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 bg-white"
+      className="w-full p-2 border rounded-md border-emerald-300 text-slate-100 focus:border-emerald-500 focus:ring focus:ring-emerald-500/20 focus:ring-opacity-50 bg-white/5"
     >
       {tiers.map((tier) => (
         <option key={tier} value={tier}>
@@ -203,7 +203,7 @@ const HoursSelector = ({ value, onChange, tiers }) => (
     </select>
     <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
       <svg
-        className="w-5 h-5 text-gray-400"
+        className="w-5 h-5 text-slate-500"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -237,7 +237,7 @@ const FeatureItem = ({
       <X className="flex-shrink-0 w-5 h-5 text-rose-500" />
     )}
     <span
-      className={`ml-3 text-base ${included ? "text-gray-700" : "text-gray-500"}`}
+      className={`ml-3 text-base ${included ? "text-slate-300" : "text-slate-400"}`}
     >
       {children}
     </span>
@@ -549,26 +549,26 @@ export default function PricingPage() {
   const totalMonthlyCost = hoursMonthlyCost + seatsMonthlyCost; // Combined cost
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 via-purple-50 to-white">
+    <div className="min-h-screen bg-[#0B1220] text-slate-100">
       <Nav />
       <div className="relative pt-24 pb-12 px-4 sm:px-6 lg:px-8">
         {/* Background elements */}
         <div className="absolute inset-0 opacity-30" style={{ zIndex: -1 }}>
-          <div className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-r from-purple-300 to-indigo-300 rounded-full filter blur-3xl"></div>
+          <div className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-r from-cyan-300 to-emerald-300 rounded-full filter blur-3xl"></div>
           <div className="absolute bottom-10 right-10 w-72 h-72 bg-gradient-to-r from-blue-300 to-teal-300 rounded-full filter blur-3xl"></div>
         </div>
         {/* Header */}
         <div className="max-w-7xl relative z-10 mx-auto text-center">
-          <h1 className="text-4xl font-extrabold text-gray-900 sm:text-5xl lg:text-6xl bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600">
+          <h1 className="text-4xl font-extrabold text-white sm:text-5xl lg:text-6xl bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-cyan-600">
             Choose Your Plan
           </h1>
-          <p className="mt-4 max-w-2xl mx-auto text-xl text-gray-600">
+          <p className="mt-4 max-w-2xl mx-auto text-xl text-slate-400">
             Simple pricing for individuals and teams.
           </p>
-          <div className="mt-4 bg-white border border-indigo-100 rounded-lg shadow-sm p-4 inline-flex items-center justify-center">
-            <Users className="w-5 h-5 mr-2 text-indigo-600" />
-            <p className="text-sm text-gray-700">
-              <span className="font-semibold text-indigo-800">
+          <div className="mt-4 bg-white/5 border border-white/10 rounded-lg shadow-sm p-4 inline-flex items-center justify-center">
+            <Users className="w-5 h-5 mr-2 text-emerald-600" />
+            <p className="text-sm text-slate-300">
+              <span className="font-semibold text-emerald-300">
                 Team Plan Benefit:{" "}
               </span>
               Usage by invited team members doesn’t count towards your monthly
@@ -586,32 +586,32 @@ export default function PricingPage() {
             <Card
               className={`flex flex-col h-full overflow-hidden ${
                 selectedPlan === "free"
-                  ? "border-indigo-500 border-2 shadow-lg shadow-indigo-100"
-                  : "border border-gray-200 hover:border-indigo-300 transition-all"
+                  ? "border-emerald-500 border-2 shadow-lg shadow-emerald-500/20"
+                  : "border border-white/10 hover:border-emerald-300 transition-all"
               }`}
               onClick={() => setSelectedPlan("free")}
             >
-              <CardHeader className="bg-gradient-to-r from-gray-50 to-slate-50 pb-8">
+              <CardHeader className="bg-white/5 pb-8">
                 <CardTitle className="text-2xl font-bold flex items-center">
-                  <div className="w-8 h-8 mr-2 rounded-full bg-indigo-100 flex items-center justify-center">
-                    <Zap className="w-5 h-5 text-indigo-600" />
+                  <div className="w-8 h-8 mr-2 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                    <Zap className="w-5 h-5 text-emerald-600" />
                   </div>
                   Free
                 </CardTitle>
-                <CardDescription className="text-gray-600">
+                <CardDescription className="text-slate-400">
                   For individuals starting out
                 </CardDescription>
                 <div className="mt-4 text-center">
                   <div className="text-center mb-4">
-                    <span className="text-5xl font-extrabold text-gray-900">
+                    <span className="text-5xl font-extrabold text-white">
                       $0
                     </span>
-                    <span className="text-lg font-medium text-gray-500">
+                    <span className="text-lg font-medium text-slate-400">
                       /month
                     </span>
                   </div>
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-sm text-gray-600">
+                  <div className="bg-white/5 p-3 rounded-lg">
+                    <p className="text-sm text-slate-400">
                       Includes 100 hours/month
                     </p>
                   </div>
@@ -637,8 +637,8 @@ export default function PricingPage() {
                   variant={selectedPlan === "free" ? "default" : "outline"}
                   className={`w-full h-12 text-base ${
                     selectedPlan === "free"
-                      ? "bg-indigo-600 hover:bg-indigo-700 cursor-default"
-                      : "border-indigo-600 text-indigo-600 hover:bg-indigo-50"
+                      ? "bg-emerald-600 hover:bg-emerald-700 cursor-default"
+                      : "border-emerald-600 text-emerald-600 hover:bg-emerald-500/10"
                   }`}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -657,35 +657,35 @@ export default function PricingPage() {
             <Card
               className={`flex flex-col h-full overflow-hidden ${
                 selectedPlan === "starter"
-                  ? "border-indigo-500 border-2 shadow-lg shadow-indigo-100"
-                  : "border border-gray-200 hover:border-indigo-300 transition-all"
+                  ? "border-emerald-500 border-2 shadow-lg shadow-emerald-500/20"
+                  : "border border-white/10 hover:border-emerald-300 transition-all"
               }`}
               onClick={() => setSelectedPlan("starter")}
             >
-              <CardHeader className="bg-gradient-to-r from-gray-50 to-slate-50 pb-8">
+              <CardHeader className="bg-white/5 pb-8">
                 <CardTitle className="text-2xl font-bold flex items-center">
-                  <div className="w-8 h-8 mr-2 rounded-full bg-indigo-100 flex items-center justify-center">
-                    <Zap className="w-5 h-5 text-indigo-600" />
+                  <div className="w-8 h-8 mr-2 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                    <Zap className="w-5 h-5 text-emerald-600" />
                   </div>
                   Starter
                 </CardTitle>
-                <CardDescription className="text-gray-600">
+                <CardDescription className="text-slate-400">
                   For prosumers &amp; power users
                 </CardDescription>
                 <div className="mt-4 text-center">
                   <div className="text-center mb-4">
-                    <span className="text-5xl font-extrabold text-gray-900">
+                    <span className="text-5xl font-extrabold text-white">
                       $10
                     </span>
-                    <span className="text-lg font-medium text-gray-500">
+                    <span className="text-lg font-medium text-slate-400">
                       /month
                     </span>
                   </div>
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-sm text-gray-600">
+                  <div className="bg-white/5 p-3 rounded-lg">
+                    <p className="text-sm text-slate-400">
                       Includes 500 hours/month
                     </p>
-                    <p className="text-xs text-gray-500">Overage: $1/hr</p>
+                    <p className="text-xs text-slate-400">Overage: $1/hr</p>
                   </div>
                 </div>
               </CardHeader>
@@ -709,8 +709,8 @@ export default function PricingPage() {
                   variant={selectedPlan === "starter" ? "default" : "outline"}
                   className={`w-full h-12 text-base ${
                     selectedPlan === "starter"
-                      ? "bg-indigo-600 hover:bg-indigo-700 cursor-default"
-                      : "border-indigo-600 text-indigo-600 hover:bg-indigo-50"
+                      ? "bg-emerald-600 hover:bg-emerald-700 cursor-default"
+                      : "border-emerald-600 text-emerald-600 hover:bg-emerald-500/10"
                   }`}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -747,32 +747,32 @@ export default function PricingPage() {
             <Card
               className={`flex flex-col h-full overflow-hidden ${
                 selectedPlan === "plus"
-                  ? "border-indigo-500 border-2 shadow-lg shadow-indigo-100"
-                  : "border border-gray-200 hover:border-indigo-300 transition-all"
+                  ? "border-emerald-500 border-2 shadow-lg shadow-emerald-500/20"
+                  : "border border-white/10 hover:border-emerald-300 transition-all"
               }`}
             >
-              <CardHeader className="bg-gradient-to-r from-indigo-50 to-violet-50 pb-8">
+              <CardHeader className="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 pb-8">
                 <CardTitle className="text-2xl font-bold flex items-center">
-                  <div className="w-8 h-8 mr-2 rounded-full bg-indigo-100 flex items-center justify-center">
-                    <Sparkles className="w-5 h-5 text-indigo-600" />
+                  <div className="w-8 h-8 mr-2 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-emerald-600" />
                   </div>
                   Plus
                 </CardTitle>
-                <CardDescription className="text-gray-600">
+                <CardDescription className="text-slate-400">
                   Pay for customer hours, add team seats optionally.
                 </CardDescription>
 
                 {/* Combined Price Display */}
                 <div className="mt-4 text-center">
                   <div className="text-center mb-4">
-                    <span className="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
+                    <span className="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-cyan-600">
                       ${Math.round(totalMonthlyCost)}
                     </span>
-                    <span className="text-lg font-medium text-gray-500">
+                    <span className="text-lg font-medium text-slate-400">
                       /month
                     </span>
                     {teamSeats > 0 && (
-                      <p className="text-sm text-gray-500 mt-1">
+                      <p className="text-sm text-slate-400 mt-1">
                         (${Math.round(hoursMonthlyCost)} for hours + $
                         {seatsMonthlyCost} for {teamSeats} seats)
                       </p>
@@ -780,12 +780,12 @@ export default function PricingPage() {
                   </div>
 
                   {/* Hours Selector */}
-                  <div className="bg-indigo-50 p-3 rounded-lg mb-3">
+                  <div className="bg-emerald-500/10 p-3 rounded-lg mb-3">
                     <div className="mb-2 flex justify-between items-center">
-                      <span className="text-sm font-medium text-indigo-700">
+                      <span className="text-sm font-medium text-emerald-700">
                         Customer Hours:
                       </span>
-                      <span className="text-sm bg-indigo-200 text-indigo-800 px-2 py-1 rounded-md font-medium">
+                      <span className="text-sm bg-emerald-200 text-emerald-300 px-2 py-1 rounded-md font-medium">
                         ${costPerHourPlus.toFixed(2)}/hour
                       </span>
                     </div>
@@ -795,7 +795,7 @@ export default function PricingPage() {
                         setChosenHours(Number(e.target.value));
                         setSelectedPlan("plus"); // Ensure plan is selected when changing
                       }}
-                      className="w-full p-2 border rounded-md border-indigo-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 bg-white"
+                      className="w-full p-2 border rounded-md border-emerald-300 focus:border-emerald-500 focus:ring focus:ring-emerald-500/20 focus:ring-opacity-50 bg-white/5"
                       onClick={(e) => e.stopPropagation()} // Prevent card selection
                     >
                       {hourTiers.map((hours) => (
@@ -804,18 +804,18 @@ export default function PricingPage() {
                         </option>
                       ))}
                     </select>
-                    <p className="text-xs text-indigo-600 mt-1">
+                    <p className="text-xs text-emerald-600 mt-1">
                       Overage: ${overageRatePlus.toFixed(2)}/hour
                     </p>
                   </div>
 
                   {/* Team Seat Selector */}
-                  <div className="bg-purple-50 p-3 rounded-lg">
+                  <div className="bg-cyan-500/10 p-3 rounded-lg">
                     <div className="mb-2 flex justify-between items-center">
-                      <span className="text-sm font-medium text-purple-700">
+                      <span className="text-sm font-medium text-cyan-300">
                         Team Seats (Optional):
                       </span>
-                      <span className="text-sm bg-purple-200 text-purple-800 px-2 py-1 rounded-md font-medium">
+                      <span className="text-sm bg-cyan-500/20 text-cyan-300 px-2 py-1 rounded-md font-medium">
                         $10/seat/month
                       </span>
                     </div>
@@ -823,7 +823,7 @@ export default function PricingPage() {
                       <Button
                         variant="outline"
                         size="icon"
-                        className="border-purple-300 text-purple-600 hover:bg-purple-100"
+                        className="border-cyan-300 text-cyan-600 hover:bg-cyan-500/10"
                         onClick={(e) => {
                           e.stopPropagation();
                           setTeamSeats((prev) => Math.max(0, prev - 1));
@@ -844,12 +844,12 @@ export default function PricingPage() {
                           setSelectedPlan("plus");
                         }}
                         onClick={(e) => e.stopPropagation()}
-                        className="w-16 text-center border-purple-300 focus:border-purple-500 focus:ring-purple-200"
+                        className="w-16 text-center border-cyan-300 focus:border-cyan-500 focus:ring-cyan-500/20"
                       />
                       <Button
                         variant="outline"
                         size="icon"
-                        className="border-purple-300 text-purple-600 hover:bg-purple-100"
+                        className="border-cyan-300 text-cyan-600 hover:bg-cyan-500/10"
                         onClick={(e) => {
                           e.stopPropagation();
                           setTeamSeats((prev) => prev + 1);
@@ -912,7 +912,7 @@ export default function PricingPage() {
               <CardFooter className="pt-4 pb-8 mt-auto">
                 {selectedPlan === "plus" ? (
                   <div className="space-y-3 w-full">
-                    <div className="text-sm text-center text-gray-600 mb-2">
+                    <div className="text-sm text-center text-slate-400 mb-2">
                       Selected: {chosenHours} hours + {teamSeats} seats
                     </div>
                     {teamSeats > 0 ? (
@@ -1000,7 +1000,7 @@ export default function PricingPage() {
 
                     <Button
                       variant="outline"
-                      className="w-full border-indigo-600 text-indigo-600 hover:bg-indigo-50"
+                      className="w-full border-emerald-600 text-emerald-600 hover:bg-emerald-500/10"
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedPlan("free");
@@ -1014,7 +1014,7 @@ export default function PricingPage() {
                 ) : (
                   <Button
                     variant="outline"
-                    className="w-full h-12 text-base border-indigo-600 text-indigo-600 hover:bg-indigo-50"
+                    className="w-full h-12 text-base border-emerald-600 text-emerald-600 hover:bg-emerald-500/10"
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedPlan("plus");
@@ -1044,15 +1044,15 @@ export default function PricingPage() {
               setShowCalculatorIndicator(false);
             }}
           >
-            <div className="bg-indigo-600 text-white p-3 rounded-full shadow-lg hover:bg-indigo-700 transition-colors duration-300 flex flex-col items-center">
+            <div className="bg-emerald-600 text-white p-3 rounded-full shadow-lg hover:bg-emerald-700 transition-colors duration-300 flex flex-col items-center">
               <Calculator className="w-6 h-6 mb-1" />
               <div className="text-xs font-semibold">Calculator</div>
             </div>
-            <div className="text-indigo-600 mt-2 text-sm font-medium">
+            <div className="text-emerald-600 mt-2 text-sm font-medium">
               Try Our Calculator
             </div>
             <svg
-              className="w-6 h-6 mt-1 text-indigo-600"
+              className="w-6 h-6 mt-1 text-emerald-600"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -1069,20 +1069,20 @@ export default function PricingPage() {
         )}
         {/* Team Usage Benefits Card (Keep as is, maybe update text slightly) */}
         <div className="mt-16 max-w-3xl mx-auto">
-          <Card className="bg-gradient-to-r from-indigo-50 to-purple-50 border-0 shadow-md overflow-hidden relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-purple-500/5"></div>
+          <Card className="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border-0 shadow-md overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-cyan-500/5"></div>
             <CardHeader>
-              <CardTitle className="text-xl text-indigo-800 flex items-center">
-                <Users className="w-5 h-5 mr-2 text-indigo-600" />
+              <CardTitle className="text-xl text-emerald-300 flex items-center">
+                <Users className="w-5 h-5 mr-2 text-emerald-600" />
                 Team Plan Benefit
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-start space-x-3">
-                <div className="mt-1 bg-indigo-100 rounded-full p-1">
-                  <Check className="flex-shrink-0 w-4 h-4 text-indigo-600" />
+                <div className="mt-1 bg-emerald-500/10 rounded-full p-1">
+                  <Check className="flex-shrink-0 w-4 h-4 text-emerald-600" />
                 </div>
-                <p className="text-indigo-900">
+                <p className="text-emerald-900">
                   <span className="font-medium">Usage Included:</span>{" "}
                   Interactions from invited team members using Blueprints within
                   your workspace do not count towards individual usage limits or
@@ -1098,10 +1098,10 @@ export default function PricingPage() {
           className="mt-16 max-w-3xl mx-auto"
           style={{ scrollMarginTop: "100px" }}
         >
-          <Card className="overflow-hidden border border-gray-200 shadow-lg">
-            <CardHeader className="border-b bg-gradient-to-r from-slate-50 to-gray-50">
+          <Card className="overflow-hidden border border-white/10 shadow-lg">
+            <CardHeader className="border-b bg-white/5">
               <CardTitle className="flex items-center text-xl">
-                <Calculator className="w-5 h-5 mr-2 text-indigo-600" />
+                <Calculator className="w-5 h-5 mr-2 text-emerald-600" />
                 Plus Plan Usage Calculator
               </CardTitle>
               <CardDescription>
@@ -1113,15 +1113,15 @@ export default function PricingPage() {
               {/* ... (calculator inputs remain the same) ... */}
               {/* Customer Count & Basis */}
               <div className="space-y-3">
-                <Label className="text-sm font-medium text-gray-700 flex items-center">
-                  <Users className="w-4 h-4 mr-2 text-indigo-500" />
+                <Label className="text-sm font-medium text-slate-300 flex items-center">
+                  <Users className="w-4 h-4 mr-2 text-emerald-500" />
                   Number of Customers
                 </Label>
                 <div className="flex items-center space-x-4">
                   <select
                     value={customerCount}
                     onChange={(e) => setCustomerCount(Number(e.target.value))}
-                    className="p-2 border rounded-md border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 bg-white"
+                    className="p-2 border rounded-md border-white/20 text-slate-100 focus:border-emerald-500 focus:ring focus:ring-emerald-500/20 focus:ring-opacity-50 bg-white/5"
                   >
                     {" "}
                     <option value={100}>100</option>{" "}
@@ -1135,7 +1135,7 @@ export default function PricingPage() {
                     type="number"
                     value={customerCount}
                     onChange={(e) => setCustomerCount(Number(e.target.value))}
-                    className="w-24 border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                    className="w-24 border-white/20 text-slate-100 focus:border-emerald-500 focus:ring focus:ring-emerald-500/20 focus:ring-opacity-50"
                   />
                   <select
                     value={customerBasis}
@@ -1144,7 +1144,7 @@ export default function PricingPage() {
                         e.target.value as "day" | "week" | "month",
                       )
                     }
-                    className="p-2 border rounded-md border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 bg-white"
+                    className="p-2 border rounded-md border-white/20 text-slate-100 focus:border-emerald-500 focus:ring focus:ring-emerald-500/20 focus:ring-opacity-50 bg-white/5"
                   >
                     {" "}
                     <option value="day">Per Day</option>{" "}
@@ -1155,9 +1155,9 @@ export default function PricingPage() {
               </div>
               {/* Average Visit Duration */}
               <div className="space-y-3">
-                <Label className="text-sm font-medium text-gray-700 flex items-center">
+                <Label className="text-sm font-medium text-slate-300 flex items-center">
                   {" "}
-                  <Clock className="w-4 h-4 mr-2 text-indigo-500" /> Average
+                  <Clock className="w-4 h-4 mr-2 text-emerald-500" /> Average
                   Visit Duration (minutes){" "}
                 </Label>
                 <div className="flex items-center space-x-4">
@@ -1166,7 +1166,7 @@ export default function PricingPage() {
                     onChange={(e) =>
                       setAvgVisitDuration(Number(e.target.value))
                     }
-                    className="p-2 border rounded-md border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 bg-white"
+                    className="p-2 border rounded-md border-white/20 text-slate-100 focus:border-emerald-500 focus:ring focus:ring-emerald-500/20 focus:ring-opacity-50 bg-white/5"
                   >
                     {" "}
                     <option value={15}>15</option>{" "}
@@ -1183,15 +1183,15 @@ export default function PricingPage() {
                     onChange={(e) =>
                       setAvgVisitDuration(Number(e.target.value))
                     }
-                    className="w-24 border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                    className="w-24 border-white/20 text-slate-100 focus:border-emerald-500 focus:ring focus:ring-emerald-500/20 focus:ring-opacity-50"
                   />
                 </div>
               </div>
               {/* Blueprint Adoption Percentage */}
               <div className="space-y-3">
-                <Label className="text-sm font-medium text-gray-700 flex items-center">
+                <Label className="text-sm font-medium text-slate-300 flex items-center">
                   {" "}
-                  <Sparkles className="w-4 h-4 mr-2 text-indigo-500" />{" "}
+                  <Sparkles className="w-4 h-4 mr-2 text-emerald-500" />{" "}
                   Percentage of Visitors Using Blueprint (%){" "}
                 </Label>
                 <div className="flex items-center space-x-4">
@@ -1200,7 +1200,7 @@ export default function PricingPage() {
                     onChange={(e) =>
                       setAdoptionPercentage(Number(e.target.value))
                     }
-                    className="p-2 border rounded-md border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 bg-white"
+                    className="p-2 border rounded-md border-white/20 text-slate-100 focus:border-emerald-500 focus:ring focus:ring-emerald-500/20 focus:ring-opacity-50 bg-white/5"
                   >
                     {" "}
                     <option value={10}>10%</option>{" "}
@@ -1215,31 +1215,31 @@ export default function PricingPage() {
                     onChange={(e) =>
                       setAdoptionPercentage(Number(e.target.value))
                     }
-                    className="w-24 border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                    className="w-24 border-white/20 text-slate-100 focus:border-emerald-500 focus:ring focus:ring-emerald-500/20 focus:ring-opacity-50"
                   />
                 </div>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-slate-400">
                   {" "}
                   Default is 10% (average so far).{" "}
                 </p>
               </div>
               {/* Calculation Result */}
-              <div className="border-t border-gray-100 pt-6 mt-6">
+              <div className="border-t border-white/10 pt-6 mt-6">
                 <div className="flex justify-between items-center">
-                  <span className="text-lg font-medium text-gray-700">
+                  <span className="text-lg font-medium text-slate-300">
                     {" "}
                     Estimated Monthly Blueprint Usage:{" "}
                   </span>
-                  <span className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600">
+                  <span className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-cyan-600">
                     {" "}
                     {estimatedBlueprintUsage.toFixed(2)} hrs{" "}
                   </span>
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="flex space-x-2 py-6 bg-gray-50 border-t border-gray-100">
+            <CardFooter className="flex space-x-2 py-6 bg-white/5 border-t border-white/10">
               <Button
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
                 onClick={calculateBlueprintUsage}
               >
                 {" "}
@@ -1247,7 +1247,7 @@ export default function PricingPage() {
               </Button>
               <Button
                 variant="outline"
-                className="w-full border-indigo-600 text-indigo-600 hover:bg-indigo-50 cursor-pointer"
+                className="w-full border-emerald-600 text-emerald-600 hover:bg-emerald-500/10 cursor-pointer"
                 onClick={handleUseThisEstimate}
               >
                 {" "}
@@ -1260,10 +1260,10 @@ export default function PricingPage() {
       {/* FAQs */}
       <motion.div variants={itemVariants} className="mb-10">
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-gray-900">
+          <h2 className="text-2xl font-bold text-white">
             Frequently Asked Questions
           </h2>
-          <p className="text-gray-600 mt-2">
+          <p className="text-slate-400 mt-2">
             Have questions about plans? We've got answers.
           </p>
         </div>
@@ -1291,14 +1291,14 @@ export default function PricingPage() {
                 "No, there are no hidden fees. The price you see is the price you pay based on your usage and chosen plan.",
             },
           ].map((faq, index) => (
-            <Card key={index} className="border border-gray-200">
+            <Card key={index} className="border border-white/10">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base font-medium text-gray-900">
+                <CardTitle className="text-base font-medium text-white">
                   {faq.question}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-gray-600">{faq.answer}</p>
+                <p className="text-sm text-slate-400">{faq.answer}</p>
               </CardContent>
             </Card>
           ))}
@@ -1306,18 +1306,18 @@ export default function PricingPage() {
       </motion.div>
       {/* Need Help Section */}
       <motion.div variants={itemVariants} className="mb-16">
-        <Card className="border-0 shadow-md bg-gradient-to-r from-indigo-50 to-violet-50">
+        <Card className="border-0 shadow-md bg-gradient-to-r from-emerald-500/10 to-cyan-500/10">
           <CardContent className="p-8 flex flex-col md:flex-row items-center justify-between">
             <div className="mb-6 md:mb-0">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
+              <h3 className="text-xl font-bold text-white mb-2">
                 Need Help Choosing?
               </h3>
-              <p className="text-gray-600">
+              <p className="text-slate-400">
                 Our team is ready to help you find the perfect plan for your
                 needs.
               </p>
             </div>
-            <Button className="bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-50 shadow-sm">
+            <Button className="bg-white/5 text-emerald-600 border border-emerald-500/20 hover:bg-emerald-500/10 shadow-sm">
               Contact Support
             </Button>
           </CardContent>
