@@ -36,11 +36,23 @@ export default function Home() {
   const { currentUser } = useAuth();
   const [, setLocation] = useLocation();
   const mainRef = useRef<HTMLDivElement>(null);
+  const contactRef = useRef<HTMLDivElement>(null); // 👈 new ref for contact form
+  const [isContactInView, setIsContactInView] = useState(false); // 👈 track if contact is visible
   const shouldReduce = useReducedMotion();
 
   useEffect(() => {
     if (currentUser) setLocation("/dashboard");
   }, [currentUser, setLocation]);
+
+  // 👇 Set up intersection observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsContactInView(entry.isIntersecting),
+      { threshold: 0.3 }, // adjust so it hides when ~30% of the contact section is visible
+    );
+    if (contactRef.current) observer.observe(contactRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   const benefits = useMemo(
     () => [
@@ -267,17 +279,17 @@ export default function Home() {
                 We’re onboarding businesses within a 30-minute drive of Durham.
                 Mapping + setup takes ~60 minutes, and the pilot is free.
               </p>
-              <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 justify-center">
                 <Button
                   onClick={handleScrollToContact}
-                  className="h-12 px-6 text-base rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white border-0 shadow-xl hover:shadow-2xl hover:scale-[1.02] transition will-change-transform"
+                  className="h-12 w-full text-base rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white border-0 shadow-xl hover:shadow-2xl hover:scale-[1.02] transition will-change-transform"
                 >
                   Join the Durham Pilot (Free)
                 </Button>
-                <a href="/pilot-program" className="inline-block">
+                <a href="/pilot-program" className="w-full">
                   <Button
                     variant="outline"
-                    className="h-12 px-6 text-base rounded-xl border-white/20 text-black hover:bg-white/10"
+                    className="h-12 w-full text-base rounded-xl border-white/20 text-black hover:bg-white/10"
                   >
                     How the Pilot Works
                   </Button>
@@ -288,24 +300,28 @@ export default function Home() {
         </section>
 
         {/* Contact */}
-        <ContactForm />
+        <div ref={contactRef} id="contactForm">
+          <ContactForm />
+        </div>
       </main>
 
       {/* Sticky mobile CTA */}
-      <div className="md:hidden sticky bottom-4 z-50 px-4">
-        <motion.div
-          initial={{ y: 40, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.4 }}
-        >
-          <Button
-            onClick={handleScrollToContact}
-            className="w-full rounded-2xl h-14 text-base font-semibold shadow-2xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white"
+      {!isContactInView && (
+        <div className="md:hidden sticky bottom-4 z-50 px-4">
+          <motion.div
+            initial={{ y: 40, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.4 }}
           >
-            Join Pilot — Free Setup
-          </Button>
-        </motion.div>
-      </div>
+            <Button
+              onClick={handleScrollToContact}
+              className="w-full rounded-2xl h-14 text-base font-semibold shadow-2xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white"
+            >
+              Join Pilot — Free Setup
+            </Button>
+          </motion.div>
+        </div>
+      )}
 
       <Footer />
     </div>
