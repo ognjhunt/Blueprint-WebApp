@@ -1172,7 +1172,7 @@ export default function PilotProgram() {
           >
             <Badge className="inline-flex items-center gap-2 bg-cyan-500/10 text-cyan-300 border-cyan-500/30 mb-6 px-4 py-2">
               <CalendarCheck className="w-4 h-4" />
-              Simple 10-Day Process
+              Simple 2-Week Process
             </Badge>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 text-white">
               From First Scan to Live AR in Two Weeks
