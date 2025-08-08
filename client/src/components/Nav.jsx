@@ -97,7 +97,7 @@ export default function Nav({
         <div className="flex items-center">
           <Link href="/" className="flex items-center space-x-3 group">
             <img
-              src="/gradientBPLogo.ico"
+              src="/gradientBPLogo.png"
               alt="Blueprint logo"
               className={`w-9 h-9 md:w-10 md:h-10 rounded-xl shadow-lg transition-transform ${isScrolled ? "scale-95" : ""}`}
             />
