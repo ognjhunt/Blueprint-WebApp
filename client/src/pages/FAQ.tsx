@@ -55,28 +55,38 @@ export default function FAQ() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden bg-gradient-to-b from-white via-slate-50 to-indigo-50/20">
+    <div className="min-h-screen flex flex-col bg-[#0B1220] text-slate-100 relative overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+        <div
+          className="absolute inset-0 opacity-[0.08]"
+          style={{
+            background:
+              "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.2) 1px, transparent 1px)",
+            backgroundSize: "32px 32px",
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/[0.10] via-cyan-500/[0.08] to-transparent mix-blend-screen" />
+      </div>
+
       <Nav />
 
       {/* HERO SECTION */}
-      <section className="pt-16 md:pt-20 lg:pt-32 pb-12 md:pb-16 lg:pb-24 relative overflow-hidden">
-        {/* Animated background */}
+      <section className="pt-20 md:pt-28 lg:pt-40 pb-12 md:pb-16 lg:pb-24 relative">
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute inset-0 opacity-5" />
-          <div className="absolute top-20 -right-20 w-96 h-96 bg-indigo-100/30 rounded-full blur-3xl animated-bg-circle-1" />
-          <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-violet-100/30 rounded-full blur-3xl animated-bg-circle-2" />
+          <div className="absolute -top-20 -right-20 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl opacity-40" />
+          <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl opacity-40" />
         </div>
 
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl relative z-10">
           <FadeIn yOffset={20} delay={0.1} className="text-center">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-6 leading-tight text-slate-900">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-6 leading-tight text-white">
               Frequently Asked
-              <span className="block bg-gradient-to-r from-indigo-600 via-violet-600 to-pink-600 bg-clip-text text-transparent">
+              <span className="block bg-gradient-to-r from-emerald-400 via-cyan-400 to-sky-400 bg-clip-text text-transparent">
                 Questions
               </span>
             </h1>
 
-            <p className="text-base sm:text-lg md:text-xl text-slate-600 mb-8 max-w-3xl mx-auto">
+            <p className="text-base sm:text-lg md:text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
               Everything you need to know about Blueprint and our pilot program.
               Can't find what you're looking for? We're here to help.
             </p>
@@ -85,23 +95,23 @@ export default function FAQ() {
       </section>
 
       {/* FAQ SECTION */}
-      <section className="py-16 md:py-24 bg-white">
+      <section className="py-16 md:py-24">
         <div className="container mx-auto px-4 sm:px-6 max-w-4xl">
           <div className="space-y-4">
             {faqs.map((faq, idx) => (
               <FadeIn key={idx} yOffset={20} delay={idx * 0.05}>
                 <button
-                  className="w-full text-left bg-white hover:bg-slate-50 border border-slate-200 rounded-xl p-6 transition-all"
+                  className="w-full text-left bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl p-6 transition-all"
                   onClick={() =>
                     setSelectedFaq(selectedFaq === idx ? null : idx)
                   }
                 >
                   <div className="flex justify-between items-start gap-4">
-                    <h3 className="font-semibold text-lg pr-8 text-slate-900">
+                    <h3 className="font-semibold text-lg pr-8 text-white">
                       {faq.q}
                     </h3>
                     <ChevronDown
-                      className={`w-5 h-5 text-slate-400 flex-shrink-0 transition-transform ${
+                      className={`w-5 h-5 text-slate-300 flex-shrink-0 transition-transform ${
                         selectedFaq === idx ? "rotate-180" : ""
                       }`}
                     />
@@ -116,7 +126,7 @@ export default function FAQ() {
                         transition={{ duration: 0.3 }}
                         className="overflow-hidden"
                       >
-                        <p className="text-slate-600 mt-4 leading-relaxed">
+                        <p className="text-slate-300 mt-4 leading-relaxed">
                           {faq.a}
                         </p>
                       </motion.div>
@@ -130,19 +140,19 @@ export default function FAQ() {
           <FadeIn
             yOffset={20}
             delay={0.1}
-            className="mt-12 p-8 rounded-2xl bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-200 text-center"
+            className="mt-12 p-8 rounded-2xl bg-white/5 border border-white/10 text-center"
           >
-            <h3 className="text-2xl font-bold mb-4 text-slate-900">
+            <h3 className="text-2xl font-bold mb-4 text-white">
               Still Have Questions?
             </h3>
-            <p className="text-slate-600 mb-6">
+            <p className="text-slate-300 mb-6">
               Our team is here to help you understand how Blueprint can
               transform your business
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 variant="outline"
-                className="border-slate-300 text-slate-700 hover:bg-slate-50"
+                className="border-white/30 text-white hover:bg-white/10"
                 asChild
               >
                 <a href="mailto:nijel@tryblueprint.io">
@@ -151,7 +161,7 @@ export default function FAQ() {
                 </a>
               </Button>
               <Button
-                className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-700 hover:to-violet-700"
+                className="rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white hover:from-emerald-600 hover:to-cyan-700"
                 asChild
               >
                 <a href="https://calendly.com/blueprintar/30min">
@@ -160,7 +170,7 @@ export default function FAQ() {
                 </a>
               </Button>
               <Button
-                className="bg-gradient-to-r from-violet-600 to-pink-600 text-white hover:from-violet-700 hover:to-pink-700"
+                className="rounded-xl bg-gradient-to-r from-cyan-600 to-sky-500 text-white hover:from-cyan-700 hover:to-sky-600"
                 asChild
               >
                 <a href="/pilot-program">
