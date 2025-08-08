@@ -234,7 +234,7 @@ function MobileBenefitsCarousel({ benefits }) {
 function getBenefitDetails(title) {
   const details = {
     "Zero Risk": [
-      "Free 14-day program",
+      "Free 10-day program",
       "No credit card or commitment",
       "We handle setup end-to-end",
       "Clear next steps after demo",
@@ -813,11 +813,11 @@ export default function PilotProgram() {
     );
   };
 
-  // 14-day flow for clarity
+  // 10-day flow for clarity
   const timeline = [
     {
       icon: <MapPin className="w-6 h-6" />,
-      title: "Day 0",
+      title: "Day 1",
       subtitle: "30–60 min Mapping",
       description:
         "We scan your venue with LiDAR to create a precise digital twin—fast, quiet, and disruption-free.",
@@ -831,7 +831,7 @@ export default function PilotProgram() {
     },
     {
       icon: <Sparkles className="w-6 h-6" />,
-      title: "Days 1–10",
+      title: "Week 1",
       subtitle: "AI-Powered Creation",
       description:
         "We design a custom AR layer for your space—brand-aligned, interactive, and purposeful.",
@@ -845,7 +845,7 @@ export default function PilotProgram() {
     },
     {
       icon: <Wand2 className="w-6 h-6" />,
-      title: "Days 11–13",
+      title: "Week 1",
       subtitle: "Fine-Tune & Prep",
       description:
         "We place QR codes, finish polish, and brief your team for a smooth reveal.",
@@ -855,7 +855,7 @@ export default function PilotProgram() {
     },
     {
       icon: <PlayCircle className="w-6 h-6" />,
-      title: "Day 14",
+      title: "Week 2",
       subtitle: "Live Demo Day",
       description:
         "See your space come alive on Apple Vision Pro and other devices. Collect instant feedback.",
@@ -896,7 +896,7 @@ export default function PilotProgram() {
     {
       icon: <Shield className="w-6 h-6" />,
       title: "Zero Risk",
-      description: "A 14-day pilot that’s completely free and obligation-free.",
+      description: "A 2-week pilot that’s completely free and obligation-free.",
       highlight: "100% FREE",
     },
     {
@@ -929,7 +929,7 @@ export default function PilotProgram() {
     },
     {
       q: "What does the pilot cost?",
-      a: "Nothing. The 14-day pilot is completely free—no credit card, no hidden fees, no obligation.",
+      a: "Nothing. The 2-week pilot is completely free—no credit card, no hidden fees, no obligation.",
     },
     {
       q: "How long does mapping take?",
@@ -1172,7 +1172,7 @@ export default function PilotProgram() {
           >
             <Badge className="inline-flex items-center gap-2 bg-cyan-500/10 text-cyan-300 border-cyan-500/30 mb-6 px-4 py-2">
               <CalendarCheck className="w-4 h-4" />
-              Simple 14-Day Process
+              Simple 10-Day Process
             </Badge>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 text-white">
               From First Scan to Live AR in Two Weeks
