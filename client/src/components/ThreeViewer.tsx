@@ -15,6 +15,7 @@ import {
   CSS3DRenderer,
   CSS3DObject,
 } from "three/examples/jsm/renderers/CSS3DRenderer.js";
+import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
 
 interface DragControls {
   enabled: boolean;
@@ -226,6 +227,7 @@ interface ThreeViewerProps {
     position: THREE.Vector3,
     direction: THREE.Vector3,
   ) => void;
+  onWalkModeChange?: (active: boolean) => void;
 }
 
 interface OriginMarkerConfig {
@@ -269,6 +271,8 @@ const labelColors: Record<"A" | "B" | "C", number> = {
 interface ThreeViewerImperativeHandle {
   zoomIn: () => void;
   zoomOut: () => void;
+  enterWalkMode: () => void;
+  exitWalkMode: () => void;
 }
 
 const ThreeViewer = React.memo(
@@ -318,6 +322,7 @@ const ThreeViewer = React.memo(
       showWebpageAnchors,
       showModelAnchors,
       showGrid,
+      onWalkModeChange,
       originOrientation, // Added originOrientation here
     } = props;
     console.log("ThreeViewer - modelPath prop:", modelPath); // ADD THIS LINE
@@ -351,6 +356,27 @@ const ThreeViewer = React.memo(
     const transformControlsRef = useRef<TransformControls | null>(null);
     const orbitControlsRef = useRef<OrbitControls | null>(null);
     const dragControlsRef = useRef<DragControls | null>(null);
+    // ---- Walk mode refs/state ----
+    const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+    const pointerLockRef = useRef<PointerLockControls | null>(null);
+    const [isWalkMode, setIsWalkMode] = useState(false);
+    const isWalkModeRef = useRef(false);
+    const clockRef = useRef(new THREE.Clock());
+    const keysRef = useRef({
+      forward: false,
+      back: false,
+      left: false,
+      right: false,
+      sprint: false,
+    });
+    const walkParamsRef = useRef({
+      velocity: new THREE.Vector3(),
+      direction: new THREE.Vector3(),
+      accel: 3.0,
+      damping: 10.0,
+      sprintMul: 2.0,
+      eye: 0.055,
+    });
     const PDF_THUMBNAIL_URL = "/images/PDF_file_icon.svg";
     const DOCX_THUMBNAIL_URL = "/images/docx_icon.svg.png";
     const PPTX_THUMBNAIL_URL = "/images/pptx_thumbnail.png";
@@ -365,6 +391,24 @@ const ThreeViewer = React.memo(
       }
       gridRef.current.visible = showGrid ?? true;
     }, [showGrid]);
+
+    const enterWalkMode = () => {
+      if (!pointerLockRef.current) return;
+      isWalkModeRef.current = true;
+      setIsWalkMode(true);
+      onWalkModeChange?.(true);
+      if (orbitControlsRef.current) orbitControlsRef.current.enabled = false;
+      if (transformControlsRef.current) transformControlsRef.current.enabled = false;
+    };
+
+    const exitWalkMode = () => {
+      isWalkModeRef.current = false;
+      setIsWalkMode(false);
+      pointerLockRef.current?.unlock();
+      onWalkModeChange?.(false);
+      if (orbitControlsRef.current) orbitControlsRef.current.enabled = true;
+      if (transformControlsRef.current) transformControlsRef.current.enabled = true;
+    };
 
     useImperativeHandle(ref, () => ({
       zoomIn() {
@@ -395,6 +439,8 @@ const ThreeViewer = React.memo(
         cam.position.copy(controls.target.clone().add(direction));
         controls.update();
       },
+      enterWalkMode,
+      exitWalkMode,
     }));
 
     const isMarkerSelectedRef = useRef<boolean>(false);
@@ -4307,6 +4353,7 @@ const ThreeViewer = React.memo(
       }
       renderer.setPixelRatio(window.devicePixelRatio);
       mountRef.current.appendChild(renderer.domElement);
+      rendererRef.current = renderer;
 
       // --- Begin CSS3DRenderer Setup ---
       // Create a CSS3DRenderer for HTML/CSS elements (such as your webpage iframe)
@@ -4343,6 +4390,33 @@ const ThreeViewer = React.memo(
       if (transformControlsRef.current) {
         configureTransformControls(transformControlsRef.current);
       }
+
+      // ---- Walk controls (PointerLock) ----
+      const initWalkControls = () => {
+        if (!cameraRef.current || !rendererRef.current) return;
+        if (pointerLockRef.current) {
+          pointerLockRef.current.disconnect();
+          pointerLockRef.current = null;
+        }
+        const plc = new PointerLockControls(
+          cameraRef.current,
+          rendererRef.current.domElement,
+        );
+        pointerLockRef.current = plc;
+        plc.addEventListener("lock", () => {
+          if (orbitControlsRef.current) orbitControlsRef.current.enabled = false;
+          if (transformControlsRef.current) transformControlsRef.current.enabled = false;
+          onWalkModeChange?.(true);
+        });
+        plc.addEventListener("unlock", () => {
+          isWalkModeRef.current = false;
+          setIsWalkMode(false);
+          onWalkModeChange?.(false);
+          if (orbitControlsRef.current) orbitControlsRef.current.enabled = true;
+          if (transformControlsRef.current) transformControlsRef.current.enabled = true;
+        });
+      };
+      initWalkControls();
 
       // handleTransformKeyDown is called later once controls are loaded
       const handleTransformKeyDown = (event: KeyboardEvent) => {
@@ -5315,7 +5389,79 @@ const ThreeViewer = React.memo(
         return raycasterRef.current.intersectObjects(scene.children, true);
       }
 
+      // ---- Walk start: first click chooses the drop point ----
+      const handleWalkStartClick = (e: MouseEvent) => {
+        if (!isWalkModeRef.current || pointerLockRef.current?.isLocked) return;
+        if (!cameraRef.current || !sceneRef.current || !mountRef.current) return;
+        const rect = mountRef.current.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        const mouse = new THREE.Vector2(x, y);
+        raycasterRef.current.setFromCamera(mouse, cameraRef.current);
+        const hits = raycasterRef.current.intersectObjects(
+          sceneRef.current.children,
+          true,
+        );
+        if (hits.length > 0) {
+          const p = hits[0].point.clone();
+          cameraRef.current.position.set(
+            p.x,
+            p.y + walkParamsRef.current.eye,
+            p.z,
+          );
+          pointerLockRef.current?.lock();
+          e.stopPropagation();
+        }
+      };
+
+      // ---- Keyboard for movement ----
+      const onKeyDown = (e: KeyboardEvent) => {
+        switch (e.code) {
+          case "KeyW":
+            keysRef.current.forward = true;
+            break;
+          case "KeyS":
+            keysRef.current.back = true;
+            break;
+          case "KeyA":
+            keysRef.current.left = true;
+            break;
+          case "KeyD":
+            keysRef.current.right = true;
+            break;
+          case "ShiftLeft":
+          case "ShiftRight":
+            keysRef.current.sprint = true;
+            break;
+        }
+      };
+      const onKeyUp = (e: KeyboardEvent) => {
+        switch (e.code) {
+          case "KeyW":
+            keysRef.current.forward = false;
+            break;
+          case "KeyS":
+            keysRef.current.back = false;
+            break;
+          case "KeyA":
+            keysRef.current.left = false;
+            break;
+          case "KeyD":
+            keysRef.current.right = false;
+            break;
+          case "ShiftLeft":
+          case "ShiftRight":
+            keysRef.current.sprint = false;
+            break;
+        }
+      };
+      window.addEventListener("keydown", onKeyDown);
+      window.addEventListener("keyup", onKeyUp);
+
       mountRef.current.addEventListener("contextmenu", handleRightClick);
+      mountRef.current.addEventListener("click", handleWalkStartClick, {
+        capture: true,
+      });
       // Clicks should not bubble to parent elements
       mountRef.current.addEventListener("click", handleClick);
 
@@ -5329,6 +5475,48 @@ const ThreeViewer = React.memo(
         // if (orbitControls) {
         orbitControls.update();
         //  }
+
+        // ---- Walk step (runs only while in walk mode) ----
+        const delta = clockRef.current.getDelta();
+        if (
+          isWalkModeRef.current &&
+          pointerLockRef.current?.isLocked &&
+          camera
+        ) {
+          const cam = camera;
+          const { velocity, direction, accel, damping, sprintMul, eye } =
+            walkParamsRef.current;
+
+          velocity.x -= velocity.x * damping * delta;
+          velocity.z -= velocity.z * damping * delta;
+
+          direction.set(0, 0, 0);
+          if (keysRef.current.forward) direction.z -= 1;
+          if (keysRef.current.back) direction.z += 1;
+          if (keysRef.current.left) direction.x -= 1;
+          if (keysRef.current.right) direction.x += 1;
+          if (direction.lengthSq() > 0) direction.normalize();
+
+          const speed = accel * (keysRef.current.sprint ? sprintMul : 1);
+          velocity.x += direction.x * speed * delta;
+          velocity.z += direction.z * speed * delta;
+
+          pointerLockRef.current.moveRight(velocity.x * delta);
+          pointerLockRef.current.moveForward(-velocity.z * delta);
+
+          const down = new THREE.Raycaster(
+            new THREE.Vector3(
+              cam.position.x,
+              cam.position.y + 1.0,
+              cam.position.z,
+            ),
+            new THREE.Vector3(0, -1, 0),
+          );
+          const floorHits = down.intersectObjects(scene.children, true);
+          if (floorHits.length > 0) {
+            cam.position.y = floorHits[0].point.y + eye;
+          }
+        }
 
         // ─── Make each CSS3D label face the camera ───
         textAnchorsRef.current.forEach((labelObject) => {
@@ -5954,8 +6142,13 @@ const ThreeViewer = React.memo(
       return () => {
         window.removeEventListener("resize", handleResize);
         window.removeEventListener("keydown", handleTransformKeyDown); // Use correct handler name
+        window.removeEventListener("keydown", onKeyDown);
+        window.removeEventListener("keyup", onKeyUp);
         if (mountRef.current) {
           mountRef.current.removeEventListener("contextmenu", handleRightClick);
+          mountRef.current.removeEventListener("click", handleWalkStartClick, {
+            capture: true,
+          } as any);
           mountRef.current.removeEventListener("click", handleClick);
           mountRef.current.removeEventListener("dragenter", handleDragEnter);
           mountRef.current.removeEventListener("dragover", handleDragOver);
@@ -6584,6 +6777,15 @@ const ThreeViewer = React.memo(
               className="h-full bg-blue-500 transition-all"
               style={{ width: `${modelLoadProgress}%` }}
             />
+          </div>
+        )}
+
+        {isWalkMode && (
+          <div className="fixed bottom-20 right-4 z-[100000] rounded-xl border border-white/10 bg-black/70 text-white px-4 py-3 shadow-lg backdrop-blur">
+            <div className="text-sm font-medium">Walk Mode</div>
+            <div className="mt-1 text-xs opacity-90">
+              Click the floor to drop in · Move with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> · Hold <kbd>Shift</kbd> to sprint · Move mouse to look · Press <kbd>Esc</kbd> to exit
+            </div>
           </div>
         )}
 

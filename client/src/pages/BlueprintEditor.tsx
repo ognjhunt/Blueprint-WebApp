@@ -232,6 +232,7 @@ import {
   Gift,
   Sparkles,
   Music2,
+  PersonStanding,
 } from "lucide-react";
 
 // Types
@@ -241,7 +242,8 @@ import { MarkedArea } from "@/types/AreaMarkingStyles";
 interface ThreeViewerRef {
   zoomIn: () => void;
   zoomOut: () => void;
-  resetView: () => void;
+  enterWalkMode: () => void;
+  exitWalkMode: () => void;
 }
 
 // Define TextAnchor type (if not already defined/imported)
@@ -387,6 +389,7 @@ export default function BlueprintEditor() {
   const [showFileAnchors, setShowFileAnchors] = useState(true); // New state for Files (incl. images/videos)
   const [showWebpageAnchors, setShowWebpageAnchors] = useState(true); // New state for Webpages
   const [showModelAnchors, setShowModelAnchors] = useState(true); // New state for 3D Models
+  const [isWalkMode, setIsWalkMode] = useState(false);
   const [location] = useLocation();
   const blueprintId = location.split("/").pop();
   const { toast } = useToast();
@@ -7308,6 +7311,7 @@ export default function BlueprintEditor() {
               showWebpageAnchors={showWebpageAnchors}
               showModelAnchors={showModelAnchors}
               showGrid={showGrid}
+              onWalkModeChange={setIsWalkMode}
               // NEW Props for the two-step process
               originSettingStep={originSettingStep}
               tempOriginPos={tempOriginPos}
@@ -7566,6 +7570,23 @@ export default function BlueprintEditor() {
           {/* Toggle QR Button - bottom right */}
 
           <div className="absolute bottom-4 right-4 z-40 flex flex-col items-end gap-2">
+            {/* --- Walk Mode Toggle --- */}
+            <Button
+              variant={isWalkMode ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => {
+                if (isWalkMode) {
+                  threeViewerRef.current?.exitWalkMode();
+                } else {
+                  threeViewerRef.current?.enterWalkMode();
+                }
+              }}
+              className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow"
+              title={isWalkMode ? "Exit Walk Mode" : "Enter Walk Mode"}
+            >
+              <PersonStanding className="h-6 w-6" />
+            </Button>
+
             {/* --- Text Anchors Toggle --- */}
             <Button
               variant="ghost"
@@ -8015,6 +8036,7 @@ export default function BlueprintEditor() {
                       scaleFactor={scaleFactor}
                       placementMode={null}
                       webpageAnchors={[]}
+                      onWalkModeChange={setIsWalkMode}
                       // NEW Props for the two-step process
                       originSettingStep={originSettingStep}
                       tempOriginPos={tempOriginPos}
