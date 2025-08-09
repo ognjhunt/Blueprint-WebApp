@@ -129,7 +129,7 @@ export default function SignIn() {
                   className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 text-emerald-200 mb-5"
                 >
                   <MapPin className="w-4 h-4" />
-                  Durham & Triangle Pilot Access
+                  Durham/Triangle Pilot — Two visits (~10 days)
                 </motion.div>
 
                 <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white mb-4">
@@ -148,8 +148,8 @@ export default function SignIn() {
                   {[
                     {
                       icon: CalendarCheck,
-                      title: "2-week pilot",
-                      copy: "From scan to demo—fast.",
+                      title: "Two visits (~10 days)",
+                      copy: "Mapping + demo, about a week apart.",
                     },
                     {
                       icon: Shield,

@@ -6868,7 +6868,9 @@ const ThreeViewer = React.memo(
                         className="p-4 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors flex flex-col items-center justify-center gap-2 text-center"
                       >
                         {option.icon}
-                        <span className="text-sm text-slate-200">{option.label}</span>
+                        <span className="text-sm text-slate-200">
+                          {option.label}
+                        </span>
                       </button>
                     ))}
                   </div>
