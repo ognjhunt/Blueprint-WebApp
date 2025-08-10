@@ -6004,7 +6004,7 @@ export default function BlueprintEditor() {
                             </h3>
                             <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center bg-white mb-3">
                               <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                              <p className="text-sm font-medium mb-1">
+                              <p className="text-sm font-medium mb-1 text-black">
                                 Drag & drop images/videos here
                               </p>
                               <p className="text-xs text-gray-500 mb-3">
@@ -6053,7 +6053,7 @@ export default function BlueprintEditor() {
                           {/* --- END PASTE --- */}
                           {/* You might also want to list existing Image/Video elements/anchors here */}
                           <div>
-                            <h3 className="text-sm font-medium text-gray-700 mb-3">
+                            <h3 className="text-sm font-medium text-white-700 mb-3">
                               Uploaded Media
                             </h3>
                             {/* Filter and display uploadedFiles that are images or videos */}
@@ -6548,7 +6548,7 @@ export default function BlueprintEditor() {
                             </h3>
                             <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center bg-white mb-3">
                               <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                              <p className="text-sm font-medium mb-1">
+                              <p className="text-sm font-medium mb-1 text-black">
                                 Drag & drop files here
                               </p>
                               <p className="text-xs text-gray-500 mb-3">
@@ -6602,7 +6602,7 @@ export default function BlueprintEditor() {
                           {/* (From old activePanel === 'elements' -> Recent Uploads Section) */}
                           <div>
                             <div className="flex justify-between items-center mb-3">
-                              <h3 className="text-sm font-medium text-gray-700 flex items-center">
+                              <h3 className="text-sm font-medium text-white-700 flex items-center">
                                 <File className="h-4 w-4 mr-1.5 text-indigo-500" />
                                 Recent Uploads
                               </h3>
@@ -6749,16 +6749,16 @@ export default function BlueprintEditor() {
                           {/* List of Placed Webpages Section (Starts directly after the above div) */}
                           {webpageAnchors.length > 0 && (
                             <div>
-                              <h3 className="text-sm font-medium text-gray-700 mb-3">
+                              <h3 className="text-sm font-medium text-white-700 mb-3">
                                 Placed Webpages
                               </h3>
                               <div className="space-y-2">
                                 {webpageAnchors.map((anchor) => (
                                   <div
                                     key={anchor.id}
-                                    className={`border rounded-lg p-2 flex items-center justify-between hover:bg-gray-50 cursor-pointer ${
+                                    className={`border rounded-lg p-2 flex items-center justify-between bg-white text-black cursor-pointer ${
                                       editingWebpageAnchorId === anchor.id
-                                        ? "ring-2 ring-indigo-500 bg-indigo-50"
+                                        ? "ring-2 ring-indigo-500"
                                         : ""
                                     }`}
                                     onClick={() =>
@@ -6768,7 +6768,7 @@ export default function BlueprintEditor() {
                                       )
                                     }
                                   >
-                                    <span className="text-sm truncate">
+                                    <span className="text-sm truncate text-black">
                                       {anchor.webpageUrl}
                                     </span>
                                     <Button
@@ -6842,7 +6842,7 @@ export default function BlueprintEditor() {
                               {" "}
                               {/* Removed ScrollArea */}
                               <div className="space-y-4">
-                                <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center justify-between">
+                                <h3 className="text-sm font-medium text-white-700 mb-2 flex items-center justify-between">
                                   <span>Your Areas</span>
                                   <Badge
                                     variant="outline"
