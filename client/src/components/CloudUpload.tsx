@@ -207,10 +207,20 @@ const CloudUpload: React.FC<CloudUploadProps> = ({ onFileSelect }) => {
 
   return (
     <div className="flex gap-2 mt-2 flex-wrap">
-      <Button variant="outline" size="sm" onClick={handleGoogleDrive}>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleGoogleDrive}
+        className="text-black"
+      >
         Connect Google Drive
       </Button>
-      <Button variant="outline" size="sm" onClick={handleOneDrive}>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleOneDrive}
+        className="text-black"
+      >
         Connect OneDrive
       </Button>
     </div>

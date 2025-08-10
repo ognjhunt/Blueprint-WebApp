@@ -6126,7 +6126,7 @@ export default function BlueprintEditor() {
                             </h2>
                             <div className="flex items-center gap-2 mb-3">
                               <div className="relative flex-1">
-                                <Search className="h-4 w-4 absolute left-2.5 top-2.5 text-muted-foreground" />
+                                <Search className="h-4 w-4 absolute left-2.5 top-2.5 text-black" />
                                 <Input
                                   placeholder="Search models..."
                                   className="pl-9"
@@ -6142,8 +6142,9 @@ export default function BlueprintEditor() {
                                 onClick={() =>
                                   modelFileInputRef.current?.click()
                                 }
+                                className="text-black"
                               >
-                                <Upload className="h-4 w-4" />
+                                <Upload className="h-4 w-4 text-black" />
                               </Button>
                               <input
                                 type="file"
@@ -7581,7 +7582,7 @@ export default function BlueprintEditor() {
                   threeViewerRef.current?.enterWalkMode();
                 }
               }}
-              className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow"
+              className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow text-black"
               title={isWalkMode ? "Exit Walk Mode" : "Enter Walk Mode"}
             >
               <PersonStanding className="h-6 w-6" />
@@ -7592,7 +7593,7 @@ export default function BlueprintEditor() {
               variant="ghost"
               size="sm"
               onClick={() => setShowTextAnchors(!showTextAnchors)}
-              className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow"
+              className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow text-black"
               title={
                 showTextAnchors ? "Hide Text Anchors" : "Show Text Anchors"
               }
@@ -7610,7 +7611,7 @@ export default function BlueprintEditor() {
               variant="ghost"
               size="sm"
               onClick={() => setShowFileAnchors(!showFileAnchors)}
-              className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow"
+              className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow text-black"
               title={
                 showFileAnchors ? "Hide File Anchors" : "Show File Anchors"
               }
@@ -7628,7 +7629,7 @@ export default function BlueprintEditor() {
               variant="ghost"
               size="sm"
               onClick={() => setShowWebpageAnchors(!showWebpageAnchors)}
-              className="gap-1.5 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-2 py-1 h-auto rounded-md shadow"
+              className="gap-1.5 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-2 py-1 h-auto rounded-md shadow text-black"
               title={
                 showWebpageAnchors
                   ? "Hide Webpage Anchors"
@@ -7648,7 +7649,7 @@ export default function BlueprintEditor() {
               variant="ghost"
               size="sm"
               onClick={() => setShowModelAnchors(!showModelAnchors)}
-              className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow"
+              className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow text-black"
               title={
                 showModelAnchors
                   ? "Hide 3D Model Anchors"
@@ -7668,7 +7669,7 @@ export default function BlueprintEditor() {
               variant="ghost"
               size="sm"
               onClick={() => setShowQrCodes(!showQrCodes)}
-              className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow"
+              className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow text-black"
               title={
                 showQrCodes ? "Hide QR Code Anchors" : "Show QR Code Anchors"
               }
