@@ -495,21 +495,30 @@ const ThreeViewer = React.memo(
     const anchorModelsRef = useRef<Map<string, THREE.Object3D>>(new Map());
     const anchorWebpagesRef = useRef<Map<string, THREE.Object3D>>(new Map());
     const parentModelRef = useRef<THREE.Object3D | null>(null);
-    const dragStartRef = useRef<{ x: number; y: number } | null>(null);
-    const selectionBoxRef = useRef<HTMLDivElement | null>(null);
+    const isDrawingRef = useRef(false);
+    const corner1Ref = useRef<THREE.Vector3 | null>(null);
+    const corner2Ref = useRef<THREE.Vector3 | null>(null);
+    const tempBoxHelperRef = useRef<THREE.Box3Helper | null>(null);
+    const tempBoxMeshRef = useRef<THREE.Mesh | null>(null);
     const [transformUpdateSuccess, setTransformUpdateSuccess] = useState(false);
     const [transformError, setTransformError] = useState<string | null>(null);
     const animateDragIndicatorRef = useRef<() => void | null>(null);
     const highlightedAreaMeshRef = useRef<THREE.Mesh | null>(null);
     const qrCodeMarkersRef = useRef<Map<string, THREE.Object3D>>(new Map()); // <<< ADD THIS LINE
 
-    // --- Area marking (simple drag) ---
+    // --- Area marking v2 (plane-locked) ---
+    type AreaBasis = {
+      origin: THREE.Vector3;
+      U: THREE.Vector3;
+      V: THREE.Vector3;
+      N: THREE.Vector3;
+    };
     const isMarkingAreaRef = useRef<boolean>(!!isMarkingArea);
-    const isDraggingAreaRef = useRef<boolean>(false);
-    const areaStartRef = useRef<THREE.Vector3 | null>(null);
-    const lastDragPointRef = useRef<THREE.Vector3 | null>(null);
+    const areaBasisRef = useRef<AreaBasis | null>(null);
+    const areaPlaneRef = useRef<THREE.Plane | null>(null);
     const areaPreviewRef = useRef<THREE.Mesh | null>(null);
     const areaPreviewOutlineRef = useRef<THREE.LineSegments | null>(null);
+    const areaUVRef = useRef<{ u1: number; v1: number } | null>(null);
 
     const [location] = useLocation();
     const blueprintId = location.split("/").pop(); // assuming the route is /blueprint-editor/{id}
@@ -4362,7 +4371,6 @@ const ThreeViewer = React.memo(
         });
         const preview = new THREE.Mesh(previewGeom, previewMat);
         preview.visible = false;
-        preview.rotation.x = -Math.PI / 2;
         preview.renderOrder = 9998;
         scene.add(preview);
         areaPreviewRef.current = preview;
@@ -4378,7 +4386,6 @@ const ThreeViewer = React.memo(
           }),
         );
         outline.visible = false;
-        outline.rotation.x = -Math.PI / 2;
         outline.renderOrder = 9999;
         scene.add(outline);
         areaPreviewOutlineRef.current = outline;
@@ -4586,7 +4593,7 @@ const ThreeViewer = React.memo(
         }
       });
 
-      // --- Area marking: simple drag rectangle on horizontal plane ---
+      // --- Area marking v2: pointer handlers ---
       const markThickness = 0.05; // world meters
 
       function getMouseNDC(e: PointerEvent) {
@@ -4594,6 +4601,37 @@ const ThreeViewer = React.memo(
         const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
         const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
         return new THREE.Vector2(x, y);
+      }
+
+      function chooseLockedNormal(n: THREE.Vector3) {
+        const a = new THREE.Vector3(
+          Math.abs(n.x),
+          Math.abs(n.y),
+          Math.abs(n.z),
+        );
+        if (a.y >= a.x && a.y >= a.z)
+          return new THREE.Vector3(0, Math.sign(n.y) || 1, 0); // floor/ceiling
+        if (a.x >= a.z) return new THREE.Vector3(Math.sign(n.x) || 1, 0, 0); // wall (YZ)
+        return new THREE.Vector3(0, 0, Math.sign(n.z) || 1); // wall (XY)
+      }
+
+      function basisFromNormal(
+        origin: THREE.Vector3,
+        N: THREE.Vector3,
+      ): AreaBasis {
+        const U = new THREE.Vector3();
+        const V = new THREE.Vector3();
+        const helper =
+          Math.abs(N.y) > 0.9
+            ? new THREE.Vector3(1, 0, 0)
+            : new THREE.Vector3(0, 1, 0);
+        U.crossVectors(helper, N).normalize();
+        V.crossVectors(N, U).normalize();
+        return { origin: origin.clone(), U, V, N: N.clone().normalize() };
+      }
+
+      function rectCornerWorld(b: AreaBasis, u: number, v: number) {
+        return b.origin.clone().addScaledVector(b.U, u).addScaledVector(b.V, v);
       }
 
       const onPointerDown = (e: PointerEvent) => {
@@ -4612,16 +4650,27 @@ const ThreeViewer = React.memo(
         );
         if (hits.length === 0) return;
 
-        const hitPoint = hits[0].point.clone();
-        areaStartRef.current = hitPoint;
-        lastDragPointRef.current = hitPoint.clone();
-        isDraggingAreaRef.current = true;
+        const hit = hits[0];
+        const hitPoint = hit.point.clone();
+        const faceNormal = (hit.face?.normal || new THREE.Vector3(0, 1, 0))
+          .clone()
+          .transformDirection(hit.object.matrixWorld)
+          .normalize();
 
-        // lock drag plane to the start height
-        dragPlane.position.y = hitPoint.y;
-        dragPlane.updateMatrixWorld();
+        const N = chooseLockedNormal(faceNormal);
+        const basis = basisFromNormal(hitPoint, N);
+        areaBasisRef.current = basis;
+        areaPlaneRef.current = new THREE.Plane().setFromNormalAndCoplanarPoint(
+          N,
+          hitPoint,
+        );
+        areaUVRef.current = { u1: 0, v1: 0 }; // start at origin
 
+        // show preview aligned with basis
         if (areaPreviewRef.current && areaPreviewOutlineRef.current) {
+          const rot = new THREE.Matrix4().makeBasis(basis.U, basis.V, basis.N);
+          areaPreviewRef.current.setRotationFromMatrix(rot);
+          areaPreviewOutlineRef.current.setRotationFromMatrix(rot);
           areaPreviewRef.current.position.copy(hitPoint);
           areaPreviewOutlineRef.current.position.copy(hitPoint);
           areaPreviewRef.current.scale.set(0.001, 0.001, 1);
@@ -4636,33 +4685,37 @@ const ThreeViewer = React.memo(
       const onPointerMove = (e: PointerEvent) => {
         if (
           !isMarkingAreaRef.current ||
-          !isDraggingAreaRef.current ||
           !cameraRef.current ||
-          !areaStartRef.current
+          !areaPlaneRef.current ||
+          !areaBasisRef.current
         ) {
           return;
         }
 
         const ndc = getMouseNDC(e);
         raycasterRef.current.setFromCamera(ndc, cameraRef.current);
-        const intersects = raycasterRef.current.intersectObject(dragPlane);
-        if (intersects.length === 0) return;
-
-        const current = intersects[0].point.clone();
-        lastDragPointRef.current = current.clone();
-        const start = areaStartRef.current;
-
-        const minX = Math.min(start.x, current.x);
-        const maxX = Math.max(start.x, current.x);
-        const minZ = Math.min(start.z, current.z);
-        const maxZ = Math.max(start.z, current.z);
-        const center = new THREE.Vector3(
-          (minX + maxX) / 2,
-          start.y,
-          (minZ + maxZ) / 2,
+        const p = new THREE.Vector3();
+        const hit = raycasterRef.current.ray.intersectPlane(
+          areaPlaneRef.current,
+          p,
         );
-        const width = Math.max(0.01, maxX - minX);
-        const height = Math.max(0.01, maxZ - minZ);
+        if (!hit) return;
+
+        const b = areaBasisRef.current;
+        const rel = p.clone().sub(b.origin);
+        const u = rel.dot(b.U);
+        const v = rel.dot(b.V);
+
+        areaUVRef.current = { u1: u, v1: v };
+
+        // center & size in plane space
+        const uMin = Math.min(0, u);
+        const uMax = Math.max(0, u);
+        const vMin = Math.min(0, v);
+        const vMax = Math.max(0, v);
+        const center = rectCornerWorld(b, (uMin + uMax) / 2, (vMin + vMax) / 2);
+        const width = Math.max(0.01, uMax - uMin);
+        const height = Math.max(0.01, vMax - vMin);
 
         if (areaPreviewRef.current && areaPreviewOutlineRef.current) {
           areaPreviewRef.current.position.copy(center);
@@ -4672,42 +4725,43 @@ const ThreeViewer = React.memo(
         }
       };
 
-      const onPointerUp = (e: PointerEvent) => {
+      const onPointerUp = (_e: PointerEvent) => {
         if (
           !isMarkingAreaRef.current ||
-          !isDraggingAreaRef.current ||
-          !areaStartRef.current
+          !areaBasisRef.current ||
+          !areaUVRef.current
         )
           return;
 
-        isDraggingAreaRef.current = false;
+        const b = areaBasisRef.current;
+        const { u1, v1 } = areaUVRef.current;
 
-        const start = areaStartRef.current;
-        let end = lastDragPointRef.current;
-        if (!end) {
-          const ndc = getMouseNDC(e);
-          raycasterRef.current.setFromCamera(ndc, cameraRef.current!);
-          const intersects = raycasterRef.current.intersectObject(dragPlane);
-          if (intersects.length > 0) end = intersects[0].point.clone();
-          else end = start.clone();
+        const uMin = Math.min(0, u1);
+        const uMax = Math.max(0, u1);
+        const vMin = Math.min(0, v1);
+        const vMax = Math.max(0, v1);
+
+        const corners = [
+          rectCornerWorld(b, uMin, vMin),
+          rectCornerWorld(b, uMax, vMin),
+          rectCornerWorld(b, uMax, vMax),
+          rectCornerWorld(b, uMin, vMax),
+        ];
+
+        const box = new THREE.Box3();
+        for (const c of corners) {
+          box.expandByPoint(c.clone().addScaledVector(b.N, -markThickness / 2));
+          box.expandByPoint(c.clone().addScaledVector(b.N, markThickness / 2));
         }
 
-        const minX = Math.min(start.x, end.x);
-        const maxX = Math.max(start.x, end.x);
-        const minZ = Math.min(start.z, end.z);
-        const maxZ = Math.max(start.z, end.z);
-
-        const box = new THREE.Box3(
-          new THREE.Vector3(minX, start.y - markThickness / 2, minZ),
-          new THREE.Vector3(maxX, start.y + markThickness / 2, maxZ),
-        );
-
+        // hide preview & reset
         if (areaPreviewRef.current && areaPreviewOutlineRef.current) {
           areaPreviewRef.current.visible = false;
           areaPreviewOutlineRef.current.visible = false;
         }
-        areaStartRef.current = null;
-        lastDragPointRef.current = null;
+        areaPlaneRef.current = null;
+        areaUVRef.current = null;
+        areaBasisRef.current = null;
         if (orbitControlsRef.current) orbitControlsRef.current.enabled = true;
 
         onAreaMarked?.({
@@ -5999,6 +6053,9 @@ const ThreeViewer = React.memo(
         );
       };
 
+      // --- ADD THIS NEW POINTER-BASED AREA-MARKING LOGIC ---
+      let isDrawingArea = false;
+
       window.addEventListener("resize", handleResize);
 
       return () => {
@@ -6234,106 +6291,171 @@ const ThreeViewer = React.memo(
       const container = mountRef.current;
       const camera = cameraRef.current;
       const scene = sceneRef.current;
-      if (!container || !camera || !scene) return;
-
-      let isDragging = false;
+      let isDrawing = false; // local flag
       let pointerId: number | null = null;
 
-      const onPointerDown = (e: PointerEvent) => {
-        if (!isMarkingArea || e.button !== 0) return;
+      function onPointerDown(e: PointerEvent) {
+        if (!isMarkingArea) return;
+        if (e.button !== 0) return; // Only do bounding box with left button
+
         e.preventDefault();
         e.stopPropagation();
 
-        container.setPointerCapture(e.pointerId);
-        pointerId = e.pointerId;
-        isDragging = true;
-        dragStartRef.current = { x: e.clientX, y: e.clientY };
-
+        // Disable OrbitControls entirely
         if (orbitControlsRef.current) {
           orbitControlsRef.current.enabled = false;
         }
 
-        const rect = container.getBoundingClientRect();
-        if (selectionBoxRef.current) {
-          selectionBoxRef.current.style.display = "block";
-          selectionBoxRef.current.style.left = `${e.clientX - rect.left}px`;
-          selectionBoxRef.current.style.top = `${e.clientY - rect.top}px`;
-          selectionBoxRef.current.style.width = "0px";
-          selectionBoxRef.current.style.height = "0px";
-        }
-      };
+        // Capture pointer so we continue getting pointermove even if mouse leaves the element
+        container.setPointerCapture(e.pointerId);
+        pointerId = e.pointerId;
+        isDrawing = true;
 
-      const onPointerMove = (e: PointerEvent) => {
-        if (!isMarkingArea || !isDragging || !dragStartRef.current) return;
+        // First corner
+        const rect = container.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        const mouse = new THREE.Vector2(x, y);
+
+        raycasterRef.current.setFromCamera(mouse, camera);
+        const intersects = raycasterRef.current.intersectObjects(
+          scene.children,
+          true,
+        );
+
+        if (intersects.length > 0) {
+          const hitPoint = intersects[0].point.clone();
+          corner1Ref.current = hitPoint;
+          corner2Ref.current = hitPoint.clone();
+
+          // Clear any old helper
+          if (tempBoxHelperRef.current) {
+            scene.remove(tempBoxHelperRef.current);
+            tempBoxHelperRef.current = null;
+          }
+        }
+      }
+
+      function onPointerMove(e: PointerEvent) {
+        if (!isMarkingArea) return;
+        if (!isDrawing) return;
+        if (corner1Ref.current === null) return;
+
         e.preventDefault();
         e.stopPropagation();
 
         const rect = container.getBoundingClientRect();
-        const start = dragStartRef.current;
-        const current = { x: e.clientX, y: e.clientY };
+        const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        const mouse = new THREE.Vector2(x, y);
 
-        const left = Math.min(start.x, current.x) - rect.left;
-        const top = Math.min(start.y, current.y) - rect.top;
-        const width = Math.abs(current.x - start.x);
-        const height = Math.abs(current.y - start.y);
+        raycasterRef.current.setFromCamera(mouse, camera);
+        const intersects = raycasterRef.current.intersectObjects(
+          scene.children,
+          true,
+        );
 
-        if (selectionBoxRef.current) {
-          selectionBoxRef.current.style.left = `${left}px`;
-          selectionBoxRef.current.style.top = `${top}px`;
-          selectionBoxRef.current.style.width = `${width}px`;
-          selectionBoxRef.current.style.height = `${height}px`;
+        if (intersects.length > 0) {
+          corner2Ref.current = intersects[0].point.clone();
+
+          // Continuously update the temporary box helper
+          const box3 = new THREE.Box3().setFromPoints([
+            corner1Ref.current,
+            corner2Ref.current,
+          ]);
+
+          if (tempBoxHelperRef.current) {
+            scene.remove(tempBoxHelperRef.current);
+            tempBoxHelperRef.current = null;
+          }
+          if (tempBoxMeshRef.current) {
+            scene.remove(tempBoxMeshRef.current);
+            tempBoxMeshRef.current = null;
+          }
+
+          // 1) Re-create the yellow wireframe helper
+          const helper = new THREE.Box3Helper(box3, 0xffff00);
+          helper.renderOrder = 9999; // Add: High render order
+          scene.add(helper);
+          tempBoxHelperRef.current = helper;
+
+          // 2) Add a translucent fill
+          const size = new THREE.Vector3();
+          box3.getSize(size);
+          const center = new THREE.Vector3();
+          box3.getCenter(center);
+
+          const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+          const material = new THREE.MeshBasicMaterial({
+            color: 0x0000ff, // Blue color
+            transparent: true,
+            opacity: 0.3, // Optional: Slightly increased opacity
+            depthTest: false, // Add: Render on top of other objects
+            side: THREE.DoubleSide, // Ensure: Visible from inside
+          });
+          const fillMesh = new THREE.Mesh(geometry, material);
+          fillMesh.position.copy(center);
+          fillMesh.renderOrder = 9998; // Add: High render order (just below helper)
+
+          scene.add(fillMesh);
+          tempBoxMeshRef.current = fillMesh;
+
+          // --- END CHANGES ---
         }
-      };
+      }
 
-      const onPointerUp = (e: PointerEvent) => {
-        if (!isMarkingArea || !isDragging || e.pointerId !== pointerId) return;
+      function onPointerUp(e: PointerEvent) {
+        if (!isMarkingArea) return;
+        if (!isDrawing) return;
+        if (e.pointerId !== pointerId) return; // ignore if not same pointer
+
         e.preventDefault();
         e.stopPropagation();
 
-        const rect = container.getBoundingClientRect();
-        const start = dragStartRef.current;
-        const end = { x: e.clientX, y: e.clientY };
-
+        // Release pointer capture
         container.releasePointerCapture(e.pointerId);
         pointerId = null;
-        isDragging = false;
-        dragStartRef.current = null;
+        isDrawing = false;
 
+        // Re‐enable OrbitControls
         if (orbitControlsRef.current) {
           orbitControlsRef.current.enabled = true;
         }
 
-        if (selectionBoxRef.current) {
-          selectionBoxRef.current.style.display = "none";
-        }
+        if (corner1Ref.current && corner2Ref.current) {
+          // Final bounding box
+          const box3 = new THREE.Box3().setFromPoints([
+            corner1Ref.current,
+            corner2Ref.current,
+          ]);
 
-        if (!start) return;
-
-        const ndc1 = new THREE.Vector2(
-          ((start.x - rect.left) / rect.width) * 2 - 1,
-          -((start.y - rect.top) / rect.height) * 2 + 1,
-        );
-        const ndc2 = new THREE.Vector2(
-          ((end.x - rect.left) / rect.width) * 2 - 1,
-          -((end.y - rect.top) / rect.height) * 2 + 1,
-        );
-
-        raycasterRef.current.setFromCamera(ndc1, camera);
-        const hit1 = raycasterRef.current.intersectObjects(scene.children, true)[0];
-        raycasterRef.current.setFromCamera(ndc2, camera);
-        const hit2 = raycasterRef.current.intersectObjects(scene.children, true)[0];
-
-        if (hit1 && hit2) {
-          const box3 = new THREE.Box3().setFromPoints([hit1.point, hit2.point]);
           onAreaMarked?.({
             min: { x: box3.min.x, y: box3.min.y, z: box3.min.z },
             max: { x: box3.max.x, y: box3.max.y, z: box3.max.z },
           });
-        }
-      };
 
-      container.addEventListener("pointerdown", onPointerDown, { passive: false });
-      container.addEventListener("pointermove", onPointerMove, { passive: false });
+          // Reset corners
+          corner1Ref.current = null;
+          corner2Ref.current = null;
+          console.log("Area Marked:", box3);
+
+          if (tempBoxHelperRef.current) {
+            scene.remove(tempBoxHelperRef.current);
+            tempBoxHelperRef.current = null;
+          }
+          if (tempBoxMeshRef.current) {
+            scene.remove(tempBoxMeshRef.current);
+            tempBoxMeshRef.current = null;
+          }
+        }
+      }
+
+      container.addEventListener("pointerdown", onPointerDown, {
+        passive: false,
+      });
+      container.addEventListener("pointermove", onPointerMove, {
+        passive: false,
+      });
       container.addEventListener("pointerup", onPointerUp, { passive: false });
 
       return () => {
@@ -6562,15 +6684,7 @@ const ThreeViewer = React.memo(
 
     return (
       <>
-        <div ref={mountRef} className="relative w-full h-full">
-          {isMarkingArea && (
-            <div
-              ref={selectionBoxRef}
-              style={{ display: "none" }}
-              className="absolute z-50 border-2 border-blue-500 bg-blue-500/20 pointer-events-none"
-            />
-          )}
-        </div>
+        <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
         <div className="absolute top-4 right-4 z-50">
           <CloudUpload
             onFileSelect={(file) =>
