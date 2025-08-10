@@ -1150,7 +1150,11 @@ export default function PilotProgram() {
                 className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-700 hover:to-violet-700"
                 asChild
               >
-                <a href="https://calendly.com/blueprintar/30min">
+                <a
+                  href="https://calendly.com/blueprintar/30min"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   Schedule a Call
                   <ArrowRight className="ml-2 w-5 h-5" />
                 </a>
