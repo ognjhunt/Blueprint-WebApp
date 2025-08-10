@@ -6585,27 +6585,58 @@ export default function BlueprintEditor() {
                                       }}
                                     >
                                       {/* ... file card JSX ... */}
-                                      <div className="w-full aspect-square bg-gray-50 relative flex items-center justify-center">
-                                        {/* ... image/video/file preview ... */}
-                                        {file.type?.includes("image") ? (
-                                          <img
-                                            src={file.url}
-                                            alt={file.name}
-                                            className="w-full h-full object-cover"
-                                          />
-                                        ) : file.type?.includes("video") ? (
-                                          <Video className="h-10 w-10 text-orange-500" />
-                                        ) : (
-                                          <File className="h-10 w-10 text-gray-400" />
-                                        )}
-                                        {/* ... place button ... */}
+                                      <div className="w-full aspect-square bg-gray-50 relative flex items-center justify-center overflow-hidden">
+                                        {(() => {
+                                          // Use the helper function here to ensure every file is categorized
+                                          const simpleType =
+                                            getSimpleFileType(file);
+                                          switch (simpleType) {
+                                            case "image":
+                                              return (
+                                                <img
+                                                  src={file.url}
+                                                  alt={file.name}
+                                                  className="w-full h-full object-cover"
+                                                  crossOrigin="anonymous"
+                                                />
+                                              );
+                                            case "video":
+                                              return (
+                                                <>
+                                                  <video
+                                                    src={`${file.url}#t=0.1`}
+                                                    muted
+                                                    playsInline
+                                                    preload="metadata"
+                                                    className="w-full h-full object-cover"
+                                                  />
+                                                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                                                    <CirclePlay className="h-8 w-8 text-white/80" />
+                                                  </div>
+                                                </>
+                                              );
+                                            case "audio":
+                                              return (
+                                                <Music2 className="h-10 w-10 text-purple-500" />
+                                              );
+                                            case "pdf":
+                                              return (
+                                                <FileText className="h-10 w-10 text-red-500" />
+                                              );
+                                            default:
+                                              return (
+                                                <File className="h-10 w-10 text-gray-400" />
+                                              );
+                                          }
+                                        })()}
                                       </div>
                                       <div className="p-2">
                                         <p className="text-xs font-medium text-black truncate">
                                           {file.name}
                                         </p>
-                                        <p className="text-[10px] text-gray-500">
-                                          {file.type?.split("/")[0] || "File"}
+                                        <p className="text-[10px] text-gray-500 capitalize">
+                                          {/* Also use the helper here for a consistent label */}
+                                          {getSimpleFileType(file) || "File"}
                                         </p>
                                       </div>
                                     </div>
@@ -7134,7 +7165,7 @@ export default function BlueprintEditor() {
             //onMouseUp={endSidebarResize}
           >
             {/* Toolbar for Active Status and Share/Connect Buttons */}
-            <div className="absolute top-4 left-4 right-4 z-40 flex items-start justify-between pointer-events-none">
+            <div className="absolute top-4 left-4 right-4 z-5 flex items-start justify-between pointer-events-none">
               {/* Active Status on the left */}
               <div
                 className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 pointer-events-auto ${
