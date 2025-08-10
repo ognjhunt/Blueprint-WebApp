@@ -424,7 +424,6 @@ const ThreeViewer = React.memo(
       sprintMul: 2.0,
       eye: 0.055,
     });
-    const walkBoundsRef = useRef<THREE.Box3 | null>(null);
     const PDF_THUMBNAIL_URL = "/images/PDF_file_icon.svg";
     const DOCX_THUMBNAIL_URL = "/images/docx_icon.svg.png";
     const PPTX_THUMBNAIL_URL = "/images/pptx_thumbnail.png";
@@ -454,7 +453,6 @@ const ThreeViewer = React.memo(
       isWalkModeRef.current = false;
       setIsWalkMode(false);
       pointerLockRef.current?.unlock();
-      walkBoundsRef.current = null;
       onWalkModeChange?.(false);
       if (orbitControlsRef.current) orbitControlsRef.current.enabled = true;
       if (transformControlsRef.current)
@@ -5362,19 +5360,12 @@ const ThreeViewer = React.memo(
           true,
         );
         if (hits.length > 0) {
-          const hit = hits[0];
-          const down = new THREE.Raycaster(
-            new THREE.Vector3(hit.point.x, hit.point.y + 10, hit.point.z),
-            new THREE.Vector3(0, -1, 0),
-          );
-          const floorHits = down.intersectObject(hit.object, true);
-          const target = floorHits.length > 0 ? floorHits[0].point : hit.point;
+          const p = hits[0].point.clone();
           cameraRef.current.position.set(
-            target.x,
-            target.y + walkParamsRef.current.eye,
-            target.z,
+            p.x,
+            p.y + walkParamsRef.current.eye,
+            p.z,
           );
-          walkBoundsRef.current = new THREE.Box3().setFromObject(hit.object);
           pointerLockRef.current?.lock();
           e.stopPropagation();
         }
@@ -5384,24 +5375,16 @@ const ThreeViewer = React.memo(
       const onKeyDown = (e: KeyboardEvent) => {
         switch (e.code) {
           case "KeyW":
-          case "ArrowUp":
             keysRef.current.forward = true;
-            if (e.code.startsWith("Arrow")) e.preventDefault();
             break;
           case "KeyS":
-          case "ArrowDown":
             keysRef.current.back = true;
-            if (e.code.startsWith("Arrow")) e.preventDefault();
             break;
           case "KeyA":
-          case "ArrowLeft":
             keysRef.current.left = true;
-            if (e.code.startsWith("Arrow")) e.preventDefault();
             break;
           case "KeyD":
-          case "ArrowRight":
             keysRef.current.right = true;
-            if (e.code.startsWith("Arrow")) e.preventDefault();
             break;
           case "ShiftLeft":
           case "ShiftRight":
@@ -5412,24 +5395,16 @@ const ThreeViewer = React.memo(
       const onKeyUp = (e: KeyboardEvent) => {
         switch (e.code) {
           case "KeyW":
-          case "ArrowUp":
             keysRef.current.forward = false;
-            if (e.code.startsWith("Arrow")) e.preventDefault();
             break;
           case "KeyS":
-          case "ArrowDown":
             keysRef.current.back = false;
-            if (e.code.startsWith("Arrow")) e.preventDefault();
             break;
           case "KeyA":
-          case "ArrowLeft":
             keysRef.current.left = false;
-            if (e.code.startsWith("Arrow")) e.preventDefault();
             break;
           case "KeyD":
-          case "ArrowRight":
             keysRef.current.right = false;
-            if (e.code.startsWith("Arrow")) e.preventDefault();
             break;
           case "ShiftLeft":
           case "ShiftRight":
@@ -5497,23 +5472,6 @@ const ThreeViewer = React.memo(
           const floorHits = down.intersectObjects(scene.children, true);
           if (floorHits.length > 0) {
             cam.position.y = floorHits[0].point.y + eye;
-          }
-          if (walkBoundsRef.current) {
-            const bounds = walkBoundsRef.current;
-            cam.position.x = THREE.MathUtils.clamp(
-              cam.position.x,
-              bounds.min.x,
-              bounds.max.x,
-            );
-            cam.position.z = THREE.MathUtils.clamp(
-              cam.position.z,
-              bounds.min.z,
-              bounds.max.z,
-            );
-            cam.position.y = Math.min(
-              cam.position.y,
-              bounds.max.y - 0.01,
-            );
           }
         }
 
