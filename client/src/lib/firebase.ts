@@ -248,7 +248,6 @@ export const signInWithGoogle = async () => {
 
   try {
     const result = await signInWithPopup(auth, googleProvider);
-    await createUserDocument(result.user);
     console.log("Google sign in successful:", result.user.uid);
     return result.user;
   } catch (error: any) {

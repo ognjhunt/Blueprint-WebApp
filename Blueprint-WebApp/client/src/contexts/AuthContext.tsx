@@ -153,6 +153,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const user = await firebaseSignInWithGoogle();
       console.log("User signed in with Google successfully:", user.uid);
       const userData = await getUserData(user.uid);
+      if (!userData) {
+        await logOut();
+        const error: any = new Error("No account found with this email");
+        error.code = "auth/user-not-found";
+        throw error;
+      }
       setUserData(userData);
     } catch (error: any) {
       console.error("Google sign in error:", {
