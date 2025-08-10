@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import ViewModeToggle from "@/components/ViewModeToggle";
+import { BlueprintEditorTour } from "@/components/onboarding/BlueprintEditorTour";
 //import WorkflowEditor from "@/components/WorkflowEditor";cl
 import { QRCodeCanvas } from "qrcode.react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -395,9 +396,15 @@ export default function BlueprintEditor() {
   const { toast } = useToast();
 
   const [blueprintScale, setBlueprintScale] = useState<number>(34.85);
-  // Onboarding states - ADD THESE
-  const [showOnboarding, setShowOnboarding] = useState(true);
-  const [onboardingStep, setOnboardingStep] = useState(1);
+  // Legacy onboarding disabled; use simple tour instead
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
+  const [showTour, setShowTour] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return !localStorage.getItem("blueprint_editor_tour_completed");
+    }
+    return true;
+  });
   // Define interfaces for onboarding data
   interface AreaItem {
     id: string;
@@ -8724,7 +8731,16 @@ export default function BlueprintEditor() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        {showOnboarding && <InteractiveOnboarding />}
+        {showTour && (
+          <BlueprintEditorTour
+            onFinish={() => {
+              if (typeof window !== "undefined") {
+                localStorage.setItem("blueprint_editor_tour_completed", "true");
+              }
+              setShowTour(false);
+            }}
+          />
+        )}
         <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
           <DialogContent>
             <DialogHeader>
