@@ -290,17 +290,17 @@ export function getCameraWorldPose(camera: THREE.Camera) {
 }
 
 export type OrthonormalFrame = {
-  origin: THREE.Vector3;  // O
-  U: THREE.Vector3;       // right/east
-  V: THREE.Vector3;       // up
-  W: THREE.Vector3;       // forward/north (or any consistent third axis)
+  origin: THREE.Vector3; // O
+  U: THREE.Vector3; // right/east
+  V: THREE.Vector3; // up
+  W: THREE.Vector3; // forward/north (or any consistent third axis)
 };
 
 // Build a world→frame matrix: [E^T | -E^T O]
 function makeWorldToFrameMatrix(frame: OrthonormalFrame) {
   const { origin: O, U, V, W } = frame;
 
-  const E = new THREE.Matrix4().makeBasis(U, V, W);  // columns = U,V,W
+  const E = new THREE.Matrix4().makeBasis(U, V, W); // columns = U,V,W
   const R = new THREE.Matrix4().copy(E).transpose(); // E^T
   const T = new THREE.Matrix4().makeTranslation(-O.x, -O.y, -O.z);
   return new THREE.Matrix4().multiplyMatrices(R, T);
@@ -310,7 +310,6 @@ export function worldToFrame(p: THREE.Vector3, frame: OrthonormalFrame) {
   const M = makeWorldToFrameMatrix(frame);
   return p.clone().applyMatrix4(M);
 }
-
 
 const ThreeViewer = React.memo(
   forwardRef<ThreeViewerImperativeHandle, ThreeViewerProps>((props, ref) => {
@@ -6597,7 +6596,7 @@ const ThreeViewer = React.memo(
 
         {distanceDisplay && (
           <motion.div
-            className="absolute top-20 right-4 bg-sky-400/20 border border-sky-500 text-sky-200 px-4 py-2 rounded shadow-lg backdrop-blur-sm"
+            className="absolute top-20 right-4 bg-white text-black px-4 py-2 rounded-lg shadow-lg ring-1 ring-black/15"
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 50 }}

@@ -7614,7 +7614,7 @@ export default function BlueprintEditor() {
                     threeViewerRef.current?.enterWalkMode();
                   }
                 }}
-                className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow text-black"
+                className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow text-black w-full"
                 title={isWalkMode ? "Exit Walk Mode" : "Enter Walk Mode"}
               >
                 <PersonStanding className="h-6 w-6" />
@@ -7661,7 +7661,7 @@ export default function BlueprintEditor() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowWebpageAnchors(!showWebpageAnchors)}
-                className="gap-1.5 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-2 py-1 h-auto rounded-md shadow text-black"
+                className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow text-black w-full"
                 title={
                   showWebpageAnchors
                     ? "Hide Webpage Anchors"
