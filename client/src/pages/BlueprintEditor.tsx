@@ -5787,68 +5787,6 @@ export default function BlueprintEditor() {
     <div className="min-h-screen w-full flex flex-col bg-[#0B1220] text-slate-100 overflow-hidden">
       <Nav blueprintTitle={blueprintTitle} />
       <div className="pt-20 flex flex-col flex-1 overflow-hidden">
-        {/* Editor toolbar */}
-        <header className="h-14 flex items-center justify-between px-4 border-b border-white/5 bg-[#0E172A]/80 backdrop-blur z-10">
-          <div className="flex items-center space-x-4">
-            <div
-              className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
-                blueprintStatus === "active"
-                  ? "bg-green-500/20 text-green-300"
-                  : "bg-amber-500/20 text-amber-300"
-              }`}
-            >
-              <div
-                className={`w-1.5 h-1.5 rounded-full ${
-                  blueprintStatus === "active" ? "bg-green-400" : "bg-amber-400"
-                }`}
-              />
-              {blueprintStatus === "active" ? "Active" : "Pending"}
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1.5 text-slate-200 hover:bg-slate-800"
-            >
-              <Save className="h-4 w-4" />
-              <span>Save</span>
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1.5 text-slate-200 hover:bg-slate-800"
-              onClick={() => setShowShareDialog(true)}
-            >
-              <Share2 className="h-4 w-4" />
-              <span>Share</span>
-            </Button>
-
-            {blueprintStatus !== "active" && (
-              <Button
-                size="sm"
-                className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white"
-                onClick={handleActivateBlueprint}
-                disabled={isActivating}
-              >
-                {isActivating ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                    Activating...
-                  </>
-                ) : (
-                  <>
-                    <Zap className="h-4 w-4 mr-1.5" />
-                    Activate Blueprint
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
-        </header>
-
         {/* Main content area */}
         <div className="flex-1 flex relative overflow-hidden">
           {/* NEW: Vertical Icon Bar */}
@@ -7195,6 +7133,49 @@ export default function BlueprintEditor() {
             className="flex-1 relative overflow-hidden bg-neutral-100"
             //onMouseUp={endSidebarResize}
           >
+            {/* Toolbar for Active Status and Share/Connect Buttons */}
+            <div className="absolute top-4 left-4 right-4 z-40 flex items-start justify-between pointer-events-none">
+              {/* Active Status on the left */}
+              <div
+                className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 pointer-events-auto ${
+                  blueprintStatus === "active"
+                    ? "bg-green-100 text-green-800 border border-green-200"
+                    : "bg-amber-100 text-amber-800 border border-amber-200"
+                }`}
+              >
+                <div
+                  className={`w-2 h-2 rounded-full ${
+                    blueprintStatus === "active"
+                      ? "bg-green-500"
+                      : "bg-amber-500"
+                  }`}
+                />
+                {blueprintStatus === "active" ? "Active" : "Pending"}
+              </div>
+
+              {/* Share and Connect Buttons on the right */}
+              <div className="flex flex-col items-end gap-4 pointer-events-auto">
+                {/* PLACE YOUR CONNECT BUTTONS HERE */}
+                <div className="flex items-center gap-2">
+                  {/* Example: <Button>Connect Google Drive</Button> */}
+                  {/* Example: <Button>Connect OneDrive</Button> */}
+                  <CloudUpload
+                    onFileSelect={(file) => handleFileUpload(file)}
+                  />
+                </div>
+
+                {/* Share Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 bg-background/80 backdrop-blur-sm text-black shadow-sm"
+                  onClick={() => setShowShareDialog(true)}
+                >
+                  <Share className="h-4 w-4" />
+                  <span>Share</span>
+                </Button>
+              </div>
+            </div>
             {/* Loading overlay */}
             {isLoading && (
               <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm p-2 rounded-lg shadow-md z-40 flex items-center gap-2">
