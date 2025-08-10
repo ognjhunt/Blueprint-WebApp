@@ -1726,6 +1726,8 @@ export default function PilotProgram() {
                   <a
                     href="https://calendly.com/blueprintar/30min"
                     aria-label="Schedule a call with Blueprint"
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
                     Schedule a Call
                     <ArrowRight className="ml-2 w-5 h-5" />
