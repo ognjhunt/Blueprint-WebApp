@@ -6089,7 +6089,7 @@ export default function BlueprintEditor() {
                                     )}
                                   </div>
                                   <div className="p-2">
-                                    <p className="text-xs font-medium truncate">
+                                    <p className="text-xs font-medium text-black truncate">
                                       {file.name}
                                     </p>
                                     <p className="text-[10px] text-gray-500">
@@ -6638,7 +6638,7 @@ export default function BlueprintEditor() {
                                       {/* ... place button ... */}
                                     </div>
                                     <div className="p-2">
-                                      <p className="text-xs font-medium truncate">
+                                      <p className="text-xs font-medium text-black truncate">
                                         {file.name}
                                       </p>
                                       <p className="text-[10px] text-gray-500">

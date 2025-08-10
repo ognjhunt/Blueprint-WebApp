@@ -6442,7 +6442,7 @@ const ThreeViewer = React.memo(
     return (
       <>
         <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
-        <div className="absolute top-4 left-4 z-50">
+        <div className="absolute top-4 right-4 z-50">
           <CloudUpload
             onFileSelect={(file) =>
               props.onFileDropped?.({ file }, { x: 0, y: 0, z: 0 })
