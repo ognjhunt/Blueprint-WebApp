@@ -7,7 +7,6 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 import * as z from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -21,6 +20,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 
@@ -37,7 +37,7 @@ export default function SignIn() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGlowing, setIsGlowing] = useState(false);
   const { toast } = useToast();
-  const { signIn } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth();
   const [, setLocation] = useLocation();
 
   // Animation for the glow effect
@@ -82,6 +82,43 @@ export default function SignIn() {
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleGoogleSignIn() {
+    setIsLoading(true);
+    try {
+      await signInWithGoogle();
+      toast({
+        title: "Welcome back!",
+        description: "You've signed in with Google.",
+      });
+      setLocation("/dashboard");
+    } catch (error: any) {
+      if (error.code === "auth/user-not-found") {
+        toast({
+          title: "No account found",
+          description:
+            "No account with that email address. If you have not signed up, then please join the pilot program.",
+          variant: "destructive",
+          action: (
+            <ToastAction
+              altText="Join Pilot Program"
+              onClick={() => (window.location.href = "/#contactForm")}
+            >
+              Join Pilot Program
+            </ToastAction>
+          ),
+        });
+      } else {
+        toast({
+          title: "Authentication failed",
+          description: error?.message || "Failed to sign in with Google.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -270,47 +307,16 @@ export default function SignIn() {
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.4, duration: 0.5 }}
                 >
-                  <GoogleOAuthProvider
-                    clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ""}
+                  <Button
+                    onClick={handleGoogleSignIn}
+                    className="w-full h-12 rounded-lg bg-white text-black flex items-center justify-center gap-2 hover:bg-gray-100"
+                    disabled={isLoading}
                   >
-                    <div className="bg-white/60 p-0.5 rounded-lg overflow-hidden backdrop-blur-sm hover:bg-white/80 transition-colors">
-                      <GoogleLogin
-                        onSuccess={async (credentialResponse) => {
-                          setIsLoading(true);
-                          try {
-                            console.log(credentialResponse);
-                            toast({
-                              title: "Welcome back!",
-                              description:
-                                "You've successfully signed in with Google.",
-                            });
-                            setLocation("/dashboard");
-                          } catch (error) {
-                            toast({
-                              title: "Authentication failed",
-                              description: "Failed to sign in with Google.",
-                              variant: "destructive",
-                            });
-                          } finally {
-                            setIsLoading(false);
-                          }
-                        }}
-                        onError={() => {
-                          toast({
-                            title: "Authentication failed",
-                            description: "Failed to sign in with Google.",
-                            variant: "destructive",
-                          });
-                        }}
-                        width="100%"
-                        theme="filled_black"
-                        text="continue_with"
-                        shape="pill"
-                        locale="en"
-                        logo_alignment="center"
-                      />
-                    </div>
-                  </GoogleOAuthProvider>
+                    {isLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : null}
+                    <span>Continue with Google</span>
+                  </Button>
                 </motion.div>
               </motion.div>
             </div>
