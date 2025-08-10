@@ -406,6 +406,7 @@ const ThreeViewer = React.memo(
     // ---- Walk mode refs/state ----
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
     const pointerLockRef = useRef<PointerLockControls | null>(null);
+    const walkBoundsRef = useRef<THREE.Box3 | null>(null);
     const [isWalkMode, setIsWalkMode] = useState(false);
     const isWalkModeRef = useRef(false);
     const clockRef = useRef(new THREE.Clock());
@@ -4897,6 +4898,7 @@ const ThreeViewer = React.memo(
             model.scale.multiplyScalar(scale);
             model.position.copy(center).multiplyScalar(-scale);
             scene.add(model);
+            walkBoundsRef.current = new THREE.Box3().setFromObject(model);
             setModelLoadProgress(100);
             setModelLoaded(true);
             onLoad?.();
@@ -5361,11 +5363,28 @@ const ThreeViewer = React.memo(
         );
         if (hits.length > 0) {
           const p = hits[0].point.clone();
-          cameraRef.current.position.set(
-            p.x,
-            p.y + walkParamsRef.current.eye,
-            p.z,
-          );
+          let floorY = walkBoundsRef.current?.min.y ?? p.y;
+          if (parentModelRef.current && walkBoundsRef.current) {
+            const start = new THREE.Vector3(
+              p.x,
+              walkBoundsRef.current.max.y + 1,
+              p.z,
+            );
+            const downRay = new THREE.Raycaster(start, new THREE.Vector3(0, -1, 0));
+            const downHits = downRay.intersectObject(parentModelRef.current, true);
+            if (downHits.length > 0) {
+              floorY = downHits[downHits.length - 1].point.y;
+            }
+          }
+          const bounds = walkBoundsRef.current;
+          const eye = walkParamsRef.current.eye;
+          const newX = bounds
+            ? THREE.MathUtils.clamp(p.x, bounds.min.x, bounds.max.x)
+            : p.x;
+          const newZ = bounds
+            ? THREE.MathUtils.clamp(p.z, bounds.min.z, bounds.max.z)
+            : p.z;
+          cameraRef.current.position.set(newX, floorY + eye, newZ);
           pointerLockRef.current?.lock();
           e.stopPropagation();
         }
@@ -5375,16 +5394,24 @@ const ThreeViewer = React.memo(
       const onKeyDown = (e: KeyboardEvent) => {
         switch (e.code) {
           case "KeyW":
+          case "ArrowUp":
             keysRef.current.forward = true;
+            e.preventDefault();
             break;
           case "KeyS":
+          case "ArrowDown":
             keysRef.current.back = true;
+            e.preventDefault();
             break;
           case "KeyA":
+          case "ArrowLeft":
             keysRef.current.left = true;
+            e.preventDefault();
             break;
           case "KeyD":
+          case "ArrowRight":
             keysRef.current.right = true;
+            e.preventDefault();
             break;
           case "ShiftLeft":
           case "ShiftRight":
@@ -5395,16 +5422,24 @@ const ThreeViewer = React.memo(
       const onKeyUp = (e: KeyboardEvent) => {
         switch (e.code) {
           case "KeyW":
+          case "ArrowUp":
             keysRef.current.forward = false;
+            e.preventDefault();
             break;
           case "KeyS":
+          case "ArrowDown":
             keysRef.current.back = false;
+            e.preventDefault();
             break;
           case "KeyA":
+          case "ArrowLeft":
             keysRef.current.left = false;
+            e.preventDefault();
             break;
           case "KeyD":
+          case "ArrowRight":
             keysRef.current.right = false;
+            e.preventDefault();
             break;
           case "ShiftLeft":
           case "ShiftRight":
@@ -5461,18 +5496,36 @@ const ThreeViewer = React.memo(
           pointerLockRef.current.moveRight(velocity.x * delta);
           pointerLockRef.current.moveForward(-velocity.z * delta);
 
-          const down = new THREE.Raycaster(
-            new THREE.Vector3(
+          if (walkBoundsRef.current) {
+            cam.position.x = THREE.MathUtils.clamp(
               cam.position.x,
-              cam.position.y + 1.0,
+              walkBoundsRef.current.min.x,
+              walkBoundsRef.current.max.x,
+            );
+            cam.position.z = THREE.MathUtils.clamp(
               cam.position.z,
-            ),
-            new THREE.Vector3(0, -1, 0),
-          );
-          const floorHits = down.intersectObjects(scene.children, true);
-          if (floorHits.length > 0) {
-            cam.position.y = floorHits[0].point.y + eye;
+              walkBoundsRef.current.min.z,
+              walkBoundsRef.current.max.z,
+            );
           }
+
+          let floorY = walkBoundsRef.current?.min.y ?? cam.position.y;
+          if (parentModelRef.current && walkBoundsRef.current) {
+            const start = new THREE.Vector3(
+              cam.position.x,
+              walkBoundsRef.current.max.y + 1,
+              cam.position.z,
+            );
+            const downRay = new THREE.Raycaster(start, new THREE.Vector3(0, -1, 0));
+            const floorHits = downRay.intersectObject(parentModelRef.current, true);
+            if (floorHits.length > 0) {
+              floorY = floorHits[floorHits.length - 1].point.y;
+            }
+          }
+          cam.position.y = Math.min(
+            floorY + eye,
+            walkBoundsRef.current?.max.y ?? Infinity,
+          );
         }
 
         // ─── Make each CSS3D label face the camera ───
