@@ -14,6 +14,7 @@ import {
   Building2,
   Eye,
   EyeOff,
+  AlertCircle,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -49,6 +50,7 @@ export default function SignIn() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGlowing, setIsGlowing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [userNotFound, setUserNotFound] = useState(false);
   const { toast } = useToast();
   const { signIn, signInWithGoogle } = useAuth();
   const [, setLocation] = useLocation();
@@ -97,6 +99,7 @@ export default function SignIn() {
 
   async function handleGoogleSignIn() {
     setIsLoading(true);
+    setUserNotFound(false);
     try {
       await signInWithGoogle();
       toast({
@@ -106,6 +109,7 @@ export default function SignIn() {
       setLocation("/dashboard");
     } catch (error: any) {
       if (error.code === "auth/user-not-found") {
+        setUserNotFound(true);
         toast({
           title: "No account found",
           description:
@@ -413,6 +417,35 @@ export default function SignIn() {
                           <span>Continue with Google</span>
                         </Button>
                       </motion.div>
+                    </AnimatePresence>
+
+                    {/* User not found notice */}
+                    <AnimatePresence>
+                      {userNotFound && (
+                        <motion.div
+                          key="user-not-found"
+                          initial={{ opacity: 0, y: -8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          transition={{ duration: 0.3 }}
+                          className="mt-6 rounded-lg border border-rose-500/30 bg-rose-500/10 p-4 text-rose-100"
+                        >
+                          <div className="flex items-start gap-3">
+                            <AlertCircle className="w-5 h-5 mt-0.5 text-rose-400" />
+                            <div>
+                              <p className="text-sm mb-3">
+                                No account was found with your Google email. Join our pilot program to get access.
+                              </p>
+                              <Button
+                                onClick={() => (window.location.href = "/#contactForm")}
+                                className="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white"
+                              >
+                                Join Pilot Program
+                              </Button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
                     </AnimatePresence>
 
                     {/* Fine print */}
