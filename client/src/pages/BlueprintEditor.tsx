@@ -9,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import ViewModeToggle from "@/components/ViewModeToggle";
-//import WorkflowEditor from "@/components/WorkflowEditor";
+//import WorkflowEditor from "@/components/WorkflowEditor";cl
 import { QRCodeCanvas } from "qrcode.react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
