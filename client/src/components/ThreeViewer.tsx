@@ -3519,6 +3519,38 @@ const ThreeViewer = React.memo(
         labelDiv.style.fontWeight = "400";
         labelDiv.style.letterSpacing = "0.2px";
 
+        // --- ADDED FOR SCROLLABLE TEXT ---
+        labelDiv.style.maxHeight = "180px"; // Set a max height for the text anchor
+        labelDiv.style.overflowY = "auto"; // Add a scrollbar if content exceeds max height
+
+        // --- Custom Scrollbar Styling (for WebKit browsers like Chrome/Safari) ---
+        // We inject a style tag into the head to define the scrollbar styles,
+        // ensuring it's only added once.
+        const styleId = "custom-scrollbar-style";
+        if (!document.getElementById(styleId)) {
+          const style = document.createElement("style");
+          style.id = styleId;
+          style.innerHTML = `
+            .scrollable-text-anchor::-webkit-scrollbar {
+              width: 8px;
+            }
+            .scrollable-text-anchor::-webkit-scrollbar-track {
+              background: rgba(0, 0, 0, 0.1);
+              border-radius: 10px;
+            }
+            .scrollable-text-anchor::-webkit-scrollbar-thumb {
+              background: rgba(255, 255, 255, 0.3);
+              border-radius: 10px;
+            }
+            .scrollable-text-anchor::-webkit-scrollbar-thumb:hover {
+              background: rgba(255, 255, 255, 0.5);
+            }
+          `;
+          document.head.appendChild(style);
+        }
+        labelDiv.classList.add("scrollable-text-anchor");
+        // --- END OF ADDED CODE ---
+
         const labelObject = new CSS3DObject(labelDiv); // Define labelObject here
         //labelObject.scale.set(0.0015, 0.0015, 0.0015);
         labelObject.scale.set(0.00075, 0.00075, 0.00075);
