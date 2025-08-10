@@ -495,11 +495,8 @@ const ThreeViewer = React.memo(
     const anchorModelsRef = useRef<Map<string, THREE.Object3D>>(new Map());
     const anchorWebpagesRef = useRef<Map<string, THREE.Object3D>>(new Map());
     const parentModelRef = useRef<THREE.Object3D | null>(null);
-    const isDrawingRef = useRef(false);
-    const corner1Ref = useRef<THREE.Vector3 | null>(null);
-    const corner2Ref = useRef<THREE.Vector3 | null>(null);
-    const tempBoxHelperRef = useRef<THREE.Box3Helper | null>(null);
-    const tempBoxMeshRef = useRef<THREE.Mesh | null>(null);
+    const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+    const selectionBoxRef = useRef<HTMLDivElement | null>(null);
     const [transformUpdateSuccess, setTransformUpdateSuccess] = useState(false);
     const [transformError, setTransformError] = useState<string | null>(null);
     const animateDragIndicatorRef = useRef<() => void | null>(null);
@@ -6053,9 +6050,6 @@ const ThreeViewer = React.memo(
         );
       };
 
-      // --- ADD THIS NEW POINTER-BASED AREA-MARKING LOGIC ---
-      let isDrawingArea = false;
-
       window.addEventListener("resize", handleResize);
 
       return () => {
@@ -6291,171 +6285,106 @@ const ThreeViewer = React.memo(
       const container = mountRef.current;
       const camera = cameraRef.current;
       const scene = sceneRef.current;
-      let isDrawing = false; // local flag
+      if (!container || !camera || !scene) return;
+
+      let isDragging = false;
       let pointerId: number | null = null;
 
-      function onPointerDown(e: PointerEvent) {
-        if (!isMarkingArea) return;
-        if (e.button !== 0) return; // Only do bounding box with left button
-
+      const onPointerDown = (e: PointerEvent) => {
+        if (!isMarkingArea || e.button !== 0) return;
         e.preventDefault();
         e.stopPropagation();
 
-        // Disable OrbitControls entirely
+        container.setPointerCapture(e.pointerId);
+        pointerId = e.pointerId;
+        isDragging = true;
+        dragStartRef.current = { x: e.clientX, y: e.clientY };
+
         if (orbitControlsRef.current) {
           orbitControlsRef.current.enabled = false;
         }
 
-        // Capture pointer so we continue getting pointermove even if mouse leaves the element
-        container.setPointerCapture(e.pointerId);
-        pointerId = e.pointerId;
-        isDrawing = true;
-
-        // First corner
         const rect = container.getBoundingClientRect();
-        const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-        const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-        const mouse = new THREE.Vector2(x, y);
-
-        raycasterRef.current.setFromCamera(mouse, camera);
-        const intersects = raycasterRef.current.intersectObjects(
-          scene.children,
-          true,
-        );
-
-        if (intersects.length > 0) {
-          const hitPoint = intersects[0].point.clone();
-          corner1Ref.current = hitPoint;
-          corner2Ref.current = hitPoint.clone();
-
-          // Clear any old helper
-          if (tempBoxHelperRef.current) {
-            scene.remove(tempBoxHelperRef.current);
-            tempBoxHelperRef.current = null;
-          }
+        if (selectionBoxRef.current) {
+          selectionBoxRef.current.style.display = "block";
+          selectionBoxRef.current.style.left = `${e.clientX - rect.left}px`;
+          selectionBoxRef.current.style.top = `${e.clientY - rect.top}px`;
+          selectionBoxRef.current.style.width = "0px";
+          selectionBoxRef.current.style.height = "0px";
         }
-      }
+      };
 
-      function onPointerMove(e: PointerEvent) {
-        if (!isMarkingArea) return;
-        if (!isDrawing) return;
-        if (corner1Ref.current === null) return;
-
+      const onPointerMove = (e: PointerEvent) => {
+        if (!isMarkingArea || !isDragging || !dragStartRef.current) return;
         e.preventDefault();
         e.stopPropagation();
 
         const rect = container.getBoundingClientRect();
-        const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-        const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-        const mouse = new THREE.Vector2(x, y);
+        const start = dragStartRef.current;
+        const current = { x: e.clientX, y: e.clientY };
 
-        raycasterRef.current.setFromCamera(mouse, camera);
-        const intersects = raycasterRef.current.intersectObjects(
-          scene.children,
-          true,
-        );
+        const left = Math.min(start.x, current.x) - rect.left;
+        const top = Math.min(start.y, current.y) - rect.top;
+        const width = Math.abs(current.x - start.x);
+        const height = Math.abs(current.y - start.y);
 
-        if (intersects.length > 0) {
-          corner2Ref.current = intersects[0].point.clone();
-
-          // Continuously update the temporary box helper
-          const box3 = new THREE.Box3().setFromPoints([
-            corner1Ref.current,
-            corner2Ref.current,
-          ]);
-
-          if (tempBoxHelperRef.current) {
-            scene.remove(tempBoxHelperRef.current);
-            tempBoxHelperRef.current = null;
-          }
-          if (tempBoxMeshRef.current) {
-            scene.remove(tempBoxMeshRef.current);
-            tempBoxMeshRef.current = null;
-          }
-
-          // 1) Re-create the yellow wireframe helper
-          const helper = new THREE.Box3Helper(box3, 0xffff00);
-          helper.renderOrder = 9999; // Add: High render order
-          scene.add(helper);
-          tempBoxHelperRef.current = helper;
-
-          // 2) Add a translucent fill
-          const size = new THREE.Vector3();
-          box3.getSize(size);
-          const center = new THREE.Vector3();
-          box3.getCenter(center);
-
-          const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
-          const material = new THREE.MeshBasicMaterial({
-            color: 0x0000ff, // Blue color
-            transparent: true,
-            opacity: 0.3, // Optional: Slightly increased opacity
-            depthTest: false, // Add: Render on top of other objects
-            side: THREE.DoubleSide, // Ensure: Visible from inside
-          });
-          const fillMesh = new THREE.Mesh(geometry, material);
-          fillMesh.position.copy(center);
-          fillMesh.renderOrder = 9998; // Add: High render order (just below helper)
-
-          scene.add(fillMesh);
-          tempBoxMeshRef.current = fillMesh;
-
-          // --- END CHANGES ---
+        if (selectionBoxRef.current) {
+          selectionBoxRef.current.style.left = `${left}px`;
+          selectionBoxRef.current.style.top = `${top}px`;
+          selectionBoxRef.current.style.width = `${width}px`;
+          selectionBoxRef.current.style.height = `${height}px`;
         }
-      }
+      };
 
-      function onPointerUp(e: PointerEvent) {
-        if (!isMarkingArea) return;
-        if (!isDrawing) return;
-        if (e.pointerId !== pointerId) return; // ignore if not same pointer
-
+      const onPointerUp = (e: PointerEvent) => {
+        if (!isMarkingArea || !isDragging || e.pointerId !== pointerId) return;
         e.preventDefault();
         e.stopPropagation();
 
-        // Release pointer capture
+        const rect = container.getBoundingClientRect();
+        const start = dragStartRef.current;
+        const end = { x: e.clientX, y: e.clientY };
+
         container.releasePointerCapture(e.pointerId);
         pointerId = null;
-        isDrawing = false;
+        isDragging = false;
+        dragStartRef.current = null;
 
-        // Re‐enable OrbitControls
         if (orbitControlsRef.current) {
           orbitControlsRef.current.enabled = true;
         }
 
-        if (corner1Ref.current && corner2Ref.current) {
-          // Final bounding box
-          const box3 = new THREE.Box3().setFromPoints([
-            corner1Ref.current,
-            corner2Ref.current,
-          ]);
+        if (selectionBoxRef.current) {
+          selectionBoxRef.current.style.display = "none";
+        }
 
+        if (!start) return;
+
+        const ndc1 = new THREE.Vector2(
+          ((start.x - rect.left) / rect.width) * 2 - 1,
+          -((start.y - rect.top) / rect.height) * 2 + 1,
+        );
+        const ndc2 = new THREE.Vector2(
+          ((end.x - rect.left) / rect.width) * 2 - 1,
+          -((end.y - rect.top) / rect.height) * 2 + 1,
+        );
+
+        raycasterRef.current.setFromCamera(ndc1, camera);
+        const hit1 = raycasterRef.current.intersectObjects(scene.children, true)[0];
+        raycasterRef.current.setFromCamera(ndc2, camera);
+        const hit2 = raycasterRef.current.intersectObjects(scene.children, true)[0];
+
+        if (hit1 && hit2) {
+          const box3 = new THREE.Box3().setFromPoints([hit1.point, hit2.point]);
           onAreaMarked?.({
             min: { x: box3.min.x, y: box3.min.y, z: box3.min.z },
             max: { x: box3.max.x, y: box3.max.y, z: box3.max.z },
           });
-
-          // Reset corners
-          corner1Ref.current = null;
-          corner2Ref.current = null;
-          console.log("Area Marked:", box3);
-
-          if (tempBoxHelperRef.current) {
-            scene.remove(tempBoxHelperRef.current);
-            tempBoxHelperRef.current = null;
-          }
-          if (tempBoxMeshRef.current) {
-            scene.remove(tempBoxMeshRef.current);
-            tempBoxMeshRef.current = null;
-          }
         }
-      }
+      };
 
-      container.addEventListener("pointerdown", onPointerDown, {
-        passive: false,
-      });
-      container.addEventListener("pointermove", onPointerMove, {
-        passive: false,
-      });
+      container.addEventListener("pointerdown", onPointerDown, { passive: false });
+      container.addEventListener("pointermove", onPointerMove, { passive: false });
       container.addEventListener("pointerup", onPointerUp, { passive: false });
 
       return () => {
@@ -6684,7 +6613,15 @@ const ThreeViewer = React.memo(
 
     return (
       <>
-        <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
+        <div ref={mountRef} className="relative w-full h-full">
+          {isMarkingArea && (
+            <div
+              ref={selectionBoxRef}
+              style={{ display: "none" }}
+              className="absolute z-50 border-2 border-blue-500 bg-blue-500/20 pointer-events-none"
+            />
+          )}
+        </div>
         <div className="absolute top-4 right-4 z-50">
           <CloudUpload
             onFileSelect={(file) =>
