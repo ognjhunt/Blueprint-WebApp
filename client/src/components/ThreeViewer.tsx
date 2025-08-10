@@ -503,19 +503,13 @@ const ThreeViewer = React.memo(
     const highlightedAreaMeshRef = useRef<THREE.Mesh | null>(null);
     const qrCodeMarkersRef = useRef<Map<string, THREE.Object3D>>(new Map()); // <<< ADD THIS LINE
 
-    // --- Area marking v2 (plane-locked) ---
-    type AreaBasis = {
-      origin: THREE.Vector3;
-      U: THREE.Vector3;
-      V: THREE.Vector3;
-      N: THREE.Vector3;
-    };
+    // --- Area marking (simple drag) ---
     const isMarkingAreaRef = useRef<boolean>(!!isMarkingArea);
-    const areaBasisRef = useRef<AreaBasis | null>(null);
-    const areaPlaneRef = useRef<THREE.Plane | null>(null);
+    const isDraggingAreaRef = useRef<boolean>(false);
+    const areaStartRef = useRef<THREE.Vector3 | null>(null);
+    const lastDragPointRef = useRef<THREE.Vector3 | null>(null);
     const areaPreviewRef = useRef<THREE.Mesh | null>(null);
     const areaPreviewOutlineRef = useRef<THREE.LineSegments | null>(null);
-    const areaUVRef = useRef<{ u1: number; v1: number } | null>(null);
 
     const [location] = useLocation();
     const blueprintId = location.split("/").pop(); // assuming the route is /blueprint-editor/{id}
@@ -4368,6 +4362,7 @@ const ThreeViewer = React.memo(
         });
         const preview = new THREE.Mesh(previewGeom, previewMat);
         preview.visible = false;
+        preview.rotation.x = -Math.PI / 2;
         preview.renderOrder = 9998;
         scene.add(preview);
         areaPreviewRef.current = preview;
@@ -4383,6 +4378,7 @@ const ThreeViewer = React.memo(
           }),
         );
         outline.visible = false;
+        outline.rotation.x = -Math.PI / 2;
         outline.renderOrder = 9999;
         scene.add(outline);
         areaPreviewOutlineRef.current = outline;
@@ -4590,7 +4586,7 @@ const ThreeViewer = React.memo(
         }
       });
 
-      // --- Area marking v2: pointer handlers ---
+      // --- Area marking: simple drag rectangle on horizontal plane ---
       const markThickness = 0.05; // world meters
 
       function getMouseNDC(e: PointerEvent) {
@@ -4598,37 +4594,6 @@ const ThreeViewer = React.memo(
         const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
         const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
         return new THREE.Vector2(x, y);
-      }
-
-      function chooseLockedNormal(n: THREE.Vector3) {
-        const a = new THREE.Vector3(
-          Math.abs(n.x),
-          Math.abs(n.y),
-          Math.abs(n.z),
-        );
-        if (a.y >= a.x && a.y >= a.z)
-          return new THREE.Vector3(0, Math.sign(n.y) || 1, 0); // floor/ceiling
-        if (a.x >= a.z) return new THREE.Vector3(Math.sign(n.x) || 1, 0, 0); // wall (YZ)
-        return new THREE.Vector3(0, 0, Math.sign(n.z) || 1); // wall (XY)
-      }
-
-      function basisFromNormal(
-        origin: THREE.Vector3,
-        N: THREE.Vector3,
-      ): AreaBasis {
-        const U = new THREE.Vector3();
-        const V = new THREE.Vector3();
-        const helper =
-          Math.abs(N.y) > 0.9
-            ? new THREE.Vector3(1, 0, 0)
-            : new THREE.Vector3(0, 1, 0);
-        U.crossVectors(helper, N).normalize();
-        V.crossVectors(N, U).normalize();
-        return { origin: origin.clone(), U, V, N: N.clone().normalize() };
-      }
-
-      function rectCornerWorld(b: AreaBasis, u: number, v: number) {
-        return b.origin.clone().addScaledVector(b.U, u).addScaledVector(b.V, v);
       }
 
       const onPointerDown = (e: PointerEvent) => {
@@ -4647,27 +4612,16 @@ const ThreeViewer = React.memo(
         );
         if (hits.length === 0) return;
 
-        const hit = hits[0];
-        const hitPoint = hit.point.clone();
-        const faceNormal = (hit.face?.normal || new THREE.Vector3(0, 1, 0))
-          .clone()
-          .transformDirection(hit.object.matrixWorld)
-          .normalize();
+        const hitPoint = hits[0].point.clone();
+        areaStartRef.current = hitPoint;
+        lastDragPointRef.current = hitPoint.clone();
+        isDraggingAreaRef.current = true;
 
-        const N = chooseLockedNormal(faceNormal);
-        const basis = basisFromNormal(hitPoint, N);
-        areaBasisRef.current = basis;
-        areaPlaneRef.current = new THREE.Plane().setFromNormalAndCoplanarPoint(
-          N,
-          hitPoint,
-        );
-        areaUVRef.current = { u1: 0, v1: 0 }; // start at origin
+        // lock drag plane to the start height
+        dragPlane.position.y = hitPoint.y;
+        dragPlane.updateMatrixWorld();
 
-        // show preview aligned with basis
         if (areaPreviewRef.current && areaPreviewOutlineRef.current) {
-          const rot = new THREE.Matrix4().makeBasis(basis.U, basis.V, basis.N);
-          areaPreviewRef.current.setRotationFromMatrix(rot);
-          areaPreviewOutlineRef.current.setRotationFromMatrix(rot);
           areaPreviewRef.current.position.copy(hitPoint);
           areaPreviewOutlineRef.current.position.copy(hitPoint);
           areaPreviewRef.current.scale.set(0.001, 0.001, 1);
@@ -4682,37 +4636,33 @@ const ThreeViewer = React.memo(
       const onPointerMove = (e: PointerEvent) => {
         if (
           !isMarkingAreaRef.current ||
+          !isDraggingAreaRef.current ||
           !cameraRef.current ||
-          !areaPlaneRef.current ||
-          !areaBasisRef.current
+          !areaStartRef.current
         ) {
           return;
         }
 
         const ndc = getMouseNDC(e);
         raycasterRef.current.setFromCamera(ndc, cameraRef.current);
-        const p = new THREE.Vector3();
-        const hit = raycasterRef.current.ray.intersectPlane(
-          areaPlaneRef.current,
-          p,
+        const intersects = raycasterRef.current.intersectObject(dragPlane);
+        if (intersects.length === 0) return;
+
+        const current = intersects[0].point.clone();
+        lastDragPointRef.current = current.clone();
+        const start = areaStartRef.current;
+
+        const minX = Math.min(start.x, current.x);
+        const maxX = Math.max(start.x, current.x);
+        const minZ = Math.min(start.z, current.z);
+        const maxZ = Math.max(start.z, current.z);
+        const center = new THREE.Vector3(
+          (minX + maxX) / 2,
+          start.y,
+          (minZ + maxZ) / 2,
         );
-        if (!hit) return;
-
-        const b = areaBasisRef.current;
-        const rel = p.clone().sub(b.origin);
-        const u = rel.dot(b.U);
-        const v = rel.dot(b.V);
-
-        areaUVRef.current = { u1: u, v1: v };
-
-        // center & size in plane space
-        const uMin = Math.min(0, u);
-        const uMax = Math.max(0, u);
-        const vMin = Math.min(0, v);
-        const vMax = Math.max(0, v);
-        const center = rectCornerWorld(b, (uMin + uMax) / 2, (vMin + vMax) / 2);
-        const width = Math.max(0.01, uMax - uMin);
-        const height = Math.max(0.01, vMax - vMin);
+        const width = Math.max(0.01, maxX - minX);
+        const height = Math.max(0.01, maxZ - minZ);
 
         if (areaPreviewRef.current && areaPreviewOutlineRef.current) {
           areaPreviewRef.current.position.copy(center);
@@ -4722,43 +4672,42 @@ const ThreeViewer = React.memo(
         }
       };
 
-      const onPointerUp = (_e: PointerEvent) => {
+      const onPointerUp = (e: PointerEvent) => {
         if (
           !isMarkingAreaRef.current ||
-          !areaBasisRef.current ||
-          !areaUVRef.current
+          !isDraggingAreaRef.current ||
+          !areaStartRef.current
         )
           return;
 
-        const b = areaBasisRef.current;
-        const { u1, v1 } = areaUVRef.current;
+        isDraggingAreaRef.current = false;
 
-        const uMin = Math.min(0, u1);
-        const uMax = Math.max(0, u1);
-        const vMin = Math.min(0, v1);
-        const vMax = Math.max(0, v1);
-
-        const corners = [
-          rectCornerWorld(b, uMin, vMin),
-          rectCornerWorld(b, uMax, vMin),
-          rectCornerWorld(b, uMax, vMax),
-          rectCornerWorld(b, uMin, vMax),
-        ];
-
-        const box = new THREE.Box3();
-        for (const c of corners) {
-          box.expandByPoint(c.clone().addScaledVector(b.N, -markThickness / 2));
-          box.expandByPoint(c.clone().addScaledVector(b.N, markThickness / 2));
+        const start = areaStartRef.current;
+        let end = lastDragPointRef.current;
+        if (!end) {
+          const ndc = getMouseNDC(e);
+          raycasterRef.current.setFromCamera(ndc, cameraRef.current!);
+          const intersects = raycasterRef.current.intersectObject(dragPlane);
+          if (intersects.length > 0) end = intersects[0].point.clone();
+          else end = start.clone();
         }
 
-        // hide preview & reset
+        const minX = Math.min(start.x, end.x);
+        const maxX = Math.max(start.x, end.x);
+        const minZ = Math.min(start.z, end.z);
+        const maxZ = Math.max(start.z, end.z);
+
+        const box = new THREE.Box3(
+          new THREE.Vector3(minX, start.y - markThickness / 2, minZ),
+          new THREE.Vector3(maxX, start.y + markThickness / 2, maxZ),
+        );
+
         if (areaPreviewRef.current && areaPreviewOutlineRef.current) {
           areaPreviewRef.current.visible = false;
           areaPreviewOutlineRef.current.visible = false;
         }
-        areaPlaneRef.current = null;
-        areaUVRef.current = null;
-        areaBasisRef.current = null;
+        areaStartRef.current = null;
+        lastDragPointRef.current = null;
         if (orbitControlsRef.current) orbitControlsRef.current.enabled = true;
 
         onAreaMarked?.({
