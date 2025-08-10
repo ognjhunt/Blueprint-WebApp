@@ -387,6 +387,7 @@ const ThreeViewer = React.memo(
       null,
     );
     const SCALE_FACTOR = scaleFactor || 34.85; //was for home: 46.5306122451 //was for office: 34.85
+    const MAX_ZOOM_OUT_MULTIPLIER = 1.5; // limit how far users can zoom out
     const fileAnchorElementsRef = useRef<Map<string, FileAnchorElements>>(
       new Map(),
     );
@@ -477,13 +478,16 @@ const ThreeViewer = React.memo(
         if (!orbitControlsRef.current) return;
         // Move camera further from target by ~10%
         const controls = orbitControlsRef.current;
-        // Use the camera reference directly instead of controls.object
         const cam = cameraRef.current;
         if (!cam) return;
-        const direction = cam.position
-          .clone()
-          .sub(controls.target)
-          .multiplyScalar(1.1);
+        const direction = cam.position.clone().sub(controls.target);
+        const maxDistance = controls.maxDistance ?? Infinity;
+        const newDistance = direction.length() * 1.1;
+        if (newDistance > maxDistance) {
+          direction.setLength(maxDistance);
+        } else {
+          direction.multiplyScalar(1.1);
+        }
         cam.position.copy(controls.target.clone().add(direction));
         controls.update();
       },
@@ -4470,6 +4474,8 @@ const ThreeViewer = React.memo(
 
       const orbitControls = new OrbitControls(camera, renderer.domElement);
       orbitControls.enableDamping = true;
+      const initialDistance = camera.position.distanceTo(orbitControls.target);
+      orbitControls.maxDistance = initialDistance * MAX_ZOOM_OUT_MULTIPLIER;
       orbitControlsRef.current = orbitControls;
 
       // Create the transform controls directly using the imported module
