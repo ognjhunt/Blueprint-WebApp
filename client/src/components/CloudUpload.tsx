@@ -19,7 +19,7 @@ const CloudUpload: React.FC<CloudUploadProps> = ({ onFileSelect }) => {
     gapiScript.src = "https://apis.google.com/js/api.js";
     document.body.appendChild(gapiScript);
 
-    // ADD (right after you append gapiScript)
+    // ADD this script for modern Google Auth
     const gisScript = document.createElement("script");
     gisScript.src = "https://accounts.google.com/gsi/client";
     gisScript.async = true;

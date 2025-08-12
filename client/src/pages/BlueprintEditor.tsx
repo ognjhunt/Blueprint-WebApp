@@ -284,8 +284,7 @@ export function getSimpleFileType(fileInfo: {
   const mime = fileInfo.type ?? "";
   if (mime.startsWith("image/")) return "image";
   if (mime.startsWith("video/")) return "video";
-  if (mime.startsWith("audio/"))
-    return "audio"; /* :contentReference[oaicite:0]{index=0} */
+  if (mime.startsWith("audio/")) return "audio";
   if (mime === "application/pdf") return "pdf";
 
   // 3️⃣ bare‑bones extension sniff (for cases where browsers drop MIME on drag)

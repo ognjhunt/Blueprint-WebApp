@@ -8,13 +8,23 @@
 // - Uses existing: Nav, Hero, LocationShowcase, ContactForm, Footer
 // ===============================================
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  lazy,
+  Suspense,
+} from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import Nav from "@/components/Nav";
 import Hero from "@/components/sections/Hero";
-import LocationShowcase from "@/components/sections/LocationShowcase";
-import ContactForm from "@/components/sections/ContactForm";
+// ↓ Lazy-load below-the-fold UI so the Home above-the-fold gets first paint fast
+const LocationShowcase = lazy(
+  () => import("@/components/sections/LocationShowcase"),
+);
+const ContactForm = lazy(() => import("@/components/sections/ContactForm"));
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,9 +46,19 @@ export default function Home() {
   const { currentUser } = useAuth();
   const [, setLocation] = useLocation();
   const mainRef = useRef<HTMLDivElement>(null);
-  const contactRef = useRef<HTMLDivElement>(null); // 👈 new ref for contact form
-  const [isContactInView, setIsContactInView] = useState(false); // 👈 track if contact is visible
+  const contactRef = useRef<HTMLDivElement>(null);
+  const [isContactInView, setIsContactInView] = useState(false);
   const shouldReduce = useReducedMotion();
+  // Only enable heavy visuals on larger screens without reduced motion
+  const [useLightFX, setUseLightFX] = useState(false);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const mql = window.matchMedia(
+        "(min-width: 1024px) and (prefers-reduced-motion: no-preference)",
+      );
+      setUseLightFX(mql.matches);
+    }
+  }, []);
 
   useEffect(() => {
     if (currentUser) setLocation("/dashboard");
@@ -94,35 +114,35 @@ export default function Home() {
       onMouseMove={onMouseMove}
     >
       {/* BACKGROUND: aurora + grid + parallax blobs */}
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        {/* Soft grid */}
+      <div
+        className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
+        style={{ contain: "paint" }}
+      >
+        {/* Soft grid (cheap) */}
         <div
           className="absolute inset-0 opacity-[0.08]"
           style={{
             background:
-              "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.2) 1px, transparent 1px)",
+              "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.18) 1px, transparent 1px)",
             backgroundSize: "32px 32px",
           }}
         />
         {/* Aurora wash */}
         <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/[0.10] via-cyan-500/[0.08] to-transparent mix-blend-screen" />
-        {/* Parallax blobs */}
-        <motion.div
-          style={{ x: orbX, y: orbY }}
-          className="absolute -top-40 -right-64 h-[50rem] w-[50rem] rounded-full blur-3xl opacity-35 bg-gradient-to-br from-emerald-500/25 via-cyan-500/25 to-sky-500/10"
-        />
-        <motion.div
-          style={{ x: orbX, y: orbY }}
-          className="absolute -bottom-56 -left-64 h-[46rem] w-[46rem] rounded-full blur-3xl opacity-25 bg-gradient-to-tr from-cyan-500/15 via-emerald-500/15 to-amber-400/10"
-        />
-        {/* Film grain */}
-        <div
-          className="absolute inset-0 opacity-[0.06]"
-          style={{
-            backgroundImage:
-              "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 opacity=%220.6%22 width=%2240%22 height=%2240%22 viewBox=%220 0 40 40%22><filter id=%22n%22><feTurbulence baseFrequency=%220.65%22 numOctaves=%222%22/></filter><rect width=%2240%22 height=%2240%22 filter=%22url(%23n)%22/></svg>')",
-          }}
-        />
+        {/* Parallax blobs (desktop only) */}
+        {useLightFX && !shouldReduce && (
+          <>
+            <motion.div
+              style={{ x: orbX, y: orbY }}
+              className="absolute -top-40 -right-64 h-[50rem] w-[50rem] rounded-full md:blur-xl blur-none opacity-35 bg-gradient-to-br from-emerald-500/25 via-cyan-500/25 to-sky-500/10 will-change-transform"
+            />
+            <motion.div
+              style={{ x: orbX, y: orbY }}
+              className="absolute -bottom-56 -left-64 h-[46rem] w-[46rem] rounded-full md:blur-xl blur-none opacity-25 bg-gradient-to-tr from-cyan-500/15 via-emerald-500/15 to-amber-400/10 will-change-transform"
+            />
+          </>
+        )}
+        {/* No film-grain turbulence layer — it causes extra paints on scroll */}
       </div>
 
       <Nav />
@@ -132,50 +152,18 @@ export default function Home() {
         <Hero onPrimaryCta={handleScrollToContact} />
 
         {/* Benefit strip */}
-        <section className="bg-[#0E172A]/90 py-4 border-y border-white/5 backdrop-blur-sm">
+        <section
+          className="bg-[#0E172A]/90 py-4 border-y border-white/5"
+          style={{
+            contentVisibility: "auto",
+            contain: "paint",
+            containIntrinsicSize: "1px 240px",
+          }}
+        >
           <div className="container mx-auto px-4 overflow-hidden">
-            <motion.div
-              initial={{ x: 0 }}
-              animate={{ x: "-50%" }}
-              transition={{ repeat: Infinity, duration: 28.75, ease: "linear" }}
-              className="flex gap-4 w-max"
-            >
-              {[
-                {
-                  icon: <Clock className="w-4 h-4" />,
-                  label: "60-min on-site setup",
-                },
-                {
-                  icon: <Smartphone className="w-4 h-4" />,
-                  label: "No app required",
-                },
-                {
-                  icon: <Sparkles className="w-4 h-4" />,
-                  label: "Custom AR for your space",
-                },
-                {
-                  icon: <BarChart3 className="w-4 h-4" />,
-                  label: "Live engagement analytics",
-                },
-                {
-                  icon: <ShieldCheck className="w-4 h-4" />,
-                  label: "No hardware cost",
-                },
-                {
-                  icon: <Sparkles className="w-4 h-4" />,
-                  label: "Works on headsets & glasses",
-                },
-                {
-                  icon: <Clock className="w-4 h-4" />,
-                  label: "White-glove onboarding",
-                },
-                {
-                  icon: <BarChart3 className="w-4 h-4" />,
-                  label: "Boosts customer engagement",
-                },
-              ]
-                // Duplicate array for seamless looping
-                .concat([
+            <div className="marquee">
+              <div className="marquee__track">
+                {[
                   {
                     icon: <Clock className="w-4 h-4" />,
                     label: "60-min on-site setup",
@@ -208,8 +196,40 @@ export default function Home() {
                     icon: <BarChart3 className="w-4 h-4" />,
                     label: "Boosts customer engagement",
                   },
-                ])
-                .map((b, i) => (
+                  // duplicate once for seamless loop:
+                  {
+                    icon: <Clock className="w-4 h-4" />,
+                    label: "60-min on-site setup",
+                  },
+                  {
+                    icon: <Smartphone className="w-4 h-4" />,
+                    label: "No app required",
+                  },
+                  {
+                    icon: <Sparkles className="w-4 h-4" />,
+                    label: "Custom AR for your space",
+                  },
+                  {
+                    icon: <BarChart3 className="w-4 h-4" />,
+                    label: "Live engagement analytics",
+                  },
+                  {
+                    icon: <ShieldCheck className="w-4 h-4" />,
+                    label: "No hardware cost",
+                  },
+                  {
+                    icon: <Sparkles className="w-4 h-4" />,
+                    label: "Works on headsets & glasses",
+                  },
+                  {
+                    icon: <Clock className="w-4 h-4" />,
+                    label: "White-glove onboarding",
+                  },
+                  {
+                    icon: <BarChart3 className="w-4 h-4" />,
+                    label: "Boosts customer engagement",
+                  },
+                ].map((b, i) => (
                   <div
                     key={i}
                     className="shrink-0 rounded-xl border border-white/10 bg-white/5 px-3 py-2 flex items-center gap-2"
@@ -220,7 +240,8 @@ export default function Home() {
                     </span>
                   </div>
                 ))}
-            </motion.div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -405,13 +426,30 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Showcase */}
-        <LocationShowcase />
+        {/* Showcase (lazy) */}
+        <Suspense fallback={<div className="h-40" />}>
+          <div
+            style={{
+              contentVisibility: "auto",
+              contain: "paint",
+              containIntrinsicSize: "1px 720px",
+            }}
+          >
+            <LocationShowcase />
+          </div>
+        </Suspense>
 
-        {/* Conversion block */}
-        <section className="relative py-16">
+        {/* Conversion block (no backdrop-blur) */}
+        <section
+          className="relative py-16"
+          style={{
+            contentVisibility: "auto",
+            contain: "paint",
+            containIntrinsicSize: "1px 560px",
+          }}
+        >
           <div className="container mx-auto px-4">
-            <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.03] backdrop-blur-md p-6 md:p-10 text-center overflow-hidden relative">
+            <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.03] p-6 md:p-10 text-center overflow-hidden relative">
               {/* light sweep */}
               <div className="pointer-events-none absolute -top-1/2 left-1/2 h-[120%] w-[60%] -translate-x-1/2 rotate-12 bg-gradient-to-b from-white/10 to-transparent blur-2xl" />
               <h3 className="text-2xl md:text-4xl font-black text-white">
@@ -442,9 +480,19 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Contact */}
-        <div ref={contactRef} id="contactForm">
-          <ContactForm />
+        {/* Contact (lazy) */}
+        <div
+          ref={contactRef}
+          id="contactForm"
+          style={{
+            contentVisibility: "auto",
+            contain: "paint",
+            containIntrinsicSize: "1px 680px",
+          }}
+        >
+          <Suspense fallback={<div className="h-40" />}>
+            <ContactForm />
+          </Suspense>
         </div>
       </main>
 

@@ -107,7 +107,7 @@ function MobileBenefitsCarousel({ benefits }) {
             exit={{ x: -300, opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           >
-            <Card className="bg-white/5 backdrop-blur border-white/10 shadow-xl">
+            <Card className="bg-white/[0.07] border-white/10 shadow-xl">
               <CardContent className="p-6 text-center">
                 <div className="flex justify-center mb-6">
                   <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-200/20 to-cyan-200/20 flex items-center justify-center shadow-lg">
@@ -330,7 +330,7 @@ function MobileBusinessTypesCarousel({ idealFor }) {
             exit={{ x: -300, opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           >
-            <Card className="bg-white/5 backdrop-blur border-white/10 shadow-xl">
+            <Card className="bg-white/[0.07] border-white/10 shadow-xl">
               <CardContent className="p-6 text-center">
                 <div className="flex justify-center mb-6">
                   <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-200/20 to-cyan-200/20 flex items-center justify-center shadow-lg">
@@ -520,7 +520,7 @@ function MobileTimelineCarousel({ timeline }) {
             exit={{ x: -300, opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           >
-            <Card className="bg-white/5 backdrop-blur border-white/10 shadow-xl">
+            <Card className="bg-white/[0.07] border-white/10 shadow-xl">
               <CardContent className="p-6">
                 <div className="flex justify-center mb-6">
                   <div
@@ -671,7 +671,7 @@ function MobileFAQCarousel({ faqs = [] }) {
             exit={{ x: -300, opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           >
-            <Card className="bg-white/5 border-white/10 shadow-xl">
+            <Card className="bg-white/[0.07] border-white/10 shadow-xl">
               <CardContent className="p-6">
                 <div className="mb-4">
                   <div className="flex items-start gap-3 mb-4">
@@ -1014,9 +1014,12 @@ export default function PilotProgram() {
 
       {/* HERO */}
       <section className="mt-6 md:mt-0 pt-16 md:pt-20 lg:pt-32 pb-12 md:pb-16 lg:pb-24 relative overflow-hidden bg-[#0B1220]">
-        <div className="absolute inset-0 -z-10 pointer-events-none">
-          <div className="absolute top-20 -right-20 w-96 h-96 bg-emerald-300/10 rounded-full blur-3xl" />
-          <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-cyan-300/10 rounded-full blur-3xl" />
+        <div
+          className="absolute inset-0 -z-10 pointer-events-none"
+          style={{ contain: "paint" }}
+        >
+          <div className="absolute top-20 -right-20 w-96 h-96 bg-emerald-300/10 rounded-full md:blur-xl blur-none will-change-transform" />
+          <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-cyan-300/10 rounded-full md:blur-xl blur-none will-change-transform" />
         </div>
 
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl relative z-10">
@@ -1100,6 +1103,10 @@ export default function PilotProgram() {
                   src="/videos/blueprint-website-demo2.mp4"
                   controls
                   preload="metadata"
+                  playsInline
+                  controlsList="nodownload"
+                  decoding="async"
+                  poster="/images/demo-poster.jpg"
                 />
               </div>
               <p className="text-center text-sm text-slate-400 mt-4">
@@ -1172,7 +1179,10 @@ export default function PilotProgram() {
       </section>
 
       {/* WHO IT'S FOR */}
-      <section className="py-16 md:py-24 relative bg-[#0E172A]">
+      <section
+        className="py-16 md:py-24 relative bg-[#0E172A]"
+        style={{ contentVisibility: "auto", contain: "paint", containIntrinsicSize: "1px 800px" }}
+      >
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
           <div className="block md:hidden">
             <MobileBusinessTypesCarousel idealFor={idealFor} />
@@ -1220,7 +1230,10 @@ export default function PilotProgram() {
       </section>
 
       {/* TIMELINE */}
-      <section className="py-16 md:py-24 bg-[#0E172A]">
+      <section
+        className="py-16 md:py-24 relative bg-[#0E172A]"
+        style={{ contentVisibility: "auto", contain: "paint", containIntrinsicSize: "1px 800px" }}
+      >
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
           <FadeIn
             yOffset={20}
@@ -1307,7 +1320,10 @@ export default function PilotProgram() {
       </section>
 
       {/* EXPLAINER TABS */}
-      <section className="py-16 md:py-24 relative bg-[#0B1220]">
+      <section
+        className="py-16 md:py-24 relative bg-[#0E172A]"
+        style={{ contentVisibility: "auto", contain: "paint", containIntrinsicSize: "1px 800px" }}
+      >
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
           <FadeIn yOffset={20} delay={0.1} className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
@@ -1634,7 +1650,10 @@ export default function PilotProgram() {
       </section>
 
       {/* FAQ */}
-      <section className="py-16 md:py-24 bg-[#0B1220]">
+      <section
+        className="py-16 md:py-24 relative bg-[#0E172A]"
+        style={{ contentVisibility: "auto", contain: "paint", containIntrinsicSize: "1px 800px" }}
+      >
         <div className="container mx-auto px-4 sm:px-6 max-w-4xl">
           {/* Mobile */}
           <div className="block md:hidden">
