@@ -120,13 +120,24 @@
     @apply border-border;
   }
 
+  /* Ensures no white flash behind the safe-area / overscroll */
+  html {
+    background-color: #0B1220;
+    color-scheme: dark;
+    /* lets the browser draw dark form controls/overscroll */
+  }
+
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    background-color: #0B1220;
+    /* hard fallback to match Hero canvas */
+    min-height: 100dvh;
   }
 
   .gradient-text {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600;
   }
+
 
   .hero-gradient {
     @apply bg-gradient-to-br from-blue-50 via-indigo-50 to-white;
