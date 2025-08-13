@@ -98,7 +98,8 @@ export default function Hero({ onPrimaryCta }) {
         </motion.div>
 
         {/* Headline block */}
-        <div className="mt-4 md:mt-6 min-h-[7.5rem] md:min-h-[9.5rem]">
+        {/* Headline block */}
+        <div className="mt-4 md:mt-6 min-h-[7.5rem] md:min-h-[9.5rem] pb-1 md:pb-2">
           <AnimatePresence mode="wait">
             <motion.div
               key={lines[idx].k}
@@ -107,9 +108,12 @@ export default function Hero({ onPrimaryCta }) {
               exit={{ opacity: 0, y: -14 }}
               transition={{ duration: 0.55 }}
             >
-              <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight text-white">
+              <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black lg:leading-[1.08] md:leading-[1.1] leading-[1.12] text-white">
                 <span className="block text-slate-100">{lines[idx].pre}</span>
-                <span className="block bg-gradient-to-r from-emerald-400 via-cyan-300 to-emerald-200 bg-clip-text text-transparent">
+                <span
+                  className="block bg-gradient-to-r from-emerald-400 via-cyan-300 to-emerald-200 bg-clip-text text-transparent inline-block pb-[0.06em]"
+                  style={{ WebkitTextFillColor: "transparent" }}
+                >
                   {lines[idx].highlight}
                 </span>
               </h1>
