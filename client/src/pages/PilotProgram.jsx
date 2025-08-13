@@ -1043,8 +1043,7 @@ export default function PilotProgram() {
 
               <p className="text-base sm:text-lg md:text-xl text-slate-300 mb-6 md:mb-8 max-w-2xl mx-auto lg:mx-0">
                 Two quick visits about a week apart: mapping (~60 min) and an
-                on-site demo (1–2 hrs). Free and feedback-only. No apps to
-                install—guests just scan a QR code.
+                on-site demo (1–2 hrs). Free and feedback-only. No apps to install—we provide the headset; guests just scan a QR code to see it in action.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-8">
@@ -1075,7 +1074,7 @@ export default function PilotProgram() {
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                   <span className="text-slate-200">
-                    Works on all smart glasses
+                    Works on all headsets
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1181,7 +1180,11 @@ export default function PilotProgram() {
       {/* WHO IT'S FOR */}
       <section
         className="py-16 md:py-24 relative bg-[#0E172A]"
-        style={{ contentVisibility: "auto", contain: "paint", containIntrinsicSize: "1px 800px" }}
+        style={{
+          contentVisibility: "auto",
+          contain: "paint",
+          containIntrinsicSize: "1px 800px",
+        }}
       >
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
           <div className="block md:hidden">
@@ -1232,7 +1235,11 @@ export default function PilotProgram() {
       {/* TIMELINE */}
       <section
         className="py-16 md:py-24 relative bg-[#0E172A]"
-        style={{ contentVisibility: "auto", contain: "paint", containIntrinsicSize: "1px 800px" }}
+        style={{
+          contentVisibility: "auto",
+          contain: "paint",
+          containIntrinsicSize: "1px 800px",
+        }}
       >
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
           <FadeIn
@@ -1322,7 +1329,11 @@ export default function PilotProgram() {
       {/* EXPLAINER TABS */}
       <section
         className="py-16 md:py-24 relative bg-[#0E172A]"
-        style={{ contentVisibility: "auto", contain: "paint", containIntrinsicSize: "1px 800px" }}
+        style={{
+          contentVisibility: "auto",
+          contain: "paint",
+          containIntrinsicSize: "1px 800px",
+        }}
       >
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
           <FadeIn yOffset={20} delay={0.1} className="text-center mb-12">
@@ -1652,7 +1663,11 @@ export default function PilotProgram() {
       {/* FAQ */}
       <section
         className="py-16 md:py-24 relative bg-[#0E172A]"
-        style={{ contentVisibility: "auto", contain: "paint", containIntrinsicSize: "1px 800px" }}
+        style={{
+          contentVisibility: "auto",
+          contain: "paint",
+          containIntrinsicSize: "1px 800px",
+        }}
       >
         <div className="container mx-auto px-4 sm:px-6 max-w-4xl">
           {/* Mobile */}
