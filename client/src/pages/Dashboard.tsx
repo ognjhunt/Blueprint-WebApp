@@ -884,7 +884,7 @@ export default function Dashboard() {
       <div className="w-full max-w-4xl mx-auto">
         <div className="flex flex-col items-center justify-center mb-8">
           <h2 className="text-2xl md:text-3xl font-semibold text-white mb-2 drop-shadow">
-            Your 3D mapping session is scheduled for
+            Your 3D mapping session is scheduled for:
           </h2>
           <h3 className="text-lg md:text-xl text-white/80 mb-6">
             {formatDate(targetDate)} at {formatTimeDisplay(targetTime)}

@@ -690,7 +690,7 @@ export default function OutboundSignUpFlow() {
       <div className="flex items-center justify-between pt-2">
         <div className="text-xs text-slate-400 flex items-center gap-2">
           <Shield className="w-4 h-4 text-emerald-300" />
-          No credit card required. Invite valid for 14 days.
+          No credit card required.
         </div>
         <Button
           onClick={handleNextStep}
@@ -1407,7 +1407,7 @@ export default function OutboundSignUpFlow() {
               </div>
               <div className="hidden md:flex items-center gap-3 text-slate-300">
                 <Shield className="w-5 h-5 text-emerald-300" />
-                <span className="text-sm">No credit card • Cancel anytime</span>
+                <span className="text-sm">No credit card</span>
               </div>
             </div>
           </div>
