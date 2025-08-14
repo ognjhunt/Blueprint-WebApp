@@ -75,6 +75,7 @@ import {
 import { Link } from "wouter";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
+import LindyChat from "@/components/LindyChat";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
 import {
@@ -2357,6 +2358,7 @@ export default function Dashboard() {
           </div>
         )}
         <Footer />
+        <LindyChat />
       </div>
 
       {/* Onboarding Components */}

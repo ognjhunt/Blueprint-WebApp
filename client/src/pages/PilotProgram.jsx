@@ -17,6 +17,7 @@ import Nav from "@/components/Nav";
 import { toast, Toaster } from "sonner";
 import ContactForm from "@/components/sections/ContactForm";
 import Footer from "@/components/Footer";
+import LindyChat from "@/components/LindyChat";
 import {
   Rocket,
   MapPin,
@@ -1788,6 +1789,7 @@ export default function PilotProgram() {
       </section>
 
       <Footer />
+      <LindyChat />
     </div>
   );
 }

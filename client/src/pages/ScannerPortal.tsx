@@ -33,6 +33,7 @@ import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
+import LindyChat from "@/components/LindyChat";
 import ThreeViewer from "@/components/ThreeViewer"; // Add this import
 
 import {
@@ -1840,6 +1841,7 @@ export default function ScannerPortal() {
         </Dialog>
       )}
       <Footer />
+      <LindyChat />
 
       {/* Distance Dialog */}
       {showDistanceDialog && (

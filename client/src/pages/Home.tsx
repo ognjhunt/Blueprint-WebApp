@@ -26,6 +26,7 @@ const LocationShowcase = lazy(
 );
 const ContactForm = lazy(() => import("@/components/sections/ContactForm"));
 import Footer from "@/components/Footer";
+import LindyChat from "@/components/LindyChat";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -515,6 +516,7 @@ export default function Home() {
       )}
 
       <Footer />
+      <LindyChat />
     </div>
   );
 }

@@ -28,6 +28,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
+import LindyChat from "@/components/LindyChat";
 import Stripe from "stripe";
 // Import the new modal components
 import { TeamSeatSelectorModal } from "@/components/TeamSeatSelectorModal";
@@ -1325,6 +1326,7 @@ export default function PricingPage() {
       </motion.div>
       {/* End Main Content Container */}
       <Footer />
+      <LindyChat />
       <WorkspaceNameModal
         isOpen={isWorkspaceNameOpen}
         onClose={() => setIsWorkspaceNameOpen(false)}
