@@ -883,10 +883,10 @@ export default function Dashboard() {
     return (
       <div className="w-full max-w-4xl mx-auto">
         <div className="flex flex-col items-center justify-center mb-8">
-          <h2 className="text-2xl font-medium text-gray-700 mb-2">
+          <h2 className="text-2xl md:text-3xl font-semibold text-white mb-2 drop-shadow">
             Your 3D mapping session is scheduled for
           </h2>
-          <h3 className="text-xl text-gray-600 mb-6">
+          <h3 className="text-lg md:text-xl text-white/80 mb-6">
             {formatDate(targetDate)} at {formatTimeDisplay(targetTime)}
           </h3>
         </div>
@@ -907,7 +907,7 @@ export default function Dashboard() {
                 </div>
                 <div className="absolute -right-2 -top-2 w-5 h-5 rounded-full bg-blue-200 animate-ping"></div>
               </div>
-              <span className="mt-2 text-gray-600 font-medium">
+              <span className="mt-2 text-slate-300 font-medium">
                 {item.label}
               </span>
             </div>
@@ -1032,19 +1032,19 @@ export default function Dashboard() {
         className="w-full py-8"
       >
         {!timerEnded ? (
-          // Original countdown UI
-          <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-none shadow-xl overflow-hidden">
+          // Countdown UI styled to match new dark theme
+          <Card className="bg-white/5 border border-white/10 shadow-xl overflow-hidden">
             <CardHeader className="pb-2">
               <motion.div
                 initial={{ y: -20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.3, duration: 0.5 }}
               >
-                <CardTitle className="text-center text-3xl font-bold text-blue-800">
-                  Welcome to Blueprint!
+                <CardTitle className="text-center text-3xl md:text-4xl font-black text-white drop-shadow-sm">
+                  You're all set for mapping
                 </CardTitle>
-                <CardDescription className="text-center text-gray-600 text-lg mt-2">
-                  We're excited to begin your 3D mapping journey
+                <CardDescription className="text-center text-white/80 md:text-lg mt-2">
+                  Countdown to your 3D scan with {mapperName}
                 </CardDescription>
               </motion.div>
             </CardHeader>
@@ -1180,7 +1180,7 @@ export default function Dashboard() {
                 <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-6">
                   <User className="w-10 h-10 text-emerald-300" />
                 </div>
-                <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
+                <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent mb-4">
                   Your mapper should be with you soon
                 </h1>
                 <p className="text-xl text-slate-300">
