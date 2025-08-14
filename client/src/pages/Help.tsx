@@ -67,12 +67,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
-// Add at the top of your file for Next.js App Router
-export const metadata = {
-  title: "Blueprint - Support & Help Center",
-  description:
-    "Get help with your Blueprint account, reschedule your mapping session, or contact our support team.",
-};
+
 
 // Define form schemas
 const rescheduleFormSchema = z.object({
@@ -417,7 +412,11 @@ export default function Help() {
           >
             <Tabs
               value={activeTab}
-              onValueChange={setActiveTab}
+              onValueChange={(value) => {
+                if (value === "reschedule" || value === "faq" || value === "contact") {
+                  setActiveTab(value);
+                }
+              }}
               className="w-full"
             >
               <TabsList className="grid w-full grid-cols-3 mb-8 bg-white/5 p-1 rounded-lg">
