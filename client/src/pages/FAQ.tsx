@@ -152,7 +152,7 @@ export default function FAQ() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 variant="outline"
-                className="border-white/30 text-white hover:bg-white/10"
+                className="border-white/30 text-black hover:bg-white/10 hover:text-black"
                 asChild
               >
                 <a href="mailto:nijel@tryblueprint.io">
