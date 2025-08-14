@@ -15,14 +15,21 @@ const LINDY_EMBED_URL =
     (process as any)?.env?.NEXT_PUBLIC_LINDY_EMBED_URL) ||
   LINDY_IFRAME_URL;
 
-export default function LindyChat() {
+export default function LindyChat({
+  ctaVisible = false,
+}: {
+  ctaVisible?: boolean;
+}) {
   const [open, setOpen] = useState(false);
+  // when CTA is visible, lift the chat above it; always respect iOS safe-area
+  const bottomOffset = `calc(${ctaVisible ? "5.5rem" : "1.5rem"} + env(safe-area-inset-bottom, 0px))`;
 
   return (
     <>
       <Button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 rounded-full w-14 h-14 p-0 bg-gradient-to-r from-emerald-500 to-cyan-600 text-white shadow-lg hover:from-emerald-400 hover:to-cyan-500 z-40"
+        className="fixed right-6 rounded-full w-14 h-14 p-0 bg-gradient-to-r from-emerald-500 to-cyan-600 text-white shadow-lg hover:from-emerald-400 hover:to-cyan-500 z-[60]"
+        style={{ bottom: bottomOffset }}
         aria-label="Open chat"
       >
         <MessageCircle className="w-6 h-6" />
@@ -34,8 +41,8 @@ export default function LindyChat() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            // Responsive size; feels like a proper chat dock
-            className="fixed bottom-6 right-6 w-[min(28rem,92vw)] h-[min(70vh,80vh)] bg-slate-900/95 text-slate-100 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
+            className="fixed right-6 w-[min(28rem,92vw)] h-[min(70vh,80vh)] bg-slate-900/95 text-slate-100 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[60]"
+            style={{ bottom: bottomOffset }}
             role="dialog"
             aria-modal="true"
             aria-label="Lindy Support Chat"
@@ -73,4 +80,3 @@ export default function LindyChat() {
     </>
   );
 }
-

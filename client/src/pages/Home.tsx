@@ -516,7 +516,8 @@ export default function Home() {
       )}
 
       <Footer />
-      <LindyChat />
+      <LindyChat ctaVisible={!isContactInView} />
+
     </div>
   );
 }
