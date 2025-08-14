@@ -991,7 +991,7 @@ export default function PilotProgram() {
     },
     {
       q: "What do you need from us?",
-      a: "Access for mapping, some basic business info, and your feedback after demo day. We handle the rest—design, setup, and analytics.",
+      a: "Access for mapping, some basic business info, access to Wi-Fi, and your feedback after demo day. We handle the rest—design, setup, and analytics. If your Wi-Fi is private, please share the network name and password with the Mapping Specialist during the visit.",
     },
     {
       q: "Is the AR experience live for two weeks?",
@@ -1044,7 +1044,9 @@ export default function PilotProgram() {
 
               <p className="text-base sm:text-lg md:text-xl text-slate-300 mb-6 md:mb-8 max-w-2xl mx-auto lg:mx-0">
                 Two quick visits about a week apart: mapping (~60 min) and an
-                on-site demo (1–2 hrs). Free and feedback-only. No apps to install—we provide the headset; guests just scan a QR code to see it in action.
+                on-site demo (1–2 hrs). Free and feedback-only. No apps to
+                install—we provide the headset; guests just scan a QR code to
+                see it in action.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-8">
@@ -1074,9 +1076,7 @@ export default function PilotProgram() {
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                  <span className="text-slate-200">
-                    Works on all headsets
-                  </span>
+                  <span className="text-slate-200">Works on all headsets</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-emerald-400" />
