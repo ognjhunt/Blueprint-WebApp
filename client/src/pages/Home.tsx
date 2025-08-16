@@ -49,7 +49,10 @@ export default function Home() {
   const mainRef = useRef<HTMLDivElement>(null);
   const contactRef = useRef<HTMLDivElement>(null);
   const [isContactInView, setIsContactInView] = useState(false);
+  const [hasReachedContact, setHasReachedContact] = useState(false);
   const shouldReduce = useReducedMotion();
+  // Only enable heavy visuals on larger screens without reduced motion
+
   // Only enable heavy visuals on larger screens without reduced motion
   const [useLightFX, setUseLightFX] = useState(false);
   useEffect(() => {
@@ -73,6 +76,26 @@ export default function Home() {
     );
     if (contactRef.current) observer.observe(contactRef.current);
     return () => observer.disconnect();
+  }, []);
+
+  // Hide CTA once we've reached the contact section (and keep it hidden below)
+  useEffect(() => {
+    const computeReached = () => {
+      const el = contactRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const contactTop = rect.top + window.scrollY;
+      const viewportBottom = window.scrollY + window.innerHeight;
+      // small buffer so it disappears a touch early
+      setHasReachedContact(viewportBottom >= contactTop - 8);
+    };
+    computeReached(); // initialize on first mount
+    window.addEventListener("scroll", computeReached, { passive: true });
+    window.addEventListener("resize", computeReached);
+    return () => {
+      window.removeEventListener("scroll", computeReached);
+      window.removeEventListener("resize", computeReached);
+    };
   }, []);
 
   const benefits = useMemo(
@@ -498,7 +521,7 @@ export default function Home() {
       </main>
 
       {/* Sticky mobile CTA */}
-      {!isContactInView && (
+      {!hasReachedContact && (
         <div className="md:hidden sticky bottom-4 z-50 px-4">
           <motion.div
             initial={{ y: 40, opacity: 0 }}
@@ -516,8 +539,7 @@ export default function Home() {
       )}
 
       <Footer />
-      <LindyChat ctaVisible={!isContactInView} />
-
+      <LindyChat ctaVisible={!hasReachedContact} />
     </div>
   );
 }
