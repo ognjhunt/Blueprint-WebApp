@@ -23,7 +23,7 @@ export default function Hero({ onPrimaryCta }) {
       pre: "Blueprint in one line:",
       highlight:
         "Turn your space into a guided, interactive AR layer—just by scanning a QR code.",
-      sub: "Guests use their phones (or smart glasses). No app to install. No hardware to buy.",
+      sub: "Guests use their headsets (or smart glasses). No app to install. No hardware to buy.",
     },
     {
       k: "how",
@@ -135,7 +135,7 @@ export default function Hero({ onPrimaryCta }) {
             "Two visits (~10 days)",
             "Mapping ~60 min",
             "Live demo 1–2 hrs",
-            "Works on phones & glasses",
+            "Works on headsets & glasses",
             "Analytics included",
           ].map((t) => (
             <span

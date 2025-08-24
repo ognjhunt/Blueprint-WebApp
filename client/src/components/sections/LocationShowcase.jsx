@@ -13,6 +13,8 @@ import {
   Building2,
   Landmark,
   ShoppingCart,
+  ShoppingBag, // ← NEW (Superstore)
+  Carrot, // ← NEW (Grocery)
   Hotel,
   Images,
   MapPin,
@@ -36,7 +38,7 @@ export default function LocationShowcase() {
         name: "Retail",
         icon: <ShoppingCart className="w-4 h-4" />,
         before: "/images/higgsfieldapple.png",
-        after: "/images/higgsfieldwalmart2.png",
+        after: "/images/nano-banana_apple.png", //higgsfieldwalmart2.png
         benefits: [
           "Highlight promos on-shelf",
           "Guide to alternatives",
@@ -48,7 +50,7 @@ export default function LocationShowcase() {
         name: "Museum",
         icon: <Landmark className="w-4 h-4" />,
         before: "/images/higgsfieldmuseum.png",
-        after: "/images/higgsfieldmuseum.png",
+        after: "/images/nano-museum.png",
         benefits: [
           "Make exhibits interactive",
           "Multilingual tours",
@@ -60,7 +62,7 @@ export default function LocationShowcase() {
         name: "Hotel",
         icon: <Hotel className="w-4 h-4" />,
         before: "/images/higgsfieldhotel.png",
-        after: "/images/higgsfieldhotel.png",
+        after: "/images/nano-banana_hotel.png",
         benefits: [
           "Upsell amenities",
           "Self-guided wayfinding",
@@ -72,7 +74,7 @@ export default function LocationShowcase() {
         name: "Showroom/Office",
         icon: <Building2 className="w-4 h-4" />,
         before: "/images/higgsfieldoffice.png",
-        after: "/images/geminiwalmart.jpeg",
+        after: "/images/nano-banana_workplace.png",
         benefits: [
           "AR product demos",
           "Hands-free explanations",
@@ -80,17 +82,42 @@ export default function LocationShowcase() {
         ],
       },
       {
+        id: "superstore",
+        name: "Retail (Superstore)",
+        icon: <ShoppingBag className="w-4 h-4" />, // visually distinct from the original Retail
+        before: "/images/geminiwalmart.jpeg",
+        after: "/images/nano-banana_walmart.png",
+        benefits: [
+          "Highlight promos on-shelf",
+          "Guide to alternatives",
+          "Reduce returns",
+        ],
+      },
+      {
+        id: "grocery",
+        name: "Grocery",
+        icon: <Carrot className="w-4 h-4" />,
+        before: "/images/higgsfieldgrocery2.png",
+        after: "/images/nano-banana_grocery.png",
+        benefits: [
+          "Aisle-by-aisle guidance",
+          "Nutrition & allergens",
+          "Deals & smart swaps",
+        ],
+      },
+
+      {
         id: "realestate",
         name: "Real Estate",
         icon: <MapPin className="w-4 h-4" />,
         before: "/images/higgsfieldhome.png",
-        after: "/images/higgsfieldrealestate2.png",
+        after: "/images/nano-banana_realestate.png",
         benefits: [
           "Virtual staging",
           "Interactive floor plans",
           "Remote walkthroughs",
         ],
-      },
+      }, //need to add: Walmart2 & grocery store
     ],
     [],
   );
