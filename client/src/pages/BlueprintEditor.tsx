@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import * as THREE from "three";
 import ThreeViewer from "@/components/ThreeViewer";
@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import FeatureConfigHub from "@/components/FeatureConfigScreens";
 import { Switch } from "@/components/ui/switch";
+import CostPanel from "@/components/CostPanel";
 
 // Define interfaces for onboarding data
 interface AreaItem {
@@ -638,6 +639,22 @@ export default function BlueprintEditor() {
   const [searchQuery, setSearchQuery] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
   const [externalUrl, setExternalUrl] = useState("");
+
+  // Cost panel counts
+  const imageCount = useMemo(
+    () => fileAnchors.filter((a) => a.fileType === "image").length,
+    [fileAnchors],
+  );
+  const videoCount = useMemo(
+    () => fileAnchors.filter((a) => a.fileType === "video").length,
+    [fileAnchors],
+  );
+  const modelCount = useMemo(() => modelAnchors.length, [modelAnchors]);
+  const webpageCount = useMemo(
+    () => webpageAnchors.length,
+    [webpageAnchors],
+  );
+  const textCount = useMemo(() => textAnchors.length, [textAnchors]);
 
   useEffect(() => {
     if (activeSection !== "create") {
@@ -7342,7 +7359,8 @@ export default function BlueprintEditor() {
                 )}
               </div>
             ) : (
-              <ThreeViewer
+              <div className="w-full h-full relative">
+                <ThreeViewer
                 //modelPath={model3DPath}
                 modelPath={blueprintModelUrl}
                 ref={threeViewerRef}
@@ -7506,6 +7524,16 @@ export default function BlueprintEditor() {
                 onBackgroundClick={handleViewerBackgroundClick}
                 onFileAnchorClick={handleFileAnchorClicked}
               />
+                <div className="absolute bottom-4 right-4 z-40">
+                  <CostPanel
+                    imageCount={imageCount}
+                    videoCount={videoCount}
+                    modelCount={modelCount}
+                    webpageCount={webpageCount}
+                    textCount={textCount}
+                  />
+                </div>
+              </div>
             )}
 
             {/* Action bar - bottom center */}
