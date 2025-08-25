@@ -1,5 +1,11 @@
 "use client";
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import * as THREE from "three";
 import ThreeViewer from "@/components/ThreeViewer";
@@ -649,11 +655,12 @@ export default function BlueprintEditor() {
     () => fileAnchors.filter((a) => a.fileType === "video").length,
     [fileAnchors],
   );
-  const modelCount = useMemo(() => modelAnchors.length, [modelAnchors]);
-  const webpageCount = useMemo(
-    () => webpageAnchors.length,
-    [webpageAnchors],
+  const audioCount = useMemo(
+    () => fileAnchors.filter((a) => a.fileType === "audio").length,
+    [fileAnchors],
   );
+  const modelCount = useMemo(() => modelAnchors.length, [modelAnchors]);
+  const webpageCount = useMemo(() => webpageAnchors.length, [webpageAnchors]);
   const textCount = useMemo(() => textAnchors.length, [textAnchors]);
 
   useEffect(() => {
@@ -7188,7 +7195,7 @@ export default function BlueprintEditor() {
             //onMouseUp={endSidebarResize}
           >
             {/* Toolbar for Active Status and Share/Connect Buttons */}
-            <div className="absolute top-4 left-4 right-4 z-5 flex items-start justify-between pointer-events-none">
+            <div className="absolute top-4 left-4 right-4 z-30 flex items-start justify-between pointer-events-none">
               {/* Active Status on the left */}
               <div
                 className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 pointer-events-auto ${
@@ -7228,6 +7235,18 @@ export default function BlueprintEditor() {
                   <Share className="h-4 w-4" />
                   <span>Share</span>
                 </Button>
+
+                {/* Cost panel sits with the share controls and stays clickable */}
+                <div className="relative pointer-events-auto z-50">
+                  <CostPanel
+                    imageCount={imageCount}
+                    videoCount={videoCount}
+                    audioCount={audioCount}
+                    modelCount={modelCount}
+                    webpageCount={webpageCount}
+                    textCount={textCount}
+                  />
+                </div>
               </div>
             </div>
             {/* Loading overlay */}
@@ -7361,150 +7380,150 @@ export default function BlueprintEditor() {
             ) : (
               <div className="w-full h-full relative">
                 <ThreeViewer
-                //modelPath={model3DPath}
-                modelPath={blueprintModelUrl}
-                ref={threeViewerRef}
-                originPoint={originPoint}
-                yRotation={locationData?.yRotation || 0}
-                originOrientation={displayOriginOrientation}
-                qrCodeAnchors={qrCodeAnchors}
-                scaleFactor={scaleFactor}
-                textAnchors={textAnchors}
-                fileAnchors={fileAnchors}
-                webpageAnchors={webpageAnchors}
-                modelAnchors={modelAnchors}
-                // Pass visibility states as props
-                showQrCodes={showQrCodes}
-                showTextAnchors={showTextAnchors}
-                showFileAnchors={showFileAnchors}
-                showWebpageAnchors={showWebpageAnchors}
-                showModelAnchors={showModelAnchors}
-                showGrid={showGrid}
-                onWalkModeChange={setIsWalkMode}
-                // NEW Props for the two-step process
-                originSettingStep={originSettingStep}
-                tempOriginPos={tempOriginPos}
-                onOriginPositionPicked={handleOriginPositionPicked}
-                onOriginDirectionPicked={handleOriginDirectionPicked}
-                isChoosingOrigin={false} // This is now controlled by originSettingStep
-                setIsChoosingOrigin={() => {}}
-                onOriginSet={(point) => {
-                  setOriginPoint(point);
-                  setIsChoosingOrigin(false);
+                  //modelPath={model3DPath}
+                  modelPath={blueprintModelUrl}
+                  ref={threeViewerRef}
+                  originPoint={originPoint}
+                  yRotation={locationData?.yRotation || 0}
+                  originOrientation={displayOriginOrientation}
+                  qrCodeAnchors={qrCodeAnchors}
+                  scaleFactor={scaleFactor}
+                  textAnchors={textAnchors}
+                  fileAnchors={fileAnchors}
+                  webpageAnchors={webpageAnchors}
+                  modelAnchors={modelAnchors}
+                  // Pass visibility states as props
+                  showQrCodes={showQrCodes}
+                  showTextAnchors={showTextAnchors}
+                  showFileAnchors={showFileAnchors}
+                  showWebpageAnchors={showWebpageAnchors}
+                  showModelAnchors={showModelAnchors}
+                  showGrid={showGrid}
+                  onWalkModeChange={setIsWalkMode}
+                  // NEW Props for the two-step process
+                  originSettingStep={originSettingStep}
+                  tempOriginPos={tempOriginPos}
+                  onOriginPositionPicked={handleOriginPositionPicked}
+                  onOriginDirectionPicked={handleOriginDirectionPicked}
+                  isChoosingOrigin={false} // This is now controlled by originSettingStep
+                  setIsChoosingOrigin={() => {}}
+                  onOriginSet={(point) => {
+                    setOriginPoint(point);
+                    setIsChoosingOrigin(false);
 
-                  // Save origin to Firestore
-                  if (blueprintId) {
-                    updateDoc(doc(db, "blueprints", blueprintId), {
-                      origin: { x: point.x, y: point.y, z: point.z },
-                    }).catch((error) => {
-                      console.error("Error saving origin:", error);
-                    });
-                  }
+                    // Save origin to Firestore
+                    if (blueprintId) {
+                      updateDoc(doc(db, "blueprints", blueprintId), {
+                        origin: { x: point.x, y: point.y, z: point.z },
+                      }).catch((error) => {
+                        console.error("Error saving origin:", error);
+                      });
+                    }
 
-                  toast({
-                    title: "Origin Set",
-                    description: "Origin point has been set successfully.",
-                    variant: "default",
-                  });
-                }}
-                onLoad={() => {
-                  setIsLoading(false);
-                }}
-                onError={(error) => {
-                  setIsLoading(false);
-                  toast({
-                    title: "Error",
-                    description: error,
-                    variant: "destructive",
-                  });
-                }}
-                qrPlacementMode={qrPlacementMode}
-                onQRPlaced={handlePlaceQRCode}
-                selectedArea={selectedArea}
-                pendingLabelTextRef={pendingLabelTextRef}
-                showTextBoxInputRef={showTextBoxInputRef}
-                onTextBoxSubmit={handleTextAnchorPlaced}
-                onModelDropped={async (model, position) => {
-                  // Check if we have a valid origin point
-                  if (!originPoint || !blueprintId) {
                     toast({
-                      title: "Origin Not Set",
-                      description: "Please set the origin point first.",
+                      title: "Origin Set",
+                      description: "Origin point has been set successfully.",
+                      variant: "default",
+                    });
+                  }}
+                  onLoad={() => {
+                    setIsLoading(false);
+                  }}
+                  onError={(error) => {
+                    setIsLoading(false);
+                    toast({
+                      title: "Error",
+                      description: error,
                       variant: "destructive",
                     });
-                    return;
-                  }
+                  }}
+                  qrPlacementMode={qrPlacementMode}
+                  onQRPlaced={handlePlaceQRCode}
+                  selectedArea={selectedArea}
+                  pendingLabelTextRef={pendingLabelTextRef}
+                  showTextBoxInputRef={showTextBoxInputRef}
+                  onTextBoxSubmit={handleTextAnchorPlaced}
+                  onModelDropped={async (model, position) => {
+                    // Check if we have a valid origin point
+                    if (!originPoint || !blueprintId) {
+                      toast({
+                        title: "Origin Not Set",
+                        description: "Please set the origin point first.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
 
-                  try {
-                    // Create a unique anchor ID
-                    const newAnchorId = `anchor-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+                    try {
+                      // Create a unique anchor ID
+                      const newAnchorId = `anchor-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
-                    // Calculate offset from origin (important for correct positioning)
-                    const offset = new THREE.Vector3().subVectors(
-                      position,
-                      originPoint,
-                    );
-                    const scaledOffset = {
-                      x: offset.x * 45.64,
-                      y: offset.y * 45.64,
-                      z: offset.z * 45.64,
-                    };
+                      // Calculate offset from origin (important for correct positioning)
+                      const offset = new THREE.Vector3().subVectors(
+                        position,
+                        originPoint,
+                      );
+                      const scaledOffset = {
+                        x: offset.x * 45.64,
+                        y: offset.y * 45.64,
+                        z: offset.z * 45.64,
+                      };
 
-                    // Create the document in Firestore
-                    await setDoc(doc(db, "anchors", newAnchorId), {
-                      id: newAnchorId,
-                      createdDate: new Date(),
-                      contentID: `element-${Date.now()}`,
-                      contentType: "model",
-                      modelName: model.name,
-                      model: model, // Store the model data
-                      host: currentUser?.uid || "anonymous",
-                      blueprintID: blueprintId,
-                      x: scaledOffset.x,
-                      y: scaledOffset.y,
-                      z: scaledOffset.z,
-                      isPrivate: false,
-                    });
-
-                    // Add the anchor ID to the blueprint
-                    await updateDoc(doc(db, "blueprints", blueprintId), {
-                      anchorIDs: arrayUnion(newAnchorId),
-                    });
-
-                    // Add to local state
-                    setModelAnchors((prev) => [
-                      ...prev,
-                      {
+                      // Create the document in Firestore
+                      await setDoc(doc(db, "anchors", newAnchorId), {
                         id: newAnchorId,
+                        createdDate: new Date(),
+                        contentID: `element-${Date.now()}`,
+                        contentType: "model",
                         modelName: model.name,
+                        model: model, // Store the model data
+                        host: currentUser?.uid || "anonymous",
+                        blueprintID: blueprintId,
                         x: scaledOffset.x,
                         y: scaledOffset.y,
                         z: scaledOffset.z,
-                        contentType: "model",
-                      },
-                    ]);
+                        isPrivate: false,
+                      });
 
-                    toast({
-                      title: "Model Placed",
-                      description: `${model.name} has been added to your scene.`,
-                    });
-                  } catch (error) {
-                    console.error("Error adding model anchor:", error);
-                    toast({
-                      title: "Error",
-                      description:
-                        "Failed to add model to scene. Please try again.",
-                      variant: "destructive",
-                    });
-                  }
-                }}
-                isMarkingArea={isMarkingArea}
-                onAreaMarked={handleAreaMarked}
-                markedAreas={markedAreas}
-                activeLabel={activeLabel}
-                awaiting3D={awaiting3D}
-                placementMode={placementMode}
-                /*onLinkPlaced={(position) => {
+                      // Add the anchor ID to the blueprint
+                      await updateDoc(doc(db, "blueprints", blueprintId), {
+                        anchorIDs: arrayUnion(newAnchorId),
+                      });
+
+                      // Add to local state
+                      setModelAnchors((prev) => [
+                        ...prev,
+                        {
+                          id: newAnchorId,
+                          modelName: model.name,
+                          x: scaledOffset.x,
+                          y: scaledOffset.y,
+                          z: scaledOffset.z,
+                          contentType: "model",
+                        },
+                      ]);
+
+                      toast({
+                        title: "Model Placed",
+                        description: `${model.name} has been added to your scene.`,
+                      });
+                    } catch (error) {
+                      console.error("Error adding model anchor:", error);
+                      toast({
+                        title: "Error",
+                        description:
+                          "Failed to add model to scene. Please try again.",
+                        variant: "destructive",
+                      });
+                    }
+                  }}
+                  isMarkingArea={isMarkingArea}
+                  onAreaMarked={handleAreaMarked}
+                  markedAreas={markedAreas}
+                  activeLabel={activeLabel}
+                  awaiting3D={awaiting3D}
+                  placementMode={placementMode}
+                  /*onLinkPlaced={(position) => {
                 // Store the external URL that was submitted
                 const url = externalUrl;
                 // Reset state immediately to avoid duplicate placements
@@ -7514,17 +7533,17 @@ export default function BlueprintEditor() {
                 // Handle the placement
                 handleLoadExternalLink(url, position);
               }}*/
-                onPlacementComplete={handlePlacementComplete}
-                setReferencePoints3D={setReferencePoints3D}
-                setAwaiting3D={setAwaiting3D}
-                setActiveLabel={setActiveLabel}
-                onFileDropped={handleFileAnchorPlaced}
-                onTextAnchorClick={handleTextAnchorClicked}
-                onWebpageAnchorClick={handleWebpageAnchorClicked}
-                onBackgroundClick={handleViewerBackgroundClick}
-                onFileAnchorClick={handleFileAnchorClicked}
-              />
-                <div className="absolute bottom-4 right-4 z-40">
+                  onPlacementComplete={handlePlacementComplete}
+                  setReferencePoints3D={setReferencePoints3D}
+                  setAwaiting3D={setAwaiting3D}
+                  setActiveLabel={setActiveLabel}
+                  onFileDropped={handleFileAnchorPlaced}
+                  onTextAnchorClick={handleTextAnchorClicked}
+                  onWebpageAnchorClick={handleWebpageAnchorClicked}
+                  onBackgroundClick={handleViewerBackgroundClick}
+                  onFileAnchorClick={handleFileAnchorClicked}
+                />
+                {/* <div className="absolute bottom-4 right-4 z-40">
                   <CostPanel
                     imageCount={imageCount}
                     videoCount={videoCount}
@@ -7532,7 +7551,7 @@ export default function BlueprintEditor() {
                     webpageCount={webpageCount}
                     textCount={textCount}
                   />
-                </div>
+                </div> */}
               </div>
             )}
 

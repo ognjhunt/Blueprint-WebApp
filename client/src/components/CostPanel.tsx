@@ -6,22 +6,25 @@ import { Separator } from "@/components/ui/separator";
 interface CostPanelProps {
   imageCount: number;
   videoCount: number;
+  audioCount: number;
   modelCount: number;
   webpageCount: number;
   textCount: number;
 }
 
-const BASE_RATE = 0.5;
-const IMAGE_RATE = 0.01;
-const VIDEO_RATE = 0.03;
-const MODEL_RATE = 0.03;
-const WEBPAGE_RATE = 0.02;
-const TEXT_RATE = 0.01;
+const BASE_RATE = 0.65;
+const IMAGE_RATE = 0.005;
+const VIDEO_RATE = 0.05;   
+const AUDIO_RATE = 0.01;
+const MODEL_RATE = 0.02;
+const WEBPAGE_RATE = 0.003;
+const TEXT_RATE = 0.002;
 
 export default function CostPanel({
   imageCount,
   videoCount,
   modelCount,
+  audioCount,
   webpageCount,
   textCount,
 }: CostPanelProps) {
@@ -30,15 +33,17 @@ export default function CostPanel({
       BASE_RATE +
       imageCount * IMAGE_RATE +
       videoCount * VIDEO_RATE +
+      audioCount * AUDIO_RATE +
       modelCount * MODEL_RATE +
       webpageCount * WEBPAGE_RATE +
       textCount * TEXT_RATE
     );
-  }, [imageCount, videoCount, modelCount, webpageCount, textCount]);
+  }, [imageCount, videoCount, audioCount, modelCount, webpageCount, textCount]);
 
   const items = [
     { label: "Images", count: imageCount, rate: IMAGE_RATE },
     { label: "Videos", count: videoCount, rate: VIDEO_RATE },
+    { label: "Audios", count: audioCount, rate: AUDIO_RATE },
     { label: "3D Models", count: modelCount, rate: MODEL_RATE },
     { label: "Webpages", count: webpageCount, rate: WEBPAGE_RATE },
     { label: "Text", count: textCount, rate: TEXT_RATE },
@@ -63,7 +68,9 @@ export default function CostPanel({
               <span>
                 {item.label} ({item.count})
               </span>
-              <Badge variant="secondary">+${(item.count * item.rate).toFixed(2)}</Badge>
+              <Badge variant="secondary">
+                +${(item.count * item.rate).toFixed(3)}
+              </Badge>
             </div>
           ))}
         </div>
@@ -71,4 +78,3 @@ export default function CostPanel({
     </Card>
   );
 }
-
