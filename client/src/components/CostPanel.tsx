@@ -12,9 +12,9 @@ interface CostPanelProps {
   textCount: number;
 }
 
-const BASE_RATE = 0.65;
+const BASE_RATE = 0.75;
 const IMAGE_RATE = 0.005;
-const VIDEO_RATE = 0.05;   
+const VIDEO_RATE = 0.05;
 const AUDIO_RATE = 0.01;
 const MODEL_RATE = 0.02;
 const WEBPAGE_RATE = 0.003;
