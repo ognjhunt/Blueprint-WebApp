@@ -38,6 +38,7 @@ const PilotProgram = lazy(() => import("./pages/PilotProgram"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const FAQ = lazy(() => import("./pages/FAQ"));
+const EmbedCalendar = lazy(() => import("./pages/EmbedCalendar"));
 
 function Router() {
   return (
@@ -62,6 +63,7 @@ function Router() {
       <Route path="/privacy" component={PrivacyPolicy} />
       <Route path="/terms" component={Terms} />
       <Route path="/faq" component={FAQ} />
+      <Route path="/embed/calendar" component={EmbedCalendar} />
 
       {/* Protected */}
       <Route path="/create-blueprint">
