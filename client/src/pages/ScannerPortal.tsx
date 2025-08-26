@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { format } from "date-fns";
+import { format, addMonths } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import * as THREE from "three";
@@ -39,6 +39,7 @@ import ThreeViewer from "@/components/ThreeViewer"; // Add this import
 import {
   Search,
   Calendar,
+  CalendarDays,
   MapPin,
   Check,
   Upload,
@@ -97,6 +98,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 const pdfjs = {
   workerSrc:
@@ -159,6 +161,23 @@ export default function ScannerPortal() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [customerData, setCustomerData] = useState<User | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+
+  const bookingsByDate = useMemo(() => {
+    const map: Record<string, Booking[]> = {};
+    bookings.forEach((b) => {
+      map[b.date] = map[b.date] ? [...map[b.date], b] : [b];
+    });
+    return map;
+  }, [bookings]);
+
+  const bookedDates = useMemo(() => Object.keys(bookingsByDate).map((d) => new Date(d)), [bookingsByDate]);
+
+  const bookingsForSelectedDate = useMemo(() => {
+    if (!selectedDate) return [];
+    const key = format(selectedDate, "yyyy-MM-dd");
+    return bookingsByDate[key] || [];
+  }, [selectedDate, bookingsByDate]);
   // Alignment wizard states
   const [showAlignmentWizard, setShowAlignmentWizard] = useState(false);
   const [referencePoints2D, setReferencePoints2D] = useState<
@@ -1398,6 +1417,10 @@ export default function ScannerPortal() {
                   <Calendar className="w-4 h-4 mr-2" />
                   Appointments
                 </TabsTrigger>
+                <TabsTrigger value="calendar" className="flex-1">
+                  <CalendarDays className="w-4 h-4 mr-2" />
+                  Calendar
+                </TabsTrigger>
                 <TabsTrigger value="uploads" className="flex-1">
                   <UploadCloud className="w-4 h-4 mr-2" />
                   Recent Uploads
@@ -1531,6 +1554,91 @@ export default function ScannerPortal() {
                     </motion.div>
                   )}
                 </AnimatePresence>
+              </TabsContent>
+
+              {/* Calendar Tab */}
+              <TabsContent value="calendar" className="mt-0">
+                <div className="flex flex-col md:flex-row gap-6">
+                  <CalendarComponent
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    numberOfMonths={2}
+                    disabled={{ before: new Date() }}
+                    fromMonth={new Date()}
+                    toMonth={addMonths(new Date(), 1)}
+                    modifiers={{ booked: bookedDates }}
+                    modifiersClassNames={{
+                      booked: "bg-purple-200 text-purple-900",
+                    }}
+                  />
+                  <div className="flex-1 space-y-4">
+                    {bookingsForSelectedDate.length > 0 ? (
+                      bookingsForSelectedDate.map((booking) => (
+                        <Card
+                          key={booking.id}
+                          className="overflow-hidden border-0 shadow-md"
+                        >
+                          <CardHeader className="bg-gray-50">
+                            <CardTitle className="text-lg">
+                              {booking.businessName}
+                            </CardTitle>
+                            <CardDescription>
+                              {formatDate(booking.date)} at {formatTime(booking.time)}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="pt-4 space-y-2">
+                            {booking.address && (
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <MapPin className="w-4 h-4 text-gray-500" />
+                                {booking.address}
+                              </div>
+                            )}
+                            {booking.contactName && (
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <User className="w-4 h-4 text-gray-500" />
+                                {booking.contactName}
+                              </div>
+                            )}
+                            {booking.contactPhone && (
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <Phone className="w-4 h-4 text-gray-500" />
+                                {booking.contactPhone}
+                              </div>
+                            )}
+                          </CardContent>
+                          <CardFooter className="border-t bg-gray-50">
+                            <Button
+                              className={cn(
+                                "w-full gap-2",
+                                booking.status === "completed"
+                                  ? "bg-green-600 hover:bg-green-700"
+                                  : "bg-purple-600 hover:bg-purple-700",
+                              )}
+                              onClick={() => handleBookingSelect(booking)}
+                            >
+                              {booking.status === "completed" ? (
+                                <>
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  View Details
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="w-4 h-4" />
+                                  Upload Scan Files
+                                </>
+                              )}
+                            </Button>
+                          </CardFooter>
+                        </Card>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        No bookings for this day.
+                      </p>
+                    )}
+                  </div>
+                </div>
               </TabsContent>
 
               {/* Recent Uploads Tab */}
