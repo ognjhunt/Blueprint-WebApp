@@ -33,6 +33,7 @@ import AcceptInvite from "./pages/AcceptInvite";
 import PilotProgram from "./pages/PilotProgram";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
+import EmbedCalendar from "./pages/EmbedCalendar";
 
 function Router() {
   return (
@@ -55,6 +56,7 @@ function Router() {
       <Route path="/pilot-program" component={PilotProgram} />
       <Route path="/privacy" component={Privacy} />
       <Route path="/terms" component={Terms} />
+      <Route path="/embed/calendar" component={EmbedCalendar} />
 
       {/* Protected Routes */}
       <Route path="/create-blueprint">
