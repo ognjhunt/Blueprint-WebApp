@@ -39,6 +39,7 @@ const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const FAQ = lazy(() => import("./pages/FAQ"));
 const EmbedCalendar = lazy(() => import("./pages/EmbedCalendar"));
+const EmbedDashboard = lazy(() => import("./pages/EmbedDashboard"));
 
 function Router() {
   return (
@@ -64,6 +65,7 @@ function Router() {
       <Route path="/terms" component={Terms} />
       <Route path="/faq" component={FAQ} />
       <Route path="/embed/calendar" component={EmbedCalendar} />
+      <Route path="/embed/dashboard" component={EmbedDashboard} />
 
       {/* Protected */}
       <Route path="/create-blueprint">
