@@ -34,6 +34,7 @@ import PilotProgram from "./pages/PilotProgram";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import EmbedCalendar from "./pages/EmbedCalendar";
+import EmbedDashboard from "./pages/EmbedDashboard";
 
 function Router() {
   return (
@@ -57,6 +58,7 @@ function Router() {
       <Route path="/privacy" component={Privacy} />
       <Route path="/terms" component={Terms} />
       <Route path="/embed/calendar" component={EmbedCalendar} />
+      <Route path="/embed/dashboard" component={EmbedDashboard} />
 
       {/* Protected Routes */}
       <Route path="/create-blueprint">
