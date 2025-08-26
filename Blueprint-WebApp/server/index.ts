@@ -29,6 +29,17 @@ app.use((req, res, next) => {
   next();
 });
 
+// Allow embedding of public pages under /embed in Notion
+app.use((req, res, next) => {
+  if (req.path.startsWith('/embed/')) {
+    res.setHeader(
+      'Content-Security-Policy',
+      "frame-ancestors 'self' https://www.notion.so https://*.notion.site"
+    );
+  }
+  next();
+});
+
 // Mount the Gemini router
 app.use('/api/gemini', geminiRouter);
 
