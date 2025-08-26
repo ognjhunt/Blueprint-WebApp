@@ -36,7 +36,7 @@ import { Separator } from "@/components/ui/separator";
  * ---------------------------------------------------------------------------
  * Base + content add-ons match your CostPanel:
  */
-const BASE_RATE = 0.65 as const;
+const BASE_RATE = 0.75 as const;
 const RATES = {
   image: 0.005,
   video: 0.05,
@@ -345,7 +345,7 @@ export default function PricingPage() {
         </motion.h1>
         <p className="mt-4 text-lg text-slate-300">
           No tiers. No surprises. Pay a base price of{" "}
-          <span className="font-semibold text-emerald-300">$0.65/hr</span> for
+          <span className="font-semibold text-emerald-300">$0.75/hr</span> for
           usage and add content-based options as you go.
         </p>
 
@@ -357,7 +357,7 @@ export default function PricingPage() {
             <span className="opacity-60 mx-1.5">→</span>
             <span className="font-semibold">Total = 2 × your price/hr</span>
             <span className="ml-2 text-slate-400">
-              (your price/hr = Base $0.65 + content add-ons)
+              (your price/hr = Base $0.75 + content add-ons)
             </span>
           </span>
         </div>
@@ -609,7 +609,7 @@ export default function PricingPage() {
           <Card className="rounded-2xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl hover:bg-white/[0.06] transition-colors">
             <CardHeader className="pb-2">
               <CardTitle className="text-white text-lg">
-                What’s included in $0.65/hr?
+                What’s included in $0.75/hr?
               </CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-slate-300">
