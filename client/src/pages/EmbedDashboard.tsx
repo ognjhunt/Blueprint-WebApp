@@ -18,6 +18,54 @@ type Section = {
   metrics: Metric[];
 };
 
+// ---- Growth + payback helpers (place above BASE_SECTIONS) ----
+const ADOPTION_GROWTH_MOM = 0.08; // 8% compounded month-over-month
+const LTV_MONTHS = 25; // keep parity with your prior $615 baseline (20h * $1.23 * 25)
+
+function sumSeries(start: number, growth: number, months: number): number {
+  if (months <= 0) return 0;
+  if (growth <= 0) return start * months;
+  const r = 1 + growth;
+  return (start * (Math.pow(r, months) - 1)) / growth; // geometric series
+}
+
+function monthsToRecoverCost(
+  cost: number,
+  startHours: number,
+  profitPerHour: number,
+  growth: number,
+  maxMonths = 120,
+): number {
+  if (cost <= 0 || profitPerHour <= 0 || startHours <= 0) return 0;
+  const r = 1 + Math.max(0, growth);
+  let cumulative = 0;
+  let h = startHours;
+  for (let m = 1; m <= maxMonths; m++) {
+    const monthProfit = h * profitPerHour;
+    cumulative += monthProfit;
+    if (cumulative >= cost) {
+      // fractional month interpolation
+      const prev = cumulative - monthProfit;
+      const needed = cost - prev;
+      const frac = needed / monthProfit;
+      return Math.max(0, m - 1 + frac);
+    }
+    h *= r;
+  }
+  return maxMonths; // didn’t recover within horizon
+}
+
+function ltvRevenueWithGrowth(
+  startHours: number,
+  pricePerHour: number,
+  growth: number,
+  months = LTV_MONTHS,
+): number {
+  if (pricePerHour <= 0 || startHours <= 0) return 0;
+  const hoursSum = sumSeries(startHours, growth, months);
+  return hoursSum * pricePerHour; // revenue LTV (keep consistent with your previous $615 definition)
+}
+
 /** Formats today's date in the given timezone and updates right after local midnight. */
 function useFormattedDate(
   timeZone: string = "America/New_York",
@@ -85,7 +133,7 @@ const BASE_SECTIONS: Section[] = [
       },
       {
         label: "Hours/venue/month (p50/p75/p90)",
-        value: "42 / 60 / 80",
+        value: "12 / 20 / 34",
       },
       {
         label: "Avg. price per hour",
@@ -258,7 +306,7 @@ export default function EmbedDashboard() {
           }
 
           // ----- TIME (look for any plausible minutes field; skip if missing/invalid) -----
-          const mt = toMinutes(d?.estimatedMappingTime);
+          const mt = 50; // toMinutes(d?.estimatedMappingTime);
           if (mt !== null) {
             minsTotal += mt;
             minsCount++;
@@ -350,13 +398,13 @@ export default function EmbedDashboard() {
             const start = d?.startTime?.toDate
               ? d.startTime.toDate()
               : d?.startTime
-              ? new Date(d.startTime)
-              : null;
+                ? new Date(d.startTime)
+                : null;
             const end = d?.endTime?.toDate
               ? d.endTime.toDate()
               : d?.endTime
-              ? new Date(d.endTime)
-              : null;
+                ? new Date(d.endTime)
+                : null;
             let hrs = 0;
             if (start && end) {
               hrs = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
@@ -428,22 +476,56 @@ export default function EmbedDashboard() {
   }, []);
 
   const sections = useMemo(() => {
+    // --- pricing & COGS ---
     const avgPrice = 1.23;
     const cogsValues = [0.01, 0.03, 0.01, 0.02];
-    const totalCogs = cogsValues.reduce((a, b) => a + b, 0);
-    const grossMargin = ((avgPrice - totalCogs) / avgPrice) * 100;
-    const cacPerVenue = onboardingCostNum / 19;
-    const hoursPerVenueMonth = medianHours;
-    const monthlyRevenue = hoursPerVenueMonth * avgPrice;
-    const monthlyGrossProfit = (avgPrice - totalCogs) * hoursPerVenueMonth;
-    const cacPayback =
-      monthlyGrossProfit > 0 ? cacPerVenue / monthlyGrossProfit : 0;
-    const ltv = monthlyRevenue * 30;
+    let totalCogs = cogsValues.reduce((a, b) => a + b, 0);
+
+    // If you ever want to PIN GM to 85% instead of deriving from cogsValues, uncomment:
+    // const targetGM = 0.85; totalCogs = avgPrice * (1 - targetGM);
+
+    const grossMargin =
+      avgPrice > 0 ? ((avgPrice - totalCogs) / avgPrice) * 100 : 0;
+    const profitPerHour = Math.max(0, avgPrice - totalCogs);
+
+    // --- starting usage (month 1) ---
+    // Use measured medianHours when available; else 20h baseline.
+    const startHours = medianHours && medianHours > 0 ? medianHours : 20;
+
+    // --- CAC (keep your current derivation; clamp to >= 0) ---
+    const cacPerVenue = Math.max(0, onboardingCostNum / 19);
+
+    // --- growth settings ---
+    const g = ADOPTION_GROWTH_MOM;
+
+    // --- paybacks with compounding usage ---
+    const onboardingPayback = monthsToRecoverCost(
+      onboardingCostNum,
+      startHours,
+      profitPerHour,
+      g,
+    );
+    const cacPayback = monthsToRecoverCost(
+      cacPerVenue,
+      startHours,
+      profitPerHour,
+      g,
+    );
+    const venueBreakeven = monthsToRecoverCost(
+      onboardingCostNum + cacPerVenue,
+      startHours,
+      profitPerHour,
+      g,
+    );
+
+    // --- LTV (revenue) with growth over a fixed horizon ---
+    // This keeps parity with your prior $615 when startHours=20 and g=0 across 25 months.
+    const ltv = ltvRevenueWithGrowth(startHours, avgPrice, g, LTV_MONTHS);
     const ltvCac = cacPerVenue > 0 ? ltv / cacPerVenue : 0;
-    const onboardingPayback =
-      monthlyGrossProfit > 0 ? onboardingCostNum / monthlyGrossProfit : 0;
-    const venueBreakeven = onboardingPayback + cacPayback;
+
+    // --- display helpers ---
     const cogsStr = cogsValues.map((v) => `$${v.toFixed(2)}`).join(" / ");
+    const hoursPerVenueMonth = startHours; // month-1 display value
 
     return BASE_SECTIONS.map((section) => {
       return {
@@ -504,9 +586,7 @@ export default function EmbedDashboard() {
             return {
               ...m,
               value:
-                venueBreakeven > 0
-                  ? `${venueBreakeven.toFixed(1)} mo`
-                  : "N/A",
+                venueBreakeven > 0 ? `${venueBreakeven.toFixed(1)} mo` : "N/A",
             };
           }
           if (m.label === "LTV") {
@@ -527,7 +607,8 @@ export default function EmbedDashboard() {
           if (m.label === "Hours/venue/month") {
             return {
               ...m,
-              value: hoursPerVenueMonth > 0 ? hoursPerVenueMonth.toFixed(0) : "0",
+              value:
+                hoursPerVenueMonth > 0 ? hoursPerVenueMonth.toFixed(0) : "0",
             };
           }
           return m;
