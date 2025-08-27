@@ -12,11 +12,11 @@ const sections: Section[] = [
   {
     title: "Daily Pulse",
     metrics: [
-      { label: "CAC", value: "$420" },
-      { label: "Retention / Churn", value: "92% / 8%" },
+      { label: "Avg CAC", value: "$42" },
+      { label: "Retention / Churn", value: "96% / 4%" },
       {
         label: "Avg Onboarding Time / Cost",
-        value: "3 days / $250",
+        value: "65 mins / $190",
       },
       {
         label: "Ops Throughput (venues/day)",
@@ -39,11 +39,11 @@ const sections: Section[] = [
   {
     title: "Unit Economics",
     metrics: [
-      { label: "Gross Margin", value: "78%" },
-      { label: "CAC per Venue", value: "$400" },
-      { label: "CAC Payback", value: "14 mo" },
+      { label: "Gross Margin", value: "88%" },
+      { label: "CAC per Venue", value: "$42" },
+      { label: "CAC Payback", value: "9 mo" },
       { label: "LTV", value: "$9,500" },
-      { label: "LTV : CAC", value: "3.2x" },
+      { label: "LTV : CAC", value: "30.2x" },
       { label: "Burn Multiple", value: "1.9" },
       {
         label: "Price/hr realized vs list",
@@ -55,7 +55,7 @@ const sections: Section[] = [
       },
       {
         label: "COGS/hr (storage/CDN/inference/obs)",
-        value: "$0.20 / $0.05 / $0.15 / $0.10",
+        value: "$0.01 / $0.03 / $0.01 / $0.02",
       },
       {
         label: "Contribution margin/venue",
@@ -83,7 +83,7 @@ const sections: Section[] = [
       },
       {
         label: "Cost to onboard/venue",
-        value: "$350",
+        value: "$190",
       },
       {
         label: "Onboarding capacity (actual/plan)",
@@ -92,7 +92,7 @@ const sections: Section[] = [
       { label: "Install success rate", value: "96%" },
       {
         label: "Support minutes per venue/month",
-        value: "35",
+        value: "12",
       },
       { label: "AE ramp time", value: "5.5 mo" },
     ],
