@@ -511,6 +511,9 @@ export default function OffWaitlistSignUpFlow() {
         const estimatedMappingPayout = parseFloat(
           (estimatedSquareFootage / 60).toFixed(2),
         );
+        const estimatedMappingTime = parseFloat(
+          (estimatedSquareFootage / 100) + 15).toFixed(2),
+        );
         const estimatedDesignPayout = parseFloat(
           (estimatedSquareFootage / 80).toFixed(2),
         );

@@ -1,8 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/firebase";
-<<<<<<< HEAD
-import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
-=======
 import {
   collection,
   getDocs,
@@ -10,7 +7,6 @@ import {
   where,
   Timestamp,
 } from "firebase/firestore";
->>>>>>> e34d672 (real onboarding cost)
 
 type Metric = {
   label: string;
@@ -181,6 +177,7 @@ const BASE_SECTIONS: Section[] = [
 export default function EmbedDashboard() {
   const today = useFormattedDate("America/New_York");
   const [onboardingCost, setOnboardingCost] = useState("$0.00");
+  const [avgOnboardingTime, setAvgOnboardingTime] = useState("N/A");
 
   useEffect(() => {
     (async () => {
@@ -190,61 +187,84 @@ export default function EmbedDashboard() {
         const q = query(
           collection(db, "bookings"),
           where("createdAt", ">=", Timestamp.fromDate(past30)),
+          where("createdAt", "<=", Timestamp.fromDate(now)),
         );
-        const snap = await getDocs(q);
-        let total = 0;
-        let count = 0;
-        snap.forEach((doc) => {
-          const d = doc.data() as any;
-<<<<<<< HEAD
-          const design = Number(d.estimatedDesignPayout) || 0;
-          const mapping = Number(d.estimatedMappingPayout) || 0;
-          total += design + mapping + 25; // 15 + 10 additional costs
-          count++;
-=======
 
-          // Treat missing/blank as N/A (exclude from average)
+        const snap = await getDocs(q);
+
+        if (process.env.NODE_ENV !== "production") {
+          console.log("bookings in last 30d:", snap.size);
+        }
+
+        // Cost aggregation
+        let costTotal = 0;
+        let costCount = 0;
+
+        // Time aggregation (minutes)
+        let minsTotal = 0;
+        let minsCount = 0;
+
+        snap.forEach((doc) => {
+          const toMinutes = (x: unknown): number | null => {
+            if (typeof x === "number" && Number.isFinite(x)) return x;
+            if (typeof x === "string") {
+              const m = x.match(/[\d.]+/); // handles "50", "50 mins", "50.0"
+              if (!m) return null;
+              const n = Number(m[0]);
+              return Number.isFinite(n) ? n : null;
+            }
+            return null;
+          };
+
+          const d = doc.data() as any;
+
+          // ----- COST (skip docs without BOTH fields or non-numeric) -----
           const designRaw = d?.estimatedDesignPayout;
           const mappingRaw = d?.estimatedMappingPayout;
-
-          const hasDesignField =
+          const hasDesign =
             designRaw !== undefined && designRaw !== null && designRaw !== "";
-          const hasMappingField =
+          const hasMapping =
             mappingRaw !== undefined &&
             mappingRaw !== null &&
             mappingRaw !== "";
-
-          if (hasDesignField && hasMappingField) {
+          if (hasDesign && hasMapping) {
             const design = Number(designRaw);
             const mapping = Number(mappingRaw);
-
             if (Number.isFinite(design) && Number.isFinite(mapping)) {
-              // Only include in average when BOTH fields are present and numeric
-              total += design + mapping + 25; // 15 + 10 additional costs
-              count++;
+              costTotal += design + mapping + 25; // 15 + 10 additional costs
+              costCount++;
             }
           }
->>>>>>> e34d672 (real onboarding cost)
+
+          // ----- TIME (look for any plausible minutes field; skip if missing/invalid) -----
+          const mt = toMinutes(d?.estimatedMappingTime);
+          if (mt !== null) {
+            minsTotal += mt;
+            minsCount++;
+          }
         });
-        if (count > 0) {
-          setOnboardingCost(`$${(total / count).toFixed(2)}`);
+
+        // Finalize cost
+        if (costCount > 0) {
+          setOnboardingCost(`$${(costTotal / costCount).toFixed(2)}`);
+        } else {
+          setOnboardingCost("N/A");
+        }
+
+        // Finalize time (rounded to nearest minute)
+        if (minsCount > 0) {
+          setAvgOnboardingTime(`${Math.round(minsTotal / minsCount)} mins`);
+        } else {
+          setAvgOnboardingTime("N/A");
         }
       } catch (err) {
-        console.error("Error calculating onboarding cost", err);
+        console.error("Error calculating onboarding metrics", err);
       }
     })();
   }, []);
 
   const sections = useMemo(() => {
     return BASE_SECTIONS.map((section) => {
-<<<<<<< HEAD
-      if (section.title !== "Onboarding & Ops") return section;
-      return {
-        ...section,
-        metrics: section.metrics.map((m) =>
-          m.label === "Cost to onboard/venue" ? { ...m, value: onboardingCost } : m,
-        ),
-=======
       return {
         ...section,
         metrics: section.metrics.map((m) => {
@@ -252,17 +272,14 @@ export default function EmbedDashboard() {
             return { ...m, value: onboardingCost };
           }
           if (m.label === "Avg Onboarding Time / Cost") {
-            // Preserve the time portion (e.g., "65 mins") and swap in the live cost
-            const [timePart] = (m.value ?? "").split("/");
-            const time = (timePart ?? "").trim(); // "65 mins"
-            return { ...m, value: `${time} / ${onboardingCost}` };
+            // Now use the computed average time + the same live cost
+            return { ...m, value: `${avgOnboardingTime} / ${onboardingCost}` };
           }
           return m;
         }),
->>>>>>> e34d672 (real onboarding cost)
       };
     });
-  }, [onboardingCost]);
+  }, [onboardingCost, avgOnboardingTime]);
 
   return (
     <div className="min-h-screen bg-[#0B1220] text-slate-100">
