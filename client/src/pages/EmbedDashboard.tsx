@@ -1,3 +1,5 @@
+import React, { useEffect, useState } from "react";
+
 type Metric = {
   label: string;
   value: string;
@@ -7,6 +9,28 @@ type Section = {
   title: string;
   metrics: Metric[];
 };
+
+/** Formats today's date in the given timezone and updates right after local midnight. */
+function useFormattedDate(
+  timeZone: string = "America/New_York",
+  locale: string = "en-US",
+  options: Intl.DateTimeFormatOptions = { dateStyle: "full" },
+): string {
+  const fmt = new Intl.DateTimeFormat(locale, { timeZone, ...options });
+
+  const [today, setToday] = useState<string>(() => fmt.format(new Date()));
+
+  useEffect(() => {
+    // Refresh once per minute; inexpensive and guarantees we cross midnight correctly even if tab stays open.
+    const id = setInterval(() => {
+      setToday(fmt.format(new Date()));
+    }, 60 * 1000);
+
+    return () => clearInterval(id);
+  }, [timeZone, locale, options]);
+
+  return today;
+}
 
 const sections: Section[] = [
   {
@@ -143,11 +167,16 @@ const sections: Section[] = [
 ];
 
 export default function EmbedDashboard() {
+  const today = useFormattedDate("America/New_York");
+
   return (
     <div className="min-h-screen bg-white p-4 md:p-8 text-slate-800">
-      <h1 className="text-2xl font-bold mb-6 text-center">
-        Blueprint Metrics Dashboard
-      </h1>
+      <header className="mb-6 flex flex-col items-center gap-1 md:flex-row md:items-end md:justify-between">
+        <h1 className="text-2xl font-bold text-center md:text-left">
+          Blueprint Metrics Dashboard
+        </h1>
+        <div className="text-sm text-slate-500">{today}</div>
+      </header>
       {sections.map((section) => (
         <div key={section.title} className="mb-8">
           <h2 className="text-xl font-semibold mb-4">{section.title}</h2>
@@ -167,4 +196,3 @@ export default function EmbedDashboard() {
     </div>
   );
 }
-
