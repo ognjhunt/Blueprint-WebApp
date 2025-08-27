@@ -1,6 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/firebase";
+<<<<<<< HEAD
 import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
+=======
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  Timestamp,
+} from "firebase/firestore";
+>>>>>>> e34d672 (real onboarding cost)
 
 type Metric = {
   label: string;
@@ -38,7 +48,7 @@ const BASE_SECTIONS: Section[] = [
   {
     title: "Daily Pulse",
     metrics: [
-      { label: "Avg CAC", value: "$6.72 + 10 mins of meeting time"},
+      { label: "Avg CAC", value: "$6.72 + 10 mins of meeting time" },
       { label: "Retention / Churn", value: "96% / 4%" },
       {
         label: "Avg Onboarding Time / Cost",
@@ -186,10 +196,35 @@ export default function EmbedDashboard() {
         let count = 0;
         snap.forEach((doc) => {
           const d = doc.data() as any;
+<<<<<<< HEAD
           const design = Number(d.estimatedDesignPayout) || 0;
           const mapping = Number(d.estimatedMappingPayout) || 0;
           total += design + mapping + 25; // 15 + 10 additional costs
           count++;
+=======
+
+          // Treat missing/blank as N/A (exclude from average)
+          const designRaw = d?.estimatedDesignPayout;
+          const mappingRaw = d?.estimatedMappingPayout;
+
+          const hasDesignField =
+            designRaw !== undefined && designRaw !== null && designRaw !== "";
+          const hasMappingField =
+            mappingRaw !== undefined &&
+            mappingRaw !== null &&
+            mappingRaw !== "";
+
+          if (hasDesignField && hasMappingField) {
+            const design = Number(designRaw);
+            const mapping = Number(mappingRaw);
+
+            if (Number.isFinite(design) && Number.isFinite(mapping)) {
+              // Only include in average when BOTH fields are present and numeric
+              total += design + mapping + 25; // 15 + 10 additional costs
+              count++;
+            }
+          }
+>>>>>>> e34d672 (real onboarding cost)
         });
         if (count > 0) {
           setOnboardingCost(`$${(total / count).toFixed(2)}`);
@@ -202,12 +237,29 @@ export default function EmbedDashboard() {
 
   const sections = useMemo(() => {
     return BASE_SECTIONS.map((section) => {
+<<<<<<< HEAD
       if (section.title !== "Onboarding & Ops") return section;
       return {
         ...section,
         metrics: section.metrics.map((m) =>
           m.label === "Cost to onboard/venue" ? { ...m, value: onboardingCost } : m,
         ),
+=======
+      return {
+        ...section,
+        metrics: section.metrics.map((m) => {
+          if (m.label === "Cost to onboard/venue") {
+            return { ...m, value: onboardingCost };
+          }
+          if (m.label === "Avg Onboarding Time / Cost") {
+            // Preserve the time portion (e.g., "65 mins") and swap in the live cost
+            const [timePart] = (m.value ?? "").split("/");
+            const time = (timePart ?? "").trim(); // "65 mins"
+            return { ...m, value: `${time} / ${onboardingCost}` };
+          }
+          return m;
+        }),
+>>>>>>> e34d672 (real onboarding cost)
       };
     });
   }, [onboardingCost]);
@@ -224,7 +276,7 @@ export default function EmbedDashboard() {
         {/* Header */}
         <header className="mb-8 flex flex-col items-center gap-2 md:flex-row md:items-end md:justify-between">
           <h1 className="text-center md:text-left text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">
-            Blueprint Metrics Dashboard
+            Blueprint Metrics Dashboard (last 30 days)
           </h1>
           <div className="text-sm text-slate-400">{today}</div>
         </header>
