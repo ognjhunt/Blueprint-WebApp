@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 
 type Metric = {
   label: string;
@@ -37,7 +36,7 @@ const sections: Section[] = [
   {
     title: "Daily Pulse",
     metrics: [
-      { label: "Avg CAC", value: "$42" },
+      { label: "Avg CAC", value: "$8 + 10 mins of meeting time"},
       { label: "Retention / Churn", value: "96% / 4%" },
       {
         label: "Avg Onboarding Time / Cost",
@@ -171,32 +170,28 @@ export default function EmbedDashboard() {
   const today = useFormattedDate("America/New_York");
 
   return (
-    <div className="min-h-screen bg-[#0B1220] p-4 md:p-8 text-slate-100">
+    <div className="min-h-screen bg-white p-4 md:p-8 text-slate-800">
       <header className="mb-6 flex flex-col items-center gap-1 md:flex-row md:items-end md:justify-between">
-        <h1 className="text-2xl font-bold text-center md:text-left text-slate-100">
+        <h1 className="text-2xl font-bold text-center md:text-left">
           Blueprint Metrics Dashboard
         </h1>
-        <div className="text-sm text-slate-400">{today}</div>
+        <div className="text-sm text-slate-500">{today}</div>
       </header>
       {sections.map((section) => (
-        <section key={section.title} className="mb-8">
-          <h2 className="text-xl font-semibold mb-4 text-emerald-300">
-            {section.title}
-          </h2>
+        <div key={section.title} className="mb-8">
+          <h2 className="text-xl font-semibold mb-4">{section.title}</h2>
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {section.metrics.map((m) => (
-              <Card
+              <div
                 key={m.label}
-                className="bg-[#0E172A]/60 border-white/10 backdrop-blur-sm hover:shadow-md transition-shadow"
+                className="rounded-lg border bg-slate-50 p-4 shadow-sm"
               >
-                <CardContent className="p-4">
-                  <div className="text-sm text-slate-400">{m.label}</div>
-                  <div className="text-2xl font-semibold">{m.value}</div>
-                </CardContent>
-              </Card>
+                <div className="text-sm text-slate-500">{m.label}</div>
+                <div className="text-2xl font-semibold">{m.value}</div>
+              </div>
             ))}
           </div>
-        </section>
+        </div>
       ))}
     </div>
   );

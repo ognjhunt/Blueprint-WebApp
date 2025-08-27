@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { addMonths, format } from "date-fns";
+import { addMonths, format, startOfMonth } from "date-fns";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import {
   Card,
@@ -39,19 +39,58 @@ export default function EmbedCalendar() {
     new Date(),
   );
 
+  // --- Firestore load (with fallback for legacy docs) ---
   useEffect(() => {
     (async () => {
-      const q = query(
-        collection(db, "bookings"),
-        orderBy("date", "desc"),
-        orderBy("time", "asc"),
-      );
-      const snap = await getDocs(q);
-      const rows: Booking[] = [];
-      snap.forEach((doc) =>
-        rows.push({ id: doc.id, ...(doc.data() as Omit<Booking, "id">) }),
-      );
-      setBookings(rows);
+      // Helper to normalize docs into the Booking shape
+      const normalize = (snap: any): Booking[] => {
+        const rows: Booking[] = [];
+        snap.forEach((doc: any) => {
+          const d = doc.data() as any;
+
+          // Some older docs may not have date/time but do have createdDate
+          let dateStr: string | undefined = d.date;
+          if (!dateStr && d.createdDate?.toDate) {
+            const dt: Date = d.createdDate.toDate();
+            dateStr = dt.toISOString().slice(0, 10);
+          }
+
+          // Default time if missing
+          const timeStr: string = d.time ?? "00:00";
+
+          // Normalize status (handle "Pending" etc.)
+          const statusNorm = String(d.status ?? "pending").toLowerCase();
+
+          rows.push({
+            id: doc.id,
+            date: dateStr ?? "1970-01-01",
+            time: timeStr,
+            businessName: d.businessName ?? d.name ?? "Unknown",
+            status: (statusNorm as Booking["status"]) || "pending",
+            address: d.address,
+            contactName: d.contactName,
+            contactPhone: d.contactPhone ?? d.phone,
+            blueprintId: d.blueprintId,
+          });
+        });
+        // Sort by date+time ascending
+        rows.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+        return rows;
+      };
+
+      try {
+        const q1 = query(
+          collection(db, "bookings"),
+          orderBy("date", "desc"),
+          orderBy("time", "asc"),
+        );
+        const snap = await getDocs(q1);
+        setBookings(normalize(snap));
+      } catch {
+        // Fallback when some docs miss sortable fields
+        const snap = await getDocs(collection(db, "bookings"));
+        setBookings(normalize(snap));
+      }
     })();
   }, []);
 
@@ -74,6 +113,20 @@ export default function EmbedCalendar() {
     return bookingsByDate[key] ?? [];
   }, [selectedDate, bookingsByDate]);
 
+  // Earliest month we allow navigating back to: earliest booking month (fallback = -12 months).
+  const minMonth = useMemo(() => {
+    if (bookings.length === 0) return startOfMonth(addMonths(new Date(), -12));
+    let earliest = new Date();
+    for (const b of bookings) {
+      const d = new Date(b.date);
+      if (d < earliest) earliest = d;
+    }
+    return startOfMonth(earliest);
+  }, [bookings]);
+
+  // Show current month through the next 5 months (total 6)
+  const maxMonth = useMemo(() => startOfMonth(addMonths(new Date(), 5)), []);
+
   const formatTime = (time: string) => {
     const [h, m] = time.split(":");
     const hour = parseInt(h, 10);
@@ -82,7 +135,7 @@ export default function EmbedCalendar() {
     return `${hour12}:${m} ${ampm}`;
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDateLong = (dateString: string) => {
     try {
       return format(new Date(dateString), "EEEE, MMMM d, yyyy");
     } catch {
@@ -99,72 +152,100 @@ export default function EmbedCalendar() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B1220] p-4 md:p-6 text-slate-100">
-      <div className="mx-auto max-w-6xl">
-        <header className="mb-6">
-          <h1 className="text-2xl font-bold">Blueprint Onboarding Calendar</h1>
-        </header>
-        <div className="flex flex-col md:flex-row gap-6">
-          <CalendarComponent
-            mode="single"
-            selected={selectedDate}
-            onSelect={setSelectedDate}
-            numberOfMonths={2}
-            disabled={{ before: new Date() }}
-            fromMonth={new Date()}
-            toMonth={addMonths(new Date(), 1)}
-            modifiers={{ booked: bookedDates }}
-            modifiersClassNames={{ booked: "bg-emerald-500/20 text-emerald-300" }}
-            className="rounded-lg border border-white/10 bg-[#0E172A]/60 text-slate-100"
-            classNames={{
-              caption_label: "text-slate-100",
-              nav_button: "text-slate-100 hover:bg-[#1a2437]",
-              head_cell: "text-slate-400",
-              day: "text-slate-100 hover:bg-[#1a2437] aria-selected:bg-emerald-600 aria-selected:text-white",
-            }}
-          />
+    <div className="min-h-screen bg-white p-4 md:p-6">
+      <div className="mx-auto max-w-7xl">
+        <div className="grid gap-6 md:grid-cols-[1fr,0.9fr]">
+          {/* Calendar */}
+          <div className="overflow-visible">
+            <CalendarComponent
+              mode="single"
+              selected={selectedDate}
+              onSelect={setSelectedDate}
+              numberOfMonths={6}
+              captionLayout="dropdown" // quick month/year jumps
+              fromMonth={minMonth}
+              toMonth={maxMonth}
+              modifiers={{ booked: bookedDates }}
+              modifiersClassNames={{
+                booked: "bg-purple-200 text-purple-900 rounded-md font-medium",
+              }}
+              // Exactly 3 months per row; the 6 months render as 2 rows (3 + 3).
+              styles={{
+                months: {
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                  columnGap: "4rem", // ⇦ horizontal spacing
+                  rowGap: "2rem", // ⇦ vertical spacing
+                },
+                month: { padding: "0.5rem" }, // optional padding per month
+              }}
+              className="rounded-lg border bg-white p-4"
+            />
+
+            <div className="mt-3 text-xs text-gray-500">
+              <span className="inline-block h-3 w-3 rounded bg-purple-200 align-middle mr-2" />
+              Booked day
+            </div>
+          </div>
+
+          {/* Details panel */}
           <div className="flex-1 space-y-4">
+            <div className="rounded-lg border bg-gray-50 p-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <h3 className="text-lg font-semibold">
+                  {selectedDate
+                    ? format(selectedDate, "EEEE, MMMM d, yyyy")
+                    : "Select a date"}
+                </h3>
+                <div className="text-sm text-gray-600">
+                  {bookingsForSelectedDate.length} booking
+                  {bookingsForSelectedDate.length === 1 ? "" : "s"}
+                </div>
+              </div>
+            </div>
+
             {bookingsForSelectedDate.length > 0 ? (
               bookingsForSelectedDate.map((booking) => (
                 <Card
                   key={booking.id}
-                  className="overflow-hidden border border-white/10 bg-[#0E172A]/60 backdrop-blur-sm"
+                  className="overflow-hidden border-0 shadow-md"
                 >
-                  <CardHeader className="bg-[#131D31] border-b border-white/10">
-                    <CardTitle className="text-lg text-emerald-300">
+                  <CardHeader className="bg-gray-50">
+                    <CardTitle className="text-lg">
                       {booking.businessName}
                     </CardTitle>
-                    <CardDescription className="text-slate-400">
-                      {formatDate(booking.date)} at {formatTime(booking.time)}
+                    <CardDescription>
+                      {formatDateLong(booking.date)} at{" "}
+                      {formatTime(booking.time)}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-4 space-y-2">
                     {booking.address && (
-                      <div className="flex items-center gap-2 text-sm text-slate-300">
-                        <MapPin className="w-4 h-4 text-slate-400" />{" "}
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <MapPin className="w-4 h-4 text-gray-500" />
                         {booking.address}
                       </div>
                     )}
                     {booking.contactName && (
-                      <div className="flex items-center gap-2 text-sm text-slate-300">
-                        <User className="w-4 h-4 text-slate-400" />{" "}
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <User className="w-4 h-4 text-gray-500" />
                         {booking.contactName}
                       </div>
                     )}
                     {booking.contactPhone && (
-                      <div className="flex items-center gap-2 text-sm text-slate-300">
-                        <Phone className="w-4 h-4 text-slate-400" />{" "}
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Phone className="w-4 h-4 text-gray-500" />
                         {booking.contactPhone}
                       </div>
                     )}
                   </CardContent>
-                  <CardFooter className="border-t border-white/10 bg-[#131D31]">
+                  <CardFooter className="border-t bg-gray-50">
                     <Button
                       className={cn(
-                        "w-full gap-2 text-slate-100",
+                        "w-full gap-2",
                         booking.status === "completed"
-                          ? "bg-emerald-600 hover:bg-emerald-700"
-                          : "bg-cyan-600 hover:bg-cyan-700",
+                          ? "bg-green-600 hover:bg-green-700"
+                          : "bg-purple-600 hover:bg-purple-700",
                       )}
                       onClick={() => handleBookingSelect(booking)}
                     >
@@ -184,7 +265,7 @@ export default function EmbedCalendar() {
                 </Card>
               ))
             ) : (
-              <p className="text-sm text-slate-400">No bookings for this day.</p>
+              <p className="text-sm text-gray-500">No bookings for this day.</p>
             )}
           </div>
         </div>
