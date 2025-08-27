@@ -86,6 +86,10 @@ const BASE_SECTIONS: Section[] = [
         value: "42 / 60 / 80",
       },
       {
+        label: "Avg. price per hour",
+        value: "$1.23",
+      },
+      {
         label: "COGS/hr (storage/CDN/inference/obs)",
         value: "$0.01 / $0.03 / $0.01 / $0.02",
       },
@@ -178,6 +182,10 @@ export default function EmbedDashboard() {
   const today = useFormattedDate("America/New_York");
   const [onboardingCost, setOnboardingCost] = useState("$0.00");
   const [avgOnboardingTime, setAvgOnboardingTime] = useState("N/A");
+  const [onboardingCostNum, setOnboardingCostNum] = useState(0);
+  const [usersSessions, setUsersSessions] = useState({ users: 0, sessions: 0 });
+  const [onboardedCounts, setOnboardedCounts] = useState({ today: 0, lastWeek: 0 });
+  const [plannedCounts, setPlannedCounts] = useState({ today: 0, nextWeek: 0 });
 
   useEffect(() => {
     (async () => {
@@ -246,9 +254,12 @@ export default function EmbedDashboard() {
 
         // Finalize cost
         if (costCount > 0) {
-          setOnboardingCost(`$${(costTotal / costCount).toFixed(2)}`);
+          const avgCost = costTotal / costCount;
+          setOnboardingCost(`$${avgCost.toFixed(2)}`);
+          setOnboardingCostNum(avgCost);
         } else {
           setOnboardingCost("N/A");
+          setOnboardingCostNum(0);
         }
 
         // Finalize time (rounded to nearest minute)
@@ -257,6 +268,52 @@ export default function EmbedDashboard() {
         } else {
           setAvgOnboardingTime("N/A");
         }
+
+        // Sessions and users in last 30 days
+        const sessionsQ = query(
+          collection(db, "sessions"),
+          where("startTime", ">=", Timestamp.fromDate(past30)),
+          where("startTime", "<=", Timestamp.fromDate(now)),
+        );
+        const sessionsSnap = await getDocs(sessionsQ);
+        const userSet = new Set<string>();
+        sessionsSnap.forEach((doc) => {
+          const d = doc.data() as any;
+          if (d?.userId) userSet.add(d.userId);
+        });
+        setUsersSessions({ users: userSet.size, sessions: sessionsSnap.size });
+
+        // Onboarded and planned onboardings
+        const toYMD = (d: Date) => d.toISOString().split("T")[0];
+        const todayStr = toYMD(now);
+        const past7 = toYMD(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000));
+        const next7 = toYMD(new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000));
+        const rangeQ = query(
+          collection(db, "bookings"),
+          where("date", ">=", past7),
+          where("date", "<=", next7),
+        );
+        const rangeSnap = await getDocs(rangeQ);
+        let onboardedToday = 0,
+          onboardedLastWeek = 0,
+          plannedToday = 0,
+          plannedNextWeek = 0;
+        rangeSnap.forEach((doc) => {
+          const d = doc.data() as any;
+          const date = d?.date;
+          const status = (d?.status || "").toLowerCase();
+          if (!date) return;
+          if (date === todayStr) {
+            plannedToday++;
+            if (status !== "pending") onboardedToday++;
+          } else if (date > todayStr && date <= next7) {
+            plannedNextWeek++;
+          } else if (date >= past7 && date < todayStr) {
+            if (status !== "pending") onboardedLastWeek++;
+          }
+        });
+        setOnboardedCounts({ today: onboardedToday, lastWeek: onboardedLastWeek });
+        setPlannedCounts({ today: plannedToday, nextWeek: plannedToday + plannedNextWeek });
       } catch (err) {
         console.error("Error calculating onboarding metrics", err);
       }
@@ -264,6 +321,18 @@ export default function EmbedDashboard() {
   }, []);
 
   const sections = useMemo(() => {
+    const avgPrice = 1.23;
+    const cogsValues = [0.01, 0.03, 0.01, 0.02];
+    const totalCogs = cogsValues.reduce((a, b) => a + b, 0);
+    const grossMargin = ((avgPrice - totalCogs) / avgPrice) * 100;
+    const cacPerVenue = onboardingCostNum;
+    const hoursPerVenueMonth = 64; // average usage
+    const monthlyGrossProfit = (avgPrice - totalCogs) * hoursPerVenueMonth;
+    const cacPayback = monthlyGrossProfit > 0 ? cacPerVenue / monthlyGrossProfit : 0;
+    const cogsStr = cogsValues
+      .map((v) => `$${v.toFixed(2)}`)
+      .join(" / ");
+
     return BASE_SECTIONS.map((section) => {
       return {
         ...section,
@@ -272,14 +341,53 @@ export default function EmbedDashboard() {
             return { ...m, value: onboardingCost };
           }
           if (m.label === "Avg Onboarding Time / Cost") {
-            // Now use the computed average time + the same live cost
             return { ...m, value: `${avgOnboardingTime} / ${onboardingCost}` };
+          }
+          if (m.label === "Users / Sessions (total)") {
+            return {
+              ...m,
+              value: `${usersSessions.users.toLocaleString()} / ${usersSessions.sessions.toLocaleString()}`,
+            };
+          }
+          if (m.label === "Onboarded (today / last week)") {
+            return {
+              ...m,
+              value: `${onboardedCounts.today} / ${onboardedCounts.lastWeek}`,
+            };
+          }
+          if (m.label === "Planned Onboardings (today / next week)") {
+            return {
+              ...m,
+              value: `${plannedCounts.today} / ${plannedCounts.nextWeek}`,
+            };
+          }
+          if (m.label === "Avg. price per hour") {
+            return { ...m, value: `$${avgPrice.toFixed(2)}` };
+          }
+          if (m.label === "Gross Margin") {
+            return { ...m, value: `${grossMargin.toFixed(0)}%` };
+          }
+          if (m.label === "CAC per Venue") {
+            return { ...m, value: `$${cacPerVenue.toFixed(2)}` };
+          }
+          if (m.label === "CAC Payback") {
+            return { ...m, value: `${cacPayback.toFixed(1)} mo` };
+          }
+          if (m.label === "COGS/hr (storage/CDN/inference/obs)") {
+            return { ...m, value: cogsStr };
           }
           return m;
         }),
       };
     });
-  }, [onboardingCost, avgOnboardingTime]);
+  }, [
+    onboardingCost,
+    avgOnboardingTime,
+    usersSessions,
+    onboardedCounts,
+    plannedCounts,
+    onboardingCostNum,
+  ]);
 
   return (
     <div className="min-h-screen bg-[#0B1220] text-slate-100">
