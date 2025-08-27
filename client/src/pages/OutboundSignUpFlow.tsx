@@ -419,6 +419,7 @@ export default function OutboundSignUpFlow() {
           createdAt: serverTimestamp(),
           estimatedSquareFootage,
           estimatedMappingPayout,
+          estimatedMappingTime,
           estimatedDesignPayout,
         });
 
@@ -1422,7 +1423,7 @@ export default function OutboundSignUpFlow() {
               </div>
               <div className="hidden md:flex items-center gap-3 text-slate-300">
                 <Shield className="w-5 h-5 text-emerald-300" />
-                <span className="text-sm">No credit card</span>
+                <span className="text-sm">No credit card required</span>
               </div>
             </div>
           </div>

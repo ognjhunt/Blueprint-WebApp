@@ -535,6 +535,7 @@ export default function OffWaitlistSignUpFlow() {
           createdAt: serverTimestamp(),
           estimatedSquareFootage,
           estimatedMappingPayout,
+          estimatedMappingTime,
           estimatedDesignPayout,
         });
 

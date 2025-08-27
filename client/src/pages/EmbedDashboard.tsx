@@ -173,7 +173,7 @@ const BASE_SECTIONS: Section[] = [
       },
       {
         label: "Onboarding capacity (actual/plan)",
-        value: "5 / 6 per day",
+        value: "5 / 10 per day",
       },
       { label: "Install success rate", value: "96%" },
       {
