@@ -22,6 +22,9 @@ type Section = {
 const ADOPTION_GROWTH_MOM = 0.08; // 8% compounded month-over-month
 const LTV_MONTHS = 25; // keep parity with your prior $615 baseline (20h * $1.23 * 25)
 
+// Niantic SDK MAU pricing (see pricing tiers; modeling $0.10/MAU as requested)
+const NIANTIC_SDK_MAU_COST = 0.1 as const;
+
 function sumSeries(start: number, growth: number, months: number): number {
   if (months <= 0) return 0;
   if (growth <= 0) return start * months;
@@ -139,6 +142,7 @@ const BASE_SECTIONS: Section[] = [
         label: "COGS/hr (storage/CDN/inference/obs)",
         value: "$0.01 / $0.03 / $0.01 / $0.02",
       },
+      { label: "Niantic MAU cost (est.)", value: "$0.00" },
       {
         label: "Contribution margin/venue",
         value: "$1,800",
@@ -238,6 +242,7 @@ export default function EmbedDashboard() {
   const [timeToGoLive, setTimeToGoLive] = useState("N/A");
   const [installSuccessRate, setInstallSuccessRate] = useState("N/A");
   const [medianHours, setMedianHours] = useState(0);
+  const [avgMauPerVenue, setAvgMauPerVenue] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -400,11 +405,18 @@ export default function EmbedDashboard() {
         const sessionsSnap = await getDocs(sessionsQ);
         const userSet = new Set<string>();
         const venueHours: Record<string, number> = {};
+        const venueUserSets: Record<string, Set<string>> = {};
+
         sessionsSnap.forEach((doc) => {
           const d = doc.data() as any;
           if (d?.userId) userSet.add(d.userId);
 
           const venueId = d?.venueId || d?.locationId || d?.spaceId;
+          if (venueId && d?.userId) {
+            if (!venueUserSets[venueId])
+              venueUserSets[venueId] = new Set<string>();
+            venueUserSets[venueId].add(d.userId);
+          }
           if (venueId) {
             const start = d?.startTime?.toDate
               ? d.startTime.toDate()
@@ -431,6 +443,17 @@ export default function EmbedDashboard() {
             }
           }
         });
+        const venueIdsForMau = Object.keys(venueUserSets);
+        let avgMau = 0;
+        if (venueIdsForMau.length > 0) {
+          const totalMau = venueIdsForMau.reduce(
+            (sum, vid) => sum + venueUserSets[vid].size,
+            0,
+          );
+          avgMau = totalMau / venueIdsForMau.length;
+        }
+        setAvgMauPerVenue(avgMau);
+
         setUsersSessions({ users: userSet.size, sessions: sessionsSnap.size });
         const hoursArr = Object.values(venueHours).sort((a, b) => a - b);
         let med = 0;
@@ -537,6 +560,7 @@ export default function EmbedDashboard() {
     // --- display helpers ---
     const cogsStr = cogsValues.map((v) => `$${v.toFixed(2)}`).join(" / ");
     const hoursPerVenueMonth = startHours; // month-1 display value
+    const mauMonthlyCost = NIANTIC_SDK_MAU_COST * Math.max(0, avgMauPerVenue);
 
     return BASE_SECTIONS.map((section) => {
       return {
@@ -615,6 +639,21 @@ export default function EmbedDashboard() {
           if (m.label === "COGS/hr (storage/CDN/inference/obs)") {
             return { ...m, value: cogsStr };
           }
+          if (m.label === "Niantic MAU cost (est.)") {
+            // e.g. "$1.20 (= $0.10 × 12 MAU)"
+            const display = `$${mauMonthlyCost.toFixed(2)} (= $${NIANTIC_SDK_MAU_COST.toFixed(2)} × ${Math.round(Math.max(0, avgMauPerVenue))} MAU)`;
+            return { ...m, value: display };
+          }
+
+          if (m.label === "Contribution margin/venue") {
+            // Contribution = (price/hr − variable COGS/hr) × hours/venue/month − MAU cost/venue/month
+            const contribution = Math.max(
+              0,
+              profitPerHour * hoursPerVenueMonth - mauMonthlyCost,
+            );
+            return { ...m, value: `$${contribution.toFixed(0)}` };
+          }
+
           if (m.label === "Hours/venue/month") {
             return {
               ...m,
