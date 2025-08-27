@@ -99,8 +99,11 @@ export default function EmbedCalendar() {
   };
 
   return (
-    <div className="min-h-screen bg-white p-4 md:p-6">
+    <div className="min-h-screen bg-[#0B1220] p-4 md:p-6 text-slate-100">
       <div className="mx-auto max-w-6xl">
+        <header className="mb-6">
+          <h1 className="text-2xl font-bold">Blueprint Onboarding Calendar</h1>
+        </header>
         <div className="flex flex-col md:flex-row gap-6">
           <CalendarComponent
             mode="single"
@@ -111,50 +114,57 @@ export default function EmbedCalendar() {
             fromMonth={new Date()}
             toMonth={addMonths(new Date(), 1)}
             modifiers={{ booked: bookedDates }}
-            modifiersClassNames={{ booked: "bg-purple-200 text-purple-900" }}
+            modifiersClassNames={{ booked: "bg-emerald-500/20 text-emerald-300" }}
+            className="rounded-lg border border-white/10 bg-[#0E172A]/60 text-slate-100"
+            classNames={{
+              caption_label: "text-slate-100",
+              nav_button: "text-slate-100 hover:bg-[#1a2437]",
+              head_cell: "text-slate-400",
+              day: "text-slate-100 hover:bg-[#1a2437] aria-selected:bg-emerald-600 aria-selected:text-white",
+            }}
           />
           <div className="flex-1 space-y-4">
             {bookingsForSelectedDate.length > 0 ? (
               bookingsForSelectedDate.map((booking) => (
                 <Card
                   key={booking.id}
-                  className="overflow-hidden border-0 shadow-md"
+                  className="overflow-hidden border border-white/10 bg-[#0E172A]/60 backdrop-blur-sm"
                 >
-                  <CardHeader className="bg-gray-50">
-                    <CardTitle className="text-lg">
+                  <CardHeader className="bg-[#131D31] border-b border-white/10">
+                    <CardTitle className="text-lg text-emerald-300">
                       {booking.businessName}
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="text-slate-400">
                       {formatDate(booking.date)} at {formatTime(booking.time)}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-4 space-y-2">
                     {booking.address && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <MapPin className="w-4 h-4 text-gray-500" />{" "}
+                      <div className="flex items-center gap-2 text-sm text-slate-300">
+                        <MapPin className="w-4 h-4 text-slate-400" />{" "}
                         {booking.address}
                       </div>
                     )}
                     {booking.contactName && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <User className="w-4 h-4 text-gray-500" />{" "}
+                      <div className="flex items-center gap-2 text-sm text-slate-300">
+                        <User className="w-4 h-4 text-slate-400" />{" "}
                         {booking.contactName}
                       </div>
                     )}
                     {booking.contactPhone && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Phone className="w-4 h-4 text-gray-500" />{" "}
+                      <div className="flex items-center gap-2 text-sm text-slate-300">
+                        <Phone className="w-4 h-4 text-slate-400" />{" "}
                         {booking.contactPhone}
                       </div>
                     )}
                   </CardContent>
-                  <CardFooter className="border-t bg-gray-50">
+                  <CardFooter className="border-t border-white/10 bg-[#131D31]">
                     <Button
                       className={cn(
-                        "w-full gap-2",
+                        "w-full gap-2 text-slate-100",
                         booking.status === "completed"
-                          ? "bg-green-600 hover:bg-green-700"
-                          : "bg-purple-600 hover:bg-purple-700",
+                          ? "bg-emerald-600 hover:bg-emerald-700"
+                          : "bg-cyan-600 hover:bg-cyan-700",
                       )}
                       onClick={() => handleBookingSelect(booking)}
                     >
@@ -174,7 +184,7 @@ export default function EmbedCalendar() {
                 </Card>
               ))
             ) : (
-              <p className="text-sm text-gray-500">No bookings for this day.</p>
+              <p className="text-sm text-slate-400">No bookings for this day.</p>
             )}
           </div>
         </div>
