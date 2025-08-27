@@ -74,8 +74,10 @@ const BASE_SECTIONS: Section[] = [
       { label: "Gross Margin", value: "88%" },
       { label: "CAC per Venue", value: "$42" },
       { label: "CAC Payback", value: "9 mo" },
-      { label: "LTV", value: "$9,500" },
-      { label: "LTV : CAC", value: "30.2x" },
+      { label: "Onboarding Payback", value: "0 mo" },
+      { label: "Venue Breakeven", value: "0 mo" },
+      { label: "LTV", value: "$0" },
+      { label: "LTV : CAC", value: "0x" },
       { label: "Burn Multiple", value: "1.9" },
       {
         label: "Price/hr realized vs list",
@@ -141,7 +143,7 @@ const BASE_SECTIONS: Section[] = [
         value: "320 / 140",
       },
       { label: "Minutes per session", value: "12" },
-      { label: "Hours/venue/month", value: "64" },
+      { label: "Hours/venue/month", value: "0" },
       { label: "QR funnel completion", value: "45%" },
       { label: "Wearer participation", value: "70%" },
       { label: "Staff-triggered activation", value: "55%" },
@@ -191,6 +193,7 @@ export default function EmbedDashboard() {
   const [plannedCounts, setPlannedCounts] = useState({ today: 0, nextWeek: 0 });
   const [timeToGoLive, setTimeToGoLive] = useState("N/A");
   const [installSuccessRate, setInstallSuccessRate] = useState("N/A");
+  const [medianHours, setMedianHours] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -337,11 +340,49 @@ export default function EmbedDashboard() {
         );
         const sessionsSnap = await getDocs(sessionsQ);
         const userSet = new Set<string>();
+        const venueHours: Record<string, number> = {};
         sessionsSnap.forEach((doc) => {
           const d = doc.data() as any;
           if (d?.userId) userSet.add(d.userId);
+
+          const venueId = d?.venueId || d?.locationId || d?.spaceId;
+          if (venueId) {
+            const start = d?.startTime?.toDate
+              ? d.startTime.toDate()
+              : d?.startTime
+              ? new Date(d.startTime)
+              : null;
+            const end = d?.endTime?.toDate
+              ? d.endTime.toDate()
+              : d?.endTime
+              ? new Date(d.endTime)
+              : null;
+            let hrs = 0;
+            if (start && end) {
+              hrs = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+            } else if (typeof d?.duration === "number") {
+              hrs = d.duration / 60;
+            } else if (typeof d?.durationMinutes === "number") {
+              hrs = d.durationMinutes / 60;
+            } else if (typeof d?.durationSeconds === "number") {
+              hrs = d.durationSeconds / 3600;
+            }
+            if (Number.isFinite(hrs) && hrs > 0) {
+              venueHours[venueId] = (venueHours[venueId] || 0) + hrs;
+            }
+          }
         });
         setUsersSessions({ users: userSet.size, sessions: sessionsSnap.size });
+        const hoursArr = Object.values(venueHours).sort((a, b) => a - b);
+        let med = 0;
+        if (hoursArr.length > 0) {
+          const mid = Math.floor(hoursArr.length / 2);
+          med =
+            hoursArr.length % 2 !== 0
+              ? hoursArr[mid]
+              : (hoursArr[mid - 1] + hoursArr[mid]) / 2;
+        }
+        setMedianHours(med);
 
         // Onboarded and planned onboardings
         const toYMD = (d: Date) => d.toISOString().split("T")[0];
@@ -392,10 +433,16 @@ export default function EmbedDashboard() {
     const totalCogs = cogsValues.reduce((a, b) => a + b, 0);
     const grossMargin = ((avgPrice - totalCogs) / avgPrice) * 100;
     const cacPerVenue = onboardingCostNum / 19;
-    const hoursPerVenueMonth = 64; // average usage
+    const hoursPerVenueMonth = medianHours;
+    const monthlyRevenue = hoursPerVenueMonth * avgPrice;
     const monthlyGrossProfit = (avgPrice - totalCogs) * hoursPerVenueMonth;
     const cacPayback =
       monthlyGrossProfit > 0 ? cacPerVenue / monthlyGrossProfit : 0;
+    const ltv = monthlyRevenue * 30;
+    const ltvCac = cacPerVenue > 0 ? ltv / cacPerVenue : 0;
+    const onboardingPayback =
+      monthlyGrossProfit > 0 ? onboardingCostNum / monthlyGrossProfit : 0;
+    const venueBreakeven = onboardingPayback + cacPayback;
     const cogsStr = cogsValues.map((v) => `$${v.toFixed(2)}`).join(" / ");
 
     return BASE_SECTIONS.map((section) => {
@@ -444,8 +491,44 @@ export default function EmbedDashboard() {
           if (m.label === "CAC Payback") {
             return { ...m, value: `${cacPayback.toFixed(1)} mo` };
           }
+          if (m.label === "Onboarding Payback") {
+            return {
+              ...m,
+              value:
+                onboardingPayback > 0
+                  ? `${onboardingPayback.toFixed(1)} mo`
+                  : "N/A",
+            };
+          }
+          if (m.label === "Venue Breakeven") {
+            return {
+              ...m,
+              value:
+                venueBreakeven > 0
+                  ? `${venueBreakeven.toFixed(1)} mo`
+                  : "N/A",
+            };
+          }
+          if (m.label === "LTV") {
+            return {
+              ...m,
+              value: ltv > 0 ? `$${ltv.toFixed(0)}` : "N/A",
+            };
+          }
+          if (m.label === "LTV : CAC") {
+            return {
+              ...m,
+              value: ltvCac > 0 ? `${ltvCac.toFixed(1)}x` : "N/A",
+            };
+          }
           if (m.label === "COGS/hr (storage/CDN/inference/obs)") {
             return { ...m, value: cogsStr };
+          }
+          if (m.label === "Hours/venue/month") {
+            return {
+              ...m,
+              value: hoursPerVenueMonth > 0 ? hoursPerVenueMonth.toFixed(0) : "0",
+            };
           }
           return m;
         }),
@@ -460,6 +543,7 @@ export default function EmbedDashboard() {
     onboardingCostNum,
     timeToGoLive,
     installSuccessRate,
+    medianHours,
   ]);
 
   return (
