@@ -243,6 +243,15 @@ export default function OffWaitlistSignUpFlow() {
         // Create a unique blueprintId that will be used later when uploading files
         const blueprintId = crypto.randomUUID();
 
+        // Calculate estimated payouts
+        const estimatedSquareFootage = squareFootage ?? 0;
+        const estimatedMappingPayout = parseFloat(
+          (estimatedSquareFootage / 60).toFixed(2),
+        );
+        const estimatedDesignPayout = parseFloat(
+          (estimatedSquareFootage / 80).toFixed(2),
+        );
+
         // Create a more comprehensive booking record
         await setDoc(doc(db, "bookings", bookingId), {
           id: bookingId,
@@ -257,6 +266,9 @@ export default function OffWaitlistSignUpFlow() {
           status: "pending",
           blueprintId: blueprintId, // Add the blueprint ID for reference
           createdAt: serverTimestamp(),
+          estimatedSquareFootage,
+          estimatedMappingPayout,
+          estimatedDesignPayout,
         });
 
         // Also create a placeholder blueprint document that will be updated later with scan files
