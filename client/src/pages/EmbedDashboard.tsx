@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
 
 type Metric = {
   label: string;
@@ -32,7 +34,7 @@ function useFormattedDate(
   return today;
 }
 
-const sections: Section[] = [
+const BASE_SECTIONS: Section[] = [
   {
     title: "Daily Pulse",
     metrics: [
@@ -107,7 +109,7 @@ const sections: Section[] = [
       },
       {
         label: "Cost to onboard/venue",
-        value: "$190",
+        value: "$0.00",
       },
       {
         label: "Onboarding capacity (actual/plan)",
@@ -168,6 +170,47 @@ const sections: Section[] = [
 
 export default function EmbedDashboard() {
   const today = useFormattedDate("America/New_York");
+  const [onboardingCost, setOnboardingCost] = useState("$0.00");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const now = new Date();
+        const past30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const q = query(
+          collection(db, "bookings"),
+          where("createdAt", ">=", Timestamp.fromDate(past30)),
+        );
+        const snap = await getDocs(q);
+        let total = 0;
+        let count = 0;
+        snap.forEach((doc) => {
+          const d = doc.data() as any;
+          const design = Number(d.estimatedDesignPayout) || 0;
+          const mapping = Number(d.estimatedMappingPayout) || 0;
+          total += design + mapping + 25; // 15 + 10 additional costs
+          count++;
+        });
+        if (count > 0) {
+          setOnboardingCost(`$${(total / count).toFixed(2)}`);
+        }
+      } catch (err) {
+        console.error("Error calculating onboarding cost", err);
+      }
+    })();
+  }, []);
+
+  const sections = useMemo(() => {
+    return BASE_SECTIONS.map((section) => {
+      if (section.title !== "Onboarding & Ops") return section;
+      return {
+        ...section,
+        metrics: section.metrics.map((m) =>
+          m.label === "Cost to onboard/venue" ? { ...m, value: onboardingCost } : m,
+        ),
+      };
+    });
+  }, [onboardingCost]);
 
   return (
     <div className="min-h-screen bg-[#0B1220] text-slate-100">
