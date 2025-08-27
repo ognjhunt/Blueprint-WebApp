@@ -266,8 +266,18 @@ export default function EmbedDashboard() {
 
         // Go-live timing and install success rate
         const goLiveDiffs: number[] = [];
-        let completed = 0;
-        let nonPending = 0;
+        let pastDemos = 0;
+        let pastDemosCompleted = 0;
+
+        const toLocalDateTime = (
+          dateStr?: string,
+          timeStr?: string,
+        ): Date | null => {
+          if (!dateStr || !timeStr) return null; // require both per your rule
+          // Expect "YYYY-MM-DD" and "HH:mm". Build a local Date.
+          const dt = new Date(`${dateStr}T${timeStr}:00`);
+          return Number.isFinite(dt.getTime()) ? dt : null;
+        };
 
         snap.forEach((doc) => {
           const toMinutes = (x: unknown): number | null => {
@@ -323,11 +333,16 @@ export default function EmbedDashboard() {
             }
           }
 
-          // ----- INSTALL SUCCESS RATE -----
-          const status = (d?.status || "").toLowerCase();
-          if (status && status !== "pending") {
-            nonPending++;
-            if (status === "completed") completed++;
+          // ----- INSTALL SUCCESS RATE (only bookings whose demo date+time is in the past) -----
+          const demoDT = toLocalDateTime(
+            d?.demoScheduleDate,
+            d?.demoScheduleTime,
+          );
+          if (demoDT && demoDT <= now) {
+            pastDemos++;
+            if ((d?.status || "").toLowerCase() === "completed") {
+              pastDemosCompleted++;
+            }
           }
         });
 
@@ -351,10 +366,10 @@ export default function EmbedDashboard() {
           setTimeToGoLive("N/A");
         }
 
-        // Finalize install success rate
-        if (nonPending > 0) {
-          const rate = (completed / nonPending) * 100;
-          setInstallSuccessRate(`${rate.toFixed(0)}%`);
+        // Finalize install success rate (completed / all past-due demos)
+        if (pastDemos > 0) {
+          const rate = (pastDemosCompleted / pastDemos) * 100;
+          setInstallSuccessRate(`${Math.round(rate)}%`);
         } else {
           setInstallSuccessRate("N/A");
         }
