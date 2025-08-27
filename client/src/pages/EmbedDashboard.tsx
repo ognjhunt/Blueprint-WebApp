@@ -391,7 +391,7 @@ export default function EmbedDashboard() {
     const cogsValues = [0.01, 0.03, 0.01, 0.02];
     const totalCogs = cogsValues.reduce((a, b) => a + b, 0);
     const grossMargin = ((avgPrice - totalCogs) / avgPrice) * 100;
-    const cacPerVenue = onboardingCostNum;
+    const cacPerVenue = onboardingCostNum / 19;
     const hoursPerVenueMonth = 64; // average usage
     const monthlyGrossProfit = (avgPrice - totalCogs) * hoursPerVenueMonth;
     const cacPayback =
