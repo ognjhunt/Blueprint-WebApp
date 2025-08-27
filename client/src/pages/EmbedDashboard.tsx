@@ -36,7 +36,7 @@ const sections: Section[] = [
   {
     title: "Daily Pulse",
     metrics: [
-      { label: "Avg CAC", value: "$8 + 10 mins of meeting time"},
+      { label: "Avg CAC", value: "$6.72 + 10 mins of meeting time"},
       { label: "Retention / Churn", value: "96% / 4%" },
       {
         label: "Avg Onboarding Time / Cost",
@@ -170,29 +170,50 @@ export default function EmbedDashboard() {
   const today = useFormattedDate("America/New_York");
 
   return (
-    <div className="min-h-screen bg-white p-4 md:p-8 text-slate-800">
-      <header className="mb-6 flex flex-col items-center gap-1 md:flex-row md:items-end md:justify-between">
-        <h1 className="text-2xl font-bold text-center md:text-left">
-          Blueprint Metrics Dashboard
-        </h1>
-        <div className="text-sm text-slate-500">{today}</div>
-      </header>
-      {sections.map((section) => (
-        <div key={section.title} className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">{section.title}</h2>
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {section.metrics.map((m) => (
-              <div
-                key={m.label}
-                className="rounded-lg border bg-slate-50 p-4 shadow-sm"
-              >
-                <div className="text-sm text-slate-500">{m.label}</div>
-                <div className="text-2xl font-semibold">{m.value}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
+    <div className="min-h-screen bg-[#0B1220] text-slate-100">
+      {/* Decorative background */}
+      <div className="pointer-events-none fixed inset-0 -z-10 opacity-30">
+        <div className="absolute top-24 left-10 w-80 h-80 bg-gradient-to-r from-cyan-300 to-emerald-300 rounded-full blur-3xl" />
+        <div className="absolute bottom-10 right-10 w-80 h-80 bg-gradient-to-r from-blue-300 to-teal-300 rounded-full blur-3xl" />
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {/* Header */}
+        <header className="mb-8 flex flex-col items-center gap-2 md:flex-row md:items-end md:justify-between">
+          <h1 className="text-center md:text-left text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">
+            Blueprint Metrics Dashboard
+          </h1>
+          <div className="text-sm text-slate-400">{today}</div>
+        </header>
+
+        {/* Sections */}
+        {sections.map((section) => (
+          <section key={section.title} className="mb-10">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-slate-200">
+                {section.title}
+              </h2>
+              <div className="h-px flex-1 ml-4 bg-gradient-to-r from-white/10 to-transparent" />
+            </div>
+
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+              {section.metrics.map((m) => (
+                <div
+                  key={m.label}
+                  className="rounded-2xl border border-white/10 bg-white/[0.06] backdrop-blur-sm p-4 shadow-2xl transition-colors hover:bg-white/[0.08]"
+                >
+                  <div className="text-[11px] uppercase tracking-wide text-slate-400">
+                    {m.label}
+                  </div>
+                  <div className="mt-1 text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">
+                    {m.value}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
     </div>
   );
 }
