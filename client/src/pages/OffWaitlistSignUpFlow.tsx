@@ -507,6 +507,14 @@ export default function OffWaitlistSignUpFlow() {
         const bookingId = `${bookingDate}_${scheduleTime}`;
         const blueprintId = crypto.randomUUID();
 
+        const estimatedSquareFootage = squareFootage ?? 0;
+        const estimatedMappingPayout = parseFloat(
+          (estimatedSquareFootage / 60).toFixed(2),
+        );
+        const estimatedDesignPayout = parseFloat(
+          (estimatedSquareFootage / 80).toFixed(2),
+        );
+
         await setDoc(doc(db, "bookings", bookingId), {
           id: bookingId,
           date: bookingDate,
@@ -522,6 +530,9 @@ export default function OffWaitlistSignUpFlow() {
           demoScheduleDate: demoDate.toISOString().split("T")[0],
           demoScheduleTime: demoTime,
           createdAt: serverTimestamp(),
+          estimatedSquareFootage,
+          estimatedMappingPayout,
+          estimatedDesignPayout,
         });
 
         await setDoc(doc(db, "blueprints", blueprintId), {

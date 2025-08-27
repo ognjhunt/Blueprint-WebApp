@@ -389,6 +389,15 @@ export default function OutboundSignUpFlow() {
         const bookingId = `${bookingDate}_${scheduleTime}`;
         const blueprintId = crypto.randomUUID();
 
+        // Estimated payouts
+        const estimatedSquareFootage = squareFootage ?? 0;
+        const estimatedMappingPayout = parseFloat(
+          (estimatedSquareFootage / 60).toFixed(2),
+        );
+        const estimatedDesignPayout = parseFloat(
+          (estimatedSquareFootage / 80).toFixed(2),
+        );
+
         // Mapping booking
         await setDoc(doc(db, "bookings", bookingId), {
           id: bookingId,
@@ -405,6 +414,9 @@ export default function OutboundSignUpFlow() {
           demoScheduleDate: demoDate.toISOString().split("T")[0],
           demoScheduleTime: demoTime,
           createdAt: serverTimestamp(),
+          estimatedSquareFootage,
+          estimatedMappingPayout,
+          estimatedDesignPayout,
         });
 
         // Blueprint placeholder
