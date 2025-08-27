@@ -184,7 +184,10 @@ export default function EmbedDashboard() {
   const [avgOnboardingTime, setAvgOnboardingTime] = useState("N/A");
   const [onboardingCostNum, setOnboardingCostNum] = useState(0);
   const [usersSessions, setUsersSessions] = useState({ users: 0, sessions: 0 });
-  const [onboardedCounts, setOnboardedCounts] = useState({ today: 0, lastWeek: 0 });
+  const [onboardedCounts, setOnboardedCounts] = useState({
+    today: 0,
+    lastWeek: 0,
+  });
   const [plannedCounts, setPlannedCounts] = useState({ today: 0, nextWeek: 0 });
   const [timeToGoLive, setTimeToGoLive] = useState("N/A");
   const [installSuccessRate, setInstallSuccessRate] = useState("N/A");
@@ -214,12 +217,10 @@ export default function EmbedDashboard() {
         let minsTotal = 0;
         let minsCount = 0;
 
-        // Go-live time aggregation (days)
+        // Go-live timing and install success rate
         const goLiveDiffs: number[] = [];
-
-        // Install success rate counts
-        let completedCount = 0;
-        let nonPendingCount = 0;
+        let completed = 0;
+        let nonPending = 0;
 
         snap.forEach((doc) => {
           const toMinutes = (x: unknown): number | null => {
@@ -234,26 +235,6 @@ export default function EmbedDashboard() {
           };
 
           const d = doc.data() as any;
-
-          // ----- INSTALL SUCCESS RATE -----
-          const status = (d?.status || "").toLowerCase();
-          if (status && status !== "pending") {
-            nonPendingCount++;
-            if (status === "completed") completedCount++;
-          }
-
-          // ----- GO-LIVE TIME (createdAt -> demo date) -----
-          const createdAt = d?.createdAt?.toDate ? d.createdAt.toDate() : null;
-          const demoRaw = d?.demoDate ?? d?.date;
-          if (createdAt && demoRaw) {
-            const demoDate =
-              demoRaw instanceof Timestamp ? demoRaw.toDate() : new Date(demoRaw);
-            const diff =
-              (demoDate.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
-            if (Number.isFinite(diff) && diff >= 0) {
-              goLiveDiffs.push(diff);
-            }
-          }
 
           // ----- COST (skip docs without BOTH fields or non-numeric) -----
           const designRaw = d?.estimatedDesignPayout;
@@ -279,22 +260,54 @@ export default function EmbedDashboard() {
             minsTotal += mt;
             minsCount++;
           }
+
+          // ----- GO-LIVE TIME (createdAt to demoScheduleDate) -----
+          const createdAt: Date | null = d?.createdAt?.toDate
+            ? d.createdAt.toDate()
+            : null;
+          const demoDateStr: string | undefined = d?.demoScheduleDate;
+          if (createdAt && demoDateStr) {
+            const demoDate = new Date(demoDateStr);
+            const diff =
+              (demoDate.getTime() - createdAt.getTime()) /
+              (1000 * 60 * 60 * 24);
+            if (Number.isFinite(diff) && diff >= 0) {
+              goLiveDiffs.push(diff);
+            }
+          }
+
+          // ----- INSTALL SUCCESS RATE -----
+          const status = (d?.status || "").toLowerCase();
+          if (status && status !== "pending") {
+            nonPending++;
+            if (status === "completed") completed++;
+          }
         });
 
         // Finalize go-live time (median / p90)
         if (goLiveDiffs.length > 0) {
           goLiveDiffs.sort((a, b) => a - b);
-          const median = goLiveDiffs[Math.floor(goLiveDiffs.length / 2)];
-          const p90 = goLiveDiffs[Math.floor(0.9 * (goLiveDiffs.length - 1))];
+          const mid = Math.floor(goLiveDiffs.length / 2);
+          const median =
+            goLiveDiffs.length % 2 !== 0
+              ? goLiveDiffs[mid]
+              : (goLiveDiffs[mid - 1] + goLiveDiffs[mid]) / 2;
+          const p90 =
+            goLiveDiffs[
+              Math.min(
+                Math.ceil(0.9 * goLiveDiffs.length) - 1,
+                goLiveDiffs.length - 1,
+              )
+            ];
           setTimeToGoLive(`${Math.round(median)}d / ${Math.round(p90)}d`);
         } else {
           setTimeToGoLive("N/A");
         }
 
         // Finalize install success rate
-        if (nonPendingCount > 0) {
-          const rate = (completedCount / nonPendingCount) * 100;
-          setInstallSuccessRate(`${Math.round(rate)}%`);
+        if (nonPending > 0) {
+          const rate = (completed / nonPending) * 100;
+          setInstallSuccessRate(`${rate.toFixed(0)}%`);
         } else {
           setInstallSuccessRate("N/A");
         }
@@ -359,8 +372,14 @@ export default function EmbedDashboard() {
             if (status !== "pending") onboardedLastWeek++;
           }
         });
-        setOnboardedCounts({ today: onboardedToday, lastWeek: onboardedLastWeek });
-        setPlannedCounts({ today: plannedToday, nextWeek: plannedToday + plannedNextWeek });
+        setOnboardedCounts({
+          today: onboardedToday,
+          lastWeek: onboardedLastWeek,
+        });
+        setPlannedCounts({
+          today: plannedToday,
+          nextWeek: plannedToday + plannedNextWeek,
+        });
       } catch (err) {
         console.error("Error calculating onboarding metrics", err);
       }
@@ -375,10 +394,9 @@ export default function EmbedDashboard() {
     const cacPerVenue = onboardingCostNum;
     const hoursPerVenueMonth = 64; // average usage
     const monthlyGrossProfit = (avgPrice - totalCogs) * hoursPerVenueMonth;
-    const cacPayback = monthlyGrossProfit > 0 ? cacPerVenue / monthlyGrossProfit : 0;
-    const cogsStr = cogsValues
-      .map((v) => `$${v.toFixed(2)}`)
-      .join(" / ");
+    const cacPayback =
+      monthlyGrossProfit > 0 ? cacPerVenue / monthlyGrossProfit : 0;
+    const cogsStr = cogsValues.map((v) => `$${v.toFixed(2)}`).join(" / ");
 
     return BASE_SECTIONS.map((section) => {
       return {
