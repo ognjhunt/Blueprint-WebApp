@@ -128,10 +128,6 @@ const BASE_SECTIONS: Section[] = [
       { label: "LTV : CAC", value: "0x" },
       { label: "Burn Multiple", value: "1.9" },
       {
-        label: "Price/hr realized vs list",
-        value: "$95 / $100",
-      },
-      {
         label: "Hours/venue/month (p50/p75/p90)",
         value: "20 / 28 / 34",
       },
@@ -300,7 +296,7 @@ export default function EmbedDashboard() {
             const design = Number(designRaw);
             const mapping = Number(mappingRaw);
             if (Number.isFinite(design) && Number.isFinite(mapping)) {
-              costTotal += design + mapping + 25; // 15 + 10 additional costs
+              costTotal += design + mapping + 85; // 75 (qr placards) + 10 (random costs) additional costs
               costCount++;
             }
           }
