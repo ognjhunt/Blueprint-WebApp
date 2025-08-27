@@ -133,7 +133,7 @@ const BASE_SECTIONS: Section[] = [
       },
       {
         label: "Hours/venue/month (p50/p75/p90)",
-        value: "12 / 20 / 34",
+        value: "20 / 28 / 34",
       },
       {
         label: "Avg. price per hour",
@@ -190,7 +190,7 @@ const BASE_SECTIONS: Section[] = [
         label: "Sessions / Users per venue (monthly)",
         value: "320 / 140",
       },
-      { label: "Minutes per session", value: "12" },
+      { label: "Minutes per session", value: "26" },
       { label: "Hours/venue/month", value: "0" },
       { label: "QR funnel completion", value: "45%" },
       { label: "Wearer participation", value: "70%" },
@@ -306,7 +306,7 @@ export default function EmbedDashboard() {
           }
 
           // ----- TIME (look for any plausible minutes field; skip if missing/invalid) -----
-          const mt = 50; // toMinutes(d?.estimatedMappingTime);
+          const mt = toMinutes(d?.estimatedMappingTime); //50;
           if (mt !== null) {
             minsTotal += mt;
             minsCount++;
