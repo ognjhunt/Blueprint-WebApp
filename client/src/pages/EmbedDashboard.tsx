@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -6,6 +8,9 @@ import {
   query,
   where,
   Timestamp,
+  doc,
+  getDoc,
+  setDoc,
 } from "firebase/firestore";
 
 type Metric = {
@@ -229,7 +234,29 @@ const BASE_SECTIONS: Section[] = [
 ];
 
 export default function EmbedDashboard() {
-  const today = useFormattedDate("America/New_York");
+  const todayDisplay = useFormattedDate("America/New_York");
+  const todayId = useMemo(() => {
+    const d = new Date();
+    return d.toISOString().slice(0, 10);
+  }, [todayDisplay]);
+  const [selectedDateObj, setSelectedDateObj] = useState<Date>(new Date());
+  const selectedDate = useMemo(
+    () => selectedDateObj.toISOString().slice(0, 10),
+    [selectedDateObj],
+  );
+  const [snapshotDates, setSnapshotDates] = useState<string[]>([]);
+  const [snapshotSections, setSnapshotSections] = useState<Section[] | null>(
+    null,
+  );
+  const allDates = useMemo(() => {
+    const set = new Set([todayId, ...snapshotDates]);
+    return Array.from(set).sort((a, b) => b.localeCompare(a));
+  }, [snapshotDates, todayId]);
+  const availableDates = useMemo(
+    () => allDates.map((d) => new Date(d)),
+    [allDates],
+  );
+
   const [onboardingCost, setOnboardingCost] = useState("$0.00");
   const [avgOnboardingTime, setAvgOnboardingTime] = useState("N/A");
   const [onboardingCostNum, setOnboardingCostNum] = useState(0);
@@ -243,6 +270,23 @@ export default function EmbedDashboard() {
   const [installSuccessRate, setInstallSuccessRate] = useState("N/A");
   const [medianHours, setMedianHours] = useState(0);
   const [avgMauPerVenue, setAvgMauPerVenue] = useState(0);
+
+  useEffect(() => {
+    const fetchDates = async () => {
+      try {
+        const snap = await getDocs(collection(db, "dashboardSnapshots"));
+        const dates = snap.docs.map((d) => d.id);
+        setSnapshotDates(dates);
+      } catch (e) {
+        console.error("Failed to fetch snapshot dates", e);
+      }
+    };
+    fetchDates();
+  }, []);
+
+  useEffect(() => {
+    setSelectedDateObj(new Date(todayId));
+  }, [todayId]);
 
   useEffect(() => {
     (async () => {
@@ -509,6 +553,26 @@ export default function EmbedDashboard() {
     })();
   }, []);
 
+  useEffect(() => {
+    if (selectedDate === todayId) {
+      setSnapshotSections(null);
+      return;
+    }
+    (async () => {
+      try {
+        const ref = doc(db, "dashboardSnapshots", selectedDate);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+          setSnapshotSections(snap.data().sections as Section[]);
+        } else {
+          setSnapshotSections([]);
+        }
+      } catch (e) {
+        console.error("Failed to load dashboard snapshot", e);
+      }
+    })();
+  }, [selectedDate, todayId]);
+
   const sections = useMemo(() => {
     // --- pricing & COGS ---
     const avgPrice = 1.23;
@@ -688,6 +752,27 @@ export default function EmbedDashboard() {
     medianHours,
   ]);
 
+  useEffect(() => {
+    if (selectedDate !== todayId) return;
+    (async () => {
+      try {
+        const ref = doc(db, "dashboardSnapshots", todayId);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) {
+          await setDoc(ref, { sections, createdAt: Timestamp.now() });
+          setSnapshotDates((prev) =>
+            prev.includes(todayId) ? prev : [...prev, todayId],
+          );
+        }
+      } catch (e) {
+        console.error("Failed to save dashboard snapshot", e);
+      }
+    })();
+  }, [sections, todayId, selectedDate]);
+
+  const displaySections =
+    selectedDate === todayId ? sections : snapshotSections || [];
+
   return (
     <div className="min-h-screen bg-[#0B1220] text-slate-100">
       {/* Decorative background */}
@@ -698,40 +783,52 @@ export default function EmbedDashboard() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Header */}
-        <header className="mb-8 flex flex-col items-center gap-2 md:flex-row md:items-end md:justify-between">
+        <header className="mb-8 flex flex-col items-center gap-4 md:flex-row md:items-end md:justify-between">
           <h1 className="text-center md:text-left text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">
             Blueprint Metrics Dashboard (last 30 days)
           </h1>
-          <div className="text-sm text-slate-400">{today}</div>
+          <DatePicker
+            selected={selectedDateObj}
+            onChange={(date: Date | null) => date && setSelectedDateObj(date)}
+            includeDates={availableDates}
+            dateFormat="MMMM d, yyyy"
+            className="rounded-md bg-white/[0.06] px-2 py-1 text-sm text-slate-200 focus:outline-none"
+          />
         </header>
 
         {/* Sections */}
-        {sections.map((section) => (
-          <section key={section.title} className="mb-10">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-slate-200">
-                {section.title}
-              </h2>
-              <div className="h-px flex-1 ml-4 bg-gradient-to-r from-white/10 to-transparent" />
-            </div>
+        {displaySections.length === 0 ? (
+          <div className="text-center text-slate-400">
+            No snapshot available for this date.
+          </div>
+        ) : (
+          displaySections.map((section) => (
+            <section key={section.title} className="mb-10">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-slate-200">
+                  {section.title}
+                </h2>
+                <div className="h-px flex-1 ml-4 bg-gradient-to-r from-white/10 to-transparent" />
+              </div>
 
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-              {section.metrics.map((m) => (
-                <div
-                  key={m.label}
-                  className="rounded-2xl border border-white/10 bg-white/[0.06] backdrop-blur-sm p-4 shadow-2xl transition-colors hover:bg-white/[0.08]"
-                >
-                  <div className="text-[11px] uppercase tracking-wide text-slate-400">
-                    {m.label}
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                {section.metrics.map((m) => (
+                  <div
+                    key={m.label}
+                    className="rounded-2xl border border-white/10 bg-white/[0.06] backdrop-blur-sm p-4 shadow-2xl transition-colors hover:bg-white/[0.08]"
+                  >
+                    <div className="text-[11px] uppercase tracking-wide text-slate-400">
+                      {m.label}
+                    </div>
+                    <div className="mt-1 text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">
+                      {m.value}
+                    </div>
                   </div>
-                  <div className="mt-1 text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">
-                    {m.value}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        ))}
+                ))}
+              </div>
+            </section>
+          ))
+        )}
       </div>
     </div>
   );
