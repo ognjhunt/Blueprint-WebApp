@@ -110,11 +110,11 @@ const BASE_SECTIONS: Section[] = [
         value: "1,200 / 4,300",
       },
       {
-        label: "Onboarded (today / last week)",
+        label: "Onboarded (today / last 7 days)",
         value: "3 / 21",
       },
       {
-        label: "Planned Onboardings (today / next week)",
+        label: "Planned Onboardings (today / next 7 days)",
         value: "5 / 35",
       },
     ],
@@ -562,6 +562,15 @@ export default function EmbedDashboard() {
     const hoursPerVenueMonth = startHours; // month-1 display value
     const mauMonthlyCost = NIANTIC_SDK_MAU_COST * Math.max(0, avgMauPerVenue);
 
+    // Gross margin (monthly) including MAU: (Rev − (per-hour COGS × hours + MAU fee)) / Rev
+    const monthlyRevenue = avgPrice * hoursPerVenueMonth;
+    const monthlyVariableCosts =
+      totalCogs * hoursPerVenueMonth + mauMonthlyCost;
+    const grossMarginInclMau =
+      monthlyRevenue > 0
+        ? ((monthlyRevenue - monthlyVariableCosts) / monthlyRevenue) * 100
+        : 0;
+
     return BASE_SECTIONS.map((section) => {
       return {
         ...section,
@@ -578,13 +587,13 @@ export default function EmbedDashboard() {
               value: `${usersSessions.users.toLocaleString()} / ${usersSessions.sessions.toLocaleString()}`,
             };
           }
-          if (m.label === "Onboarded (today / last week)") {
+          if (m.label === "Onboarded (today / last 7 days)") {
             return {
               ...m,
               value: `${onboardedCounts.today} / ${onboardedCounts.lastWeek}`,
             };
           }
-          if (m.label === "Planned Onboardings (today / next week)") {
+          if (m.label === "Planned Onboardings (today / next 7 days)") {
             return {
               ...m,
               value: `${plannedCounts.today} / ${plannedCounts.nextWeek}`,
@@ -600,8 +609,10 @@ export default function EmbedDashboard() {
             return { ...m, value: `$${avgPrice.toFixed(2)}` };
           }
           if (m.label === "Gross Margin") {
-            return { ...m, value: `${grossMargin.toFixed(0)}%` };
+            // Includes MAU fee as a monthly variable cost
+            return { ...m, value: `${grossMarginInclMau.toFixed(0)}%` };
           }
+
           if (m.label === "CAC per Venue") {
             return { ...m, value: `$${cacPerVenue.toFixed(2)}` };
           }
