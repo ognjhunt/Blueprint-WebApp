@@ -417,7 +417,7 @@ const ThreeViewer = React.memo(
     // const textAnchorsRef = useRef<Map<string, THREE.Object3D>>(new Map());
     const textAnchorsRef = useRef<Map<string, CSS3DObject>>(new Map());
     const fileAnchorsRef = useRef<Map<string, THREE.Object3D>>(new Map());
-    const raycasterRef = useRef<THREE.Raycaster>(new THREE.Raycaster());
+    const raycasterRef = useRef<THREE.Raycaster>(new THREE.Raycaster()); //check
     const clickMarkerRef = useRef<THREE.Mesh | null>(null);
     const dragCircleRef = useRef<THREE.Mesh | null>(null);
     const sceneRef = useRef<THREE.Scene | null>(null);
@@ -5236,7 +5236,9 @@ const ThreeViewer = React.memo(
               )!;
               sceneRef.current.remove(oldMarker);
               oldMarker.geometry.dispose();
-              const oldMat = oldMarker.material as THREE.Material | THREE.Material[];
+              const oldMat = oldMarker.material as
+                | THREE.Material
+                | THREE.Material[];
               if (Array.isArray(oldMat)) {
                 oldMat.forEach((m) => m.dispose());
               } else {
