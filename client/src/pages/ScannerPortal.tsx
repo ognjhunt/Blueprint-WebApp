@@ -2115,6 +2115,7 @@ export default function ScannerPortal() {
                   modelPath={blueprint3DModelUrl}
                   activeLabel={activeLabel}
                   awaiting3D={awaiting3D}
+                  referencePoints3D={referencePoints3D}
                   setReferencePoints3D={setReferencePoints3D}
                   setAwaiting3D={setAwaiting3D}
                   setActiveLabel={setActiveLabel}

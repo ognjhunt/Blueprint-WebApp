@@ -157,6 +157,7 @@ interface ThreeViewerProps {
   setReferencePoints3D?: React.Dispatch<React.SetStateAction<ReferencePoint[]>>;
   setAwaiting3D?: (value: boolean) => void;
   setActiveLabel?: (label: "A" | "B" | "C" | null) => void;
+  referencePoints3D?: ReferencePoint[];
   scaleFactor?: number;
   selectedArea?: string | null; // Add this prop
   isChoosingOrigin?: boolean;
@@ -329,6 +330,7 @@ const ThreeViewer = React.memo(
       setReferencePoints3D,
       setAwaiting3D,
       setActiveLabel,
+      referencePoints3D,
       pendingLabelTextRef,
       scaleFactor,
       setIsChoosingOrigin,
@@ -373,6 +375,27 @@ const ThreeViewer = React.memo(
     useEffect(() => {
       qrPlacementModeRef.current = qrPlacementMode;
     }, [qrPlacementMode]);
+
+    // Remove alignment markers when reference points are cleared
+    useEffect(() => {
+      if (!referencePoints3D || !sceneRef.current) return;
+      const scene = sceneRef.current;
+
+      alignmentMarkersRef.current.forEach((marker, label) => {
+        const exists = referencePoints3D.some((p) => p.label === label);
+        if (!exists) {
+          scene.remove(marker);
+          marker.geometry.dispose();
+          const mat = marker.material as THREE.Material | THREE.Material[];
+          if (Array.isArray(mat)) {
+            mat.forEach((m) => m.dispose());
+          } else {
+            mat.dispose();
+          }
+          alignmentMarkersRef.current.delete(label);
+        }
+      });
+    }, [referencePoints3D]);
 
     useEffect(() => {
       isMarkingAreaRef.current = !!isMarkingArea;
@@ -510,6 +533,7 @@ const ThreeViewer = React.memo(
     const animateDragIndicatorRef = useRef<() => void | null>(null);
     const highlightedAreaMeshRef = useRef<THREE.Mesh | null>(null);
     const qrCodeMarkersRef = useRef<Map<string, THREE.Object3D>>(new Map()); // <<< ADD THIS LINE
+    const alignmentMarkersRef = useRef<Map<string, THREE.Mesh>>(new Map());
 
     // --- Area marking v2 (plane-locked) ---
     type AreaBasis = {
@@ -5203,8 +5227,25 @@ const ThreeViewer = React.memo(
             });
             const newSphere = new THREE.Mesh(sphereGeom, sphereMat);
             newSphere.position.copy(alignHitPoint);
-            sceneRef.current.add(newSphere);
             newSphere.userData.label = activeLabelRef.current;
+
+            // Remove existing marker for this label if present
+            if (alignmentMarkersRef.current.has(activeLabelRef.current)) {
+              const oldMarker = alignmentMarkersRef.current.get(
+                activeLabelRef.current,
+              )!;
+              sceneRef.current.remove(oldMarker);
+              oldMarker.geometry.dispose();
+              const oldMat = oldMarker.material as THREE.Material | THREE.Material[];
+              if (Array.isArray(oldMat)) {
+                oldMat.forEach((m) => m.dispose());
+              } else {
+                oldMat.dispose();
+              }
+            }
+
+            sceneRef.current.add(newSphere);
+            alignmentMarkersRef.current.set(activeLabelRef.current, newSphere);
 
             // 1. ADD THIS: Immediately update the state with the new point's 3D coordinates.
             const newPoint = {
