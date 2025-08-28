@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { format } from "date-fns";
+import { format, addMonths } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import axios from "axios";
 
 // Add pdfjsLib interface to Window
 declare global {
@@ -33,11 +34,13 @@ import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
+import LindyChat from "@/components/LindyChat";
 import ThreeViewer from "@/components/ThreeViewer"; // Add this import
 
 import {
   Search,
   Calendar,
+  CalendarDays,
   MapPin,
   Check,
   Upload,
@@ -96,6 +99,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 const pdfjs = {
   workerSrc:
@@ -158,6 +162,28 @@ export default function ScannerPortal() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [customerData, setCustomerData] = useState<User | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
+    new Date(),
+  );
+
+  const bookingsByDate = useMemo(() => {
+    const map: Record<string, Booking[]> = {};
+    bookings.forEach((b) => {
+      map[b.date] = map[b.date] ? [...map[b.date], b] : [b];
+    });
+    return map;
+  }, [bookings]);
+
+  const bookedDates = useMemo(
+    () => Object.keys(bookingsByDate).map((d) => new Date(d)),
+    [bookingsByDate],
+  );
+
+  const bookingsForSelectedDate = useMemo(() => {
+    if (!selectedDate) return [];
+    const key = format(selectedDate, "yyyy-MM-dd");
+    return bookingsByDate[key] || [];
+  }, [selectedDate, bookingsByDate]);
   // Alignment wizard states
   const [showAlignmentWizard, setShowAlignmentWizard] = useState(false);
   const [referencePoints2D, setReferencePoints2D] = useState<
@@ -467,6 +493,43 @@ export default function ScannerPortal() {
         await updateDoc(doc(db, "blueprints", selectedBooking.blueprintId), {
           scale: scaleFactor,
         });
+        let companyName = selectedBooking.businessName || "";
+        try {
+          const blueprintSnap = await getDoc(
+            doc(db, "blueprints", selectedBooking.blueprintId),
+          );
+          if (blueprintSnap.exists()) {
+            const data = blueprintSnap.data();
+            companyName =
+              data.locationName ||
+              data.businessName ||
+              data.name ||
+              companyName;
+          }
+        } catch (err) {
+          console.error("Error fetching blueprint info for webhook:", err);
+        }
+        try {
+          await fetch(
+            "https://public.lindy.ai/api/v1/webhooks/lindy/0a0433bc-9930-4a1e-9734-5912316f4a6c",
+            {
+              method: "POST",
+              headers: {
+                Authorization:
+                  "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                blueprint_id: selectedBooking.blueprintId,
+                scale: scaleFactor,
+                company_name: companyName,
+                location_name: companyName,
+              }),
+            },
+          );
+        } catch (err) {
+          console.error("Error triggering Lindy webhook:", err);
+        }
         console.log("Scale factor saved to Firestore:", scaleFactor);
       }
 
@@ -746,6 +809,11 @@ export default function ScannerPortal() {
     const customer = await fetchCustomerData(booking.userId);
     setCustomerData(customer);
 
+    // Fetch blueprint data if available
+    if (booking.blueprintId) {
+      await fetchBlueprintData(booking.blueprintId);
+    }
+
     // Reset upload form
     setModelFile(null);
     setFloorplanFile(null);
@@ -765,82 +833,6 @@ export default function ScannerPortal() {
   const controlsRef = useRef<OrbitControls | null>(null);
   const animationFrameRef = useRef<number>(0);
 
-  // // Function to handle 3D point selection
-  // const handle3DPointSelection = useCallback(
-  //   (event: React.MouseEvent) => {
-  //     if (
-  //       !awaiting3D ||
-  //       !activeLabel ||
-  //       !sceneRef.current ||
-  //       !cameraRef.current ||
-  //       !threeDContainerRef.current
-  //     )
-  //       return;
-
-  //     const container = threeDContainerRef.current;
-  //     const rect = container.getBoundingClientRect();
-
-  //     // Calculate normalized device coordinates
-  //     const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-  //     const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-  //     // Update raycaster
-  //     raycasterRef.current.setFromCamera({ x, y }, cameraRef.current);
-
-  //     // Get intersection with the model
-  //     const intersects = raycasterRef.current.intersectObjects(
-  //       sceneRef.current.children,
-  //       true,
-  //     );
-
-  //     if (intersects.length > 0) {
-  //       const hitPoint = intersects[0].point;
-
-  //       // Create a visual marker at the hit point
-  //       const markerGeometry = new THREE.SphereGeometry(0.02, 16, 16);
-  //       const markerMaterial = new THREE.MeshBasicMaterial({
-  //         color:
-  //           activeLabel === "A"
-  //             ? 0xff0000
-  //             : activeLabel === "B"
-  //               ? 0x00ff00
-  //               : 0x0000ff,
-  //       });
-  //       const marker = new THREE.Mesh(markerGeometry, markerMaterial);
-  //       marker.position.copy(hitPoint);
-  //       sceneRef.current.add(marker);
-
-  //       // Update the reference points state
-  //       setReferencePoints3D((prev) => [
-  //         ...prev,
-  //         {
-  //           label: activeLabel,
-  //           x3D: hitPoint.x,
-  //           y3D: hitPoint.y,
-  //           z3D: hitPoint.z,
-  //         },
-  //       ]);
-
-  //       // Reset awaiting3D and update activeLabel
-  //       setAwaiting3D(false);
-  //       if (activeLabel === "A") {
-  //         setActiveLabel("B");
-  //       } else if (activeLabel === "B") {
-  //         setActiveLabel("C");
-  //       } else {
-  //         setActiveLabel(null);
-  //       }
-  //     }
-  //   },
-  //   [
-  //     awaiting3D,
-  //     activeLabel,
-  //     setReferencePoints3D,
-  //     setAwaiting3D,
-  //     setActiveLabel,
-  //   ],
-  // );
-
   // Handle file selection
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -852,6 +844,32 @@ export default function ScannerPortal() {
       } else {
         setFloorplanFile(e.target.files[0]);
       }
+    }
+  };
+
+  // Add this state for storing the blueprint's 3D model URL
+  const [blueprint3DModelUrl, setBlueprint3DModelUrl] = useState<string>("");
+  const [loadingBlueprintData, setLoadingBlueprintData] = useState(false);
+
+  // Add this function to fetch blueprint data
+  const fetchBlueprintData = async (blueprintId: string) => {
+    setLoadingBlueprintData(true);
+    try {
+      const blueprintDoc = await getDoc(doc(db, "blueprints", blueprintId));
+      if (blueprintDoc.exists()) {
+        const data = blueprintDoc.data();
+        if (data.floorPlan3DUrl) {
+          setBlueprint3DModelUrl(data.floorPlan3DUrl);
+          console.log(
+            "Loaded floorPlan3DUrl from blueprint:",
+            data.floorPlan3DUrl,
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching blueprint data:", error);
+    } finally {
+      setLoadingBlueprintData(false);
     }
   };
 
@@ -880,37 +898,22 @@ export default function ScannerPortal() {
     let floorplanUrl = "";
 
     try {
-      // Upload model file if selected
+      // Upload model file to Backblaze B2 if selected
       if (modelFile) {
-        const timestamp = Date.now();
-        const rawFileName = `${timestamp}_${modelFile.name}`;
-        const modelStorageRef = ref(storage, rawFileName);
+        const formData = new FormData();
+        formData.append("file", modelFile);
 
-        const modelUploadTask = uploadBytesResumable(
-          modelStorageRef,
-          modelFile,
-        );
-
-        // Track upload progress
-        modelUploadTask.on(
-          "state_changed",
-          (snapshot) => {
-            const progress =
-              (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setUploadProgress((prev) => ({ ...prev, model: progress }));
+        const response = await axios.post("/api/upload-to-b2", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: (event) => {
+            if (event.total) {
+              const progress = (event.loaded / event.total) * 100;
+              setUploadProgress((prev) => ({ ...prev, model: progress }));
+            }
           },
-          (error) => {
-            throw error;
-          },
-        );
+        });
 
-        // Wait for upload to complete
-        await modelUploadTask;
-        const encodedFileName = encodeURIComponent(rawFileName).replace(
-          /%20/g,
-          "+",
-        );
-        modelUrl = `${B2_BASE_URL}/${encodedFileName}`;
+        modelUrl = response.data.url;
       }
 
       // Upload floorplan file if selected
@@ -1130,8 +1133,16 @@ export default function ScannerPortal() {
         ),
       );
 
-      // Close dialog
+      // After successful upload, fetch the updated blueprint data
+      if (selectedBooking?.blueprintId) {
+        await fetchBlueprintData(selectedBooking.blueprintId);
+      }
+
+      // Show the alignment wizard
       setIsUploadDialogOpen(false);
+      setShowAlignmentWizard(true);
+      setActiveLabel("A");
+      setModelLoaded(false);
     } catch (error) {
       console.error("Error uploading files:", error);
       toast({
@@ -1400,6 +1411,10 @@ export default function ScannerPortal() {
                   <Calendar className="w-4 h-4 mr-2" />
                   Appointments
                 </TabsTrigger>
+                <TabsTrigger value="calendar" className="flex-1">
+                  <CalendarDays className="w-4 h-4 mr-2" />
+                  Calendar
+                </TabsTrigger>
                 <TabsTrigger value="uploads" className="flex-1">
                   <UploadCloud className="w-4 h-4 mr-2" />
                   Recent Uploads
@@ -1533,6 +1548,92 @@ export default function ScannerPortal() {
                     </motion.div>
                   )}
                 </AnimatePresence>
+              </TabsContent>
+
+              {/* Calendar Tab */}
+              <TabsContent value="calendar" className="mt-0">
+                <div className="flex flex-col md:flex-row gap-6">
+                  <CalendarComponent
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    numberOfMonths={2}
+                    disabled={{ before: new Date() }}
+                    fromMonth={new Date()}
+                    toMonth={addMonths(new Date(), 1)}
+                    modifiers={{ booked: bookedDates }}
+                    modifiersClassNames={{
+                      booked: "bg-purple-200 text-purple-900",
+                    }}
+                  />
+                  <div className="flex-1 space-y-4">
+                    {bookingsForSelectedDate.length > 0 ? (
+                      bookingsForSelectedDate.map((booking) => (
+                        <Card
+                          key={booking.id}
+                          className="overflow-hidden border-0 shadow-md"
+                        >
+                          <CardHeader className="bg-gray-50">
+                            <CardTitle className="text-lg">
+                              {booking.businessName}
+                            </CardTitle>
+                            <CardDescription>
+                              {formatDate(booking.date)} at{" "}
+                              {formatTime(booking.time)}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="pt-4 space-y-2">
+                            {booking.address && (
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <MapPin className="w-4 h-4 text-gray-500" />
+                                {booking.address}
+                              </div>
+                            )}
+                            {booking.contactName && (
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <User className="w-4 h-4 text-gray-500" />
+                                {booking.contactName}
+                              </div>
+                            )}
+                            {booking.contactPhone && (
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <Phone className="w-4 h-4 text-gray-500" />
+                                {booking.contactPhone}
+                              </div>
+                            )}
+                          </CardContent>
+                          <CardFooter className="border-t bg-gray-50">
+                            <Button
+                              className={cn(
+                                "w-full gap-2",
+                                booking.status === "completed"
+                                  ? "bg-green-600 hover:bg-green-700"
+                                  : "bg-purple-600 hover:bg-purple-700",
+                              )}
+                              onClick={() => handleBookingSelect(booking)}
+                            >
+                              {booking.status === "completed" ? (
+                                <>
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  View Details
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="w-4 h-4" />
+                                  Upload Scan Files
+                                </>
+                              )}
+                            </Button>
+                          </CardFooter>
+                        </Card>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        No bookings for this day.
+                      </p>
+                    )}
+                  </div>
+                </div>
               </TabsContent>
 
               {/* Recent Uploads Tab */}
@@ -1843,6 +1944,7 @@ export default function ScannerPortal() {
         </Dialog>
       )}
       <Footer />
+      <LindyChat />
 
       {/* Distance Dialog */}
       {showDistanceDialog && (
@@ -1894,11 +1996,11 @@ export default function ScannerPortal() {
             <div className="flex-1 overflow-hidden grid grid-cols-2 gap-4">
               {/* Left half: 2D floor plan */}
               <div
-                className="border rounded-md relative overflow-hidden"
+                className="border rounded-md relative overflow-auto"
                 style={{ height: "500px" }}
               >
                 {/* Content container */}
-                <div className="w-full h-full relative">
+                <div className="relative">
                   {/* PDF or Image display */}
                   {floorplanFile && (
                     <div className="w-full h-full">
@@ -1944,7 +2046,8 @@ export default function ScannerPortal() {
                         <img
                           src={URL.createObjectURL(floorplanFile)}
                           alt="Floor Plan"
-                          className="w-full h-auto object-contain"
+                          className="w-auto h-auto"
+                          style={{ minWidth: "100%" }}
                         />
                       )}
                     </div>
@@ -2008,7 +2111,8 @@ export default function ScannerPortal() {
               {/* Right half: 3D Model */}
               <div className="border rounded-md relative bg-gray-100 overflow-hidden">
                 <ThreeViewer
-                  modelPath={model3DPath}
+                  //modelPath={model3DPath}
+                  modelPath={blueprint3DModelUrl}
                   activeLabel={activeLabel}
                   awaiting3D={awaiting3D}
                   setReferencePoints3D={setReferencePoints3D}

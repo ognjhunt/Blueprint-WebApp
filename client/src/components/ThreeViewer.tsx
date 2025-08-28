@@ -5351,8 +5351,14 @@ const ThreeViewer = React.memo(
               walkBoundsRef.current.max.y + 1,
               p.z,
             );
-            const downRay = new THREE.Raycaster(start, new THREE.Vector3(0, -1, 0));
-            const downHits = downRay.intersectObject(parentModelRef.current, true);
+            const downRay = new THREE.Raycaster(
+              start,
+              new THREE.Vector3(0, -1, 0),
+            );
+            const downHits = downRay.intersectObject(
+              parentModelRef.current,
+              true,
+            );
             if (downHits.length > 0) {
               floorY = downHits[downHits.length - 1].point.y;
             }
@@ -5497,8 +5503,14 @@ const ThreeViewer = React.memo(
               walkBoundsRef.current.max.y + 1,
               cam.position.z,
             );
-            const downRay = new THREE.Raycaster(start, new THREE.Vector3(0, -1, 0));
-            const floorHits = downRay.intersectObject(parentModelRef.current, true);
+            const downRay = new THREE.Raycaster(
+              start,
+              new THREE.Vector3(0, -1, 0),
+            );
+            const floorHits = downRay.intersectObject(
+              parentModelRef.current,
+              true,
+            );
             if (floorHits.length > 0) {
               floorY = floorHits[floorHits.length - 1].point.y;
             }
