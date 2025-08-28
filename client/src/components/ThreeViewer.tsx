@@ -4828,7 +4828,7 @@ const ThreeViewer = React.memo(
 
       const loader = new GLTFLoader();
 
-      const fullModelPath = modelPath || "";
+      const fullModelPath = modelPath ? encodeURI(modelPath) : "";
 
       if (!fullModelPath) {
         console.error("No modelPath provided to ThreeViewer");
