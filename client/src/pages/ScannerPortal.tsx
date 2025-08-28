@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import axios from "axios";
 
 // Add pdfjsLib interface to Window
 declare global {
@@ -892,34 +893,22 @@ export default function ScannerPortal() {
     let floorplanUrl = "";
 
     try {
-      // Upload model file if selected
+      // Upload model file to Backblaze B2 if selected
       if (modelFile) {
-        const modelStorageRef = ref(
-          storage,
-          `models/${selectedBooking.userId}/${Date.now()}_${modelFile.name}`,
-        );
+        const formData = new FormData();
+        formData.append("file", modelFile);
 
-        const modelUploadTask = uploadBytesResumable(
-          modelStorageRef,
-          modelFile,
-        );
-
-        // Track upload progress
-        modelUploadTask.on(
-          "state_changed",
-          (snapshot) => {
-            const progress =
-              (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setUploadProgress((prev) => ({ ...prev, model: progress }));
+        const response = await axios.post("/api/upload-to-b2", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: (event) => {
+            if (event.total) {
+              const progress = (event.loaded / event.total) * 100;
+              setUploadProgress((prev) => ({ ...prev, model: progress }));
+            }
           },
-          (error) => {
-            throw error;
-          },
-        );
+        });
 
-        // Wait for upload to complete
-        await modelUploadTask;
-        modelUrl = await getDownloadURL(modelStorageRef);
+        modelUrl = response.data.url;
       }
 
       // Upload floorplan file if selected

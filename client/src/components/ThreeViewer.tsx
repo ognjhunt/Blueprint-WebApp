@@ -4828,32 +4828,13 @@ const ThreeViewer = React.memo(
 
       const loader = new GLTFLoader();
 
-      //  const fullModelPath =
-      //    //  "https://f005.backblazeb2.com/file/objectModels-dev/4_27_2025.glb";
-      //   // "https://f005.backblazeb2.com/file/objectModels-dev/home.glb";
-      //  // "https://f005.backblazeb2.com/file/objectModels-dev/+HLF+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+8k.glb";
+      const fullModelPath = modelPath || "";
 
-      // // "https://f005.backblazeb2.com/file/objectModels-dev/Library+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+4k.glb";
-      //https://f005.backblazeb2.com/file/objectModels-dev/6_26_2025.glb
-      // With this:
-      const fullModelPath =
-        "https://f005.backblazeb2.com/file/objectModels-dev/Art+Demo+-+Uniform+%E2%80%A2+99%25+%E2%80%A2+4k.glb";
-      //"https://f005.backblazeb2.com/file/objectModels-dev/+HLF+-+Uniform+%E2%80%A2+100%25+%E2%80%A2+8k.glb"; //modelPath || ""; // Use the prop directly
-
-      // Add validation
       if (!fullModelPath) {
         console.error("No modelPath provided to ThreeViewer");
         onError?.("No 3D model path provided");
         return;
       }
-
-      // Determine if modelPath is an external URL or local path
-      // let fullModelPath = modelPath;
-
-      // // If it's not an external URL, prepend a slash for local path
-      // if (!modelPath.startsWith('http') && !modelPath.startsWith('/')) {
-      //   fullModelPath = `/${modelPath}`;
-      // }
 
       console.log("Attempting to fetch 3D model from:", fullModelPath);
 
