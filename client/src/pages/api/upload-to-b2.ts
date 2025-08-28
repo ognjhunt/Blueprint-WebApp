@@ -17,7 +17,7 @@ export default function handler(req: Request, res: Response) {
       return res.status(500).json({ error: "File upload failed" });
     }
 
-    const file = (req as any).file as Express.Multer.File | undefined;
+    const file = (req as any).file as multer.File | undefined;
     if (!file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
