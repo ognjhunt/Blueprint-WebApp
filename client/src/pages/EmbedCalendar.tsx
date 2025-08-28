@@ -257,11 +257,11 @@ export default function EmbedCalendar() {
                     },
                     month: { padding: "0.25rem", minWidth: "19rem" },
                     // ↓ Left-align the caption block and the month/year dropdowns
-                    month_caption: {
+                    caption: {
                       display: "flex",
                       justifyContent: "flex-start",
                     },
-                    dropdowns: {
+                    dropdown: {
                       display: "flex",
                       justifyContent: "flex-start",
                       gap: "0.5rem",
