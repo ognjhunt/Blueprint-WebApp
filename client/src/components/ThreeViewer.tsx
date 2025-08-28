@@ -5800,16 +5800,13 @@ const ThreeViewer = React.memo(
                     if (loadingIndicator.parent && sceneRef.current)
                       sceneRef.current?.remove(loadingIndicator);
 
-                    // Calculate offset from origin if it exists
-                    let scaledX = dropPoint.x * SCALE_FACTOR;
-                    let scaledY = dropPoint.y * SCALE_FACTOR;
-                    let scaledZ = dropPoint.z * SCALE_FACTOR;
+                    // Calculate real-world coordinates using existing helper
+                    let realWorldPos = dropPoint
+                      .clone()
+                      .multiplyScalar(SCALE_FACTOR);
 
                     if (originPoint) {
-                      const offset = dropPoint.clone().sub(originPoint);
-                      scaledX = offset.x * SCALE_FACTOR;
-                      scaledY = offset.y * SCALE_FACTOR;
-                      scaledZ = offset.z * SCALE_FACTOR;
+                      realWorldPos = convertToRealWorldCoords(dropPoint);
                     }
 
                     // Create anchor in Firestore
@@ -5825,9 +5822,9 @@ const ThreeViewer = React.memo(
                         modelName: modelInfo.name || "3D Model",
                         host: userId, // Use the safe userId
                         blueprintID: blueprintId,
-                        x: scaledX,
-                        y: scaledY,
-                        z: scaledZ,
+                        x: realWorldPos.x,
+                        y: realWorldPos.y,
+                        z: realWorldPos.z,
                         scaleX: model.scale.x,
                         scaleY: model.scale.y,
                         scaleZ: model.scale.z,
@@ -5910,21 +5907,16 @@ const ThreeViewer = React.memo(
 
               // Calculate real-world coordinates relative to origin
               if (originPoint) {
-                const offset = dropPoint.clone().sub(originPoint);
-                const scaledOffset = {
-                  x: offset.x * SCALE_FACTOR,
-                  y: offset.y * SCALE_FACTOR,
-                  z: offset.z * SCALE_FACTOR,
-                };
+                const realWorldPos = convertToRealWorldCoords(dropPoint);
 
                 // Call the callback to notify BlueprintEditor
                 if (onFileDropped) {
                   console.log(
                     "[ThreeViewer] Calling onFileDropped with:",
                     fileInfo,
-                    scaledOffset,
+                    realWorldPos,
                   );
-                  onFileDropped(fileInfo, scaledOffset); // Pass fileInfo and calculated coords
+                  onFileDropped(fileInfo, realWorldPos); // Pass fileInfo and calculated coords
                 } else {
                   console.error(
                     "[ThreeViewer] onFileDropped callback is missing!",
