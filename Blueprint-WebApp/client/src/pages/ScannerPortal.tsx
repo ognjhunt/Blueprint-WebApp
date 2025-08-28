@@ -173,8 +173,10 @@ export default function ScannerPortal() {
     z3D?: number;
     label: "A" | "B" | "C";
   }
-  
-  const [referencePoints3D, setReferencePoints3D] = useState<ReferencePoint[]>([]);
+
+  const [referencePoints3D, setReferencePoints3D] = useState<ReferencePoint[]>(
+    [],
+  );
   const [activeLabel, setActiveLabel] = useState<"A" | "B" | "C" | null>(null);
   const [awaiting3D, setAwaiting3D] = useState(false);
   const [realDistance, setRealDistance] = useState<number>(10); // Default in feet
@@ -880,10 +882,9 @@ export default function ScannerPortal() {
     try {
       // Upload model file if selected
       if (modelFile) {
-        const modelStorageRef = ref(
-          storage,
-          `models/${selectedBooking.userId}/${Date.now()}_${modelFile.name}`,
-        );
+        const timestamp = Date.now();
+        const rawFileName = `${timestamp}_${modelFile.name}`;
+        const modelStorageRef = ref(storage, rawFileName);
 
         const modelUploadTask = uploadBytesResumable(
           modelStorageRef,
@@ -905,7 +906,11 @@ export default function ScannerPortal() {
 
         // Wait for upload to complete
         await modelUploadTask;
-        modelUrl = await getDownloadURL(modelStorageRef);
+        const encodedFileName = encodeURIComponent(rawFileName).replace(
+          /%20/g,
+          "+",
+        );
+        modelUrl = `${B2_BASE_URL}/${encodedFileName}`;
       }
 
       // Upload floorplan file if selected
@@ -962,7 +967,7 @@ export default function ScannerPortal() {
 
       // Declare blueprintId variable to be used in both branches
       let blueprintId: string | undefined;
-      
+
       // Update blueprints collection if a blueprintId exists
       if (selectedBooking.blueprintId) {
         blueprintId = selectedBooking.blueprintId;
@@ -1086,8 +1091,8 @@ export default function ScannerPortal() {
       }
 
       // Initialize a variable to store the blueprint ID
-      const finalBlueprintId = selectedBooking.blueprintId || blueprintId || '';
-      
+      const finalBlueprintId = selectedBooking.blueprintId || blueprintId || "";
+
       try {
         await fetch(
           "https://public.lindy.ai/api/v1/webhooks/lindy/d4154987-467d-4387-b80c-3adf9b064b9f",
