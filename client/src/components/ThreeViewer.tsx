@@ -22,6 +22,14 @@ const B2_FILE_BUCKET =
 const b2UrlFor = (fileName: string) =>
   `https://f005.backblazeb2.com/file/${B2_FILE_BUCKET}/${fileName}`;
 
+// Extracts a storage path from a Firebase Storage download URL so we can
+// recreate a Backblaze B2 URL. Returns null if the path cannot be determined.
+const firebasePathFromUrl = (url: string | undefined): string | null => {
+  if (!url) return null;
+  const match = url.match(/\/o\/([^?]+)\?/); // grabs the encoded path after /o/
+  return match ? decodeURIComponent(match[1]) : null;
+};
+
 interface DragControls {
   enabled: boolean;
   transformGroup: boolean;
@@ -141,6 +149,7 @@ interface FileAnchor {
   fileType: string;
   fileName: string;
   fileUrl: string;
+  storageLocation?: string;
   x: number;
   y: number;
   z: number;
@@ -2079,8 +2088,15 @@ const ThreeViewer = React.memo(
             );
           };
 
-          // Use hardcoded Backblaze URL for images
-          let imageUrl = anchor.fileUrl || b2UrlFor(anchor.fileName);
+          // Determine final image URL. Prefer the stored fileUrl, but fall back
+          // to Backblaze using storageLocation or a path extracted from a
+          // Firebase URL.
+          let imageUrl = anchor.fileUrl;
+          if (!imageUrl || imageUrl.includes("firebasestorage.googleapis.com")) {
+            const path =
+              anchor.storageLocation || firebasePathFromUrl(imageUrl) || anchor.fileName;
+            imageUrl = b2UrlFor(path);
+          }
           // Decode HTML entities in the URL (fixes &amp; to &)
           imageUrl = imageUrl.replace(/&amp;/g, "&");
 
@@ -2391,14 +2407,20 @@ const ThreeViewer = React.memo(
             );
           };
 
-          // Use hardcoded Backblaze URL for videos
-          const backblazeVideoUrl = (
-            anchor.fileUrl || b2UrlFor(anchor.fileName)
-          ).replace(/&amp;/g, "&");
+          // Determine final video URL. Prefer the stored fileUrl, but fall back
+          // to Backblaze using storageLocation or a path extracted from a
+          // Firebase URL.
+          let videoUrl = anchor.fileUrl;
+          if (!videoUrl || videoUrl.includes("firebasestorage.googleapis.com")) {
+            const path =
+              anchor.storageLocation || firebasePathFromUrl(videoUrl) || anchor.fileName;
+            videoUrl = b2UrlFor(path);
+          }
+          videoUrl = videoUrl.replace(/&amp;/g, "&");
           console.log(
-            `[ThreeViewer fileAnchors] Setting video.src for ${anchor.id} to Backblaze URL: ${backblazeVideoUrl}`,
+            `[ThreeViewer fileAnchors] Setting video.src for ${anchor.id} to Backblaze URL: ${videoUrl}`,
           );
-          video.src = backblazeVideoUrl;
+          video.src = videoUrl;
         } else if (anchor.thumbnailUrl) {
           // If a thumbnail URL exists (even for PDFs/docs), treat it like an image
           console.log(
