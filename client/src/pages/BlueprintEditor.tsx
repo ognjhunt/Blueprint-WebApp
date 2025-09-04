@@ -79,6 +79,7 @@ import {
   getDocs,
   addDoc,
   serverTimestamp,
+  deleteField,
 } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db } from "@/lib/firebase";
@@ -261,6 +262,8 @@ interface TextAnchor {
   y: number;
   z: number;
   textContent: string;
+  mediaUrl?: string;
+  mediaType?: "image" | "video" | "audio";
   // Add other potential fields like contentType, contentID, createdDate, blueprintID etc.
   contentType?: string;
   contentID?: string;
@@ -625,6 +628,9 @@ export default function BlueprintEditor() {
   const [webpageAnchors, setWebpageAnchors] = useState<any[]>([]);
   const [textAnchors, setTextAnchors] = useState<TextAnchor[]>([]);
   const [textContent, setTextContent] = useState("");
+  const [anchorMediaUrl, setAnchorMediaUrl] = useState("");
+  const [anchorMediaType, setAnchorMediaType] =
+    useState<"image" | "video" | "audio">("image");
   const [activeSection, setActiveSection] = useState<string | null>(null); // Explicitly type state
   const [editingTextAnchorId, setEditingTextAnchorId] = useState<string | null>(
     null,
@@ -3634,14 +3640,21 @@ export default function BlueprintEditor() {
       const anchorRef = doc(db, "anchors", anchorId);
       const anchorSnap = await getDoc(anchorRef);
       if (anchorSnap.exists()) {
-        setSelectedAnchorData(anchorSnap.data());
+        const data = anchorSnap.data();
+        setSelectedAnchorData(data);
+        setAnchorMediaUrl(data.mediaUrl || "");
+        setAnchorMediaType((data.mediaType as any) || "image");
       } else {
         console.warn("Anchor not found in Firestore:", anchorId);
         setSelectedAnchorData(null);
+        setAnchorMediaUrl("");
+        setAnchorMediaType("image");
       }
     } catch (error) {
       console.error("Error fetching anchor data:", error);
       setSelectedAnchorData(null);
+      setAnchorMediaUrl("");
+      setAnchorMediaType("image");
     }
   };
 
@@ -3718,6 +3731,79 @@ export default function BlueprintEditor() {
       });
       // Optional: Revert local state if Firebase update fails
       // You might need to fetch the original text again here
+    }
+  };
+
+  const updateTextAnchorMedia = async (
+    anchorId: string,
+    url: string,
+    type: "image" | "video" | "audio",
+  ) => {
+    if (!anchorId || !url.trim()) return;
+
+    setTextAnchors((prevAnchors) =>
+      prevAnchors.map((anchor) =>
+        anchor.id === anchorId ? { ...anchor, mediaUrl: url, mediaType: type } : anchor,
+      ),
+    );
+    setSelectedAnchorData((prev) =>
+      prev ? { ...prev, mediaUrl: url, mediaType: type } : prev,
+    );
+
+    try {
+      const anchorRef = doc(db, "anchors", anchorId);
+      await updateDoc(anchorRef, {
+        mediaUrl: url,
+        mediaType: type,
+        updatedAt: serverTimestamp(),
+      });
+      toast({
+        title: "Media Updated",
+        description: "Anchor media has been saved.",
+      });
+    } catch (error) {
+      console.error("Error updating anchor media:", error);
+      toast({
+        title: "Update Error",
+        description: "Failed to save media changes.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const removeTextAnchorMedia = async (anchorId: string) => {
+    if (!anchorId) return;
+
+    setTextAnchors((prevAnchors) =>
+      prevAnchors.map((anchor) =>
+        anchor.id === anchorId
+          ? { ...anchor, mediaUrl: undefined, mediaType: undefined }
+          : anchor,
+      ),
+    );
+    setSelectedAnchorData((prev) =>
+      prev ? { ...prev, mediaUrl: undefined, mediaType: undefined } : prev,
+    );
+
+    try {
+      const anchorRef = doc(db, "anchors", anchorId);
+      await updateDoc(anchorRef, {
+        mediaUrl: deleteField(),
+        mediaType: deleteField(),
+        updatedAt: serverTimestamp(),
+      });
+      setAnchorMediaUrl("");
+      toast({
+        title: "Media Removed",
+        description: "Anchor media has been removed.",
+      });
+    } catch (error) {
+      console.error("Error removing anchor media:", error);
+      toast({
+        title: "Update Error",
+        description: "Failed to remove media.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -5953,6 +6039,86 @@ export default function BlueprintEditor() {
                             )}
                           </div>
                           {/* --- END PASTE --- */}
+
+                          {editingTextAnchorId && (
+                            <div className="bg-gray-50 rounded-lg p-4 border mt-4">
+                              <h3 className="text-sm font-medium mb-2 flex items-center text-gray-700">
+                                <ImageIcon className="h-4 w-4 mr-1.5" /> Add Media
+                              </h3>
+                              <Input
+                                placeholder="Enter media URL"
+                                value={anchorMediaUrl}
+                                onChange={(e) => setAnchorMediaUrl(e.target.value)}
+                                className="mb-2 bg-white"
+                              />
+                              <Select
+                                value={anchorMediaType}
+                                onValueChange={(v) =>
+                                  setAnchorMediaType(v as "image" | "video" | "audio")
+                                }
+                              >
+                                <SelectTrigger className="w-full mb-2">
+                                  <SelectValue placeholder="Select type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="image">Image</SelectItem>
+                                  <SelectItem value="video">Video</SelectItem>
+                                  <SelectItem value="audio">Audio</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <div className="flex gap-2 mb-2">
+                                <Button
+                                  size="sm"
+                                  className="flex-1"
+                                  onClick={() =>
+                                    updateTextAnchorMedia(
+                                      editingTextAnchorId,
+                                      anchorMediaUrl,
+                                      anchorMediaType,
+                                    )
+                                  }
+                                  disabled={!anchorMediaUrl.trim()}
+                                >
+                                  Save Media
+                                </Button>
+                                {anchorMediaUrl && (
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    className="flex-1"
+                                    onClick={() =>
+                                      removeTextAnchorMedia(editingTextAnchorId)
+                                    }
+                                  >
+                                    Remove
+                                  </Button>
+                                )}
+                              </div>
+                              {anchorMediaUrl && (
+                                <div className="mt-2">
+                                  {anchorMediaType === "video" ? (
+                                    <video
+                                      src={anchorMediaUrl}
+                                      className="w-full rounded"
+                                      controls
+                                    />
+                                  ) : anchorMediaType === "audio" ? (
+                                    <audio
+                                      src={anchorMediaUrl}
+                                      controls
+                                      className="w-full"
+                                    />
+                                  ) : (
+                                    <img
+                                      src={anchorMediaUrl}
+                                      alt="preview"
+                                      className="w-full rounded"
+                                    />
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )}
                       {/* Media Panel */}
