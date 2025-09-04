@@ -243,6 +243,8 @@ interface TextAnchor {
   y: number;
   z: number;
   textContent: string;
+  mediaUrl?: string;
+  mediaType?: "image" | "video" | "audio";
 }
 
 interface ModelAnchor {
@@ -3470,18 +3472,70 @@ const ThreeViewer = React.memo(
         if (existingLabelObject instanceof CSS3DObject) {
           // --- UPDATE EXISTING ANCHOR ---
           const element = existingLabelObject.element as HTMLElement;
-          const currentVisualText = element.textContent;
+          const textDiv = element.querySelector(".bp-text") as HTMLElement | null;
+          const currentVisualText = textDiv?.textContent;
           const newText = anchor.textContent;
 
-          if (currentVisualText !== newText) {
+          if (textDiv && currentVisualText !== newText) {
             console.log(
               `Updating text for anchor ${anchor.id} from "${currentVisualText}" to "${newText}"`,
             );
-            element.textContent = newText;
+            textDiv.textContent = newText;
+          }
+
+          // Handle media updates
+          const mediaEl = element.querySelector(".bp-media");
+          if (anchor.mediaUrl) {
+            if (!mediaEl) {
+              // Create new media element
+              const newMedia =
+                anchor.mediaType === "video"
+                  ? document.createElement("video")
+                  : document.createElement("img");
+              newMedia.className = "bp-media";
+              if (anchor.mediaType === "video") {
+                const v = newMedia as HTMLVideoElement;
+                v.src = anchor.mediaUrl;
+                v.width = 160;
+                v.controls = true;
+                v.style.marginBottom = "8px";
+              } else {
+                const i = newMedia as HTMLImageElement;
+                i.src = anchor.mediaUrl;
+                i.style.width = "160px";
+                i.style.borderRadius = "8px";
+                i.style.marginBottom = "8px";
+              }
+              element.insertBefore(newMedia, textDiv || null);
+            } else {
+              if (anchor.mediaType === "video" && mediaEl.tagName !== "VIDEO") {
+                mediaEl.remove();
+                const v = document.createElement("video");
+                v.className = "bp-media";
+                v.src = anchor.mediaUrl;
+                v.width = 160;
+                v.controls = true;
+                v.style.marginBottom = "8px";
+                element.insertBefore(v, textDiv || null);
+              } else if (anchor.mediaType === "image" && mediaEl.tagName !== "IMG") {
+                mediaEl.remove();
+                const i = document.createElement("img");
+                i.className = "bp-media";
+                i.src = anchor.mediaUrl;
+                i.style.width = "160px";
+                i.style.borderRadius = "8px";
+                i.style.marginBottom = "8px";
+                element.insertBefore(i, textDiv || null);
+              } else {
+                // Same type, just update src
+                (mediaEl as HTMLMediaElement).src = anchor.mediaUrl;
+              }
+            }
+          } else if (mediaEl) {
+            mediaEl.remove();
           }
 
           // Optionally update position if needed
-          // You might need to recalculate modelSpacePosition here if position can change
           // existingLabelObject.position.copy(newModelSpacePosition);
 
           // IMPORTANT: Also update the helper mesh position if the anchor can be moved externally
@@ -3523,34 +3577,57 @@ const ThreeViewer = React.memo(
 
         // --- CREATE A CSS3DObject FOR THE LABEL ---
         const labelDiv = document.createElement("div");
-        labelDiv.textContent = anchor.textContent;
         labelDiv.style.pointerEvents = "auto"; // keep pointer events ON
+        labelDiv.style.display = "flex";
+        labelDiv.style.flexDirection = "column";
+        labelDiv.style.alignItems = "center";
 
-        labelDiv.style.padding = "10px 12px";
-        labelDiv.style.fontSize = "11px";
-        labelDiv.style.color = "#ffffff";
-        labelDiv.style.backgroundColor = "rgba(120, 120, 130, 0.82)";
-        labelDiv.style.borderRadius = "12px";
-        labelDiv.style.whiteSpace = "normal";
-        labelDiv.style.maxWidth = "160px";
-        labelDiv.style.wordWrap = "break-word";
-        labelDiv.style.overflowWrap = "break-word";
-        labelDiv.style.textAlign = "left";
-        labelDiv.style.backdropFilter = "blur(10px)";
-        labelDiv.style.boxShadow = "0 4px 10px rgba(0, 0, 0, 0.2)";
-        labelDiv.style.border = "1px solid rgba(255, 255, 255, 0.1)";
-        labelDiv.style.fontFamily =
+        if (anchor.mediaUrl) {
+          if (anchor.mediaType === "video") {
+            const v = document.createElement("video");
+            v.className = "bp-media";
+            v.src = anchor.mediaUrl;
+            v.width = 160;
+            v.controls = true;
+            v.style.marginBottom = "8px";
+            labelDiv.appendChild(v);
+          } else {
+            const i = document.createElement("img");
+            i.className = "bp-media";
+            i.src = anchor.mediaUrl;
+            i.style.width = "160px";
+            i.style.borderRadius = "8px";
+            i.style.marginBottom = "8px";
+            labelDiv.appendChild(i);
+          }
+        }
+
+        const textDiv = document.createElement("div");
+        textDiv.className = "bp-text";
+        textDiv.textContent = anchor.textContent;
+        textDiv.style.padding = "10px 12px";
+        textDiv.style.fontSize = "11px";
+        textDiv.style.color = "#ffffff";
+        textDiv.style.backgroundColor = "rgba(120, 120, 130, 0.82)";
+        textDiv.style.borderRadius = "12px";
+        textDiv.style.whiteSpace = "normal";
+        textDiv.style.maxWidth = "160px";
+        textDiv.style.wordWrap = "break-word";
+        textDiv.style.overflowWrap = "break-word";
+        textDiv.style.textAlign = "left";
+        textDiv.style.backdropFilter = "blur(10px)";
+        textDiv.style.boxShadow = "0 4px 10px rgba(0, 0, 0, 0.2)";
+        textDiv.style.border = "1px solid rgba(255, 255, 255, 0.1)";
+        textDiv.style.fontFamily =
           "'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif";
-        labelDiv.style.fontWeight = "400";
-        labelDiv.style.letterSpacing = "0.2px";
+        textDiv.style.fontWeight = "400";
+        textDiv.style.letterSpacing = "0.2px";
 
         // --- ADDED FOR SCROLLABLE TEXT ---
-        labelDiv.style.maxHeight = "180px"; // Set a max height for the text anchor
-        labelDiv.style.overflowY = "auto"; // Add a scrollbar if content exceeds max height
+        textDiv.style.maxHeight = "180px"; // Set a max height for the text anchor
+        textDiv.style.overflowY = "auto"; // Add a scrollbar if content exceeds max height
 
         // --- Custom Scrollbar Styling (for WebKit browsers like Chrome/Safari) ---
-        // We inject a style tag into the head to define the scrollbar styles,
-        // ensuring it's only added once.
         const styleId = "custom-scrollbar-style";
         if (!document.getElementById(styleId)) {
           const style = document.createElement("style");
@@ -3573,8 +3650,10 @@ const ThreeViewer = React.memo(
           `;
           document.head.appendChild(style);
         }
-        labelDiv.classList.add("scrollable-text-anchor");
+        textDiv.classList.add("scrollable-text-anchor");
         // --- END OF ADDED CODE ---
+
+        labelDiv.appendChild(textDiv);
 
         const labelObject = new CSS3DObject(labelDiv); // Define labelObject here
         //labelObject.scale.set(0.0015, 0.0015, 0.0015);
