@@ -22,8 +22,14 @@ import {
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
+// Get Firebase API key from environment
+const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+if (!apiKey) {
+  throw new Error("Missing VITE_FIREBASE_API_KEY environment variable. Please add your Firebase API key to .env.local");
+}
+
 const firebaseConfig = {
-  apiKey: "AIzaSyBfLLwlFQvxkztjgihEG7_2p9rTipdXGFs",
+  apiKey,
   authDomain: "blueprint-8c1ca.firebaseapp.com",
   databaseURL: "https://blueprint-8c1ca-default-rtdb.firebaseio.com",
   projectId: "blueprint-8c1ca",
