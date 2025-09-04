@@ -909,8 +909,9 @@ const ThreeViewer = React.memo(
             console.error("Error loading video for content:", err);
             resolve(null);
           };
+          // Prefer the file's actual URL but fall back to a placeholder if missing
           video.src =
-            //      anchor.fileUrl ||
+            anchor.fileUrl ||
             "https://f005.backblazeb2.com/file/uploadedFiles-dev/24406E68-8FBD-4BAC-B773-E09EE0497599_Blueprint++In+Shared+Space+-+With+Explanations.mp4"; // Fallback
         });
       }
@@ -2078,10 +2079,10 @@ const ThreeViewer = React.memo(
             );
           };
 
-          // Use hardcoded Backblaze URL for images
+          // Prefer the file's URL from the anchor; use a placeholder only when missing
           let imageUrl =
-            // anchor.fileUrl ||
-            "https://f005.backblazeb2.com/file/uploadedFiles-dev/083B81B6-F5EB-4AF3-B491-1DE40976280F_Asset0017.jpg"; // Fallback only if fileUrl is missing
+            anchor.fileUrl ||
+            "https://f005.backblazeb2.com/file/uploadedFiles-dev/083B81B6-F5EB-4AF3-B491-1DE40976280F_Asset0017.jpg";
 
           // Decode HTML entities in the URL (fixes &amp; to &)
           imageUrl = imageUrl.replace(/&amp;/g, "&");
@@ -2393,13 +2394,14 @@ const ThreeViewer = React.memo(
             );
           };
 
-          // Use hardcoded Backblaze URL for videos
-          const backblazeVideoUrl =
+          // Prefer the anchor's video URL; use a Backblaze placeholder only when absent
+          const videoUrl =
+            anchor.fileUrl ||
             "https://f005.backblazeb2.com/file/uploadedFiles-dev/24406E68-8FBD-4BAC-B773-E09EE0497599_Blueprint++In+Shared+Space+-+With+Explanations.mp4";
           console.log(
-            `[ThreeViewer fileAnchors] Setting video.src for ${anchor.id} to Backblaze URL: ${backblazeVideoUrl}`,
+            `[ThreeViewer fileAnchors] Setting video.src for ${anchor.id} to: ${videoUrl}`,
           );
-          video.src = backblazeVideoUrl;
+          video.src = videoUrl;
         } else if (anchor.thumbnailUrl) {
           // If a thumbnail URL exists (even for PDFs/docs), treat it like an image
           console.log(
