@@ -23,9 +23,12 @@ import {
 import { getStorage } from "firebase/storage";
 
 // Get Firebase API key from environment
-const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+const apiKey = "AIzaSyDOWZTVP79r5PUzgNtpso7dX9l5VTrb60k";
+//import.meta.env.VITE_FIREBASE_API_KEY;
 if (!apiKey) {
-  throw new Error("Missing VITE_FIREBASE_API_KEY environment variable. Please add your Firebase API key to .env.local");
+  throw new Error(
+    "Missing VITE_FIREBASE_API_KEY environment variable. Please add your Firebase API key to .env.local",
+  );
 }
 
 const firebaseConfig = {

@@ -99,6 +99,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider"; // Added Slider import
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
+import axios from "axios";
 
 import {
   Dialog,
@@ -5041,14 +5042,10 @@ export default function BlueprintEditor() {
         else if (fileType.includes("audio")) fileCategory = "audio";
         else if (fileType.includes("pdf")) fileCategory = "documents";
 
-        // Create unique filename to prevent collisions
-        const uniqueFilename = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-
-        // Create storage reference with organized path
-        const storageRef = ref(
-          storage,
-          `uploads/${blueprintId}/${fileCategory}/${uniqueFilename}`,
-        );
+        // Prepare upload to Backblaze B2
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("folder", `uploads/${blueprintId}/${fileCategory}`);
 
         // Show immediate toast for feedback
         toast({
@@ -5058,12 +5055,11 @@ export default function BlueprintEditor() {
           duration: 2000, // Auto-dismiss after 2 seconds
         });
 
-        // Upload with progress tracking
-        const uploadTask = uploadBytes(storageRef, file);
-
-        // After upload completes
-        const snapshot = await uploadTask;
-        const downloadURL = await getDownloadURL(snapshot.ref);
+        const response = await axios.post("/api/upload-to-b2", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        const downloadURL = response.data.url as string;
+        const storageLocation = response.data.fileName as string;
 
         // Show a success toast
         toast({
@@ -5084,7 +5080,7 @@ export default function BlueprintEditor() {
           fileSize: file.size,
           fileCategory,
           thumbnailUrl: simpleType === "image" ? downloadURL : null,
-          storageLocation: snapshot.ref.fullPath,
+          storageLocation,
         };
 
         // Create more detailed file document in separate collection
@@ -5094,7 +5090,7 @@ export default function BlueprintEditor() {
           fileType: file.type,
           fileCategory: fileCategory,
           url: downloadURL,
-          storageLocation: snapshot.ref.fullPath,
+          storageLocation,
           blueprintId: blueprintId,
           uploadDate: new Date(),
           uploadedBy: currentUser?.uid || "anonymous",

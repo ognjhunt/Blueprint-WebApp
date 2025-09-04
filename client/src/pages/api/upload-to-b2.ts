@@ -32,7 +32,8 @@ export default function handler(req: Request, res: Response) {
         bucketId: process.env.B2_BUCKET_ID,
       });
 
-      const fileName = `models/${Date.now()}_${file.originalname}`;
+      const folder = (req.body && (req.body as any).folder) || "models";
+      const fileName = `${folder}/${Date.now()}_${file.originalname}`;
       await b2.uploadFile({
         uploadUrl: data.uploadUrl,
         uploadAuthToken: data.authorizationToken,
