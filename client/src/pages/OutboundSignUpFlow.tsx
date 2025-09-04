@@ -56,6 +56,7 @@ import {
 } from "firebase/firestore";
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 import { db } from "@/lib/firebase";
+import { getStorage, ref, uploadBytes } from "firebase/storage";
 
 // ---------------------------------------------------------
 // Component
@@ -438,6 +439,14 @@ export default function OutboundSignUpFlow() {
           email: email.trim(),
           phone: phoneNumber.trim(),
         });
+
+        // Initialize storage folder for this blueprint with a placeholder file
+        const storage = getStorage();
+        const placeholderRef = ref(
+          storage,
+          `blueprints/${blueprintId}/placeholder.txt`,
+        );
+        await uploadBytes(placeholderRef, new Uint8Array());
 
         // Demo booking
         const demoBookingDate = demoDate.toISOString().split("T")[0];
