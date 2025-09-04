@@ -17,19 +17,6 @@ import {
 } from "three/examples/jsm/renderers/CSS3DRenderer.js";
 import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
 
-const B2_FILE_BUCKET =
-  (import.meta as any).env.VITE_B2_FILE_BUCKET || "uploadedFiles-dev";
-const b2UrlFor = (fileName: string) =>
-  `https://f005.backblazeb2.com/file/${B2_FILE_BUCKET}/${fileName}`;
-
-// Extracts a storage path from a Firebase Storage download URL so we can
-// recreate a Backblaze B2 URL. Returns null if the path cannot be determined.
-const firebasePathFromUrl = (url: string | undefined): string | null => {
-  if (!url) return null;
-  const match = url.match(/\/o\/([^?]+)\?/); // grabs the encoded path after /o/
-  return match ? decodeURIComponent(match[1]) : null;
-};
-
 interface DragControls {
   enabled: boolean;
   transformGroup: boolean;
@@ -149,7 +136,6 @@ interface FileAnchor {
   fileType: string;
   fileName: string;
   fileUrl: string;
-  storageLocation?: string;
   x: number;
   y: number;
   z: number;
@@ -838,7 +824,10 @@ const ThreeViewer = React.memo(
             console.error("Error loading image for content:", err);
             resolve(null);
           };
-          let imageUrl = anchor.fileUrl || b2UrlFor(anchor.fileName);
+          let imageUrl =
+            //   anchor.fileUrl ||
+            "https://f005.backblazeb2.com/file/uploadedFiles-dev/083B81B6-F5EB-4AF3-B491-1DE40976280F_Asset0017.jpg"; // Fallback for testing
+
           // Decode HTML entities in the URL
           imageUrl = imageUrl.replace(/&amp;/g, "&");
 
@@ -920,8 +909,9 @@ const ThreeViewer = React.memo(
             console.error("Error loading video for content:", err);
             resolve(null);
           };
-          const videoUrl = anchor.fileUrl || b2UrlFor(anchor.fileName);
-          video.src = videoUrl.replace(/&amp;/g, "&");
+          video.src =
+            //      anchor.fileUrl ||
+            "https://f005.backblazeb2.com/file/uploadedFiles-dev/24406E68-8FBD-4BAC-B773-E09EE0497599_Blueprint++In+Shared+Space+-+With+Explanations.mp4"; // Fallback
         });
       }
       // --- AUDIO ---
@@ -2088,15 +2078,11 @@ const ThreeViewer = React.memo(
             );
           };
 
-          // Determine final image URL. Prefer the stored fileUrl, but fall back
-          // to Backblaze using storageLocation or a path extracted from a
-          // Firebase URL.
-          let imageUrl = anchor.fileUrl;
-          if (!imageUrl || imageUrl.includes("firebasestorage.googleapis.com")) {
-            const path =
-              anchor.storageLocation || firebasePathFromUrl(imageUrl) || anchor.fileName;
-            imageUrl = b2UrlFor(path);
-          }
+          // Use hardcoded Backblaze URL for images
+          let imageUrl =
+            // anchor.fileUrl ||
+            "https://f005.backblazeb2.com/file/uploadedFiles-dev/083B81B6-F5EB-4AF3-B491-1DE40976280F_Asset0017.jpg"; // Fallback only if fileUrl is missing
+
           // Decode HTML entities in the URL (fixes &amp; to &)
           imageUrl = imageUrl.replace(/&amp;/g, "&");
 
@@ -2407,20 +2393,13 @@ const ThreeViewer = React.memo(
             );
           };
 
-          // Determine final video URL. Prefer the stored fileUrl, but fall back
-          // to Backblaze using storageLocation or a path extracted from a
-          // Firebase URL.
-          let videoUrl = anchor.fileUrl;
-          if (!videoUrl || videoUrl.includes("firebasestorage.googleapis.com")) {
-            const path =
-              anchor.storageLocation || firebasePathFromUrl(videoUrl) || anchor.fileName;
-            videoUrl = b2UrlFor(path);
-          }
-          videoUrl = videoUrl.replace(/&amp;/g, "&");
+          // Use hardcoded Backblaze URL for videos
+          const backblazeVideoUrl =
+            "https://f005.backblazeb2.com/file/uploadedFiles-dev/24406E68-8FBD-4BAC-B773-E09EE0497599_Blueprint++In+Shared+Space+-+With+Explanations.mp4";
           console.log(
-            `[ThreeViewer fileAnchors] Setting video.src for ${anchor.id} to Backblaze URL: ${videoUrl}`,
+            `[ThreeViewer fileAnchors] Setting video.src for ${anchor.id} to Backblaze URL: ${backblazeVideoUrl}`,
           );
-          video.src = videoUrl;
+          video.src = backblazeVideoUrl;
         } else if (anchor.thumbnailUrl) {
           // If a thumbnail URL exists (even for PDFs/docs), treat it like an image
           console.log(
