@@ -55,6 +55,7 @@ import {
 } from "firebase/firestore";
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 import { db } from "@/lib/firebase";
+import { getStorage, ref, uploadBytes } from "firebase/storage";
 
 export default function OffWaitlistSignUpFlow() {
   // ------------------------------
@@ -553,6 +554,14 @@ export default function OffWaitlistSignUpFlow() {
           email: email.trim(),
           phone: phoneNumber.trim(),
         });
+
+        // Create a placeholder file to initialize the blueprint's storage folder
+        const storage = getStorage();
+        const placeholderRef = ref(
+          storage,
+          `blueprints/${blueprintId}/placeholder.txt`,
+        );
+        await uploadBytes(placeholderRef, new Uint8Array());
 
         const demoBookingDate = demoDate.toISOString().split("T")[0];
         const demoBookingId = `demo_${demoBookingDate}_${demoTime}`;
