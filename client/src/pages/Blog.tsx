@@ -50,8 +50,13 @@ export default function Blog() {
 
       <main className="flex-1 pt-24 px-4 md:px-8">
         <section className="max-w-6xl mx-auto">
-          <h1 className="text-4xl md:text-5xl font-extrabold text-center mb-10 bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">
-            Blueprint Blog
+          <h1 className="text-4xl md:text-5xl font-extrabold text-center mb-10 leading-[1.12]">
+            <span
+              className="inline-block bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400 pb-[0.08em]"
+              style={{ WebkitTextFillColor: "transparent" }}
+            >
+              Blueprint Blog
+            </span>
           </h1>
 
           <div className="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
