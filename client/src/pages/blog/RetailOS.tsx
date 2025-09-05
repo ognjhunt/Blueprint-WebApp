@@ -37,7 +37,7 @@ export default function RetailOS() {
                 <strong>"know the place to serve the person."</strong> retailOS
                 brings that vision to stores and showrooms. It blends AR and AI
                 to understand every aisle, bay and product so
-                <em>people</em>—both associates and shoppers—get exactly what
+                <em> people</em>—both associates and shoppers—get exactly what
                 they need faster and more confidently.
               </p>
 
