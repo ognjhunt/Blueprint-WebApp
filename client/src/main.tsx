@@ -40,6 +40,8 @@ const Terms = lazy(() => import("./pages/Terms"));
 const FAQ = lazy(() => import("./pages/FAQ"));
 const EmbedCalendar = lazy(() => import("./pages/EmbedCalendar"));
 const EmbedDashboard = lazy(() => import("./pages/EmbedDashboard"));
+const Blog = lazy(() => import("./pages/Blog"));
+const WarehouseOS = lazy(() => import("./pages/blog/WarehouseOS"));
 
 function Router() {
   return (
@@ -55,6 +57,8 @@ function Router() {
       <Route path="/outbound-signup" component={OutboundSignUpFlow} />
       <Route path="/workspace" component={WorkspacePage} />
       <Route path="/help" component={Help} />
+      <Route path="/blog" component={Blog} />
+      <Route path="/blog/warehouse-os" component={WarehouseOS} />
       <Route path="/manage-plan" component={ManagePlan} />
       <Route path="/team-members" component={TeamMembers} />
       <Route path="/settings" component={Settings} />
