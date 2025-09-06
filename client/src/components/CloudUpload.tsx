@@ -1,5 +1,6 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
 
 declare global {
   interface Window {
@@ -14,9 +15,15 @@ interface CloudUploadProps {
 }
 
 const CloudUpload: React.FC<CloudUploadProps> = ({ onFileSelect }) => {
+  const [gapiLoaded, setGapiLoaded] = useState(false);
+  const [gisLoaded, setGisLoaded] = useState(false);
+
   useEffect(() => {
     const gapiScript = document.createElement("script");
     gapiScript.src = "https://apis.google.com/js/api.js";
+    gapiScript.onload = () => setGapiLoaded(true);
+    gapiScript.onerror = () =>
+      console.error("[CloudUpload] Failed to load gapi (api.js)");
     document.body.appendChild(gapiScript);
 
     // ADD this script for modern Google Auth
@@ -24,10 +31,17 @@ const CloudUpload: React.FC<CloudUploadProps> = ({ onFileSelect }) => {
     gisScript.src = "https://accounts.google.com/gsi/client";
     gisScript.async = true;
     gisScript.defer = true;
+    gisScript.onload = () => setGisLoaded(true);
+    gisScript.onerror = () =>
+      console.error(
+        "[CloudUpload] Failed to load Google Identity Services (gsi/client)",
+      );
     document.body.appendChild(gisScript);
 
     const oneDriveScript = document.createElement("script");
     oneDriveScript.src = "https://js.live.net/v7.2/OneDrive.js";
+    oneDriveScript.onerror = () =>
+      console.error("[CloudUpload] Failed to load OneDrive.js");
     document.body.appendChild(oneDriveScript);
   }, []);
 
@@ -43,19 +57,54 @@ const CloudUpload: React.FC<CloudUploadProps> = ({ onFileSelect }) => {
 
   // REPLACE: handleGoogleDrive
   const handleGoogleDrive = () => {
-    const apiKey = (import.meta as any).env.VITE_GOOGLE_API_KEY as string;
+    const apiKey = "AIzaSyDOWZTVP79r5PUzgNtpso7dX9l5VTrb60k"; // (import.meta as any).env.VITE_GOOGLE_API_KEY as string;
     const clientId = (import.meta as any).env.VITE_GOOGLE_CLIENT_ID as string;
     // NEW: numeric Cloud Project number (not the string project ID)
-    const appId = (import.meta as any).env.VITE_GOOGLE_APP_ID as string;
+    const appId = "744608654760"; //(import.meta as any).env.VITE_GOOGLE_APP_ID as string;
 
-    if (
-      !window.gapi ||
-      !window.google?.accounts?.oauth2 ||
-      !apiKey ||
-      !clientId
-    ) {
-      // Fallback if scripts aren’t ready
-      window.open("https://drive.google.com", "_blank");
+    // Diagnostic: print which prerequisite is failing (without leaking secrets)
+    const mask = (v?: string) =>
+      v ? `${v.slice(0, 4)}...${v.slice(-4)}` : "(empty)";
+
+    console.groupCollapsed("[CloudUpload] Google Drive preflight");
+    console.table([
+      {
+        key: "gapiLoaded",
+        ok: gapiLoaded,
+        detail: `window.gapi=${!!window.gapi}`,
+      },
+      {
+        key: "gisLoaded",
+        ok: gisLoaded,
+        detail: `window.google=${!!window.google}`,
+      },
+      { key: "apiKey", ok: !!apiKey, sample: mask(apiKey) },
+      { key: "clientId", ok: !!clientId, sample: mask(clientId) },
+      {
+        key: "appId (numeric project number)",
+        ok: !!appId,
+        sample: mask(appId),
+      },
+    ]);
+    if (!gapiLoaded)
+      console.error("[CloudUpload] Missing: gapiLoaded (api.js not ready)");
+    if (!gisLoaded)
+      console.error("[CloudUpload] Missing: gisLoaded (GIS not ready)");
+    if (!apiKey) console.error("[CloudUpload] Missing: apiKey");
+    if (!clientId) console.error("[CloudUpload] Missing: clientId");
+    if (!appId)
+      console.error(
+        "[CloudUpload] Missing: appId (numeric Cloud Project number)",
+      );
+    console.groupEnd();
+
+    if (!gapiLoaded || !gisLoaded || !apiKey || !clientId || !appId) {
+      toast({
+        title: "Google Drive unavailable",
+        description:
+          "Google scripts failed to load or API credentials are missing.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -161,7 +210,11 @@ const CloudUpload: React.FC<CloudUploadProps> = ({ onFileSelect }) => {
         tokenClient.requestAccessToken();
       } catch (err) {
         console.error("Google Drive picker error", err);
-        window.open("https://drive.google.com", "_blank");
+        toast({
+          title: "Google Drive error",
+          description: "Unable to open Google Drive picker.",
+          variant: "destructive",
+        });
       }
     });
   };
@@ -212,6 +265,7 @@ const CloudUpload: React.FC<CloudUploadProps> = ({ onFileSelect }) => {
         size="sm"
         onClick={handleGoogleDrive}
         className="text-black"
+        disabled={!gapiLoaded || !gisLoaded}
       >
         Connect Google Drive
       </Button>
