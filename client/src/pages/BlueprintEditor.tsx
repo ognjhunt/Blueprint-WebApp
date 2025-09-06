@@ -230,6 +230,7 @@ import {
   ArrowRight,
   ArrowLeft,
   Compass,
+  CircleDot,
   ShoppingCart,
   PercentCircle,
   Ticket,
@@ -490,6 +491,11 @@ export default function BlueprintEditor() {
   const [areaName, setAreaName] = useState("");
   const [areaNameDialogOpen, setAreaNameDialogOpen] = useState(false);
   const [remarkingAreaId, setRemarkingAreaId] = useState<string | null>(null);
+  const [markedPoints, setMarkedPoints] = useState<any[]>([]);
+  const [isMarkingPoint, setIsMarkingPoint] = useState(false);
+  const [pendingPoint, setPendingPoint] = useState<any | null>(null);
+  const [pointName, setPointName] = useState("");
+  const [pointNameDialogOpen, setPointNameDialogOpen] = useState(false);
   // const corner1Ref = useRef(null);
   const [onboardingMode, setOnboardingMode] = useState("fullscreen"); // "fullscreen" or "sidebar"
 
@@ -1920,6 +1926,13 @@ export default function BlueprintEditor() {
           Array.isArray(blueprintData.markedAreas)
         ) {
           setMarkedAreas(blueprintData.markedAreas);
+        }
+
+        if (
+          blueprintData.markedPoints &&
+          Array.isArray(blueprintData.markedPoints)
+        ) {
+          setMarkedPoints(blueprintData.markedPoints);
         }
 
         // Load uploaded files if available
@@ -4671,6 +4684,45 @@ export default function BlueprintEditor() {
       toast({
         title: "Error",
         description: "Failed to save area. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePointMarked = (coords) => {
+    setPendingPoint(coords);
+    setPointName("");
+    setPointNameDialogOpen(true);
+  };
+
+  const saveMarkedPoint = async () => {
+    if (!pendingPoint || !blueprintId) return;
+    try {
+      const newPoint = {
+        id: `point-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+        name: pointName.trim() || "Unnamed Point",
+        x: pendingPoint.x,
+        y: pendingPoint.y,
+        z: pendingPoint.z,
+        createdAt: new Date(),
+      };
+      setMarkedPoints((prev) => [...prev, newPoint]);
+      await updateDoc(doc(db, "blueprints", blueprintId), {
+        markedPoints: arrayUnion(newPoint),
+      });
+      toast({
+        title: "Point Marked",
+        description: `"${newPoint.name}" point has been saved.`,
+      });
+      setPointName("");
+      setPendingPoint(null);
+      setPointNameDialogOpen(false);
+      setIsMarkingPoint(false);
+    } catch (error) {
+      console.error("Error saving point:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save point. Please try again.",
         variant: "destructive",
       });
     }
@@ -7686,6 +7738,9 @@ export default function BlueprintEditor() {
                   isMarkingArea={isMarkingArea}
                   onAreaMarked={handleAreaMarked}
                   markedAreas={markedAreas}
+                  isMarkingPoint={isMarkingPoint}
+                  onPointMarked={handlePointMarked}
+                  markedPoints={markedPoints}
                   activeLabel={activeLabel}
                   awaiting3D={awaiting3D}
                   placementMode={placementMode}
@@ -7802,6 +7857,15 @@ export default function BlueprintEditor() {
                 >
                   <Square className="h-4 w-4 mr-1.5" />
                   {isMarkingArea ? "Stop Marking" : "Mark Area"}
+                </Button>
+
+                <Button
+                  variant={isMarkingPoint ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setIsMarkingPoint(!isMarkingPoint)}
+                >
+                  <CircleDot className="h-4 w-4 mr-1.5" />
+                  {isMarkingPoint ? "Stop Points" : "Mark Point"}
                 </Button>
 
                 {/* QR Code */}
@@ -8299,6 +8363,9 @@ export default function BlueprintEditor() {
                         isMarkingArea={isMarkingArea}
                         onAreaMarked={handleAreaMarked}
                         markedAreas={markedAreas}
+                        isMarkingPoint={isMarkingPoint}
+                        onPointMarked={handlePointMarked}
+                        markedPoints={markedPoints}
                         fileAnchors={fileAnchors}
                         setAwaiting3D={setAwaiting3D}
                         setActiveLabel={setActiveLabel}
@@ -8516,6 +8583,58 @@ export default function BlueprintEditor() {
               >
                 <Check className="h-4 w-4 mr-1.5" />
                 Save Area
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <Dialog
+          open={pointNameDialogOpen}
+          onOpenChange={(open) => {
+            if (!open && pendingPoint) {
+              setPointNameDialogOpen(false);
+              setPendingPoint(null);
+            } else {
+              setPointNameDialogOpen(open);
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-blue-600" />
+                Name Your Point
+              </DialogTitle>
+              <DialogDescription>
+                Give a name to the point you just marked.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Label htmlFor="point-name" className="mb-1.5 block">
+                Point Name
+              </Label>
+              <Input
+                id="point-name"
+                value={pointName}
+                onChange={(e) => setPointName(e.target.value)}
+                placeholder="e.g. Sink, Storage Bin"
+                autoFocus
+                className="mb-2"
+              />
+            </div>
+            <DialogFooter className="sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setPointNameDialogOpen(false);
+                  setPendingPoint(null);
+                  setIsMarkingPoint(false);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" onClick={saveMarkedPoint}>
+                Save Point
               </Button>
             </DialogFooter>
           </DialogContent>

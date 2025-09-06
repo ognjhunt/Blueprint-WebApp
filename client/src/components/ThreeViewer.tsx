@@ -130,6 +130,14 @@ interface MarkedArea {
   max: { x: number; y: number; z: number };
 }
 
+interface MarkedPoint {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  z: number;
+}
+
 // Define FileAnchor interface to fix duplicate definition errors
 interface FileAnchor {
   id: string;
@@ -187,6 +195,9 @@ interface ThreeViewerProps {
     max: { x: number; y: number; z: number };
   }) => void;
   markedAreas?: MarkedArea[];
+  isMarkingPoint?: boolean;
+  onPointMarked?: (pos: { x: number; y: number; z: number }) => void;
+  markedPoints?: MarkedPoint[];
   fileAnchors?: FileAnchor[];
   webpageAnchors?: Array<{
     id: string;
@@ -355,6 +366,9 @@ const ThreeViewer = React.memo(
       onModelDropped,
       onPlacementComplete,
       markedAreas,
+      isMarkingPoint,
+      onPointMarked,
+      markedPoints,
       selectedArea,
       showQrCodes,
       showTextAnchors,
@@ -401,12 +415,12 @@ const ThreeViewer = React.memo(
 
     useEffect(() => {
       isMarkingAreaRef.current = !!isMarkingArea;
+      isMarkingPointRef.current = !!isMarkingPoint;
       if (rendererRef.current) {
-        rendererRef.current.domElement.style.cursor = isMarkingArea
-          ? "crosshair"
-          : "auto";
+        rendererRef.current.domElement.style.cursor =
+          isMarkingArea || isMarkingPoint ? "crosshair" : "auto";
       }
-    }, [isMarkingArea]);
+    }, [isMarkingArea, isMarkingPoint]);
 
     const [activeFileAnchorId, setActiveFileAnchorId] = useState<string | null>(
       null,
@@ -418,6 +432,7 @@ const ThreeViewer = React.memo(
     );
     // const textAnchorsRef = useRef<Map<string, THREE.Object3D>>(new Map());
     const textAnchorsRef = useRef<Map<string, CSS3DObject>>(new Map());
+    const pointMarkersRef = useRef<Map<string, THREE.Mesh>>(new Map());
     const fileAnchorsRef = useRef<Map<string, THREE.Object3D>>(new Map());
     const raycasterRef = useRef<THREE.Raycaster>(new THREE.Raycaster()); //check
     const clickMarkerRef = useRef<THREE.Mesh | null>(null);
@@ -545,6 +560,7 @@ const ThreeViewer = React.memo(
       N: THREE.Vector3;
     };
     const isMarkingAreaRef = useRef<boolean>(!!isMarkingArea);
+    const isMarkingPointRef = useRef<boolean>(!!isMarkingPoint);
     const areaBasisRef = useRef<AreaBasis | null>(null);
     const areaPlaneRef = useRef<THREE.Plane | null>(null);
     const areaPreviewRef = useRef<THREE.Mesh | null>(null);
@@ -1743,9 +1759,9 @@ const ThreeViewer = React.memo(
 
     useEffect(() => {
       if (orbitControlsRef.current) {
-        orbitControlsRef.current.enabled = !isMarkingArea;
+        orbitControlsRef.current.enabled = !isMarkingArea && !isMarkingPoint;
       }
-    }, [isMarkingArea]);
+    }, [isMarkingArea, isMarkingPoint]);
 
     // Add this useEffect after your other transform-related effects
     useEffect(() => {
@@ -6662,6 +6678,65 @@ const ThreeViewer = React.memo(
         container.removeEventListener("pointerup", onPointerUp);
       };
     }, [isMarkingArea, onAreaMarked]);
+
+    useEffect(() => {
+      if (!mountRef.current || !cameraRef.current || !sceneRef.current) return;
+      const container = mountRef.current;
+      const camera = cameraRef.current;
+      const scene = sceneRef.current;
+
+      function onPointerDown(e: PointerEvent) {
+        if (!isMarkingPointRef.current) return;
+        if (e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const rect = container.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        const mouse = new THREE.Vector2(x, y);
+        raycasterRef.current.setFromCamera(mouse, camera);
+        const intersects = raycasterRef.current.intersectObjects(
+          scene.children,
+          true,
+        );
+        if (intersects.length > 0) {
+          const hitPoint = intersects[0].point.clone();
+          const real = convertToRealWorldCoords(hitPoint);
+          onPointMarked?.({ x: real.x, y: real.y, z: real.z });
+        }
+      }
+
+      container.addEventListener("pointerdown", onPointerDown, {
+        passive: false,
+      });
+      return () => {
+        container.removeEventListener("pointerdown", onPointerDown);
+      };
+    }, [isMarkingPoint, onPointMarked, convertToRealWorldCoords]);
+
+    useEffect(() => {
+      if (!sceneRef.current) return;
+      const scene = sceneRef.current;
+      const currentIds = new Set(markedPoints?.map((p) => p.id));
+      pointMarkersRef.current.forEach((mesh, id) => {
+        if (!currentIds.has(id)) {
+          scene.remove(mesh);
+          pointMarkersRef.current.delete(id);
+        }
+      });
+      markedPoints?.forEach((p) => {
+        let mesh = pointMarkersRef.current.get(p.id);
+        if (!mesh) {
+          mesh = new THREE.Mesh(
+            new THREE.SphereGeometry(0.1, 16, 16),
+            new THREE.MeshBasicMaterial({ color: 0xff0000 }),
+          );
+          scene.add(mesh);
+          pointMarkersRef.current.set(p.id, mesh);
+        }
+        mesh.position.set(p.x, p.y, p.z);
+      });
+    }, [markedPoints]);
 
     useEffect(() => {
       if (!mountRef.current) return; // Ensure mountRef is available
