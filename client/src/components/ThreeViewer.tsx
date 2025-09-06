@@ -76,6 +76,13 @@ import { doc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import * as TWEEN from "@tweenjs/tween.js";
 // Removed CSS3DObject import - we'll use our own interface
 
+const pinSvg =
+  "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='red'><path d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z'/></svg>";
+const pinTexture = new THREE.TextureLoader().load(
+  "data:image/svg+xml;utf8," + encodeURIComponent(pinSvg),
+);
+pinTexture.colorSpace = THREE.SRGBColorSpace;
+
 declare module "three" {
   interface Object3D {
     isDescendantOf?(obj: Object3D): boolean;
@@ -230,6 +237,7 @@ interface ThreeViewerProps {
   showFileAnchors?: boolean;
   showWebpageAnchors?: boolean;
   showModelAnchors?: boolean;
+  showMarkedPoints?: boolean;
   showGrid?: boolean;
   originOrientation?: THREE.Quaternion | null;
   originSettingStep?: "inactive" | "picking_position" | "picking_direction";
@@ -375,6 +383,7 @@ const ThreeViewer = React.memo(
       showFileAnchors,
       showWebpageAnchors,
       showModelAnchors,
+      showMarkedPoints = true,
       showGrid,
       onWalkModeChange,
       originOrientation, // Added originOrientation here
@@ -432,7 +441,7 @@ const ThreeViewer = React.memo(
     );
     // const textAnchorsRef = useRef<Map<string, THREE.Object3D>>(new Map());
     const textAnchorsRef = useRef<Map<string, CSS3DObject>>(new Map());
-    const pointMarkersRef = useRef<Map<string, THREE.Mesh>>(new Map());
+    const pointMarkersRef = useRef<Map<string, THREE.Sprite>>(new Map());
     const fileAnchorsRef = useRef<Map<string, THREE.Object3D>>(new Map());
     const raycasterRef = useRef<THREE.Raycaster>(new THREE.Raycaster()); //check
     const clickMarkerRef = useRef<THREE.Mesh | null>(null);
@@ -6722,26 +6731,39 @@ const ThreeViewer = React.memo(
     useEffect(() => {
       if (!sceneRef.current) return;
       const scene = sceneRef.current;
+
+      if (!showMarkedPoints) {
+        pointMarkersRef.current.forEach((marker) => {
+          scene.remove(marker);
+        });
+        pointMarkersRef.current.clear();
+        return;
+      }
+
       const currentIds = new Set(markedPoints?.map((p) => p.id));
-      pointMarkersRef.current.forEach((mesh, id) => {
+      pointMarkersRef.current.forEach((sprite, id) => {
         if (!currentIds.has(id)) {
-          scene.remove(mesh);
+          scene.remove(sprite);
           pointMarkersRef.current.delete(id);
         }
       });
       markedPoints?.forEach((p) => {
-        let mesh = pointMarkersRef.current.get(p.id);
-        if (!mesh) {
-          mesh = new THREE.Mesh(
-            new THREE.SphereGeometry(0.1, 16, 16),
-            new THREE.MeshBasicMaterial({ color: 0xff0000 }),
-          );
-          scene.add(mesh);
-          pointMarkersRef.current.set(p.id, mesh);
+        let sprite = pointMarkersRef.current.get(p.id);
+        if (!sprite) {
+          const material = new THREE.SpriteMaterial({
+            map: pinTexture,
+            depthTest: false,
+            depthWrite: false,
+          });
+          sprite = new THREE.Sprite(material);
+          sprite.scale.set(0.5, 0.5, 0.5);
+          sprite.center.set(0.5, 0);
+          scene.add(sprite);
+          pointMarkersRef.current.set(p.id, sprite);
         }
-        mesh.position.set(p.x, p.y, p.z);
+        sprite.position.set(p.x, p.y, p.z);
       });
-    }, [markedPoints]);
+    }, [markedPoints, showMarkedPoints]);
 
     useEffect(() => {
       if (!mountRef.current) return; // Ensure mountRef is available

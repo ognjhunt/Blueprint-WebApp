@@ -400,6 +400,7 @@ export default function BlueprintEditor() {
   const [showFileAnchors, setShowFileAnchors] = useState(true); // New state for Files (incl. images/videos)
   const [showWebpageAnchors, setShowWebpageAnchors] = useState(true); // New state for Webpages
   const [showModelAnchors, setShowModelAnchors] = useState(true); // New state for 3D Models
+  const [showMarkedPoints, setShowMarkedPoints] = useState(true); // Visibility for Marked Points
   const [isWalkMode, setIsWalkMode] = useState(false);
   const [location] = useLocation();
   const blueprintId = location.split("/").pop();
@@ -7749,6 +7750,7 @@ export default function BlueprintEditor() {
                   isMarkingPoint={isMarkingPoint}
                   onPointMarked={handlePointMarked}
                   markedPoints={markedPoints}
+                  showMarkedPoints={showMarkedPoints}
                   activeLabel={activeLabel}
                   awaiting3D={awaiting3D}
                   placementMode={placementMode}
@@ -7921,6 +7923,24 @@ export default function BlueprintEditor() {
                 title={isWalkMode ? "Exit Walk Mode" : "Enter Walk Mode"}
               >
                 <PersonStanding className="h-6 w-6" />
+              </Button>
+
+              {/* --- Marked Points Toggle --- */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowMarkedPoints(!showMarkedPoints)}
+                className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-muted/90 px-3 py-2 h-auto rounded-md shadow text-black"
+                title={
+                  showMarkedPoints ? "Hide Marked Points" : "Show Marked Points"
+                }
+              >
+                {showMarkedPoints ? (
+                  <EyeOff className="h-6 w-6" />
+                ) : (
+                  <Eye className="h-6 w-6" />
+                )}
+                <MapPin className="h-6 w-6" />
               </Button>
 
               {/* --- Text Anchors Toggle --- */}
@@ -8374,6 +8394,7 @@ export default function BlueprintEditor() {
                         isMarkingPoint={isMarkingPoint}
                         onPointMarked={handlePointMarked}
                         markedPoints={markedPoints}
+                        showMarkedPoints={showMarkedPoints}
                         fileAnchors={fileAnchors}
                         setAwaiting3D={setAwaiting3D}
                         setActiveLabel={setActiveLabel}
