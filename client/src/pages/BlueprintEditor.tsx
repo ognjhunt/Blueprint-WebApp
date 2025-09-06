@@ -5112,7 +5112,11 @@ export default function BlueprintEditor() {
   // ========================
 
   // Handle file upload
-  const handleFileUpload = async (file, type = "standard") => {
+  const handleFileUpload = async (
+    file,
+    type = "standard",
+    autoPlace = false,
+  ) => {
     if (!file || !blueprintId) return;
 
     // Use the state variable defined at the component level
@@ -5294,48 +5298,73 @@ export default function BlueprintEditor() {
           console.error("Error updating uploadedFiles in Firestore:", error);
         }
 
-        // Success toast
-        toast({
-          title: "File Uploaded Successfully",
-          description: `${file.name} is ready to use in your blueprint.`,
-          variant: "default",
-          duration: 4000,
-          action: (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                // Set placement mode to simplify adding
-                setViewMode("3D");
-                setPlacementMode({
-                  type: fileType.includes("image")
-                    ? "file"
-                    : fileType.includes("video")
-                      ? "file"
-                      : "file",
-                  data: {
-                    file: newFile,
-                    fileType: fileType.includes("image")
-                      ? "image"
-                      : fileType.includes("video")
-                        ? "video"
-                        : "document",
-                    url: downloadURL,
-                    name: file.name,
-                  },
-                });
+        if (autoPlace) {
+          setViewMode("3D");
+          setPlacementMode({
+            type: fileType.includes("image")
+              ? "file"
+              : fileType.includes("video")
+                ? "file"
+                : "file",
+            data: {
+              file: newFile,
+              fileType: fileType.includes("image")
+                ? "image"
+                : fileType.includes("video")
+                  ? "video"
+                  : "document",
+              url: downloadURL,
+              name: file.name,
+            },
+          });
 
-                toast({
-                  title: "Ready to Place",
-                  description: "Click in the 3D view to place your file",
-                  duration: 5000,
-                });
-              }}
-            >
-              Place Now
-            </Button>
-          ),
-        });
+          toast({
+            title: "Ready to Place",
+            description: "Click in the 3D view to place your file",
+            duration: 5000,
+          });
+        } else {
+          toast({
+            title: "File Uploaded Successfully",
+            description: `${file.name} is ready to use in your blueprint.`,
+            variant: "default",
+            duration: 4000,
+            action: (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setViewMode("3D");
+                  setPlacementMode({
+                    type: fileType.includes("image")
+                      ? "file"
+                      : fileType.includes("video")
+                        ? "file"
+                        : "file",
+                    data: {
+                      file: newFile,
+                      fileType: fileType.includes("image")
+                        ? "image"
+                        : fileType.includes("video")
+                          ? "video"
+                          : "document",
+                      url: downloadURL,
+                      name: file.name,
+                    },
+                  });
+
+                  toast({
+                    title: "Ready to Place",
+                    description: "Click in the 3D view to place your file",
+                    duration: 5000,
+                  });
+                }}
+              >
+                Place Now
+              </Button>
+            ),
+          });
+        }
       }
     } catch (error) {
       console.error("File upload error:", error);
@@ -7448,7 +7477,9 @@ export default function BlueprintEditor() {
                   {/* Example: <Button>Connect Google Drive</Button> */}
                   {/* Example: <Button>Connect OneDrive</Button> */}
                   <CloudUpload
-                    onFileSelect={(file) => handleFileUpload(file)}
+                    onFileSelect={(file) =>
+                      handleFileUpload(file, "standard", true)
+                    }
                   />
                 </div>
 
@@ -7769,6 +7800,9 @@ export default function BlueprintEditor() {
                   setAwaiting3D={setAwaiting3D}
                   setActiveLabel={setActiveLabel}
                   onFileDropped={handleFileAnchorPlaced}
+                  onCloudFileSelect={(file) =>
+                    handleFileUpload(file, "standard", true)
+                  }
                   onTextAnchorClick={handleTextAnchorClicked}
                   onWebpageAnchorClick={handleWebpageAnchorClicked}
                   onBackgroundClick={handleViewerBackgroundClick}

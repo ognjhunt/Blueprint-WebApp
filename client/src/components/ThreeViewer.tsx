@@ -218,6 +218,7 @@ interface ThreeViewerProps {
     fileInfo: any,
     realWorldCoords: { x: number; y: number; z: number },
   ) => void;
+  onCloudFileSelect?: (file: File) => void;
   onTextAnchorClick?: (anchorId: string, currentText: string) => void;
   onWebpageAnchorClick?: (anchorId: string, anchorUrl: string) => void;
   onFileAnchorClick?: (anchorId: string, anchorData: any) => void;
@@ -346,6 +347,7 @@ const ThreeViewer = React.memo(
       onFileAnchorClick,
       onBackgroundClick,
       onFileDropped,
+      onCloudFileSelect,
       activeLabel,
       awaiting3D,
       setReferencePoints3D,
@@ -6990,9 +6992,13 @@ const ThreeViewer = React.memo(
         <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
         <div className="absolute top-4 right-4 z-50">
           <CloudUpload
-            onFileSelect={(file) =>
-              props.onFileDropped?.({ file }, { x: 0, y: 0, z: 0 })
-            }
+            onFileSelect={(file) => {
+              if (onCloudFileSelect) {
+                onCloudFileSelect(file);
+              } else {
+                onFileDropped?.({ file }, { x: 0, y: 0, z: 0 });
+              }
+            }}
           />
         </div>
         {/* +++ ADD THIS PROGRESS BAR +++ */}
