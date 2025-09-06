@@ -635,8 +635,9 @@ export default function BlueprintEditor() {
   const [textAnchors, setTextAnchors] = useState<TextAnchor[]>([]);
   const [textContent, setTextContent] = useState("");
   const [anchorMediaUrl, setAnchorMediaUrl] = useState("");
-  const [anchorMediaType, setAnchorMediaType] =
-    useState<"image" | "video" | "audio">("image");
+  const [anchorMediaType, setAnchorMediaType] = useState<
+    "image" | "video" | "audio"
+  >("image");
   const [activeSection, setActiveSection] = useState<string | null>(null); // Explicitly type state
   const [editingTextAnchorId, setEditingTextAnchorId] = useState<string | null>(
     null,
@@ -3756,7 +3757,9 @@ export default function BlueprintEditor() {
 
     setTextAnchors((prevAnchors) =>
       prevAnchors.map((anchor) =>
-        anchor.id === anchorId ? { ...anchor, mediaUrl: url, mediaType: type } : anchor,
+        anchor.id === anchorId
+          ? { ...anchor, mediaUrl: url, mediaType: type }
+          : anchor,
       ),
     );
     setSelectedAnchorData((prev) =>
@@ -6095,18 +6098,23 @@ export default function BlueprintEditor() {
                           {editingTextAnchorId && (
                             <div className="bg-gray-50 rounded-lg p-4 border mt-4">
                               <h3 className="text-sm font-medium mb-2 flex items-center text-gray-700">
-                                <ImageIcon className="h-4 w-4 mr-1.5" /> Add Media
+                                <ImageIcon className="h-4 w-4 mr-1.5" /> Add
+                                Media
                               </h3>
                               <Input
                                 placeholder="Enter media URL"
                                 value={anchorMediaUrl}
-                                onChange={(e) => setAnchorMediaUrl(e.target.value)}
+                                onChange={(e) =>
+                                  setAnchorMediaUrl(e.target.value)
+                                }
                                 className="mb-2 bg-white"
                               />
                               <Select
                                 value={anchorMediaType}
                                 onValueChange={(v) =>
-                                  setAnchorMediaType(v as "image" | "video" | "audio")
+                                  setAnchorMediaType(
+                                    v as "image" | "video" | "audio",
+                                  )
                                 }
                               >
                                 <SelectTrigger className="w-full mb-2">

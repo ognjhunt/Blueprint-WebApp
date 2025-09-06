@@ -3488,7 +3488,9 @@ const ThreeViewer = React.memo(
         if (existingLabelObject instanceof CSS3DObject) {
           // --- UPDATE EXISTING ANCHOR ---
           const element = existingLabelObject.element as HTMLElement;
-          const textDiv = element.querySelector(".bp-text") as HTMLElement | null;
+          const textDiv = element.querySelector(
+            ".bp-text",
+          ) as HTMLElement | null;
           const currentVisualText = textDiv?.textContent;
           const newText = anchor.textContent;
 
@@ -3533,7 +3535,10 @@ const ThreeViewer = React.memo(
                 v.controls = true;
                 v.style.marginBottom = "8px";
                 element.insertBefore(v, textDiv || null);
-              } else if (anchor.mediaType === "image" && mediaEl.tagName !== "IMG") {
+              } else if (
+                anchor.mediaType === "image" &&
+                mediaEl.tagName !== "IMG"
+              ) {
                 mediaEl.remove();
                 const i = document.createElement("img");
                 i.className = "bp-media";
