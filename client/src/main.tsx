@@ -43,6 +43,7 @@ const EmbedDashboard = lazy(() => import("./pages/EmbedDashboard"));
 const Blog = lazy(() => import("./pages/Blog"));
 const WarehouseOS = lazy(() => import("./pages/blog/WarehouseOS"));
 const RetailOS = lazy(() => import("./pages/blog/RetailOS"));
+const PropertyOS = lazy(() => import("./pages/blog/PropertyOS"));
 
 function Router() {
   return (
@@ -61,6 +62,7 @@ function Router() {
       <Route path="/blog" component={Blog} />
       <Route path="/blog/warehouse-os" component={WarehouseOS} />
       <Route path="/blog/retail-os" component={RetailOS} />
+      <Route path="/blog/property-os" component={PropertyOS} />
       <Route path="/manage-plan" component={ManagePlan} />
       <Route path="/team-members" component={TeamMembers} />
       <Route path="/settings" component={Settings} />

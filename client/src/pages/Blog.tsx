@@ -18,6 +18,12 @@ type Post = {
 export default function Blog() {
   const posts: Post[] = [
     {
+      title: "propertyOS – our third era",
+      description:
+        "How Blueprint uses AR + AI to personalize your own space beyond the limits of the physical world.",
+      href: "/blog/property-os",
+    },
+    {
       title: "retailOS – our second phase",
       description:
         "How Blueprint uses AR + AI to elevate in-store ops and customer experience in retail.",
