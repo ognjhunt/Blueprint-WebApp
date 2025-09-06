@@ -6756,14 +6756,17 @@ const ThreeViewer = React.memo(
             depthWrite: false,
           });
           sprite = new THREE.Sprite(material);
-          sprite.scale.set(0.5, 0.5, 0.5);
+          sprite.scale.set(0.035, 0.035, 0.035);
           sprite.center.set(0.5, 0);
           scene.add(sprite);
           pointMarkersRef.current.set(p.id, sprite);
         }
-        sprite.position.set(p.x, p.y, p.z);
+        const worldPos = convertFromRealWorldCoords(
+          new THREE.Vector3(p.x, p.y, p.z),
+        );
+        sprite.position.copy(worldPos);
       });
-    }, [markedPoints, showMarkedPoints]);
+    }, [markedPoints, showMarkedPoints, convertFromRealWorldCoords]);
 
     useEffect(() => {
       if (!mountRef.current) return; // Ensure mountRef is available
