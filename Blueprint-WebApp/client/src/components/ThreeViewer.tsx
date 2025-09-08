@@ -5993,9 +5993,9 @@ const ThreeViewer = React.memo(
           fileDataString,
         );
 
-        if (!fileDataString) {
+        if (!fileDataString && !modelDataString) {
           console.warn(
-            "[ThreeViewer] No 'application/file' data found. Skipping anchor creation.",
+            "[ThreeViewer] No 'application/file' or 'application/model' data found. Skipping anchor creation.",
           );
           return;
         }
