@@ -1823,7 +1823,7 @@ export default function ScannerPortal() {
                             or click to browse files
                           </p>
                           <p className="text-xs text-gray-400 mt-2">
-                            Supports GLB format
+                            Supports GLB or USDZ format
                           </p>
                         </div>
                       )}
@@ -1832,7 +1832,7 @@ export default function ScannerPortal() {
                         id="modelFile"
                         ref={modelFileRef}
                         className="hidden"
-                        accept=".glb"
+                        accept=".glb,.gltf,.usdz"
                         onChange={(e) => handleFileChange(e, "model")}
                       />
                     </div>

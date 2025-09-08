@@ -5154,8 +5154,10 @@ export default function BlueprintEditor() {
         type === "3dmodel" &&
         (fileType.includes("gltf") ||
           fileType.includes("glb") ||
+          fileType.includes("usdz") ||
           file.name.endsWith(".glb") ||
-          file.name.endsWith(".gltf"))
+          file.name.endsWith(".gltf") ||
+          file.name.endsWith(".usdz"))
       ) {
         // 3D model upload logic (unchanged)...
         // Upload to Firebase Storage
@@ -6376,7 +6378,7 @@ export default function BlueprintEditor() {
                                 <input
                                   type="file"
                                   ref={modelFileInputRef}
-                                  accept=".glb,.gltf"
+                                  accept=".glb,.gltf,.usdz"
                                   className="hidden"
                                   onChange={(e) => {
                                     if (e.target.files?.[0]) {
