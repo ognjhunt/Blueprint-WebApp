@@ -18,6 +18,30 @@ type Post = {
 export default function Blog() {
   const posts: Post[] = [
     {
+      title: "workplaceOS – our seventh phase",
+      description:
+        "AR + AI for offices and frontline hubs—live KPIs for managers, guided work and instant answers for teams.",
+      href: "/blog/workplace-os",
+    },
+    {
+      title: "restaurantOS – our sixth phase",
+      description:
+        "Guest-centric AR: photoreal 3D menus, chef stories, smart recs, and contactless flows that enhance the meal.",
+      href: "/blog/restaurant-os",
+    },
+    {
+      title: "hospitalityOS – our fifth vertical",
+      description:
+        "Wayfinding, amenity cues, and in-room overlays for guests—plus staff tools that lift satisfaction and service efficiency.",
+      href: "/blog/hospitality-os",
+    },
+    {
+      title: "museumOS – our fourth vertical",
+      description:
+        "Immersive storytelling, AI guides, and accessible wayfinding that deepen engagement and learning in cultural spaces.",
+      href: "/blog/museum-os",
+    },
+    {
       title: "propertyOS – our third era",
       description:
         "How Blueprint uses AR + AI to personalize your own space beyond the limits of the physical world.",

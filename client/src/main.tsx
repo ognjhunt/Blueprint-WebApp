@@ -44,6 +44,10 @@ const Blog = lazy(() => import("./pages/Blog"));
 const WarehouseOS = lazy(() => import("./pages/blog/WarehouseOS"));
 const RetailOS = lazy(() => import("./pages/blog/RetailOS"));
 const PropertyOS = lazy(() => import("./pages/blog/PropertyOS"));
+const MuseumOS = lazy(() => import("./pages/blog/MuseumOS"));
+const HospitalityOS = lazy(() => import("./pages/blog/HospitalityOS"));
+const RestaurantOS = lazy(() => import("./pages/blog/RestaurantOS"));
+const WorkplaceOS = lazy(() => import("./pages/blog/WorkplaceOS"));
 
 function Router() {
   return (
@@ -63,6 +67,10 @@ function Router() {
       <Route path="/blog/warehouse-os" component={WarehouseOS} />
       <Route path="/blog/retail-os" component={RetailOS} />
       <Route path="/blog/property-os" component={PropertyOS} />
+      <Route path="/blog/museum-os" component={MuseumOS} />
+      <Route path="/blog/hospitality-os" component={HospitalityOS} />
+      <Route path="/blog/restaurant-os" component={RestaurantOS} />
+      <Route path="/blog/workplace-os" component={WorkplaceOS} />
       <Route path="/manage-plan" component={ManagePlan} />
       <Route path="/team-members" component={TeamMembers} />
       <Route path="/settings" component={Settings} />
