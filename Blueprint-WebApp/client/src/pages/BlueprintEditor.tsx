@@ -3162,6 +3162,12 @@ export default function BlueprintEditor() {
     return `${baseUrl}/${thumbnailName}`;
   }
 
+  function getModelUrl(modelFileName: string) {
+    if (!modelFileName) return "";
+    const baseUrl = "https://f005.backblazeb2.com/file/objectModels-dev";
+    return `${baseUrl}/${encodeURIComponent(modelFileName)}`;
+  }
+
   const performModelSearch = async (query) => {
     if (query.trim() === "") {
       // If query is empty, revert to featured models
@@ -3182,7 +3188,9 @@ export default function BlueprintEditor() {
           const thumbnail = thumbnailName
             ? await getThumbnailUrl(thumbnailName)
             : "";
-          return { id: modelId, name, description, thumbnail };
+          const modelFileName = data.modelName || "";
+          const modelUrl = getModelUrl(modelFileName);
+          return { id: modelId, name, description, thumbnail, modelUrl };
         }),
       );
       // Filter models based on query (checking name and description)
@@ -3506,6 +3514,7 @@ export default function BlueprintEditor() {
         name: string;
         thumbnail: string;
         description: string;
+        modelUrl: string;
       }
 
       const tempModels: FeaturedModel[] = [];
@@ -3515,6 +3524,8 @@ export default function BlueprintEditor() {
         const modelId = data.id || docSnap.id;
         const name = data.name || "Untitled";
         const description = data.description || "";
+        const modelFileName = data.modelName || "";
+        const modelUrl = getModelUrl(modelFileName);
 
         // Get the thumbnail URL from the name
         const thumbnailName = data.thumbnail || "";
@@ -3525,6 +3536,7 @@ export default function BlueprintEditor() {
           name,
           thumbnail: thumbnailUrl, // Now we store the actual download URL
           description,
+          modelUrl,
         });
       }
 
@@ -5745,6 +5757,20 @@ export default function BlueprintEditor() {
                                       handleFeaturedModelClick(model)
                                     }
                                     draggable
+                                    onDragStart={(e) => {
+                                      e.dataTransfer.setData(
+                                        "application/model",
+                                        JSON.stringify({
+                                          id: model.id,
+                                          name: model.name,
+                                          modelUrl: model.modelUrl,
+                                        }),
+                                      );
+                                      console.log(
+                                        "[BlueprintEditor] onDragStart - setting model data:",
+                                        model,
+                                      );
+                                    }}
                                   >
                                     {/* ... model card JSX ... */}
                                     <div className="w-full aspect-video bg-muted relative">
