@@ -91,3 +91,16 @@ declare module 'three/examples/jsm/loaders/GLTFLoader' {
     ): void;
   }
 }
+
+declare module 'three/examples/jsm/loaders/USDZLoader' {
+  import { Loader, LoadingManager, Object3D } from 'three';
+  export class USDZLoader extends Loader {
+    constructor(manager?: LoadingManager);
+    load(
+      url: string,
+      onLoad: (object: Object3D) => void,
+      onProgress?: (event: ProgressEvent) => void,
+      onError?: (event: ErrorEvent) => void,
+    ): void;
+  }
+}

@@ -56,6 +56,7 @@ declare module "three" {
   }
 }
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { USDZLoader } from "three/examples/jsm/loaders/USDZLoader";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import CloudUpload from "@/components/CloudUpload";
@@ -82,6 +83,37 @@ const pinTexture = new THREE.TextureLoader().load(
   "data:image/svg+xml;utf8," + encodeURIComponent(pinSvg),
 );
 pinTexture.colorSpace = THREE.SRGBColorSpace;
+
+const FALLBACK_MODEL_URL =
+  "https://f005.backblazeb2.com/file/objectModels-dev/Mona_Lisa_PBR_hires_model.glb";
+
+const loadModelWithFallback = async (url: string): Promise<THREE.Object3D> => {
+  const isUSDZ = url.toLowerCase().endsWith(".usdz");
+  const loader: any = isUSDZ ? new USDZLoader() : new GLTFLoader();
+  return new Promise((resolve, reject) => {
+    loader.load(
+      url,
+      (gltf: any) => {
+        const model = gltf?.scene || gltf;
+        resolve(model);
+      },
+      undefined,
+      async (err: any) => {
+        console.error("Error loading model", err);
+        if (url !== FALLBACK_MODEL_URL) {
+          try {
+            const fallback = await loadModelWithFallback(FALLBACK_MODEL_URL);
+            resolve(fallback);
+          } catch (e) {
+            reject(e);
+          }
+        } else {
+          reject(err);
+        }
+      },
+    );
+  });
+};
 
 declare module "three" {
   interface Object3D {
@@ -2967,7 +2999,6 @@ const ThreeViewer = React.memo(
         console.log("Adding model for anchor", anchor.id, "at", worldPosition);
 
         // --- LOAD 3D MODEL INSTEAD OF CREATING ORANGE DOT ---
-        const loader = new GLTFLoader();
         const modelUrl =
           "https://f005.backblazeb2.com/file/objectModels-dev/Mona_Lisa_PBR_hires_model.glb";
 
@@ -2985,11 +3016,9 @@ const ThreeViewer = React.memo(
         tempMarker.position.copy(worldPosition);
         sceneRef.current?.add(tempMarker);
         // Load the actual model
-        loader.load(
-          modelUrl,
-          (gltf) => {
-            const model = gltf.scene;
-
+        loadModelWithFallback(modelUrl)
+          .then((model) => {
+            
             // Calculate bounding box for scaling
             const box = new THREE.Box3().setFromObject(model);
             const size = box.getSize(new THREE.Vector3());
@@ -3042,14 +3071,8 @@ const ThreeViewer = React.memo(
             model.userData.anchorId = anchor.id;
 
             console.log(`Model loaded successfully for anchor ${anchor.id}`);
-          },
-          (xhr) => {
-            // Optional: Loading progress
-            console.log(
-              `${anchor.id} model: ${(xhr.loaded / xhr.total) * 100}% loaded`,
-            );
-          },
-          (error) => {
+          })
+          .catch((error) => {
             console.error(
               `Error loading model for anchor ${anchor.id}:`,
               error,
@@ -3058,8 +3081,7 @@ const ThreeViewer = React.memo(
             // If model fails to load, keep the marker as fallback
             tempMarker.material.opacity = 1.0;
             anchorModelsRef.current.set(anchor.id, tempMarker);
-          },
-        );
+          });
 
         // --- CREATE A CSS3DObject FOR THE LABEL ---
         const labelDiv = document.createElement("div");
@@ -4433,15 +4455,10 @@ const ThreeViewer = React.memo(
       if (!modelPath.startsWith("models/")) {
         finalModelPath = `models/${modelPath}`;
       }
-      const loader = new GLTFLoader();
       const fullModelPath = `/${finalModelPath}`;
 
       try {
-        const gltf = await new Promise<any>((resolve, reject) => {
-          loader.load(fullModelPath, resolve, undefined, reject);
-        });
-
-        const model = gltf.scene;
+        const model = await loadModelWithFallback(fullModelPath);
 
         // Calculate bounding box for scaling
         const box = new THREE.Box3().setFromObject(model);
@@ -4961,8 +4978,6 @@ const ThreeViewer = React.memo(
       scene.add(clickMarker);
       clickMarker.visible = false;
 
-      const loader = new GLTFLoader();
-
       const fullModelPath = modelPath ? encodeURI(modelPath) : "";
 
       if (!fullModelPath) {
@@ -4972,6 +4987,8 @@ const ThreeViewer = React.memo(
       }
 
       console.log("Attempting to fetch 3D model from:", fullModelPath);
+      const isUSDZ = fullModelPath.toLowerCase().endsWith(".usdz");
+      const loader: any = isUSDZ ? new USDZLoader() : new GLTFLoader();
 
       // Set cross-origin setting for the loader
       loader.setCrossOrigin("anonymous");
@@ -5004,7 +5021,7 @@ const ThreeViewer = React.memo(
           fullModelPath,
           (gltf: any) => {
             console.log("Model loaded successfully");
-            const model = gltf.scene;
+            const model = gltf.scene || gltf;
             parentModelRef.current = model;
             const box = new THREE.Box3().setFromObject(model);
             const center = box.getCenter(new THREE.Vector3());
@@ -5082,11 +5099,12 @@ const ThreeViewer = React.memo(
           "https://f005.backblazeb2.com/file/objectModels-dev/6_26_2025.glb";
         console.log("Loading fallback model:", fallbackUrl);
 
-        loader.load(
+        const fallbackLoader = new GLTFLoader();
+        fallbackLoader.load(
           fallbackUrl,
           (gltf: any) => {
             console.log("Fallback model loaded successfully");
-            const model = gltf.scene;
+            const model = gltf.scene || gltf;
             parentModelRef.current = model;
             const box = new THREE.Box3().setFromObject(model);
             const center = box.getCenter(new THREE.Vector3());
@@ -5117,11 +5135,11 @@ const ThreeViewer = React.memo(
               "https://f005.backblazeb2.com/file/objectModels-dev/home.glb";
             console.log("Trying backup fallback model:", backupFallbackUrl);
 
-            loader.load(
+            fallbackLoader.load(
               backupFallbackUrl,
               (gltf: any) => {
                 console.log("Backup fallback model loaded successfully");
-                const model = gltf.scene;
+                const model = gltf.scene || gltf;
                 parentModelRef.current = model;
                 const box = new THREE.Box3().setFromObject(model);
                 const center = box.getCenter(new THREE.Vector3());
@@ -5873,124 +5891,85 @@ const ThreeViewer = React.memo(
               // Create a unique anchor ID for the model
               const newAnchorId = `anchor-model-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
-              // Load the model using GLTFLoader
-              const loader = new GLTFLoader();
-
               try {
                 // Use the URL from the model data
                 const modelUrl =
                   modelInfo.modelUrl ||
                   "https://f005.backblazeb2.com/file/objectModels-dev/Mona_Lisa_PBR_hires_model.glb";
 
-                loader.load(
-                  modelUrl,
-                  (gltf) => {
-                    const model = gltf.scene;
+                const model = await loadModelWithFallback(modelUrl);
 
-                    // Calculate bounding box for scaling
-                    const box = new THREE.Box3().setFromObject(model);
-                    const size = box.getSize(new THREE.Vector3());
-                    const maxDim = Math.max(size.x, size.y, size.z);
+                // Calculate bounding box for scaling
+                const box = new THREE.Box3().setFromObject(model);
+                const size = box.getSize(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z);
 
-                    // Base scale factor
-                    const baseFactor = 0.1 / maxDim;
-                    model.scale.multiplyScalar(baseFactor);
+                // Base scale factor
+                const baseFactor = 0.1 / maxDim;
+                model.scale.multiplyScalar(baseFactor);
 
-                    // Position the model at the drop point
-                    model.position.copy(dropPoint);
+                // Position the model at the drop point
+                model.position.copy(dropPoint);
 
-                    // Add to scene
-                    sceneRef.current?.add(model);
+                // Add to scene
+                sceneRef.current?.add(model);
 
-                    // Store reference to the model
-                    anchorModelsRef.current.set(newAnchorId, model);
+                // Store reference to the model
+                anchorModelsRef.current.set(newAnchorId, model);
 
-                    // Add user data to identify it later
-                    model.userData.anchorId = newAnchorId;
+                // Add user data to identify it later
+                model.userData.anchorId = newAnchorId;
 
-                    if (loadingIndicator.parent && sceneRef.current)
-                      sceneRef.current?.remove(loadingIndicator);
+                if (loadingIndicator.parent && sceneRef.current)
+                  sceneRef.current.remove(loadingIndicator);
 
-                    // Calculate real-world coordinates using existing helper
-                    let realWorldPos = dropPoint
-                      .clone()
-                      .multiplyScalar(SCALE_FACTOR);
+                // Calculate real-world coordinates using existing helper
+                let realWorldPos = dropPoint.clone().multiplyScalar(SCALE_FACTOR);
 
-                    if (originPoint) {
-                      realWorldPos = convertToRealWorldCoords(dropPoint);
-                    }
+                if (originPoint) {
+                  realWorldPos = convertToRealWorldCoords(dropPoint);
+                }
 
-                    // Create anchor in Firestore
-                    if (blueprintId) {
-                      // Since we don't have access to currentUser, just use "anonymous" as the user ID
-                      const userId = "anonymous"; // Fixed: removed reference to currentUser
+                // Create anchor in Firestore
+                if (blueprintId) {
+                  const userId = "anonymous";
 
-                      setDoc(doc(db, "anchors", newAnchorId), {
-                        id: newAnchorId,
-                        createdDate: new Date(),
-                        contentID: `model-${Date.now()}`,
-                        contentType: "model",
-                        modelName: modelInfo.name || "3D Model",
-                        host: userId, // Use the safe userId
-                        blueprintID: blueprintId,
-                        x: realWorldPos.x,
-                        y: realWorldPos.y,
-                        z: realWorldPos.z,
-                        scaleX: model.scale.x,
-                        scaleY: model.scale.y,
-                        scaleZ: model.scale.z,
-                        rotationX: model.rotation.x,
-                        rotationY: model.rotation.y,
-                        rotationZ: model.rotation.z,
-                        isPrivate: false,
-                      })
-                        .then(() => {
-                          console.log(
-                            "Saved model anchor to Firestore:",
-                            newAnchorId,
-                          );
+                  setDoc(doc(db, "anchors", newAnchorId), {
+                    id: newAnchorId,
+                    createdDate: new Date(),
+                    contentID: `model-${Date.now()}`,
+                    contentType: "model",
+                    modelName: modelInfo.name || "3D Model",
+                    host: userId,
+                    blueprintID: blueprintId,
+                    x: realWorldPos.x,
+                    y: realWorldPos.y,
+                    z: realWorldPos.z,
+                    scaleX: model.scale.x,
+                    scaleY: model.scale.y,
+                    scaleZ: model.scale.z,
+                    rotationX: model.rotation.x,
+                    rotationY: model.rotation.y,
+                    rotationZ: model.rotation.z,
+                    isPrivate: false,
+                  })
+                    .then(() => {
+                      updateDoc(doc(db, "blueprints", blueprintId), {
+                        anchorIDs: arrayUnion(newAnchorId),
+                      }).catch((err) => {
+                        console.error(
+                          "Error updating blueprint with anchor ID:",
+                          err,
+                        );
+                      });
+                    })
+                    .catch((err) => {
+                      console.error("Error saving model anchor:", err);
+                    });
+                }
 
-                          // CRITICAL FIX: Update blueprint document in a separate operation
-                          updateDoc(doc(db, "blueprints", blueprintId), {
-                            anchorIDs: arrayUnion(newAnchorId),
-                          })
-                            .then(() => {
-                              console.log(
-                                "Updated blueprint with new anchor ID:",
-                                newAnchorId,
-                              );
-                            })
-                            .catch((err) => {
-                              console.error(
-                                "Error updating blueprint with anchor ID:",
-                                err,
-                              );
-                            });
-                        })
-                        .catch((err) => {
-                          console.error("Error saving model anchor:", err);
-                        });
-                    }
-
-                    // Show success feedback
-                    showSuccessIndicator(
-                      dropPoint,
-                      modelInfo.name || "3D Model",
-                    );
-                  },
-                  (xhr) => {
-                    console.log(
-                      `Model: ${(xhr.loaded / xhr.total) * 100}% loaded`,
-                    );
-                  },
-                  (error) => {
-                    console.error("Error loading model:", error);
-                    if (sceneRef.current) {
-                      sceneRef.current?.remove(loadingIndicator);
-                    }
-                    showErrorIndicator(dropPoint);
-                  },
-                );
+                // Show success feedback
+                showSuccessIndicator(dropPoint, modelInfo.name || "3D Model");
               } catch (error) {
                 console.error("Error processing model:", error);
                 if (sceneRef.current) {

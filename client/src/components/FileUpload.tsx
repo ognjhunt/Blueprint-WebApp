@@ -35,7 +35,15 @@ const FileUpload = ({
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
     if (show3DUpload) {
-      if (file && file.type === "model/usdz") {
+      if (
+        file &&
+        (file.type === "model/usdz" ||
+          file.type === "model/gltf-binary" ||
+          file.type === "model/gltf+json" ||
+          file.name.endsWith(".usdz") ||
+          file.name.endsWith(".glb") ||
+          file.name.endsWith(".gltf"))
+      ) {
         onFile3DSelect?.(file);
       }
     } else {
@@ -54,7 +62,14 @@ const FileUpload = ({
     const file = e.target.files?.[0];
     if (file) {
       if (show3DUpload) {
-        if (file.type === "model/usdz") {
+        if (
+          file.type === "model/usdz" ||
+          file.type === "model/gltf-binary" ||
+          file.type === "model/gltf+json" ||
+          file.name.endsWith(".usdz") ||
+          file.name.endsWith(".glb") ||
+          file.name.endsWith(".gltf")
+        ) {
           onFile3DSelect?.(file);
         }
       } else {
@@ -109,7 +124,7 @@ const FileUpload = ({
                     className="hidden"
                     accept={
                       show3DUpload
-                        ? "model/usdz"
+                        ? ".usdz,.glb,.gltf,model/usdz,model/gltf-binary,model/gltf+json"
                         : "image/png,image/jpeg,image/jpg"
                     }
                     onChange={handleFileChange}
@@ -138,7 +153,7 @@ const FileUpload = ({
 
                 <p className="text-sm text-muted-foreground">
                   {show3DUpload
-                    ? "Supported format: USDZ (max 50MB)"
+                    ? "Supported formats: USDZ, GLB, GLTF (max 50MB)"
                     : "Supported formats: PNG, JPG (max 10MB)"}
                 </p>
               </div>
