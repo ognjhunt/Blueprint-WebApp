@@ -523,6 +523,36 @@ export default function BlueprintEditor() {
             ? "pdf"
             : "document";
 
+  const convertPositionToRealWorld = useCallback(
+    (position: THREE.Vector3) => {
+      if (!originPoint) {
+        return {
+          x: position.x * scaleFactor,
+          y: position.y * scaleFactor,
+          z: position.z * scaleFactor,
+        };
+      }
+
+      const relative = position.clone().sub(originPoint);
+      const rotationDegrees = locationData?.yRotation || 0;
+      const theta = (rotationDegrees * Math.PI) / 180;
+      const cos = Math.cos(theta);
+      const sin = Math.sin(theta);
+      const rotated = {
+        x: relative.x * cos + relative.z * sin,
+        y: relative.y,
+        z: -relative.x * sin + relative.z * cos,
+      };
+
+      return {
+        x: rotated.x * scaleFactor,
+        y: rotated.y * scaleFactor,
+        z: rotated.z * scaleFactor,
+      };
+    },
+    [originPoint, scaleFactor, locationData?.yRotation],
+  );
+
   const handleDeleteAnchor = async (anchorId: string, blueprintId: string) => {
     toast({
       title: "Are you sure?",
@@ -4085,18 +4115,7 @@ export default function BlueprintEditor() {
 
       // Update in Firestore if we have origin point
       if (element.anchorId && blueprintId && originPoint) {
-        // Calculate real-world coordinates
-        const offset = {
-          x: position.x - originPoint.x,
-          y: position.y - originPoint.y,
-          z: position.z - originPoint.z,
-        };
-
-        const realWorldPos = {
-          x: offset.x * 45.64,
-          y: offset.y * 45.64,
-          z: offset.z * 45.64,
-        };
+        const realWorldPos = convertPositionToRealWorld(position);
 
         await updateDoc(doc(db, "anchors", element.anchorId), {
           x: realWorldPos.x,
@@ -4890,45 +4909,37 @@ export default function BlueprintEditor() {
     if (!originPoint || !blueprintId) return;
 
     try {
-      // Calculate offset from origin
-      const offset = new THREE.Vector3().subVectors(point, originPoint);
+      const realWorldPos = convertPositionToRealWorld(point);
 
-      // Create anchor ID
       const newAnchorId = `anchor-qr-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
-      // Save to Firestore
       await setDoc(doc(db, "anchors", newAnchorId), {
         id: newAnchorId,
         blueprintID: blueprintId,
         contentType: "qrCode",
-        x: offset.x * 45.64,
-        y: offset.y * 45.64,
-        z: offset.z * 45.64,
+        x: realWorldPos.x,
+        y: realWorldPos.y,
+        z: realWorldPos.z,
         locationName: `Location ${currentPlacingIndex + 1}`,
         createdDate: new Date(),
       });
 
-      // Add to blueprint
       await updateDoc(doc(db, "blueprints", blueprintId), {
         anchorIDs: arrayUnion(newAnchorId),
       });
 
-      // Build QR code data
-      const dataStr = `blueprintId=${blueprintId}&anchorId=${newAnchorId}&x=${offset.x.toFixed(2)}&y=${offset.y.toFixed(2)}&z=${offset.z.toFixed(2)}`;
+      const dataStr = `blueprintId=${blueprintId}&anchorId=${newAnchorId}&x=${realWorldPos.x.toFixed(2)}&y=${realWorldPos.y.toFixed(2)}&z=${realWorldPos.z.toFixed(2)}`;
 
-      // <<< --- ADD THIS SECTION --- >>>
-      // Create the data object for the new anchor to update local state
       const newAnchorData = {
         id: newAnchorId,
         contentType: "qrCode",
-        x: offset.x * 45.64, // Use the saved real-world coordinates
-        y: offset.y * 45.64,
-        z: offset.z * 45.64,
-        locationName: `Location ${currentPlacingIndex + 1}`, // Include other relevant data if needed
+        x: realWorldPos.x,
+        y: realWorldPos.y,
+        z: realWorldPos.z,
+        locationName: `Location ${currentPlacingIndex + 1}`,
         createdDate: new Date(),
       };
 
-      // Update the local state immediately
       setQrCodeAnchors((prevAnchors) => [...prevAnchors, newAnchorData]);
       console.log(
         "[BlueprintEditor] Updated local qrCodeAnchors state:",
@@ -5635,14 +5646,7 @@ export default function BlueprintEditor() {
     }
 
     try {
-      // Convert model-space position to real-world coordinates using BlueprintEditor's originPoint
-      const offset = new THREE.Vector3().subVectors(position, originPoint);
-      const scaledOffset = {
-        // These are the real-world coordinates to save
-        x: offset.x * 45.64, // Assuming 45.64 is your scale factor from model units to feet
-        y: offset.y * 45.64,
-        z: offset.z * 45.64,
-      };
+      const scaledOffset = convertPositionToRealWorld(position);
 
       if (activePlacementMode.type === "model" && anchorId) {
         // Existing logic for updating a model anchor's position
@@ -7725,16 +7729,7 @@ export default function BlueprintEditor() {
                       // Create a unique anchor ID
                       const newAnchorId = `anchor-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
-                      // Calculate offset from origin (important for correct positioning)
-                      const offset = new THREE.Vector3().subVectors(
-                        position,
-                        originPoint,
-                      );
-                      const scaledOffset = {
-                        x: offset.x * 45.64,
-                        y: offset.y * 45.64,
-                        z: offset.z * 45.64,
-                      };
+                      const scaledOffset = convertPositionToRealWorld(position);
 
                       // Create the document in Firestore
                       await setDoc(doc(db, "anchors", newAnchorId), {
