@@ -6693,10 +6693,10 @@ const ThreeViewer = React.memo(
         const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
         const mouse = new THREE.Vector2(x, y);
         raycasterRef.current.setFromCamera(mouse, camera);
-        const intersects = raycasterRef.current.intersectObjects(
-          scene.children,
-          true,
-        );
+        const intersects = parentModelRef.current
+          ? raycasterRef.current.intersectObject(parentModelRef.current, true)
+          : raycasterRef.current.intersectObjects(scene.children, true);
+
         if (intersects.length > 0) {
           const hitPoint = intersects[0].point.clone();
           const real = convertToRealWorldCoords(hitPoint);
