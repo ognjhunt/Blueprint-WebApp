@@ -5844,10 +5844,12 @@ const ThreeViewer = React.memo(
           if (!cameraRef.current || !sceneRef.current) return;
 
           raycasterRef.current.setFromCamera(mouse, cameraRef.current);
-          const intersects = raycasterRef.current.intersectObjects(
-            sceneRef.current.children,
-            true,
-          );
+          const intersects = parentModelRef.current
+            ? raycasterRef.current.intersectObject(parentModelRef.current, true)
+            : raycasterRef.current.intersectObjects(
+                sceneRef.current.children,
+                true,
+              );
 
           // Filter out intersections with the drag circle itself
           const validIntersects = intersects.filter(
