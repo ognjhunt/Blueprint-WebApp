@@ -5637,12 +5637,32 @@ export default function BlueprintEditor() {
     try {
       // Convert model-space position to real-world coordinates using BlueprintEditor's originPoint
       const offset = new THREE.Vector3().subVectors(position, originPoint);
-      const scaledOffset = {
-        // These are the real-world coordinates to save
-        x: offset.x * 45.64, // Assuming 45.64 is your scale factor from model units to feet
-        y: offset.y * 45.64,
-        z: offset.z * 45.64,
+
+      const SCALE_FACTOR = 45.64; // Model units -> real world (feet)
+
+      // Default scaledOffset without rotation
+      let scaledOffset = {
+        x: offset.x * SCALE_FACTOR,
+        y: offset.y * SCALE_FACTOR,
+        z: offset.z * SCALE_FACTOR,
       };
+
+      // For webpage anchors, apply the same Y-axis rotation correction used in ThreeViewer
+      if (activePlacementMode.type === "link") {
+        const rotationDegrees = locationData?.yRotation || 0;
+        const rotationRadians = (rotationDegrees * Math.PI) / 180;
+        const cosTheta = Math.cos(rotationRadians);
+        const sinTheta = Math.sin(rotationRadians);
+
+        const rotatedX = offset.x * cosTheta + offset.z * sinTheta;
+        const rotatedZ = -offset.x * sinTheta + offset.z * cosTheta;
+
+        scaledOffset = {
+          x: rotatedX * SCALE_FACTOR,
+          y: offset.y * SCALE_FACTOR,
+          z: rotatedZ * SCALE_FACTOR,
+        };
+      }
 
       if (activePlacementMode.type === "model" && anchorId) {
         // Existing logic for updating a model anchor's position
