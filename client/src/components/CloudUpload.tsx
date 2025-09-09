@@ -12,9 +12,13 @@ declare global {
 
 interface CloudUploadProps {
   onFileSelect: (file: File) => void;
+  onLinkSelect?: (url: string) => void;
 }
 
-const CloudUpload: React.FC<CloudUploadProps> = ({ onFileSelect }) => {
+const CloudUpload: React.FC<CloudUploadProps> = ({
+  onFileSelect,
+  onLinkSelect,
+}) => {
   const [gapiLoaded, setGapiLoaded] = useState(false);
   const [gisLoaded, setGisLoaded] = useState(false);
 
@@ -153,7 +157,7 @@ const CloudUpload: React.FC<CloudUploadProps> = ({ onFileSelect }) => {
 
                   // Get file metadata to know if it’s a native Google type
                   const metaResp = await fetch(
-                    `https://www.googleapis.com/drive/v3/files/${picked.id}?fields=id,name,mimeType`,
+                    `https://www.googleapis.com/drive/v3/files/${picked.id}?fields=id,name,mimeType,webViewLink`,
                     { headers: { Authorization: `Bearer ${accessToken}` } },
                   );
                   const meta = await metaResp.json();
@@ -163,30 +167,34 @@ const CloudUpload: React.FC<CloudUploadProps> = ({ onFileSelect }) => {
                   );
 
                   if (isGoogleType) {
-                    // Export native Google files to a usable format
-                    const exportMime =
-                      {
-                        "application/vnd.google-apps.document":
-                          "application/pdf",
-                        "application/vnd.google-apps.spreadsheet":
-                          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        "application/vnd.google-apps.presentation":
-                          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                        "application/vnd.google-apps.drawing": "image/png",
-                      }[meta.mimeType] || "application/pdf";
+                    const url = meta.webViewLink || picked.url;
+                    if (onLinkSelect && url) {
+                      onLinkSelect(url);
+                    } else {
+                      const exportMime =
+                        {
+                          "application/vnd.google-apps.document":
+                            "application/pdf",
+                          "application/vnd.google-apps.spreadsheet":
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                          "application/vnd.google-apps.presentation":
+                            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                          "application/vnd.google-apps.drawing": "image/png",
+                        }[meta.mimeType] || "application/pdf";
 
-                    const res = await fetch(
-                      `https://www.googleapis.com/drive/v3/files/${picked.id}/export?mimeType=${encodeURIComponent(
-                        exportMime,
-                      )}`,
-                      { headers: { Authorization: `Bearer ${accessToken}` } },
-                    );
-                    const blob = await res.blob();
-                    onFileSelect(
-                      new File([blob], `${meta.name}${extFor(exportMime)}`, {
-                        type: exportMime,
-                      }),
-                    );
+                      const res = await fetch(
+                        `https://www.googleapis.com/drive/v3/files/${picked.id}/export?mimeType=${encodeURIComponent(
+                          exportMime,
+                        )}`,
+                        { headers: { Authorization: `Bearer ${accessToken}` } },
+                      );
+                      const blob = await res.blob();
+                      onFileSelect(
+                        new File([blob], `${meta.name}${extFor(exportMime)}`, {
+                          type: exportMime,
+                        }),
+                      );
+                    }
                   } else {
                     // Binary file: download bytes
                     const res = await fetch(

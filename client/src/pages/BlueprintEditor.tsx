@@ -5483,8 +5483,9 @@ export default function BlueprintEditor() {
 
   // BlueprintEditor.tsx
 
-  const handleLoadExternalLink = async () => {
-    if (!externalUrl.trim().startsWith("http")) {
+  const handleLoadExternalLink = async (urlOverride?: string) => {
+    const url = (urlOverride ?? externalUrl).trim();
+    if (!url.startsWith("http")) {
       toast({
         title: "Invalid URL",
         description: "Please include https:// in the link",
@@ -5506,7 +5507,7 @@ export default function BlueprintEditor() {
     // Enter placement mode with only the URL. Anchor creation is deferred.
     setPlacementMode({
       type: "link",
-      data: { url: externalUrl }, // No anchorId here for new links
+      data: { url }, // No anchorId here for new links
     });
 
     toast({
@@ -5514,8 +5515,10 @@ export default function BlueprintEditor() {
       description: "Click in the 3D view to place your link anchor.",
     });
 
-    // Reset input field
-    setExternalUrl("");
+    // Reset input field if using input box
+    if (!urlOverride) {
+      setExternalUrl("");
+    }
   };
 
   // Handle external link
@@ -6820,6 +6823,9 @@ export default function BlueprintEditor() {
                             />
                             <CloudUpload
                               onFileSelect={(file) => handleFileUpload(file)}
+                              onLinkSelect={(url) =>
+                                handleLoadExternalLink(url)
+                              }
                             />
                           </div>
                           {/* --- END PASTE --- */}
@@ -7482,6 +7488,7 @@ export default function BlueprintEditor() {
                     onFileSelect={(file) =>
                       handleFileUpload(file, "standard", true)
                     }
+                    onLinkSelect={(url) => handleLoadExternalLink(url)}
                   />
                 </div>
 
@@ -7805,6 +7812,7 @@ export default function BlueprintEditor() {
                   onCloudFileSelect={(file) =>
                     handleFileUpload(file, "standard", true)
                   }
+                  onCloudLinkSelect={(url) => handleLoadExternalLink(url)}
                   onTextAnchorClick={handleTextAnchorClicked}
                   onWebpageAnchorClick={handleWebpageAnchorClicked}
                   onBackgroundClick={handleViewerBackgroundClick}

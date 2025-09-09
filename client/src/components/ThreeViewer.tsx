@@ -251,6 +251,7 @@ interface ThreeViewerProps {
     realWorldCoords: { x: number; y: number; z: number },
   ) => void;
   onCloudFileSelect?: (file: File) => void;
+  onCloudLinkSelect?: (url: string) => void;
   onTextAnchorClick?: (anchorId: string, currentText: string) => void;
   onWebpageAnchorClick?: (anchorId: string, anchorUrl: string) => void;
   onFileAnchorClick?: (anchorId: string, anchorData: any) => void;
@@ -380,6 +381,7 @@ const ThreeViewer = React.memo(
       onBackgroundClick,
       onFileDropped,
       onCloudFileSelect,
+      onCloudLinkSelect,
       activeLabel,
       awaiting3D,
       setReferencePoints3D,
@@ -3018,7 +3020,6 @@ const ThreeViewer = React.memo(
         // Load the actual model
         loadModelWithFallback(modelUrl)
           .then((model) => {
-            
             // Calculate bounding box for scaling
             const box = new THREE.Box3().setFromObject(model);
             const size = box.getSize(new THREE.Vector3());
@@ -5924,7 +5925,9 @@ const ThreeViewer = React.memo(
                   sceneRef.current.remove(loadingIndicator);
 
                 // Calculate real-world coordinates using existing helper
-                let realWorldPos = dropPoint.clone().multiplyScalar(SCALE_FACTOR);
+                let realWorldPos = dropPoint
+                  .clone()
+                  .multiplyScalar(SCALE_FACTOR);
 
                 if (originPoint) {
                   realWorldPos = convertToRealWorldCoords(dropPoint);
@@ -6977,6 +6980,9 @@ const ThreeViewer = React.memo(
               } else {
                 onFileDropped?.({ file }, { x: 0, y: 0, z: 0 });
               }
+            }}
+            onLinkSelect={(url) => {
+              onCloudLinkSelect?.(url);
             }}
           />
         </div>
