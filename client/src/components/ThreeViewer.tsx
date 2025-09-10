@@ -3229,18 +3229,18 @@ const ThreeViewer = React.memo(
     const handleDeselect = () => {
       if (selectedAnchorId) {
         console.log(`Deselecting anchor: ${selectedAnchorId}`);
-        setSelectedAnchorId(null);
-        setSelectedAnchorType(null);
-        setShowTransformUI(false); // Update state even though UI is gone
-        if (transformControlsRef.current) {
-          transformControlsRef.current.detach();
-          transformControlsRef.current.visible = false; // Hide gizmo
-          transformControlsRef.current.enabled = false; // Disable controls
-        }
-        highlightObject(null, sceneRef.current); // Remove highlight
-        if (orbitControlsRef.current) {
-          orbitControlsRef.current.enabled = true; // Ensure orbit controls are re-enabled
-        }
+      }
+      setSelectedAnchorId(null);
+      setSelectedAnchorType(null);
+      setShowTransformUI(false); // Update state even though UI is gone
+      if (transformControlsRef.current) {
+        transformControlsRef.current.detach();
+        transformControlsRef.current.visible = false; // Hide gizmo
+        transformControlsRef.current.enabled = false; // Disable controls
+      }
+      highlightObject(null, sceneRef.current); // Remove highlight
+      if (orbitControlsRef.current) {
+        orbitControlsRef.current.enabled = true; // Ensure orbit controls are re-enabled
       }
       //  if (onBackgroundClick) onBackgroundClick();
     };
