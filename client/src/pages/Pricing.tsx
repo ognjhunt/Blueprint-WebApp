@@ -55,7 +55,7 @@ type Counts = {
 const defaultCounts: Counts = {
   image: 20,
   video: 2,
-  audio: 2,
+  audio: 4,
   model: 10,
   webpage: 6,
   text: 20,
@@ -93,7 +93,7 @@ function PriceHero({
   hours,
   setHours,
   hourly,
-  baseMonthly = 39.99,
+  baseMonthly = 49.99,
 }: {
   hours: number;
   setHours: (n: number) => void;
