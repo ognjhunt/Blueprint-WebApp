@@ -5183,39 +5183,9 @@ const ThreeViewer = React.memo(
       }
 
       const handleRightClick = (event: MouseEvent) => {
+        // Disable custom right-click behavior while preventing the browser
+        // context menu from appearing.
         event.preventDefault();
-        if (!mountRef.current) return;
-
-        const rect = mountRef.current.getBoundingClientRect();
-        const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-        const mouse = new THREE.Vector2(x, y);
-        raycasterRef.current.setFromCamera(mouse, camera);
-
-        const intersects = raycasterRef.current.intersectObjects(
-          scene.children,
-          true,
-        );
-
-        if (intersects.length > 0) {
-          const hitPoint = intersects[0].point;
-
-          if (originPoint) {
-            const offset = hitPoint.clone().sub(originPoint);
-            const msg = `Relative to origin: X:${(offset.x * SCALE_FACTOR).toFixed(2)}, Y:${(offset.y * SCALE_FACTOR).toFixed(2)}, Z:${(offset.z * SCALE_FACTOR).toFixed(2)}`;
-            setDistanceDisplay(msg);
-          }
-
-          if (clickMarkerRef.current) {
-            clickMarkerRef.current.position.copy(hitPoint);
-            clickMarkerRef.current.visible = true;
-            setSelectedPoint(hitPoint.clone());
-            setShowSidePanel(true);
-            transformControlsRef.current?.detach();
-            isMarkerSelectedRef.current = false;
-          }
-        }
       };
 
       let singleClickTimer: ReturnType<typeof setTimeout> | null = null;
