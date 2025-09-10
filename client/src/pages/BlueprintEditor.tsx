@@ -497,6 +497,7 @@ export default function BlueprintEditor() {
   const [pendingPoint, setPendingPoint] = useState<any | null>(null);
   const [pointName, setPointName] = useState("");
   const [pointNameDialogOpen, setPointNameDialogOpen] = useState(false);
+  const pointNameInputRef = useRef<HTMLInputElement>(null);
   // const corner1Ref = useRef(null);
   const [onboardingMode, setOnboardingMode] = useState("fullscreen"); // "fullscreen" or "sidebar"
 
@@ -504,6 +505,15 @@ export default function BlueprintEditor() {
   // const [activeSection, setActiveSection] = useState(null); // ADDED - Tracks the open Canva-style panel ('text', 'media', '3d', 'uploads', 'webpages', 'areas', 'settings', or null)
   const [elements, setElements] = useState<any[]>([]);
   const [panelWidth, setPanelWidth] = useState(360); // RENAMED from sidebarWidth
+  useEffect(() => {
+    if (pointNameDialogOpen) {
+      const t = setTimeout(() => {
+        pointNameInputRef.current?.focus();
+        pointNameInputRef.current?.select();
+      }, 0);
+      return () => clearTimeout(t);
+    }
+  }, [pointNameDialogOpen]);
   const [selectedElement, setSelectedElement] = useState<any | null>(null);
   const [hoveredElement, setHoveredElement] = useState<any | null>(null);
 
@@ -4700,11 +4710,11 @@ export default function BlueprintEditor() {
   };
 
   const saveMarkedPoint = async () => {
-    if (!pendingPoint || !blueprintId) return;
+    if (!pendingPoint || !blueprintId || !pointName.trim()) return;
     try {
       const newPoint = {
         id: `point-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
-        name: pointName.trim() || "Unnamed Point",
+        name: pointName.trim(),
         x: pendingPoint.x,
         y: pendingPoint.y,
         z: pendingPoint.z,
@@ -8710,6 +8720,7 @@ export default function BlueprintEditor() {
                 value={pointName}
                 onChange={(e) => setPointName(e.target.value)}
                 placeholder="e.g. Sink, Storage Bin"
+                ref={pointNameInputRef}
                 autoFocus
                 className="mb-2"
               />
@@ -8726,7 +8737,11 @@ export default function BlueprintEditor() {
               >
                 Cancel
               </Button>
-              <Button type="submit" onClick={saveMarkedPoint}>
+              <Button
+                type="submit"
+                onClick={saveMarkedPoint}
+                disabled={!pointName.trim()}
+              >
                 Save Point
               </Button>
             </DialogFooter>

@@ -6744,6 +6744,8 @@ const ThreeViewer = React.memo(
           sprite = new THREE.Sprite(material);
           sprite.scale.set(0.035, 0.035, 0.035);
           sprite.center.set(0.5, 0);
+          sprite.userData.markerType = "point";
+          sprite.userData.pointId = p.id;
           scene.add(sprite);
           pointMarkersRef.current.set(p.id, sprite);
         }
@@ -6753,6 +6755,50 @@ const ThreeViewer = React.memo(
         sprite.position.copy(worldPos);
       });
     }, [markedPoints, showMarkedPoints, convertFromRealWorldCoords]);
+
+    useEffect(() => {
+      const dom = rendererRef.current?.domElement;
+      if (
+        !dom ||
+        !cameraRef.current ||
+        !orbitControlsRef.current ||
+        !sceneRef.current
+      )
+        return;
+      const handleDblClick = (event: MouseEvent) => {
+        const rect = dom.getBoundingClientRect();
+        const mouse = new THREE.Vector2(
+          ((event.clientX - rect.left) / rect.width) * 2 - 1,
+          -((event.clientY - rect.top) / rect.height) * 2 + 1,
+        );
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, cameraRef.current!);
+        const intersects = raycaster.intersectObjects(
+          sceneRef.current!.children,
+          true,
+        );
+        if (intersects.length === 0) return;
+        let obj: THREE.Object3D | null = intersects[0].object;
+        while (obj) {
+          if (obj.userData?.anchorId || obj.userData?.markerType) return;
+          obj = obj.parent;
+        }
+        const targetPoint = intersects[0].point;
+        const controls = orbitControlsRef.current!;
+        const camera = cameraRef.current!;
+        const direction = new THREE.Vector3().subVectors(
+          camera.position,
+          controls.target,
+        );
+        const newPos = targetPoint.clone().add(direction.multiplyScalar(0.5));
+        new TWEEN.Tween(controls.target).to(targetPoint, 300).start();
+        new TWEEN.Tween(camera.position).to(newPos, 300).start();
+      };
+      dom.addEventListener("dblclick", handleDblClick);
+      return () => {
+        dom.removeEventListener("dblclick", handleDblClick);
+      };
+    }, []);
 
     useEffect(() => {
       if (!mountRef.current) return; // Ensure mountRef is available
