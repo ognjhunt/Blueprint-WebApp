@@ -715,6 +715,10 @@ const ThreeViewer = React.memo(
         e.stopPropagation();
         onClick();
       });
+      markerDiv.addEventListener("click", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+      });
       markerDiv.addEventListener("mouseenter", () => {
         markerDiv.style.transform = "scale(1.1)";
       });
@@ -755,6 +759,10 @@ const ThreeViewer = React.memo(
       buttonDiv.addEventListener("pointerdown", (e) => {
         e.stopPropagation(); // Important
         onClick();
+      });
+      buttonDiv.addEventListener("click", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
       });
 
       const cssObj = new CSS3DObject(buttonDiv);
@@ -941,6 +949,11 @@ const ThreeViewer = React.memo(
               videoPlane.addEventListener("pointerdown", (e) => {
                 /* ... your listener ... */
               });
+              // Stop click from bubbling to global handlers
+              videoPlane.addEventListener("click", (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              });
 
               const helperGeo = new THREE.BoxGeometry(
                 0.01,
@@ -1018,6 +1031,11 @@ const ThreeViewer = React.memo(
         wrapper.addEventListener("pointerdown", (ev) => {
           /* your listener */
         });
+        // Prevent clicks from bubbling and causing unintended deselection
+        wrapper.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+        });
         visualObject = cssObj; // Synchronous
       }
       // --- PDF, DOCX, PPTX ICONS (or thumbnail if available) ---
@@ -1079,6 +1097,11 @@ const ThreeViewer = React.memo(
               iconPlane.addEventListener("pointerdown", (e) => {
                 /* ... your listener ... */
               });
+              // Ensure clicks don't bubble and cause deselection
+              iconPlane.addEventListener("click", (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              });
 
               const helperGeo = new THREE.BoxGeometry(
                 0.01,
@@ -1122,6 +1145,11 @@ const ThreeViewer = React.memo(
         };
         docIcon.addEventListener("pointerdown", (e) => {
           /* ... your listener ... */
+        });
+        // Stop click from bubbling to canvas handlers
+        docIcon.addEventListener("click", (e) => {
+          e.stopPropagation();
+          e.preventDefault();
         });
 
         const helperGeo = new THREE.BoxGeometry(
@@ -2261,6 +2289,11 @@ const ThreeViewer = React.memo(
             }
             handleAnchorSelect(anchor.id, helperMesh, "file");
           });
+          // Prevent click events from bubbling up and triggering canvas handlers
+          wrapper.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            ev.preventDefault();
+          });
 
           sceneRef.current!.add(cssObj);
           sceneRef.current!.add(helperMesh);
@@ -2517,6 +2550,11 @@ const ThreeViewer = React.memo(
                   handleAnchorSelect(anchorId, imagePlane, "file"); // Fallback
                 }
               });
+              // Prevent default click behavior from deselecting the anchor
+              imagePlane.addEventListener("click", (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              });
 
               sceneRef.current!.add(imagePlane);
               fileAnchorsRef.current.set(anchor.id, imagePlane);
@@ -2649,6 +2687,11 @@ const ThreeViewer = React.memo(
               handleAnchorSelect(currentAnchorId, cssAnchorObject, "file"); // Fallback
             }
           });
+          // Prevent click from reaching canvas and deselecting
+          backgroundDiv.addEventListener("click", (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          });
 
           sceneRef.current!.add(cssAnchorObject);
           sceneRef.current!.add(helperMesh);
@@ -2749,6 +2792,11 @@ const ThreeViewer = React.memo(
               );
               handleAnchorSelect(currentAnchorId, cssAnchorObject, "file"); // Fallback
             }
+          });
+          // Prevent click bubbling to the canvas, which would deselect
+          backgroundDiv.addEventListener("click", (e) => {
+            e.stopPropagation();
+            e.preventDefault();
           });
 
           sceneRef.current!.add(cssAnchorObject);
@@ -2851,6 +2899,11 @@ const ThreeViewer = React.memo(
               handleAnchorSelect(currentAnchorId, cssAnchorObject, "file"); // Fallback
             }
           });
+          // Prevent click bubbling to avoid unintended deselects
+          backgroundDiv.addEventListener("click", (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          });
 
           sceneRef.current!.add(cssAnchorObject);
           sceneRef.current!.add(helperMesh);
@@ -2904,6 +2957,11 @@ const ThreeViewer = React.memo(
             if (onFileAnchorClick) {
               onFileAnchorClick(anchor.id, anchor);
             }
+          });
+          // Prevent click bubbling that could trigger a background deselect
+          docIcon.addEventListener("click", (e) => {
+            e.stopPropagation();
+            e.preventDefault();
           });
 
           sceneRef.current!.add(docIcon);
@@ -3763,6 +3821,11 @@ const ThreeViewer = React.memo(
             onTextAnchorClick(anchor.id, anchor.textContent);
           }
         });
+        // Prevent click events from bubbling to the canvas and triggering a background deselect
+        labelDiv.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+        });
 
         // Add both to the scene:
         sceneRef.current?.add(labelObject); // CSS layer
@@ -4087,6 +4150,11 @@ const ThreeViewer = React.memo(
             handleAnchorSelect(anchorId, css3dObject, "webpage");
           }
         }
+      });
+      // Prevent click events from bubbling to the canvas and causing deselection
+      overlay.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        ev.preventDefault();
       });
       container.appendChild(overlay);
 
