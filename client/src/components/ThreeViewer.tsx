@@ -5218,7 +5218,9 @@ const ThreeViewer = React.memo(
         }
       };
 
-      async function handleClick(event: MouseEvent) {
+      let singleClickTimer: ReturnType<typeof setTimeout> | null = null;
+
+      async function handleSingleClick(event: MouseEvent) {
         // Prevent the click from bubbling to other handlers
         event.stopPropagation();
 
@@ -5607,6 +5609,55 @@ const ThreeViewer = React.memo(
             break;
         }
       };
+
+      function handleClick(event: MouseEvent) {
+        if (singleClickTimer) clearTimeout(singleClickTimer);
+        singleClickTimer = setTimeout(() => {
+          handleSingleClick(event);
+          singleClickTimer = null;
+        }, 250);
+      }
+
+      function handleDoubleClick(event: MouseEvent) {
+        if (singleClickTimer) {
+          clearTimeout(singleClickTimer);
+          singleClickTimer = null;
+        }
+        if (!mountRef.current || !cameraRef.current || !sceneRef.current)
+          return;
+        const rect = mountRef.current.getBoundingClientRect();
+        const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        const mouse = new THREE.Vector2(x, y);
+        raycasterRef.current.setFromCamera(mouse, cameraRef.current);
+        const intersects = raycasterRef.current.intersectObjects(
+          sceneRef.current.children,
+          true,
+        );
+        const clickedAnchor = intersects.find(
+          (i) => i.object.userData && i.object.userData.anchorId,
+        );
+        if (clickedAnchor) {
+          handleSingleClick(event);
+          return;
+        }
+        if (
+          intersects.length > 0 &&
+          orbitControlsRef.current &&
+          cameraRef.current
+        ) {
+          const controls = orbitControlsRef.current;
+          const cam = cameraRef.current;
+          controls.target.copy(intersects[0].point);
+          const direction = cam.position
+            .clone()
+            .sub(controls.target)
+            .multiplyScalar(0.9);
+          cam.position.copy(controls.target.clone().add(direction));
+          controls.update();
+        }
+      }
+
       window.addEventListener("keydown", onKeyDown);
       window.addEventListener("keyup", onKeyUp);
 
@@ -5616,6 +5667,7 @@ const ThreeViewer = React.memo(
       });
       // Clicks should not bubble to parent elements
       mountRef.current.addEventListener("click", handleClick);
+      mountRef.current.addEventListener("dblclick", handleDoubleClick);
 
       function animate() {
         requestAnimationFrame(animate);
@@ -6286,6 +6338,7 @@ const ThreeViewer = React.memo(
             capture: true,
           } as any);
           mountRef.current.removeEventListener("click", handleClick);
+          mountRef.current.removeEventListener("dblclick", handleDoubleClick);
           mountRef.current.removeEventListener("dragenter", handleDragEnter);
           mountRef.current.removeEventListener("dragover", handleDragOver);
           mountRef.current.removeEventListener("dragleave", handleDragLeave);
