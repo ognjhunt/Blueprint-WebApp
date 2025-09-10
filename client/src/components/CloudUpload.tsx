@@ -61,7 +61,7 @@ const CloudUpload: React.FC<CloudUploadProps> = ({
 
   // REPLACE: handleGoogleDrive
   const handleGoogleDrive = () => {
-    const apiKey = "AIzaSyDOWZTVP79r5PUzgNtpso7dX9l5VTrb60k"; // (import.meta as any).env.VITE_GOOGLE_API_KEY as string;
+    const apiKey = "AIzaSyBmMAIHuD4wY9061MWRYx9XSRDBMmB59hw"; // (import.meta as any).env.VITE_GOOGLE_API_KEY as string;
     const clientId =
       "744608654760-2jkr2t3632m1qri95dcsasu5fnbotosd.apps.googleusercontent.com"; // (import.meta as any).env.VITE_GOOGLE_CLIENT_ID as string;
     // NEW: numeric Cloud Project number (not the string project ID)

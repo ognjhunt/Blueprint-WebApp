@@ -23,7 +23,7 @@ import {
 import { getStorage } from "firebase/storage";
 
 // Get Firebase API key from environment
-const apiKey = "AIzaSyDOWZTVP79r5PUzgNtpso7dX9l5VTrb60k";
+const apiKey = "AIzaSyBmMAIHuD4wY9061MWRYx9XSRDBMmB59hw";
 //import.meta.env.VITE_FIREBASE_API_KEY;
 if (!apiKey) {
   throw new Error(

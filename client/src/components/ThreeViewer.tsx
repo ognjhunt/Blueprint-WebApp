@@ -5497,7 +5497,7 @@ const ThreeViewer = React.memo(
         // --- 4. Fallback Behavior (like showing distance) ---
         if (!foundAnchor) {
           handleDeselect(); // Deselect if click didn't result in selecting a new anchor
-
+          currentProps.onBackgroundClick?.(); // Notify parent to hide anchor card
           if (currentProps.originPoint && modelIntersects.length > 0) {
             const displayOffset = modelIntersects[0].point
               .clone()
