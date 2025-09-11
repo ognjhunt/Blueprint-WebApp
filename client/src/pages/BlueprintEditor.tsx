@@ -5,14 +5,10 @@ import React, {
   useRef,
   useCallback,
   useMemo,
-  Suspense,
-  lazy,
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { createVector3, createQuaternion, type Vector3, type Quaternion } from "@/lib/threeUtils";
-
-// Lazy load ThreeViewer to prevent memory issues
-const ThreeViewer = lazy(() => import("@/components/ThreeViewer"));
+import * as THREE from "three";
+import ThreeViewer from "@/components/ThreeViewer";
 import CloudUpload from "@/components/CloudUpload";
 import Nav from "@/components/Nav";
 import { useAuth } from "@/contexts/AuthContext";
@@ -469,54 +465,19 @@ export default function BlueprintEditor() {
   // 3D viewer states
   const [model3DPath, setModel3DPath] = useState("");
   const [originPoint, setOriginPoint] = useState<any | null>(null);
-  // NEW: State for origin's orientation (using plain objects)
+  // NEW: State for origin's orientation
   const [originOrientation, setOriginOrientation] =
-    useState<{x: number, y: number, z: number, w: number} | null>(null);
+    useState<THREE.Quaternion | null>(null);
   const [displayOriginOrientation, setDisplayOriginOrientation] =
-    useState<{x: number, y: number, z: number, w: number} | null>(null);
+    useState<THREE.Quaternion | null>(null);
   // NEW: State to manage the two-step origin setting process
   const [originSettingStep, setOriginSettingStep] = useState<
     "inactive" | "picking_position" | "picking_direction"
   >("inactive");
   // NEW: State to hold the first point while picking the second
-  const [tempOriginPos, setTempOriginPos] = useState<{x: number, y: number, z: number} | null>(
+  const [tempOriginPos, setTempOriginPos] = useState<THREE.Vector3 | null>(
     null,
   );
-
-  // Convert plain objects to THREE.js objects for ThreeViewer
-  const [threeOriginOrientation, setThreeOriginOrientation] = useState<Quaternion | null>(null);
-  const [threeTempOriginPos, setThreeTempOriginPos] = useState<Vector3 | null>(null);
-
-  useEffect(() => {
-    const convertOrientation = async () => {
-      if (!displayOriginOrientation) {
-        setThreeOriginOrientation(null);
-        return;
-      }
-      const quaternion = await createQuaternion();
-      quaternion.set(
-        displayOriginOrientation.x,
-        displayOriginOrientation.y,
-        displayOriginOrientation.z,
-        displayOriginOrientation.w
-      );
-      setThreeOriginOrientation(quaternion);
-    };
-    convertOrientation();
-  }, [displayOriginOrientation]);
-
-  useEffect(() => {
-    const convertTempPos = async () => {
-      if (!tempOriginPos) {
-        setThreeTempOriginPos(null);
-        return;
-      }
-      const vector = await createVector3();
-      vector.set(tempOriginPos.x, tempOriginPos.y, tempOriginPos.z);
-      setThreeTempOriginPos(vector);
-    };
-    convertTempPos();
-  }, [tempOriginPos]);
   const [isChoosingOrigin, setIsChoosingOrigin] = useState(false);
   const [scaleFactor, setScaleFactor] = useState(1);
   const [referencePoints2D, setReferencePoints2D] = useState<any[]>([]);
@@ -1945,21 +1906,25 @@ export default function BlueprintEditor() {
 
         // Set origin point if available
         if (blueprintData.origin) {
-          setOriginPoint({
-            x: blueprintData.origin.x || 0,
-            y: blueprintData.origin.y || 0,
-            z: blueprintData.origin.z || 0,
-          });
+          setOriginPoint(
+            new THREE.Vector3(
+              blueprintData.origin.x || 0,
+              blueprintData.origin.y || 0,
+              blueprintData.origin.z || 0,
+            ),
+          );
         }
 
         // NEW: Load origin orientation if available
         if (blueprintData.originOrientation) {
-          setOriginOrientation({
-            x: blueprintData.originOrientation.x || 0,
-            y: blueprintData.originOrientation.y || 0,
-            z: blueprintData.originOrientation.z || 0,
-            w: blueprintData.originOrientation.w || 1,
-          });
+          setOriginOrientation(
+            new THREE.Quaternion(
+              blueprintData.originOrientation.x || 0,
+              blueprintData.originOrientation.y || 0,
+              blueprintData.originOrientation.z || 0,
+              blueprintData.originOrientation.w || 1,
+            ),
+          );
         }
 
         // Set scale factor if available
@@ -2045,7 +2010,7 @@ export default function BlueprintEditor() {
   };
 
   // Called from ThreeViewer when the first point is picked
-  const handleOriginPositionPicked = (point: Vector3) => {
+  const handleOriginPositionPicked = (point: THREE.Vector3) => {
     setTempOriginPos(point);
     setOriginSettingStep("picking_direction"); // Move to next step
     toast({
@@ -2060,38 +2025,38 @@ export default function BlueprintEditor() {
   // In BlueprintEditor.tsx
 
   const handleOriginDirectionPicked = async (
-    positionPoint: {x: number, y: number, z: number},
-    directionPoint: {x: number, y: number, z: number},
+    positionPoint: THREE.Vector3,
+    directionPoint: THREE.Vector3,
   ) => {
-    // Calculate direction vector using plain math (avoiding Three.js objects)
-    const dx = directionPoint.x - positionPoint.x;
-    const dy = directionPoint.y - positionPoint.y;
-    const dz = directionPoint.z - positionPoint.z;
-    const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
-    
-    // Normalized direction vector
-    const normalizedDirection = {
-      x: dx / length,
-      y: dy / length,
-      z: dz / length
-    };
-    
-    // For simplicity, create a basic orientation (can be enhanced later)
-    const newOrientation = {
-      x: 0,
-      y: 0,
-      z: 0,
-      w: 1
-    };
+    // 1. Define the default "forward" direction in a THREE.js scene.
+    const defaultForward = new THREE.Vector3(0, 0, 1);
 
-    // Update state and save to Firebase
+    // 2. Calculate the user's desired "forward" direction vector.
+    // This is a vector pointing from the origin position to the direction point.
+    const targetDirection = new THREE.Vector3()
+      .subVectors(directionPoint, positionPoint)
+      .normalize();
+
+    // 3. Create a quaternion that represents the rotation from the default forward
+    //    vector to the user's target direction vector. This is the correct and stable
+    //    way to calculate the orientation, avoiding the pitfalls of lookAt().
+    const newOrientation = new THREE.Quaternion().setFromUnitVectors(
+      defaultForward,
+      targetDirection,
+    );
+
+    // 4. Update state and save to Firebase (this part remains the same).
     setOriginPoint(positionPoint);
     setOriginOrientation(newOrientation);
 
     if (blueprintId) {
       try {
         await updateDoc(doc(db, "blueprints", blueprintId), {
-          origin: positionPoint,
+          origin: {
+            x: positionPoint.x,
+            y: positionPoint.y,
+            z: positionPoint.z,
+          },
           originOrientation: {
             x: newOrientation.x,
             y: newOrientation.y,
@@ -2128,32 +2093,18 @@ export default function BlueprintEditor() {
   }, []);
 
   useEffect(() => {
-    const updateDisplayOrientation = async () => {
-      const baseOrientation = originOrientation
-        ? await createQuaternion(originOrientation.x, originOrientation.y, originOrientation.z, originOrientation.w)
-        : await createQuaternion();
-      if (isXZSwapped) {
-        const rotationQuaternion = await createQuaternion();
-        const yAxis = await createVector3(0, 1, 0);
-        rotationQuaternion.setFromAxisAngle(yAxis, Math.PI / 2);
-        const result = baseOrientation.clone().multiply(rotationQuaternion);
-        setDisplayOriginOrientation({
-          x: result.x,
-          y: result.y,
-          z: result.z,
-          w: result.w
-        });
-      } else {
-        setDisplayOriginOrientation({
-          x: baseOrientation.x,
-          y: baseOrientation.y,
-          z: baseOrientation.z,
-          w: baseOrientation.w
-        });
-      }
-    };
-    
-    updateDisplayOrientation();
+    const baseOrientation = originOrientation
+      ? originOrientation.clone()
+      : new THREE.Quaternion();
+    if (isXZSwapped) {
+      const rotationQuaternion = new THREE.Quaternion().setFromAxisAngle(
+        new THREE.Vector3(0, 1, 0),
+        Math.PI / 2,
+      );
+      setDisplayOriginOrientation(baseOrientation.multiply(rotationQuaternion));
+    } else {
+      setDisplayOriginOrientation(baseOrientation);
+    }
   }, [originOrientation, isXZSwapped]);
 
   // ========================
@@ -4950,8 +4901,7 @@ export default function BlueprintEditor() {
 
     try {
       // Calculate offset from origin
-      const offset = await createVector3();
-      offset.subVectors(point, originPoint);
+      const offset = new THREE.Vector3().subVectors(point, originPoint);
 
       // Create anchor ID
       const newAnchorId = `anchor-qr-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
@@ -5696,8 +5646,7 @@ export default function BlueprintEditor() {
 
     try {
       // Convert model-space position to real-world coordinates using BlueprintEditor's originPoint
-      const offset = await createVector3();
-      offset.subVectors(position, originPoint);
+      const offset = new THREE.Vector3().subVectors(position, originPoint);
 
       const SCALE_FACTOR = 45.64; // Model units -> real world (feet)
 
@@ -7727,14 +7676,13 @@ export default function BlueprintEditor() {
               </div>
             ) : (
               <div className="w-full h-full relative">
-                <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
-                  <ThreeViewer
+                <ThreeViewer
                   //modelPath={model3DPath}
                   modelPath={blueprintModelUrl}
                   ref={threeViewerRef}
                   originPoint={originPoint}
                   yRotation={locationData?.yRotation || 0}
-                  originOrientation={threeOriginOrientation}
+                  originOrientation={displayOriginOrientation}
                   qrCodeAnchors={qrCodeAnchors}
                   scaleFactor={scaleFactor}
                   textAnchors={textAnchors}
@@ -7751,7 +7699,7 @@ export default function BlueprintEditor() {
                   onWalkModeChange={setIsWalkMode}
                   // NEW Props for the two-step process
                   originSettingStep={originSettingStep}
-                  tempOriginPos={threeTempOriginPos}
+                  tempOriginPos={tempOriginPos}
                   onOriginPositionPicked={handleOriginPositionPicked}
                   onOriginDirectionPicked={handleOriginDirectionPicked}
                   isChoosingOrigin={false} // This is now controlled by originSettingStep
@@ -7808,8 +7756,10 @@ export default function BlueprintEditor() {
                       const newAnchorId = `anchor-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
                       // Calculate offset from origin (important for correct positioning)
-                      const offset = await createVector3();
-                      offset.subVectors(position, originPoint);
+                      const offset = new THREE.Vector3().subVectors(
+                        position,
+                        originPoint,
+                      );
                       const scaledOffset = {
                         x: offset.x * 45.64,
                         y: offset.y * 45.64,
@@ -7898,7 +7848,6 @@ export default function BlueprintEditor() {
                   onBackgroundClick={handleViewerBackgroundClick}
                   onFileAnchorClick={handleFileAnchorClicked}
                 />
-                </Suspense>
                 {/* <div className="absolute bottom-4 right-4 z-40">
                   <CostPanel
                     imageCount={imageCount}
@@ -8503,15 +8452,14 @@ export default function BlueprintEditor() {
                 <div className="flex-1 relative">
                   {model3DPath ? (
                     <div className="w-full h-full">
-                      <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
-                        <ThreeViewer
+                      <ThreeViewer
                         // modelPath={model3DPath}
                         modelPath={blueprintModelUrl}
                         ref={threeViewerRef}
                         originPoint={originPoint}
                         activeLabel={activeLabel}
                         yRotation={locationData?.yRotation || 0}
-                        originOrientation={threeOriginOrientation}
+                        originOrientation={displayOriginOrientation}
                         awaiting3D={awaiting3D}
                         setReferencePoints3D={setReferencePoints3D}
                         isMarkingArea={isMarkingArea}
@@ -8531,7 +8479,7 @@ export default function BlueprintEditor() {
                         onWalkModeChange={setIsWalkMode}
                         // NEW Props for the two-step process
                         originSettingStep={originSettingStep}
-                        tempOriginPos={threeTempOriginPos}
+                        tempOriginPos={tempOriginPos}
                         onOriginPositionPicked={handleOriginPositionPicked}
                         onOriginDirectionPicked={handleOriginDirectionPicked}
                         isChoosingOrigin={false} // This is now controlled by originSettingStep
@@ -8540,7 +8488,6 @@ export default function BlueprintEditor() {
                         modelAnchors={[]}
                         showGrid={showGrid}
                       />
-                      </Suspense>
                     </div>
                   ) : (
                     <div className="flex items-center justify-center h-full">
