@@ -22,8 +22,10 @@ import {
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
+const mySecret = "AIzaSyBKwxLP84aHSjD_hOUShFkByHvBPuaOnlQ"; // process.env["GOOG_API_KEY"];
 // Get Firebase API key from environment
-const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+const apiKey = mySecret;
+//import.meta.env.VITE_FIREBASE_API_KEY;
 if (!apiKey) {
   throw new Error(
     "Missing VITE_FIREBASE_API_KEY environment variable. Please add your Firebase API key to .env.local",

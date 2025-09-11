@@ -6,16 +6,25 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from "react"; // Added forwardRef, useImperativeHandle
-import * as THREE from "three";
-// Removed CSS3DRenderer import - we'll use our own interface
-// Updated import to use modern THREE.SRGBColorSpace instead of deprecated sRGBEncoding
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
-import { TransformControls } from "three/examples/jsm/controls/TransformControls.js"; // <<< This is the one you want to use
-import {
-  CSS3DRenderer,
-  CSS3DObject,
-} from "three/examples/jsm/renderers/CSS3DRenderer.js";
-import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
+import { 
+  getThree, 
+  getOrbitControls, 
+  getTransformControls, 
+  getCSS3DRenderer, 
+  getCSS3DObject,
+  getPointerLockControls, 
+  getGLTFLoader, 
+  getUSDZLoader,
+  createTextureLoader,
+  type Vector3,
+  type Object3D,
+  type Mesh,
+  type Matrix4,
+  type Euler,
+  type Camera
+} from "@/lib/threeUtils";
+// Dynamic imports to prevent memory crashes
+// Updated to use modern THREE.SRGBColorSpace instead of deprecated sRGBEncoding
 
 interface DragControls {
   enabled: boolean;
@@ -25,15 +34,15 @@ interface DragControls {
   dispose(): void;
   addEventListener(type: string, listener: (event: any) => void): void;
   removeEventListener(type: string, listener: (event: any) => void): void;
-  getObjects(): THREE.Object3D[];
-  getDraggableObjects(): THREE.Object3D[];
+  getObjects(): Object3D[];
+  getDraggableObjects(): Object3D[];
 }
 
 // Add extended OrbitControls interface to fix TypeScript errors
 declare module "three/examples/jsm/controls/OrbitControls" {
   interface OrbitControls {
-    panLeft(distance: number, objectMatrix?: THREE.Matrix4): void;
-    panUp(distance: number, objectMatrix?: THREE.Matrix4): void;
+    panLeft(distance: number, objectMatrix?: Matrix4): void;
+    panUp(distance: number, objectMatrix?: Matrix4): void;
     dollyIn(dollyScale: number): void;
     dollyOut(dollyScale: number): void;
   }
@@ -55,8 +64,7 @@ declare module "three" {
     [key: string]: Event; // Allow any string key for event types
   }
 }
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
-import { USDZLoader } from "three/examples/jsm/loaders/USDZLoader";
+// GLTFLoader and USDZLoader now loaded dynamically via threeUtils
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import CloudUpload from "@/components/CloudUpload";
@@ -79,17 +87,27 @@ import * as TWEEN from "@tweenjs/tween.js";
 
 const pinSvg =
   "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='red'><path d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z'/></svg>";
-const pinTexture = new THREE.TextureLoader().load(
-  "data:image/svg+xml;utf8," + encodeURIComponent(pinSvg),
-);
-pinTexture.colorSpace = THREE.SRGBColorSpace;
+
+// Create pin texture dynamically to avoid memory issues
+let pinTexture: any = null;
+const createPinTexture = async () => {
+  if (!pinTexture) {
+    const THREE = await getThree();
+    pinTexture = new THREE.TextureLoader().load(
+      "data:image/svg+xml;utf8," + encodeURIComponent(pinSvg),
+    );
+    pinTexture.colorSpace = THREE.SRGBColorSpace;
+  }
+  return pinTexture;
+};
 
 const FALLBACK_MODEL_URL =
   "https://f005.backblazeb2.com/file/objectModels-dev/Mona_Lisa_PBR_hires_model.glb";
 
-const loadModelWithFallback = async (url: string): Promise<THREE.Object3D> => {
+const loadModelWithFallback = async (url: string): Promise<any> => {
   const isUSDZ = url.toLowerCase().endsWith(".usdz");
-  const loader: any = isUSDZ ? new USDZLoader() : new GLTFLoader();
+  const LoaderClass = isUSDZ ? await getUSDZLoader() : await getGLTFLoader();
+  const loader = new LoaderClass();
   return new Promise((resolve, reject) => {
     loader.load(
       url,
@@ -127,26 +145,29 @@ declare module "three" {
   }
 }
 
-// Extend THREE.Object3D prototype with the isDescendantOf method
-if (typeof THREE !== "undefined" && THREE.Object3D) {
-  THREE.Object3D.prototype.isDescendantOf = function (
-    obj: THREE.Object3D,
-  ): boolean {
-    let parent = this.parent;
-    while (parent) {
-      if (parent === obj) return true;
-      parent = parent.parent;
-    }
-    return false;
-  };
-}
+// Extend THREE.Object3D prototype with the isDescendantOf method - moved to async function
+const extendTHREEPrototype = async () => {
+  const THREE = await getThree();
+  if (THREE?.Object3D && !THREE.Object3D.prototype.isDescendantOf) {
+    THREE.Object3D.prototype.isDescendantOf = function (
+      obj: Object3D,
+    ): boolean {
+      let parent = this.parent;
+      while (parent) {
+        if (parent === obj) return true;
+        parent = parent.parent;
+      }
+      return false;
+    };
+  }
+};
 
 interface FileAnchorElements {
-  marker: THREE.Object3D | null;
-  contentObject: THREE.Object3D | null;
-  closeButton?: THREE.Object3D;
-  helperMesh?: THREE.Mesh; // If your content relies on a separate helper for transforms
-  labelObject?: THREE.Object3D; // For icons with text labels
+  marker: Object3D | null;
+  contentObject: Object3D | null;
+  closeButton?: Object3D;
+  helperMesh?: Mesh; // If your content relies on a separate helper for transforms
+  labelObject?: Object3D; // For icons with text labels
   isLoadingContent?: boolean; // Prevent multiple load attempts
 }
 
@@ -193,7 +214,7 @@ interface FileAnchor {
 
 interface ThreeViewerProps {
   modelPath: string;
-  originPoint?: THREE.Vector3 | null;
+  originPoint?: Vector3 | null;
   yRotation?: number | null;
   onLoad?: () => void;
   onError?: (error: string) => void;
@@ -209,16 +230,16 @@ interface ThreeViewerProps {
   selectedArea?: string | null; // Add this prop
   isChoosingOrigin?: boolean;
   setIsChoosingOrigin?: React.Dispatch<React.SetStateAction<boolean>>; // Add this line
-  setOriginPoint?: React.Dispatch<React.SetStateAction<THREE.Vector3 | null>>; // Add this line
-  onOriginSet?: (point: THREE.Vector3) => void; // ADD THIS PROP
+  setOriginPoint?: React.Dispatch<React.SetStateAction<Vector3 | null>>; // Add this line
+  onOriginSet?: (point: Vector3) => void; // ADD THIS PROP
   qrPlacementMode?: boolean; // new
   placementMode?: { type: "link" | "model" | "file"; data?: any } | null;
-  onLinkPlaced?: (pos: THREE.Vector3) => void;
-  onQRPlaced?: (pos: THREE.Vector3) => void; // new
-  onModelDropped?: (model: any, pos: THREE.Vector3) => void;
+  onLinkPlaced?: (pos: Vector3) => void;
+  onQRPlaced?: (pos: Vector3) => void; // new
+  onModelDropped?: (model: any, pos: Vector3) => void;
   onPlacementComplete?: (
     mode: { type: "link" | "model" | "file"; data?: any },
-    position: THREE.Vector3,
+    position: Vector3,
     anchorId: string | null,
   ) => void; // Added this line
   modelAnchors?: ModelAnchor[];
@@ -273,13 +294,13 @@ interface ThreeViewerProps {
   showModelAnchors?: boolean;
   showMarkedPoints?: boolean;
   showGrid?: boolean;
-  originOrientation?: THREE.Quaternion | null;
+  originOrientation?: import("three").Quaternion | null;
   originSettingStep?: "inactive" | "picking_position" | "picking_direction";
-  tempOriginPos?: THREE.Vector3 | null;
-  onOriginPositionPicked?: (point: THREE.Vector3) => void;
+  tempOriginPos?: Vector3 | null;
+  onOriginPositionPicked?: (point: Vector3) => void;
   onOriginDirectionPicked?: (
-    position: THREE.Vector3,
-    direction: THREE.Vector3,
+    position: Vector3,
+    direction: Vector3,
   ) => void;
   onWalkModeChange?: (active: boolean) => void;
 }
@@ -331,7 +352,8 @@ interface ThreeViewerImperativeHandle {
   exitWalkMode: () => void;
 }
 
-export function getCameraWorldPose(camera: THREE.Camera) {
+export async function getCameraWorldPose(camera: import("three").Camera) {
+  const THREE = await getThree();
   const position = new THREE.Vector3();
   const quaternion = new THREE.Quaternion();
   const scale = new THREE.Vector3();
@@ -346,14 +368,15 @@ export function getCameraWorldPose(camera: THREE.Camera) {
 }
 
 export type OrthonormalFrame = {
-  origin: THREE.Vector3; // O
-  U: THREE.Vector3; // right/east
-  V: THREE.Vector3; // up
-  W: THREE.Vector3; // forward/north (or any consistent third axis)
+  origin: Vector3; // O
+  U: Vector3; // right/east
+  V: Vector3; // up
+  W: Vector3; // forward/north (or any consistent third axis)
 };
 
 // Build a world→frame matrix: [E^T | -E^T O]
-function makeWorldToFrameMatrix(frame: OrthonormalFrame) {
+async function makeWorldToFrameMatrix(frame: OrthonormalFrame) {
+  const THREE = await getThree();
   const { origin: O, U, V, W } = frame;
 
   const E = new THREE.Matrix4().makeBasis(U, V, W); // columns = U,V,W
@@ -362,8 +385,8 @@ function makeWorldToFrameMatrix(frame: OrthonormalFrame) {
   return new THREE.Matrix4().multiplyMatrices(R, T);
 }
 
-export function worldToFrame(p: THREE.Vector3, frame: OrthonormalFrame) {
-  const M = makeWorldToFrameMatrix(frame);
+export async function worldToFrame(p: Vector3, frame: OrthonormalFrame) {
+  const M = await makeWorldToFrameMatrix(frame);
   return p.clone().applyMatrix4(M);
 }
 
@@ -476,7 +499,7 @@ const ThreeViewer = React.memo(
       new Map(),
     );
     // const textAnchorsRef = useRef<Map<string, THREE.Object3D>>(new Map());
-    const textAnchorsRef = useRef<Map<string, CSS3DObject>>(new Map());
+    const textAnchorsRef = useRef<Map<string, any>>(new Map());
     const pointMarkersRef = useRef<Map<string, THREE.Sprite>>(new Map());
     const fileAnchorsRef = useRef<Map<string, THREE.Object3D>>(new Map());
     const raycasterRef = useRef<THREE.Raycaster>(new THREE.Raycaster()); //check
@@ -672,22 +695,22 @@ const ThreeViewer = React.memo(
       scale: THREE.Vector3 | null;
     }>({ position: null, rotation: null, scale: null });
 
-    const originRef = useRef<THREE.Vector3 | null>(null);
-    const originMarkerRef = useRef<THREE.Object3D | null>(null); // Changed to THREE.Object3D to support both Mesh and Group
+    const originRef = useRef<Vector3 | null>(null);
+    const originMarkerRef = useRef<Object3D | null>(null); // Changed to Object3D to support both Mesh and Group
     const [distanceDisplay, setDistanceDisplay] = useState<string>("");
 
     const [markingCornerStart, setMarkingCornerStart] =
-      useState<THREE.Vector3 | null>(null);
-    const [tempBoxHelper, setTempBoxHelper] = useState<THREE.Box3Helper | null>(
+      useState<Vector3 | null>(null);
+    const [tempBoxHelper, setTempBoxHelper] = useState<any | null>(
       null,
     );
-    const originNodeRef = useRef<THREE.Object3D | null>(null);
-    const originDirectionLineRef = useRef<THREE.Line | null>(null);
+    const originNodeRef = useRef<Object3D | null>(null);
+    const originDirectionLineRef = useRef<any | null>(null);
 
-    const createCircularFileMarker = (
+    const createCircularFileMarker = async (
       anchorId: string,
       onClick: () => void,
-    ): CSS3DObject => {
+    ): Promise<any> => {
       const markerDiv = document.createElement("div");
       markerDiv.style.width = "30px"; // Adjust size as needed
       markerDiv.style.height = "30px";
@@ -726,6 +749,7 @@ const ThreeViewer = React.memo(
         markerDiv.style.transform = "scale(1.0)";
       });
 
+      const CSS3DObject = await getCSS3DObject();
       const css3DObject = new CSS3DObject(markerDiv);
       css3DObject.userData.isMarker = true;
       css3DObject.userData.anchorId = anchorId;
@@ -733,7 +757,7 @@ const ThreeViewer = React.memo(
     };
 
     // Helper function to create the close button
-    const createCloseButton = (onClick: () => void): CSS3DObject => {
+    const createCloseButton = async (onClick: () => void): Promise<any> => {
       const buttonDiv = document.createElement("button");
       buttonDiv.innerHTML = "×"; // X symbol for close
       buttonDiv.style.width = "24px";
@@ -765,6 +789,7 @@ const ThreeViewer = React.memo(
         e.preventDefault();
       });
 
+      const CSS3DObject = await getCSS3DObject();
       const cssObj = new CSS3DObject(buttonDiv);
       cssObj.userData.isCloseButton = true;
       return cssObj;
