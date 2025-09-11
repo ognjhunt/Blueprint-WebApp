@@ -22,11 +22,13 @@ import {
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-// Get Firebase API key from environment (Vite environment)
-const apiKey = import.meta.env.VITE_GOOG_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY;
+const mySecret = "AIzaSyBmMAIHuD4wY9061MWRYx9XSRDBMmB59hw"; // process.env["GOOG_API_KEY"];
+// Get Firebase API key from environment
+const apiKey = mySecret;
+//import.meta.env.VITE_FIREBASE_API_KEY;
 if (!apiKey) {
   throw new Error(
-    "Missing VITE_GOOG_API_KEY environment variable. Please add your Firebase API key using Replit Secrets.",
+    "Missing VITE_FIREBASE_API_KEY environment variable. Please add your Firebase API key to .env.local",
   );
 }
 

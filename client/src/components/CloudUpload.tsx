@@ -59,7 +59,7 @@ const CloudUpload: React.FC<CloudUploadProps> = ({
         ".pptx",
     })[mime] ?? "";
 
-  const mySecret = process.env["GOOG_API_KEY"];
+  const mySecret = "AIzaSyBmMAIHuD4wY9061MWRYx9XSRDBMmB59hw"; // process.env["GOOG_API_KEY"];
 
   // REPLACE: handleGoogleDrive
   const handleGoogleDrive = () => {
