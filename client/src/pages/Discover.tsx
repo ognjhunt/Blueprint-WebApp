@@ -1099,7 +1099,7 @@ const steps = [
     icon: <Rocket className="w-6 h-6 md:w-8 md:h-8" />,
     title: "Demo Day",
     description:
-      "We'll come in with an Apple Vision Pro to give a ~1 hour long demonstration. Open to any and everyone!",
+      "We'll come in with a VR headset to give a ~1 hour long demonstration. Open to any and everyone!",
     benefits: ["Feedback", "Performance analytics", "Continuous optimization"],
     color: "from-fuchsia-500 to-pink-600",
     duration: "Next Week",

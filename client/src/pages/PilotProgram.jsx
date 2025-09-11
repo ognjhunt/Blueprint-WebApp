@@ -244,7 +244,7 @@ function getBenefitDetails(title) {
       "Clear next steps after demo",
     ],
     "Premium Hardware": [
-      "Apple Vision Pro demo day",
+      "VR headset demo day",
       "We bring devices on-site",
       "Hands-on staff training",
       "No hardware purchase required",
@@ -844,24 +844,24 @@ export default function PilotProgram() {
       details: ["AI-assisted content", "Review checkpoint (async)", "QR plan"],
     },
     {
-      icon: <Wand2 className="w-6 h-6" />,
-      title: "Prep & Briefing",
-      subtitle: "We get your team ready",
-      description:
-        "We place/ship QR kits, finish polish, and share a quick briefing so demo day runs smoothly.",
-      color: "from-teal-500 to-emerald-500",
-      benefit: "Smooth demo day",
-      details: ["QR placement", "Final adjustments", "Team briefing"],
-    },
-    {
       icon: <PlayCircle className="w-6 h-6" />,
       title: "Visit 2",
       subtitle: "Live Demo Day (1–2 hrs)",
       description:
-        "We bring Apple Vision Pro and run the demo end-to-end. Your team tries it hands-on; we handle devices, setup, and sanitization. The AR is live during the scheduled demo window only.",
+        "We bring a VR headset and run the demo end-to-end. Your team tries it hands-on; we handle devices, setup, and sanitization. The AR is live during the scheduled demo window only.",
       color: "from-emerald-400 to-cyan-400",
       benefit: "Hands-on, on-site",
-      details: ["Vision Pro", "Team walkthrough", "Immediate insights"],
+      details: ["VR headset", "Team walkthrough", "Immediate insights"],
+    },
+    {
+      icon: <Send className="w-6 h-6" />,
+      title: "Feedback & Survey",
+      subtitle: "10 min questionnaire",
+      description:
+        "After the demo, we send a short survey to your team. Your feedback keeps the pilot free and helps Blueprint improve.",
+      color: "from-cyan-400 to-emerald-400",
+      benefit: "Your input matters",
+      details: ["10-minute survey", "Participant insights", "Keeps program free"],
     },
   ];
   // const timeline = [
@@ -908,10 +908,10 @@ export default function PilotProgram() {
   //     title: "Week 2",
   //     subtitle: "Live Demo Day",
   //     description:
-  //       "See your space come alive on Apple Vision Pro and other devices. Collect instant feedback.",
+  //       "See your space come alive on a VR headset and other devices. Collect instant feedback.",
   //     color: "from-emerald-400 to-cyan-400",
   //     benefit: "Hands-on, on-site",
-  //     details: ["Vision Pro demo", "Team training", "Immediate insights"],
+  //     details: ["VR headset demo", "Team training", "Immediate insights"],
   //   },
   // ];
 
@@ -953,7 +953,7 @@ export default function PilotProgram() {
     {
       icon: <Monitor className="w-6 h-6" />,
       title: "Premium Hardware",
-      description: "We bring an Apple Vision Pro to your demo day.",
+      description: "We bring a VR headset to your demo day.",
       highlight: "No hardware needed",
     },
     {
@@ -987,7 +987,7 @@ export default function PilotProgram() {
     },
     {
       q: "Do customers need special hardware?",
-      a: "No. The AR runs in the browser via QR codes. For demo day, we bring an Apple Vision Pro so your team can try it hands-on.",
+      a: "No. The AR runs in the browser via QR codes. For demo day, we bring a VR headset so your team can try it hands-on.",
     },
     {
       q: "What do you need from us?",
@@ -2137,7 +2137,7 @@ export default function PilotProgram() {
 //       "No hidden fees or surprises",
 //     ],
 //     "Premium Hardware": [
-//       "Apple Vision Pro demos included",
+  //       "VR headset demos included",
 //       "Latest AR technology access",
 //       "Professional setup & training",
 //       "Hardware experts on-site",
@@ -3008,7 +3008,7 @@ export default function PilotProgram() {
 //         "Experience your space transformed with AR using cutting-edge devices. See the magic firsthand!",
 //       color: "from-purple-500 to-pink-500",
 //       benefit: "Hands-on experience",
-//       details: ["Vision Pro demo", "Team training", "Immediate feedback"],
+  //       details: ["VR headset demo", "Team training", "Immediate feedback"],
 //     },
 //   ];
 
@@ -3049,7 +3049,7 @@ export default function PilotProgram() {
 //     {
 //       icon: <Monitor className="w-6 h-6" />,
 //       title: "Premium Hardware",
-//       description: "Test with Apple Vision Pro and other cutting-edge devices",
+  //       description: "Test with a VR headset and other cutting-edge devices",
 //       highlight: "No purchase needed",
 //     },
 //     {
@@ -3107,7 +3107,7 @@ export default function PilotProgram() {
 //     },
 //     {
 //       q: "Do we need special hardware for customers?",
-//       a: "No! That's the beauty of Blueprint. Your customers access the AR experience through their own devices via web browser - no app download needed. During the pilot, we bring Vision Pro and other devices for demos, but day-to-day operation only requires customer's devices.",
+  //       a: "No! That's the beauty of Blueprint. Your customers access the AR experience through their own devices via web browser - no app download needed. During the pilot, we bring a VR headset and other devices for demos, but day-to-day operation only requires customer's devices.",
 //     },
 //     {
 //       q: "What do you need from us?",
