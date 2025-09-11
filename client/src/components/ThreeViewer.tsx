@@ -1635,6 +1635,15 @@ const ThreeViewer = React.memo(
     };
 
     useEffect(() => {
+      // --- Scene Ready Check ---
+      if (!sceneRef.current) {
+        console.log(
+          "[ThreeViewer qrCodeAnchors Effect] Skipping: Scene not ready yet.",
+        );
+        return;
+      }
+      // --- End Scene Ready Check ---
+
       // --- Visibility Check ---
       if (!showQrCodes) {
         // If hidden, remove all existing QR markers and clear the map
