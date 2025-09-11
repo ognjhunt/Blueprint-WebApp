@@ -1,18 +1,34 @@
-import * as THREE from 'three';
+// Dynamic Three.js import to prevent memory crashes
+let THREE: any = null;
+
+const getThree = async () => {
+  if (!THREE) {
+    THREE = await import("three");
+  }
+  return THREE;
+};
 
 export class ThreeScene {
-  private scene: THREE.Scene;
-  private camera: THREE.PerspectiveCamera;
-  private renderer: THREE.WebGLRenderer | null = null;
-  private particles: THREE.Points | null = null;
+  private scene: any;
+  private camera: any;
+  private renderer: any | null = null;
+  private particles: any | null = null;
   private animationFrameId: number = 0;
   private isInitialized: boolean = false;
 
   constructor(container: HTMLElement) {
-    console.log("Initializing ThreeScene...");
-    
-    // Scene setup
-    this.scene = new THREE.Scene();
+    // Initialize asynchronously to avoid memory crashes
+    this.initAsync(container);
+  }
+
+  private async initAsync(container: HTMLElement) {
+    try {
+      console.log("Initializing ThreeScene...");
+      
+      const THREE = await getThree();
+      
+      // Scene setup
+      this.scene = new THREE.Scene();
     console.log("Scene created successfully");
     
     // Camera setup
