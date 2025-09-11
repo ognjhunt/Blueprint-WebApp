@@ -2093,18 +2093,32 @@ export default function BlueprintEditor() {
   }, []);
 
   useEffect(() => {
-    const baseOrientation = originOrientation
-      ? originOrientation.clone()
-      : new THREE.Quaternion();
-    if (isXZSwapped) {
-      const rotationQuaternion = new THREE.Quaternion().setFromAxisAngle(
-        new THREE.Vector3(0, 1, 0),
-        Math.PI / 2,
-      );
-      setDisplayOriginOrientation(baseOrientation.multiply(rotationQuaternion));
-    } else {
-      setDisplayOriginOrientation(baseOrientation);
-    }
+    const updateDisplayOrientation = async () => {
+      const baseOrientation = originOrientation
+        ? await createQuaternion(originOrientation.x, originOrientation.y, originOrientation.z, originOrientation.w)
+        : await createQuaternion();
+      if (isXZSwapped) {
+        const rotationQuaternion = await createQuaternion();
+        const yAxis = await createVector3(0, 1, 0);
+        rotationQuaternion.setFromAxisAngle(yAxis, Math.PI / 2);
+        const result = baseOrientation.clone().multiply(rotationQuaternion);
+        setDisplayOriginOrientation({
+          x: result.x,
+          y: result.y,
+          z: result.z,
+          w: result.w
+        });
+      } else {
+        setDisplayOriginOrientation({
+          x: baseOrientation.x,
+          y: baseOrientation.y,
+          z: baseOrientation.z,
+          w: baseOrientation.w
+        });
+      }
+    };
+    
+    updateDisplayOrientation();
   }, [originOrientation, isXZSwapped]);
 
   // ========================
@@ -4901,7 +4915,8 @@ export default function BlueprintEditor() {
 
     try {
       // Calculate offset from origin
-      const offset = new THREE.Vector3().subVectors(point, originPoint);
+      const offset = await createVector3();
+      offset.subVectors(point, originPoint);
 
       // Create anchor ID
       const newAnchorId = `anchor-qr-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
@@ -5646,7 +5661,8 @@ export default function BlueprintEditor() {
 
     try {
       // Convert model-space position to real-world coordinates using BlueprintEditor's originPoint
-      const offset = new THREE.Vector3().subVectors(position, originPoint);
+      const offset = await createVector3();
+      offset.subVectors(position, originPoint);
 
       const SCALE_FACTOR = 45.64; // Model units -> real world (feet)
 
@@ -7757,10 +7773,8 @@ export default function BlueprintEditor() {
                       const newAnchorId = `anchor-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
                       // Calculate offset from origin (important for correct positioning)
-                      const offset = new THREE.Vector3().subVectors(
-                        position,
-                        originPoint,
-                      );
+                      const offset = await createVector3();
+                      offset.subVectors(position, originPoint);
                       const scaledOffset = {
                         x: offset.x * 45.64,
                         y: offset.y * 45.64,

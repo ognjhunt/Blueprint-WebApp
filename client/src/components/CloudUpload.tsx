@@ -59,11 +59,11 @@ const CloudUpload: React.FC<CloudUploadProps> = ({
         ".pptx",
     })[mime] ?? "";
 
-  const mySecret = "AIzaSyBmMAIHuD4wY9061MWRYx9XSRDBMmB59hw"; // process.env["GOOG_API_KEY"];
+  // Get Google API key from environment
 
   // REPLACE: handleGoogleDrive
   const handleGoogleDrive = () => {
-    const apiKey = mySecret; // (import.meta as any).env.VITE_GOOGLE_API_KEY as string;
+    const apiKey = import.meta.env.VITE_GOOGLE_API_KEY as string;
     const clientId =
       "744608654760-2jkr2t3632m1qri95dcsasu5fnbotosd.apps.googleusercontent.com"; // (import.meta as any).env.VITE_GOOGLE_CLIENT_ID as string;
     // NEW: numeric Cloud Project number (not the string project ID)
