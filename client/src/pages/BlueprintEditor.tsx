@@ -482,6 +482,41 @@ export default function BlueprintEditor() {
   const [tempOriginPos, setTempOriginPos] = useState<{x: number, y: number, z: number} | null>(
     null,
   );
+
+  // Convert plain objects to THREE.js objects for ThreeViewer
+  const [threeOriginOrientation, setThreeOriginOrientation] = useState<Quaternion | null>(null);
+  const [threeTempOriginPos, setThreeTempOriginPos] = useState<Vector3 | null>(null);
+
+  useEffect(() => {
+    const convertOrientation = async () => {
+      if (!displayOriginOrientation) {
+        setThreeOriginOrientation(null);
+        return;
+      }
+      const quaternion = await createQuaternion();
+      quaternion.set(
+        displayOriginOrientation.x,
+        displayOriginOrientation.y,
+        displayOriginOrientation.z,
+        displayOriginOrientation.w
+      );
+      setThreeOriginOrientation(quaternion);
+    };
+    convertOrientation();
+  }, [displayOriginOrientation]);
+
+  useEffect(() => {
+    const convertTempPos = async () => {
+      if (!tempOriginPos) {
+        setThreeTempOriginPos(null);
+        return;
+      }
+      const vector = await createVector3();
+      vector.set(tempOriginPos.x, tempOriginPos.y, tempOriginPos.z);
+      setThreeTempOriginPos(vector);
+    };
+    convertTempPos();
+  }, [tempOriginPos]);
   const [isChoosingOrigin, setIsChoosingOrigin] = useState(false);
   const [scaleFactor, setScaleFactor] = useState(1);
   const [referencePoints2D, setReferencePoints2D] = useState<any[]>([]);
@@ -7699,7 +7734,7 @@ export default function BlueprintEditor() {
                   ref={threeViewerRef}
                   originPoint={originPoint}
                   yRotation={locationData?.yRotation || 0}
-                  originOrientation={displayOriginOrientation}
+                  originOrientation={threeOriginOrientation}
                   qrCodeAnchors={qrCodeAnchors}
                   scaleFactor={scaleFactor}
                   textAnchors={textAnchors}
@@ -7716,7 +7751,7 @@ export default function BlueprintEditor() {
                   onWalkModeChange={setIsWalkMode}
                   // NEW Props for the two-step process
                   originSettingStep={originSettingStep}
-                  tempOriginPos={tempOriginPos}
+                  tempOriginPos={threeTempOriginPos}
                   onOriginPositionPicked={handleOriginPositionPicked}
                   onOriginDirectionPicked={handleOriginDirectionPicked}
                   isChoosingOrigin={false} // This is now controlled by originSettingStep
@@ -8476,7 +8511,7 @@ export default function BlueprintEditor() {
                         originPoint={originPoint}
                         activeLabel={activeLabel}
                         yRotation={locationData?.yRotation || 0}
-                        originOrientation={displayOriginOrientation}
+                        originOrientation={threeOriginOrientation}
                         awaiting3D={awaiting3D}
                         setReferencePoints3D={setReferencePoints3D}
                         isMarkingArea={isMarkingArea}
@@ -8496,7 +8531,7 @@ export default function BlueprintEditor() {
                         onWalkModeChange={setIsWalkMode}
                         // NEW Props for the two-step process
                         originSettingStep={originSettingStep}
-                        tempOriginPos={tempOriginPos}
+                        tempOriginPos={threeTempOriginPos}
                         onOriginPositionPicked={handleOriginPositionPicked}
                         onOriginDirectionPicked={handleOriginDirectionPicked}
                         isChoosingOrigin={false} // This is now controlled by originSettingStep
