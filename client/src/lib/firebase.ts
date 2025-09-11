@@ -22,8 +22,9 @@ import {
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
+const mySecret = process.env["GOOG_API_KEY"];
 // Get Firebase API key from environment
-const apiKey = "";
+const apiKey = mySecret;
 //import.meta.env.VITE_FIREBASE_API_KEY;
 if (!apiKey) {
   throw new Error(
