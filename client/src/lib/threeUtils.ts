@@ -250,5 +250,4 @@ export type Matrix4 = import("three").Matrix4;
 export type Euler = import("three").Euler;
 export type Camera = import("three").Camera;
 export type Material = import("three").Material;
-export type Geometry = import("three").Geometry;
 export type BufferGeometry = import("three").BufferGeometry;
