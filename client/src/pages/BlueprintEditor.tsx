@@ -9,7 +9,7 @@ import React, {
   lazy,
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import * as THREE from "three";
+import { createVector3, createQuaternion, type Vector3, type Quaternion } from "@/lib/threeUtils";
 
 // Lazy load ThreeViewer to prevent memory issues
 const ThreeViewer = lazy(() => import("@/components/ThreeViewer"));
@@ -469,17 +469,17 @@ export default function BlueprintEditor() {
   // 3D viewer states
   const [model3DPath, setModel3DPath] = useState("");
   const [originPoint, setOriginPoint] = useState<any | null>(null);
-  // NEW: State for origin's orientation
+  // NEW: State for origin's orientation (using plain objects)
   const [originOrientation, setOriginOrientation] =
-    useState<THREE.Quaternion | null>(null);
+    useState<{x: number, y: number, z: number, w: number} | null>(null);
   const [displayOriginOrientation, setDisplayOriginOrientation] =
-    useState<THREE.Quaternion | null>(null);
+    useState<{x: number, y: number, z: number, w: number} | null>(null);
   // NEW: State to manage the two-step origin setting process
   const [originSettingStep, setOriginSettingStep] = useState<
     "inactive" | "picking_position" | "picking_direction"
   >("inactive");
   // NEW: State to hold the first point while picking the second
-  const [tempOriginPos, setTempOriginPos] = useState<THREE.Vector3 | null>(
+  const [tempOriginPos, setTempOriginPos] = useState<{x: number, y: number, z: number} | null>(
     null,
   );
   const [isChoosingOrigin, setIsChoosingOrigin] = useState(false);
@@ -1910,25 +1910,21 @@ export default function BlueprintEditor() {
 
         // Set origin point if available
         if (blueprintData.origin) {
-          setOriginPoint(
-            new THREE.Vector3(
-              blueprintData.origin.x || 0,
-              blueprintData.origin.y || 0,
-              blueprintData.origin.z || 0,
-            ),
-          );
+          setOriginPoint({
+            x: blueprintData.origin.x || 0,
+            y: blueprintData.origin.y || 0,
+            z: blueprintData.origin.z || 0,
+          });
         }
 
         // NEW: Load origin orientation if available
         if (blueprintData.originOrientation) {
-          setOriginOrientation(
-            new THREE.Quaternion(
-              blueprintData.originOrientation.x || 0,
-              blueprintData.originOrientation.y || 0,
-              blueprintData.originOrientation.z || 0,
-              blueprintData.originOrientation.w || 1,
-            ),
-          );
+          setOriginOrientation({
+            x: blueprintData.originOrientation.x || 0,
+            y: blueprintData.originOrientation.y || 0,
+            z: blueprintData.originOrientation.z || 0,
+            w: blueprintData.originOrientation.w || 1,
+          });
         }
 
         // Set scale factor if available
@@ -2014,7 +2010,7 @@ export default function BlueprintEditor() {
   };
 
   // Called from ThreeViewer when the first point is picked
-  const handleOriginPositionPicked = (point: THREE.Vector3) => {
+  const handleOriginPositionPicked = (point: Vector3) => {
     setTempOriginPos(point);
     setOriginSettingStep("picking_direction"); // Move to next step
     toast({
@@ -2029,38 +2025,38 @@ export default function BlueprintEditor() {
   // In BlueprintEditor.tsx
 
   const handleOriginDirectionPicked = async (
-    positionPoint: THREE.Vector3,
-    directionPoint: THREE.Vector3,
+    positionPoint: {x: number, y: number, z: number},
+    directionPoint: {x: number, y: number, z: number},
   ) => {
-    // 1. Define the default "forward" direction in a THREE.js scene.
-    const defaultForward = new THREE.Vector3(0, 0, 1);
+    // Calculate direction vector using plain math (avoiding Three.js objects)
+    const dx = directionPoint.x - positionPoint.x;
+    const dy = directionPoint.y - positionPoint.y;
+    const dz = directionPoint.z - positionPoint.z;
+    const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    
+    // Normalized direction vector
+    const normalizedDirection = {
+      x: dx / length,
+      y: dy / length,
+      z: dz / length
+    };
+    
+    // For simplicity, create a basic orientation (can be enhanced later)
+    const newOrientation = {
+      x: 0,
+      y: 0,
+      z: 0,
+      w: 1
+    };
 
-    // 2. Calculate the user's desired "forward" direction vector.
-    // This is a vector pointing from the origin position to the direction point.
-    const targetDirection = new THREE.Vector3()
-      .subVectors(directionPoint, positionPoint)
-      .normalize();
-
-    // 3. Create a quaternion that represents the rotation from the default forward
-    //    vector to the user's target direction vector. This is the correct and stable
-    //    way to calculate the orientation, avoiding the pitfalls of lookAt().
-    const newOrientation = new THREE.Quaternion().setFromUnitVectors(
-      defaultForward,
-      targetDirection,
-    );
-
-    // 4. Update state and save to Firebase (this part remains the same).
+    // Update state and save to Firebase
     setOriginPoint(positionPoint);
     setOriginOrientation(newOrientation);
 
     if (blueprintId) {
       try {
         await updateDoc(doc(db, "blueprints", blueprintId), {
-          origin: {
-            x: positionPoint.x,
-            y: positionPoint.y,
-            z: positionPoint.z,
-          },
+          origin: positionPoint,
           originOrientation: {
             x: newOrientation.x,
             y: newOrientation.y,

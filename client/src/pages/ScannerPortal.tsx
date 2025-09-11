@@ -5,9 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { format, addMonths } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { createRaycaster, type Vector3, type Quaternion, type Scene, type PerspectiveCamera, type WebGLRenderer, type Object3D } from "@/lib/threeUtils";
 import axios from "axios";
 
 // Add pdfjsLib interface to Window
@@ -825,13 +823,7 @@ export default function ScannerPortal() {
     setIsUploadDialogOpen(true);
   };
 
-  // Add these state/refs for THREE.js integration
-  const sceneRef = useRef<THREE.Scene | null>(null);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const raycasterRef = useRef<THREE.Raycaster>(new THREE.Raycaster());
-  const modelRef = useRef<THREE.Object3D | null>(null);
-  const controlsRef = useRef<OrbitControls | null>(null);
+  // ThreeViewer handles all 3D scene management
   const animationFrameRef = useRef<number>(0);
 
   // Handle file selection
