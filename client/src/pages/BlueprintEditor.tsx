@@ -5,10 +5,14 @@ import React, {
   useRef,
   useCallback,
   useMemo,
+  Suspense,
+  lazy,
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import * as THREE from "three";
-import ThreeViewer from "@/components/ThreeViewer";
+
+// Lazy load ThreeViewer to prevent memory issues
+const ThreeViewer = lazy(() => import("@/components/ThreeViewer"));
 import CloudUpload from "@/components/CloudUpload";
 import Nav from "@/components/Nav";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7676,7 +7680,8 @@ export default function BlueprintEditor() {
               </div>
             ) : (
               <div className="w-full h-full relative">
-                <ThreeViewer
+                <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+                  <ThreeViewer
                   //modelPath={model3DPath}
                   modelPath={blueprintModelUrl}
                   ref={threeViewerRef}
@@ -7848,6 +7853,7 @@ export default function BlueprintEditor() {
                   onBackgroundClick={handleViewerBackgroundClick}
                   onFileAnchorClick={handleFileAnchorClicked}
                 />
+                </Suspense>
                 {/* <div className="absolute bottom-4 right-4 z-40">
                   <CostPanel
                     imageCount={imageCount}
@@ -8452,7 +8458,8 @@ export default function BlueprintEditor() {
                 <div className="flex-1 relative">
                   {model3DPath ? (
                     <div className="w-full h-full">
-                      <ThreeViewer
+                      <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+                        <ThreeViewer
                         // modelPath={model3DPath}
                         modelPath={blueprintModelUrl}
                         ref={threeViewerRef}
@@ -8488,6 +8495,7 @@ export default function BlueprintEditor() {
                         modelAnchors={[]}
                         showGrid={showGrid}
                       />
+                      </Suspense>
                     </div>
                   ) : (
                     <div className="flex items-center justify-center h-full">

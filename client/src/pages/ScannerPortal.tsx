@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, Suspense, lazy } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format, addMonths } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,7 +35,8 @@ import { db, storage } from "@/lib/firebase";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import LindyChat from "@/components/LindyChat";
-import ThreeViewer from "@/components/ThreeViewer"; // Add this import
+// Lazy load ThreeViewer to prevent memory issues
+const ThreeViewer = lazy(() => import("@/components/ThreeViewer"));
 
 import {
   Search,
@@ -2110,7 +2111,8 @@ export default function ScannerPortal() {
 
               {/* Right half: 3D Model */}
               <div className="border rounded-md relative bg-gray-100 overflow-hidden">
-                <ThreeViewer
+                <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+                  <ThreeViewer
                   //modelPath={model3DPath}
                   modelPath={blueprint3DModelUrl}
                   activeLabel={activeLabel}
@@ -2130,6 +2132,7 @@ export default function ScannerPortal() {
                     });
                   }}
                 />
+                </Suspense>
                 <div className="absolute bottom-2 left-2 bg-white/80 p-2 rounded shadow z-10">
                   <h4 className="font-medium mb-1">3D Points</h4>
                   {referencePoints3D.map((pt, i) => (
