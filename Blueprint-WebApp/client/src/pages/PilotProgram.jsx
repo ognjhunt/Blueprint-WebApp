@@ -183,7 +183,7 @@ export default function PilotProgram() {
         "Experience your space transformed with AR using cutting-edge devices. See the magic firsthand!",
       color: "from-purple-500 to-pink-500",
       benefit: "Hands-on experience",
-      details: ["Vision Pro demo", "Team training", "Immediate feedback"],
+      details: ["VR headset demo", "Team training", "Immediate feedback"],
     },
   ];
 
@@ -224,7 +224,7 @@ export default function PilotProgram() {
     {
       icon: <Monitor className="w-6 h-6" />,
       title: "Premium Hardware",
-      description: "Test with Apple Vision Pro and other cutting-edge devices",
+      description: "Test with a VR headset and other cutting-edge devices",
       highlight: "No purchase needed",
     },
     {
@@ -280,7 +280,7 @@ export default function PilotProgram() {
     },
     {
       q: "Do we need special hardware for customers?",
-      a: "No! That's the beauty of Blueprint. Your customers access the AR experience through their own devices via web browser - no app download needed. During the pilot, we bring Vision Pro and other devices for demos, but day-to-day operation only requires customer's devices.",
+      a: "No! That's the beauty of Blueprint. Your customers access the AR experience through their own devices via web browser - no app download needed. During the pilot, we bring a VR headset and other devices for demos, but day-to-day operation only requires customer's devices.",
     },
     {
       q: "What do you need from us?",

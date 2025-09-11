@@ -311,7 +311,7 @@ export default function Home() {
                   <li>• LiDAR mapping of your space</li>
                   <li>• Custom AR layer tailored to your brand</li>
                   <li>• QR kit for instant access on-site</li>
-                  <li>• Apple Vision Pro demo day for your team</li>
+                  <li>• VR headset demo day for your team</li>
                   <li>• Simple engagement recap & next-step options</li>
                 </ul>
               </div>
@@ -401,7 +401,7 @@ export default function Home() {
                   <li>• LiDAR mapping</li>
                   <li>• Custom AR layer</li>
                   <li>• QR kit</li>
-                  <li>• Vision Pro demo day</li>
+                  <li>• VR headset demo day</li>
                   <li>• Engagement recap</li>
                 </ul>
               </div>
@@ -1167,7 +1167,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 //       icon: <Rocket className="w-6 h-6 md:w-8 md:h-8" />,
 //       title: "Demo Day",
 //       description:
-//         "We'll come in with an Apple Vision Pro to give a ~1 hour long demonstration. Open to any and everyone!",
+//         "We'll come in with a VR headset to give a ~1 hour long demonstration. Open to any and everyone!",
 //       benefits: [
 //         "Feedback",
 //         "Performance analytics",

@@ -34,7 +34,7 @@ export default function FAQ() {
     },
     {
       q: "Do we need special hardware for customers?",
-      a: "No! That's the beauty of Blueprint. Your customers access the AR experience through their own devices via web browser - no app download needed. During the pilot, we bring Vision Pro and other devices for demos, but day-to-day operation only requires customer's devices.",
+      a: "No! That's the beauty of Blueprint. Your customers access the AR experience through their own devices via web browser - no app download needed. During the pilot, we bring a VR headset and other devices for demos, but day-to-day operation only requires customer's devices.",
     },
     {
       q: "What do you need from us?",

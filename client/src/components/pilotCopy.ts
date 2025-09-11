@@ -16,7 +16,7 @@ export const PILOT_FAQ: FAQ[] = [
   },
   {
     q: "Do customers need special hardware?",
-    a: "No. The AR runs in the browser via QR codes. For demo day, we bring an Apple Vision Pro so your team can try it hands-on.",
+    a: "No. The AR runs in the browser via QR codes. For demo day, we bring a VR headset so your team can try it hands-on.",
   },
   {
     q: "What do you need from us?",
