@@ -105,6 +105,13 @@ function Router() {
           <BlueprintEditor />
         </ProtectedRoute>
       </Route>
+      
+      {/* Redirect for old casing */}
+      <Route path="/BlueprintEditor/:id?">
+        <ProtectedRoute>
+          <BlueprintEditor />
+        </ProtectedRoute>
+      </Route>
 
       <Route>404 Page Not Found</Route>
     </Switch>
