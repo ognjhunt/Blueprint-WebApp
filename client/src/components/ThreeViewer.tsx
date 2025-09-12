@@ -913,7 +913,7 @@ const ThreeViewer = React.memo(
           video.loop = true;
           video.muted = true;
           video.playsInline = true;
-          video.preload = "auto";
+          video.preload = "metadata"; // Changed from "auto" to reduce memory usage
           video.onloadeddata = () => {
             try {
               const aspect = video.videoWidth / video.videoHeight;
@@ -2308,7 +2308,7 @@ const ThreeViewer = React.memo(
           video.loop = true;
           video.muted = true;
           video.playsInline = true;
-          video.preload = "auto";
+          video.preload = "metadata"; // Changed from "auto" to reduce memory usage
 
           video.onloadeddata = () => {
             console.log(
