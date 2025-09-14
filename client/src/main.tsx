@@ -49,7 +49,7 @@ const MuseumOS = lazy(() => import("./pages/blog/MuseumOS"));
 const HospitalityOS = lazy(() => import("./pages/blog/HospitalityOS"));
 const RestaurantOS = lazy(() => import("./pages/blog/RestaurantOS"));
 const WorkplaceOS = lazy(() => import("./pages/blog/WorkplaceOS"));
-const Launch = lazy(() => import("./pages/Launch"));
+const Go = lazy(() => import("./pages/Go"));
 const WebXR = lazy(() => import("./pages/WebXR"));
 
 function Router() {
@@ -80,7 +80,7 @@ function Router() {
       <Route path="/scanner-portal" component={ScannerPortal} />
       <Route path="/accept-invite" component={AcceptInvite} />
       <Route path="/pilot-program" component={PilotProgram} />
-      <Route path="/launch" component={Launch} />
+      <Route path="/go" component={Go} />
       <Route path="/webxr" component={WebXR} />
       <Route path="/privacy" component={PrivacyPolicy} />
       <Route path="/terms" component={Terms} />

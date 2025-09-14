@@ -2,7 +2,8 @@ import QRCode from "qrcode";
 import { writeFile } from "fs/promises";
 import path from "path";
 
-const url = "https://www.tryblueprint.io/launch";
+// Smart link that relies on Universal/App Links to open the Blueprint app
+const url = "https://bp.link/go";
 const outPath = path.resolve("Blueprint-QR.png");
 
 async function generate() {
