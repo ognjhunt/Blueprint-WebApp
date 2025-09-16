@@ -171,6 +171,12 @@ export default function TeamMembersPage() {
   useEffect(() => {
     if (!currentUser) return;
 
+    if (!db) {
+      console.warn("Firebase not configured. Cannot fetch team data.");
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
 
     // Fetch team members
@@ -225,6 +231,16 @@ export default function TeamMembersPage() {
   // Updated handleInvite function with improved debugging and webhook handling
   const handleInvite = async () => {
     if (!inviteEmail || !currentUser) return;
+    
+    if (!db) {
+      toast({
+        title: "Error",
+        description: "Firebase not configured. Cannot send invites.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsInviting(true);
 
     try {
