@@ -149,7 +149,7 @@ export const LiveAPIProvider = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    if (!clientRef.current) {
+    if (!clientRef.current && GOOGLE_GENAI_KEY) {
       clientRef.current = new MultimodalLiveClient({
         apiKey: GOOGLE_GENAI_KEY,
       });

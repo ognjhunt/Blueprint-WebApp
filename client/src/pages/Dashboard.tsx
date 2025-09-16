@@ -155,7 +155,8 @@ export default function Dashboard() {
       ),
   );
 
-  const genAI = new GoogleGenerativeAI(getGoogleGenerativeAiKey());
+  const apiKey = getGoogleGenerativeAiKey();
+  const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
   // const model = genAI.getGenerativeModel({
   //   model: "gemini-1.5-flash",

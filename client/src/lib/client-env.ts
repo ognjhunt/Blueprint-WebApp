@@ -19,12 +19,26 @@ function getRequiredClientEnv(key: ClientEnvKey): string {
   return value;
 }
 
+function getOptionalClientEnv(key: ClientEnvKey): string | null {
+  if (cache[key]) {
+    return cache[key] as string;
+  }
+
+  const value = (import.meta.env as Record<string, string | undefined>)[key];
+  if (!value) {
+    return null;
+  }
+
+  cache[key] = value;
+  return value;
+}
+
 export function getGoogleMapsApiKey(): string {
   return getRequiredClientEnv("VITE_GOOGLE_MAPS_API_KEY");
 }
 
-export function getGoogleGenerativeAiKey(): string {
-  return getRequiredClientEnv("VITE_GOOGLE_GENAI_API_KEY");
+export function getGoogleGenerativeAiKey(): string | null {
+  return getOptionalClientEnv("VITE_GOOGLE_GENAI_API_KEY");
 }
 
 export function getGoogleApiKey(): string {
