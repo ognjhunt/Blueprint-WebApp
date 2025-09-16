@@ -40,11 +40,14 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Set persistence to LOCAL
   React.useEffect(() => {
-    if (!auth) return;
+    if (!auth) {
+      console.warn("Firebase auth not initialized. Skipping persistence setup.");
+      return;
+    }
     
     const initPersistence = async () => {
       try {
-        await firebasePersistence(auth, browserLocalPersistence);
+        await firebasePersistence(auth!, browserLocalPersistence);
       } catch (error) {
         console.error("Error setting persistence:", error);
       }

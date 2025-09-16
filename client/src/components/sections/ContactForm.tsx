@@ -186,6 +186,10 @@ export default function ContactForm() {
     setIsSubmitting(true);
 
     try {
+      if (!db) {
+        throw new Error("Firebase database not initialized. Please check your configuration.");
+      }
+
       const token = uuidv4();
       const baseUrl = "https://blueprint-vision-fork-nijelhunt.replit.app";
       const offWaitlistUrl = `${baseUrl}/off-waitlist-signup?token=${token}`;
@@ -198,28 +202,23 @@ export default function ContactForm() {
         createdAt: serverTimestamp(),
       });
 
-      // Fire-and-forget webhook
-      fetch(
-        "https://public.lindy.ai/api/v1/webhooks/lindy/163b37c0-2f5c-4969-9b2e-0d5ec61afb52",
-        {
-          method: "POST",
-          headers: {
-            Authorization:
-              "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: formData.name,
-            company: formData.company,
-            email: formData.email,
-            city: formData.city,
-            state: formData.state,
-            message: formData.message,
-            companyWebsite,
-            offWaitlistUrl,
-          }),
+      // Send notification via backend API (secure)
+      fetch("/api/contact-webhook", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      ).catch((err) => console.error("Webhook error (non-blocking):", err));
+        body: JSON.stringify({
+          name: formData.name,
+          company: formData.company,
+          email: formData.email,
+          city: formData.city,
+          state: formData.state,
+          message: formData.message,
+          companyWebsite,
+          offWaitlistUrl,
+        }),
+      }).catch((err) => console.error("Webhook error (non-blocking):", err));
 
       setIsSuccess(true);
       setFormData({
