@@ -61,6 +61,7 @@ import {
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 import { db } from "@/lib/firebase";
 import { getStorage, ref, uploadBytes } from "firebase/storage";
+import { triggerLindyWebhook, LindyWebhookPayload } from "@/utils/lindyWebhook";
 
 const ONBOARDING_FEE = 499.99;
 const MONTHLY_RATE = 49.99;
@@ -585,15 +586,36 @@ export default function OffWaitlistSignUpFlow() {
         setErrorMessage("No user found. Please sign up first.");
         return;
       }
+
+      const blueprintId = crypto.randomUUID();
+      const mappingDateString = scheduleDate.toISOString().split("T")[0];
+      const demoDateString = demoDate.toISOString().split("T")[0];
+      const lindyPayload: LindyWebhookPayload = {
+        have_we_onboarded: "No",
+        chosen_time_of_mapping: scheduleTime,
+        chosen_date_of_mapping: mappingDateString,
+        have_user_chosen_date: "Yes",
+        address: address.trim(),
+        company_url: companyWebsite.trim() || "",
+        company_name: organizationName.trim(),
+        contact_name: contactName.trim(),
+        contact_email: email.trim(),
+        contact_phone_number: phoneNumber.trim(),
+        estimated_square_footage: squareFootage,
+        blueprint_id: blueprintId,
+        chosen_date_of_demo: demoDateString,
+        chosen_time_of_demo: demoTime,
+      };
+      let shouldTriggerLindyWebhook = false;
+
       try {
         await updateDoc(doc(db, "users", user.uid), {
           demoScheduleDate: demoDate,
           demoScheduleTime: demoTime,
         });
 
-        const bookingDate = scheduleDate.toISOString().split("T")[0];
+        const bookingDate = mappingDateString;
         const bookingId = `${bookingDate}_${scheduleTime}`;
-        const blueprintId = crypto.randomUUID();
 
         const estimatedSquareFootage = squareFootage ?? 0;
         const estimatedMappingPayout = parseFloat(
@@ -618,7 +640,7 @@ export default function OffWaitlistSignUpFlow() {
           email: email.trim(),
           status: "pending",
           blueprintId,
-          demoScheduleDate: demoDate.toISOString().split("T")[0],
+          demoScheduleDate: demoDateString,
           demoScheduleTime: demoTime,
           createdAt: serverTimestamp(),
           estimatedSquareFootage,
@@ -650,7 +672,7 @@ export default function OffWaitlistSignUpFlow() {
         );
         await uploadBytes(placeholderRef, new Uint8Array());
 
-        const demoBookingDate = demoDate.toISOString().split("T")[0];
+        const demoBookingDate = demoDateString;
         const demoBookingId = `demo_${demoBookingDate}_${demoTime}`;
 
         await setDoc(doc(db, "demoBookings", demoBookingId), {
@@ -679,51 +701,16 @@ export default function OffWaitlistSignUpFlow() {
         setPaymentStatus("idle");
         setPaymentError(null);
 
-        const chosenDate = scheduleDate.toISOString().split("T")[0];
-        const chosenTime = scheduleTime;
-
-        fetch(
-          "https://public.lindy.ai/api/v1/webhooks/lindy/43c7b7d7-bc40-4593-acfe-ba79ad6488b8",
-          {
-            method: "POST",
-            headers: {
-              Authorization:
-                "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              have_we_onboarded: "No",
-              chosen_time_of_mapping: chosenTime,
-              chosen_date_of_mapping: chosenDate,
-              have_user_chosen_date: "Yes",
-              address: address.trim(),
-              company_url: companyWebsite.trim() || "",
-              company_name: organizationName.trim(),
-              contact_name: contactName.trim(),
-              contact_phone_number: phoneNumber.trim(),
-              estimated_square_footage: squareFootage,
-              contact_email: email.trim(),
-              blueprint_id: blueprintId,
-              chosen_date_of_demo: demoDate.toISOString().split("T")[0],
-              chosen_time_of_demo: demoTime,
-            }),
-          },
-        )
-          .then(async (resp) => {
-            if (!resp.ok) {
-              const text = await resp.text();
-              console.error("Lindy webhook failed:", text);
-            } else {
-              const result = await resp.json();
-              console.log("Lindy webhook ok:", result);
-            }
-          })
-          .catch((err) => console.error("Lindy webhook error:", err));
+        shouldTriggerLindyWebhook = true;
       } catch (error: unknown) {
         console.error("Error completing booking setup:", error);
         const msg = error instanceof Error ? error.message : "Unknown error";
         setErrorMessage("Error completing booking setup: " + msg);
         return;
+      }
+
+      if (shouldTriggerLindyWebhook) {
+        triggerLindyWebhook(lindyPayload);
       }
     }
   }
