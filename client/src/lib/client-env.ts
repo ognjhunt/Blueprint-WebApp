@@ -33,8 +33,8 @@ function getOptionalClientEnv(key: ClientEnvKey): string | null {
   return value;
 }
 
-export function getGoogleMapsApiKey(): string {
-  return getRequiredClientEnv("VITE_GOOGLE_MAPS_API_KEY");
+export function getGoogleMapsApiKey(): string | null {
+  return getOptionalClientEnv("VITE_GOOGLE_MAPS_API_KEY");
 }
 
 export function getGoogleGenerativeAiKey(): string | null {

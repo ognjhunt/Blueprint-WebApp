@@ -40,6 +40,8 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Set persistence to LOCAL
   React.useEffect(() => {
+    if (!auth) return;
+    
     const initPersistence = async () => {
       try {
         await firebasePersistence(auth, browserLocalPersistence);
@@ -57,6 +59,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [, setLocation] = useLocation();
 
   React.useEffect(() => {
+    if (!auth) {
+      setLoading(false);
+      return;
+    }
+    
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {

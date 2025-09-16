@@ -111,8 +111,14 @@ export default function ContactForm() {
 
   // Load Google Places
   useEffect(() => {
+    const apiKey = getGoogleMapsApiKey();
+    if (!apiKey) {
+      console.warn("Google Maps API key not configured. Places autocomplete will be disabled.");
+      return;
+    }
+
     const loader = new Loader({
-      apiKey: getGoogleMapsApiKey(),
+      apiKey,
       version: "weekly",
       libraries: ["places"],
     });
