@@ -18,6 +18,12 @@ type Post = {
 export default function Blog() {
   const posts: Post[] = [
     {
+      title: "roboticsOS – spatial context for autonomous crews",
+      description:
+        "Living digital twins that brief humanoids and AMRs the moment they arrive—navigate, act, and learn via Blueprint’s API.",
+      href: "/blog/robotics-os",
+    },
+    {
       title: "workplaceOS – our seventh phase",
       description:
         "AR + AI for offices and frontline hubs—live KPIs for managers, guided work and instant answers for teams.",
