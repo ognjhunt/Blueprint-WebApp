@@ -72,6 +72,12 @@ const MONTHLY_RATE = 49.99;
 const INCLUDED_WEEKLY_HOURS = 40;
 const EXTRA_HOURLY_RATE = 1.25;
 
+type CheckoutSessionResponse = {
+  sessionId?: string;
+  sessionUrl?: string | null;
+  error?: string;
+};
+
 // ---------------------------------------------------------
 // Component
 // ---------------------------------------------------------
@@ -1482,7 +1488,8 @@ export default function OutboundSignUpFlow() {
           }),
         });
 
-        const data = await response.json();
+        const data =
+          (await response.json()) as CheckoutSessionResponse;
         if (!response.ok || !data?.sessionId) {
           throw new Error(
             data?.error ||
@@ -1490,23 +1497,68 @@ export default function OutboundSignUpFlow() {
           );
         }
 
+        const sessionUrl =
+          typeof data.sessionUrl === "string" && data.sessionUrl.length > 0
+            ? data.sessionUrl
+            : undefined;
+
         const publishableKey =
           import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
           import.meta.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ||
           "pk_test_51ODuefLAUkK46LtZQ7o2si0POvd89pgNhE8pRcCCqMmmp9z534veOOiz81xMZcjZuEDK2CkdQnE9NhRy4WEoqWJG00ErDRTYlA";
         const stripe = await loadStripe(publishableKey);
-        if (!stripe) {
-          throw new Error(
-            "Stripe could not be initialized. Try again shortly.",
+
+        const shouldBypassStripeRedirect = () => {
+          if (typeof window === "undefined") {
+            return false;
+          }
+          try {
+            return window.self !== window.top;
+          } catch (error) {
+            console.warn(
+              "Unable to determine frame context, defaulting to bypass Stripe redirect.",
+              error,
+            );
+            return true;
+          }
+        };
+
+        if (stripe && !shouldBypassStripeRedirect()) {
+          const result = await stripe.redirectToCheckout({
+            sessionId: data.sessionId,
+          });
+
+          if (!result?.error) {
+            return;
+          }
+
+          if (!sessionUrl) {
+            throw new Error(result.error.message);
+          }
+
+          console.warn(
+            "Stripe redirectToCheckout failed, falling back to direct session URL.",
+            result.error,
           );
         }
 
-        const { error } = await stripe.redirectToCheckout({
-          sessionId: data.sessionId,
-        });
-        if (error) {
-          throw new Error(error.message);
+        if (sessionUrl) {
+          const newWindow = window.open(
+            sessionUrl,
+            "_blank",
+            "noopener,noreferrer",
+          );
+
+          if (!newWindow) {
+            window.location.href = sessionUrl;
+          }
+
+          return;
         }
+
+        throw new Error(
+          "We couldn’t start checkout just yet. Please try again.",
+        );
       } catch (err) {
         console.error("Stripe checkout error", err);
         const message =

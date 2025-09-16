@@ -123,7 +123,7 @@ export default async function handler(req: Request, res: Response) {
         cancel_url: resolveUrl(originBase, body.cancelPath, "/pricing?canceled=true"),
       });
 
-      return res.json({ sessionId: session.id });
+      return res.json({ sessionId: session.id, sessionUrl: session.url });
     }
 
     const { totalCost, hours, costPerHour } = body;
@@ -161,7 +161,7 @@ export default async function handler(req: Request, res: Response) {
         cancel_url: resolveUrl(originBase, body.cancelPath, "/pricing?canceled=true"),
       });
 
-      return res.json({ sessionId: session.id });
+      return res.json({ sessionId: session.id, sessionUrl: session.url });
     }
 
     return res.status(400).json({ error: "Invalid checkout session payload" });
