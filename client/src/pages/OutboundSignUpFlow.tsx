@@ -62,7 +62,6 @@ import {
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 import { db } from "@/lib/firebase";
 import { getStorage, ref, uploadBytes } from "firebase/storage";
-import { triggerLindyWebhook, LindyWebhookPayload } from "@/utils/lindyWebhook";
 
 const ONBOARDING_FEE = 499.99;
 const MONTHLY_RATE = 49.99;
@@ -457,60 +456,35 @@ export default function OutboundSignUpFlow() {
         return;
       }
 
-      // ⬇️ ADD THIS
       const auth = getAuth();
       const user = auth.currentUser;
       if (!user) {
         setErrorMessage("No user found. Please sign up first.");
         return;
       }
-      // ⬆️ ADD THIS
 
+      const bookingDate = scheduleDate.toISOString().split("T")[0];
+      const bookingId = `${bookingDate}_${scheduleTime}`;
       const blueprintId = crypto.randomUUID();
-      const mappingDateString = scheduleDate.toISOString().split("T")[0];
-      const demoDateString = demoDate.toISOString().split("T")[0];
-      const lindyPayload: LindyWebhookPayload = {
-        have_we_onboarded: "No",
-        chosen_time_of_mapping: scheduleTime,
-        chosen_date_of_mapping: mappingDateString,
-        have_user_chosen_date: "Yes",
-        address: address.trim(),
-        company_url: companyWebsite.trim() || "",
-        company_name: organizationName.trim(),
-        contact_name: contactName.trim(),
-        contact_email: email.trim(),
-        contact_phone_number: phoneNumber.trim(),
-        estimated_square_footage: squareFootage,
-        blueprint_id: blueprintId,
-        chosen_date_of_demo: demoDateString,
-        chosen_time_of_demo: demoTime,
-      };
-      let shouldTriggerLindyWebhook = false;
+      const demoBookingDate = demoDate.toISOString().split("T")[0];
+      const demoBookingId = `demo_${demoBookingDate}_${demoTime}`;
+      const estimatedSquareFootage = squareFootage ?? 0;
+      const estimatedMappingPayout = parseFloat(
+        (estimatedSquareFootage / 60).toFixed(2),
+      );
+      const estimatedMappingTime = parseFloat(
+        (estimatedSquareFootage / 100 + 15).toFixed(2),
+      );
+      const estimatedDesignPayout = parseFloat(
+        (estimatedSquareFootage / 80).toFixed(2),
+      );
 
       try {
-        // Update user with demo info
         await updateDoc(doc(db, "users", user.uid), {
           demoScheduleDate: demoDate,
           demoScheduleTime: demoTime,
         });
 
-        // Booking IDs
-        const bookingDate = mappingDateString;
-        const bookingId = `${bookingDate}_${scheduleTime}`;
-
-        // Estimated payouts
-        const estimatedSquareFootage = squareFootage ?? 0;
-        const estimatedMappingPayout = parseFloat(
-          (estimatedSquareFootage / 60).toFixed(2),
-        );
-        const estimatedMappingTime = parseFloat(
-          (estimatedSquareFootage / 100 + 15).toFixed(2),
-        );
-        const estimatedDesignPayout = parseFloat(
-          (estimatedSquareFootage / 80).toFixed(2),
-        );
-
-        // Mapping booking
         await setDoc(doc(db, "bookings", bookingId), {
           id: bookingId,
           date: bookingDate,
@@ -523,7 +497,7 @@ export default function OutboundSignUpFlow() {
           email: email.trim(),
           status: "pending",
           blueprintId,
-          demoScheduleDate: demoDateString,
+          demoScheduleDate: demoBookingDate,
           demoScheduleTime: demoTime,
           createdAt: serverTimestamp(),
           estimatedSquareFootage,
@@ -532,7 +506,6 @@ export default function OutboundSignUpFlow() {
           estimatedDesignPayout,
         });
 
-        // Blueprint placeholder
         await setDoc(doc(db, "blueprints", blueprintId), {
           id: blueprintId,
           businessName: organizationName.trim(),
@@ -548,7 +521,6 @@ export default function OutboundSignUpFlow() {
           phone: phoneNumber.trim(),
         });
 
-        // Initialize storage folder for this blueprint with a placeholder file
         const storage = getStorage();
         const placeholderRef = ref(
           storage,
@@ -556,9 +528,6 @@ export default function OutboundSignUpFlow() {
         );
         await uploadBytes(placeholderRef, new Uint8Array());
 
-        // Demo booking
-        const demoBookingDate = demoDateString;
-        const demoBookingId = `demo_${demoBookingDate}_${demoTime}`;
         await setDoc(doc(db, "demoBookings", demoBookingId), {
           id: demoBookingId,
           date: demoBookingDate,
@@ -577,16 +546,9 @@ export default function OutboundSignUpFlow() {
           createdAt: serverTimestamp(),
         });
 
-        // Link blueprint to user
         await updateDoc(doc(db, "users", user.uid), {
           createdBlueprintIDs: arrayUnion(blueprintId),
         });
-
-        // Move to confirmation
-        setStep((p) => p + 1);
-        setPaymentStatus("idle");
-        setPaymentError(null);
-        shouldTriggerLindyWebhook = true;
       } catch (error: unknown) {
         console.error("Error completing booking setup:", error);
         const msg = error instanceof Error ? error.message : "Unknown error";
@@ -594,9 +556,54 @@ export default function OutboundSignUpFlow() {
         return;
       }
 
-      if (shouldTriggerLindyWebhook) {
-        triggerLindyWebhook(lindyPayload);
-      }
+      setStep((p) => p + 1);
+      setPaymentStatus("idle");
+      setPaymentError(null);
+
+      const lindyPayload = {
+        have_we_onboarded: "No",
+        chosen_time_of_mapping: scheduleTime,
+        chosen_date_of_mapping: bookingDate,
+        have_user_chosen_date: "Yes",
+        address: address.trim(),
+        company_url: companyWebsite.trim() || "",
+        company_name: organizationName.trim(),
+        contact_name: contactName.trim(),
+        contact_email: email.trim(),
+        contact_phone_number: phoneNumber.trim(),
+        estimated_square_footage: squareFootage,
+        blueprint_id: blueprintId,
+        chosen_date_of_demo: demoBookingDate,
+        chosen_time_of_demo: demoTime,
+      };
+
+      void (async () => {
+        try {
+          const resp = await fetch(
+            "https://public.lindy.ai/api/v1/webhooks/lindy/43c7b7d7-bc40-4593-acfe-ba79ad6488b8",
+            {
+              method: "POST",
+              headers: {
+                Authorization:
+                  "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(lindyPayload),
+            },
+          );
+
+          if (!resp.ok) {
+            const text = await resp.text();
+            console.error("Lindy webhook failed:", text);
+            return;
+          }
+
+          const result = await resp.json();
+          console.log("Lindy webhook ok:", result);
+        } catch (err) {
+          console.error("Lindy webhook error:", err);
+        }
+      })();
     }
   }
 
@@ -1427,7 +1434,9 @@ export default function OutboundSignUpFlow() {
         mappingDateTime.setHours(hour, minute, 0, 0);
       }
     }
-    const billingStart = new Date(mappingDateTime.getTime() + 24 * 60 * 60 * 1000);
+    const billingStart = new Date(
+      mappingDateTime.getTime() + 24 * 60 * 60 * 1000,
+    );
 
     const mappingDisplay = new Intl.DateTimeFormat("en-US", {
       dateStyle: "medium",
@@ -1464,10 +1473,14 @@ export default function OutboundSignUpFlow() {
 
         const currentSearch = window.location.search;
         const successPath = `${window.location.pathname}${
-          currentSearch ? `${currentSearch}&checkout=success` : "?checkout=success"
+          currentSearch
+            ? `${currentSearch}&checkout=success`
+            : "?checkout=success"
         }`;
         const cancelPath = `${window.location.pathname}${
-          currentSearch ? `${currentSearch}&checkout=canceled` : "?checkout=canceled"
+          currentSearch
+            ? `${currentSearch}&checkout=canceled`
+            : "?checkout=canceled"
         }`;
 
         const response = await fetch("/api/create-checkout-session", {
@@ -1491,7 +1504,8 @@ export default function OutboundSignUpFlow() {
         const data = await response.json();
         if (!response.ok || !data?.sessionId) {
           throw new Error(
-            data?.error || "We couldn’t start checkout just yet. Please try again.",
+            data?.error ||
+              "We couldn’t start checkout just yet. Please try again.",
           );
         }
 
@@ -1501,10 +1515,14 @@ export default function OutboundSignUpFlow() {
           "pk_test_51ODuefLAUkK46LtZQ7o2si0POvd89pgNhE8pRcCCqMmmp9z534veOOiz81xMZcjZuEDK2CkdQnE9NhRy4WEoqWJG00ErDRTYlA";
         const stripe = await loadStripe(publishableKey);
         if (!stripe) {
-          throw new Error("Stripe could not be initialized. Try again shortly.");
+          throw new Error(
+            "Stripe could not be initialized. Try again shortly.",
+          );
         }
 
-        const { error } = await stripe.redirectToCheckout({ sessionId: data.sessionId });
+        const { error } = await stripe.redirectToCheckout({
+          sessionId: data.sessionId,
+        });
         if (error) {
           throw new Error(error.message);
         }
@@ -1535,7 +1553,8 @@ export default function OutboundSignUpFlow() {
             Plan & Payment (Optional)
           </h2>
           <p className="text-slate-300 mt-2">
-            Lock in onboarding now or handle it later—either way, your Blueprint Care plan only starts once we’re live on site.
+            Lock in onboarding now or handle it later—either way, your Blueprint
+            Care plan only starts once we’re live on site.
           </p>
         </div>
 
@@ -1556,7 +1575,8 @@ export default function OutboundSignUpFlow() {
                   <span className="text-sm text-slate-300">due today</span>
                 </div>
                 <p className="text-sm text-slate-300 mt-2">
-                  Covers our setup crew, mapping kit, and concierge activation for your pilot location.
+                  Covers our setup crew, mapping kit, and concierge activation
+                  for your pilot location.
                 </p>
               </div>
             </div>
@@ -1588,18 +1608,21 @@ export default function OutboundSignUpFlow() {
                   <span className="text-sm text-slate-300">per month</span>
                 </div>
                 <p className="text-sm text-slate-300 mt-2">
-                  Starts {billingDisplay} — 24 hours after onboarding is complete.
+                  Starts {billingDisplay} — 24 hours after onboarding is
+                  complete.
                 </p>
               </div>
             </div>
             <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
               <div className="flex items-start gap-2 text-emerald-200 text-sm">
                 <BadgeCheck className="w-4 h-4 mt-0.5" />
-                {INCLUDED_WEEKLY_HOURS} hours of Blueprint staffing each week are included.
+                {INCLUDED_WEEKLY_HOURS} hours of Blueprint staffing each week
+                are included.
               </div>
               <div className="flex items-start gap-2 text-slate-200 text-sm">
                 <Clock3 className="w-4 h-4 text-cyan-200 mt-0.5" />
-                Extra hours billed at ${EXTRA_HOURLY_RATE.toFixed(2)} / hr—matches your Blueprint rate.
+                Extra hours billed at ${EXTRA_HOURLY_RATE.toFixed(2)} /
+                hr—matches your Blueprint rate.
               </div>
             </div>
           </div>
@@ -1610,7 +1633,8 @@ export default function OutboundSignUpFlow() {
               <p className="text-sm text-slate-300">Onboarding locked for</p>
               <p className="text-white font-semibold">{mappingDisplay}</p>
               <p className="text-xs text-slate-400 mt-1">
-                Monthly billing begins {billingDisplay}. We only charge once Blueprint is live at your venue.
+                Monthly billing begins {billingDisplay}. We only charge once
+                Blueprint is live at your venue.
               </p>
             </div>
           </div>
@@ -1618,7 +1642,8 @@ export default function OutboundSignUpFlow() {
 
         {paymentStatus === "canceled" && (
           <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-            Checkout was canceled. You can try again below or skip for now—your pilot slot remains saved.
+            Checkout was canceled. You can try again below or skip for now—your
+            pilot slot remains saved.
           </div>
         )}
         {paymentStatus === "error" && paymentError && (
@@ -1680,12 +1705,14 @@ export default function OutboundSignUpFlow() {
         {paymentStatus === "success" && (
           <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100 flex items-start gap-2">
             <BadgeCheck className="w-4 h-4 mt-0.5" />
-            Onboarding payment confirmed. Your Blueprint Care plan will start once your experience is live on site.
+            Onboarding payment confirmed. Your Blueprint Care plan will start
+            once your experience is live on site.
           </div>
         )}
         {paymentStatus === "skipped" && (
           <div className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
-            You can settle the $499.99 onboarding invoice later—your pilot access is fully unlocked.
+            You can settle the $499.99 onboarding invoice later—your pilot
+            access is fully unlocked.
           </div>
         )}
         <p className="text-xs text-slate-400">
@@ -1764,7 +1791,9 @@ export default function OutboundSignUpFlow() {
               </div>
               <div className="hidden md:flex items-center gap-3 text-slate-300">
                 <Shield className="w-5 h-5 text-emerald-300" />
-                <span className="text-sm">Optional Stripe checkout • Cancel anytime</span>
+                <span className="text-sm">
+                  Optional Stripe checkout • Cancel anytime
+                </span>
               </div>
             </div>
           </div>

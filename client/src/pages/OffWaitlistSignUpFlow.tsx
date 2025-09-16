@@ -61,7 +61,6 @@ import {
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 import { db } from "@/lib/firebase";
 import { getStorage, ref, uploadBytes } from "firebase/storage";
-import { triggerLindyWebhook, LindyWebhookPayload } from "@/utils/lindyWebhook";
 
 const ONBOARDING_FEE = 499.99;
 const MONTHLY_RATE = 49.99;
@@ -312,7 +311,9 @@ export default function OffWaitlistSignUpFlow() {
         const querySnapshot = await getDocs(qy);
 
         if (querySnapshot.empty) {
-          setErrorMessage("This signup link is invalid or has already been used");
+          setErrorMessage(
+            "This signup link is invalid or has already been used",
+          );
           setIsValidToken(false);
         } else {
           const tokenDoc = querySnapshot.docs[0];
@@ -452,7 +453,8 @@ export default function OffWaitlistSignUpFlow() {
                   status === google.maps.places.PlacesServiceStatus.OK &&
                   placeResult
                 ) {
-                  if (placeResult.website) setCompanyWebsite(placeResult.website);
+                  if (placeResult.website)
+                    setCompanyWebsite(placeResult.website);
                   if (placeResult.formatted_address)
                     setAddress(placeResult.formatted_address);
                 }
@@ -465,7 +467,13 @@ export default function OffWaitlistSignUpFlow() {
       }
     };
     fetchWebsiteForPrefilledOrg();
-  }, [organizationName, autocomplete, placesService, tokenData, companyWebsite]);
+  }, [
+    organizationName,
+    autocomplete,
+    placesService,
+    tokenData,
+    companyWebsite,
+  ]);
 
   // Debounced autocomplete searches
   useEffect(() => {
@@ -474,7 +482,9 @@ export default function OffWaitlistSignUpFlow() {
       return;
     }
     const t = setTimeout(() => {
-      organizationName ? handleOrgSearch(organizationName) : setOrgPredictions([]);
+      organizationName
+        ? handleOrgSearch(organizationName)
+        : setOrgPredictions([]);
     }, 300);
     return () => clearTimeout(t);
   }, [organizationName, handleOrgSearch]);
@@ -587,46 +597,27 @@ export default function OffWaitlistSignUpFlow() {
         return;
       }
 
+      const bookingDate = scheduleDate.toISOString().split("T")[0];
+      const bookingId = `${bookingDate}_${scheduleTime}`;
       const blueprintId = crypto.randomUUID();
-      const mappingDateString = scheduleDate.toISOString().split("T")[0];
-      const demoDateString = demoDate.toISOString().split("T")[0];
-      const lindyPayload: LindyWebhookPayload = {
-        have_we_onboarded: "No",
-        chosen_time_of_mapping: scheduleTime,
-        chosen_date_of_mapping: mappingDateString,
-        have_user_chosen_date: "Yes",
-        address: address.trim(),
-        company_url: companyWebsite.trim() || "",
-        company_name: organizationName.trim(),
-        contact_name: contactName.trim(),
-        contact_email: email.trim(),
-        contact_phone_number: phoneNumber.trim(),
-        estimated_square_footage: squareFootage,
-        blueprint_id: blueprintId,
-        chosen_date_of_demo: demoDateString,
-        chosen_time_of_demo: demoTime,
-      };
-      let shouldTriggerLindyWebhook = false;
+      const demoBookingDate = demoDate.toISOString().split("T")[0];
+      const demoBookingId = `demo_${demoBookingDate}_${demoTime}`;
+      const estimatedSquareFootage = squareFootage ?? 0;
+      const estimatedMappingPayout = parseFloat(
+        (estimatedSquareFootage / 60).toFixed(2),
+      );
+      const estimatedMappingTime = parseFloat(
+        (estimatedSquareFootage / 100 + 15).toFixed(2),
+      );
+      const estimatedDesignPayout = parseFloat(
+        (estimatedSquareFootage / 80).toFixed(2),
+      );
 
       try {
         await updateDoc(doc(db, "users", user.uid), {
           demoScheduleDate: demoDate,
           demoScheduleTime: demoTime,
         });
-
-        const bookingDate = mappingDateString;
-        const bookingId = `${bookingDate}_${scheduleTime}`;
-
-        const estimatedSquareFootage = squareFootage ?? 0;
-        const estimatedMappingPayout = parseFloat(
-          (estimatedSquareFootage / 60).toFixed(2),
-        );
-        const estimatedMappingTime = parseFloat(
-          ((estimatedSquareFootage / 100) + 15).toFixed(2)
-        );
-        const estimatedDesignPayout = parseFloat(
-          (estimatedSquareFootage / 80).toFixed(2),
-        );
 
         await setDoc(doc(db, "bookings", bookingId), {
           id: bookingId,
@@ -640,7 +631,7 @@ export default function OffWaitlistSignUpFlow() {
           email: email.trim(),
           status: "pending",
           blueprintId,
-          demoScheduleDate: demoDateString,
+          demoScheduleDate: demoBookingDate,
           demoScheduleTime: demoTime,
           createdAt: serverTimestamp(),
           estimatedSquareFootage,
@@ -664,16 +655,12 @@ export default function OffWaitlistSignUpFlow() {
           phone: phoneNumber.trim(),
         });
 
-        // Create a placeholder file to initialize the blueprint's storage folder
         const storage = getStorage();
         const placeholderRef = ref(
           storage,
           `blueprints/${blueprintId}/placeholder.txt`,
         );
         await uploadBytes(placeholderRef, new Uint8Array());
-
-        const demoBookingDate = demoDateString;
-        const demoBookingId = `demo_${demoBookingDate}_${demoTime}`;
 
         await setDoc(doc(db, "demoBookings", demoBookingId), {
           id: demoBookingId,
@@ -696,12 +683,6 @@ export default function OffWaitlistSignUpFlow() {
         await updateDoc(doc(db, "users", user.uid), {
           createdBlueprintIDs: arrayUnion(blueprintId),
         });
-
-        setStep((p) => p + 1);
-        setPaymentStatus("idle");
-        setPaymentError(null);
-
-        shouldTriggerLindyWebhook = true;
       } catch (error: unknown) {
         console.error("Error completing booking setup:", error);
         const msg = error instanceof Error ? error.message : "Unknown error";
@@ -709,9 +690,54 @@ export default function OffWaitlistSignUpFlow() {
         return;
       }
 
-      if (shouldTriggerLindyWebhook) {
-        triggerLindyWebhook(lindyPayload);
-      }
+      setStep((p) => p + 1);
+      setPaymentStatus("idle");
+      setPaymentError(null);
+
+      const lindyPayload = {
+        have_we_onboarded: "No",
+        chosen_time_of_mapping: scheduleTime,
+        chosen_date_of_mapping: bookingDate,
+        have_user_chosen_date: "Yes",
+        address: address.trim(),
+        company_url: companyWebsite.trim() || "",
+        company_name: organizationName.trim(),
+        contact_name: contactName.trim(),
+        contact_phone_number: phoneNumber.trim(),
+        estimated_square_footage: squareFootage,
+        contact_email: email.trim(),
+        blueprint_id: blueprintId,
+        chosen_date_of_demo: demoBookingDate,
+        chosen_time_of_demo: demoTime,
+      };
+
+      void (async () => {
+        try {
+          const resp = await fetch(
+            "https://public.lindy.ai/api/v1/webhooks/lindy/43c7b7d7-bc40-4593-acfe-ba79ad6488b8",
+            {
+              method: "POST",
+              headers: {
+                Authorization:
+                  "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(lindyPayload),
+            },
+          );
+
+          if (!resp.ok) {
+            const text = await resp.text();
+            console.error("Lindy webhook failed:", text);
+            return;
+          }
+
+          const result = await resp.json();
+          console.log("Lindy webhook ok:", result);
+        } catch (err) {
+          console.error("Lindy webhook error:", err);
+        }
+      })();
     }
   }
 
@@ -826,7 +852,8 @@ export default function OffWaitlistSignUpFlow() {
           Welcome off the waitlist
         </h2>
         <p className="text-slate-300 mt-2">
-          Durham/Triangle pilot — set up your account to book mapping & demo. This takes ~2 minutes.
+          Durham/Triangle pilot — set up your account to book mapping & demo.
+          This takes ~2 minutes.
         </p>
       </div>
 
@@ -920,9 +947,12 @@ export default function OffWaitlistSignUpFlow() {
   const Step2 = (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl md:text-3xl font-bold text-white">Contact & Location</h2>
+        <h2 className="text-2xl md:text-3xl font-bold text-white">
+          Contact & Location
+        </h2>
         <p className="text-slate-300 mt-2">
-          Who should we meet at your location? We’ll send confirmations and SMS reminders.
+          Who should we meet at your location? We’ll send confirmations and SMS
+          reminders.
         </p>
       </div>
 
@@ -933,13 +963,17 @@ export default function OffWaitlistSignUpFlow() {
             placeholder="Full name"
             value={contactName}
             onChange={(e) => setContactName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && step2Valid) handleNextStep(); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && step2Valid) handleNextStep();
+            }}
             className={`h-12 bg-white/5 border-white/10 text-white placeholder:text-slate-400 ${
               showStep2Errors && !contactName.trim() ? "border-rose-400" : ""
             }`}
           />
           {showStep2Errors && !contactName.trim() && (
-            <p className="text-rose-400 text-xs mt-1">Contact name is required.</p>
+            <p className="text-rose-400 text-xs mt-1">
+              Contact name is required.
+            </p>
           )}
         </div>
 
@@ -951,19 +985,27 @@ export default function OffWaitlistSignUpFlow() {
               placeholder="(919) 555-0123"
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && step2Valid) handleNextStep(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && step2Valid) handleNextStep();
+              }}
               className={`h-12 pl-10 bg-white/5 border-white/10 text-white placeholder:text-slate-400 ${
-                showStep2Errors && !isValidPhone(phoneNumber) ? "border-rose-400" : ""
+                showStep2Errors && !isValidPhone(phoneNumber)
+                  ? "border-rose-400"
+                  : ""
               }`}
             />
           </div>
           {showStep2Errors && !isValidPhone(phoneNumber) && (
-            <p className="text-rose-400 text-xs mt-1">Please enter a valid 10-digit phone number.</p>
+            <p className="text-rose-400 text-xs mt-1">
+              Please enter a valid 10-digit phone number.
+            </p>
           )}
         </div>
 
         <div className="md:col-span-2 relative">
-          <Label className="text-slate-200">Physical Address (mapping location)</Label>
+          <Label className="text-slate-200">
+            Physical Address (mapping location)
+          </Label>
           <div className="mt-1 relative">
             <MapPin className="absolute left-3 top-3.5 w-5 h-5 text-cyan-300/70" />
             <Input
@@ -972,12 +1014,16 @@ export default function OffWaitlistSignUpFlow() {
               onChange={(e) => setAddress(e.target.value)}
               onFocus={() => setIsAddressFocused(true)}
               onBlur={() => setTimeout(() => setIsAddressFocused(false), 200)}
-              onKeyDown={(e) => { if (e.key === "Enter" && step2Valid) handleNextStep(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && step2Valid) handleNextStep();
+              }}
               className={`h-12 pl-10 bg-white/5 border-white/10 text-white placeholder:text-slate-400 ${
                 showStep2Errors && !address.trim() ? "border-rose-400" : ""
               }`}
             />
-            {isAddressFocused && <AddressPredictionList items={addressPredictions} />}
+            {isAddressFocused && (
+              <AddressPredictionList items={addressPredictions} />
+            )}
             {loadingAddress && (
               <div className="absolute right-2 top-[10px] text-slate-400">
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -990,7 +1036,9 @@ export default function OffWaitlistSignUpFlow() {
         </div>
 
         <div className="md:col-span-2">
-          <Label className="text-slate-200">Estimated Square Footage to Map</Label>
+          <Label className="text-slate-200">
+            Estimated Square Footage to Map
+          </Label>
           <div className="mt-1 relative">
             <Ruler className="absolute left-3 top-3.5 w-5 h-5 text-emerald-300/70" />
             <Input
@@ -998,23 +1046,31 @@ export default function OffWaitlistSignUpFlow() {
               placeholder="e.g., 1500"
               value={squareFootage || ""} // avoid 0 display
               onChange={(e) => setSquareFootage(Number(e.target.value) || 0)}
-              onKeyDown={(e) => { if (e.key === "Enter" && step2Valid) handleNextStep(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && step2Valid) handleNextStep();
+              }}
               className={`h-12 pl-10 bg-white/5 border-white/10 text-white placeholder:text-slate-400 ${
-                showStep2Errors && (squareFootage === null || squareFootage <= 0) ? "border-rose-400" : ""
+                showStep2Errors &&
+                (squareFootage === null || squareFootage <= 0)
+                  ? "border-rose-400"
+                  : ""
               }`}
             />
           </div>
-          {showStep2Errors && (squareFootage === null || squareFootage <= 0) && (
-            <p className="text-rose-400 text-xs mt-1">
-              Estimated square footage must be greater than zero.
-            </p>
-          )}
+          {showStep2Errors &&
+            (squareFootage === null || squareFootage <= 0) && (
+              <p className="text-rose-400 text-xs mt-1">
+                Estimated square footage must be greater than zero.
+              </p>
+            )}
         </div>
 
         <div className="md:col-span-2">
           <p className="text-xs text-slate-400 leading-relaxed">
-            ☑️ By providing your phone number, you consent to receive SMS messages from Blueprint about your mapping and demo.
-            Message frequency varies; message & data rates may apply. Reply STOP to opt out, HELP for help.
+            ☑️ By providing your phone number, you consent to receive SMS
+            messages from Blueprint about your mapping and demo. Message
+            frequency varies; message & data rates may apply. Reply STOP to opt
+            out, HELP for help.
           </p>
         </div>
       </div>
@@ -1136,9 +1192,12 @@ export default function OffWaitlistSignUpFlow() {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl md:text-3xl font-bold text-white">Schedule 3D Mapping</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-white">
+            Schedule 3D Mapping
+          </h2>
           <p className="text-slate-300 mt-2">
-            Pick a date and time for our specialist to scan your space. Most visits take ~30–60 minutes.
+            Pick a date and time for our specialist to scan your space. Most
+            visits take ~30–60 minutes.
           </p>
         </div>
 
@@ -1158,8 +1217,10 @@ export default function OffWaitlistSignUpFlow() {
               calendarClassName="!bg-transparent !border-0 !shadow-none reactpicker-dark"
               wrapperClassName="!block w-full"
               dayClassName={(date) => {
-                const base = "rounded-md !w-9 !h-9 flex items-center justify-center";
-                const isSel = date.toDateString() === scheduleDate.toDateString();
+                const base =
+                  "rounded-md !w-9 !h-9 flex items-center justify-center";
+                const isSel =
+                  date.toDateString() === scheduleDate.toDateString();
                 return isSel
                   ? `${base} !bg-gradient-to-r from-emerald-500 to-cyan-600 !text-white`
                   : `${base} hover:!bg-white/10 !text-slate-200`;
@@ -1171,7 +1232,9 @@ export default function OffWaitlistSignUpFlow() {
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
             <div className="mb-1">
               <Label className="font-medium text-slate-200">Select Time</Label>
-              <p className="text-xs text-slate-400 mt-1">Times in Eastern Time (ET)</p>
+              <p className="text-xs text-slate-400 mt-1">
+                Times in Eastern Time (ET)
+              </p>
             </div>
 
             {isLoadingSlots ? (
@@ -1313,7 +1376,9 @@ export default function OffWaitlistSignUpFlow() {
           setDemoBookedTimes(times);
         } catch (error) {
           console.error("Error fetching demo booked times:", error);
-          setErrorMessage("Could not load demo availability. Please try again.");
+          setErrorMessage(
+            "Could not load demo availability. Please try again.",
+          );
         } finally {
           setIsLoadingDemoSlots(false);
         }
@@ -1347,9 +1412,12 @@ export default function OffWaitlistSignUpFlow() {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl md:text-3xl font-bold text-white">Schedule Demo Day</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-white">
+            Schedule Demo Day
+          </h2>
           <p className="text-slate-300 mt-2">
-            Choose when we should present your completed Blueprint and AR experience to your team.
+            Choose when we should present your completed Blueprint and AR
+            experience to your team.
           </p>
         </div>
 
@@ -1358,7 +1426,9 @@ export default function OffWaitlistSignUpFlow() {
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
             <div className="mb-3 flex items-center gap-2 text-slate-200">
               <Calendar className="w-5 h-5 text-cyan-300" />
-              <Label className="font-medium text-slate-200">Select Demo Date</Label>
+              <Label className="font-medium text-slate-200">
+                Select Demo Date
+              </Label>
             </div>
             <DatePicker
               selected={demoDate}
@@ -1369,7 +1439,8 @@ export default function OffWaitlistSignUpFlow() {
               calendarClassName="!bg-transparent !border-0 !shadow-none reactpicker-dark"
               wrapperClassName="!block w-full"
               dayClassName={(date) => {
-                const base = "rounded-md !w-9 !h-9 flex items-center justify-center";
+                const base =
+                  "rounded-md !w-9 !h-9 flex items-center justify-center";
                 const isSel = date.toDateString() === demoDate.toDateString();
                 return isSel
                   ? `${base} !bg-gradient-to-r from-emerald-500 to-cyan-600 !text-white`
@@ -1381,8 +1452,12 @@ export default function OffWaitlistSignUpFlow() {
           {/* Time slots */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
             <div className="mb-1">
-              <Label className="font-medium text-slate-200">Select Demo Time</Label>
-              <p className="text-xs text-slate-400 mt-1">Times in Eastern Time (ET)</p>
+              <Label className="font-medium text-slate-200">
+                Select Demo Time
+              </Label>
+              <p className="text-xs text-slate-400 mt-1">
+                Times in Eastern Time (ET)
+              </p>
             </div>
 
             {isLoadingDemoSlots ? (
@@ -1490,7 +1565,9 @@ export default function OffWaitlistSignUpFlow() {
         mappingDateTime.setHours(hour, minute, 0, 0);
       }
     }
-    const billingStart = new Date(mappingDateTime.getTime() + 24 * 60 * 60 * 1000);
+    const billingStart = new Date(
+      mappingDateTime.getTime() + 24 * 60 * 60 * 1000,
+    );
 
     const mappingDisplay = new Intl.DateTimeFormat("en-US", {
       dateStyle: "medium",
@@ -1527,10 +1604,14 @@ export default function OffWaitlistSignUpFlow() {
 
         const currentSearch = window.location.search;
         const successPath = `${window.location.pathname}${
-          currentSearch ? `${currentSearch}&checkout=success` : "?checkout=success"
+          currentSearch
+            ? `${currentSearch}&checkout=success`
+            : "?checkout=success"
         }`;
         const cancelPath = `${window.location.pathname}${
-          currentSearch ? `${currentSearch}&checkout=canceled` : "?checkout=canceled"
+          currentSearch
+            ? `${currentSearch}&checkout=canceled`
+            : "?checkout=canceled"
         }`;
 
         const response = await fetch("/api/create-checkout-session", {
@@ -1554,7 +1635,8 @@ export default function OffWaitlistSignUpFlow() {
         const data = await response.json();
         if (!response.ok || !data?.sessionId) {
           throw new Error(
-            data?.error || "We couldn't start checkout just yet. Please try again.",
+            data?.error ||
+              "We couldn't start checkout just yet. Please try again.",
           );
         }
 
@@ -1564,10 +1646,14 @@ export default function OffWaitlistSignUpFlow() {
           "pk_test_51ODuefLAUkK46LtZQ7o2si0POvd89pgNhE8pRcCCqMmmp9z534veOOiz81xMZcjZuEDK2CkdQnE9NhRy4WEoqWJG00ErDRTYlA";
         const stripe = await loadStripe(publishableKey);
         if (!stripe) {
-          throw new Error("Stripe could not be initialized. Try again in a moment.");
+          throw new Error(
+            "Stripe could not be initialized. Try again in a moment.",
+          );
         }
 
-        const { error } = await stripe.redirectToCheckout({ sessionId: data.sessionId });
+        const { error } = await stripe.redirectToCheckout({
+          sessionId: data.sessionId,
+        });
         if (error) {
           throw new Error(error.message);
         }
@@ -1598,8 +1684,8 @@ export default function OffWaitlistSignUpFlow() {
             Plan & Payment (Optional)
           </h2>
           <p className="text-slate-300 mt-2">
-            Secure your onboarding with a one-time payment or skip for now—your monthly plan only
-            begins once Blueprint is live on-site.
+            Secure your onboarding with a one-time payment or skip for now—your
+            monthly plan only begins once Blueprint is live on-site.
           </p>
         </div>
 
@@ -1621,7 +1707,8 @@ export default function OffWaitlistSignUpFlow() {
                     <span className="text-sm text-slate-300">due today</span>
                   </div>
                   <p className="text-sm text-slate-300 mt-2">
-                    Covers our team on-site, LiDAR mapping kit, content prep, and concierge rollout.
+                    Covers our team on-site, LiDAR mapping kit, content prep,
+                    and concierge rollout.
                   </p>
                 </div>
               </div>
@@ -1654,18 +1741,21 @@ export default function OffWaitlistSignUpFlow() {
                   <span className="text-sm text-slate-300">per month</span>
                 </div>
                 <p className="text-sm text-slate-300 mt-2">
-                  Starts {billingDisplay} — 24 hours after your onboarding wraps.
+                  Starts {billingDisplay} — 24 hours after your onboarding
+                  wraps.
                 </p>
               </div>
             </div>
             <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
               <div className="flex items-start gap-2 text-emerald-200 text-sm">
                 <BadgeCheck className="w-4 h-4 mt-0.5" />
-                {INCLUDED_WEEKLY_HOURS} hours of Blueprint staff each week included.
+                {INCLUDED_WEEKLY_HOURS} hours of Blueprint staff each week
+                included.
               </div>
               <div className="flex items-start gap-2 text-slate-200 text-sm">
                 <Clock3 className="w-4 h-4 text-cyan-200 mt-0.5" />
-                Extra hours billed at ${EXTRA_HOURLY_RATE.toFixed(2)} / hr — matches your Blueprint rate.
+                Extra hours billed at ${EXTRA_HOURLY_RATE.toFixed(2)} / hr —
+                matches your Blueprint rate.
               </div>
             </div>
           </div>
@@ -1676,7 +1766,8 @@ export default function OffWaitlistSignUpFlow() {
               <p className="text-sm text-slate-300">Onboarding is locked for</p>
               <p className="text-white font-semibold">{mappingDisplay}</p>
               <p className="text-xs text-slate-400 mt-1">
-                Monthly billing begins {billingDisplay} so you never pay before Blueprint is live.
+                Monthly billing begins {billingDisplay} so you never pay before
+                Blueprint is live.
               </p>
             </div>
           </div>
@@ -1684,7 +1775,8 @@ export default function OffWaitlistSignUpFlow() {
 
         {paymentStatus === "canceled" && (
           <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-            Checkout was canceled. You can try again below or skip for now—your spot is still saved.
+            Checkout was canceled. You can try again below or skip for now—your
+            spot is still saved.
           </div>
         )}
         {paymentStatus === "error" && paymentError && (
@@ -1740,21 +1832,25 @@ export default function OffWaitlistSignUpFlow() {
         </div>
         <h2 className="text-3xl font-bold text-white">You’re all set!</h2>
         <p className="text-slate-300 max-w-md">
-          We’ve scheduled your mapping and demo. You’ll get an email + SMS reminder before each visit.
+          We’ve scheduled your mapping and demo. You’ll get an email + SMS
+          reminder before each visit.
         </p>
         {paymentStatus === "success" && (
           <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100 flex items-start gap-2">
             <BadgeCheck className="w-4 h-4 mt-0.5" />
-            Onboarding payment confirmed. Your Blueprint Care plan will begin once we activate on site.
+            Onboarding payment confirmed. Your Blueprint Care plan will begin
+            once we activate on site.
           </div>
         )}
         {paymentStatus === "skipped" && (
           <div className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
-            You can take care of the $499.99 onboarding invoice later—your account access is fully unlocked in the meantime.
+            You can take care of the $499.99 onboarding invoice later—your
+            account access is fully unlocked in the meantime.
           </div>
         )}
         <p className="text-xs text-slate-400">
-          Thanks for choosing Blueprint — we can’t wait to bring your space to life.
+          Thanks for choosing Blueprint — we can’t wait to bring your space to
+          life.
         </p>
         <Button
           className="mt-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-600 hover:from-emerald-600 hover:to-cyan-700"
@@ -1821,13 +1917,16 @@ export default function OffWaitlistSignUpFlow() {
                   Join the Blueprint Pilot
                 </h1>
                 <p className="text-slate-300 mt-2 max-w-2xl">
-                  For local decision-makers (retail, museums, restaurants, showrooms).
-                  Set up your account, add location details, and book your mapping + demo in minutes.
+                  For local decision-makers (retail, museums, restaurants,
+                  showrooms). Set up your account, add location details, and
+                  book your mapping + demo in minutes.
                 </p>
               </div>
               <div className="hidden md:flex items-center gap-3 text-slate-300">
                 <Shield className="w-5 h-5 text-emerald-300" />
-                <span className="text-sm">Optional Stripe checkout • Cancel anytime</span>
+                <span className="text-sm">
+                  Optional Stripe checkout • Cancel anytime
+                </span>
               </div>
             </div>
           </div>
@@ -1846,9 +1945,12 @@ export default function OffWaitlistSignUpFlow() {
             ) : !isValidToken ? (
               <div className="mx-auto max-w-lg rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
                 <div className="text-5xl mb-3">⚠️</div>
-                <h2 className="text-2xl font-bold text-white mb-2">Invalid Access Link</h2>
+                <h2 className="text-2xl font-bold text-white mb-2">
+                  Invalid Access Link
+                </h2>
                 <p className="text-slate-300 mb-6">
-                  This signup link is invalid or has already been used. If you think this is a mistake, contact support.
+                  This signup link is invalid or has already been used. If you
+                  think this is a mistake, contact support.
                 </p>
                 <Button
                   onClick={() => (window.location.href = "/")}
@@ -1869,13 +1971,18 @@ export default function OffWaitlistSignUpFlow() {
                         </div>
                         <div>
                           <p className="text-sm text-slate-300">Why join</p>
-                          <h3 className="text-lg font-bold text-white">AR that drives results</h3>
+                          <h3 className="text-lg font-bold text-white">
+                            AR that drives results
+                          </h3>
                         </div>
                       </div>
                       <ul className="space-y-2 text-sm">
                         <li className="flex items-start gap-2">
                           <CheckCircle2 className="w-4 h-4 text-emerald-300 mt-0.5" />
-                          <span>Delight visitors with interactive product & exhibit moments</span>
+                          <span>
+                            Delight visitors with interactive product & exhibit
+                            moments
+                          </span>
                         </li>
                         <li className="flex items-start gap-2">
                           <CheckCircle2 className="w-4 h-4 text-emerald-300 mt-0.5" />
@@ -1883,7 +1990,9 @@ export default function OffWaitlistSignUpFlow() {
                         </li>
                         <li className="flex items-start gap-2">
                           <CheckCircle2 className="w-4 h-4 text-emerald-300 mt-0.5" />
-                          <span>We handle mapping, content & analytics for you</span>
+                          <span>
+                            We handle mapping, content & analytics for you
+                          </span>
                         </li>
                       </ul>
                       <div className="mt-4 text-xs text-slate-400">
@@ -1895,21 +2004,27 @@ export default function OffWaitlistSignUpFlow() {
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
                       <div className="flex items-center gap-2 mb-3">
                         <Users className="w-4 h-4 text-cyan-300" />
-                        <h3 className="text-sm font-semibold text-white">Your Summary</h3>
+                        <h3 className="text-sm font-semibold text-white">
+                          Your Summary
+                        </h3>
                       </div>
                       <div className="space-y-3 text-sm">
                         <div className="flex items-start gap-2">
                           <Building2 className="w-4 h-4 text-emerald-300 mt-0.5" />
                           <div>
                             <p className="text-slate-400">Organization</p>
-                            <p className="text-white">{organizationName || "—"}</p>
+                            <p className="text-white">
+                              {organizationName || "—"}
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-start gap-2">
                           <Mail className="w-4 h-4 text-emerald-300 mt-0.5" />
                           <div>
                             <p className="text-slate-400">Email</p>
-                            <p className="text-white break-all">{email || "—"}</p>
+                            <p className="text-white break-all">
+                              {email || "—"}
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-start gap-2">
@@ -1917,7 +2032,8 @@ export default function OffWaitlistSignUpFlow() {
                           <div>
                             <p className="text-slate-400">Contact</p>
                             <p className="text-white">
-                              {contactName || "—"} {phoneNumber ? `• ${phoneNumber}` : ""}
+                              {contactName || "—"}{" "}
+                              {phoneNumber ? `• ${phoneNumber}` : ""}
                             </p>
                           </div>
                         </div>
@@ -1925,7 +2041,9 @@ export default function OffWaitlistSignUpFlow() {
                           <MapPin className="w-4 h-4 text-emerald-300 mt-0.5" />
                           <div className="min-w-0">
                             <p className="text-slate-400">Address</p>
-                            <p className="text-white break-words">{address || "—"}</p>
+                            <p className="text-white break-words">
+                              {address || "—"}
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-start gap-2">
@@ -1940,7 +2058,10 @@ export default function OffWaitlistSignUpFlow() {
                           <div>
                             <p className="text-slate-400">Mapping</p>
                             <p className="text-white">
-                              {scheduleDate ? scheduleDate.toLocaleDateString() : "—"} • {scheduleTime || "—"}
+                              {scheduleDate
+                                ? scheduleDate.toLocaleDateString()
+                                : "—"}{" "}
+                              • {scheduleTime || "—"}
                             </p>
                           </div>
                         </div>
@@ -1949,7 +2070,8 @@ export default function OffWaitlistSignUpFlow() {
                           <div>
                             <p className="text-slate-400">Demo Day</p>
                             <p className="text-white">
-                              {demoDate ? demoDate.toLocaleDateString() : "—"} • {demoTime || "—"}
+                              {demoDate ? demoDate.toLocaleDateString() : "—"} •{" "}
+                              {demoTime || "—"}
                             </p>
                           </div>
                         </div>
@@ -1958,7 +2080,9 @@ export default function OffWaitlistSignUpFlow() {
                             <Globe className="w-4 h-4 text-emerald-300 mt-0.5" />
                             <div className="min-w-0">
                               <p className="text-slate-400">Website</p>
-                              <p className="text-white break-all">{companyWebsite}</p>
+                              <p className="text-white break-all">
+                                {companyWebsite}
+                              </p>
                             </div>
                           </div>
                         )}
@@ -1980,8 +2104,8 @@ export default function OffWaitlistSignUpFlow() {
                                 step === s.id
                                   ? "bg-gradient-to-r from-emerald-500 to-cyan-600 text-white border-transparent"
                                   : step > s.id
-                                  ? "bg-white text-slate-900 border-white"
-                                  : "bg-white/5 text-slate-300 border-white/10"
+                                    ? "bg-white text-slate-900 border-white"
+                                    : "bg-white/5 text-slate-300 border-white/10"
                               }`}
                             >
                               {s.id}
@@ -1997,7 +2121,9 @@ export default function OffWaitlistSignUpFlow() {
                           {i < stepsMeta.length - 1 && (
                             <div
                               className={`flex-1 h-[2px] rounded-full ${
-                                step > s.id ? "bg-gradient-to-r from-emerald-500 to-cyan-600" : "bg-white/10"
+                                step > s.id
+                                  ? "bg-gradient-to-r from-emerald-500 to-cyan-600"
+                                  : "bg-white/10"
                               }`}
                             />
                           )}
@@ -2034,13 +2160,51 @@ export default function OffWaitlistSignUpFlow() {
                       Your Summary
                     </summary>
                     <div className="mt-3 text-sm text-slate-200 space-y-2">
-                      <div>Organization: <span className="text-white">{organizationName || "—"}</span></div>
-                      <div>Email: <span className="text-white break-all">{email || "—"}</span></div>
-                      <div>Contact: <span className="text-white">{contactName || "—"} {phoneNumber ? `• ${phoneNumber}` : ""}</span></div>
-                      <div>Address: <span className="text-white break-words">{address || "—"}</span></div>
-                      <div>Sq Ft: <span className="text-white">{squareFootage || "—"}</span></div>
-                      <div>Mapping: <span className="text-white">{scheduleDate?.toLocaleDateString() || "—"} • {scheduleTime || "—"}</span></div>
-                      <div>Demo Day: <span className="text-white">{demoDate?.toLocaleDateString() || "—"} • {demoTime || "—"}</span></div>
+                      <div>
+                        Organization:{" "}
+                        <span className="text-white">
+                          {organizationName || "—"}
+                        </span>
+                      </div>
+                      <div>
+                        Email:{" "}
+                        <span className="text-white break-all">
+                          {email || "—"}
+                        </span>
+                      </div>
+                      <div>
+                        Contact:{" "}
+                        <span className="text-white">
+                          {contactName || "—"}{" "}
+                          {phoneNumber ? `• ${phoneNumber}` : ""}
+                        </span>
+                      </div>
+                      <div>
+                        Address:{" "}
+                        <span className="text-white break-words">
+                          {address || "—"}
+                        </span>
+                      </div>
+                      <div>
+                        Sq Ft:{" "}
+                        <span className="text-white">
+                          {squareFootage || "—"}
+                        </span>
+                      </div>
+                      <div>
+                        Mapping:{" "}
+                        <span className="text-white">
+                          {scheduleDate?.toLocaleDateString() || "—"} •{" "}
+                          {scheduleTime || "—"}
+                        </span>
+                      </div>
+                      <div>
+                        Demo Day:{" "}
+                        <span className="text-white">
+                          {demoDate?.toLocaleDateString() || "—"} •{" "}
+                          {demoTime || "—"}
+                        </span>
+                      </div>
                     </div>
                   </details>
                 </div>
