@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader } from "@googlemaps/js-api-loader";
+import { getGoogleMapsApiKey } from "@/lib/client-env";
 
 interface FormData {
   businessName: string;
@@ -113,7 +114,7 @@ export default function ClaimBlueprint() {
     setError(null);
 
     try {
-      const apiKey = "AIzaSyBgxzzgcT_9nyhz1D_JtfG7gevRUKQ5Vbs";
+      const apiKey = getGoogleMapsApiKey();
       if (!apiKey) {
         throw new Error("Google Places API key is not configured");
       }

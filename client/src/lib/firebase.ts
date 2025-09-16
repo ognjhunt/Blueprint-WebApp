@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, type FirebaseOptions } from "firebase/app";
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -8,8 +8,6 @@ import {
   onAuthStateChanged,
   signOut,
   User as FirebaseUser,
-  browserLocalPersistence,
-  setPersistence,
 } from "firebase/auth";
 import {
   getFirestore,
@@ -18,40 +16,48 @@ import {
   setDoc,
   updateDoc,
   serverTimestamp,
-  DocumentData,
+  increment,
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-const mySecret = "AIzaSyBKwxLP84aHSjD_hOUShFkByHvBPuaOnlQ"; // process.env["GOOG_API_KEY"];
-// Get Firebase API key from environment
-const apiKey = mySecret;
-//import.meta.env.VITE_FIREBASE_API_KEY;
-if (!apiKey) {
-  throw new Error(
-    "Missing VITE_FIREBASE_API_KEY environment variable. Please add your Firebase API key to .env.local",
-  );
+const firebaseEnvKeys = [
+  "VITE_FIREBASE_API_KEY",
+  "VITE_FIREBASE_AUTH_DOMAIN",
+  "VITE_FIREBASE_PROJECT_ID",
+  "VITE_FIREBASE_STORAGE_BUCKET",
+  "VITE_FIREBASE_MESSAGING_SENDER_ID",
+  "VITE_FIREBASE_APP_ID",
+] as const;
+
+function getRequiredEnv(key: (typeof firebaseEnvKeys)[number]): string {
+  const value = (import.meta.env as Record<string, string | undefined>)[key];
+  if (!value) {
+    throw new Error(`Missing ${key} environment variable for Firebase configuration.`);
+  }
+  return value;
 }
 
-const firebaseConfig = {
-  apiKey,
-  authDomain: "blueprint-8c1ca.firebaseapp.com",
-  databaseURL: "https://blueprint-8c1ca-default-rtdb.firebaseio.com",
-  projectId: "blueprint-8c1ca",
-  storageBucket: "blueprint-8c1ca.appspot.com",
-  messagingSenderId: "744608654760",
-  appId: "1:744608654760:web:5b697e80345ac2b0f4a99d",
-  measurementId: "G-7LHTQSRF9L",
+const firebaseConfig: FirebaseOptions = {
+  apiKey: getRequiredEnv("VITE_FIREBASE_API_KEY"),
+  authDomain: getRequiredEnv("VITE_FIREBASE_AUTH_DOMAIN"),
+  projectId: getRequiredEnv("VITE_FIREBASE_PROJECT_ID"),
+  storageBucket: getRequiredEnv("VITE_FIREBASE_STORAGE_BUCKET"),
+  messagingSenderId: getRequiredEnv("VITE_FIREBASE_MESSAGING_SENDER_ID"),
+  appId: getRequiredEnv("VITE_FIREBASE_APP_ID"),
 };
 
-// Initialize Firebase
-let app: any;
-try {
-  app = initializeApp(firebaseConfig);
-  console.log("Firebase initialized successfully");
-} catch (error) {
-  console.error("Error initializing Firebase:", error);
-  throw error;
+const optionalFirebaseConfig: Record<string, string | undefined> = {
+  databaseURL: (import.meta.env as Record<string, string | undefined>).VITE_FIREBASE_DATABASE_URL,
+  measurementId: (import.meta.env as Record<string, string | undefined>).VITE_FIREBASE_MEASUREMENT_ID,
+};
+
+for (const [key, value] of Object.entries(optionalFirebaseConfig)) {
+  if (value) {
+    (firebaseConfig as Record<string, string>)[key] = value;
+  }
 }
+
+const app = initializeApp(firebaseConfig);
 
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -188,13 +194,11 @@ export const createUserDocument = async (
       };
 
       await setDoc(userRef, newUserData);
-      console.log("User document created successfully:", user.uid);
     } else {
       await updateDoc(userRef, {
         lastLoginAt: serverTimestamp(),
-        numSessions: snapshot.data().numSessions + 1,
+        numSessions: increment(1),
       });
-      console.log("User document updated successfully:", user.uid);
     }
   } catch (error) {
     console.error("Error in createUserDocument:", error);
@@ -227,7 +231,6 @@ export const loginWithEmailAndPassword = async (
   try {
     const result = await signInWithEmailAndPassword(auth, email, password);
     await createUserDocument(result.user);
-    console.log("Email login successful:", result.user.uid);
     return result.user;
   } catch (error: any) {
     console.error("Email login error:", error);
@@ -245,7 +248,6 @@ export const registerWithEmailAndPassword = async (
   try {
     const result = await createUserWithEmailAndPassword(auth, email, password);
     await createUserDocument(result.user, { name });
-    console.log("Email registration successful:", result.user.uid);
     return result.user;
   } catch (error: any) {
     console.error("Email registration error:", error);
@@ -258,7 +260,6 @@ export const signInWithGoogle = async () => {
 
   try {
     const result = await signInWithPopup(auth, googleProvider);
-    console.log("Google sign in successful:", result.user.uid);
     return result.user;
   } catch (error: any) {
     console.error("Google sign in error:", error);
@@ -271,7 +272,6 @@ export const logOut = async () => {
 
   try {
     await signOut(auth);
-    console.log("Logout successful");
   } catch (error: any) {
     console.error("Logout error:", error);
     throw error;

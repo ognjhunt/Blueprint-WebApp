@@ -89,6 +89,8 @@ import {
 } from "firebase/firestore";
 import ScreenShareButton from "@/components/ScreenShareButton";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+
+import { getGoogleGenerativeAiKey, getGoogleMapsApiKey } from "@/lib/client-env";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -153,8 +155,7 @@ export default function Dashboard() {
       ),
   );
 
-  const apiKey = "AIzaSyCyyCfGsXRnIRC9HSVVuCMN5grzPkyTtkY";
-  const genAI = new GoogleGenerativeAI(apiKey);
+  const genAI = new GoogleGenerativeAI(getGoogleGenerativeAiKey());
 
   // const model = genAI.getGenerativeModel({
   //   model: "gemini-1.5-flash",
@@ -644,7 +645,7 @@ export default function Dashboard() {
 
     // --- IMPORTANT: Replace this with secure loading of your API key ---
     // Example using environment variables in Next.js:
-    const GOOGLE_MAPS_API_KEY = "AIzaSyCV9o30LkToSWZwoyz_65iQ3WOOMaCHeEI";
+    const GOOGLE_MAPS_API_KEY = getGoogleMapsApiKey();
     // --- Make sure NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is set in your .env.local file ---
 
     if (!GOOGLE_MAPS_API_KEY) {
@@ -666,7 +667,6 @@ export default function Dashboard() {
     // The <img> tag in the BlueprintImage component will handle the actual fetching.
     // We can add a check to see if an image exists at the location, but it adds complexity (requires Places API).
     // For simplicity, we'll return the URL and let the <img> tag's onError handle cases where Street View isn't available.
-    console.log(`Constructed Street View URL for ${address}: ${streetViewUrl}`);
     return streetViewUrl;
   };
 

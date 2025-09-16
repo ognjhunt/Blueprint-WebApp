@@ -28,6 +28,9 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Mail, Eye } from "lucide-react";
+import { getGoogleGenerativeAiKey } from "@/lib/client-env";
+
+const GOOGLE_GENERATIVE_AI_KEY = getGoogleGenerativeAiKey();
 // Gemini AI integration
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -189,9 +192,7 @@ const testQuestionAnswering = async () => {
 
   try {
     // Initialize Gemini AI
-    const genAI = new GoogleGenerativeAI(
-      "AIzaSyBgxzzgcT_9nyhz1D_JtfG7gevRUKQ5Vbs",
-    );
+    const genAI = new GoogleGenerativeAI(GOOGLE_GENERATIVE_AI_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
     // Prepare the context from extracted data
@@ -2325,9 +2326,7 @@ export const InteractiveExperiencesConfigScreen = ({
   const formatContentWithGemini = async (rawContent, type) => {
     try {
       // Initialize Gemini AI (similar to your existing code in paste-2.txt)
-      const genAI = new GoogleGenerativeAI(
-        "AIzaSyBgxzzgcT_9nyhz1D_JtfG7gevRUKQ5Vbs",
-      );
+      const genAI = new GoogleGenerativeAI(GOOGLE_GENERATIVE_AI_KEY);
       const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
       // Create prompt based on type
@@ -5131,9 +5130,7 @@ export const SpecialOffersConfigScreen = ({
 
     try {
       // Initialize Gemini AI
-      const genAI = new GoogleGenerativeAI(
-        "AIzaSyBgxzzgcT_9nyhz1D_JtfG7gevRUKQ5Vbs",
-      );
+      const genAI = new GoogleGenerativeAI(GOOGLE_GENERATIVE_AI_KEY);
       const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
       // Create a prompt with the current promotions data
@@ -9180,9 +9177,7 @@ export const AudioToursConfigScreen = ({
 
     try {
       // Initialize Gemini AI
-      const genAI = new GoogleGenerativeAI(
-        "AIzaSyBgxzzgcT_9nyhz1D_JtfG7gevRUKQ5Vbs",
-      );
+      const genAI = new GoogleGenerativeAI(GOOGLE_GENERATIVE_AI_KEY);
       const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
       const updatedStops = [...configData.tourStops];

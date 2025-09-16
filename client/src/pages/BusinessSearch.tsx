@@ -26,6 +26,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
+import { getGoogleMapsApiKey } from "@/lib/client-env";
 
 interface PlacePrediction {
   place_id: string;
@@ -63,12 +64,11 @@ export default function BusinessSearch() {
     setError(null);
 
     try {
-      // Replace 'YOUR_API_KEY_HERE' with your actual API key
-      const apiKey = "AIzaSyBgxzzgcT_9nyhz1D_JtfG7gevRUKQ5Vbs";
+      // Load API key from configuration
+      const apiKey = getGoogleMapsApiKey();
       if (!apiKey) {
         throw new Error("Google Places API key is not configured");
       }
-      console.log("API Key loaded successfully");
 
       const loader = new Loader({
         apiKey,

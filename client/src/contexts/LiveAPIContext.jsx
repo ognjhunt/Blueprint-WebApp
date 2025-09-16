@@ -8,6 +8,10 @@ import React, {
 } from "react";
 import { EventEmitter } from "eventemitter3";
 
+import { getGoogleGenerativeAiKey } from "@/lib/client-env";
+
+const GOOGLE_GENAI_KEY = getGoogleGenerativeAiKey();
+
 class MultimodalLiveClient extends EventEmitter {
   constructor({ apiKey }) {
     super();
@@ -25,12 +29,9 @@ class MultimodalLiveClient extends EventEmitter {
 
     return new Promise((resolve, reject) => {
       ws.addEventListener("message", async (evt) => {
-        console.log("before Blob");
         if (evt.data instanceof Blob) {
           const json = await evt.data.text();
           const response = JSON.parse(json);
-
-          console.log(response);
 
           if (response.setupResponse && !this.setupComplete) {
             this.setupComplete = true;
@@ -72,15 +73,13 @@ class MultimodalLiveClient extends EventEmitter {
         resolve(true);
       });
 
-      ws.addEventListener("error", (ev) => {
+      ws.addEventListener("error", () => {
         this.disconnect();
-        console.log("error");
         reject(new Error(`WebSocket connection failed`));
       });
 
       ws.addEventListener("close", () => {
         this.ws = null;
-        console.log("close -- false");
         // this.setupComplete = false;
         this.setupSent = false;
         this.emit("close");
@@ -90,7 +89,6 @@ class MultimodalLiveClient extends EventEmitter {
 
   disconnect() {
     if (this.ws) {
-      console.log("disconnecting");
       this.ws.close();
       this.ws = null;
       this.setupComplete = false;
@@ -101,7 +99,6 @@ class MultimodalLiveClient extends EventEmitter {
   }
 
   send(parts, turnComplete = true) {
-    console.log(this.setupComplete);
     if (!this.setupComplete) {
       console.warn("Cannot send message before setup is complete");
       return;
@@ -150,18 +147,19 @@ const LiveAPIContext = createContext(null);
 export const LiveAPIProvider = ({ children }) => {
   const clientRef = useRef(null);
   const [isConnected, setIsConnected] = useState(false);
-  console.log("LiveAPIProvider");
 
   useEffect(() => {
     if (!clientRef.current) {
       clientRef.current = new MultimodalLiveClient({
-        apiKey: "AIzaSyCyyCfGsXRnIRC9HSVVuCMN5grzPkyTtkY",
+        apiKey: GOOGLE_GENAI_KEY,
       });
 
       clientRef.current.on("open", () => setIsConnected(true));
       clientRef.current.on("close", () => setIsConnected(false));
 
-      clientRef.current.connect().catch(console.error);
+      clientRef.current
+        .connect()
+        .catch((error) => console.error("LiveAPI connection error", error));
     }
 
     return () => {

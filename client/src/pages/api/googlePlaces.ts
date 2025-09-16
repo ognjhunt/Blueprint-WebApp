@@ -1,15 +1,16 @@
 import { Request, Response } from "express";
 
-// NOTE: Move your real Google API key into an environment variable in .env
-// e.g. process.env.GOOGLE_PLACES_API_KEY
-// For demonstration, we'll keep it inline here so you can see the code changes.
-const apiKey = process.env.GOOGLE_PLACES_API_KEY || "API_KEY";
+const apiKey = process.env.GOOGLE_PLACES_API_KEY;
 
 export default async function handler(
   req: Request,
   res: Response,
 ) {
   try {
+    if (!apiKey) {
+      return res.status(500).json({ error: "Service temporarily unavailable" });
+    }
+
     const { address, businessName } = req.query;
 
     if (!address) {
