@@ -414,6 +414,15 @@ export default function ScannerPortal() {
       return;
     }
 
+    if (!db) {
+      toast({
+        title: "Error",
+        description: "Firebase not configured. Cannot save alignment data.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       // Update the blueprint with scale factor
       await updateDoc(doc(db, "blueprints", selectedBooking.blueprintId), {
@@ -489,6 +498,9 @@ export default function ScannerPortal() {
 
     try {
       if (selectedBooking?.blueprintId) {
+        if (!db) {
+          throw new Error("Firebase not configured");
+        }
         await updateDoc(doc(db, "blueprints", selectedBooking.blueprintId), {
           scale: scaleFactor,
         });
@@ -562,6 +574,12 @@ export default function ScannerPortal() {
   useEffect(() => {
     const fetchBookings = async () => {
       if (!currentUser) return;
+
+      if (!db) {
+        console.warn("Firebase not configured. Cannot fetch bookings.");
+        setLoading(false);
+        return;
+      }
 
       setLoading(true);
       try {
@@ -787,6 +805,11 @@ export default function ScannerPortal() {
 
   // Fetch customer data for a selected booking
   const fetchCustomerData = async (userId: string) => {
+    if (!db) {
+      console.warn("Firebase not configured. Cannot fetch customer data.");
+      return null;
+    }
+
     try {
       const userDoc = await getDoc(doc(db, "users", userId));
 
@@ -846,6 +869,10 @@ export default function ScannerPortal() {
 
   // Add this function to fetch blueprint data
   const fetchBlueprintData = async (blueprintId: string) => {
+    if (!db) {
+      console.warn("Firebase not configured. Cannot fetch blueprint data.");
+      return;
+    }
     setLoadingBlueprintData(true);
     try {
       const blueprintDoc = await getDoc(doc(db, "blueprints", blueprintId));
@@ -881,6 +908,15 @@ export default function ScannerPortal() {
       toast({
         title: "Error",
         description: "Please select at least one file to upload.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!db || !storage) {
+      toast({
+        title: "Error",
+        description: "Firebase not configured. Cannot upload files.",
         variant: "destructive",
       });
       return;
