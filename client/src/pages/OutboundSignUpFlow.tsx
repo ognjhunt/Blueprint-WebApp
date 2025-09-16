@@ -66,6 +66,7 @@ import {
   triggerLindyWebhook,
   type LindyWebhookPayload,
 } from "@/utils/lindyWebhook";
+import { getGoogleMapsApiKey } from "@/lib/client-env";
 
 const ONBOARDING_FEE = 499.99;
 const MONTHLY_RATE = 49.99;
@@ -182,7 +183,7 @@ export default function OutboundSignUpFlow() {
   // Load Google Places
   useEffect(() => {
     const loader = new Loader({
-      apiKey: "AIzaSyBgxzzgcT_9nyhz1D_JtfG7gevRUKQ5Vbs", // replace with real key
+      apiKey: getGoogleMapsApiKey(),
       version: "weekly",
       libraries: ["places"],
     });
@@ -2546,7 +2547,7 @@ export default function OutboundSignUpFlow() {
 //   // Load Google Places API once
 //   useEffect(() => {
 //     const loader = new Loader({
-//       apiKey: "AIzaSyBgxzzgcT_9nyhz1D_JtfG7gevRUKQ5Vbs", // Replace with your real API key
+//       apiKey: getGoogleMapsApiKey(),
 //       version: "weekly",
 //       libraries: ["places"],
 //     });

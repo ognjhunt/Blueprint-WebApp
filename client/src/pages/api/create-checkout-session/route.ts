@@ -22,24 +22,49 @@ type CheckoutRequestBody = {
   costPerHour?: number;
 };
 
-const DEFAULT_STRIPE_SECRET =
-  process.env.STRIPE_SECRET_KEY ||
-  process.env.VITE_STRIPE_SECRET_KEY ||
-  process.env.NEXT_PUBLIC_STRIPE_SECRET_KEY ||
-  // Test key supplied for local development convenience.
-  "sk_test_51ODuefLAUkK46LtZ72Vjg867ez3Bk1pdC2GrFpDh3lgF241gNdqyJNGfXxCnN1QnSrniPohZuzweJTeFLHIuXFUl00rojQNqfj";
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "";
+const stripe = stripeSecretKey
+  ? new Stripe(stripeSecretKey)
+  : null;
 
-const stripe = new Stripe(DEFAULT_STRIPE_SECRET);
+const configuredOrigins = (process.env.CHECKOUT_ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
-function resolveUrl(origin: string, path: string | undefined, fallbackPath: string) {
-  const target = path && path.length ? path : fallbackPath;
-  if (/^https?:\/\//i.test(target)) {
-    return target;
+const fallbackOrigin =
+  process.env.NEXT_PUBLIC_BASE_URL ||
+  process.env.VITE_PUBLIC_URL ||
+  process.env.BASE_URL ||
+  "http://localhost:5173";
+
+const allowedOrigins = new Set<string>([
+  fallbackOrigin,
+  ...configuredOrigins,
+]);
+
+function resolveBaseOrigin(originHeader: string | undefined): string {
+  if (originHeader && allowedOrigins.has(originHeader)) {
+    return originHeader;
   }
-  if (target.startsWith("/")) {
-    return `${origin}${target}`;
+  const [firstAllowed] = Array.from(allowedOrigins);
+  return firstAllowed || "http://localhost:5173";
+}
+
+function resolveUrl(baseOrigin: string, path: string | undefined, fallbackPath: string) {
+  if (path && /^https?:\/\//i.test(path)) {
+    try {
+      const parsed = new URL(path);
+      if (allowedOrigins.has(parsed.origin)) {
+        return parsed.toString();
+      }
+    } catch (_error) {
+      // Ignore invalid URLs
+    }
   }
-  return `${origin}/${target}`;
+
+  const safePath = path && path.startsWith("/") ? path : fallbackPath;
+  return new URL(safePath, baseOrigin).toString();
 }
 
 export default async function handler(req: Request, res: Response) {
@@ -48,17 +73,16 @@ export default async function handler(req: Request, res: Response) {
   }
 
   try {
+    if (!stripe) {
+      throw new Error("STRIPE_SECRET_KEY environment variable is required");
+    }
+
     const body = (req.body || {}) as CheckoutRequestBody;
     const sessionType: PaymentSessionType =
       body.sessionType || (body.totalCost ? "legacy-hourly" : "onboarding");
 
-    const originHeader = (req.headers.origin as string | undefined) || "";
-    const originBase =
-      originHeader ||
-      process.env.NEXT_PUBLIC_BASE_URL ||
-      process.env.VITE_PUBLIC_URL ||
-      process.env.BASE_URL ||
-      "http://localhost:5173";
+    const originHeader = req.headers.origin as string | undefined;
+    const originBase = resolveBaseOrigin(originHeader);
 
     if (sessionType === "onboarding") {
       const onboardingFee = typeof body.onboardingFee === "number" ? body.onboardingFee : 499.99;

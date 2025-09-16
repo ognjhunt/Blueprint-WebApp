@@ -30,6 +30,7 @@ import {
 import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { v4 as uuidv4 } from "uuid";
+import { getGoogleMapsApiKey } from "@/lib/client-env";
 
 // Type definitions for form data and Google Maps API
 interface ContactFormData {
@@ -111,7 +112,7 @@ export default function ContactForm() {
   // Load Google Places
   useEffect(() => {
     const loader = new Loader({
-      apiKey: "AIzaSyBgxzzgcT_9nyhz1D_JtfG7gevRUKQ5Vbs",
+      apiKey: getGoogleMapsApiKey(),
       version: "weekly",
       libraries: ["places"],
     });
@@ -818,7 +819,7 @@ export default function ContactForm() {
 
 //   useEffect(() => {
 //     const loader = new Loader({
-//       apiKey: "AIzaSyBgxzzgcT_9nyhz1D_JtfG7gevRUKQ5Vbs",
+//       apiKey: getGoogleMapsApiKey(),
 //       version: "weekly",
 //       libraries: ["places"],
 //     });

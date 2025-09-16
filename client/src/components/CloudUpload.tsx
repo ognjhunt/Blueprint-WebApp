@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { getGoogleApiKey } from "@/lib/client-env";
 
 declare global {
   interface Window {
@@ -59,11 +60,9 @@ const CloudUpload: React.FC<CloudUploadProps> = ({
         ".pptx",
     })[mime] ?? "";
 
-  const mySecret = "AIzaSyBKwxLP84aHSjD_hOUShFkByHvBPuaOnlQ"; // process.env["GOOG_API_KEY"];
-
   // REPLACE: handleGoogleDrive
   const handleGoogleDrive = () => {
-    const apiKey = mySecret; // (import.meta as any).env.VITE_GOOGLE_API_KEY as string;
+    const apiKey = getGoogleApiKey();
     const clientId =
       "744608654760-2jkr2t3632m1qri95dcsasu5fnbotosd.apps.googleusercontent.com"; // (import.meta as any).env.VITE_GOOGLE_CLIENT_ID as string;
     // NEW: numeric Cloud Project number (not the string project ID)

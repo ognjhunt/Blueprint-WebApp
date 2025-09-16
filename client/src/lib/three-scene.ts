@@ -15,6 +15,8 @@ export class ThreeScene {
   private particles: any | null = null;
   private animationFrameId: number = 0;
   private isInitialized: boolean = false;
+  private mouseMoveHandler: ((event: MouseEvent) => void) | null = null;
+  private interactionTarget: HTMLElement | null = null;
 
   constructor(container: HTMLElement) {
     // Initialize asynchronously to avoid memory crashes
@@ -23,14 +25,11 @@ export class ThreeScene {
 
   private async initAsync(container: HTMLElement) {
     try {
-      console.log("Initializing ThreeScene...");
-      
       const THREE = await getThree();
-      
+
       // Scene setup
       this.scene = new THREE.Scene();
-      console.log("Scene created successfully");
-      
+
       // Camera setup
       this.camera = new THREE.PerspectiveCamera(
         75,
@@ -39,7 +38,6 @@ export class ThreeScene {
         1000
       );
       this.camera.position.z = 5;
-      console.log("Camera initialized with aspect ratio:", container.clientWidth / container.clientHeight);
 
       if (typeof window === 'undefined') return;
 
@@ -57,7 +55,6 @@ export class ThreeScene {
         this.renderer.setSize(width, height);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         container.appendChild(this.renderer.domElement);
-        console.log("Renderer initialized successfully with dimensions:", width, "x", height);
 
         // Create particle system
         const particleGeometry = new THREE.BufferGeometry();
@@ -146,7 +143,11 @@ export class ThreeScene {
     let mouseX = 0;
     let mouseY = 0;
 
-    const handleMouseMove = (event: MouseEvent): void => {
+    if (this.interactionTarget && this.mouseMoveHandler) {
+      this.interactionTarget.removeEventListener('mousemove', this.mouseMoveHandler);
+    }
+
+    this.mouseMoveHandler = (event: MouseEvent): void => {
       mouseX = (event.clientX / window.innerWidth) * 2 - 1;
       mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
 
@@ -154,16 +155,24 @@ export class ThreeScene {
       this.particles!.rotation.y += mouseX * 0.0001;
     };
 
-    element.addEventListener('mousemove', handleMouseMove);
+    element.addEventListener('mousemove', this.mouseMoveHandler);
+    this.interactionTarget = element;
   }
 
   public dispose(): void {
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
     }
-    
+
     window.removeEventListener('resize', this.handleResize);
-    
+
+    if (this.interactionTarget && this.mouseMoveHandler) {
+      this.interactionTarget.removeEventListener('mousemove', this.mouseMoveHandler);
+    }
+
+    this.interactionTarget = null;
+    this.mouseMoveHandler = null;
+
     if (this.particles) {
       this.scene.remove(this.particles);
       this.particles.geometry.dispose();

@@ -1,47 +1,59 @@
 import { Request, Response } from "express";
-import { Anthropic } from "@anthropic-ai/sdk";
 import OpenAI from "openai";
+
+import { attachRequestMeta, logger } from "../logger";
 import { buildWaitlistAIPrompt } from "../utils/ai-prompts";
-import {
-  validateWaitlistData,
-  WaitlistData,
-  ValidationError,
-} from "../utils/validation";
+import { validateWaitlistData, WaitlistData } from "../utils/validation";
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+const openAiApiKey = process.env.OPENAI_API_KEY;
+const openAiTimeoutMs = Number(process.env.OPENAI_TIMEOUT_MS ?? 20_000);
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openai = openAiApiKey
+  ? new OpenAI({
+      apiKey: openAiApiKey,
+      maxRetries: 2,
+      timeout: openAiTimeoutMs,
+    })
+  : null;
 
-export default async function processWaitlistHandler(
-  req: Request,
-  res: Response,
-) {
-  console.log("🔵 [DEBUG] Starting processWaitlistHandler");
-  console.log("🔵 [DEBUG] Request body:", JSON.stringify(req.body, null, 2));
+const zapierMcpUrl = process.env.ZAPIER_MCP_URL || "https://mcp.zapier.com/api/mcp/mcp";
+const zapierMcpToken = process.env.ZAPIER_MCP_TOKEN;
+
+export default async function processWaitlistHandler(req: Request, res: Response) {
+  const requestMeta = attachRequestMeta({
+    requestId: res.locals?.requestId,
+    route: "process-waitlist",
+  });
+
+  if (!openai) {
+    logger.error(requestMeta, "OpenAI client not configured");
+    return res.status(500).json({ error: "Service temporarily unavailable" });
+  }
+
+  if (!zapierMcpToken) {
+    logger.error(requestMeta, "Missing Zapier MCP token configuration");
+    return res.status(500).json({ error: "Service temporarily unavailable" });
+  }
 
   try {
-    // Cast req.body to WaitlistData for type safety with validator and prompt builder
     const requestData = req.body as WaitlistData;
-    console.log(
-      "🔵 [DEBUG] Casted request data:",
-      JSON.stringify(requestData, null, 2),
-    );
-
     const validationErrors = validateWaitlistData(requestData);
+
     if (validationErrors.length > 0) {
-      console.log("❌ [DEBUG] Validation failed:", validationErrors);
+      logger.warn(
+        attachRequestMeta({
+          ...requestMeta,
+          validationErrors: validationErrors.length,
+        }),
+        "Waitlist submission failed validation",
+      );
+
       return res.status(400).json({
         error: "Validation failed",
         errors: validationErrors,
       });
     }
-    console.log("✅ [DEBUG] Validation passed");
 
-    // Destructure after validation, using validated data (requestData)
     const {
       name,
       email,
@@ -54,7 +66,6 @@ export default async function processWaitlistHandler(
       offWaitlistUrl,
     } = requestData;
 
-    // Prepare data for the prompt builder
     const promptData = {
       name: name!,
       email: email!,
@@ -66,83 +77,70 @@ export default async function processWaitlistHandler(
       companyAddress: companyAddress,
       offWaitlistUrl: offWaitlistUrl!,
     };
-    console.log(
-      "🔵 [DEBUG] Prompt data prepared:",
-      JSON.stringify(promptData, null, 2),
-    );
 
     const aiPrompt = buildWaitlistAIPrompt(promptData);
-    console.log(
-      "🔵 [DEBUG] AI Prompt generated (first 500 chars):",
-      aiPrompt.substring(0, 500) + "...",
-    );
-    console.log("🔵 [DEBUG] Full AI Prompt length:", aiPrompt.length);
 
-    // Check OpenAI client configuration
-    console.log(
-      "🔵 [DEBUG] OpenAI API Key exists:",
-      !!process.env.OPENAI_API_KEY,
-    );
-    console.log(
-      "🔵 [DEBUG] OpenAI API Key length:",
-      process.env.OPENAI_API_KEY?.length || 0,
-    );
-
-    console.log("🔵 [DEBUG] About to make OpenAI MCP call...");
-    console.log(
-      "🔵 [DEBUG] MCP Server URL:",
-      "https://mcp.zapier.com/api/mcp/mcp",
-    );
-
-    // Add timeout and detailed error handling
-    const mcpResponse = await openai.responses.create({
-      model: "o3",
-      input: aiPrompt,
-      reasoning: {
-        effort: "medium",
-      },
-      tools: [
-        {
-          type: "mcp",
-          server_label: "zapier",
-          server_url: "https://mcp.zapier.com/api/mcp/mcp",
-          require_approval: "never",
-          headers: {
-            Authorization:
-              "Bearer YmQ5YzMxY2EtMWYzOC00NTViLTljYjItOWYyMmM0NWU3ODE0OjJkN2ZmMzRjLTQ1MTgtNDNkMC05ODg0LTc2MzA5NTYyMjFjYw==",
-          },
-        },
-      ],
+    let timeoutHandle: NodeJS.Timeout | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(() => {
+        reject(new Error("OpenAI request timed out"));
+      }, openAiTimeoutMs);
     });
 
-    console.log("✅ [DEBUG] OpenAI MCP call completed successfully");
-    console.log("🔵 [DEBUG] Response type:", typeof mcpResponse);
-    console.log("🔵 [DEBUG] Response keys:", Object.keys(mcpResponse || {}));
-    console.log(
-      "🔵 [DEBUG] Full response:",
-      JSON.stringify(mcpResponse, null, 2),
+    const mcpResponse = (await Promise.race([
+      openai.responses.create({
+        model: "o3",
+        input: aiPrompt,
+        reasoning: {
+          effort: "medium",
+        },
+        tools: [
+          {
+            type: "mcp",
+            server_label: "zapier",
+            server_url: zapierMcpUrl,
+            require_approval: "never",
+            headers: {
+              Authorization: `Bearer ${zapierMcpToken}`,
+            },
+          },
+        ],
+      }),
+      timeoutPromise,
+    ])) as Awaited<ReturnType<typeof openai.responses.create>>;
+
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+
+    logger.info(
+      attachRequestMeta({
+        ...requestMeta,
+        emailDomain: email?.includes("@") ? email.split("@")[1] : undefined,
+        companyLength: company?.length,
+      }),
+      "Waitlist submission processed",
     );
 
     res.json({ success: true, response: mcpResponse });
-    console.log("✅ [DEBUG] Response sent successfully");
   } catch (error: any) {
-    console.error("❌ [ERROR] Caught error in processWaitlistHandler:");
-    console.error("❌ [ERROR] Error type:", typeof error);
-    console.error("❌ [ERROR] Error constructor:", error?.constructor?.name);
-    console.error("❌ [ERROR] Error message:", error?.message);
-    console.error("❌ [ERROR] Error code:", error?.code);
-    console.error("❌ [ERROR] Error status:", error?.status);
-    console.error("❌ [ERROR] Error response:", error?.response?.data);
-    console.error(
-      "❌ [ERROR] Full error object:",
-      JSON.stringify(error, Object.getOwnPropertyNames(error), 2),
+    const statusCode = error?.status ?? error?.statusCode ?? 500;
+
+    logger.error(
+      {
+        ...attachRequestMeta({
+          ...requestMeta,
+          statusCode,
+          errorType: error?.constructor?.name,
+        }),
+        err: error,
+      },
+      "Failed to process waitlist submission",
     );
-    console.error("❌ [ERROR] Stack trace:", error?.stack);
 
     res.status(500).json({
       error: "Failed to process waitlist signup",
       details: error?.message || "Unknown error",
-      errorType: error?.constructor?.name || "Unknown",
     });
   }
 }

@@ -16,6 +16,7 @@ import { ScanningSetup } from "@/components/ScanningSetup";
 import ScreenShareButton from "@/components/ScreenShareButton";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
+import { getGoogleMapsApiKey } from "@/lib/client-env";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import {
@@ -228,7 +229,7 @@ export default function CreateBlueprint() {
   useEffect(() => {
     const initGooglePlaces = async () => {
       try {
-        const apiKey = "AIzaSyBgxzzgcT_9nyhz1D_JtfG7gevRUKQ5Vbs";
+        const apiKey = getGoogleMapsApiKey();
 
         const loader = new Loader({
           apiKey,

@@ -1,25 +1,18 @@
 import express, { type Request, Response, NextFunction } from "express";
+import { createServer } from "http";
+import { randomUUID } from "crypto";
+
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic } from "./vite";
-import { createServer } from "http";
 import geminiRouter from "./routes/gemini";
-
-function log(message: string) {
-  const formattedTime = new Date().toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
-
-  console.log(`${formattedTime} [express] ${message}`);
-}
+import { attachRequestMeta, logger } from "./logger";
 
 const app = express();
 
 // Configure middleware
-app.use(express.json({ limit: '50mb' }));  // Keep increased limit for base64 images
-app.use(express.urlencoded({ extended: false }));
+const defaultBodyLimit = process.env.API_BODY_LIMIT || "1mb";
+app.use(express.json({ limit: defaultBodyLimit }));
+app.use(express.urlencoded({ extended: false, limit: defaultBodyLimit }));
 
 // Configure CORS for development
 app.use((req, res, next) => {
@@ -33,30 +26,29 @@ app.use((req, res, next) => {
 app.use('/api/gemini', geminiRouter);
 
 app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
+  const startTime = process.hrtime.bigint();
+  const requestId = randomUUID();
+  res.locals.requestId = requestId;
 
   res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
+    if (!req.path.startsWith("/api")) {
+      return;
     }
+
+    const endTime = process.hrtime.bigint();
+    const durationMs = Number(endTime - startTime) / 1_000_000;
+
+    logger.info(
+      attachRequestMeta({
+        requestId,
+        method: req.method,
+        path: req.originalUrl || req.path,
+        statusCode: res.statusCode,
+        durationMs: Number.isFinite(durationMs) ? Math.round(durationMs) : undefined,
+        contentLength: req.headers["content-length"],
+      }),
+      "Request completed",
+    );
   });
 
   next();
@@ -66,12 +58,26 @@ app.use((req, res, next) => {
   registerRoutes(app);
   const server = createServer(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
-    res.status(status).json({ message });
-    throw err;
+    if (!res.headersSent) {
+      res.status(status).json({ message });
+    }
+
+    logger.error(
+      {
+        ...attachRequestMeta({
+          requestId: res.locals?.requestId,
+          method: req.method,
+          path: req.originalUrl || req.path,
+          status,
+        }),
+        err,
+      },
+      "Unhandled application error",
+    );
   });
 
   if (app.get("env") === "development") {
@@ -82,6 +88,6 @@ app.use((req, res, next) => {
 
   const PORT = 5000;
   server.listen(PORT, "0.0.0.0", () => {
-    log(`serving on port ${PORT}`);
+    logger.info({ port: PORT }, "Server listening");
   });
 })();
