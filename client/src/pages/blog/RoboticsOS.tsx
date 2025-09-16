@@ -28,33 +28,48 @@ export default function RoboticsOS() {
           <div className="rounded-3xl border border-white/10 bg-white/[0.05] p-6 md:p-8 shadow-xl">
             <article className="prose prose-invert prose-slate md:prose-lg max-w-none">
               <h1 className="mb-4 font-black bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">
-                roboticsOS – spatial context for autonomous crews
+                roboticsOS – arrival-ready spatial context for every robot, any
+                place
               </h1>
 
               <p>
-                Humanoid and mobile robotics are accelerating from pilot videos to
-                real deployments. But once a robot leaves a lab or factory demo,
-                it hits a wall: <strong>new locations lack context</strong>. The
-                machine can walk, grasp, or speak, yet it does not know where the
-                cleaning cart lives, which door hides the breaker panel, or how a
+                Humanoid and mobile robotics are accelerating from pilot videos
+                to real deployments. But once a robot leaves a lab or factory
+                demo, it hits a wall:{" "}
+                <strong>new locations lack context</strong>. The machine can
+                walk, grasp, or speak, yet it does not know where the cleaning
+                cart lives, which door hides the breaker panel, or how a
                 stockroom was rearranged overnight. Every blind arrival burns
                 time, technician hours, and battery cycles.
               </p>
 
               <p>
-                roboticsOS gives robots a living briefing the moment they roll in.
-                Blueprint already hosts continuously updating digital twins of
-                every onboarded site, fed by human teams, IoT, and the robots
-                themselves. When a new unit shows up, it authenticates, downloads
-                the latest scene graph, and gets to work instead of wandering.
+                roboticsOS gives robots a living briefing the moment they roll
+                in. Blueprint already hosts continuously updating digital twins
+                of every onboarded site, fed by human teams, IoT, and the robots
+                themselves. When a new unit shows up, it authenticates,
+                downloads the latest scene graph, and gets to work instead of
+                wandering.
+              </p>
+
+              {/* NEW: consumer example */}
+              <p>
+                <em>Consumer example:</em> You send your household humanoid to
+                the grocery store with a list of ten items. On arrival it
+                authenticates with the store’s roboticsOS endpoint, downloads
+                the floor graph, planogram and policy layers (one-way aisles,
+                staff-only doors, quiet hours), and computes the most efficient
+                pick path. If the store grants camera access it visually
+                positions itself in seconds, respects any robot-specific rules,
+                and adapts if an item moves or an aisle is blocked.
               </p>
 
               <h2>Why robots need context on arrival</h2>
               <ul>
                 <li>
                   <strong>Unfamiliar layouts:</strong> Even slight planogram
-                  changes break pre-scripted routes and force remote operators to
-                  teleop or re-teach.
+                  changes break pre-scripted routes and force remote operators
+                  to teleop or re-teach.
                 </li>
                 <li>
                   <strong>Dynamic inventory:</strong> Pallets, ingredient bins,
@@ -91,13 +106,13 @@ export default function RoboticsOS() {
                 </li>
                 <li>
                   <strong>Restaurant:</strong> Kitchen runners see line set-ups,
-                  allergen segregation zones, and real-time prep queues shared by
-                  chefs and service robots.
+                  allergen segregation zones, and real-time prep queues shared
+                  by chefs and service robots.
                 </li>
                 <li>
                   <strong>Hospitality and workplaces:</strong> Housekeeping bots
-                  get room statuses, maintenance tickets, and guest privacy rules
-                  synced instantly.
+                  get room statuses, maintenance tickets, and guest privacy
+                  rules synced instantly.
                 </li>
               </ul>
 
@@ -108,6 +123,17 @@ export default function RoboticsOS() {
                 service humanoid arriving to replenish adhesives at a contract
                 manufacturing site:
               </p>
+
+              {/* NEW: AR parity explanation */}
+              <p>
+                It works a lot like Blueprint for AR: if the robot grants camera
+                access, we first position its current pose in the venue (the
+                same way Blueprint anchors content for humans). From there we
+                can lock navigation, tasks, and heads-up guidance to real-world
+                coordinates, so the run starts from a known place instead of
+                guesswork.
+              </p>
+
               <ol>
                 <li>
                   The robot scans a marker at reception and sends a request to
@@ -115,17 +141,16 @@ export default function RoboticsOS() {
                   version, and the venue ID printed on the marker.
                 </li>
                 <li>
-                  Blueprint verifies device trust, then returns an encrypted scene
-                  package: the latest floor graph, semantic layers (inventory,
-                  safety, workflows), and a token scoped to permitted zones.
+                  Blueprint verifies device trust, then returns an encrypted
+                  scene package: the latest floor graph, semantic layers
+                  (inventory, safety, workflows), and a token scoped to
+                  permitted zones.
                 </li>
                 <li>
                   The robot asks <code>GET /robotics/navigation-path</code> with
                   the payload{" "}
-                  <code>
-                    {'{"pickup": "Adhesive A23", "tooling": "bin"}'}
-                  </code>
-                  . The API responds with the aisle, bay, shelf height, live
+                  <code>{'{"pickup": "Adhesive A23", "tooling": "bin"}'}</code>.
+                  The API responds with the aisle, bay, shelf height, live
                   occupancy signals, and the safest path.
                 </li>
                 <li>
@@ -144,9 +169,9 @@ export default function RoboticsOS() {
               <h2>More reasons teams choose Blueprint</h2>
               <ul>
                 <li>
-                  <strong>One map for every stakeholder:</strong> Humans, robots,
-                  and software see the same spatial model, preventing conflicts
-                  between operations and automation.
+                  <strong>One map for every stakeholder:</strong> Humans,
+                  robots, and software see the same spatial model, preventing
+                  conflicts between operations and automation.
                 </li>
                 <li>
                   <strong>Policy-aware autonomy:</strong> Access rules, quiet
@@ -166,16 +191,33 @@ export default function RoboticsOS() {
               </ul>
 
               <h2>Who pays for roboticsOS?</h2>
+              <div className="not-prose rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 mb-4">
+                <p className="m-0">
+                  <strong>Billing model:</strong>{" "}
+                  <span className="whitespace-nowrap">$0.20 per API call</span>,
+                  billed to the <strong>location operator</strong> for every
+                  roboticsOS request (sessions, navigation, lookups)—whether the
+                  robot belongs to the site’s crew or is a visiting consumer
+                  robot.
+                </p>
+                <p className="m-0 mt-2 text-slate-300">
+                  <em>Note:</em> This is separate from any AR/consumer glasses
+                  charges. AR experiences are billed under their own plans;
+                  roboticsOS API fees are independent.
+                </p>
+              </div>
               <p>
-                Pricing depends on who benefits most. Many deployments bundle the
-                API into the <strong>location operator’s Blueprint license</strong>
-                so any approved robot—owned by the brand, a contractor, or a
-                robotics vendor—can plug in. Other customers arrange
-                <strong>usage-based passes for robot OEMs</strong> that want to
-                include Blueprint access in their service contracts. Consumer
-                end-users rarely pay directly; instead, brands, facility owners,
-                or robotics service providers cover usage because they capture the
-                efficiency gains.
+                Most teams fold usage into the{" "}
+                <strong>location operator’s Blueprint license</strong> or
+                pre-purchased credits, so any approved robot—owned by the brand,
+                a contractor, or a robot OEM—can plug in without friction. OEMs
+                can also buy <strong>usage-based passes</strong> on behalf of
+                their customers.{" "}
+                <em>Consumer end-users never pay Blueprint at the site:</em> the
+                location covers the metered API cost at{" "}
+                <strong>$0.20 per call</strong>. AR experiences for consumer
+                glasses are billed separately under their AR plans; roboticsOS
+                API fees are independent.
               </p>
 
               <p>

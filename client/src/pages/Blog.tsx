@@ -20,7 +20,7 @@ export default function Blog() {
     {
       title: "roboticsOS – spatial context for autonomous crews",
       description:
-        "Living digital twins that brief humanoids and AMRs the moment they arrive—navigate, act, and learn via Blueprint’s API.",
+        "Living digital twins give humanoids and mobile robots instant context the moment they reach a new site.",
       href: "/blog/robotics-os",
     },
     {
