@@ -37,6 +37,11 @@ export default function WorkspacePage() {
   useEffect(() => {
     if (!currentUser) return;
 
+    if (!db) {
+      console.warn("Firebase not configured. Cannot fetch workspace data.");
+      return;
+    }
+
     const membersRef = collection(db, "teams", currentUser.uid, "members");
     const unsubscribeMembers = onSnapshot(membersRef, (snapshot) => {
       const members = snapshot.docs.map((doc) => ({
@@ -65,6 +70,16 @@ export default function WorkspacePage() {
   // After (updated code for paste-2.txt):
   const handleInvite = async () => {
     if (!inviteEmail || !currentUser) return;
+    
+    if (!db) {
+      toast({
+        title: "Error",
+        description: "Firebase not configured. Cannot send invites.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsInviting(true);
 
     try {
