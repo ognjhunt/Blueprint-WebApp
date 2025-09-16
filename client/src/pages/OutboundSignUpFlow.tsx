@@ -62,6 +62,10 @@ import {
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 import { db } from "@/lib/firebase";
 import { getStorage, ref, uploadBytes } from "firebase/storage";
+import {
+  triggerLindyWebhook,
+  type LindyWebhookPayload,
+} from "@/utils/lindyWebhook";
 
 const ONBOARDING_FEE = 499.99;
 const MONTHLY_RATE = 49.99;
@@ -556,11 +560,11 @@ export default function OutboundSignUpFlow() {
         return;
       }
 
-      setStep((p) => p + 1);
+      setStep((current) => (current >= 5 ? current : current + 1));
       setPaymentStatus("idle");
       setPaymentError(null);
 
-      const lindyPayload = {
+      const lindyPayload: LindyWebhookPayload = {
         have_we_onboarded: "No",
         chosen_time_of_mapping: scheduleTime,
         chosen_date_of_mapping: bookingDate,
@@ -576,34 +580,11 @@ export default function OutboundSignUpFlow() {
         chosen_date_of_demo: demoBookingDate,
         chosen_time_of_demo: demoTime,
       };
-
-      void (async () => {
-        try {
-          const resp = await fetch(
-            "https://public.lindy.ai/api/v1/webhooks/lindy/43c7b7d7-bc40-4593-acfe-ba79ad6488b8",
-            {
-              method: "POST",
-              headers: {
-                Authorization:
-                  "Bearer 1b1338d68dff4f009bbfaee1166cb9fc48b5fefa6dddbea797264674e2ee0150",
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(lindyPayload),
-            },
-          );
-
-          if (!resp.ok) {
-            const text = await resp.text();
-            console.error("Lindy webhook failed:", text);
-            return;
-          }
-
-          const result = await resp.json();
-          console.log("Lindy webhook ok:", result);
-        } catch (err) {
-          console.error("Lindy webhook error:", err);
-        }
-      })();
+      try {
+        triggerLindyWebhook(lindyPayload);
+      } catch (err) {
+        console.error("Lindy webhook invocation error:", err);
+      }
     }
   }
 
