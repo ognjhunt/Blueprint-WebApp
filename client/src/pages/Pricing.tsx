@@ -13,6 +13,20 @@ import {
   Type,
   ArrowRight,
   Clock,
+  Building2,
+  Cpu,
+  Scan,
+  TabletSmartphone,
+  Clock3,
+  UserCheck,
+  QrCode,
+  Cloud,
+  Globe2,
+  Rocket,
+  RefreshCcw,
+  Wrench,
+  ShieldAlert,
+  PiggyBank,
 } from "lucide-react";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
@@ -60,6 +74,184 @@ const defaultCounts: Counts = {
   webpage: 6,
   text: 20,
 };
+
+type IconType = React.ComponentType<React.SVGProps<SVGSVGElement>>;
+
+type ContrastRow = {
+  label: string;
+  subLabel?: string;
+  diy: string;
+  blueprint: string;
+  icon: IconType;
+};
+
+const contrastRows: ContrastRow[] = [
+  {
+    label: "Upfront platform build",
+    subLabel: "Authoring/CMS, localization integration, deployment, analytics",
+    diy: "$300k–$1.5M once, 4–9 months to MVP (team of 3–6 engineers/designers). Benchmarked from typical app/SaaS builds + AR complexity.",
+    blueprint:
+      "$0 platform build. Subscribe + configure. (Insert your Blueprint plan price here.)",
+    icon: Building2,
+  },
+  {
+    label: "Engine/tool seats",
+    diy: "Unity Pro: $2,200/seat/yr × (# devs).",
+    blueprint:
+      "Often not required if Blueprint is no-code/low-code. If advanced custom dev, budget 1–2 Unity seats.",
+    icon: Cpu,
+  },
+  {
+    label: "Scanning software",
+    diy: "Polycam Pro ~$17/mo per mapper; or just RoomPlan API (no fee).",
+    blueprint:
+      "Same device apps; Blueprint can guide self-scan. (Assume 0–$17/mo per active mapper.)",
+    icon: Scan,
+  },
+  {
+    label: "Mapper hardware (LiDAR)",
+    diy: "$999 iPad Pro per field kit (plus case/charger).",
+    blueprint:
+      "Same device; you can shift to self-scan by the location (zero mapper CAPEX if BYOD is allowed).",
+    icon: TabletSmartphone,
+  },
+  {
+    label: "Per-location mapping time",
+    diy: "~30–90 min on site (one pass) + admin/upload. RoomPlan suggests ~5 min per room; Lightship activation requires ≥10 viable scans (often 1–2 visits for public locations).",
+    blueprint:
+      "15–45 min self-scan guided flow; Blueprint automates processing & anchor setup. (If Niantic VPS public activation is needed, still expect the ≥10-scan rule.)",
+    icon: Clock3,
+  },
+  {
+    label: "Per-location labor",
+    diy: "Mapper 1.5–3.0 hrs × $23–$27/hr = $35–$80; designer 8–20 hrs × $25–$70/hr = $200–$1,400.",
+    blueprint:
+      "Mapper: 0–1 hr (self-serve); designer: 2–8 hrs if templated. Net $0–$600 depending on how much is automated/templated.",
+    icon: UserCheck,
+  },
+  {
+    label: "QR/marker printing (optional)",
+    diy: "$25–$230 per location (e.g., 100 stickers ≈ $73; 1,000 ≈ $232).",
+    blueprint:
+      "Same physicals. Blueprint can standardize artwork & quantities to cut waste.",
+    icon: QrCode,
+  },
+  {
+    label: "Cloud egress + storage (per location)",
+    diy: "Example: 50 MB initial asset load × 1,000 sessions/mo = 50 GB → ≈$4.25/mo egress; storage ≤$1/mo for small bundles. (Scale linearly).",
+    blueprint:
+      "Same underlying costs (Blueprint usually uses a CDN too). Some plans may bundle hosting; if not, expect comparable egress/storage.",
+    icon: Cloud,
+  },
+  {
+    label: "VPS/Geospatial usage",
+    diy: "Lightship VPS: first 10k calls free, then $10 per 1k (to 100k), $8 per 1k (100–500k). ARCore Geospatial: no usage pricing published; quotas apply.",
+    blueprint:
+      "Same physics. Blueprint may help reduce calls/session (better caching/local relocalization). Still budget per the Lightship tiers.",
+    icon: Globe2,
+  },
+  {
+    label: "Time to first location live",
+    diy: "6–12+ weeks (build + content + QA) if starting from zero. Agency ranges for AR MVPs are often $30k–$150k over 2–4 months.",
+    blueprint:
+      "<1–2 weeks typical for first site (subscribe → scan → place content) once your templates are ready.",
+    icon: Rocket,
+  },
+  {
+    label: "Time to additional locations",
+    diy: "3–7 days each (scheduling mapper, scans, content, QA).",
+    blueprint: "Same day to 2 days if self-scan + templated scenes.",
+    icon: RefreshCcw,
+  },
+  {
+    label: "Ongoing maintenance",
+    diy: "8–20 hrs/mo per venue (content swaps, analytics checks, re-scans after layout changes).",
+    blueprint:
+      "2–6 hrs/mo per venue (templated campaigns + centralized analytics), plus occasional re-scan after big resets.",
+    icon: Wrench,
+  },
+  {
+    label: "Risk & dependencies",
+    diy: "You own everything; higher engineering/ops burden; must track vendor changes (e.g., Unity pricing; Lightship quotas).",
+    blueprint:
+      "Vendor handles most plumbing; you trade CAPEX for OPEX; portability via open formats/anchors still recommended.",
+    icon: ShieldAlert,
+  },
+];
+
+const tldrHighlights: { label: string; diy: string; blueprint: string }[] = [
+  {
+    label: "One-time platform build",
+    diy: "$300k–$1.5M; 4–9 mo",
+    blueprint: "$0 (subscribe)",
+  },
+  {
+    label: "Per-location labor",
+    diy: "$235–$1,480 (mapper + designer)",
+    blueprint: "$0–$600 (self-scan + template)",
+  },
+  {
+    label: "VPS per 100k sessions/mo",
+    diy: "≈$900/mo (Lightship after free 10k)",
+    blueprint: "Same underlying VPS unless bundled",
+  },
+  {
+    label: "CDN egress per 100k sessions @ 40 MB",
+    diy: "≈$340/mo",
+    blueprint: "Similar (unless bundled)",
+  },
+  {
+    label: "Tool seats",
+    diy: "Unity Pro $2,200/seat/yr",
+    blueprint: "Often none (no-code); add if custom dev",
+  },
+  {
+    label: "Scanner hardware",
+    diy: "$999 per kit",
+    blueprint: "Same (or BYOD if self-scan)",
+  },
+  {
+    label: "Time to first site live",
+    diy: "6–12+ weeks",
+    blueprint: "<1–2 weeks",
+  },
+  {
+    label: "Time per additional site",
+    diy: "3–7 days",
+    blueprint: "Same day–2 days",
+  },
+];
+
+const takeaways = [
+  "VPS, CDN, and labor dominate the per-location TCO. VPS has a generous free tier; CDN egress is cheap at pilot scale; labor is the real swing factor.",
+  "DIY shines if you already have a team (Unity + backend + 3D) and want control; otherwise you’re taking on $300k–$1.5M of platform build risk and months of time.",
+  "Blueprint removes the platform CAPEX and cuts per-site hours (self-scan + templates), making multi-location rollouts more predictable. You still budget for VPS calls and egress (or whatever Blueprint includes/abstracts).",
+];
+
+const scenarioData: { name: string; subtitle: string; bullets: string[] }[] = [
+  {
+    name: "Scenario A — Small pilot",
+    subtitle: "3 stores, 1,000 sessions/store/month, 50 MB initial asset load.",
+    bullets: [
+      "VPS: 3,000 calls/mo → $0 (under 10k free).",
+      "CDN egress: 3,000 × 50 MB = 150 GB → ≈$12.75/mo.",
+      "Storage: ~1.5 GB total → ≈$0.03/mo.",
+      "QRs: 300 stickers total → ≈$219 one-time.",
+      "Labor (DIY): mapper ~2 h/site; designer ~10 h/site → ~$1,650 total using the midpoints above.",
+      "Blueprint: if self-scan + templates, the per-site labor often drops to ~$200–$600 (mostly design polish). (Substitute your Blueprint subscription here.)",
+    ],
+  },
+  {
+    name: "Scenario B — Heavier usage",
+    subtitle: "10 stores, 10,000 sessions/store/month; 40 MB cached load.",
+    bullets: [
+      "VPS: 100k calls/mo → first 10k free; 90k × $10/1k ≈ $900/mo (if all sessions call VPS once).",
+      "CDN egress: 100k × 40 MB = 4,000 GB → ≈$340/mo.",
+      "Storage: ~10 GB total → ≈$0.23/mo.",
+      "Labor: DIY scales with venues (coordinating mappers, QA); Blueprint’s self-serve + templates tend to cap per-site hours.",
+    ],
+  },
+];
 
 function pricePerHour(counts: Counts) {
   const addOns =
@@ -741,6 +933,196 @@ export default function PricingPage() {
             Get started
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
+        </div>
+      </section>
+
+      {/* DIY vs Blueprint contrast */}
+      <section className="relative mt-16 lg:mt-20 px-4 sm:px-6 lg:px-8">
+        <div className="pointer-events-none absolute inset-0 -z-10">
+          <div className="absolute inset-x-6 top-0 h-3/4 rounded-3xl bg-gradient-to-b from-emerald-500/15 via-cyan-500/10 to-transparent blur-3xl" />
+        </div>
+
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1 text-[11px] uppercase tracking-[0.2em] text-emerald-200">
+              <Sparkles className="h-3.5 w-3.5 text-emerald-300" />
+              DIY vs Blueprint
+            </div>
+            <h2 className="mt-4 text-3xl sm:text-4xl font-bold text-white">
+              Compare total cost of ownership at a glance
+            </h2>
+            <p className="mt-3 text-sm sm:text-base text-slate-300">
+              Swap in your numbers to see how a managed rollout stacks up
+              against building and operating everything in-house.
+            </p>
+          </div>
+
+          <div className="mt-10">
+            <div className="hidden md:block">
+              <div className="overflow-hidden rounded-3xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl">
+                <div className="grid grid-cols-[1.2fr,1fr,1fr] gap-6 border-b border-white/10 bg-white/[0.03] px-8 py-5 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-300">
+                  <div className="text-left">Line item</div>
+                  <div className="text-center text-emerald-200">
+                    Do it internally (DIY)
+                  </div>
+                  <div className="text-center text-cyan-200">
+                    Use Blueprint (managed)
+                  </div>
+                </div>
+                <div className="divide-y divide-white/10">
+                  {contrastRows.map((row) => {
+                    const Icon = row.icon;
+                    return (
+                      <div
+                        key={row.label}
+                        className="grid grid-cols-[1.2fr,1fr,1fr] items-start gap-6 px-8 py-6 transition-colors hover:bg-white/[0.05]"
+                      >
+                        <div className="flex gap-4">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-br from-emerald-500/20 to-cyan-500/20">
+                            <Icon className="h-5 w-5 text-emerald-300" />
+                          </div>
+                          <div>
+                            <div className="text-base font-semibold text-white">
+                              {row.label}
+                            </div>
+                            {row.subLabel ? (
+                              <div className="mt-1 text-xs text-slate-400">
+                                {row.subLabel}
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                        <p className="text-sm leading-relaxed text-slate-200">
+                          {row.diy}
+                        </p>
+                        <p className="text-sm leading-relaxed text-slate-200">
+                          {row.blueprint}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="md:hidden space-y-4">
+              {contrastRows.map((row) => {
+                const Icon = row.icon;
+                return (
+                  <div
+                    key={row.label}
+                    className="rounded-2xl border border-white/10 bg-white/[0.05] p-5 shadow-xl shadow-emerald-500/10"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-br from-emerald-500/20 to-cyan-500/20">
+                        <Icon className="h-5 w-5 text-emerald-300" />
+                      </div>
+                      <div>
+                        <div className="text-base font-semibold text-white">
+                          {row.label}
+                        </div>
+                        {row.subLabel ? (
+                          <div className="mt-1 text-xs text-slate-400">
+                            {row.subLabel}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="mt-4 space-y-3">
+                      <div>
+                        <div className="text-[11px] uppercase tracking-wide text-emerald-300">
+                          Do it internally (DIY)
+                        </div>
+                        <p className="mt-1 text-sm leading-relaxed text-slate-200">
+                          {row.diy}
+                        </p>
+                      </div>
+                      <div className="border-t border-white/10 pt-3">
+                        <div className="text-[11px] uppercase tracking-wide text-cyan-300">
+                          Use Blueprint (managed)
+                        </div>
+                        <p className="mt-1 text-sm leading-relaxed text-slate-200">
+                          {row.blueprint}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-12 grid gap-6 lg:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-6 shadow-2xl">
+              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] uppercase tracking-wide text-emerald-200">
+                <Zap className="h-3.5 w-3.5" />
+                Takeaways
+              </div>
+              <ul className="mt-4 space-y-3 text-sm leading-relaxed text-slate-200">
+                {takeaways.map((point) => (
+                  <li key={point} className="flex gap-3">
+                    <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-6 shadow-2xl">
+              <div className="inline-flex items-center gap-2 rounded-full bg-cyan-500/10 px-3 py-1 text-[11px] uppercase tracking-wide text-cyan-200">
+                <Sparkles className="h-3.5 w-3.5" />
+                TL;DR metrics
+              </div>
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                {tldrHighlights.map((item) => (
+                  <div
+                    key={item.label}
+                    className="rounded-xl border border-white/10 bg-white/[0.04] p-4"
+                  >
+                    <div className="text-xs uppercase tracking-wide text-slate-400">
+                      {item.label}
+                    </div>
+                    <div className="mt-2 text-sm font-semibold text-emerald-200">
+                      DIY: {item.diy}
+                    </div>
+                    <div className="mt-1 text-sm text-cyan-200">
+                      Blueprint: {item.blueprint}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-10 grid gap-6 md:grid-cols-2">
+            {scenarioData.map((scenario) => (
+              <div
+                key={scenario.name}
+                className="rounded-2xl border border-white/10 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10 p-6 shadow-2xl"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10">
+                    <PiggyBank className="h-5 w-5 text-emerald-300" />
+                  </div>
+                  <div>
+                    <div className="text-lg font-semibold text-white">
+                      {scenario.name}
+                    </div>
+                    <div className="text-xs text-slate-300">
+                      {scenario.subtitle}
+                    </div>
+                  </div>
+                </div>
+                <ul className="mt-4 space-y-3 text-sm leading-relaxed text-slate-200">
+                  {scenario.bullets.map((bullet) => (
+                    <li key={bullet} className="flex gap-3">
+                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-cyan-400" />
+                      <span>{bullet}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
