@@ -182,8 +182,15 @@ export default function OutboundSignUpFlow() {
 
   // Load Google Places
   useEffect(() => {
+    const apiKey = getGoogleMapsApiKey();
+    if (!apiKey) {
+      console.error("Google Maps API key is not available");
+      setErrorMessage("Google Maps API key is not configured.");
+      return;
+    }
+
     const loader = new Loader({
-      apiKey: getGoogleMapsApiKey(),
+      apiKey: apiKey,
       version: "weekly",
       libraries: ["places"],
     });

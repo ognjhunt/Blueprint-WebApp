@@ -230,6 +230,15 @@ export default function CreateBlueprint() {
     const initGooglePlaces = async () => {
       try {
         const apiKey = getGoogleMapsApiKey();
+        if (!apiKey) {
+          console.error("Google Maps API key is not available");
+          toast({
+            title: "Error",
+            description: "Google Maps API key is not configured.",
+            variant: "destructive",
+          });
+          return;
+        }
 
         const loader = new Loader({
           apiKey,
