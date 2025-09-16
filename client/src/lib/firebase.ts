@@ -29,57 +29,50 @@ const firebaseEnvKeys = [
   "VITE_FIREBASE_APP_ID",
 ] as const;
 
-function getOptionalEnv(key: (typeof firebaseEnvKeys)[number]): string | null {
+function getRequiredEnv(key: (typeof firebaseEnvKeys)[number]): string {
   const value = (import.meta.env as Record<string, string | undefined>)[key];
-  return value || null;
+  if (!value) {
+    throw new Error(
+      `Missing required Firebase environment variable: ${key}. ` +
+      `Please ensure all Firebase environment variables are properly configured in your deployment secrets.`
+    );
+  }
+  return value;
 }
 
-function isFirebaseConfigured(): boolean {
-  return firebaseEnvKeys.every(key => getOptionalEnv(key) !== null);
-}
+// Build Firebase configuration with required variables
+const firebaseConfig: FirebaseOptions = {
+  apiKey: getRequiredEnv("VITE_FIREBASE_API_KEY"),
+  authDomain: getRequiredEnv("VITE_FIREBASE_AUTH_DOMAIN"),
+  projectId: getRequiredEnv("VITE_FIREBASE_PROJECT_ID"),
+  storageBucket: getRequiredEnv("VITE_FIREBASE_STORAGE_BUCKET"),
+  messagingSenderId: getRequiredEnv("VITE_FIREBASE_MESSAGING_SENDER_ID"),
+  appId: getRequiredEnv("VITE_FIREBASE_APP_ID"),
+};
 
-// Only initialize Firebase if all required variables are present
-let firebaseConfig: FirebaseOptions | null = null;
-
-if (isFirebaseConfigured()) {
-  firebaseConfig = {
-    apiKey: getOptionalEnv("VITE_FIREBASE_API_KEY")!,
-    authDomain: getOptionalEnv("VITE_FIREBASE_AUTH_DOMAIN")!,
-    projectId: getOptionalEnv("VITE_FIREBASE_PROJECT_ID")!,
-    storageBucket: getOptionalEnv("VITE_FIREBASE_STORAGE_BUCKET")!,
-    messagingSenderId: getOptionalEnv("VITE_FIREBASE_MESSAGING_SENDER_ID")!,
-    appId: getOptionalEnv("VITE_FIREBASE_APP_ID")!,
-  };
-} else {
-  console.warn("Firebase configuration incomplete. Firebase features will be disabled.");
-}
-
+// Add optional configuration if available
 const optionalFirebaseConfig: Record<string, string | undefined> = {
   databaseURL: (import.meta.env as Record<string, string | undefined>).VITE_FIREBASE_DATABASE_URL,
   measurementId: (import.meta.env as Record<string, string | undefined>).VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-// Add optional configuration if Firebase is configured
-if (firebaseConfig) {
-  for (const [key, value] of Object.entries(optionalFirebaseConfig)) {
-    if (value) {
-      (firebaseConfig as Record<string, string>)[key] = value;
-    }
+for (const [key, value] of Object.entries(optionalFirebaseConfig)) {
+  if (value) {
+    (firebaseConfig as Record<string, string>)[key] = value;
   }
 }
 
-// Initialize Firebase only if configuration is available
-const app = firebaseConfig ? initializeApp(firebaseConfig) : null;
+// Initialize Firebase - this will throw if configuration is invalid
+const app = initializeApp(firebaseConfig);
 
-const auth = app ? getAuth(app) : null;
-const db = app ? getFirestore(app) : null;
-const storage = app ? getStorage(app) : null;
-const googleProvider = app ? new GoogleAuthProvider() : null;
-if (googleProvider) {
-  googleProvider.setCustomParameters({
-    prompt: "select_account",
-  });
-}
+// Export non-null Firebase services
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const storage = getStorage(app);
+export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
+  prompt: "select_account",
+});
 
 // User data interface
 export interface UserData {
@@ -146,10 +139,6 @@ export const createUserDocument = async (
     throw new Error("No user provided to createUserDocument");
   }
 
-  if (!db) {
-    console.warn("Firebase not configured. Cannot create user document.");
-    return;
-  }
 
   try {
     const userRef = doc(db, "users", user.uid);
@@ -228,11 +217,6 @@ export const createUserDocument = async (
 };
 
 export const getUserData = async (uid: string): Promise<UserData | null> => {
-  if (!db) {
-    console.warn("Firebase not configured. Cannot get user data.");
-    return null;
-  }
-
   try {
     const userDoc = await getDoc(doc(db, "users", uid));
     if (userDoc.exists()) {
@@ -250,11 +234,6 @@ export const loginWithEmailAndPassword = async (
   email: string,
   password: string,
 ) => {
-  if (!auth) {
-    console.warn("Firebase not configured. Cannot login with email and password.");
-    throw new Error("Firebase auth not configured");
-  }
-
   try {
     const result = await signInWithEmailAndPassword(auth, email, password);
     await createUserDocument(result.user);
@@ -270,11 +249,6 @@ export const registerWithEmailAndPassword = async (
   password: string,
   name?: string,
 ) => {
-  if (!auth) {
-    console.warn("Firebase not configured. Cannot register with email and password.");
-    throw new Error("Firebase auth not configured");
-  }
-
   try {
     const result = await createUserWithEmailAndPassword(auth, email, password);
     await createUserDocument(result.user, { name });
@@ -286,11 +260,6 @@ export const registerWithEmailAndPassword = async (
 };
 
 export const signInWithGoogle = async () => {
-  if (!auth || !googleProvider) {
-    console.warn("Firebase not configured. Cannot sign in with Google.");
-    throw new Error("Firebase auth not configured");
-  }
-
   try {
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
@@ -301,11 +270,6 @@ export const signInWithGoogle = async () => {
 };
 
 export const logOut = async () => {
-  if (!auth) {
-    console.warn("Firebase not configured. Cannot log out.");
-    throw new Error("Firebase auth not configured");
-  }
-
   try {
     await signOut(auth);
   } catch (error: any) {
@@ -314,5 +278,5 @@ export const logOut = async () => {
   }
 };
 
-export { auth, db, onAuthStateChanged, storage };
+export { onAuthStateChanged };
 export type { FirebaseUser };

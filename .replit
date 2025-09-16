@@ -19,12 +19,12 @@ localPort = 34801
 externalPort = 3002
 
 [[ports]]
-localPort = 41313
-externalPort = 3001
+localPort = 37507
+externalPort = 3003
 
 [[ports]]
-localPort = 44789
-externalPort = 3003
+localPort = 41313
+externalPort = 3001
 
 [[ports]]
 localPort = 46089
@@ -49,16 +49,16 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Blueprint AR Landing Page"
+args = "Start application"
 
 [[workflows.workflow]]
-name = "Blueprint AR Landing Page"
+name = "Start application"
 author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "NODE_OPTIONS=\"--max-old-space-size=8192\" node_modules/.bin/tsx watch --clear-screen=false --exclude vite.config.ts.* server/index.ts"
+args = "npm run dev"
 waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
