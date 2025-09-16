@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import DatePicker from "react-datepicker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { loadStripe } from "@stripe/stripe-js";
 import {
   Calendar,
   Mail,
@@ -40,6 +41,10 @@ import {
   CheckCircle2,
   Loader2,
   Globe,
+  CreditCard,
+  DollarSign,
+  BadgeCheck,
+  Clock3,
 } from "lucide-react";
 import "react-datepicker/dist/react-datepicker.css";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
@@ -58,6 +63,11 @@ import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 import { db } from "@/lib/firebase";
 import { getStorage, ref, uploadBytes } from "firebase/storage";
 
+const ONBOARDING_FEE = 499.99;
+const MONTHLY_RATE = 49.99;
+const INCLUDED_WEEKLY_HOURS = 40;
+const EXTRA_HOURLY_RATE = 1.25;
+
 // ---------------------------------------------------------
 // Component
 // ---------------------------------------------------------
@@ -69,6 +79,11 @@ export default function OutboundSignUpFlow() {
 
   // Step machine
   const [step, setStep] = useState(1);
+  const [paymentStatus, setPaymentStatus] = useState<
+    "idle" | "success" | "canceled" | "error" | "skipped"
+  >("idle");
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [isRedirectingToStripe, setIsRedirectingToStripe] = useState(false);
 
   // Step 1
   const [organizationName, setOrganizationName] = useState("");
@@ -175,6 +190,78 @@ export default function OutboundSignUpFlow() {
         console.error("Error loading Google Maps script:", err);
         setErrorMessage("Failed to load Google Places API.");
       });
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const checkoutStatus = params.get("checkout");
+    if (!checkoutStatus) return;
+
+    const storedContext = sessionStorage.getItem("blueprintCheckoutContext");
+    if (storedContext) {
+      try {
+        const parsed = JSON.parse(storedContext);
+        if (typeof parsed.organizationName === "string") {
+          setOrganizationName(parsed.organizationName);
+        }
+        if (typeof parsed.email === "string") {
+          setEmail(parsed.email);
+        }
+        if (typeof parsed.contactName === "string") {
+          setContactName(parsed.contactName);
+        }
+        if (typeof parsed.phoneNumber === "string") {
+          setPhoneNumber(parsed.phoneNumber);
+        }
+        if (typeof parsed.address === "string") {
+          setAddress(parsed.address);
+        }
+        if (typeof parsed.squareFootage === "number") {
+          setSquareFootage(parsed.squareFootage);
+        }
+        if (typeof parsed.scheduleDate === "string") {
+          const restored = new Date(parsed.scheduleDate);
+          if (!Number.isNaN(restored.getTime())) {
+            setScheduleDate(restored);
+          }
+        }
+        if (typeof parsed.scheduleTime === "string") {
+          setScheduleTime(parsed.scheduleTime);
+        }
+        if (typeof parsed.demoDate === "string") {
+          const restoredDemo = new Date(parsed.demoDate);
+          if (!Number.isNaN(restoredDemo.getTime())) {
+            setDemoDate(restoredDemo);
+          }
+        }
+        if (typeof parsed.demoTime === "string") {
+          setDemoTime(parsed.demoTime);
+        }
+      } catch (error) {
+        console.error("Failed to restore checkout context", error);
+      } finally {
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem("blueprintCheckoutContext");
+        }
+      }
+    }
+
+    if (checkoutStatus === "success") {
+      setPaymentStatus("success");
+      setStep(6);
+    } else if (checkoutStatus === "canceled") {
+      setPaymentStatus("canceled");
+      setStep(5);
+    }
+    setPaymentError(null);
+
+    params.delete("checkout");
+    const newSearch = params.toString();
+    const newUrl = `${window.location.pathname}${
+      newSearch ? `?${newSearch}` : ""
+    }`;
+    window.history.replaceState({}, "", newUrl);
   }, []);
 
   const handleOrgSearch = useCallback(
@@ -476,6 +563,8 @@ export default function OutboundSignUpFlow() {
 
         // Move to confirmation
         setStep((p) => p + 1);
+        setPaymentStatus("idle");
+        setPaymentError(null);
 
         // Fire webhook in background
         const chosenDate = scheduleDate.toISOString().split("T")[0];
@@ -715,7 +804,7 @@ export default function OutboundSignUpFlow() {
       <div className="flex items-center justify-between pt-2">
         <div className="text-xs text-slate-400 flex items-center gap-2">
           <Shield className="w-4 h-4 text-emerald-300" />
-          No credit card required.
+          Optional Stripe checkout in the final step.
         </div>
         <Button
           onClick={handleNextStep}
@@ -1346,6 +1435,253 @@ export default function OutboundSignUpFlow() {
     );
   };
 
+  const PaymentStep = () => {
+    const mappingDateTime = new Date(scheduleDate);
+    if (scheduleTime) {
+      const [hour, minute] = scheduleTime.split(":").map(Number);
+      if (!Number.isNaN(hour) && !Number.isNaN(minute)) {
+        mappingDateTime.setHours(hour, minute, 0, 0);
+      }
+    }
+    const billingStart = new Date(mappingDateTime.getTime() + 24 * 60 * 60 * 1000);
+
+    const mappingDisplay = new Intl.DateTimeFormat("en-US", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(mappingDateTime);
+    const billingDisplay = new Intl.DateTimeFormat("en-US", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(billingStart);
+
+    const startStripeCheckout = async () => {
+      try {
+        setPaymentError(null);
+        setPaymentStatus("idle");
+        setIsRedirectingToStripe(true);
+
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem(
+            "blueprintCheckoutContext",
+            JSON.stringify({
+              organizationName,
+              email,
+              contactName,
+              phoneNumber,
+              address,
+              squareFootage,
+              scheduleDate: scheduleDate.toISOString(),
+              scheduleTime,
+              demoDate: demoDate.toISOString(),
+              demoTime,
+            }),
+          );
+        }
+
+        const currentSearch = window.location.search;
+        const successPath = `${window.location.pathname}${
+          currentSearch ? `${currentSearch}&checkout=success` : "?checkout=success"
+        }`;
+        const cancelPath = `${window.location.pathname}${
+          currentSearch ? `${currentSearch}&checkout=canceled` : "?checkout=canceled"
+        }`;
+
+        const response = await fetch("/api/create-checkout-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionType: "onboarding",
+            onboardingFee: ONBOARDING_FEE,
+            monthlyPrice: MONTHLY_RATE,
+            includedHours: INCLUDED_WEEKLY_HOURS,
+            extraHourlyRate: EXTRA_HOURLY_RATE,
+            organizationName: organizationName.trim(),
+            contactName: contactName.trim(),
+            contactEmail: email.trim(),
+            mappingDateTime: mappingDateTime.toISOString(),
+            successPath,
+            cancelPath,
+          }),
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data?.sessionId) {
+          throw new Error(
+            data?.error || "We couldn’t start checkout just yet. Please try again.",
+          );
+        }
+
+        const publishableKey =
+          import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
+          import.meta.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ||
+          "pk_test_51ODuefLAUkK46LtZQ7o2si0POvd89pgNhE8pRcCCqMmmp9z534veOOiz81xMZcjZuEDK2CkdQnE9NhRy4WEoqWJG00ErDRTYlA";
+        const stripe = await loadStripe(publishableKey);
+        if (!stripe) {
+          throw new Error("Stripe could not be initialized. Try again shortly.");
+        }
+
+        const { error } = await stripe.redirectToCheckout({ sessionId: data.sessionId });
+        if (error) {
+          throw new Error(error.message);
+        }
+      } catch (err) {
+        console.error("Stripe checkout error", err);
+        const message =
+          err instanceof Error
+            ? err.message
+            : "We couldn't reach Stripe. Please try again.";
+        sessionStorage.removeItem("blueprintCheckoutContext");
+        setPaymentStatus("error");
+        setPaymentError(message);
+      } finally {
+        setIsRedirectingToStripe(false);
+      }
+    };
+
+    const handleSkip = () => {
+      setPaymentStatus("skipped");
+      setPaymentError(null);
+      setStep(6);
+    };
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl md:text-3xl font-bold text-white">
+            Plan & Payment (Optional)
+          </h2>
+          <p className="text-slate-300 mt-2">
+            Lock in onboarding now or handle it later—either way, your Blueprint Care plan only starts once we’re live on site.
+          </p>
+        </div>
+
+        <div className="grid gap-4">
+          <div className="rounded-2xl border border-emerald-400/20 bg-gradient-to-br from-emerald-500/10 via-cyan-500/10 to-slate-900/40 p-5">
+            <div className="flex items-start gap-3">
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                <CreditCard className="w-6 h-6 text-emerald-200" />
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-widest text-emerald-200/80">
+                  One-time onboarding
+                </p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold text-white">
+                    ${ONBOARDING_FEE.toFixed(2)}
+                  </span>
+                  <span className="text-sm text-slate-300">due today</span>
+                </div>
+                <p className="text-sm text-slate-300 mt-2">
+                  Covers our setup crew, mapping kit, and concierge activation for your pilot location.
+                </p>
+              </div>
+            </div>
+            <ul className="mt-4 space-y-2 text-sm text-slate-200">
+              <li className="flex items-start gap-2">
+                <BadgeCheck className="w-4 h-4 text-emerald-300 mt-0.5" />
+                Reserves your onsite onboarding on {mappingDisplay}.
+              </li>
+              <li className="flex items-start gap-2">
+                <BadgeCheck className="w-4 h-4 text-emerald-300 mt-0.5" />
+                Includes training for your team + blueprint performance review.
+              </li>
+            </ul>
+          </div>
+
+          <div className="rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-cyan-500/10 via-sky-500/10 to-slate-900/40 p-5">
+            <div className="flex items-start gap-3">
+              <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                <DollarSign className="w-6 h-6 text-cyan-200" />
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-widest text-cyan-200/80">
+                  Blueprint Care plan
+                </p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold text-white">
+                    ${MONTHLY_RATE.toFixed(2)}
+                  </span>
+                  <span className="text-sm text-slate-300">per month</span>
+                </div>
+                <p className="text-sm text-slate-300 mt-2">
+                  Starts {billingDisplay} — 24 hours after onboarding is complete.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
+              <div className="flex items-start gap-2 text-emerald-200 text-sm">
+                <BadgeCheck className="w-4 h-4 mt-0.5" />
+                {INCLUDED_WEEKLY_HOURS} hours of Blueprint staffing each week are included.
+              </div>
+              <div className="flex items-start gap-2 text-slate-200 text-sm">
+                <Clock3 className="w-4 h-4 text-cyan-200 mt-0.5" />
+                Extra hours billed at ${EXTRA_HOURLY_RATE.toFixed(2)} / hr—matches your Blueprint rate.
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5 flex items-start gap-3">
+            <Clock3 className="w-5 h-5 text-emerald-300 mt-1" />
+            <div>
+              <p className="text-sm text-slate-300">Onboarding locked for</p>
+              <p className="text-white font-semibold">{mappingDisplay}</p>
+              <p className="text-xs text-slate-400 mt-1">
+                Monthly billing begins {billingDisplay}. We only charge once Blueprint is live at your venue.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {paymentStatus === "canceled" && (
+          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            Checkout was canceled. You can try again below or skip for now—your pilot slot remains saved.
+          </div>
+        )}
+        {paymentStatus === "error" && paymentError && (
+          <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+            {paymentError}
+          </div>
+        )}
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-2">
+          <Button
+            variant="outline"
+            onClick={handlePrevStep}
+            className="border-white/20 text-slate-200 hover:bg-white/10"
+          >
+            <ChevronLeft className="w-4 h-4 mr-1" /> Back to Demo Day
+          </Button>
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <Button
+              variant="outline"
+              onClick={handleSkip}
+              className="border-white/20 text-slate-200 hover:bg-white/10"
+            >
+              Skip for now
+            </Button>
+            <Button
+              onClick={startStripeCheckout}
+              disabled={isRedirectingToStripe}
+              className="flex-1 sm:flex-none rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-600 hover:from-emerald-600 hover:to-cyan-700"
+            >
+              {isRedirectingToStripe ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Redirecting…
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  Pay ${ONBOARDING_FEE.toFixed(2)} now
+                  <ArrowRight className="w-4 h-4" />
+                </span>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   function Confirmation() {
     return (
       <div className="flex flex-col items-center text-center gap-4">
@@ -1357,6 +1693,17 @@ export default function OutboundSignUpFlow() {
           We’ve scheduled your mapping and demo. You’ll get an email + SMS
           reminder before each visit.
         </p>
+        {paymentStatus === "success" && (
+          <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100 flex items-start gap-2">
+            <BadgeCheck className="w-4 h-4 mt-0.5" />
+            Onboarding payment confirmed. Your Blueprint Care plan will start once your experience is live on site.
+          </div>
+        )}
+        {paymentStatus === "skipped" && (
+          <div className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
+            You can settle the $499.99 onboarding invoice later—your pilot access is fully unlocked.
+          </div>
+        )}
         <p className="text-xs text-slate-400">
           Thanks for choosing Blueprint — we can’t wait to bring your space to
           life.
@@ -1384,6 +1731,7 @@ export default function OutboundSignUpFlow() {
     { id: 2, label: "Contact & Location" },
     { id: 3, label: "Mapping" },
     { id: 4, label: "Demo Day" },
+    { id: 5, label: "Plan & Payment" },
   ];
 
   return (
@@ -1432,7 +1780,7 @@ export default function OutboundSignUpFlow() {
               </div>
               <div className="hidden md:flex items-center gap-3 text-slate-300">
                 <Shield className="w-5 h-5 text-emerald-300" />
-                <span className="text-sm">No credit card required</span>
+                <span className="text-sm">Optional Stripe checkout • Cancel anytime</span>
               </div>
             </div>
           </div>
@@ -1590,7 +1938,8 @@ export default function OutboundSignUpFlow() {
                         {step === 2 && Step2}
                         {step === 3 && <Step3 />}
                         {step === 4 && <Step4 />}
-                        {step === 5 && <Confirmation />}
+                        {step === 5 && <PaymentStep />}
+                        {step === 6 && <Confirmation />}
                       </motion.div>
                     </AnimatePresence>
                   </div>
