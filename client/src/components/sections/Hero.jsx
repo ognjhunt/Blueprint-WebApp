@@ -22,21 +22,21 @@ export default function Hero({ onPrimaryCta }) {
       k: "what",
       pre: "Blueprint in one line:",
       highlight:
-        "Turn your space into a guided, interactive AR layer—just by scanning a QR code.",
-      sub: "Guests use their headsets (or smart glasses). No app to install. No hardware to buy.",
+        "Launch an AI glasses concierge for your space—no internal build required.",
+      sub: "Teams and visitors get instant answers, guidance, and offers the moment they look at something in your location.",
     },
     {
       k: "how",
       pre: "We do the heavy lifting:",
       highlight:
-        "Map your location → design the content → on-site demo in ~10 days.",
-      sub: "Two short visits from us: Day 1 mapping (~60 min), then a demo 1–2 hrs about a week later.",
+        "Capture your space → train the AI flows → deliver a glasses-ready pilot in ~10 days.",
+      sub: "Two short visits from us: one to scan (~60 min) and one to activate a 1–2 hr demo with your team.",
     },
     {
       k: "pilot",
       pre: "Now enrolling in Durham:",
-      highlight: "$0 to try Blueprint at your location.",
-      sub: "Free, feedback-only pilot. Two visits: mapping (~60 min) + demo (1–2 hrs). No contract; no purchase option yet.",
+      highlight: "$0 pilot to future-proof your space for AI glasses.",
+      sub: "Feedback-only pilot while AI eyewear adoption accelerates. We co-design staff and guest workflows, run on-site demos, and share what resonated—no contract yet.",
     },
   ];
 
@@ -96,7 +96,7 @@ export default function Hero({ onPrimaryCta }) {
           className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs md:text-sm text-slate-200"
         >
           <MapPin className="w-3.5 h-3.5 text-emerald-300" />
-          Durham area • Free two-visit pilot
+          Durham area • AI glasses readiness pilot
         </motion.div>
 
         {/* Headline block */}
@@ -135,10 +135,10 @@ export default function Hero({ onPrimaryCta }) {
         >
           {[
             "Two visits (~10 days)",
-            "Mapping ~60 min",
-            "Live demo 1–2 hrs",
-            "Works on headsets & glasses",
-            "Analytics included",
+            "Spatial capture ~60 min",
+            "Live AI demo 1–2 hrs",
+            "Works on smart glasses & phones",
+            "Analytics + insights included",
           ].map((t) => (
             <span
               key={t}
@@ -160,7 +160,7 @@ export default function Hero({ onPrimaryCta }) {
             onClick={handlePrimary}
             className="h-12 w-full sm:w-auto rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 px-6 text-base font-semibold text-white shadow-xl border-0 hover:shadow-2xl hover:scale-[1.02] transition"
           >
-            Join the Durham Pilot (Free)
+            Join the Durham AI pilot (Free)
             <ArrowRightIcon className="ml-2 h-5 w-5" />
           </Button>
           <Link href="/pilot-program">
@@ -169,13 +169,13 @@ export default function Hero({ onPrimaryCta }) {
               className="h-12 w-full sm:w-auto rounded-xl border-white/20 px-6 text-base text-slate-800 hover:bg-white/10"
             >
               <Sparkles className="mr-2 h-5 w-5 text-emerald-500" />
-              See examples & how it works
+              See AI workflows & how it works
             </Button>
           </Link>
         </motion.div>
 
         <p className="mt-2 text-xs text-slate-400">
-          Pilot includes one on-site demo window; the AR experience is live
+          Pilot includes one on-site demo window; the AI experience is live
           during that session only.
         </p>
 

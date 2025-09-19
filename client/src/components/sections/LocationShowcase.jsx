@@ -40,9 +40,9 @@ export default function LocationShowcase() {
         before: "/images/higgsfieldapple.png",
         after: "/images/nano-banana_apple.png", //higgsfieldwalmart2.png
         benefits: [
-          "Highlight promos on-shelf",
-          "Guide to alternatives",
-          "Reduce returns",
+          "AI shelf guidance for shoppers",
+          "Surface promos in view",
+          "Reduce returns with smart suggestions",
         ],
       },
       {
@@ -52,9 +52,9 @@ export default function LocationShowcase() {
         before: "/images/higgsfieldmuseum.png",
         after: "/images/nano-museum.png",
         benefits: [
-          "Make exhibits interactive",
-          "Multilingual tours",
-          "More dwell time",
+          "AI narration triggered by exhibits",
+          "Instant multilingual explanations",
+          "Increase dwell time with stories",
         ],
       },
       {
@@ -64,9 +64,9 @@ export default function LocationShowcase() {
         before: "/images/higgsfieldhotel.png",
         after: "/images/nano-banana_hotel.png",
         benefits: [
-          "Upsell amenities",
-          "Self-guided wayfinding",
-          "Delight arrivals",
+          "Upsell amenities with AI prompts",
+          "Hands-free wayfinding",
+          "Delight arrivals with tailored greetings",
         ],
       },
       {
@@ -76,9 +76,9 @@ export default function LocationShowcase() {
         before: "/images/higgsfieldoffice.png",
         after: "/images/nano-banana_workplace.png",
         benefits: [
-          "AR product demos",
-          "Hands-free explanations",
-          "Better presentations",
+          "Hands-free product explanations",
+          "AI-assisted walkthroughs",
+          "Interactive client briefings",
         ],
       },
       {
@@ -88,9 +88,9 @@ export default function LocationShowcase() {
         before: "/images/geminiwalmart.jpeg",
         after: "/images/nano-banana_walmart.png",
         benefits: [
-          "Highlight promos on-shelf",
-          "Guide to alternatives",
-          "Reduce returns",
+          "AI aisle navigation for teams",
+          "Promotions appear in-view",
+          "Lift basket size with smart swaps",
         ],
       },
       {
@@ -100,9 +100,9 @@ export default function LocationShowcase() {
         before: "/images/higgsfieldgrocery2.png",
         after: "/images/nano-banana_grocery.png",
         benefits: [
-          "Aisle-by-aisle guidance",
-          "Nutrition & allergens",
-          "Deals & smart swaps",
+          "Aisle-by-aisle AI navigation",
+          "Nutrition & allergen callouts",
+          "Personalized deals & smart swaps",
         ],
       },
 
@@ -113,9 +113,9 @@ export default function LocationShowcase() {
         before: "/images/higgsfieldhome.png",
         after: "/images/nano-banana_realestate.png",
         benefits: [
-          "Virtual staging",
-          "Interactive floor plans",
-          "Remote walkthroughs",
+          "AI-staged property walkthroughs",
+          "Ask questions room by room",
+          "Remote co-touring support",
         ],
       }, //need to add: Walmart2 & grocery store
     ],
@@ -176,7 +176,7 @@ export default function LocationShowcase() {
           </h2>
           <p className="mt-2 text-slate-300 max-w-2xl mx-auto text-sm md:text-base">
             Scrub to compare before/after — how visitors experience your space
-            with AR overlays, guidance, and bite-size info.
+            with AI overlays, guidance, and bite-size info.
           </p>
         </div>
 
@@ -333,7 +333,7 @@ export default function LocationShowcase() {
             onClick={scrollToContact}
             className="rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white border-0 h-12 px-6 hover:shadow-2xl hover:scale-[1.02] transition"
           >
-            Join the Durham Pilot — Free Setup
+            Join the AI glasses pilot — Free Setup
           </Button>
         </div>
       </div>
