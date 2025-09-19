@@ -14,11 +14,13 @@ const perplexityApiKey =
   "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";
 const perplexityTimeoutMs = Number(process.env.PERPLEXITY_TIMEOUT_MS ?? 60_000);
 const deepResearchModel =
-  process.env.PERPLEXITY_DEEP_RESEARCH_MODEL || "sonar-reasoning";
+  process.env.PERPLEXITY_DEEP_RESEARCH_MODEL || "sonar-deep-research";
 const instructionsModel =
   process.env.PERPLEXITY_INSTRUCTIONS_MODEL || deepResearchModel;
-const reasoningEffort = (process.env.PERPLEXITY_REASONING_EFFORT ??
-  "medium") as "low" | "medium" | "high";
+const reasoningEffort = (process.env.PERPLEXITY_REASONING_EFFORT ?? "high") as
+  | "low"
+  | "medium"
+  | "high";
 const PERPLEXITY_ENDPOINT = "https://api.perplexity.ai/chat/completions";
 const PERPLEXITY_SYSTEM_MESSAGE =
   "You are Blueprint's automation copilot. Follow the user's instructions exactly and respond with valid JSON whenever a schema is provided.";
