@@ -39,6 +39,7 @@ import {
   Edit,
   Loader2,
   RefreshCcw,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDashboardOnboarding } from "@/hooks/useDashboardOnboarding";
@@ -90,11 +91,23 @@ import {
 import ScreenShareButton from "@/components/ScreenShareButton";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-import { getGoogleGenerativeAiKey, getGoogleMapsApiKey } from "@/lib/client-env";
+import {
+  getGoogleGenerativeAiKey,
+  getGoogleMapsApiKey,
+  getInternalSceneAccessCode,
+} from "@/lib/client-env";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // Animation variants
 const containerVariants = {
@@ -143,6 +156,17 @@ export default function Dashboard() {
   const [activeBlueprintsPercentage, setActiveBlueprintsPercentage] =
     useState(65);
   const [notificationCount, setNotificationCount] = useState(3);
+  const [showInternalAccessDialog, setShowInternalAccessDialog] =
+    useState(false);
+  const [internalAccessCodeInput, setInternalAccessCodeInput] =
+    useState("");
+  const [internalAccessError, setInternalAccessError] = useState<string | null>(
+    null,
+  );
+  const [selectedBlueprintForInternal, setSelectedBlueprintForInternal] =
+    useState<any | null>(null);
+  const [isValidatingInternalAccess, setIsValidatingInternalAccess] =
+    useState(false);
 
   // Filtered blueprints based on search query
   const filteredBlueprints = blueprints.filter(
@@ -168,6 +192,47 @@ export default function Dashboard() {
     topK: 40,
     maxOutputTokens: 8192,
     responseMimeType: "text/plain",
+  };
+
+  const internalAccessCode = getInternalSceneAccessCode();
+
+  const handleOpenInternalAccess = (blueprint: any) => {
+    setSelectedBlueprintForInternal(blueprint);
+    setInternalAccessCodeInput("");
+    setInternalAccessError(null);
+    setShowInternalAccessDialog(true);
+  };
+
+  const handleInternalAccessSubmit = () => {
+    if (isValidatingInternalAccess) return;
+
+    if (!internalAccessCode) {
+      setInternalAccessError(
+        "Internal access is not configured for this environment.",
+      );
+      return;
+    }
+
+    if (!internalAccessCodeInput.trim()) {
+      setInternalAccessError("Enter the internal access code to continue.");
+      return;
+    }
+
+    setIsValidatingInternalAccess(true);
+
+    setTimeout(() => {
+      if (internalAccessCodeInput.trim() === internalAccessCode) {
+        const targetId = selectedBlueprintForInternal?.id;
+        setIsValidatingInternalAccess(false);
+        setShowInternalAccessDialog(false);
+        if (targetId) {
+          window.location.href = `/blueprint-editor/${targetId}`;
+        }
+      } else {
+        setIsValidatingInternalAccess(false);
+        setInternalAccessError("Incorrect internal access code.");
+      }
+    }, 300);
   };
 
   /**
@@ -1737,14 +1802,14 @@ export default function Dashboard() {
                                       </div>
                                       <div className="mt-auto pt-3">
                                         <Link
-                                          href={`/blueprint-editor/${blueprint.id}`}
+                                          href={`/blueprints/${blueprint.id}/ai-studio`}
                                         >
                                           <Button
                                             variant="outline"
                                             size="sm"
                                             className="w-full text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
                                           >
-                                            View Details
+                                            Open AI Studio
                                           </Button>
                                         </Link>
                                       </div>
@@ -1907,12 +1972,17 @@ export default function Dashboard() {
                           <Card className="border border-gray-200 bg-white shadow-md overflow-hidden">
                             <CardHeader className="border-b border-gray-100 bg-white">
                               <div className="flex flex-col md:flex-row justify-between md:items-center space-y-3 md:space-y-0">
-                                <div>
-                                  <CardTitle className="text-xl font-bold text-black">
-                                    My Blueprints
-                                  </CardTitle>
-                                  <CardDescription className="text-sm text-slate-400">
-                                    Manage and monitor your Blueprint locations
+                                <div className="space-y-2">
+                                  <div className="flex flex-wrap items-center gap-3">
+                                    <CardTitle className="text-xl font-bold text-black">
+                                      My Blueprints
+                                    </CardTitle>
+                                    <Badge className="bg-emerald-500/15 text-emerald-500 border border-emerald-400/30">
+                                      Meta Wearables Ready
+                                    </Badge>
+                                  </div>
+                                  <CardDescription className="text-sm text-slate-500">
+                                    Configure AI access, connectors, and automations for each mapped location.
                                   </CardDescription>
                                 </div>
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -2009,7 +2079,7 @@ export default function Dashboard() {
                                           key={blueprint.id}
                                           className="cursor-pointer hover:bg-gray-50 transition-colors"
                                           onClick={() =>
-                                            (window.location.href = `/blueprint-editor/${blueprint.id}`)
+                                            (window.location.href = `/blueprints/${blueprint.id}/ai-studio`)
                                           }
                                           ref={
                                             index === 0
@@ -2051,10 +2121,10 @@ export default function Dashboard() {
                                                 className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
                                                 onClick={(e) => {
                                                   e.stopPropagation();
-                                                  window.location.href = `/blueprint-editor/${blueprint.id}`;
+                                                  window.location.href = `/blueprints/${blueprint.id}/ai-studio`;
                                                 }}
                                               >
-                                                Edit
+                                                Launch AI Studio
                                               </Button>
                                               <Button
                                                 variant="ghost"
@@ -2067,7 +2137,19 @@ export default function Dashboard() {
                                               >
                                                 <ExternalLink className="h-4 w-4" />
                                               </Button>
-                                            </div>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="text-slate-500 hover:text-slate-700"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleOpenInternalAccess(blueprint);
+                                                }}
+                                              >
+                                                <Lock className="mr-1 h-4 w-4" />
+                                                Internal Scene
+                                              </Button>
+                                          </div>
                                           </TableCell>
                                         </TableRow>
                                       ),
@@ -2438,7 +2520,7 @@ export default function Dashboard() {
           >
             <OnboardingTooltip
               title="Your Blueprint"
-              description="This is your 3D space that was just created. Click on it to view details or edit it."
+              description="This is your AI control center for the location. Open it to tune permissions, connectors, and wearable-ready automations."
               onNext={nextStep}
               onPrev={prevStep}
               onSkip={skipOnboarding}
@@ -2474,15 +2556,15 @@ export default function Dashboard() {
             targetRef={blueprintItemRef}
           >
             <OnboardingTooltip
-              title="Let's Edit Your Blueprint"
-              description="Now let's explore the Blueprint Editor where you can customize your 3D space and add interactive elements."
+              title="Launch the AI Access Studio"
+              description="Head into the AI Access Studio to connect data, craft prompts, and deploy Meta Wearables Device Access Toolkit actions."
               onNext={() => {
                 triggerConfetti();
                 completeOnboarding();
                 // Navigate to editor after a slight delay
                 setTimeout(() => {
                   if (blueprints.length > 0) {
-                    window.location.href = `/blueprint-editor/${blueprints[0].id}`;
+                    window.location.href = `/blueprints/${blueprints[0].id}/ai-studio`;
                   }
                 }, 1500);
               }}
@@ -2496,6 +2578,80 @@ export default function Dashboard() {
           </Spotlight>
         </>
       )}
+
+      <Dialog
+        open={showInternalAccessDialog}
+        onOpenChange={(open) => {
+          setShowInternalAccessDialog(open);
+          if (!open) {
+            setInternalAccessError(null);
+            setInternalAccessCodeInput("");
+            setIsValidatingInternalAccess(false);
+          }
+        }}
+      >
+        <DialogContent className="bg-slate-900/95 text-slate-100 border border-slate-800">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold text-white">
+              Internal Scene Access
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Enter the internal code to open the legacy 3D Blueprint Editor.
+              This keeps immersive scene editing reserved for the Blueprint
+              team while customers use the AI Studio.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm text-slate-300">
+              {selectedBlueprintForInternal?.name ? (
+                <div className="flex flex-col">
+                  <span className="text-slate-500">Blueprint</span>
+                  <span className="font-medium text-slate-100">
+                    {selectedBlueprintForInternal.name}
+                  </span>
+                </div>
+              ) : (
+                "Select a blueprint to continue."
+              )}
+            </div>
+            <Input
+              type="password"
+              value={internalAccessCodeInput}
+              onChange={(e) => setInternalAccessCodeInput(e.target.value)}
+              placeholder="Internal access code"
+              className="bg-slate-950/80 border-slate-700 text-slate-100 placeholder:text-slate-500"
+            />
+            {internalAccessError && (
+              <p className="text-sm text-rose-400">{internalAccessError}</p>
+            )}
+          </div>
+          <DialogFooter className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-slate-500">
+              Wearable AI editing now happens in the AI Studio. Unlock the 3D
+              scene only when you need to adjust geometry or anchors.
+            </p>
+            <div className="flex w-full justify-end gap-2 sm:w-auto">
+              <Button
+                variant="outline"
+                onClick={() => setShowInternalAccessDialog(false)}
+                className="border-slate-700 text-slate-200 hover:bg-slate-800/70"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleInternalAccessSubmit}
+                disabled={isValidatingInternalAccess}
+                className="bg-emerald-500 text-slate-900 hover:bg-emerald-400"
+              >
+                {isValidatingInternalAccess && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Unlock Scene
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </LiveAPIProvider>
   );
 }

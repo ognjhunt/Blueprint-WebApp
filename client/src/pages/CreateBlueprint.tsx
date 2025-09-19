@@ -1371,11 +1371,11 @@ export default function CreateBlueprint() {
         <Button
           variant="outline"
           onClick={() =>
-            (window.location.href = `/blueprint-editor/${formData.blueprintId}`)
+            (window.location.href = `/blueprints/${formData.blueprintId}/ai-studio`)
           }
           className="px-6 py-2"
         >
-          Customize Blueprint
+          Configure AI Studio
         </Button>
       </div>
     </div>
