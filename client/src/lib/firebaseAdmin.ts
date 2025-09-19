@@ -4,7 +4,7 @@ import path from "path";
 import { existsSync, readFileSync } from "fs";
 
 const SERVICE_ACCOUNT_FILE =
-  "blueprint-8c1ca-firebase-adminsdk-yu1gh-da1b8bf0d1.json";
+  "blueprint-8c1ca-firebase-adminsdk-yu1gh-5992fcf620.json";
 
 function loadServiceAccount(): ServiceAccount | null {
   const fromEnv = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
