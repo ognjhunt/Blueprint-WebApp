@@ -5708,7 +5708,7 @@ const ThreeViewer = React.memo(
       mountRef.current.addEventListener("dblclick", handleDoubleClick);
 
       let animationId: number;
-      
+
       function animate() {
         animationId = requestAnimationFrame(animate);
 
@@ -6369,7 +6369,7 @@ const ThreeViewer = React.memo(
         if (animationId) {
           cancelAnimationFrame(animationId);
         }
-        
+
         // Remove all event listeners
         window.removeEventListener("resize", handleResize);
         window.removeEventListener("keydown", handleTransformKeyDown);
@@ -6378,7 +6378,7 @@ const ThreeViewer = React.memo(
         renderer?.domElement.removeEventListener("pointerdown", onPointerDown);
         window.removeEventListener("pointermove", onPointerMove);
         window.removeEventListener("pointerup", onPointerUp);
-        
+
         if (mountRef.current) {
           mountRef.current.removeEventListener("contextmenu", handleRightClick);
           mountRef.current.removeEventListener("click", handleWalkStartClick, {
@@ -6390,25 +6390,31 @@ const ThreeViewer = React.memo(
           mountRef.current.removeEventListener("dragover", handleDragOver);
           mountRef.current.removeEventListener("dragleave", handleDragLeave);
           mountRef.current.removeEventListener("drop", handleDrop);
-          
+
           // Safely remove DOM elements
           try {
-            if (renderer.domElement && mountRef.current.contains(renderer.domElement)) {
+            if (
+              renderer.domElement &&
+              mountRef.current.contains(renderer.domElement)
+            ) {
               mountRef.current.removeChild(renderer.domElement);
             }
-            if (cssRenderer?.domElement && mountRef.current.contains(cssRenderer.domElement)) {
+            if (
+              cssRenderer?.domElement &&
+              mountRef.current.contains(cssRenderer.domElement)
+            ) {
               mountRef.current.removeChild(cssRenderer.domElement);
             }
           } catch (e) {
-            console.warn('Error removing DOM elements:', e);
+            console.warn("Error removing DOM elements:", e);
           }
         }
-        
+
         // Dispose Three.js resources properly
         transformControlsRef.current?.dispose();
         orbitControls?.dispose();
         pointerLockRef.current?.dispose();
-        
+
         // Dispose all materials, geometries, textures in scene
         scene.traverse((object) => {
           if (object instanceof THREE.Mesh) {
@@ -6423,12 +6429,12 @@ const ThreeViewer = React.memo(
             object.material?.dispose();
           }
         });
-        
+
         // Clear scene and dispose renderer
         scene.clear();
         renderer?.dispose();
-        cssRenderer?.dispose?.();
-        
+        // cssRenderer?.dispose?.();
+
         // Clear all refs
         anchorModelsRef.current.clear();
         anchorWebpagesRef.current.clear();
