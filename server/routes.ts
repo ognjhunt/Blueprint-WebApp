@@ -7,6 +7,7 @@ import processWaitlistHandler from "./routes/process-waitlist";
 // import processMappingConfirmationHandler from "./routes/mapping-confirmation"; // Commented out - handler is not exported
 import demoDayConfirmationHandler from "./routes/demo-day-confirmation";
 import uploadToB2Handler from "../client/src/pages/api/upload-to-b2";
+import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
 
 export function registerRoutes(app: Express) {
   // API routes for Express
@@ -18,4 +19,5 @@ export function registerRoutes(app: Express) {
   // app.post("/api/mapping-confirmation", processMappingConfirmationHandler); // Commented out - handler is not exported
   app.post("/api/demo-day-confirmation", demoDayConfirmationHandler);
   app.post("/api/upload-to-b2", uploadToB2Handler);
+  app.post("/api/post-signup-workflows", postSignupWorkflowsHandler);
 }

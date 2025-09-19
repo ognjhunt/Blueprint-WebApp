@@ -66,6 +66,7 @@ import {
   triggerLindyWebhook,
   type LindyWebhookPayload,
 } from "@/utils/lindyWebhook";
+import { triggerPostSignupWorkflowsDetached } from "@/utils/postSignupWorkflows";
 import { getGoogleMapsApiKey } from "@/lib/client-env";
 
 const ONBOARDING_FEE = 499.99;
@@ -599,6 +600,19 @@ export default function OutboundSignUpFlow() {
       } catch (err) {
         console.error("Lindy webhook invocation error:", err);
       }
+
+      triggerPostSignupWorkflowsDetached({
+        blueprintId,
+        userId: user.uid,
+        companyName: organizationName.trim(),
+        address: address.trim(),
+        companyUrl: companyWebsite.trim() || undefined,
+        contactName: contactName.trim() || undefined,
+        contactEmail: email.trim(),
+        contactPhone: phoneNumber.trim() || undefined,
+        locationType: "retail",
+        squareFootage: squareFootage ?? null,
+      });
     }
   }
 

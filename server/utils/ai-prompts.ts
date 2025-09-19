@@ -328,3 +328,193 @@ export function buildMappingConfirmationPhase2AIPrompt(
     The entire response from this phase will be considered [DeepResearchOutput].
     `;
 }
+
+export interface PostSignupWorkflowPromptInput {
+  companyName: string;
+  address: string;
+  companyUrl?: string;
+  locationType?: string;
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  squareFootage?: number | null;
+  onboardingGoal?: string;
+  audienceType?: string;
+}
+
+export interface PostSignupSystemInstructionContext {
+  summary?: string;
+  knowledgeSources: Array<{
+    title: string;
+    url: string;
+    category?: string;
+    description?: string;
+  }>;
+  topQuestions?: string[];
+  operationalDetails?: Record<string, unknown>;
+  metaRuntimeNotes?: string[];
+}
+
+export function buildPostSignupDeepResearchPrompt(
+  input: PostSignupWorkflowPromptInput,
+): string {
+  const {
+    companyName,
+    address,
+    companyUrl,
+    locationType,
+    contactName,
+    contactEmail,
+    contactPhone,
+    squareFootage,
+    onboardingGoal,
+    audienceType,
+  } = input;
+
+  const websiteLine = companyUrl
+    ? `- Primary website: ${companyUrl}`
+    : "- Primary website: Not provided (locate an authoritative URL).";
+  const audienceLine = audienceType
+    ? `- Primary audience served: ${audienceType}`
+    : "- Primary audience: Not specified.";
+  const goalLine = onboardingGoal
+    ? `- Deployment goal shared by client: ${onboardingGoal}`
+    : "- Deployment goal: Not specified.";
+  const areaLine =
+    typeof squareFootage === "number" && Number.isFinite(squareFootage)
+      ? `- Approximate square footage: ${squareFootage}`
+      : "- Approximate square footage: Not supplied.";
+  const contactDetails = [contactName, contactEmail, contactPhone]
+    .filter((value) => typeof value === "string" && value.trim())
+    .join(" | ");
+  const contactLine = contactDetails
+    ? `- Primary contact person: ${contactDetails}`
+    : "- Primary contact person: Not provided.";
+
+  return `You are Blueprint's Meta Wearables research orchestrator. Prepare a knowledge kit for an on-location assistant that runs through Meta's new Wearables Device Access Toolkit (announced at Connect 2025 with deep integrations for Ray-Ban Meta and Quest devices).
+
+Location overview:
+- Company: ${companyName}
+- Physical address: ${address}
+${websiteLine}
+- Location type / category: ${locationType ?? "Not provided"}
+${areaLine}
+${goalLine}
+${audienceLine}
+${contactLine}
+
+Research focus for the Meta Device Access Toolkit deployment:
+1. Find authoritative public URLs that answer walk-up visitor questions (hours, ticketing, reservations, exhibits, amenities, parking, accessibility, memberships, FAQs, special events, press, social media, review sites).
+2. Prefer first-party sources maintained by the business. When missing, find trustworthy third-party references (tourism boards, reputable reviews, local directories).
+3. Summarise context that is useful for a wearable assistant (short orientation, highlight flagship experiences, policies, membership perks).
+4. Capture operational details that guests need on-site (hours, booking flows, price ranges, accessibility statements, parking, Wi-Fi, direct contact numbers).
+5. Note anything relevant for spatial anchors, on-device guardrails, or instant actions that the Meta toolkit runtime can trigger (e.g., where anchors should live, staff-only areas, safety messaging).
+
+Return ONLY valid JSON with the following structure:
+{
+  "summary": "2-3 sentence briefing about the location and why visitors come.",
+  "knowledge_sources": [
+    {
+      "title": "Concise label (e.g., Reservations, Menu, Tickets)",
+      "url": "https://example.com/...",
+      "category": "menu|tickets|events|faq|policies|map|reviews|social|shop|accessibility|press|news|contact|other",
+      "description": "Why this link matters for on-site guests."
+    }
+  ],
+  "top_questions": [
+    "List 6-8 likely visitor questions answered by these sources."
+  ],
+  "operational_details": {
+    "hours": "Hours of operation with timezone",
+    "pricing": "Ticketing or pricing guidance if any",
+    "contact": "Key phone/email numbers for guests",
+    "accessibility": "Elevators, ADA info, service animal policy, etc.",
+    "parking": "Parking or transit guidance",
+    "wifi": "Guest Wi-Fi details if publicly offered"
+  },
+  "meta_runtime_notes": [
+    "Notes about spatial anchor opportunities, voice intents, or guardrails the Meta Device Access Toolkit runtime should enforce."
+  ]
+}
+
+- Deduplicate URLs and ensure they are absolute HTTPS links.
+- Include at least 6 knowledge_sources when the information exists.
+- If a field is unknown, use null instead of guessing.
+- Do not include markdown fences or commentary outside of the JSON object.`;
+}
+
+export function buildPostSignupSystemInstructionsPrompt(
+  input: PostSignupWorkflowPromptInput,
+  context: PostSignupSystemInstructionContext,
+): string {
+  const {
+    companyName,
+    address,
+    companyUrl,
+    locationType,
+    onboardingGoal,
+  } = input;
+
+  const knowledgeSourcesJson = JSON.stringify(context.knowledgeSources ?? [], null, 2);
+  const topQuestions =
+    context.topQuestions && context.topQuestions.length
+      ? context.topQuestions.map((q) => `- ${q}`).join("\n")
+      : "- No specific visitor questions captured.";
+  const operationalDetails = context.operationalDetails
+    ? JSON.stringify(context.operationalDetails, null, 2)
+    : "{}";
+  const metaNotes =
+    context.metaRuntimeNotes && context.metaRuntimeNotes.length
+      ? context.metaRuntimeNotes.map((note) => `- ${note}`).join("\n")
+      : "- No special runtime guardrails detected.";
+  const summary = context.summary ?? "No research summary was generated.";
+
+  return `You are drafting production-grade system instructions for Blueprint's on-location assistant deployed on Meta's Wearables Device Access Toolkit. The assistant speaks to guests at ${companyName} (${address}) using Ray-Ban Meta and Quest devices. It must comply with Meta's on-device guardrails, handle audio/voice interactions, and trigger spatial anchors or quick actions exposed by the toolkit.
+
+Research summary:
+${summary}
+
+Primary public site reference: ${companyUrl ?? "Not provided — rely on curated knowledge sources."}
+
+Knowledge sources (JSON):
+${knowledgeSourcesJson}
+
+Top visitor questions to anticipate:
+${topQuestions}
+
+Operational details pulled from research:
+${operationalDetails}
+
+Meta runtime notes:
+${metaNotes}
+
+Write instructions that:
+1. Define the assistant's persona and tone aligned with the venue's brand (location type: ${locationType ?? "unspecified"}; deployment goal: ${onboardingGoal ?? "engage visitors"}).
+2. Explain how to use the knowledge sources above—cite titles when referencing them and map them to Meta toolkit capabilities (e.g., knowledgeBase.lookup, blueprintAnchors.navigate, metaToolkit.launchAction).
+3. Outline available capabilities and triggers: accessing Blueprint spatial anchors, launching AR layers, handing off to staff, capturing visitor feedback, booking demos or tours.
+4. Include safety and privacy guardrails that align with Meta's Device Access Toolkit announcements (respect opt-outs, avoid storing personal data on-device, escalate sensitive or staff-only requests).
+5. Provide fallback behavior when no answer is available or when connectivity is limited.
+6. Keep responses concise (max two sentences unless the visitor asks for detail) and offer to open relevant links, anchors, or follow-up actions when helpful.
+7. End with quick reference metadata for the runtime (tone keywords, default language, mention to log unresolved questions for future training).
+
+Return ONLY valid JSON with the shape:
+{
+  "system_instructions": "Full instruction text ready for the assistant runtime.",
+  "voice": "Short description of tone/persona.",
+  "tool_hints": [
+    {
+      "name": "Tool or action name",
+      "when_to_use": "One sentence on when to trigger it",
+      "meta_call": "If relevant, mention the Device Access Toolkit API or Blueprint function"
+    }
+  ],
+  "fallback_messages": [
+    "Visitor-facing message used when the assistant lacks an answer."
+  ],
+  "meta_runtime_expectations": [
+    "Additional constraints or telemetry the runtime should apply."
+  ]
+}
+
+Do not include markdown fences or commentary. Output the JSON object only.`;
+}
