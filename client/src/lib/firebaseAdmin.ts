@@ -1,6 +1,7 @@
 // lib/firebaseAdmin.ts
 import * as admin from "firebase-admin";
 import path from "path";
+import { readFileSync } from "fs";
 
 // Option 1: Path to service account key file (RECOMMENDED for local dev, use env for production)
 // Ensure 'serviceAccountKey.json' is in your .gitignore!
@@ -11,8 +12,9 @@ const serviceAccountKeyPath =
 
 let serviceAccount;
 try {
-  // require() is often easier for loading JSON if the path is determined at runtime start
-  serviceAccount = require(serviceAccountKeyPath);
+  // Use readFileSync and JSON.parse instead of require() for ES modules
+  const serviceAccountKey = readFileSync(serviceAccountKeyPath, "utf8");
+  serviceAccount = JSON.parse(serviceAccountKey);
 } catch (e: any) {
   console.warn(
     `Failed to load Firebase service account key from: ${serviceAccountKeyPath}. \n` +
@@ -30,18 +32,24 @@ const firebaseConfigForAdmin = {
     process.env.FIREBASE_STORAGE_BUCKET || "blueprint-8c1ca.appspot.com",
 };
 
-if (!admin.apps.length) {
+// Check if admin is properly imported
+if (!admin) {
+  console.error("Firebase Admin SDK could not be imported");
+} else if (!admin.apps) {
+  console.error("Firebase Admin SDK apps property is not available");
+} else if (!admin.apps.length) {
   try {
     if (!serviceAccount) {
-      throw new Error(
-        "Firebase Admin SDK: Service account credentials are not loaded. Cannot initialize.",
+      console.warn(
+        "Firebase Admin SDK: Service account credentials are not loaded. Skipping initialization."
       );
+    } else {
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        storageBucket: firebaseConfigForAdmin.storageBucket,
+      });
+      console.log("Firebase Admin SDK initialized successfully.");
     }
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      storageBucket: firebaseConfigForAdmin.storageBucket,
-    });
-    console.log("Firebase Admin SDK initialized successfully.");
   } catch (error: any) {
     console.error("Firebase Admin SDK initialization error:", error.stack);
     // Consider how to handle this error. If admin SDK is critical,
@@ -49,8 +57,8 @@ if (!admin.apps.length) {
   }
 }
 
-// Export the initialized admin services
-export const dbAdmin = admin.firestore();
-export const storageAdmin = admin.storage();
-export const authAdmin = admin.auth();
+// Export the initialized admin services with error handling
+export const dbAdmin = admin?.firestore?.() || null;
+export const storageAdmin = admin?.storage?.() || null;
+export const authAdmin = admin?.auth?.() || null;
 export default admin; // Also export the default admin instance
