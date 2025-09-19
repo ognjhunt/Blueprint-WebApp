@@ -5707,8 +5707,10 @@ const ThreeViewer = React.memo(
       mountRef.current.addEventListener("click", handleClick);
       mountRef.current.addEventListener("dblclick", handleDoubleClick);
 
+      let animationId: number;
+      
       function animate() {
-        requestAnimationFrame(animate);
+        animationId = requestAnimationFrame(animate);
 
         // Minimal updates during animation
         TWEEN.update();
@@ -6363,13 +6365,20 @@ const ThreeViewer = React.memo(
       window.addEventListener("resize", handleResize);
 
       return () => {
+        // CRITICAL: Stop the animation loop
+        if (animationId) {
+          cancelAnimationFrame(animationId);
+        }
+        
+        // Remove all event listeners
         window.removeEventListener("resize", handleResize);
-        window.removeEventListener("keydown", handleTransformKeyDown); // Use correct handler name
+        window.removeEventListener("keydown", handleTransformKeyDown);
         window.removeEventListener("keydown", onKeyDown);
         window.removeEventListener("keyup", onKeyUp);
         renderer?.domElement.removeEventListener("pointerdown", onPointerDown);
         window.removeEventListener("pointermove", onPointerMove);
         window.removeEventListener("pointerup", onPointerUp);
+        
         if (mountRef.current) {
           mountRef.current.removeEventListener("contextmenu", handleRightClick);
           mountRef.current.removeEventListener("click", handleWalkStartClick, {
@@ -6381,26 +6390,55 @@ const ThreeViewer = React.memo(
           mountRef.current.removeEventListener("dragover", handleDragOver);
           mountRef.current.removeEventListener("dragleave", handleDragLeave);
           mountRef.current.removeEventListener("drop", handleDrop);
-          mountRef.current.removeChild(renderer.domElement);
-          if (
-            cssRenderer &&
-            cssRenderer.domElement &&
-            mountRef.current.contains(cssRenderer.domElement)
-          ) {
-            mountRef.current.removeChild(cssRenderer.domElement);
+          
+          // Safely remove DOM elements
+          try {
+            if (renderer.domElement && mountRef.current.contains(renderer.domElement)) {
+              mountRef.current.removeChild(renderer.domElement);
+            }
+            if (cssRenderer?.domElement && mountRef.current.contains(cssRenderer.domElement)) {
+              mountRef.current.removeChild(cssRenderer.domElement);
+            }
+          } catch (e) {
+            console.warn('Error removing DOM elements:', e);
           }
         }
+        
+        // Dispose Three.js resources properly
         transformControlsRef.current?.dispose();
+        orbitControls?.dispose();
+        pointerLockRef.current?.dispose();
+        
+        // Dispose all materials, geometries, textures in scene
+        scene.traverse((object) => {
+          if (object instanceof THREE.Mesh) {
+            object.geometry?.dispose();
+            if (Array.isArray(object.material)) {
+              object.material.forEach((material) => material.dispose());
+            } else {
+              object.material?.dispose();
+            }
+          }
+          if (object instanceof THREE.Sprite) {
+            object.material?.dispose();
+          }
+        });
+        
+        // Clear scene and dispose renderer
         scene.clear();
-        if (renderer) {
-          renderer.dispose();
-        }
-
+        renderer?.dispose();
+        cssRenderer?.dispose?.();
+        
+        // Clear all refs
         anchorModelsRef.current.clear();
         anchorWebpagesRef.current.clear();
         textAnchorsRef.current.clear();
         fileAnchorsRef.current.clear();
         qrCodeMarkersRef.current.clear();
+        alignmentMarkersRef.current.clear();
+        pointMarkersRef.current.clear();
+        pointMeshesRef.current.clear();
+        fileAnchorElementsRef.current.clear();
       };
     }, [modelPath]);
 

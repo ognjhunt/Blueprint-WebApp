@@ -48,8 +48,10 @@ export default function Hero({ onPrimaryCta }) {
   useEffect(() => {
     if (shouldReduce) return;
     const id = setInterval(() => setIdx((p) => (p + 1) % lines.length), 6500);
-    return () => clearInterval(id);
-  }, [shouldReduce]);
+    return () => {
+      clearInterval(id);
+    };
+  }, [shouldReduce, lines.length]);
 
   const handlePrimary = () => {
     if (typeof onPrimaryCta === "function") onPrimaryCta();

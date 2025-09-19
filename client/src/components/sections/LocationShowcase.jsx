@@ -129,15 +129,29 @@ export default function LocationShowcase() {
 
   // Preload active + next images
   useEffect(() => {
+    const images = [];
+    
     const preload = (src) => {
       const img = new Image();
       img.src = src;
+      images.push(img);
+      return img;
     };
+    
     preload(active.before);
     preload(active.after);
     const next = locations[(activeIndex + 1) % locations.length];
     preload(next.before);
     preload(next.after);
+    
+    // Cleanup function to abort loading if component unmounts
+    return () => {
+      images.forEach(img => {
+        img.src = '';
+        img.onload = null;
+        img.onerror = null;
+      });
+    };
   }, [active, activeIndex, locations]);
 
   const scrollToContact = () => {

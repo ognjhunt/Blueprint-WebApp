@@ -77,7 +77,9 @@ export default function Home() {
       { threshold: 0.3 }, // adjust so it hides when ~30% of the contact section is visible
     );
     if (contactRef.current) observer.observe(contactRef.current);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+    };
   }, []);
 
   // Hide CTA once we've reached the contact section (and keep it hidden below)
@@ -91,9 +93,11 @@ export default function Home() {
       // small buffer so it disappears a touch early
       setHasReachedContact(viewportBottom >= contactTop - 8);
     };
+    
     computeReached(); // initialize on first mount
     window.addEventListener("scroll", computeReached, { passive: true });
     window.addEventListener("resize", computeReached);
+    
     return () => {
       window.removeEventListener("scroll", computeReached);
       window.removeEventListener("resize", computeReached);
