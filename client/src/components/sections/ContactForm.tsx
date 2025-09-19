@@ -279,12 +279,13 @@ export default function ContactForm() {
           <h2 className="text-3xl md:text-5xl font-black leading-tight text-white">
             Ready to Transform Your{" "}
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-300 to-cyan-300">
-              Customer Experience?
+              Customer Experience with AI Glasses?
             </span>
           </h2>
           <p className="text-base md:text-xl text-slate-300 mt-3">
-            Onboard in ~60 minutes. No app required. Durham & nearby businesses
-            welcome.
+            Launch a hands-free AI guide in ~60 minutes. No app required, and it
+            works on the smart glasses your teams and guests will soon wear.
+            Durham & nearby businesses welcome.
           </p>
         </motion.div>
 
@@ -306,12 +307,12 @@ export default function ContactForm() {
                   </span>
                 </div>
                 <h3 className="font-black text-2xl md:text-3xl mb-4 leading-tight">
-                  Be Among the First to Launch AR Experiences
+                  Be Among the First to Deploy AI Glasses Experiences
                 </h3>
                 <p className="mb-6 text-sm md:text-base text-slate-300">
-                  Blueprint is transforming how businesses engage customers
-                  across retail, hospitality, and commercial spaces. Join our
-                  exclusive Pilot Program.
+                  Blueprint readies your space for the AI wearables wave—across
+                  retail, hospitality, workplaces, and venues. Join our
+                  exclusive pilot to see how AI guidance feels on-site.
                 </p>
 
                 <div className="space-y-4">
@@ -332,9 +333,9 @@ export default function ContactForm() {
                     </div>
                     <div>
                       <h4 className="font-semibold">White-Glove Onboarding</h4>
-                      <p className="text-sm text-slate-400">
-                        We map, design, and activate on-site.
-                      </p>
+                        <p className="text-sm text-slate-400">
+                          We scan, design AI flows, and activate on-site.
+                        </p>
                     </div>
                   </div>
                 </div>
@@ -572,7 +573,7 @@ export default function ContactForm() {
                       ref={messageRef}
                       id="message"
                       name="message"
-                      placeholder="Describe your space, goals, or any specific AR experiences you have in mind..."
+                      placeholder="Describe your space, goals, or any specific AI glasses experiences you have in mind..."
                       rows={3}
                       value={formData.message}
                       onChange={handleChange}
@@ -612,7 +613,7 @@ export default function ContactForm() {
                     ) : (
                       <div className="flex items-center justify-center gap-3">
                         <RocketLaunchIcon className="w-5 h-5" />
-                        Join Pilot Program
+                        Join AI Pilot Program
                       </div>
                     )}
                   </Button>

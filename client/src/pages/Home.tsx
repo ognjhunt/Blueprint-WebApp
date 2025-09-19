@@ -106,15 +106,18 @@ export default function Home() {
 
   const benefits = useMemo(
     () => [
-      { icon: <Clock className="w-4 h-4" />, label: "60-min on-site setup" },
-      { icon: <Smartphone className="w-4 h-4" />, label: "No app required" },
+      { icon: <Clock className="w-4 h-4" />, label: "60-min spatial capture" },
+      {
+        icon: <Smartphone className="w-4 h-4" />,
+        label: "Smart glasses + phone ready",
+      },
       {
         icon: <Sparkles className="w-4 h-4" />,
-        label: "Custom AR for your space",
+        label: "Hands-free AI concierge",
       },
       {
         icon: <BarChart3 className="w-4 h-4" />,
-        label: "Live engagement analytics",
+        label: "Live operations insights",
       },
     ],
     [],
@@ -196,27 +199,27 @@ export default function Home() {
                 {[
                   {
                     icon: <Clock className="w-4 h-4" />,
-                    label: "60-min on-site setup",
+                    label: "60-min spatial capture",
                   },
                   {
                     icon: <Smartphone className="w-4 h-4" />,
-                    label: "No app required",
+                    label: "Smart glasses + phone ready",
                   },
                   {
                     icon: <Sparkles className="w-4 h-4" />,
-                    label: "Custom AR for your space",
+                    label: "Hands-free AI concierge",
                   },
                   {
                     icon: <BarChart3 className="w-4 h-4" />,
-                    label: "Live engagement analytics",
+                    label: "Real-time operations insights",
                   },
                   {
                     icon: <ShieldCheck className="w-4 h-4" />,
-                    label: "No hardware cost",
+                    label: "No hardware purchase required",
                   },
                   {
                     icon: <Sparkles className="w-4 h-4" />,
-                    label: "Works on headsets & glasses",
+                    label: "Trained on your brand",
                   },
                   {
                     icon: <Clock className="w-4 h-4" />,
@@ -224,32 +227,32 @@ export default function Home() {
                   },
                   {
                     icon: <BarChart3 className="w-4 h-4" />,
-                    label: "Boosts customer engagement",
+                    label: "Staff & visitor analytics",
                   },
                   // duplicate once for seamless loop:
                   {
                     icon: <Clock className="w-4 h-4" />,
-                    label: "60-min on-site setup",
+                    label: "60-min spatial capture",
                   },
                   {
                     icon: <Smartphone className="w-4 h-4" />,
-                    label: "No app required",
+                    label: "Smart glasses + phone ready",
                   },
                   {
                     icon: <Sparkles className="w-4 h-4" />,
-                    label: "Custom AR for your space",
+                    label: "Hands-free AI concierge",
                   },
                   {
                     icon: <BarChart3 className="w-4 h-4" />,
-                    label: "Live engagement analytics",
+                    label: "Real-time operations insights",
                   },
                   {
                     icon: <ShieldCheck className="w-4 h-4" />,
-                    label: "No hardware cost",
+                    label: "No hardware purchase required",
                   },
                   {
                     icon: <Sparkles className="w-4 h-4" />,
-                    label: "Works on headsets & glasses",
+                    label: "Trained on your brand",
                   },
                   {
                     icon: <Clock className="w-4 h-4" />,
@@ -257,7 +260,7 @@ export default function Home() {
                   },
                   {
                     icon: <BarChart3 className="w-4 h-4" />,
-                    label: "Boosts customer engagement",
+                    label: "Staff & visitor analytics",
                   },
                 ].map((b, i) => (
                   <div
@@ -314,11 +317,11 @@ export default function Home() {
                   What you’ll get
                 </h3>
                 <ul className="space-y-2 text-sm text-slate-300">
-                  <li>• LiDAR mapping of your space</li>
-                  <li>• Custom AR layer tailored to your brand</li>
-                  <li>• QR kit for instant access on-site</li>
-                  <li>• VR headset demo day for your team</li>
-                  <li>• Simple engagement recap & next-step options</li>
+                  <li>• Spatial scan that trains our AI</li>
+                  <li>• Workflow design for staff & guests</li>
+                  <li>• Glasses + phone activation kit</li>
+                  <li>• Hands-on training session</li>
+                  <li>• Engagement recap & next steps</li>
                 </ul>
               </div>
 
@@ -330,9 +333,9 @@ export default function Home() {
                       We handle
                     </p>
                     <ul className="space-y-1 text-sm text-slate-300">
-                      <li>• Mapping & design</li>
-                      <li>• Setup & devices</li>
-                      <li>• Analytics recap</li>
+                      <li>• Capture & AI training</li>
+                      <li>• Setup across glasses & phones</li>
+                      <li>• Insight recap</li>
                     </ul>
                   </div>
                   <div>
@@ -404,11 +407,11 @@ export default function Home() {
                   What you’ll get
                 </h3>
                 <ul className="space-y-2 text-sm text-slate-300">
-                  <li>• LiDAR mapping</li>
-                  <li>• Custom AR layer</li>
-                  <li>• QR kit</li>
-                  <li>• VR headset demo day</li>
-                  <li>• Engagement recap</li>
+                  <li>• Spatial capture walk-through</li>
+                  <li>• AI flows tuned to your brand</li>
+                  <li>• Glasses + phone activation kit</li>
+                  <li>• On-site enablement session</li>
+                  <li>• Engagement & ops recap</li>
                 </ul>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-6 flex flex-col">
@@ -418,9 +421,9 @@ export default function Home() {
                       We handle
                     </p>
                     <ul className="space-y-1 text-sm text-slate-300">
-                      <li>• Mapping & design</li>
-                      <li>• Setup & devices</li>
-                      <li>• Analytics recap</li>
+                      <li>• Capture & AI training</li>
+                      <li>• Setup across glasses & phones</li>
+                      <li>• Insight recap</li>
                     </ul>
                   </div>
                   <div>
@@ -448,7 +451,7 @@ export default function Home() {
                     onClick={handleScrollToContact}
                     className="rounded-xl h-10 bg-gradient-to-r from-emerald-500 to-cyan-600 text-white"
                   >
-                    Join the Pilot
+                    Join the AI pilot
                   </Button>
                 </div>
               </div>
@@ -483,19 +486,21 @@ export default function Home() {
               {/* light sweep */}
               <div className="pointer-events-none absolute -top-1/2 left-1/2 h-[120%] w-[60%] -translate-x-1/2 rotate-12 bg-gradient-to-b from-white/10 to-transparent blur-2xl" />
               <h3 className="text-2xl md:text-4xl font-black text-white">
-                Ready to put AR to work in your location?
+                Ready to deliver AI glasses guidance in your location?
               </h3>
               <p className="mt-3 text-slate-300 max-w-2xl mx-auto">
-                We’re onboarding businesses within a 30-minute drive of Durham.
-                Two quick visits about a week apart: mapping (~60 min) and an
-                on-site demo (1–2 hrs). The pilot is free.
+                Smart glasses launches from Meta, Google, Apple, and Samsung are
+                bringing hands-free AI into the mainstream. We help you capture
+                your space, design the workflows, and test with your team in
+                about 10 days. Two quick visits: a 60-minute scan and a 1–2 hour
+                on-site demo. The pilot is free.
               </p>
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 justify-center">
                 <Button
                   onClick={handleScrollToContact}
                   className="h-12 w-full text-base rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white border-0 shadow-xl hover:shadow-2xl hover:scale-[1.02] transition will-change-transform"
                 >
-                  Join the Durham Pilot (Free)
+                  Join the AI glasses pilot (Free)
                 </Button>
                 <a href="/pilot-program" className="w-full">
                   <Button
