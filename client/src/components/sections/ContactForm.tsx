@@ -325,8 +325,8 @@ export default function ContactForm() {
                 </h3>
                 <p className="mb-6 text-sm md:text-base text-slate-300">
                   Blueprint readies your space for the AI wearables wave—across
-                  retail, hospitality, workplaces, and venues. Join our
-                  exclusive pilot to see how AI guidance feels on-site.
+                  retail, hospitality, workplaces, and venues. Join the free
+                  pilot to feel how on-site AI guidance works.
                 </p>
 
                 <div className="space-y-4">

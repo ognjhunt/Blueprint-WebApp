@@ -486,7 +486,7 @@ export default function Home() {
               {/* light sweep */}
               <div className="pointer-events-none absolute -top-1/2 left-1/2 h-[120%] w-[60%] -translate-x-1/2 rotate-12 bg-gradient-to-b from-white/10 to-transparent blur-2xl" />
               <h3 className="text-2xl md:text-4xl font-black text-white">
-                Ready to deliver AI glasses guidance in your location?
+                Ready to deliver an on-site AI solution?
               </h3>
               <p className="mt-3 text-slate-300 max-w-2xl mx-auto">
                 Smart glasses launches from Meta, Google, Apple, and Samsung are
