@@ -1,7 +1,8 @@
 type ClientEnvKey =
   | "VITE_GOOGLE_MAPS_API_KEY"
   | "VITE_GOOGLE_GENAI_API_KEY"
-  | "VITE_GOOGLE_API_KEY";
+  | "VITE_GOOGLE_API_KEY"
+  | "VITE_INTERNAL_SCENE_ACCESS_CODE";
 
 const cache: Partial<Record<ClientEnvKey, string>> = {};
 
@@ -43,5 +44,9 @@ export function getGoogleGenerativeAiKey(): string | null {
 
 export function getGoogleApiKey(): string {
   return getRequiredClientEnv("VITE_GOOGLE_API_KEY");
+}
+
+export function getInternalSceneAccessCode(): string | null {
+  return getOptionalClientEnv("VITE_INTERNAL_SCENE_ACCESS_CODE");
 }
 

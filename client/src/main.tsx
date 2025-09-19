@@ -20,6 +20,7 @@ const Profile = lazy(() => import("./pages/Profile"));
 const SignIn = lazy(() => import("./pages/SignIn"));
 const CreateAccount = lazy(() => import("./pages/CreateAccount"));
 const BlueprintEditor = lazy(() => import("./pages/BlueprintEditor"));
+const BlueprintAiStudio = lazy(() => import("./pages/BlueprintAiStudio"));
 const Discover = lazy(() => import("./pages/Discover"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
 const OffWaitlistSignUpFlow = lazy(
@@ -111,6 +112,11 @@ function Router() {
       <Route path="/blueprint-editor/:id?">
         <ProtectedRoute>
           <BlueprintEditor />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/blueprints/:id/ai-studio">
+        <ProtectedRoute>
+          <BlueprintAiStudio />
         </ProtectedRoute>
       </Route>
 
