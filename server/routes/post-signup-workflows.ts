@@ -12,18 +12,14 @@ import {
 const perplexityApiKey =
   process.env.PERPLEXITY_API_KEY ||
   "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";
-const perplexityTimeoutMs = Number(
-  process.env.PERPLEXITY_TIMEOUT_MS ?? 60_000,
-);
+const perplexityTimeoutMs = Number(process.env.PERPLEXITY_TIMEOUT_MS ?? 60_000);
 const deepResearchModel =
   process.env.PERPLEXITY_DEEP_RESEARCH_MODEL || "sonar-reasoning";
 const instructionsModel =
   process.env.PERPLEXITY_INSTRUCTIONS_MODEL || deepResearchModel;
-const reasoningEffort = (process.env.PERPLEXITY_REASONING_EFFORT ?? "medium") as
-  | "low"
-  | "medium"
-  | "high";
-const PERPLEXITY_ENDPOINT = "https://api.perplexity.ai/responses";
+const reasoningEffort = (process.env.PERPLEXITY_REASONING_EFFORT ??
+  "medium") as "low" | "medium" | "high";
+const PERPLEXITY_ENDPOINT = "https://api.perplexity.ai/chat/completions";
 const PERPLEXITY_SYSTEM_MESSAGE =
   "You are Blueprint's automation copilot. Follow the user's instructions exactly and respond with valid JSON whenever a schema is provided.";
 
@@ -238,7 +234,8 @@ function normalizeKnowledgeSources(value: any): KnowledgeSource[] {
   for (const entry of value) {
     if (!entry) continue;
 
-    const title = typeof entry.title === "string" ? entry.title.trim() : undefined;
+    const title =
+      typeof entry.title === "string" ? entry.title.trim() : undefined;
     let url = typeof entry.url === "string" ? entry.url.trim() : undefined;
 
     if (!title || !url) continue;
@@ -373,7 +370,8 @@ function normalizeWelcomeMessages(value: any): Record<string, string> {
         : rawValue && typeof rawValue === "object"
           ? (typeof rawValue.message === "string" && rawValue.message.trim()) ||
             (typeof rawValue.text === "string" && rawValue.text.trim()) ||
-            (typeof rawValue.template === "string" && rawValue.template.trim()) ||
+            (typeof rawValue.template === "string" &&
+              rawValue.template.trim()) ||
             (typeof rawValue.body === "string" && rawValue.body.trim()) ||
             (typeof rawValue.content === "string" && rawValue.content.trim())
           : "";
@@ -503,10 +501,7 @@ export default async function postSignupWorkflowsHandler(
 
     const researchText = extractResponseText(researchResponse);
     if (!researchText.trim()) {
-      logger.error(
-        requestMeta,
-        "Deep research call returned empty response",
-      );
+      logger.error(requestMeta, "Deep research call returned empty response");
       return res.status(502).json({
         error: "Deep research response was empty",
       });
@@ -519,7 +514,8 @@ export default async function postSignupWorkflowsHandler(
         researchJson.urls,
     );
     const referenceKnowledgeSources = knowledgeSourcesFromReferences(
-      (researchResponse && (researchResponse.references || researchResponse.citations)) ||
+      (researchResponse &&
+        (researchResponse.references || researchResponse.citations)) ||
         researchJson.references,
     );
     const knowledgeSources = mergeKnowledgeSources(
@@ -587,13 +583,14 @@ export default async function postSignupWorkflowsHandler(
     const toolHints = Array.isArray(instructionsJson.tool_hints)
       ? instructionsJson.tool_hints
           .map((entry: any) => entry)
-          .filter((entry: any) =>
-            entry && typeof entry === "object" && Object.keys(entry).length > 0,
+          .filter(
+            (entry: any) =>
+              entry &&
+              typeof entry === "object" &&
+              Object.keys(entry).length > 0,
           )
       : [];
-    const fallbackMessages = Array.isArray(
-      instructionsJson.fallback_messages,
-    )
+    const fallbackMessages = Array.isArray(instructionsJson.fallback_messages)
       ? instructionsJson.fallback_messages
           .map((msg: any) => (typeof msg === "string" ? msg.trim() : ""))
           .filter(Boolean)
@@ -628,8 +625,7 @@ export default async function postSignupWorkflowsHandler(
       });
 
       const welcomeMessagesText = extractResponseText(welcomeMessagesResponse);
-      const welcomeMessagesJson =
-        extractJsonPayload(welcomeMessagesText) ?? {};
+      const welcomeMessagesJson = extractJsonPayload(welcomeMessagesText) ?? {};
 
       welcomeMessages = normalizeWelcomeMessages(
         welcomeMessagesJson.welcome_messages ||
