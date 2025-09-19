@@ -64,7 +64,7 @@ export default function Home() {
     }
   }, []);
 
-  //just to make changes, necessary again, yeeyee, testign
+  //just to make changes, necessary again, yeeyee, testignasa
 
   useEffect(() => {
     if (currentUser) setLocation("/dashboard");
