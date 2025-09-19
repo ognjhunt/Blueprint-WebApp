@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import OpenAI from "openai";
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { attachRequestMeta, logger } from "../logger";
@@ -10,20 +9,102 @@ import {
   type PostSignupWorkflowPromptInput,
 } from "../utils/ai-prompts";
 
-const openAiApiKey = process.env.OPENAI_API_KEY;
-const openAiTimeoutMs = Number(process.env.OPENAI_TIMEOUT_MS ?? 60_000);
+const perplexityApiKey =
+  process.env.PERPLEXITY_API_KEY ||
+  "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";
+const perplexityTimeoutMs = Number(
+  process.env.PERPLEXITY_TIMEOUT_MS ?? 60_000,
+);
 const deepResearchModel =
-  process.env.OPENAI_DEEP_RESEARCH_MODEL || "o4-mini-deep-research";
+  process.env.PERPLEXITY_DEEP_RESEARCH_MODEL || "sonar-reasoning";
 const instructionsModel =
-  process.env.OPENAI_SYSTEM_INSTRUCTION_MODEL || "o4-mini";
+  process.env.PERPLEXITY_INSTRUCTIONS_MODEL || deepResearchModel;
+const reasoningEffort = (process.env.PERPLEXITY_REASONING_EFFORT ?? "medium") as
+  | "low"
+  | "medium"
+  | "high";
+const PERPLEXITY_ENDPOINT = "https://api.perplexity.ai/responses";
+const PERPLEXITY_SYSTEM_MESSAGE =
+  "You are Blueprint's automation copilot. Follow the user's instructions exactly and respond with valid JSON whenever a schema is provided.";
 
-const openai = openAiApiKey
-  ? new OpenAI({
-      apiKey: openAiApiKey,
-      maxRetries: 2,
-      timeout: openAiTimeoutMs,
-    })
-  : null;
+type PerplexityMessage = {
+  role: "system" | "user" | "assistant";
+  content: string;
+};
+
+async function callPerplexity({
+  model,
+  prompt,
+  useReasoning = false,
+  maxOutputTokens,
+}: {
+  model: string;
+  prompt: string;
+  useReasoning?: boolean;
+  maxOutputTokens?: number;
+}) {
+  if (!perplexityApiKey) {
+    throw new Error("Perplexity API key is not configured");
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    Math.max(1_000, perplexityTimeoutMs),
+  );
+
+  try {
+    const messages: PerplexityMessage[] = [
+      { role: "system", content: PERPLEXITY_SYSTEM_MESSAGE },
+      { role: "user", content: prompt },
+    ];
+
+    const body: Record<string, unknown> = {
+      model,
+      messages,
+      temperature: 0.2,
+      return_references: true,
+      stream: false,
+    };
+
+    if (useReasoning) {
+      body.reasoning = { effort: reasoningEffort };
+    }
+
+    if (typeof maxOutputTokens === "number") {
+      body.max_output_tokens = maxOutputTokens;
+    }
+
+    const response = await fetch(PERPLEXITY_ENDPOINT, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${perplexityApiKey}`,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      throw new Error(
+        `Perplexity request failed: ${response.status} ${response.statusText}${
+          errorText ? ` - ${errorText}` : ""
+        }`,
+      );
+    }
+
+    return (await response.json()) as any;
+  } catch (error: any) {
+    if (error?.name === "AbortError") {
+      throw new Error("Perplexity request timed out");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 type PostSignupWorkflowRequest = PostSignupWorkflowPromptInput & {
   blueprintId: string;
@@ -188,6 +269,77 @@ function normalizeKnowledgeSources(value: any): KnowledgeSource[] {
   return Array.from(map.values()).slice(0, 16);
 }
 
+function knowledgeSourcesFromReferences(value: any): KnowledgeSource[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const map = new Map<string, KnowledgeSource>();
+
+  for (const entry of value) {
+    if (!entry) continue;
+
+    const title =
+      typeof entry.title === "string" && entry.title.trim()
+        ? entry.title.trim()
+        : typeof entry.heading === "string" && entry.heading.trim()
+          ? entry.heading.trim()
+          : undefined;
+    let url =
+      typeof entry.url === "string" && entry.url.trim()
+        ? entry.url.trim()
+        : typeof entry.link === "string" && entry.link.trim()
+          ? entry.link.trim()
+          : undefined;
+
+    if (!title || !url) continue;
+
+    if (!/^https?:\/\//i.test(url)) {
+      url = `https://${url}`;
+    }
+
+    const category =
+      typeof entry.domain === "string" && entry.domain.trim()
+        ? entry.domain.trim()
+        : typeof entry.category === "string" && entry.category.trim()
+          ? entry.category.trim()
+          : undefined;
+    const description =
+      typeof entry.passage === "string" && entry.passage.trim()
+        ? entry.passage.trim()
+        : typeof entry.snippet === "string" && entry.snippet.trim()
+          ? entry.snippet.trim()
+          : undefined;
+
+    map.set(url, {
+      title,
+      url,
+      category,
+      description,
+    });
+  }
+
+  return Array.from(map.values()).slice(0, 16);
+}
+
+function mergeKnowledgeSources(
+  ...collections: KnowledgeSource[][]
+): KnowledgeSource[] {
+  const map = new Map<string, KnowledgeSource>();
+
+  for (const collection of collections) {
+    for (const source of collection) {
+      if (!source?.url) continue;
+      const key = source.url.toLowerCase();
+      if (!map.has(key)) {
+        map.set(key, source);
+      }
+    }
+  }
+
+  return Array.from(map.values()).slice(0, 24);
+}
+
 function toCamelCase(input: string): string {
   const normalized = input
     .trim()
@@ -274,8 +426,11 @@ export default async function postSignupWorkflowsHandler(
     route: "post-signup-workflows",
   });
 
-  if (!openai) {
-    logger.error(requestMetaBase, "OpenAI client not configured for post-signup workflows");
+  if (!perplexityApiKey) {
+    logger.error(
+      requestMetaBase,
+      "Perplexity API key not configured for post-signup workflows",
+    );
     return res.status(500).json({ error: "Service temporarily unavailable" });
   }
 
@@ -339,14 +494,11 @@ export default async function postSignupWorkflowsHandler(
 
     const researchPrompt = buildPostSignupDeepResearchPrompt(promptInput);
 
-    const researchResponse = await openai.responses.create({
+    const researchResponse = await callPerplexity({
       model: deepResearchModel,
-      input: researchPrompt,
-      tools: [
-        { type: "web_search_preview" },
-        { type: "code_interpreter", container: { type: "auto" } },
-      ],
-      max_output_tokens: 4_096,
+      prompt: researchPrompt,
+      useReasoning: true,
+      maxOutputTokens: 4_096,
     });
 
     const researchText = extractResponseText(researchResponse);
@@ -361,10 +513,18 @@ export default async function postSignupWorkflowsHandler(
     }
 
     const researchJson = extractJsonPayload(researchText) ?? {};
-    const knowledgeSources = normalizeKnowledgeSources(
+    const structuredKnowledgeSources = normalizeKnowledgeSources(
       researchJson.knowledge_sources ||
         researchJson.knowledgeSources ||
         researchJson.urls,
+    );
+    const referenceKnowledgeSources = knowledgeSourcesFromReferences(
+      (researchResponse && (researchResponse.references || researchResponse.citations)) ||
+        researchJson.references,
+    );
+    const knowledgeSources = mergeKnowledgeSources(
+      structuredKnowledgeSources,
+      referenceKnowledgeSources,
     );
     const topQuestions = Array.isArray(researchJson.top_questions)
       ? researchJson.top_questions
@@ -397,9 +557,9 @@ export default async function postSignupWorkflowsHandler(
       },
     );
 
-    const instructionsResponse = await openai.responses.create({
+    const instructionsResponse = await callPerplexity({
       model: instructionsModel,
-      input: instructionsPrompt,
+      prompt: instructionsPrompt,
     });
 
     const instructionsText = extractResponseText(instructionsResponse);
@@ -462,9 +622,9 @@ export default async function postSignupWorkflowsHandler(
         },
       );
 
-      const welcomeMessagesResponse = await openai.responses.create({
+      const welcomeMessagesResponse = await callPerplexity({
         model: instructionsModel,
-        input: welcomeMessagesPrompt,
+        prompt: welcomeMessagesPrompt,
       });
 
       const welcomeMessagesText = extractResponseText(welcomeMessagesResponse);
