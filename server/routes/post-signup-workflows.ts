@@ -424,6 +424,18 @@ export default async function postSignupWorkflowsHandler(
     route: "post-signup-workflows",
   });
 
+  if (!db) {
+    logger.error(
+      requestMetaBase,
+      "Firestore admin client is not configured for post-signup workflows",
+    );
+
+    return res.status(500).json({
+      error: "Failed to process post-signup workflows",
+      details: "Firestore is not configured",
+    });
+  }
+
   if (!perplexityApiKey) {
     logger.error(
       requestMetaBase,
