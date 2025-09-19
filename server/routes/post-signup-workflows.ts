@@ -6,6 +6,7 @@ import { attachRequestMeta, logger } from "../logger";
 import {
   buildPostSignupDeepResearchPrompt,
   buildPostSignupSystemInstructionsPrompt,
+  buildPostSignupWelcomeMessagesPrompt,
   type PostSignupWorkflowPromptInput,
 } from "../utils/ai-prompts";
 
@@ -185,6 +186,83 @@ function normalizeKnowledgeSources(value: any): KnowledgeSource[] {
   }
 
   return Array.from(map.values()).slice(0, 16);
+}
+
+function toCamelCase(input: string): string {
+  const normalized = input
+    .trim()
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .toLowerCase()
+    .split(" ")
+    .filter(Boolean);
+
+  if (normalized.length === 0) {
+    return input.trim();
+  }
+
+  return (
+    normalized[0] +
+    normalized
+      .slice(1)
+      .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+      .join("")
+  );
+}
+
+function normalizeWelcomeMessages(value: any): Record<string, string> {
+  const messages: Record<string, string> = {};
+
+  const assignMessage = (rawKey: string | undefined, rawValue: any) => {
+    if (!rawKey) return;
+
+    const message =
+      typeof rawValue === "string"
+        ? rawValue.trim()
+        : rawValue && typeof rawValue === "object"
+          ? (typeof rawValue.message === "string" && rawValue.message.trim()) ||
+            (typeof rawValue.text === "string" && rawValue.text.trim()) ||
+            (typeof rawValue.template === "string" && rawValue.template.trim()) ||
+            (typeof rawValue.body === "string" && rawValue.body.trim()) ||
+            (typeof rawValue.content === "string" && rawValue.content.trim())
+          : "";
+
+    if (message) {
+      messages[toCamelCase(rawKey)] = message;
+    }
+  };
+
+  if (!value) {
+    return messages;
+  }
+
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      if (!entry) continue;
+      if (typeof entry === "string") {
+        assignMessage("target_customer", entry);
+        continue;
+      }
+
+      const keyCandidate =
+        (typeof entry.persona === "string" && entry.persona) ||
+        (typeof entry.audience === "string" && entry.audience) ||
+        (typeof entry.key === "string" && entry.key) ||
+        (typeof entry.id === "string" && entry.id) ||
+        (typeof entry.type === "string" && entry.type);
+
+      assignMessage(keyCandidate, entry);
+    }
+
+    return messages;
+  }
+
+  if (typeof value === "object") {
+    for (const [key, raw] of Object.entries(value)) {
+      assignMessage(key, raw);
+    }
+  }
+
+  return messages;
 }
 
 export default async function postSignupWorkflowsHandler(
@@ -368,6 +446,54 @@ export default async function postSignupWorkflowsHandler(
           .filter(Boolean)
       : [];
 
+    let welcomeMessages: Record<string, string> = {};
+
+    try {
+      const welcomeMessagesPrompt = buildPostSignupWelcomeMessagesPrompt(
+        promptInput,
+        {
+          summary: researchSummary,
+          knowledgeSources,
+          topQuestions,
+          operationalDetails,
+          metaRuntimeNotes,
+          systemInstructions,
+          assistantVoice,
+        },
+      );
+
+      const welcomeMessagesResponse = await openai.responses.create({
+        model: instructionsModel,
+        input: welcomeMessagesPrompt,
+      });
+
+      const welcomeMessagesText = extractResponseText(welcomeMessagesResponse);
+      const welcomeMessagesJson =
+        extractJsonPayload(welcomeMessagesText) ?? {};
+
+      welcomeMessages = normalizeWelcomeMessages(
+        welcomeMessagesJson.welcome_messages ||
+          welcomeMessagesJson.messages ||
+          welcomeMessagesJson.templates ||
+          welcomeMessagesJson,
+      );
+
+      if (Object.keys(welcomeMessages).length === 0) {
+        logger.warn(
+          attachRequestMeta({
+            ...requestMeta,
+            welcomeMessagesRaw: welcomeMessagesText?.slice(0, 500) ?? null,
+          }),
+          "Welcome messages response contained no parsable entries",
+        );
+      }
+    } catch (welcomeError) {
+      logger.error(
+        { ...requestMeta, err: welcomeError },
+        "Failed to generate welcome messages",
+      );
+    }
+
     const blueprintRef = db.collection("blueprints").doc(blueprintId);
     const timestamp = admin.firestore.FieldValue.serverTimestamp();
 
@@ -423,6 +549,11 @@ export default async function postSignupWorkflowsHandler(
       updateData.aiAssistantMetaRuntimeExpectations = metaRuntimeExpectations;
     }
 
+    if (Object.keys(welcomeMessages).length > 0) {
+      updateData.aiAssistantWelcomeMessages = welcomeMessages;
+      updateData.aiAssistantWelcomeMessagesUpdatedAt = timestamp;
+    }
+
     await blueprintRef.set(updateData, { merge: true });
 
     logger.info(
@@ -430,6 +561,7 @@ export default async function postSignupWorkflowsHandler(
         ...requestMeta,
         knowledgeSourceCount: knowledgeSources.length,
         hasInstructions: Boolean(systemInstructions),
+        welcomeMessageCount: Object.keys(welcomeMessages).length,
       }),
       "Post-signup workflows completed",
     );
@@ -440,6 +572,7 @@ export default async function postSignupWorkflowsHandler(
       knowledgeSourceCount: knowledgeSources.length,
       topQuestionCount: topQuestions.length,
       storedInstructions: Boolean(systemInstructions),
+      welcomeMessageCount: Object.keys(welcomeMessages).length,
     });
   } catch (error: any) {
     logger.error(

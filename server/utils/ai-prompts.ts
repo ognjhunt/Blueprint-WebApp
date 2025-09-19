@@ -355,6 +355,12 @@ export interface PostSignupSystemInstructionContext {
   metaRuntimeNotes?: string[];
 }
 
+export interface PostSignupWelcomeMessageContext
+  extends PostSignupSystemInstructionContext {
+  systemInstructions?: string;
+  assistantVoice?: string;
+}
+
 export function buildPostSignupDeepResearchPrompt(
   input: PostSignupWorkflowPromptInput,
 ): string {
@@ -516,5 +522,102 @@ Return ONLY valid JSON with the shape:
   ]
 }
 
+Do not include markdown fences or commentary. Output the JSON object only.`;
+}
+
+export function buildPostSignupWelcomeMessagesPrompt(
+  input: PostSignupWorkflowPromptInput,
+  context: PostSignupWelcomeMessageContext,
+): string {
+  const {
+    companyName,
+    address,
+    locationType,
+    onboardingGoal,
+    audienceType,
+  } = input;
+
+  const summary = context.summary ?? "No research summary available.";
+
+  let voiceLine = "Preferred tone: Warm, helpful, brand-aligned.";
+  if (typeof context.assistantVoice === "string" && context.assistantVoice.trim()) {
+    voiceLine = "Preferred tone: " + context.assistantVoice + ".";
+  }
+
+  let systemInstructionsLine =
+    "System instruction highlights: Not provided yet—rely on the research summary and details.";
+  if (
+    typeof context.systemInstructions === "string" &&
+    context.systemInstructions.trim()
+  ) {
+    systemInstructionsLine =
+      "System instruction highlights:\n" + context.systemInstructions;
+  }
+
+  const knowledgeSourceLines = (context.knowledgeSources || [])
+    .slice(0, 8)
+    .map((source) => {
+      const categoryLabel = source.category ? ` [${source.category}]` : "";
+      return `- ${source.title}${categoryLabel}: ${source.url}`;
+    })
+    .join("\n");
+
+  const topQuestionsLines = context.topQuestions?.length
+    ? context.topQuestions.map((q) => `- ${q}`).join("\n")
+    : "- None captured.";
+
+  const operationalDetailsBlock =
+    context.operationalDetails && Object.keys(context.operationalDetails).length
+      ? JSON.stringify(context.operationalDetails, null, 2)
+      : "{}";
+
+  const metaNotesLines = context.metaRuntimeNotes?.length
+    ? context.metaRuntimeNotes.map((note) => `- ${note}`).join("\n")
+    : "- None.";
+
+  return `You are Blueprint's onboarding copy specialist. Draft concise welcome messages that the on-location assistant will speak when greeting different personas arriving at ${companyName} (${address}). Keep each response to one or two sentences in first-person assistant voice, pointing visitors to helpful actions informed by Blueprint's capabilities.
+
+Location type: ${locationType ?? "unspecified"}
+Primary onboarding goal: ${onboardingGoal ?? "engage visitors"}
+Primary audience noted: ${audienceType ?? "not specified"}
+
+Research summary:
+${summary}
+
+${voiceLine}
+
+${systemInstructionsLine}
+
+Key knowledge sources:
+${knowledgeSourceLines || "- None provided."}
+
+Operational details JSON:
+${operationalDetailsBlock}
+
+Top visitor questions to anticipate:
+${topQuestionsLines}
+
+Meta runtime notes:
+${metaNotesLines}
+
+Personas requiring distinct welcome templates:
+1. target_customer — Core guests who match the ideal customer profile.
+2. casual_visitor — Curious walk-ins exploring ${companyName} without a plan.
+3. vip_member — Loyalty members, subscribers, or high-value guests expecting premium service.
+4. staff_member — Employees or internal team members verifying schedules, tasks, or SOPs.
+5. partner_press — Partners, vendors, or press/influencer contacts arriving for meetings or coverage.
+
+Return ONLY valid JSON exactly in the following shape:
+{
+  "welcome_messages": {
+    "target_customer": "Message for target customers.",
+    "casual_visitor": "Message for casual visitors.",
+    "vip_member": "Message for VIPs or members.",
+    "staff_member": "Message for staff members.",
+    "partner_press": "Message for partners, vendors, or press."
+  }
+}
+
+Messages must stay under ~35 words, reference Blueprint or the assistant's ability to help, and avoid markdown formatting. Respond with the JSON object only.
 Do not include markdown fences or commentary. Output the JSON object only.`;
 }
