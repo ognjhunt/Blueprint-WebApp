@@ -1,60 +1,73 @@
-import express from "express";
-import { Request, Response } from "express";
-import OpenAI from "openai";
+import express, { Request, Response } from "express";
+
+import { attachRequestMeta, logger } from "../logger";
 
 const router = express.Router();
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const parallelWebhookSecret = process.env.PARALLEL_WEBHOOK_SECRET;
 
-// Store in-progress requests (in production, use Redis or database)
-const pendingRequests = new Map<string, any>();
+router.post("/parallel", (req: Request, res: Response) => {
+  const signatureHeader =
+    (req.headers["x-parallel-signature"] as string | undefined) ||
+    (req.headers["parallel-signature"] as string | undefined) ||
+    (req.headers["parallel-webhook-secret"] as string | undefined);
 
-router.post("/openai-webhook", async (req: Request, res: Response) => {
-  try {
-    // Verify webhook signature (important for security)
-    const signature = req.headers["webhook-signature"] as string;
-    const timestamp = req.headers["webhook-timestamp"] as string;
-    const webhookId = req.headers["webhook-id"] as string;
-
-    // Verify the webhook (you'll need to implement this with your webhook secret)
-    // const isValid = verifyWebhookSignature(req.body, signature, timestamp, process.env.OPENAI_WEBHOOK_SECRET);
-    // if (!isValid) return res.status(400).send('Invalid signature');
-
-    const event = req.body;
-
-    if (event.type === "response.completed") {
-      const responseId = event.data.id;
-
-      // Retrieve the completed deep research response
-      const completedResponse = await openai.responses.retrieve(responseId);
-
-      // Get the original request data (you'll need to store this when starting background task)
-      const originalRequestData = pendingRequests.get(responseId);
-
-      if (originalRequestData && completedResponse.output_text) {
-        // Continue with Phase 2B - update Google Sheets and Notion
-        await continuePhase2B(
-          completedResponse.output_text,
-          originalRequestData,
-        );
-
-        // Clean up
-        pendingRequests.delete(responseId);
-      }
-    }
-
-    res.status(200).send("OK");
-  } catch (error) {
-    console.error("Webhook error:", error);
-    res.status(500).send("Webhook processing failed");
+  if (
+    parallelWebhookSecret &&
+    signatureHeader &&
+    signatureHeader !== parallelWebhookSecret
+  ) {
+    logger.warn(
+      attachRequestMeta({
+        route: "parallel-webhook",
+        reason: "signature_mismatch",
+      }),
+      "Parallel webhook signature mismatch",
+    );
+    return res.status(401).json({ error: "Invalid webhook signature" });
   }
-});
 
-async function continuePhase2B(
-  deepResearchFindings: string,
-  originalData: any,
-) {
-  // Your Phase 2B logic here - update Google Sheets, Notion, Firebase, etc.
-  // This is the same as the Phase 2B code from earlier
-}
+  const eventPayload = (req.body ?? {}) as Record<string, any>;
+  const eventType =
+    eventPayload.type ||
+    eventPayload.event ||
+    eventPayload?.data?.type ||
+    "unknown";
+  const runId =
+    eventPayload.run_id ||
+    eventPayload.id ||
+    eventPayload?.data?.run_id ||
+    eventPayload?.data?.id ||
+    null;
+  const status =
+    eventPayload.status ||
+    eventPayload?.data?.status ||
+    eventPayload?.result?.status ||
+    null;
+
+  logger.info(
+    attachRequestMeta({
+      route: "parallel-webhook",
+      eventType,
+      runId,
+      status,
+    }),
+    "Parallel webhook event received",
+  );
+
+  if ((logger as any).level === "debug" || process.env.LOG_LEVEL === "debug") {
+    logger.info(
+      attachRequestMeta({
+        route: "parallel-webhook",
+        eventType,
+        runId,
+        status,
+        payload: eventPayload,
+      }),
+      "Parallel webhook payload",
+    );
+  }
+
+  res.status(200).json({ received: true });
+});
 
 export default router;

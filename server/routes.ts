@@ -8,9 +8,11 @@ import processWaitlistHandler from "./routes/process-waitlist";
 import demoDayConfirmationHandler from "./routes/demo-day-confirmation";
 import uploadToB2Handler from "../client/src/pages/api/upload-to-b2";
 import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
+import webhooksRouter from "./routes/webhooks";
 
 export function registerRoutes(app: Express) {
   // API routes for Express
+  app.use("/api/webhooks", webhooksRouter);
   app.post("/api/create-checkout-session", createCheckoutSessionHandler);
   app.get("/api/googlePlaces", googlePlacesHandler);
   app.all("/api/generate-image", generateImageHandler);
