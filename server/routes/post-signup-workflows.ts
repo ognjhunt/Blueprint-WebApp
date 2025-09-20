@@ -402,6 +402,21 @@ async function callParallelTask({
     task_spec: taskSpec,
   };
 
+  // NEW: attach metadata (keys ≤16 chars, values ≤512 chars, both strings)
+  if (metadata && typeof metadata === "object") {
+    const md: Record<string, string> = {};
+    for (const [k, v] of Object.entries(metadata)) {
+      if (!k) continue;
+      const key = String(k).slice(0, 16);
+      if (v !== undefined && v !== null) {
+        md[key] = String(v).slice(0, 512);
+      }
+    }
+    if (Object.keys(md).length) {
+      (body as any).metadata = md;
+    }
+  }
+
   // Stream progress + receive completion push
   body.enable_events = true;
 
@@ -434,7 +449,9 @@ async function callParallelTask({
   // Persist runId so we can fetch results even if this request stops waiting
   const firestore = db;
   const blueprintId =
-    typeof metadata?.blueprintId === "string" ? (metadata.blueprintId as string) : null;
+    typeof metadata?.blueprintId === "string"
+      ? (metadata.blueprintId as string)
+      : null;
 
   if (blueprintId && !firestore) {
     logger.warn(
