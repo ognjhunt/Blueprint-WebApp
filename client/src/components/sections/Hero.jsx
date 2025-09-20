@@ -53,6 +53,41 @@ export default function Hero({ onPrimaryCta }) {
     "Analytics & insights included",
   ];
 
+  const lines2 = [
+    {
+      k: "owners",
+      pre: "For location owners:",
+      highlight: "Bring wearable AI service to your venue in weeks.",
+      sub: "Blueprint packages the new device access toolkits into guest-ready pilots for retail, hospitality, attractions, and campuses.",
+    },
+    {
+      k: "how",
+      pre: "What we handle:",
+      highlight: "Space scans, agent flows, and hardware provisioning.",
+      sub: "We capture your layout, map the top questions and tasks, and deliver a guided run-through for your team.",
+    },
+    {
+      k: "why",
+      pre: "Why plan now:",
+      highlight: "Wearable assistants are arriving from every major platform.",
+      sub: "Blueprint keeps your location ready as Meta, Google, Apple, and Samsung release next-gen glasses.",
+    },
+    {
+      k: "proof",
+      pre: "Outcomes you can measure:",
+      highlight: "On-site pilots tied to staffing, revenue, and guest KPIs.",
+      sub: "We integrate with your CRM, LMS, and analytics so you learn what to scale.",
+    },
+  ];
+
+  const features2 = [
+    "Venue scan + AI flows in ~10 days",
+    "No custom app required",
+    "Works with smart glasses & phones",
+    "Staff onboarding + playbooks included",
+    "Analytics & privacy controls baked in",
+  ];
+
   const [idx, setIdx] = useState(0);
   const wrapRef = useRef(null);
   const inView = useInView(wrapRef, { once: true, margin: "-10% 0px" });
