@@ -23,6 +23,10 @@ localPort = 41313
 externalPort = 3001
 
 [[ports]]
+localPort = 42185
+externalPort = 4200
+
+[[ports]]
 localPort = 45411
 externalPort = 3003
 
@@ -62,3 +66,6 @@ waitForPort = 5000
 
 [workflows.workflow.metadata]
 outputType = "webview"
+
+[agent]
+integrations = ["javascript_openai:1.0.0"]
