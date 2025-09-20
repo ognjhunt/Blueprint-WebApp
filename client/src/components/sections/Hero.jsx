@@ -88,16 +88,42 @@ export default function Hero({ onPrimaryCta }) {
     "Analytics & privacy controls baked in",
   ];
 
+  const [variant, setVariant] = useState("A");
   const [idx, setIdx] = useState(0);
   const wrapRef = useRef(null);
   const inView = useInView(wrapRef, { once: true, margin: "-10% 0px" });
   const shouldReduce = useReducedMotion();
 
   useEffect(() => {
+    const resolveVariant = () => {
+      if (typeof window === "undefined") return "A";
+      const stored = window.sessionStorage.getItem("heroVariant");
+      if (stored === "A" || stored === "B") return stored;
+      const generated = Math.random() < 0.5 ? "A" : "B";
+      window.sessionStorage.setItem("heroVariant", generated);
+      return generated;
+    };
+
+    const nextVariant = resolveVariant();
+    setVariant(nextVariant);
+  }, []);
+
+  const activeLines = variant === "A" ? lines : lines2;
+  const activeFeatures = variant === "A" ? features : features2;
+  const currentLine = activeLines[idx] ?? activeLines[0];
+
+  useEffect(() => {
     if (shouldReduce) return;
-    const id = setInterval(() => setIdx((p) => (p + 1) % lines.length), 6500);
+    const id = setInterval(
+      () => setIdx((p) => (p + 1) % activeLines.length),
+      6500,
+    );
     return () => clearInterval(id);
-  }, [shouldReduce, lines.length]);
+  }, [shouldReduce, activeLines.length, variant]);
+
+  useEffect(() => {
+    setIdx(0);
+  }, [variant]);
 
   const handlePrimary = () => {
     if (typeof onPrimaryCta === "function") onPrimaryCta();
@@ -149,23 +175,23 @@ export default function Hero({ onPrimaryCta }) {
         <div className="mt-4 md:mt-6 min-h-[7.5rem] md:min-h-[9.5rem] pb-1 md:pb-2">
           <AnimatePresence mode="wait">
             <motion.div
-              key={lines[idx].k}
+              key={currentLine?.k ?? "hero-line"}
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -14 }}
               transition={{ duration: 0.55 }}
             >
               <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black lg:leading-[1.08] md:leading-[1.1] leading-[1.12] text-white">
-                <span className="block text-slate-100">{lines[idx].pre}</span>
+                <span className="block text-slate-100">{currentLine?.pre}</span>
                 <span
                   className="block bg-gradient-to-r from-emerald-400 via-cyan-300 to-emerald-200 bg-clip-text text-transparent inline-block pb-[0.06em]"
                   style={{ WebkitTextFillColor: "transparent" }}
                 >
-                  {lines[idx].highlight}
+                  {currentLine?.highlight}
                 </span>
               </h1>
               <p className="mt-3 max-w-2xl text-sm sm:text-base md:text-lg text-slate-300">
-                {lines[idx].sub}
+                {currentLine?.sub}
               </p>
             </motion.div>
           </AnimatePresence>
@@ -178,7 +204,7 @@ export default function Hero({ onPrimaryCta }) {
           transition={{ delay: 0.15 }}
           className="mt-5 flex flex-wrap gap-2"
         >
-          {features.map((t) => (
+          {activeFeatures.map((t) => (
             <span
               key={t}
               className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs md:text-sm text-slate-200"
