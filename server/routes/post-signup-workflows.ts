@@ -369,6 +369,10 @@ function normalizeParallelResult(result: any) {
   return normalized;
 }
 
+type ParallelTaskMetadata = Record<string, unknown> & {
+  blueprintId?: string;
+};
+
 async function callParallelTask({
   prompt,
   metadata,
@@ -377,7 +381,7 @@ async function callParallelTask({
   processor,
 }: {
   prompt: string;
-  metadata?: Record<string, unknown>;
+  metadata?: ParallelTaskMetadata;
   maxOutputTokens?: number;
   requestMeta?: Record<string, unknown>;
   processor?: string;
@@ -428,25 +432,40 @@ async function callParallelTask({
   }
 
   // Persist runId so we can fetch results even if this request stops waiting
-  try {
-    await db
-      .collection("blueprints")
-      .doc(blueprintId)
-      .set(
-        {
-          postSignupWorkflowStatus: {
-            lastRunId: runId,
-            lastProcessor: taskProcessor,
-            lastSubmittedAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-        },
-        { merge: true },
-      );
-  } catch (e) {
+  const firestore = db;
+  const blueprintId =
+    typeof metadata?.blueprintId === "string" ? (metadata.blueprintId as string) : null;
+
+  if (blueprintId && !firestore) {
     logger.warn(
-      { ...requestMeta, err: e, runId },
-      "Failed to persist Parallel runId",
+      attachRequestMeta({
+        ...requestMeta,
+        blueprintId,
+        runId,
+      }),
+      "Firestore not configured; skipping runId persistence",
     );
+  } else if (blueprintId && firestore) {
+    try {
+      await firestore
+        .collection("blueprints")
+        .doc(blueprintId)
+        .set(
+          {
+            postSignupWorkflowStatus: {
+              lastRunId: runId,
+              lastProcessor: taskProcessor,
+              lastSubmittedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+          },
+          { merge: true },
+        );
+    } catch (e) {
+      logger.warn(
+        { ...requestMeta, err: e, runId, blueprintId },
+        "Failed to persist Parallel runId",
+      );
+    }
   }
 
   let latestStatus: ParallelTaskStatus | undefined =
@@ -917,7 +936,9 @@ export default async function postSignupWorkflowsHandler(
     route: "post-signup-workflows",
   });
 
-  if (!db) {
+  const firestore = db;
+
+  if (!firestore) {
     logger.error(
       requestMetaBase,
       "Firestore admin client is not configured for post-signup workflows",
@@ -1186,7 +1207,7 @@ export default async function postSignupWorkflowsHandler(
       );
     }
 
-    const blueprintRef = db.collection("blueprints").doc(blueprintId);
+    const blueprintRef = firestore.collection("blueprints").doc(blueprintId);
     const timestamp = admin.firestore.FieldValue.serverTimestamp();
 
     const updateData: Record<string, any> = {

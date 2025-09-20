@@ -5,7 +5,7 @@
 // - Premium "aurora glass" aesthetic with parallax orbs & grid
 // - Subtle motion with prefers-reduced-motion guard
 // - Sticky mobile CTA, above-the-fold trust chips, animated counters
-// - Uses existing: Nav, Hero, LocationShowcase, ContactForm, Footer
+// - Uses existing: Nav, Hero, WearableAIDemos, ContactForm, Footer
 // ===============================================
 
 import React, {
@@ -21,8 +21,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import Nav from "@/components/Nav";
 import Hero from "@/components/sections/Hero";
 // ↓ Lazy-load below-the-fold UI so the Home above-the-fold gets first paint fast
-const LocationShowcase = lazy(
-  () => import("@/components/sections/LocationShowcase"),
+const WearableAIDemos = lazy(
+  () => import("@/components/sections/WearableAIDemos"),
 );
 const ContactForm = lazy(() => import("@/components/sections/ContactForm"));
 import Footer from "@/components/Footer";
@@ -459,8 +459,14 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Showcase (lazy) */}
-        <Suspense fallback={<div className="h-40" />}>
+        {/* Wearable AI demos (lazy) */}
+        <Suspense
+          fallback={
+            <div className="container mx-auto px-4 py-16 text-center text-slate-300">
+              Loading wearable AI demos…
+            </div>
+          }
+        >
           <div
             style={{
               contentVisibility: "auto",
@@ -468,7 +474,7 @@ export default function Home() {
               containIntrinsicSize: "1px 720px",
             }}
           >
-            <LocationShowcase />
+            <WearableAIDemos />
           </div>
         </Suspense>
 
@@ -609,7 +615,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 // // - Premium "aurora glass" aesthetic with parallax orbs & grid
 // // - Subtle motion with prefers-reduced-motion guard
 // // - Sticky mobile CTA, above-the-fold trust chips, animated counters
-// // - Uses existing: Nav, Hero, LocationShowcase, ContactForm, Footer
+// // - Uses existing: Nav, Hero, WearableAIDemos, ContactForm, Footer
 // // ===============================================
 
 // import React, {
@@ -625,8 +631,8 @@ function Stat({ label, value }: { label: string; value: string }) {
 // import Nav from "@/components/Nav";
 // import Hero from "@/components/sections/Hero";
 // // ↓ Lazy-load below-the-fold UI so the Home above-the-fold gets first paint fast
-// const LocationShowcase = lazy(
-//   () => import("@/components/sections/LocationShowcase"),
+// const WearableAIDemos = lazy(
+//   () => import("@/components/sections/WearableAIDemos"),
 // );
 // const ContactForm = lazy(() => import("@/components/sections/ContactForm"));
 // import Footer from "@/components/Footer";
@@ -1069,7 +1075,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 //               containIntrinsicSize: "1px 720px",
 //             }}
 //           >
-//             <LocationShowcase />
+//             <WearableAIDemos />
 //           </div>
 //         </Suspense>
 
