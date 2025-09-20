@@ -26,6 +26,18 @@ const parallelApiVersion = process.env.PARALLEL_API_VERSION;
 const parallelHttpTimeoutMs = Number(
   process.env.PARALLEL_HTTP_TIMEOUT_MS ?? 120_000,
 );
+const parallelApiMaxAttempts = Math.max(
+  1,
+  Number(process.env.PARALLEL_API_MAX_ATTEMPTS ?? 3),
+);
+const parallelApiRetryBaseDelayMs = Math.max(
+  100,
+  Number(process.env.PARALLEL_API_RETRY_BASE_DELAY_MS ?? 1_000),
+);
+const parallelApiRetryMaxDelayMs = Math.max(
+  parallelApiRetryBaseDelayMs,
+  Number(process.env.PARALLEL_API_RETRY_MAX_DELAY_MS ?? 10_000),
+);
 const parallelMaxWaitMs = Number(
   process.env.PARALLEL_MAX_WAIT_MS ?? 30 * 60 * 1_000,
 );
@@ -45,7 +57,11 @@ const parallelWebhookEvents = process.env.PARALLEL_WEBHOOK_EVENTS
       .filter(Boolean)
   : ["task.updated", "task.completed", "task.failed"];
 
-type ParallelFetchOptions = RequestInit & { timeoutMs?: number };
+type ParallelFetchOptions = RequestInit & {
+  timeoutMs?: number;
+  maxAttempts?: number;
+  retryDelayMs?: number;
+};
 
 type ParallelTaskStatus =
   | "pending"
@@ -67,6 +83,74 @@ function waitFor(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const parallelRetryableStatusCodes = new Set([
+  408,
+  409,
+  425,
+  429,
+  500,
+  502,
+  503,
+  504,
+  522,
+  524,
+]);
+
+const parallelRetryableNodeErrorCodes = new Set([
+  "ECONNRESET",
+  "ETIMEDOUT",
+  "EHOSTUNREACH",
+  "EPIPE",
+  "ECONNREFUSED",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+]);
+
+function isRetryableStatus(status?: number) {
+  if (!status) {
+    return false;
+  }
+  if (parallelRetryableStatusCodes.has(status)) {
+    return true;
+  }
+  return status >= 500 && status < 600;
+}
+
+function shouldRetryParallelError(error: any) {
+  const status = Number(error?.status ?? error?.statusCode);
+  if (Number.isFinite(status) && isRetryableStatus(status)) {
+    return true;
+  }
+  const errorCode =
+    error?.code || error?.cause?.code || error?.err?.code || error?.errno;
+  if (typeof errorCode === "string") {
+    return parallelRetryableNodeErrorCodes.has(errorCode);
+  }
+  return false;
+}
+
+function describeParallelError(error: any) {
+  if (!error) {
+    return "Unknown error";
+  }
+  if (typeof error?.message === "string" && error.message.trim()) {
+    return error.message;
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
+function computeRetryDelay(attempt: number, baseDelayMs: number) {
+  const exponentialDelay = baseDelayMs * Math.pow(2, Math.max(0, attempt - 1));
+  return Math.min(parallelApiRetryMaxDelayMs, Math.round(exponentialDelay));
+}
+
 async function parallelApiFetch<T = any>(
   path: string,
   options: ParallelFetchOptions = {},
@@ -75,7 +159,13 @@ async function parallelApiFetch<T = any>(
     throw new Error("Parallel API key is not configured");
   }
 
-  const { timeoutMs, headers: requestHeaders, ...init } = options;
+  const {
+    timeoutMs,
+    headers: requestHeaders,
+    maxAttempts,
+    retryDelayMs,
+    ...init
+  } = options;
   const url = path.startsWith("http") ? path : `${parallelBaseUrl}${path}`;
 
   const headers = new Headers(requestHeaders ?? undefined);
@@ -89,53 +179,128 @@ async function parallelApiFetch<T = any>(
     headers.set("Content-Type", "application/json");
   }
 
-  const controller = new AbortController();
-  const httpTimeout = Math.max(1_000, Number(timeoutMs ?? parallelHttpTimeoutMs));
-  const timeoutId = setTimeout(() => controller.abort(), httpTimeout);
+  const resolvedMaxAttempts = Math.max(
+    1,
+    Number(maxAttempts ?? parallelApiMaxAttempts),
+  );
+  const resolvedBaseDelayMs = Math.max(
+    100,
+    Number(retryDelayMs ?? parallelApiRetryBaseDelayMs),
+  );
 
-  try {
-    const response = await fetch(url, {
-      ...init,
-      headers,
-      signal: controller.signal,
-    });
+  let attempt = 0;
+  let lastError: any;
 
-    const responseText = await response.text().catch(() => "");
-
-    if (!response.ok) {
-      const error = new Error(
-        `Parallel API request failed: ${response.status} ${response.statusText}${
-          responseText ? ` - ${responseText}` : ""
-        }`,
-      );
-      (error as any).status = response.status;
-      (error as any).statusCode = response.status;
-      (error as any).body = responseText;
-      throw error;
-    }
-
-    if (!responseText) {
-      return undefined as T;
-    }
+  while (attempt < resolvedMaxAttempts) {
+    attempt += 1;
+    const controller = new AbortController();
+    const httpTimeout = Math.max(
+      1_000,
+      Number(timeoutMs ?? parallelHttpTimeoutMs),
+    );
+    const timeoutId = setTimeout(() => controller.abort(), httpTimeout);
+    let shouldRetry = false;
+    let retryDelay = resolvedBaseDelayMs;
 
     try {
-      return JSON.parse(responseText) as T;
-    } catch {
-      return responseText as T;
+      const response = await fetch(url, {
+        ...init,
+        headers,
+        signal: controller.signal,
+      });
+
+      const responseText = await response.text().catch(() => "");
+
+      if (!response.ok) {
+        const error = new Error(
+          `Parallel API request failed: ${response.status} ${response.statusText}${
+            responseText ? ` - ${responseText}` : ""
+          }`,
+        );
+        (error as any).status = response.status;
+        (error as any).statusCode = response.status;
+        (error as any).body = responseText;
+
+        if (attempt < resolvedMaxAttempts && shouldRetryParallelError(error)) {
+          shouldRetry = true;
+          lastError = error;
+          retryDelay = computeRetryDelay(attempt, resolvedBaseDelayMs);
+          logger.warn(
+            {
+              url,
+              attempt,
+              maxAttempts: resolvedMaxAttempts,
+              delayMs: retryDelay,
+              status: response.status,
+            },
+            `Parallel API request failed (attempt ${attempt}): ${describeParallelError(
+              error,
+            )}. Retrying...`,
+          );
+        } else {
+          throw error;
+        }
+      } else {
+        if (!responseText) {
+          return undefined as T;
+        }
+
+        try {
+          return JSON.parse(responseText) as T;
+        } catch {
+          return responseText as T;
+        }
+      }
+    } catch (error: any) {
+      let normalizedError = error;
+      if (error?.name === "AbortError") {
+        normalizedError = new Error(
+          `Parallel API request to ${url} timed out after ${httpTimeout} ms`,
+        );
+        (normalizedError as any).status = 408;
+        (normalizedError as any).statusCode = 408;
+      }
+
+      if (
+        !shouldRetry &&
+        attempt < resolvedMaxAttempts &&
+        shouldRetryParallelError(normalizedError)
+      ) {
+        shouldRetry = true;
+        lastError = normalizedError;
+        retryDelay = computeRetryDelay(attempt, resolvedBaseDelayMs);
+        logger.warn(
+          {
+            url,
+            attempt,
+            maxAttempts: resolvedMaxAttempts,
+            delayMs: retryDelay,
+            status: (normalizedError as any)?.status,
+            code: (normalizedError as any)?.code,
+          },
+          `Parallel API request failed (attempt ${attempt}): ${describeParallelError(
+            normalizedError,
+          )}. Retrying...`,
+        );
+      } else if (!shouldRetry) {
+        throw normalizedError;
+      }
+    } finally {
+      clearTimeout(timeoutId);
     }
-  } catch (error: any) {
-    if (error?.name === "AbortError") {
-      const abortError = new Error(
-        `Parallel API request to ${url} timed out after ${httpTimeout} ms`,
-      );
-      (abortError as any).status = 408;
-      (abortError as any).statusCode = 408;
-      throw abortError;
+
+    if (shouldRetry) {
+      await waitFor(retryDelay);
+      continue;
     }
-    throw error;
-  } finally {
-    clearTimeout(timeoutId);
   }
+
+  throw (
+    lastError ??
+    new Error(
+      `Parallel API request to ${url} failed after ${resolvedMaxAttempts} attempts`,
+    )
+  );
 }
 
 function normalizeParallelResult(result: any) {
