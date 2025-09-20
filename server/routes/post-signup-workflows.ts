@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { attachRequestMeta, logger } from "../logger";
+import { buildVenueIndex } from "../retrieval/venueIndexer";
+import { KnowledgeSource } from "../types/knowledge";
 import {
   buildPostSignupDeepResearchPrompt,
   buildPostSignupSystemInstructionsPrompt,
@@ -702,13 +704,6 @@ async function callParallelTask({
 type PostSignupWorkflowRequest = PostSignupWorkflowPromptInput & {
   blueprintId: string;
   userId?: string;
-};
-
-type KnowledgeSource = {
-  title: string;
-  url: string;
-  category?: string;
-  description?: string;
 };
 
 function extractResponseText(response: any): string {
@@ -1478,6 +1473,17 @@ export default async function postSignupWorkflowsHandler(
     if (knowledgeSources.length > 0) {
       updateData.knowledgeSourceUrls = knowledgeSources;
       updateData.knowledgeSourceUrlsUpdatedAt = timestamp;
+    }
+
+    if (knowledgeSources.length > 0) {
+      try {
+        void buildVenueIndex(blueprintId, knowledgeSources);
+      } catch (error) {
+        logger.warn(
+          attachRequestMeta({ ...requestMeta, err: error }),
+          "Failed to enqueue venue knowledge indexing",
+        );
+      }
     }
 
     if (researchSummary) {
