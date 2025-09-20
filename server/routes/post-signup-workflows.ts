@@ -10,8 +10,7 @@ import {
 } from "../utils/ai-prompts";
 
 const parallelApiKey =
-  process.env.PARALLEL_API_KEY ||
-  "V9xyphAxwfrJb1faYC5c_-x4T93eYzbZDWdenFEw";
+  process.env.PARALLEL_API_KEY || "V9xyphAxwfrJb1faYC5c_-x4T93eYzbZDWdenFEw";
 const rawParallelBaseUrl =
   process.env.PARALLEL_API_BASE_URL || "https://api.parallel.ai";
 const parallelBaseUrl = rawParallelBaseUrl.replace(/\/+$/, "");
@@ -39,7 +38,7 @@ const parallelApiRetryMaxDelayMs = Math.max(
   Number(process.env.PARALLEL_API_RETRY_MAX_DELAY_MS ?? 10_000),
 );
 const parallelMaxWaitMs = Number(
-  process.env.PARALLEL_MAX_WAIT_MS ?? 30 * 60 * 1_000,
+  process.env.PARALLEL_MAX_WAIT_MS ?? 60 * 60 * 1_000, // 60m; Deep Research can take ~45m
 );
 const parallelPollIntervalMs = Math.max(
   500,
@@ -84,16 +83,7 @@ function waitFor(ms: number) {
 }
 
 const parallelRetryableStatusCodes = new Set([
-  408,
-  409,
-  425,
-  429,
-  500,
-  502,
-  503,
-  504,
-  522,
-  524,
+  408, 409, 425, 429, 500, 502, 503, 504, 522, 524,
 ]);
 
 const parallelRetryableNodeErrorCodes = new Set([
@@ -171,6 +161,16 @@ async function parallelApiFetch<T = any>(
   const headers = new Headers(requestHeaders ?? undefined);
   headers.set("x-api-key", parallelApiKey);
   headers.set("Accept", "application/json");
+
+  // Beta headers: always include SSE; add webhook token only if using webhooks
+  {
+    const existing = headers.get("parallel-beta");
+    const tokens: string[] = ["events-sse-2025-07-24"]; // required for enable_events
+    if (parallelWebhookUrl) tokens.push("webhook-2025-08-12"); // required when sending a webhook
+    const value = tokens.join(",");
+    headers.set("parallel-beta", existing ? `${existing},${value}` : value);
+  }
+
   if (parallelApiVersion && !headers.has("parallel-version")) {
     headers.set("parallel-version", parallelApiVersion);
   }
@@ -383,12 +383,9 @@ async function callParallelTask({
   processor?: string;
 }) {
   const taskProcessor = processor || parallelProcessor;
+  // Auto schema triggers Deep Research with structured JSON by default on pro/ultra
   const taskSpec: Record<string, any> = {
-    output_schema: {
-      type: "text",
-      description:
-        "Return a concise yet comprehensive JSON object that follows the schema described in the prompt.",
-    },
+    output_schema: { type: "auto" }, // or { type: "text" } for markdown reports
   };
 
   if (typeof maxOutputTokens === "number") {
@@ -401,20 +398,15 @@ async function callParallelTask({
     task_spec: taskSpec,
   };
 
-  if (metadata && Object.keys(metadata).length > 0) {
-    body.metadata = metadata;
-  }
+  // Stream progress + receive completion push
+  body.enable_events = true;
 
   if (parallelWebhookUrl) {
+    // Per docs: event_types must be provided; "task_run.status" is the standard signal
     body.webhook = {
       url: parallelWebhookUrl,
-      events: parallelWebhookEvents,
-      ...(parallelWebhookSecret ? { secret: parallelWebhookSecret } : {}),
+      event_types: ["task_run.status"],
     };
-    body.webhook_url = parallelWebhookUrl;
-    if (parallelWebhookSecret) {
-      body.webhook_secret = parallelWebhookSecret;
-    }
   }
 
   logger.info(
@@ -435,6 +427,28 @@ async function callParallelTask({
     throw new Error("Parallel API response did not include a run identifier");
   }
 
+  // Persist runId so we can fetch results even if this request stops waiting
+  try {
+    await db
+      .collection("blueprints")
+      .doc(blueprintId)
+      .set(
+        {
+          postSignupWorkflowStatus: {
+            lastRunId: runId,
+            lastProcessor: taskProcessor,
+            lastSubmittedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+        },
+        { merge: true },
+      );
+  } catch (e) {
+    logger.warn(
+      { ...requestMeta, err: e, runId },
+      "Failed to persist Parallel runId",
+    );
+  }
+
   let latestStatus: ParallelTaskStatus | undefined =
     (createResponse?.status as ParallelTaskStatus | undefined) ||
     (createResponse?.run_status as ParallelTaskStatus | undefined);
@@ -452,7 +466,11 @@ async function callParallelTask({
     if (["completed", "succeeded", "finished"].includes(latestStatus)) {
       return normalizeParallelResult(createResponse);
     }
-    if (["failed", "errored", "error", "cancelled", "canceled"].includes(latestStatus)) {
+    if (
+      ["failed", "errored", "error", "cancelled", "canceled"].includes(
+        latestStatus,
+      )
+    ) {
       throw new Error(`Parallel task ${runId} ${latestStatus}`);
     }
   }
@@ -562,6 +580,12 @@ type KnowledgeSource = {
 
 function extractResponseText(response: any): string {
   if (!response) return "";
+
+  // Parallel Task API returns { run, output: { type: "json"|"text", content: ... } }
+  if (response?.output?.content !== undefined) {
+    const c = response.output.content;
+    return typeof c === "string" ? c : JSON.stringify(c);
+  }
 
   if (Array.isArray(response)) {
     const buffer = response

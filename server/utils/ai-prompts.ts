@@ -329,6 +329,10 @@ export function buildMappingConfirmationPhase2AIPrompt(
     `;
 }
 
+// blueprint-prompts.v2.ts
+// Vendor-neutral wearables + on-site assistant prompt builders aligned with RAG URL context and local ops data.
+// Keeps function names for drop-in compatibility, but upgrades schemas and guidance for Parallel Deep Research + Gemini URL-Context.
+
 export interface PostSignupWorkflowPromptInput {
   companyName: string;
   address: string;
@@ -361,6 +365,28 @@ export interface PostSignupWelcomeMessageContext
   assistantVoice?: string;
 }
 
+/** Utilities */
+
+function lineOrFallback(label: string, value?: string | number | null): string {
+  const present =
+    (typeof value === "string" && value.trim()) ||
+    (typeof value === "number" && Number.isFinite(value));
+  return present ? `- ${label}: ${value}` : `- ${label}: Not provided`;
+}
+
+function contactLine(name?: string, email?: string, phone?: string): string {
+  const parts = [name, email, phone].filter(
+    (v) => typeof v === "string" && v.trim(),
+  );
+  return parts.length
+    ? `- Primary contact: ${parts.join(" | ")}`
+    : "- Primary contact: Not provided";
+}
+
+/**
+ * Deep Research prompt: produces a RAG-ready URL set for Gemini URL-Context,
+ * while explicitly separating venue-local operational data for on-site assistance.
+ */
 export function buildPostSignupDeepResearchPrompt(
   input: PostSignupWorkflowPromptInput,
 ): string {
@@ -377,91 +403,115 @@ export function buildPostSignupDeepResearchPrompt(
     audienceType,
   } = input;
 
-  const websiteLine = companyUrl
-    ? `- Primary website: ${companyUrl}`
-    : "- Primary website: Not provided (locate an authoritative URL).";
-  const audienceLine = audienceType
-    ? `- Primary audience served: ${audienceType}`
-    : "- Primary audience: Not specified.";
-  const goalLine = onboardingGoal
-    ? `- Deployment goal shared by client: ${onboardingGoal}`
-    : "- Deployment goal: Not specified.";
-  const areaLine =
-    typeof squareFootage === "number" && Number.isFinite(squareFootage)
-      ? `- Approximate square footage: ${squareFootage}`
-      : "- Approximate square footage: Not supplied.";
-  const contactDetails = [contactName, contactEmail, contactPhone]
-    .filter((value) => typeof value === "string" && value.trim())
-    .join(" | ");
-  const contactLine = contactDetails
-    ? `- Primary contact person: ${contactDetails}`
-    : "- Primary contact person: Not provided.";
-
-  return `You are Blueprint's Meta Wearables research orchestrator. Prepare a knowledge kit for an on-location assistant that runs through Meta's new Wearables Device Access Toolkit (announced at Connect 2025 with deep integrations for Ray-Ban Meta and Quest devices).
-
-Location overview:
-- Company: ${companyName}
-- Physical address: ${address}
-${websiteLine}
-- Location type / category: ${locationType ?? "Not provided"}
-${areaLine}
-${goalLine}
-${audienceLine}
-${contactLine}
-
-Research focus for the Meta Device Access Toolkit deployment:
-1. Find authoritative public URLs that answer walk-up visitor questions (hours, ticketing, reservations, exhibits, amenities, parking, accessibility, memberships, FAQs, special events, press, social media, review sites).
-2. Prefer first-party sources maintained by the business. When missing, find trustworthy third-party references (tourism boards, reputable reviews, local directories).
-3. Summarise context that is useful for a wearable assistant (short orientation, highlight flagship experiences, policies, membership perks).
-4. Capture operational details that guests need on-site (hours, booking flows, price ranges, accessibility statements, parking, Wi-Fi, direct contact numbers).
-5. Note anything relevant for spatial anchors, on-device guardrails, or instant actions that the Meta toolkit runtime can trigger (e.g., where anchors should live, staff-only areas, safety messaging).
-
-Return ONLY valid JSON with the following structure:
-{
-  "summary": "2-3 sentence briefing about the location and why visitors come.",
+  const header = [
+    `You are Blueprint's Research Orchestrator for an on-location voice assistant running on modern wearable devices (vendor-neutral).`,
+    `Your task: produce a compact, strictly-typed JSON knowledge kit optimized for:`,
+    `1) Web URL context (for Gemini/LLM RAG from authoritative public pages).`,
+    `2) On-site operations data (for customer service and SOP coaching).`,
+    ``,
+    `Context about the venue:`,
+    `- Company: ${companyName}`,
+    `- Physical address: ${address}`,
+    lineOrFallback("Primary website", companyUrl),
+    lineOrFallback("Location type / category", locationType),
+    lineOrFallback("Approximate square footage", squareFootage ?? null),
+    lineOrFallback("Deployment goal", onboardingGoal),
+    lineOrFallback("Primary audience served", audienceType),
+    contactLine(contactName, contactEmail, contactPhone),
+    ``,
+    `Research rules (RAG URL set):`,
+    `- Prefer first-party URLs (official site, .gov/.edu if applicable).`,
+    `- Include trusted third-party only when first-party is missing (tourism boards, reputable directories, high-signal review hubs).`,
+    `- URLs must be absolute HTTPS, deduplicated, canonical (no tracking params).`,
+    `- Each URL must have a short “why_it_matters” specific to on-site guests.`,
+    `- Extract last-known “updated_on” (from page if available, else null).`,
+    `- If the primary site is missing, locate a single authoritative homepage.`,
+    ``,
+    `On-site operations data (local-only; do not hallucinate):`,
+    `- Hours, ticketing/pricing ranges, booking flows, accessibility, parking/transit, Wi-Fi, essential contact numbers/emails.`,
+    `- If unknown/unavailable, set the field to null (never guess).`,
+    ``,
+    `Wearables runtime assumptions (vendor-neutral):`,
+    `- Experiences run via a companion mobile app that mediates access to glasses sensors (camera/mic/speakers).`,
+    `- Treat glanceable display as optional UI “sugar”; primary interface is audio/voice.`,
+    `- Return short strings suitable for TTS and brief HUD cards (2–4s), but do NOT include any markdown.`,
+    ``,
+    `Return ONLY a single JSON object with this exact shape and keys:`,
+    `{
+  "summary": "2–3 sentences about why visitors come to this specific venue.",
+  "url_context": {
+    "must_include": [
+      {
+        "title": "Homepage",
+        "url": "https://...",
+        "category": "home",
+        "why_it_matters": "Authoritative anchor for all other links",
+        "updated_on": "YYYY-MM-DD or null"
+      }
+    ],
+    "nice_to_have": [
+      {
+        "title": "Tickets / Reservations",
+        "url": "https://...",
+        "category": "tickets|reservations",
+        "why_it_matters": "Explain booking flow or prices for on-site guests",
+        "updated_on": "YYYY-MM-DD or null"
+      }
+    ],
+    "crawl_instructions": {
+      "dedupe_rules": "Canonicalize; drop utm/*; prefer https; one URL per unique task",
+      "max_total_urls": 12
+    }
+  },
   "knowledge_sources": [
     {
-      "title": "Concise label (e.g., Reservations, Menu, Tickets)",
-      "url": "https://example.com/...",
+      "title": "Concise label (e.g., Menu, Map, Events Calendar)",
+      "url": "https://...",
       "category": "menu|tickets|events|faq|policies|map|reviews|social|shop|accessibility|press|news|contact|other",
-      "description": "Why this link matters for on-site guests."
+      "description": "Why this link matters for on-site guests"
     }
   ],
   "top_questions": [
-    "List 6-8 likely visitor questions answered by these sources."
+    "6–10 likely on-site questions answerable by the sources (hours today? parking? accessibility? membership perks? exhibit highlights? refunds?)"
   ],
   "operational_details": {
-    "hours": "Hours of operation with timezone",
-    "pricing": "Ticketing or pricing guidance if any",
-    "contact": "Key phone/email numbers for guests",
-    "accessibility": "Elevators, ADA info, service animal policy, etc.",
-    "parking": "Parking or transit guidance",
-    "wifi": "Guest Wi-Fi details if publicly offered"
+    "hours": "Hours with timezone, or null",
+    "pricing": "Ticketing/pricing guidance, or null",
+    "contact": "Key phone/email for guests, or null",
+    "accessibility": "ADA/service animals/elevators text, or null",
+    "parking": "Parking or transit guidance, or null",
+    "wifi": "Guest Wi-Fi SSID/pass or portal URL, or null"
   },
-  "meta_runtime_notes": [
-    "Notes about spatial anchor opportunities, voice intents, or guardrails the Meta Device Access Toolkit runtime should enforce."
+  "runtime_hints": [
+    "Short notes for the assistant e.g., prefer audio; keep answers <= 2 sentences; offer to open links or start a task."
   ]
+}`,
+    ``,
+    `Strictness:`,
+    `- Output the JSON object only. No prose, no markdown fences.`,
+    `- If a field is unknown, use null.`,
+    `- Ensure all URLs are https and live (if not verifiable, include but set "updated_on": null).`,
+  ];
+
+  return header.join("\n");
 }
 
-- Deduplicate URLs and ensure they are absolute HTTPS links.
-- Include at least 6 knowledge_sources when the information exists.
-- If a field is unknown, use null instead of guessing.
-- Do not include markdown fences or commentary outside of the JSON object.`;
-}
-
+/**
+ * System instructions prompt: defines persona, tool usage, safety, and fallbacks,
+ * mapping neutral capabilities to whatever wearables SDK is present.
+ */
 export function buildPostSignupSystemInstructionsPrompt(
   input: PostSignupWorkflowPromptInput,
   context: PostSignupSystemInstructionContext,
 ): string {
-  const {
-    companyName,
-    address,
-    companyUrl,
-    locationType,
-    onboardingGoal,
-  } = input;
+  const { companyName, address, companyUrl, locationType, onboardingGoal } =
+    input;
 
-  const knowledgeSourcesJson = JSON.stringify(context.knowledgeSources ?? [], null, 2);
+  const knowledgeSourcesJson = JSON.stringify(
+    context.knowledgeSources ?? [],
+    null,
+    2,
+  );
   const topQuestions =
     context.topQuestions && context.topQuestions.length
       ? context.topQuestions.map((q) => `- ${q}`).join("\n")
@@ -475,140 +525,122 @@ export function buildPostSignupSystemInstructionsPrompt(
       : "- No special runtime guardrails detected.";
   const summary = context.summary ?? "No research summary was generated.";
 
-  return `You are drafting production-grade system instructions for Blueprint's on-location assistant deployed on Meta's Wearables Device Access Toolkit. The assistant speaks to guests at ${companyName} (${address}) using Ray-Ban Meta and Quest devices. It must comply with Meta's on-device guardrails, handle audio/voice interactions, and trigger spatial anchors or quick actions exposed by the toolkit.
-
-Research summary:
-${summary}
-
-Primary public site reference: ${companyUrl ?? "Not provided — rely on curated knowledge sources."}
-
-Knowledge sources (JSON):
-${knowledgeSourcesJson}
-
-Top visitor questions to anticipate:
-${topQuestions}
-
-Operational details pulled from research:
-${operationalDetails}
-
-Meta runtime notes:
-${metaNotes}
-
-Write instructions that:
-1. Define the assistant's persona and tone aligned with the venue's brand (location type: ${locationType ?? "unspecified"}; deployment goal: ${onboardingGoal ?? "engage visitors"}).
-2. Explain how to use the knowledge sources above—cite titles when referencing them and map them to Meta toolkit capabilities (e.g., knowledgeBase.lookup, blueprintAnchors.navigate, metaToolkit.launchAction).
-3. Outline available capabilities and triggers: accessing Blueprint spatial anchors, launching AR layers, handing off to staff, capturing visitor feedback, booking demos or tours.
-4. Include safety and privacy guardrails that align with Meta's Device Access Toolkit announcements (respect opt-outs, avoid storing personal data on-device, escalate sensitive or staff-only requests).
-5. Provide fallback behavior when no answer is available or when connectivity is limited.
-6. Keep responses concise (max two sentences unless the visitor asks for detail) and offer to open relevant links, anchors, or follow-up actions when helpful.
-7. End with quick reference metadata for the runtime (tone keywords, default language, mention to log unresolved questions for future training).
-
-Return ONLY valid JSON with the shape:
-{
-  "system_instructions": "Full instruction text ready for the assistant runtime.",
-  "voice": "Short description of tone/persona.",
+  const body = [
+    `You are the on-location assistant for ${companyName} (${address}).`,
+    `Primary interface is voice; if a heads-up display exists, use brief (2–4s) glanceable text only when it increases clarity.`,
+    `Persona: calm, fast, privacy-respectful, brand-aligned for a ${locationType ?? "venue"}.`,
+    `Deployment goal: ${onboardingGoal ?? "assist visitors and streamline operations"}.`,
+    ``,
+    `Research summary:`,
+    summary,
+    ``,
+    `Primary site reference: ${companyUrl ?? "None (use curated knowledge sources)."}\n`,
+    `Knowledge sources (JSON):\n${knowledgeSourcesJson}\n`,
+    `Top visitor questions to anticipate:\n${topQuestions}\n`,
+    `Operational details (JSON):\n${operationalDetails}\n`,
+    `Runtime/guardrail notes:\n${metaNotes}\n`,
+    `Capabilities (map these to the active wearables/mobile SDK at runtime):`,
+    `- open_link(url): open a first-party page for tickets/menu/map.`,
+    `- start_navigation(target): step-by-step audio wayfinding; optionally show 1-line breadcrumb if display exists.`,
+    `- request_staff(reason, zone): page staff with context; attach short audio clip only if user explicitly consents.`,
+    `- create_booking(type, when, party_size, name, contact): start a reservation or tour sign-up.`,
+    `- log_sop_progress(list_id, step_no, note?): mark SOP steps and exceptions.`,
+    `- capture_snapshot(purpose): hands-free photo/video per user request; confirm and summarize what will be shared.`,
+    ``,
+    `Safety & privacy:`,
+    `- Obtain explicit consent before capturing/sharing any photo, video, or audio clip.`,
+    `- Never store PII locally; hand off to secure backend endpoints when needed.`,
+    `- Respect staff-only areas and safety policies; warn and refuse unsafe requests.`,
+    `- If connectivity is limited, answer from cached operational details; otherwise apologize and offer an offline-safe action (e.g., show hours, explain where to get help in person).`,
+    ``,
+    `Response style:`,
+    `- Default to one sentence; use two only if clarity requires it.`,
+    `- Offer an action (“Want me to open tickets?”) when appropriate.`,
+    ``,
+    `Return ONLY valid JSON with this shape:`,
+    `{
+  "system_instructions": "Full instruction text for the runtime (you may restate the above in compact form).",
+  "voice": "Short descriptor of tone/persona (e.g., calm, concise, professional).",
   "tool_hints": [
     {
-      "name": "Tool or action name",
-      "when_to_use": "One sentence on when to trigger it",
-      "meta_call": "If relevant, mention the Device Access Toolkit API or Blueprint function"
+      "name": "open_link",
+      "when_to_use": "When a first-party URL answers the request",
+      "meta_call": "Map to wearables/mobile SDK link opening"
     }
   ],
   "fallback_messages": [
-    "Visitor-facing message used when the assistant lacks an answer."
+    "Sorry, I can’t reach that right now. Want hours and directions instead?"
   ],
   "meta_runtime_expectations": [
-    "Additional constraints or telemetry the runtime should apply."
+    "Prefer audio first; keep HUD text under 40 chars/line for <= 4s.",
+    "Log unresolved intents for future training."
   ]
+}`,
+    ``,
+    `Strictness: Output JSON object only — no extra text, no markdown.`,
+  ];
+
+  return body.join("\n");
 }
 
-Do not include markdown fences or commentary. Output the JSON object only.`;
-}
-
+/**
+ * Welcome message prompt: short persona-targeted greetings for five roles.
+ */
 export function buildPostSignupWelcomeMessagesPrompt(
   input: PostSignupWorkflowPromptInput,
   context: PostSignupWelcomeMessageContext,
 ): string {
-  const {
-    companyName,
-    address,
-    locationType,
-    onboardingGoal,
-    audienceType,
-  } = input;
+  const { companyName, address, locationType, onboardingGoal, audienceType } =
+    input;
 
   const summary = context.summary ?? "No research summary available.";
+  const voice =
+    typeof context.assistantVoice === "string" && context.assistantVoice.trim()
+      ? context.assistantVoice.trim()
+      : "Warm, concise, brand-aligned";
 
-  let voiceLine = "Preferred tone: Warm, helpful, brand-aligned.";
-  if (typeof context.assistantVoice === "string" && context.assistantVoice.trim()) {
-    voiceLine = "Preferred tone: " + context.assistantVoice + ".";
-  }
-
-  let systemInstructionsLine =
-    "System instruction highlights: Not provided yet—rely on the research summary and details.";
-  if (
+  const sys =
     typeof context.systemInstructions === "string" &&
     context.systemInstructions.trim()
-  ) {
-    systemInstructionsLine =
-      "System instruction highlights:\n" + context.systemInstructions;
-  }
+      ? context.systemInstructions.trim()
+      : "Use voice-first guidance, short HUD text only when needed; offer to start actions.";
 
   const knowledgeSourceLines = (context.knowledgeSources || [])
     .slice(0, 8)
-    .map((source) => {
-      const categoryLabel = source.category ? ` [${source.category}]` : "";
-      return `- ${source.title}${categoryLabel}: ${source.url}`;
-    })
+    .map((s) => `- ${s.title}${s.category ? ` [${s.category}]` : ""}: ${s.url}`)
     .join("\n");
 
-  const topQuestionsLines = context.topQuestions?.length
+  const topQs = context.topQuestions?.length
     ? context.topQuestions.map((q) => `- ${q}`).join("\n")
     : "- None captured.";
 
-  const operationalDetailsBlock =
+  const ops =
     context.operationalDetails && Object.keys(context.operationalDetails).length
       ? JSON.stringify(context.operationalDetails, null, 2)
       : "{}";
 
-  const metaNotesLines = context.metaRuntimeNotes?.length
-    ? context.metaRuntimeNotes.map((note) => `- ${note}`).join("\n")
-    : "- None.";
+  const metaNotes =
+    context.metaRuntimeNotes && context.metaRuntimeNotes.length
+      ? context.metaRuntimeNotes.map((n) => `- ${n}`).join("\n")
+      : "- None.";
 
-  return `You are Blueprint's onboarding copy specialist. Draft concise welcome messages that the on-location assistant will speak when greeting different personas arriving at ${companyName} (${address}). Keep each response to one or two sentences in first-person assistant voice, pointing visitors to helpful actions informed by Blueprint's capabilities.
-
-Location type: ${locationType ?? "unspecified"}
-Primary onboarding goal: ${onboardingGoal ?? "engage visitors"}
-Primary audience noted: ${audienceType ?? "not specified"}
-
-Research summary:
-${summary}
-
-${voiceLine}
-
-${systemInstructionsLine}
-
-Key knowledge sources:
-${knowledgeSourceLines || "- None provided."}
-
-Operational details JSON:
-${operationalDetailsBlock}
-
-Top visitor questions to anticipate:
-${topQuestionsLines}
-
-Meta runtime notes:
-${metaNotesLines}
-
-Personas requiring distinct welcome templates:
-1. target_customer — Core guests who match the ideal customer profile.
-2. casual_visitor — Curious walk-ins exploring ${companyName} without a plan.
-3. vip_member — Loyalty members, subscribers, or high-value guests expecting premium service.
-4. staff_member — Employees or internal team members verifying schedules, tasks, or SOPs.
-5. partner_press — Partners, vendors, or press/influencer contacts arriving for meetings or coverage.
-
-Return ONLY valid JSON exactly in the following shape:
-{
+  const body = [
+    `You are Blueprint's onboarding copy specialist. Create concise, first-person greetings for different personas arriving at ${companyName} (${address}).`,
+    `Keep each under ~35 words, voice: ${voice}.`,
+    `Location type: ${locationType ?? "unspecified"}; goal: ${
+      onboardingGoal ?? "engage visitors"
+    }; audience: ${audienceType ?? "not specified"}.`,
+    ``,
+    `Research summary:\n${summary}\n`,
+    `System instruction highlights:\n${sys}\n`,
+    `Key knowledge sources:\n${knowledgeSourceLines || "- None provided."}\n`,
+    `Operational details JSON:\n${ops}\n`,
+    `Top visitor questions:\n${topQs}\n`,
+    `Runtime notes:\n${metaNotes}\n`,
+    `Personas: target_customer, casual_visitor, vip_member, staff_member, partner_press.`,
+    ``,
+    `Return ONLY this JSON object:`,
+    `{
   "welcome_messages": {
     "target_customer": "Message for target customers.",
     "casual_visitor": "Message for casual visitors.",
@@ -616,8 +648,10 @@ Return ONLY valid JSON exactly in the following shape:
     "staff_member": "Message for staff members.",
     "partner_press": "Message for partners, vendors, or press."
   }
-}
+}`,
+    ``,
+    `Strictness: Output JSON object only; no markdown; reference the assistant’s ability to help without naming a specific device brand.`,
+  ];
 
-Messages must stay under ~35 words, reference Blueprint or the assistant's ability to help, and avoid markdown formatting. Respond with the JSON object only.
-Do not include markdown fences or commentary. Output the JSON object only.`;
+  return body.join("\n");
 }
