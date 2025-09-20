@@ -56,6 +56,105 @@ const parallelWebhookEvents = process.env.PARALLEL_WEBHOOK_EVENTS
       .filter(Boolean)
   : ["task.updated", "task.completed", "task.failed"];
 
+const perplexityApiKey =
+  process.env.PERPLEXITY_API_KEY ||
+  "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";
+const perplexityTimeoutMs = Number(
+  process.env.PERPLEXITY_TIMEOUT_MS ?? 60_000,
+);
+const deepResearchModel =
+  process.env.PERPLEXITY_DEEP_RESEARCH_MODEL || "sonar-deep-research";
+const instructionsModel =
+  process.env.PERPLEXITY_INSTRUCTIONS_MODEL || deepResearchModel;
+const reasoningEffort = (process.env.PERPLEXITY_REASONING_EFFORT ?? "high") as
+  | "low"
+  | "medium"
+  | "high";
+const PERPLEXITY_ENDPOINT = "https://api.perplexity.ai/chat/completions";
+const PERPLEXITY_SYSTEM_MESSAGE =
+  "You are Blueprint's automation copilot. Follow the user's instructions exactly and respond with valid JSON whenever a schema is provided.";
+
+type AiProvider = "perplexity" | "parallel";
+
+type PerplexityMessage = {
+  role: "system" | "user" | "assistant";
+  content: string;
+};
+
+async function callPerplexity({
+  model,
+  prompt,
+  useReasoning = false,
+  maxOutputTokens,
+}: {
+  model: string;
+  prompt: string;
+  useReasoning?: boolean;
+  maxOutputTokens?: number;
+}) {
+  if (!perplexityApiKey) {
+    throw new Error("Perplexity API key is not configured");
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    Math.max(1_000, perplexityTimeoutMs),
+  );
+
+  try {
+    const messages: PerplexityMessage[] = [
+      { role: "system", content: PERPLEXITY_SYSTEM_MESSAGE },
+      { role: "user", content: prompt },
+    ];
+
+    const body: Record<string, unknown> = {
+      model,
+      messages,
+      temperature: 0.2,
+      return_references: true,
+      stream: false,
+    };
+
+    if (useReasoning) {
+      body.reasoning = { effort: reasoningEffort };
+    }
+
+    if (typeof maxOutputTokens === "number") {
+      body.max_output_tokens = maxOutputTokens;
+    }
+
+    const response = await fetch(PERPLEXITY_ENDPOINT, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${perplexityApiKey}`,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      throw new Error(
+        `Perplexity request failed: ${response.status} ${response.statusText}${
+          errorText ? ` - ${errorText}` : ""
+        }`,
+      );
+    }
+
+    return (await response.json()) as any;
+  } catch (error: any) {
+    if (error?.name === "AbortError") {
+      throw new Error("Perplexity request timed out");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 type ParallelFetchOptions = RequestInit & {
   timeoutMs?: number;
   maxAttempts?: number;
@@ -967,12 +1066,23 @@ export default async function postSignupWorkflowsHandler(
     });
   }
 
-  if (!parallelApiKey) {
+  const canUseParallel = Boolean(parallelApiKey);
+  const canUsePerplexity = Boolean(perplexityApiKey);
+  const providerPreferenceRaw = process.env.POST_SIGNUP_AI_PROVIDER;
+  const providerPreference = providerPreferenceRaw
+    ? providerPreferenceRaw.toLowerCase().trim()
+    : undefined;
+  const preferPerplexity =
+    providerPreference !== "parallel" && canUsePerplexity;
+
+  if (!canUsePerplexity && !canUseParallel) {
     logger.error(
       requestMetaBase,
-      "Parallel API key not configured for post-signup workflows",
+      "No AI provider configured for post-signup workflows",
     );
-    return res.status(500).json({ error: "Service temporarily unavailable" });
+    return res
+      .status(500)
+      .json({ error: "Service temporarily unavailable" });
   }
 
   const requestBody = req.body as PostSignupWorkflowRequest;
@@ -1019,6 +1129,75 @@ export default async function postSignupWorkflowsHandler(
     companyName,
   });
 
+  async function runStage<T>({
+    stage,
+    usePerplexityFirst,
+    requestMeta: stageMeta,
+    perplexityCall,
+    parallelCall,
+  }: {
+    stage: string;
+    usePerplexityFirst: boolean;
+    requestMeta: Record<string, unknown>;
+    perplexityCall: () => Promise<T>;
+    parallelCall: () => Promise<T>;
+  }): Promise<{ response: T; provider: AiProvider }> {
+    const attempts: Array<{ provider: AiProvider; fn: () => Promise<T> }> = [];
+
+    if (usePerplexityFirst) {
+      if (canUsePerplexity) {
+        attempts.push({ provider: "perplexity", fn: perplexityCall });
+      }
+      if (canUseParallel) {
+        attempts.push({ provider: "parallel", fn: parallelCall });
+      }
+    } else {
+      if (canUseParallel) {
+        attempts.push({ provider: "parallel", fn: parallelCall });
+      }
+      if (canUsePerplexity) {
+        attempts.push({ provider: "perplexity", fn: perplexityCall });
+      }
+    }
+
+    if (attempts.length === 0) {
+      throw new Error(`No AI provider available for ${stage}`);
+    }
+
+    let lastError: any;
+
+    for (let index = 0; index < attempts.length; index += 1) {
+      const attempt = attempts[index];
+      try {
+        const response = await attempt.fn();
+        return { response, provider: attempt.provider };
+      } catch (error) {
+        lastError = error;
+        const meta = attachRequestMeta({
+          ...stageMeta,
+          provider: attempt.provider,
+          err: error,
+        });
+        const message = `${
+          attempt.provider === "perplexity" ? "Perplexity" : "Parallel"
+        } ${stage} call failed${
+          index < attempts.length - 1
+            ? ", attempting alternate provider"
+            : ""
+        }`;
+        if (index < attempts.length - 1) {
+          logger.warn(meta, message);
+        } else {
+          logger.error(meta, message);
+        }
+      }
+    }
+
+    throw (
+      lastError ?? new Error(`Failed to execute ${stage} stage for workflows`)
+    );
+  }
+
   try {
     const promptInput: PostSignupWorkflowPromptInput = {
       companyName,
@@ -1035,19 +1214,35 @@ export default async function postSignupWorkflowsHandler(
 
     const researchPrompt = buildPostSignupDeepResearchPrompt(promptInput);
 
-    const researchResponse = await callParallelTask({
-      prompt: researchPrompt,
-      maxOutputTokens: 4_096,
-      processor: parallelResearchProcessor,
-      metadata: {
-        blueprintId,
-        workflow: "post-signup.deep-research",
-        triggeredBy: userId || null,
-      },
-      requestMeta: {
-        ...requestMeta,
-        stage: "deepResearch",
-      },
+    const {
+      response: researchResponse,
+      provider: researchProvider,
+    } = await runStage({
+      stage: "deep research",
+      usePerplexityFirst: preferPerplexity,
+      requestMeta: { ...requestMeta, stage: "deepResearch" },
+      perplexityCall: () =>
+        callPerplexity({
+          model: deepResearchModel,
+          prompt: researchPrompt,
+          useReasoning: true,
+          maxOutputTokens: 4_096,
+        }),
+      parallelCall: () =>
+        callParallelTask({
+          prompt: researchPrompt,
+          maxOutputTokens: 4_096,
+          processor: parallelResearchProcessor,
+          metadata: {
+            blueprintId,
+            workflow: "post-signup.deep-research",
+            triggeredBy: userId || null,
+          },
+          requestMeta: {
+            ...requestMeta,
+            stage: "deepResearch",
+          },
+        }),
     });
 
     const researchText = extractResponseText(researchResponse);
@@ -1109,18 +1304,32 @@ export default async function postSignupWorkflowsHandler(
       },
     );
 
-    const instructionsResponse = await callParallelTask({
-      prompt: instructionsPrompt,
-      processor: parallelInstructionsProcessor,
-      metadata: {
-        blueprintId,
-        workflow: "post-signup.system-instructions",
-        triggeredBy: userId || null,
-      },
-      requestMeta: {
-        ...requestMeta,
-        stage: "systemInstructions",
-      },
+    const {
+      response: instructionsResponse,
+      provider: instructionsProvider,
+    } = await runStage({
+      stage: "system instructions",
+      usePerplexityFirst: preferPerplexity,
+      requestMeta: { ...requestMeta, stage: "systemInstructions" },
+      perplexityCall: () =>
+        callPerplexity({
+          model: instructionsModel,
+          prompt: instructionsPrompt,
+        }),
+      parallelCall: () =>
+        callParallelTask({
+          prompt: instructionsPrompt,
+          processor: parallelInstructionsProcessor,
+          metadata: {
+            blueprintId,
+            workflow: "post-signup.system-instructions",
+            triggeredBy: userId || null,
+          },
+          requestMeta: {
+            ...requestMeta,
+            stage: "systemInstructions",
+          },
+        }),
     });
 
     const instructionsText = extractResponseText(instructionsResponse);
@@ -1168,6 +1377,7 @@ export default async function postSignupWorkflowsHandler(
           .filter(Boolean)
       : [];
 
+    let welcomeMessagesProvider: AiProvider | undefined;
     let welcomeMessages: Record<string, string> = {};
 
     try {
@@ -1184,19 +1394,35 @@ export default async function postSignupWorkflowsHandler(
         },
       );
 
-      const welcomeMessagesResponse = await callParallelTask({
-        prompt: welcomeMessagesPrompt,
-        processor: parallelWelcomeProcessor,
-        metadata: {
-          blueprintId,
-          workflow: "post-signup.welcome-messages",
-          triggeredBy: userId || null,
-        },
-        requestMeta: {
-          ...requestMeta,
-          stage: "welcomeMessages",
-        },
+      const {
+        response: welcomeMessagesResponse,
+        provider: welcomeProvider,
+      } = await runStage({
+        stage: "welcome messages",
+        usePerplexityFirst: preferPerplexity,
+        requestMeta: { ...requestMeta, stage: "welcomeMessages" },
+        perplexityCall: () =>
+          callPerplexity({
+            model: instructionsModel,
+            prompt: welcomeMessagesPrompt,
+          }),
+        parallelCall: () =>
+          callParallelTask({
+            prompt: welcomeMessagesPrompt,
+            processor: parallelWelcomeProcessor,
+            metadata: {
+              blueprintId,
+              workflow: "post-signup.welcome-messages",
+              triggeredBy: userId || null,
+            },
+            requestMeta: {
+              ...requestMeta,
+              stage: "welcomeMessages",
+            },
+          }),
       });
+
+      welcomeMessagesProvider = welcomeProvider;
 
       const welcomeMessagesText = extractResponseText(welcomeMessagesResponse);
       const welcomeMessagesJson = extractJsonPayload(welcomeMessagesText) ?? {};
@@ -1227,14 +1453,37 @@ export default async function postSignupWorkflowsHandler(
     const blueprintRef = firestore.collection("blueprints").doc(blueprintId);
     const timestamp = admin.firestore.FieldValue.serverTimestamp();
 
+    const postSignupWorkflowStatus: Record<string, any> = {
+      lastRunAt: timestamp,
+      triggeredBy: userId || null,
+      researchProvider,
+      instructionsProvider,
+    };
+
+    if (researchProvider === "perplexity") {
+      postSignupWorkflowStatus.deepResearchModel = deepResearchModel;
+    } else {
+      postSignupWorkflowStatus.researchProcessor = parallelResearchProcessor;
+    }
+
+    if (instructionsProvider === "perplexity") {
+      postSignupWorkflowStatus.instructionsModel = instructionsModel;
+    } else {
+      postSignupWorkflowStatus.instructionsProcessor =
+        parallelInstructionsProcessor;
+    }
+
+    if (welcomeMessagesProvider) {
+      postSignupWorkflowStatus.welcomeProvider = welcomeMessagesProvider;
+      if (welcomeMessagesProvider === "perplexity") {
+        postSignupWorkflowStatus.welcomeModel = instructionsModel;
+      } else {
+        postSignupWorkflowStatus.welcomeProcessor = parallelWelcomeProcessor;
+      }
+    }
+
     const updateData: Record<string, any> = {
-      postSignupWorkflowStatus: {
-        lastRunAt: timestamp,
-        triggeredBy: userId || null,
-        researchProcessor: parallelResearchProcessor,
-        instructionsProcessor: parallelInstructionsProcessor,
-        welcomeProcessor: parallelWelcomeProcessor,
-      },
+      postSignupWorkflowStatus,
       aiResearchRawReport: researchText,
     };
 
