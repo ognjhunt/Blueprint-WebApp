@@ -38,13 +38,25 @@ import {
   Layers,
   Settings2,
   CheckCircle2,
+  Loader2,
+  Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+type SourceReference = {
+  title: string;
+  url: string;
+  snippet?: string;
+  distance?: number | null;
+};
 
 type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
+  sources?: SourceReference[];
+  fromCache?: boolean;
+  model?: string | null;
 };
 
 type ConnectorConfig = {
@@ -231,6 +243,7 @@ export default function BlueprintAiStudio() {
       timestamp: new Date().toISOString(),
     },
   ]);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [playgroundInput, setPlaygroundInput] = useState("Ask how the AI should greet guests in the lobby.");
   const [isSaving, setIsSaving] = useState(false);
   const [blueprintName, setBlueprintName] = useState<string>("");
@@ -309,25 +322,108 @@ export default function BlueprintAiStudio() {
     });
   };
 
-  const handleSendMessage = () => {
-    if (!playgroundInput.trim()) return;
+  const handleSendMessage = async () => {
+    const trimmedInput = playgroundInput.trim();
+    if (!trimmedInput || isGenerating) {
+      return;
+    }
+
+    if (!blueprintId) {
+      toast({
+        title: "Select a blueprint",
+        description: "Open an AI Studio session from a specific venue to chat with the assistant.",
+      });
+      return;
+    }
 
     const userMessage: ChatMessage = {
       role: "user",
-      content: playgroundInput.trim(),
+      content: trimmedInput,
       timestamp: new Date().toISOString(),
     };
 
-    const providerName = selectedProvider?.name ?? "Meta Wearables Co-Pilot";
+    const historyForRequest = [...messages, userMessage].map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
 
-    const assistantMessage: ChatMessage = {
-      role: "assistant",
-      content: `(${providerName}) Here's how I'd respond on-device: ${playgroundInput.trim()} → acknowledging connectors: ${connectedCount} sources and ${enabledFunctionCount} approved functions.`,
-      timestamp: new Date().toISOString(),
-    };
-
-    setMessages((prev) => [...prev, userMessage, assistantMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setPlaygroundInput("");
+    setIsGenerating(true);
+
+    try {
+      const response = await fetch("/api/ai-studio/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          blueprintId,
+          message: trimmedInput,
+          history: historyForRequest,
+          connectors: connectorState,
+          functions: functionState,
+          persona: selectedPersona,
+          providerId: selectedProviderId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => null);
+        throw new Error(errorPayload?.error || "Request failed");
+      }
+
+      const data = await response.json();
+      const sanitizedSources = Array.isArray(data?.sources)
+        ? data.sources
+            .map((source: any) => {
+              if (!source || typeof source !== "object") return null;
+              const title = typeof source.title === "string" ? source.title : "";
+              const url = typeof source.url === "string" ? source.url : "";
+              if (!title && !url) return null;
+              return {
+                title,
+                url,
+                snippet:
+                  typeof source.snippet === "string" ? source.snippet : undefined,
+                distance:
+                  typeof source.distance === "number" ? source.distance : undefined,
+              } satisfies SourceReference;
+            })
+            .filter((item): item is SourceReference => Boolean(item))
+        : undefined;
+      const assistantMessage: ChatMessage = {
+        role: "assistant",
+        content:
+          typeof data?.content === "string" && data.content.trim()
+            ? data.content.trim()
+            : "I'm still syncing the venue knowledge. Give me a moment and try again.",
+        timestamp: new Date().toISOString(),
+        sources: sanitizedSources,
+        fromCache: Boolean(data?.fromCache),
+        model: typeof data?.model === "string" ? data.model : null,
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error("Failed to generate AI Studio response", error);
+      toast({
+        title: "Assistant unavailable",
+        description: "We couldn't reach Gemini just now. The last request was logged for review.",
+        variant: "destructive",
+      });
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            "I'm having trouble reaching our knowledge pack right now. Check with staff or retry once connectivity returns.",
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleSave = () => {
@@ -498,39 +594,89 @@ export default function BlueprintAiStudio() {
                   <CardContent className="space-y-4">
                     <div className="h-72 overflow-y-auto rounded-xl border border-slate-800 bg-slate-950/40 p-4">
                       <div className="flex flex-col gap-4">
-                        {messages.map((message, index) => (
-                          <div
-                            key={`${message.timestamp}-${index}`}
-                            className={cn(
-                              "max-w-[80%] rounded-2xl px-4 py-3 text-sm shadow-lg",
-                              message.role === "assistant"
-                                ? "self-start bg-slate-800/80 text-slate-100"
-                                : "self-end bg-emerald-500/20 text-emerald-100",
-                            )}
-                          >
-                            <p className="whitespace-pre-wrap leading-relaxed">
-                              {message.content}
-                            </p>
-                            <span className="mt-2 block text-[10px] uppercase tracking-wide text-slate-500">
-                              {message.role === "assistant" ? selectedProvider?.name ?? "AI" : "You"} · {formatTime(message.timestamp)}
-                            </span>
-                          </div>
-                        ))}
+                        {messages.map((message, index) => {
+                          const isAssistant = message.role === "assistant";
+                          return (
+                            <div
+                              key={`${message.timestamp}-${index}`}
+                              className={cn(
+                                "max-w-[80%] rounded-2xl px-4 py-3 text-sm shadow-lg",
+                                isAssistant
+                                  ? "self-start bg-slate-800/80 text-slate-100"
+                                  : "self-end bg-emerald-500/20 text-emerald-100",
+                              )}
+                            >
+                              <p className="whitespace-pre-wrap leading-relaxed">
+                                {message.content}
+                              </p>
+                              {isAssistant && message.sources?.length ? (
+                                <div className="mt-3 space-y-2">
+                                  <p className="text-[10px] uppercase tracking-wide text-slate-500">
+                                    Knowledge sources
+                                  </p>
+                                  <div className="flex flex-col gap-2">
+                                    {message.sources.map((source, sourceIndex) => (
+                                      <a
+                                        key={`${source.url}-${sourceIndex}`}
+                                        href={source.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="rounded-xl border border-slate-700/60 bg-slate-950/60 px-3 py-2 text-left text-xs text-slate-200 transition hover:border-emerald-400/40 hover:text-emerald-200"
+                                      >
+                                        <span className="font-medium text-slate-100">
+                                          {source.title || "Source"}
+                                        </span>
+                                        {source.snippet ? (
+                                          <p className="mt-1 text-[11px] text-slate-400">
+                                            {source.snippet}
+                                          </p>
+                                        ) : null}
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : null}
+                              <span className="mt-3 block text-[10px] uppercase tracking-wide text-slate-500">
+                                {isAssistant ? selectedProvider?.name ?? "AI" : "You"} · {formatTime(message.timestamp)}
+                                {isAssistant && message.model ? ` · ${message.model}` : ""}
+                                {isAssistant && message.fromCache ? " · cached" : ""}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                     <div className="flex flex-col gap-3 md:flex-row">
                       <Textarea
                         value={playgroundInput}
                         onChange={(event) => setPlaygroundInput(event.target.value)}
+                        onKeyDown={(event) => {
+                          if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                            event.preventDefault();
+                            void handleSendMessage();
+                          }
+                        }}
                         rows={3}
                         className="flex-1 resize-none border-slate-800 bg-slate-950/60 text-slate-100 placeholder:text-slate-500"
                         placeholder="Ask the co-pilot something a guest might say..."
+                        disabled={isGenerating}
                       />
                       <Button
                         onClick={handleSendMessage}
                         className="bg-emerald-500 text-slate-900 hover:bg-emerald-400"
+                        disabled={isGenerating}
                       >
-                        Send
+                        {isGenerating ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Generating
+                          </>
+                        ) : (
+                          <>
+                            <Send className="mr-2 h-4 w-4" />
+                            Send
+                          </>
+                        )}
                       </Button>
                     </div>
                   </CardContent>
