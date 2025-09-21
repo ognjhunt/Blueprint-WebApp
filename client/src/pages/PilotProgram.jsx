@@ -951,7 +951,7 @@ export default function PilotProgram() {
       icon: <Shield className="w-6 h-6" />,
       title: "Zero Risk",
       description:
-        "A rapid pilot (scan today, live tomorrow) that’s free and feedback-only.",
+        "A rapid pilot (scan today, live tomorrow) that’s free and feedback-only. Mapping + demo are booked on consecutive days.",
       highlight: "100% FREE",
     },
     {
@@ -983,7 +983,7 @@ export default function PilotProgram() {
     },
     {
       q: "What does the pilot cost?",
-      a: "Nothing. The rapid pilot (scan today, live tomorrow) is free and feedback-only. No contract, and there’s no purchase option yet.",
+      a: "Nothing. The rapid pilot (scan today, live tomorrow) is free and feedback-only. Mapping and demo happen on consecutive days to keep the automation tight. No contract, and there’s no purchase option yet.",
     },
     {
       q: "How long does mapping take?",
@@ -1049,8 +1049,10 @@ export default function PilotProgram() {
               <p className="text-base sm:text-lg md:text-xl text-slate-300 mb-6 md:mb-8 max-w-2xl mx-auto lg:mx-0">
                 Two focused visits inside 24 hours: Day 1 is a 30–60 minute
                 mapping session, Day 2 is the live activation run-through (1–2
-                hrs). Free and feedback-only. No apps to install—we provide the
-                headset; guests just scan a QR code to see it in action.
+                hrs). Mapping Monday at 5 PM? Demo Tuesday at 8 AM. Back-to-back
+                scheduling is required so the AI build stays automated. Free and
+                feedback-only. No apps to install—we provide the headset; guests
+                just scan a QR code to see it in action.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-8">
@@ -1085,6 +1087,10 @@ export default function PilotProgram() {
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                   <span className="text-slate-200">We handle everything</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                  <span className="text-slate-200">Back-to-back visits required</span>
                 </div>
               </div>
               <p className="mt-2 text-xs text-slate-400">

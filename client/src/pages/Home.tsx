@@ -355,7 +355,10 @@ export default function Home() {
                     Launch in under 24 hours
                   </span>
                   <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
-                    Live demo 1–2 hrs
+                    Mapping Monday? Demo Tuesday.
+                  </span>
+                  <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
+                    Demo window 1–2 hrs
                   </span>
                   <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
                     Replies &lt; 24h
@@ -499,7 +502,9 @@ export default function Home() {
                 bringing hands-free AI into the mainstream. We help you capture
                 your space, design the workflows, and test with your team in 24
                 hours. Two focused visits: Day 1 mapping (30–60 minutes) and a
-                next-day activation run-through. The pilot is free.
+                next-day activation run-through. Mapping and demo are always
+                booked on consecutive days (for example: map Monday at 5 PM,
+                demo Tuesday at 8 AM). The pilot is free.
               </p>
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 justify-center">
                 <Button

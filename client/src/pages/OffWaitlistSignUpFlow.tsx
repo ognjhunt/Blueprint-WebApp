@@ -700,6 +700,20 @@ export default function OffWaitlistSignUpFlow() {
         return;
       }
     } else if (step === 4) {
+      const expectedDemoDate = new Date(scheduleDate);
+      expectedDemoDate.setHours(0, 0, 0, 0);
+      expectedDemoDate.setDate(expectedDemoDate.getDate() + 1);
+
+      const normalizedDemoDate = new Date(demoDate);
+      normalizedDemoDate.setHours(0, 0, 0, 0);
+
+      if (normalizedDemoDate.getTime() !== expectedDemoDate.getTime()) {
+        setErrorMessage(
+          "Demo must happen the day after mapping so we can deliver within 24 hours.",
+        );
+        return;
+      }
+
       const auth = getAuth();
       const user = auth.currentUser;
       if (!user) {

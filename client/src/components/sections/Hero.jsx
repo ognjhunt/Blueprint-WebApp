@@ -29,7 +29,7 @@ export default function Hero({ onPrimaryCta }) {
       k: "how",
       pre: "Fast to pilot:",
       highlight: "Scan today, go live tomorrow.",
-      sub: "We capture your space, map common questions & tasks, and deliver a hands-on demo for your team.",
+      sub: "We capture your space, map common questions & tasks, and deliver a hands-on demo for your team the very next day.",
     },
     {
       k: "why",
@@ -47,7 +47,7 @@ export default function Hero({ onPrimaryCta }) {
 
   const features = [
     "No app to build",
-    "Mapping today, demo tomorrow",
+    "Mapping today, demo tomorrow (required)",
     "On-site demo 1–2 hrs",
     "Works with all smart glasses brands",
     "Analytics & insights included",
@@ -64,7 +64,7 @@ export default function Hero({ onPrimaryCta }) {
       k: "how",
       pre: "What we handle:",
       highlight: "Space scans, agent flows, and hardware provisioning.",
-      sub: "We capture your layout, map the top questions and tasks, and deliver a guided run-through for your team.",
+      sub: "We capture your layout, map the top questions and tasks, and deliver a guided run-through for your team the very next day.",
     },
     {
       k: "why",
@@ -82,7 +82,7 @@ export default function Hero({ onPrimaryCta }) {
 
   const features2 = [
     "Venue scan + AI flows in under 24 hours",
-    "Mapping today, demo tomorrow",
+    "Mapping today, demo tomorrow (required)",
     "Works with all smart glasses brands",
     "Staff onboarding + playbooks included",
     "Analytics & privacy controls baked in",
