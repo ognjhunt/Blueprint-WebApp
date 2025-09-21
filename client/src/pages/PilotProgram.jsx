@@ -822,7 +822,7 @@ export default function PilotProgram() {
     {
       icon: <MapPin className="w-6 h-6" />,
       title: "Day 1 · Mapping Visit",
-      subtitle: "30–60 min capture",
+      subtitle: "30–60 min capture on site",
       description:
         "We scan your venue with LiDAR to create a precise digital twin—fast, quiet, and disruption-free.",
       color: "from-emerald-500 to-cyan-500",
@@ -836,22 +836,22 @@ export default function PilotProgram() {
     {
       icon: <Sparkles className="w-6 h-6" />,
       title: "Overnight AI Build",
-      subtitle: "Design & automate",
+      subtitle: "Design & automate (no visit)",
       description:
-        "Our AI turns the scan into a brand-aligned AR layer within hours so everything is ready for the next morning.",
+        "Our AI turns the scan into a brand-aligned AI layer within hours so everything is ready by the next morning.",
       color: "from-cyan-500 to-teal-500",
       benefit: "Tailored to your venue",
       details: ["AI-assisted content", "Rapid review checkpoint", "QR plan"],
     },
     {
       icon: <PlayCircle className="w-6 h-6" />,
-      title: "Day 2 · Demo Visit",
+      title: "Day 2 · Next-Day Demo",
       subtitle: "Live walkthrough (1–2 hrs)",
       description:
-        "We bring a VR headset and run the demo end-to-end the very next day. Your team tries it hands-on; we handle devices, setup, and sanitization. The AR is live during the scheduled activation window only.",
+        "We return the very next day with devices, run the experience end-to-end, and capture feedback. The AI experience is live during the scheduled activation window only.",
       color: "from-emerald-400 to-cyan-400",
       benefit: "Hands-on, on-site",
-      details: ["VR headset", "Team walkthrough", "Immediate insights"],
+      details: ["AI glasses", "Team walkthrough", "Immediate insights"],
     },
     {
       icon: <Send className="w-6 h-6" />,
@@ -861,7 +861,11 @@ export default function PilotProgram() {
         "After the demo, we send a short survey to your team. Your feedback keeps the pilot free and helps Blueprint improve.",
       color: "from-cyan-400 to-emerald-400",
       benefit: "Your input matters",
-      details: ["10-minute survey", "Participant insights", "Keeps program free"],
+      details: [
+        "10-minute survey",
+        "Participant insights",
+        "Keeps program free",
+      ],
     },
   ];
   // const timeline = [
@@ -947,7 +951,7 @@ export default function PilotProgram() {
       icon: <Shield className="w-6 h-6" />,
       title: "Zero Risk",
       description:
-      "A rapid pilot (scan today, live tomorrow) that’s free and feedback-only.",
+        "A rapid pilot (scan today, live tomorrow) that’s free and feedback-only.",
       highlight: "100% FREE",
     },
     {
@@ -979,7 +983,7 @@ export default function PilotProgram() {
     },
     {
       q: "What does the pilot cost?",
-    a: "Nothing. The rapid pilot (scan today, live tomorrow) is free and feedback-only. No contract, and there’s no purchase option yet.",
+      a: "Nothing. The rapid pilot (scan today, live tomorrow) is free and feedback-only. No contract, and there’s no purchase option yet.",
     },
     {
       q: "How long does mapping take?",
@@ -2137,7 +2141,7 @@ export default function PilotProgram() {
 //       "No hidden fees or surprises",
 //     ],
 //     "Premium Hardware": [
-  //       "VR headset demos included",
+//       "VR headset demos included",
 //       "Latest AR technology access",
 //       "Professional setup & training",
 //       "Hardware experts on-site",
@@ -3008,7 +3012,7 @@ export default function PilotProgram() {
 //         "Experience your space transformed with AR using cutting-edge devices. See the magic firsthand!",
 //       color: "from-purple-500 to-pink-500",
 //       benefit: "Hands-on experience",
-  //       details: ["VR headset demo", "Team training", "Immediate feedback"],
+//       details: ["VR headset demo", "Team training", "Immediate feedback"],
 //     },
 //   ];
 
@@ -3049,7 +3053,7 @@ export default function PilotProgram() {
 //     {
 //       icon: <Monitor className="w-6 h-6" />,
 //       title: "Premium Hardware",
-  //       description: "Test with a VR headset and other cutting-edge devices",
+//       description: "Test with a VR headset and other cutting-edge devices",
 //       highlight: "No purchase needed",
 //     },
 //     {
@@ -3107,7 +3111,7 @@ export default function PilotProgram() {
 //     },
 //     {
 //       q: "Do we need special hardware for customers?",
-  //       a: "No! That's the beauty of Blueprint. Your customers access the AR experience through their own devices via web browser - no app download needed. During the pilot, we bring a VR headset and other devices for demos, but day-to-day operation only requires customer's devices.",
+//       a: "No! That's the beauty of Blueprint. Your customers access the AR experience through their own devices via web browser - no app download needed. During the pilot, we bring a VR headset and other devices for demos, but day-to-day operation only requires customer's devices.",
 //     },
 //     {
 //       q: "What do you need from us?",
