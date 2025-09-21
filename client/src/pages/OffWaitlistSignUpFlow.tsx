@@ -2438,7 +2438,7 @@ export default function OffWaitlistSignUpFlow() {
 
 //   const [demoDate, setDemoDate] = useState(() => {
 //     const date = new Date();
-//     date.setDate(date.getDate() + 7); // Default to 1 week from today
+//     date.setDate(date.getDate() + 1); // Default to 1 day from today
 //     return date;
 //   });
 //   const [demoTime, setDemoTime] = useState("11:00"); // Default to 11:00 AM

@@ -352,7 +352,7 @@ export default function Home() {
 
                 <div className="flex flex-wrap items-center gap-2 mb-4">
                   <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
-                    Two visits (~10 days)
+                    Launch in under 24 hours
                   </span>
                   <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
                     Live demo 1–2 hrs
@@ -497,9 +497,9 @@ export default function Home() {
               <p className="mt-3 text-slate-300 max-w-2xl mx-auto">
                 Smart glasses launches from Meta, Google, Apple, and Samsung are
                 bringing hands-free AI into the mainstream. We help you capture
-                your space, design the workflows, and test with your team in
-                about 10 days. Two quick visits: a 60-minute scan and a 1–2 hour
-                on-site demo. The pilot is free.
+                your space, design the workflows, and test with your team by
+                tomorrow. One focused visit: a 60-minute scan followed by a
+                same-day activation run-through. The pilot is free.
               </p>
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 justify-center">
                 <Button
@@ -959,7 +959,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 //                 <div className="flex flex-wrap items-center gap-2 mb-4">
 //                   <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
-//                     Two visits (~10 days)
+//                     Launch in under 24 hours
 //                   </span>
 //                   <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
 //                     Live demo 1–2 hrs

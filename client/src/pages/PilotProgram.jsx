@@ -238,7 +238,7 @@ function MobileBenefitsCarousel({ benefits }) {
 function getBenefitDetails(title) {
   const details = {
     "Zero Risk": [
-      "Free two-visit pilot (~10 days)",
+      "Free rapid pilot (<24 hours)",
       "No credit card or contract",
       "We handle setup end-to-end",
       "Clear next steps after demo",
@@ -817,7 +817,7 @@ export default function PilotProgram() {
     );
   };
 
-  // 10-day flow for clarity
+  // 24-hour flow for clarity
   const timeline = [
     {
       icon: <MapPin className="w-6 h-6" />,
@@ -835,20 +835,20 @@ export default function PilotProgram() {
     },
     {
       icon: <Sparkles className="w-6 h-6" />,
-      title: "Between Visits (~1 week)",
-      subtitle: "Design & Build",
+      title: "Same-Day Build (<4 hrs)",
+      subtitle: "Design & Activate",
       description:
-        "We design a brand-aligned AR layer with smart placements and interactions.",
+        "We turn scans into a brand-aligned AR layer that’s ready for guests before the day is over.",
       color: "from-cyan-500 to-teal-500",
       benefit: "Tailored to your venue",
-      details: ["AI-assisted content", "Review checkpoint (async)", "QR plan"],
+      details: ["AI-assisted content", "Rapid review checkpoint", "QR plan"],
     },
     {
       icon: <PlayCircle className="w-6 h-6" />,
-      title: "Visit 2",
-      subtitle: "Live Demo Day (1–2 hrs)",
+      title: "Activation Session",
+      subtitle: "Live Walkthrough (1–2 hrs)",
       description:
-        "We bring a VR headset and run the demo end-to-end. Your team tries it hands-on; we handle devices, setup, and sanitization. The AR is live during the scheduled demo window only.",
+        "We bring a VR headset and run the demo end-to-end later that day. Your team tries it hands-on; we handle devices, setup, and sanitization. The AR is live during the scheduled activation window only.",
       color: "from-emerald-400 to-cyan-400",
       benefit: "Hands-on, on-site",
       details: ["VR headset", "Team walkthrough", "Immediate insights"],
@@ -947,7 +947,7 @@ export default function PilotProgram() {
       icon: <Shield className="w-6 h-6" />,
       title: "Zero Risk",
       description:
-        "A two-visit pilot (~10 days) that’s free and feedback-only.",
+      "A rapid pilot (scan today, live tomorrow) that’s free and feedback-only.",
       highlight: "100% FREE",
     },
     {
@@ -979,7 +979,7 @@ export default function PilotProgram() {
     },
     {
       q: "What does the pilot cost?",
-      a: "Nothing. The two-visit pilot (~10 days) is free and feedback-only. No contract, and there’s no purchase option yet.",
+    a: "Nothing. The rapid pilot (scan today, live tomorrow) is free and feedback-only. No contract, and there’s no purchase option yet.",
     },
     {
       q: "How long does mapping take?",
@@ -994,8 +994,8 @@ export default function PilotProgram() {
       a: "Access for mapping, some basic business info, access to Wi-Fi, and your feedback after demo day. We handle the rest—design, setup, and analytics. If your Wi-Fi is private, please share the network name and password with the Mapping Specialist during the visit.",
     },
     {
-      q: "Is the AR experience live for two weeks?",
-      a: "No. The experience is live during the scheduled demo window (1–2 hours) on Visit 2. The goal is to gather feedback and learn, not to run the experience continuously yet.",
+      q: "Is the AR experience live beyond the 24-hour launch?",
+      a: "No. The experience is live during the activation window (1–2 hours) within 24 hours of mapping. The goal is to gather feedback and learn, not to run the experience continuously yet.",
     },
     {
       q: "What happens after the pilot?",
@@ -1032,20 +1032,20 @@ export default function PilotProgram() {
             >
               <Badge className="inline-flex items-center gap-2 bg-emerald-400/10 text-emerald-300 border-emerald-500/30 mb-6 px-4 py-2">
                 <Rocket className="w-4 h-4" />
-                Durham Pilot — Two visits (~10 days)
+                Durham Pilot — Live in 24 hours
               </Badge>
 
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-6 leading-tight text-white">
                 Turn Your Space{" "}
                 <span className="bg-gradient-to-r from-emerald-300 via-cyan-300 to-emerald-200 bg-clip-text text-transparent">
-                  Into a Shareable AR Experience in 10 Days
+                  Into a Shareable AR Experience by Tomorrow
                 </span>
               </h1>
 
               <p className="text-base sm:text-lg md:text-xl text-slate-300 mb-6 md:mb-8 max-w-2xl mx-auto lg:mx-0">
-                Two quick visits about a week apart: mapping (~60 min) and an
-                on-site demo (1–2 hrs). Free and feedback-only. No apps to
-                install—we provide the headset; guests just scan a QR code to
+                One focused visit: a 60-minute mapping session with a same-day
+                activation run-through (1–2 hrs). Free and feedback-only. No apps
+                to install—we provide the headset; guests just scan a QR code to
                 see it in action.
               </p>
 
@@ -1130,9 +1130,9 @@ export default function PilotProgram() {
             },
             {
               label: "Time to Launch",
-              value: "10 days",
+              value: "24 hours",
               icon: <Clock className="w-6 h-6" />,
-              description: "From mapping to on-site demo", // ← replace this line
+              description: "From scan to activation",
               gradient: "from-cyan-500 to-teal-500",
             },
             {
@@ -1250,10 +1250,10 @@ export default function PilotProgram() {
           >
             <Badge className="inline-flex items-center gap-2 bg-cyan-500/10 text-cyan-300 border-cyan-500/30 mb-6 px-4 py-2">
               <CalendarCheck className="w-4 h-4" />
-              Simple Two-Visit Process (~10 days)
+              Simple 24-Hour Launch Process
             </Badge>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 text-white">
-              From First Scan to a Live Demo in ~10 Days
+              From First Scan to a Live Demo by Tomorrow
             </h2>
             <p className="text-lg md:text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
               We do the heavy lifting—your team just shows up to try it and give
@@ -3043,7 +3043,7 @@ export default function PilotProgram() {
 //     {
 //       icon: <Shield className="w-6 h-6" />,
 //       title: "Zero Risk",
-//       description: "2 week program with absolutely no cost or obligation",
+//       description: "24-hour program with absolutely no cost or obligation",
 //       highlight: "100% FREE",
 //     },
 //     {
@@ -3099,7 +3099,7 @@ export default function PilotProgram() {
 //     },
 //     {
 //       q: "What does the pilot program cost?",
-//       a: "Nothing. Zero. Nada. The entire 2 week program is completely free with no hidden fees, no credit card required, and no obligation to continue. This includes the space mapping, AI-generated AR content, hardware demos, and analytics. We're investing in showing you the future because we believe seeing is believing.",
+//       a: "Nothing. Zero. Nada. The entire 24-hour program is completely free with no hidden fees, no credit card required, and no obligation to continue. This includes the space mapping, AI-generated AR content, hardware demos, and analytics. We're investing in showing you the future because we believe seeing is believing.",
 //     },
 //     {
 //       q: "How long does the space mapping take?",
@@ -3118,7 +3118,7 @@ export default function PilotProgram() {
 //       a: "The possibilities are endless! For retail: virtual try-ons, product demos, and interactive catalogs. For museums: digital guides, historical recreations, and interactive exhibits. For restaurants: 3D menu visualizations and tableside ordering. For real estate: virtual staging and property tours. Each experience is custom-built for your specific needs.",
 //     },
 //     {
-//       q: "What happens after the 2 week program?",
+//       q: "What happens after the 24-hour program?",
 //       a: "We'll send out a survey to all participants of the Demo Day asking about the whole Pilot Program experience. Any feedback from this survey helps us improve Blueprint!",
 //     },
 //     {
@@ -3350,7 +3350,7 @@ export default function PilotProgram() {
 //             },
 //             {
 //               label: "Time to Launch",
-//               value: "< 2 weeks",
+//               value: "< 24 hours",
 //               icon: <Clock className="w-6 h-6" />,
 //               description: "From scan to live experience",
 //               gradient: "from-blue-500 to-cyan-500",

@@ -186,7 +186,7 @@ export default function RoboticsOS() {
                 <li>
                   <strong>Faster onboarding:</strong> New vendors or third-party
                   robotics fleets can request temporary credentials instead of
-                  weeks of site surveys.
+                  lengthy site surveys.
                 </li>
               </ul>
 

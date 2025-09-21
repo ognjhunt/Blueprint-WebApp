@@ -28,7 +28,7 @@ export default function Hero({ onPrimaryCta }) {
     {
       k: "how",
       pre: "Fast to pilot:",
-      highlight: "Scan today, go live next week.",
+      highlight: "Scan today, go live tomorrow.",
       sub: "We capture your space, map common questions & tasks, and deliver a hands-on demo for your team.",
     },
     {
@@ -47,7 +47,7 @@ export default function Hero({ onPrimaryCta }) {
 
   const features = [
     "No app to build",
-    "Setup in ~10 days",
+    "Setup by tomorrow",
     "On-site demo 1–2 hrs",
     "Works with all smart glasses brands",
     "Analytics & insights included",
@@ -57,7 +57,7 @@ export default function Hero({ onPrimaryCta }) {
     {
       k: "owners",
       pre: "For location owners:",
-      highlight: "Bring wearable AI service to your venue in weeks.",
+      highlight: "Bring wearable AI service to your venue in 24 hours.",
       sub: "Blueprint packages the new device access toolkits into guest-ready pilots for retail, hospitality, attractions, and campuses.",
     },
     {
@@ -81,7 +81,7 @@ export default function Hero({ onPrimaryCta }) {
   ];
 
   const features2 = [
-    "Venue scan + AI flows in ~10 days",
+    "Venue scan + AI flows in under 24 hours",
     "No custom app required",
     "Works with all smart glasses brands",
     "Staff onboarding + playbooks included",
@@ -291,14 +291,14 @@ export default function Hero({ onPrimaryCta }) {
 //       k: "how",
 //       pre: "We do the heavy lifting:",
 //       highlight:
-//         "Map your location → design the content → on-site demo in ~10 days.",
-//       sub: "Two short visits from us: Day 1 mapping (~60 min), then a demo 1–2 hrs about a week later.",
+//         "Map your location → design the content → go live tomorrow.",
+//       sub: "One focused visit from us: mapping (~60 min) with a same-day activation run-through for your team.",
 //     },
 //     {
 //       k: "pilot",
 //       pre: "Now enrolling in Durham:",
 //       highlight: "$0 to try Blueprint at your location.",
-//       sub: "Free, feedback-only pilot. Two visits: mapping (~60 min) + demo (1–2 hrs). No contract; no purchase option yet.",
+//       sub: "Free, feedback-only pilot. Scan today, live tomorrow. No contract; no purchase option yet.",
 //     },
 //   ];
 
@@ -395,8 +395,8 @@ export default function Hero({ onPrimaryCta }) {
 //           transition={{ delay: 0.15 }}
 //           className="mt-5 flex flex-wrap gap-2"
 //         >
-//           {[
-//             "Two visits (~10 days)",
+//           {[ 
+//             "Launch in under 24 hours",
 //             "Mapping ~60 min",
 //             "Live demo 1–2 hrs",
 //             "Works on headsets & glasses",
@@ -488,14 +488,14 @@ export default function Hero({ onPrimaryCta }) {
 //       k: "how",
 //       pre: "We do the heavy lifting:",
 //       highlight:
-//         "Map your location → design the content → on-site demo in ~10 days.",
-//       sub: "Two short visits from us: Day 1 mapping (~60 min), then a demo 1–2 hrs about a week later.",
+//         "Map your location → design the content → go live tomorrow.",
+//       sub: "One focused visit from us: mapping (~60 min) with a same-day activation run-through for your team.",
 //     },
 //     {
 //       k: "pilot",
 //       pre: "Now enrolling in Durham:",
 //       highlight: "$0 to try Blueprint at your location.",
-//       sub: "Free, feedback-only pilot. Two visits: mapping (~60 min) + demo (1–2 hrs). No contract; no purchase option yet.",
+//       sub: "Free, feedback-only pilot. Scan today, live tomorrow. No contract; no purchase option yet.",
 //     },
 //   ];
 
@@ -592,8 +592,8 @@ export default function Hero({ onPrimaryCta }) {
 //           transition={{ delay: 0.15 }}
 //           className="mt-5 flex flex-wrap gap-2"
 //         >
-//           {[
-//             "Two visits (~10 days)",
+//           {[ 
+//             "Launch in under 24 hours",
 //             "Mapping ~60 min",
 //             "Live demo 1–2 hrs",
 //             "Works on headsets & glasses",

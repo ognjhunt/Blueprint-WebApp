@@ -1039,7 +1039,7 @@ const steps = [
     title: "Join Pilot Program",
     description:
       "Secure your spot in our exclusive Pilot Program. Priority onboarding available.",
-    benefits: ["Priority access", "Free 2 week program", "Dedicated support"],
+    benefits: ["Priority access", "Free 24-hour program", "Dedicated support"],
     color: "from-emerald-500 to-teal-600",
     duration: "1 minute",
   },
@@ -1114,7 +1114,7 @@ const steps = [
 //     description:
 //       "Reserve your spot for priority access to Blueprint's AR platform",
 //     benefits: [
-//       "Free 2 week program access",
+//       "Free 24-hour program access",
 //       "Priority support",
 //       "Custom onboarding",
 //     ],

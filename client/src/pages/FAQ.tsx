@@ -26,7 +26,7 @@ export default function FAQ() {
     },
     {
       q: "What does the pilot program cost?",
-      a: "Nothing. Zero. Nada. The entire 2 week program is completely free with no hidden fees, no credit card required, and no obligation to continue. This includes the space mapping, AI-generated AR content, hardware demos, and analytics. We're investing in showing you the future because we believe seeing is believing.",
+      a: "Nothing. Zero. Nada. The entire 24-hour program is completely free with no hidden fees, no credit card required, and no obligation to continue. This includes the space mapping, AI-generated AR content, hardware demos, and analytics. We're investing in showing you the future because we believe seeing is believing.",
     },
     {
       q: "How long does the space mapping take?",
@@ -45,8 +45,8 @@ export default function FAQ() {
       a: "The possibilities are endless! For retail: virtual try-ons, product demos, and interactive catalogs. For museums: digital guides, historical recreations, and interactive exhibits. For restaurants: 3D menu visualizations and tableside ordering. For real estate: virtual staging and property tours. Each experience is custom-built for your specific needs.",
     },
     {
-      q: "What happens after the 2 week program?",
-      a: "We'll send out a survey to all participants of the Demo Day asking about the whole Pilot Program experience. Any feedback from this survey helps us improve Blueprint! As of today, there are no options to discuss continuing with a full implementation of Blueprint for your space.",
+      q: "What happens after the 24-hour program?",
+      a: "We'll send out a survey to all participants of the activation asking about the whole Pilot Program experience. Any feedback from this survey helps us improve Blueprint! As of today, there are no options to discuss continuing with a full implementation of Blueprint for your space.",
     },
     {
       q: "How do customers access the AR experience?",
