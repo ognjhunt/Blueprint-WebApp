@@ -4,7 +4,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import GeminiChat from "@/components/GeminiChat";
 import GeminiMultimodal from "@/components/GeminiMultimodal";
 import { motion, AnimatePresence } from "framer-motion";
@@ -38,7 +38,7 @@ import {
   User,
   Edit,
   Loader2,
-  RefreshCcw,
+  DoorOpen,
   Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -149,6 +149,7 @@ export default function Dashboard() {
   const [blueprintsLastMonth, setBlueprintsLastMonth] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isWaitingForMapping, setIsWaitingForMapping] = useState(false);
+  const [skipWaitingScreen, setSkipWaitingScreen] = useState(false);
   const [mappingDate, setMappingDate] = useState(null);
   const [mappingTime, setMappingTime] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -167,6 +168,18 @@ export default function Dashboard() {
     useState<any | null>(null);
   const [isValidatingInternalAccess, setIsValidatingInternalAccess] =
     useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const storedSkip = localStorage.getItem("skipWaitingScreen") === "true";
+    if (storedSkip) {
+      setSkipWaitingScreen(true);
+      setIsWaitingForMapping(false);
+    }
+  }, []);
 
   // Filtered blueprints based on search query
   const filteredBlueprints = blueprints.filter(
@@ -233,6 +246,14 @@ export default function Dashboard() {
         setInternalAccessError("Incorrect internal access code.");
       }
     }, 300);
+  };
+
+  const handleSkipWaitingAndOpenDashboard = () => {
+    localStorage.setItem("skipWaitingScreen", "true");
+    if (!skipWaitingScreen) {
+      setSkipWaitingScreen(true);
+    }
+    setIsWaitingForMapping(false);
   };
 
   /**
@@ -434,6 +455,13 @@ export default function Dashboard() {
           // Only check Firestore if we don't already have localStorage confirmation
           const scanCompletedFromLocalStorage =
             localStorage.getItem("scanCompleted") === "true";
+          const skipWaitingFromLocalStorage =
+            localStorage.getItem("skipWaitingScreen") === "true";
+          let skipWaitingActive = skipWaitingFromLocalStorage;
+
+          if (skipWaitingFromLocalStorage && !skipWaitingScreen) {
+            setSkipWaitingScreen(true);
+          }
 
           if (
             !scanCompletedFromLocalStorage &&
@@ -490,7 +518,8 @@ export default function Dashboard() {
             userData.mappingScheduleTime &&
             userData.finishedOnboarding !== true &&
             !scanCompletedFromLocalStorage &&
-            !hasCompletedBlueprint
+            !hasCompletedBlueprint &&
+            !skipWaitingActive
           ) {
             // Show waiting screen
             console.log("Dashboard - showing waiting screen");
@@ -527,6 +556,7 @@ export default function Dashboard() {
           let createdWithinLastMonth = 0;
 
           // Process blueprints in parallel for better performance
+          let hasBlueprintAssets = false;
           const blueprintsPromises = createdBlueprintIDs.map(
             async (blueprintID) => {
               try {
@@ -545,6 +575,13 @@ export default function Dashboard() {
                     if (createdDate >= oneMonthAgo) {
                       createdWithinLastMonth++;
                     }
+                  }
+
+                  if (
+                    blueprintData.floorPlanUrl ||
+                    blueprintData.floorPlan3DUrl
+                  ) {
+                    hasBlueprintAssets = true;
                   }
 
                   // --- Caching Logic ---
@@ -659,6 +696,15 @@ export default function Dashboard() {
           const blueprintsResults = await Promise.all(blueprintsPromises);
           const blueprintsData = blueprintsResults.filter(Boolean); // Remove any nulls
 
+          if (hasBlueprintAssets && !skipWaitingActive) {
+            localStorage.setItem("skipWaitingScreen", "true");
+            skipWaitingActive = true;
+            if (!skipWaitingScreen) {
+              setSkipWaitingScreen(true);
+            }
+            setIsWaitingForMapping(false);
+          }
+
           setBlueprints(blueprintsData);
           setBlueprintsLastMonth(createdWithinLastMonth);
           setActiveBlueprintsPercentage(Math.floor(Math.random() * 30) + 60);
@@ -694,7 +740,7 @@ export default function Dashboard() {
 
     fetchBlueprintsData();
     //  run();
-  }, [currentUser]);
+  }, [currentUser, skipWaitingScreen]);
 
   /**
    * Constructs a Google Street View Static API URL for a given address and business name.
@@ -994,12 +1040,22 @@ export default function Dashboard() {
    * @param {string} props.mappingTime - The scheduled time for the mapping session.
    * @returns {JSX.Element} The rendered WaitingForMappingDashboard component.
    */
-  const WaitingForMappingDashboard = ({ mappingDate, mappingTime }) => {
+  const WaitingForMappingDashboard = ({
+    mappingDate,
+    mappingTime,
+    onOpenDashboard,
+  }) => {
     const [timerEnded, setTimerEnded] = useState(false);
-    const [checkingCompletion, setCheckingCompletion] = useState(false);
+    const [isOpeningDashboard, setIsOpeningDashboard] = useState(false);
     const [mapperName] = useState("Nijel"); // Default mapper name
-    const { currentUser } = useAuth();
     const { toast } = useToast();
+    const isMountedRef = useRef(true);
+
+    useEffect(() => {
+      return () => {
+        isMountedRef.current = false;
+      };
+    }, []);
 
     // FAQs from Help page (simplified version)
     const faqs = [
@@ -1019,76 +1075,24 @@ export default function Dashboard() {
       setTimerEnded(true);
     };
 
-    const checkMappingCompletion = async () => {
-      if (!currentUser) return;
+    const handleOpenDashboard = () => {
+      if (isOpeningDashboard) return;
 
-      setCheckingCompletion(true);
-      try {
-        // Get user document to find blueprintIDs
-        const userRef = doc(db, "users", currentUser.uid);
-        const userSnap = await getDoc(userRef);
+      setIsOpeningDashboard(true);
+      toast({
+        title: "Mapper on site",
+        description:
+          "Opening your Blueprint dashboard so you can follow along in real time.",
+        variant: "default",
+      });
 
-        if (userSnap.exists()) {
-          const userData = userSnap.data();
-          const blueprintIDs = userData.createdBlueprintIDs || [];
-
-          console.log("Checking completion for user:", currentUser.uid);
-          console.log("Blueprint IDs to check:", blueprintIDs);
-
-          // Check if any blueprint has scanCompleted = true
-          for (const blueprintID of blueprintIDs) {
-            const blueprintRef = doc(db, "blueprints", blueprintID);
-            const blueprintSnap = await getDoc(blueprintRef);
-
-            if (blueprintSnap.exists()) {
-              const blueprintData = blueprintSnap.data();
-              console.log(
-                `Blueprint ${blueprintID} scanCompleted:`,
-                blueprintData.scanCompleted,
-              );
-
-              if (blueprintData.scanCompleted === true) {
-                // Found a completed scan - show success message and redirect to dashboard
-                toast({
-                  title: "Blueprint Ready!",
-                  description:
-                    "Your 3D mapping has been completed. Redirecting to dashboard...",
-                  variant: "default",
-                });
-
-                // Store scan completion status in localStorage so we can show the regular dashboard
-                localStorage.setItem("scanCompleted", "true");
-
-                // Short delay to show the success message before refreshing
-                setTimeout(() => {
-                  // Set flag to trigger onboarding on reload
-                  localStorage.setItem("newScanCompletion", "true");
-                  window.location.reload();
-                }, 1500);
-
-                return;
-              }
-            }
+      Promise.resolve(onOpenDashboard?.()).finally(() => {
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            setIsOpeningDashboard(false);
           }
-
-          // If we get here, no completed scans were found
-          toast({
-            title: "Scan not yet completed",
-            description:
-              "The 3D mapping hasn't been processed yet. Please check back later.",
-            variant: "default",
-          });
-        }
-      } catch (error) {
-        console.error("Error checking mapping completion:", error);
-        toast({
-          title: "Error",
-          description: "Could not check mapping status. Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setCheckingCompletion(false);
-      }
+        }, 800);
+      });
     };
 
     return (
@@ -1257,24 +1261,24 @@ export default function Dashboard() {
                 <div className="mt-8">
                   <Button
                     size="lg"
-                    onClick={checkMappingCompletion}
-                    disabled={checkingCompletion}
+                    onClick={handleOpenDashboard}
+                    disabled={isOpeningDashboard}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-4 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all"
                   >
-                    {checkingCompletion ? (
+                    {isOpeningDashboard ? (
                       <>
                         <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        Checking...
+                        Opening dashboard...
                       </>
                     ) : (
                       <>
-                        <RefreshCcw className="mr-2 h-5 w-5" />
-                        Refresh After Mapping
+                        <DoorOpen className="mr-2 h-5 w-5" />
+                        Mapper is on site – open dashboard
                       </>
                     )}
                   </Button>
                   <p className="text-sm text-slate-400 mt-3">
-                    Click this button after your mapping session is complete
+                    Click once your mapper arrives to start exploring your Blueprint.
                   </p>
                 </div>
               </motion.div>
@@ -1346,6 +1350,7 @@ export default function Dashboard() {
             <WaitingForMappingDashboard
               mappingDate={mappingDate}
               mappingTime={mappingTime}
+              onOpenDashboard={handleSkipWaitingAndOpenDashboard}
             />
           </div>
         ) : (
