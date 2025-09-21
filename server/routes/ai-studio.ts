@@ -16,25 +16,30 @@ import type { KnowledgeSource } from "../types/knowledge";
 
 const router = express.Router();
 
-const DEFAULT_MODEL = process.env.XAI_GROK_MODEL || "grok-4-fast";
-const FALLBACK_MODEL = process.env.XAI_GROK_FALLBACK_MODEL;
+const DEFAULT_MODEL =
+  process.env.GEMINI_STUDIO_MODEL ||
+  process.env.GEMINI_FLASH_MODEL ||
+  "gemini-2.5-flash";
+const FALLBACK_MODEL =
+  process.env.GEMINI_STUDIO_FALLBACK_MODEL || process.env.GEMINI_FLASH_FALLBACK_MODEL;
 
 type ChatHistoryMessage = {
   role: "user" | "assistant";
   content: string;
 };
 
-type XaiChatMessage = {
+type GeminiChatMessage = {
   role: "system" | "user" | "assistant";
   content: string;
 };
 
-type XaiChatCompletionResponse = {
-  model?: string | null;
-  choices?: Array<{
-    message?: {
-      role?: string | null;
-      content?: string | null;
+type GeminiGenerateContentResponse = {
+  modelVersion?: string | null;
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string | null;
+      }>;
     };
   }>;
 };
@@ -412,7 +417,7 @@ router.post("/chat", async (req, res) => {
       toolHints: formatToolHints(data.aiAssistantToolHints),
     });
 
-    const historyMessages: XaiChatMessage[] = Array.isArray(payload.history)
+    const historyMessages: GeminiChatMessage[] = Array.isArray(payload.history)
       ? payload.history
           .filter(
             (item): item is ChatHistoryMessage =>
@@ -421,7 +426,7 @@ router.post("/chat", async (req, res) => {
               typeof item.content === "string" &&
               item.content.trim().length > 0,
           )
-          .map((item): XaiChatMessage => ({
+          .map((item): GeminiChatMessage => ({
             role: item.role === "assistant" ? "assistant" : "user",
             content: item.content.trim(),
           }))
@@ -448,7 +453,7 @@ router.post("/chat", async (req, res) => {
       "Provide an actionable, voice-ready answer in <=2 sentences and mention a relevant follow-up action if the connectors/functions allow it.",
     ];
 
-    const messages: XaiChatMessage[] = [];
+    const messages: GeminiChatMessage[] = [];
 
     const trimmedInstruction = systemInstruction?.trim();
     if (trimmedInstruction) {
@@ -462,43 +467,79 @@ router.post("/chat", async (req, res) => {
       content: userPromptSections.join("\n\n"),
     });
 
-    const apiKey = process.env.XAI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     if (!apiKey) {
-      throw new Error("XAI_API_KEY is not configured");
+      throw new Error("GEMINI_API_KEY is not configured");
     }
+
+    const systemInstructionContent = trimmedInstruction
+      ? { role: "system", parts: [{ text: trimmedInstruction }] }
+      : null;
+
+    const geminiContents = messages
+      .filter((message) => message.role !== "system")
+      .map((message) => ({
+        role: message.role === "assistant" ? "model" : "user",
+        parts: [{ text: message.content }],
+      }));
 
     const runModel = async (
       model: string,
     ): Promise<{ content: string; modelVersion?: string | null }> => {
-      const response = await fetch("https://api.x.ai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages,
-          stream: false,
+      const requestBody: Record<string, unknown> = {
+        contents: geminiContents,
+        generationConfig: {
           temperature: 0.3,
-        }),
-      });
+        },
+        tools: [
+          {
+            googleSearchRetrieval: {
+              dynamicRetrievalConfig: {
+                mode: "MODE_DYNAMIC",
+              },
+            },
+          },
+        ],
+      };
+
+      if (systemInstructionContent) {
+        requestBody.systemInstruction = systemInstructionContent;
+      }
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
+          body: JSON.stringify(requestBody),
+        },
+      );
 
       if (!response.ok) {
         const errorBody = await response.text().catch(() => "");
-        throw new Error(`Grok API request failed (${response.status}): ${errorBody}`);
+        throw new Error(`Gemini API request failed (${response.status}): ${errorBody}`);
       }
 
-      const data = (await response.json()) as XaiChatCompletionResponse;
-      const choice = data.choices?.find((item) => item?.message?.content?.trim());
-      const content = choice?.message?.content?.trim();
-      if (!content) {
-        throw new Error("No response returned from Grok API");
+      const data = (await response.json()) as GeminiGenerateContentResponse;
+      const candidate = data.candidates?.find((item) =>
+        item?.content?.parts?.some((part) => typeof part?.text === "string" && part.text.trim()),
+      );
+      const content = candidate?.content?.parts
+        ?.map((part) => (typeof part?.text === "string" ? part.text.trim() : ""))
+        .filter((part) => part.length > 0)
+        .join("\n\n");
+
+      const trimmedContent = content?.trim();
+      if (!trimmedContent) {
+        throw new Error("No response returned from Gemini API");
       }
 
       return {
-        content,
-        modelVersion: data.model ?? model,
+        content: trimmedContent,
+        modelVersion: data.modelVersion ?? model,
       };
     };
 
@@ -509,7 +550,7 @@ router.post("/chat", async (req, res) => {
     } catch (primaryError) {
       logger.warn(
         { blueprintId, err: primaryError },
-        "Primary Grok model failed; attempting fallback",
+        "Primary Gemini model failed; attempting fallback",
       );
       if (!FALLBACK_MODEL || FALLBACK_MODEL === DEFAULT_MODEL) {
         throw primaryError;
