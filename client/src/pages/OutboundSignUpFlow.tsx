@@ -136,12 +136,13 @@ export default function OutboundSignUpFlow() {
   const [scheduleDate, setScheduleDate] = useState(new Date());
   const [scheduleTime, setScheduleTime] = useState("08:00");
 
-  // When mapping date changes, keep demo date in the valid window (7–14 days later).
+  // When mapping date changes, lock the demo to the next day.
   useEffect(() => {
-    const min = addDays(scheduleDate, 7);
-    const max = addDays(scheduleDate, 14);
+    const nextDay = addDays(scheduleDate, 1);
 
-    setDemoDate((prev) => (prev < min || prev > max ? min : prev));
+    setDemoDate((prev) =>
+      prev.toDateString() === nextDay.toDateString() ? prev : nextDay,
+    );
   }, [scheduleDate]);
 
   // Step 4 — Demo
@@ -151,7 +152,7 @@ export default function OutboundSignUpFlow() {
   //   return d;
   // });
   // Step 4 — Demo
-  const [demoDate, setDemoDate] = useState(new Date()); // effect will snap to 7 days after mapping
+  const [demoDate, setDemoDate] = useState(new Date()); // effect will snap to the next day
 
   const [demoTime, setDemoTime] = useState("11:00");
 
@@ -1174,7 +1175,8 @@ export default function OutboundSignUpFlow() {
           </h2>
           <p className="text-slate-300 mt-2">
             Pick a date and time for our specialist to scan your space. Most
-            visits take ~30–60 minutes.
+            visits take ~30–60 minutes, and we’ll be back the very next day for
+            your live demo.
           </p>
         </div>
 
@@ -1314,9 +1316,9 @@ export default function OutboundSignUpFlow() {
     const [demoBookedTimes, setDemoBookedTimes] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Valid demo window = 7–14 days after mapping
-    const demoMin = addDays(scheduleDate, 7);
-    const demoMax = addDays(scheduleDate, 14);
+    // Demo happens the day after mapping
+    const demoMin = addDays(scheduleDate, 1);
+    const demoMax = addDays(scheduleDate, 1);
 
     const formatSlot = (time: string) => {
       const [hh, mm] = time.split(":");
@@ -1381,11 +1383,11 @@ export default function OutboundSignUpFlow() {
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl md:text-3xl font-bold text-white">
-            Schedule Demo Day
+            Schedule Next-Day Demo
           </h2>
           <p className="text-slate-300 mt-2">
-            Choose when we should present your completed Blueprint and AR
-            experience to your team.
+            We present your completed Blueprint within 24 hours. Pick the time
+            for the follow-up visit the day after mapping.
           </p>
         </div>
 
@@ -1395,10 +1397,11 @@ export default function OutboundSignUpFlow() {
             <div className="mb-3 flex items-center gap-2 text-slate-200">
               <Calendar className="w-5 h-5 text-cyan-300" />
               <Label className="font-medium text-slate-200">
-                Select Demo Date
+                Select Demo Date (Next Day)
               </Label>
               <p className="text-xs text-slate-400 -mt-1 mb-2">
-                Demo must be 7–14 days after your mapping date.
+                Demo happens the day after your mapping visit—choose the time
+                for that follow-up.
               </p>
             </div>
             <DatePicker
@@ -1410,7 +1413,7 @@ export default function OutboundSignUpFlow() {
               inline
               minDate={demoMin}
               maxDate={demoMax}
-              // Disable anything not in the 7–14 day window so the UI shows what's possible
+              // Disable anything outside the locked next-day window
               filterDate={(date) => date >= demoMin && date <= demoMax}
               calendarClassName="!bg-transparent !border-0 !shadow-none reactpicker-dark"
               wrapperClassName="!block w-full"
@@ -1814,7 +1817,7 @@ export default function OutboundSignUpFlow() {
             onClick={handlePrevStep}
             className="border-white/20 text-slate-200 hover:bg-white/10"
           >
-            <ChevronLeft className="w-4 h-4 mr-1" /> Back to Demo Day
+            <ChevronLeft className="w-4 h-4 mr-1" /> Back to Demo
           </Button>
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             <Button
@@ -1897,7 +1900,7 @@ export default function OutboundSignUpFlow() {
     { id: 1, label: "Account" },
     { id: 2, label: "Contact & Location" },
     { id: 3, label: "Mapping" },
-    { id: 4, label: "Demo Day" },
+    { id: 4, label: "Next-Day Demo" },
     { id: 5, label: "Plan & Payment" },
   ];
 
@@ -2025,16 +2028,16 @@ export default function OutboundSignUpFlow() {
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-start gap-2">
-                        <Calendar className="w-4 h-4 text-emerald-300 mt-0.5" />
-                        <div>
-                          <p className="text-slate-400">Demo Day</p>
-                          <p className="text-white">
-                            {demoDate ? demoDate.toLocaleDateString() : "—"} •{" "}
-                            {demoTime || "—"}
-                          </p>
+                        <div className="flex items-start gap-2">
+                          <Calendar className="w-4 h-4 text-emerald-300 mt-0.5" />
+                          <div>
+                            <p className="text-slate-400">Next-Day Demo</p>
+                            <p className="text-white">
+                              {demoDate ? demoDate.toLocaleDateString() : "—"} •{" "}
+                              {demoTime || "—"}
+                            </p>
+                          </div>
                         </div>
-                      </div>
                       {companyWebsite && (
                         <div className="flex items-start gap-2">
                           <Globe className="w-4 h-4 text-emerald-300 mt-0.5" />
@@ -2156,13 +2159,13 @@ export default function OutboundSignUpFlow() {
                         {scheduleTime || "—"}
                       </span>
                     </div>
-                    <div>
-                      Demo Day:{" "}
-                      <span className="text-white">
-                        {demoDate?.toLocaleDateString() || "—"} •{" "}
-                        {demoTime || "—"}
-                      </span>
-                    </div>
+                      <div>
+                        Next-Day Demo:{" "}
+                        <span className="text-white">
+                          {demoDate?.toLocaleDateString() || "—"} •{" "}
+                          {demoTime || "—"}
+                        </span>
+                      </div>
                   </div>
                 </details>
               </div>
