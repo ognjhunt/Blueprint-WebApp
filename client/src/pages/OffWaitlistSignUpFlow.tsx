@@ -154,12 +154,20 @@ export default function OffWaitlistSignUpFlow() {
   // Step 4
   const [demoDate, setDemoDate] = useState(() => {
     const date = new Date();
-    date.setDate(date.getDate() + 7);
+    date.setDate(date.getDate() + 1);
     return date;
   });
   const [demoTime, setDemoTime] = useState("11:00");
 
   const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    setDemoDate((prev) => {
+      const nextDay = new Date(scheduleDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      return prev.toDateString() === nextDay.toDateString() ? prev : nextDay;
+    });
+  }, [scheduleDate]);
 
   // ------------------------------
   // Validation helpers
@@ -1274,7 +1282,8 @@ export default function OffWaitlistSignUpFlow() {
           </h2>
           <p className="text-slate-300 mt-2">
             Pick a date and time for our specialist to scan your space. Most
-            visits take ~30–60 minutes.
+            visits take ~30–60 minutes, and we’ll be back the very next day for
+            your live demo.
           </p>
         </div>
 
@@ -1417,13 +1426,13 @@ export default function OffWaitlistSignUpFlow() {
 
     const minDemoDate = useCallback(() => {
       const date = new Date(scheduleDate);
-      date.setDate(date.getDate() + 8);
+      date.setDate(date.getDate() + 1);
       return date;
     }, [scheduleDate]);
 
     const maxDemoDate = useCallback(() => {
       const date = new Date(scheduleDate);
-      date.setDate(date.getDate() + 14);
+      date.setDate(date.getDate() + 1);
       return date;
     }, [scheduleDate]);
 
@@ -1490,11 +1499,11 @@ export default function OffWaitlistSignUpFlow() {
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl md:text-3xl font-bold text-white">
-            Schedule Demo Day
+            Schedule Next-Day Demo
           </h2>
           <p className="text-slate-300 mt-2">
-            Choose when we should present your completed Blueprint and AR
-            experience to your team.
+            We present your completed Blueprint within 24 hours. Choose the
+            time for the follow-up visit the day after mapping.
           </p>
         </div>
 
@@ -1504,7 +1513,7 @@ export default function OffWaitlistSignUpFlow() {
             <div className="mb-3 flex items-center gap-2 text-slate-200">
               <Calendar className="w-5 h-5 text-cyan-300" />
               <Label className="font-medium text-slate-200">
-                Select Demo Date
+                Select Demo Date (Next Day)
               </Label>
             </div>
             <DatePicker
@@ -1914,7 +1923,7 @@ export default function OffWaitlistSignUpFlow() {
             onClick={handlePrevStep}
             className="border-white/20 text-slate-200 hover:bg-white/10"
           >
-            <ChevronLeft className="w-4 h-4 mr-1" /> Back to Demo Day
+            <ChevronLeft className="w-4 h-4 mr-1" /> Back to Demo
           </Button>
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             <Button
@@ -1997,7 +2006,7 @@ export default function OffWaitlistSignUpFlow() {
     { id: 1, label: "Account" },
     { id: 2, label: "Contact & Location" },
     { id: 3, label: "Mapping" },
-    { id: 4, label: "Demo Day" },
+    { id: 4, label: "Next-Day Demo" },
     { id: 5, label: "Plan & Payment" },
   ];
 
@@ -2191,7 +2200,7 @@ export default function OffWaitlistSignUpFlow() {
                         <div className="flex items-start gap-2">
                           <Calendar className="w-4 h-4 text-emerald-300 mt-0.5" />
                           <div>
-                            <p className="text-slate-400">Demo Day</p>
+                            <p className="text-slate-400">Next-Day Demo</p>
                             <p className="text-white">
                               {demoDate ? demoDate.toLocaleDateString() : "—"} •{" "}
                               {demoTime || "—"}
@@ -2322,7 +2331,7 @@ export default function OffWaitlistSignUpFlow() {
                         </span>
                       </div>
                       <div>
-                        Demo Day:{" "}
+                        Next-Day Demo:{" "}
                         <span className="text-white">
                           {demoDate?.toLocaleDateString() || "—"} •{" "}
                           {demoTime || "—"}

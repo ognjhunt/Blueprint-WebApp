@@ -821,8 +821,8 @@ export default function PilotProgram() {
   const timeline = [
     {
       icon: <MapPin className="w-6 h-6" />,
-      title: "Visit 1",
-      subtitle: "30–60 min Mapping",
+      title: "Day 1 · Mapping Visit",
+      subtitle: "30–60 min capture",
       description:
         "We scan your venue with LiDAR to create a precise digital twin—fast, quiet, and disruption-free.",
       color: "from-emerald-500 to-cyan-500",
@@ -835,20 +835,20 @@ export default function PilotProgram() {
     },
     {
       icon: <Sparkles className="w-6 h-6" />,
-      title: "Same-Day Build (<4 hrs)",
-      subtitle: "Design & Activate",
+      title: "Overnight AI Build",
+      subtitle: "Design & automate",
       description:
-        "We turn scans into a brand-aligned AR layer that’s ready for guests before the day is over.",
+        "Our AI turns the scan into a brand-aligned AR layer within hours so everything is ready for the next morning.",
       color: "from-cyan-500 to-teal-500",
       benefit: "Tailored to your venue",
       details: ["AI-assisted content", "Rapid review checkpoint", "QR plan"],
     },
     {
       icon: <PlayCircle className="w-6 h-6" />,
-      title: "Activation Session",
-      subtitle: "Live Walkthrough (1–2 hrs)",
+      title: "Day 2 · Demo Visit",
+      subtitle: "Live walkthrough (1–2 hrs)",
       description:
-        "We bring a VR headset and run the demo end-to-end later that day. Your team tries it hands-on; we handle devices, setup, and sanitization. The AR is live during the scheduled activation window only.",
+        "We bring a VR headset and run the demo end-to-end the very next day. Your team tries it hands-on; we handle devices, setup, and sanitization. The AR is live during the scheduled activation window only.",
       color: "from-emerald-400 to-cyan-400",
       benefit: "Hands-on, on-site",
       details: ["VR headset", "Team walkthrough", "Immediate insights"],
@@ -987,11 +987,11 @@ export default function PilotProgram() {
     },
     {
       q: "Do customers need special hardware?",
-      a: "No. The AR runs in the browser via QR codes. For demo day, we bring a VR headset so your team can try it hands-on.",
+      a: "No. The AR runs in the browser via QR codes. For the demo visit, we bring a VR headset so your team can try it hands-on.",
     },
     {
       q: "What do you need from us?",
-      a: "Access for mapping, some basic business info, access to Wi-Fi, and your feedback after demo day. We handle the rest—design, setup, and analytics. If your Wi-Fi is private, please share the network name and password with the Mapping Specialist during the visit.",
+      a: "Access for mapping, some basic business info, access to Wi-Fi, and your feedback after the demo visit. We handle the rest—design, setup, and analytics. If your Wi-Fi is private, please share the network name and password with the Mapping Specialist during the visit.",
     },
     {
       q: "Is the AR experience live beyond the 24-hour launch?",
@@ -999,7 +999,7 @@ export default function PilotProgram() {
     },
     {
       q: "What happens after the pilot?",
-      a: "We'll send out a survey to all participants of the Demo Day asking about the whole Pilot Program experience. Any feedback from this survey helps us improve Blueprint! As of today, there are no options to discuss continuing with a full implementation of Blueprint for your space.",
+      a: "We'll send out a survey to all participants of the demo visit asking about the whole Pilot Program experience. Any feedback from this survey helps us improve Blueprint! As of today, there are no options to discuss continuing with a full implementation of Blueprint for your space.",
     },
   ];
 
@@ -1043,10 +1043,10 @@ export default function PilotProgram() {
               </h1>
 
               <p className="text-base sm:text-lg md:text-xl text-slate-300 mb-6 md:mb-8 max-w-2xl mx-auto lg:mx-0">
-                One focused visit: a 60-minute mapping session with a same-day
-                activation run-through (1–2 hrs). Free and feedback-only. No apps
-                to install—we provide the headset; guests just scan a QR code to
-                see it in action.
+                Two focused visits inside 24 hours: Day 1 is a 30–60 minute
+                mapping session, Day 2 is the live activation run-through (1–2
+                hrs). Free and feedback-only. No apps to install—we provide the
+                headset; guests just scan a QR code to see it in action.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-8">

@@ -47,7 +47,7 @@ export default function Hero({ onPrimaryCta }) {
 
   const features = [
     "No app to build",
-    "Setup by tomorrow",
+    "Mapping today, demo tomorrow",
     "On-site demo 1–2 hrs",
     "Works with all smart glasses brands",
     "Analytics & insights included",
@@ -82,7 +82,7 @@ export default function Hero({ onPrimaryCta }) {
 
   const features2 = [
     "Venue scan + AI flows in under 24 hours",
-    "No custom app required",
+    "Mapping today, demo tomorrow",
     "Works with all smart glasses brands",
     "Staff onboarding + playbooks included",
     "Analytics & privacy controls baked in",
