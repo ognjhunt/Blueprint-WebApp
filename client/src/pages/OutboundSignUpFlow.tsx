@@ -584,11 +584,13 @@ export default function OutboundSignUpFlow() {
         return;
       }
     } else if (step === 4) {
-      const min = addDays(scheduleDate, 7);
-      const max = addDays(scheduleDate, 14);
-      if (demoDate < min || demoDate > max) {
+      const expectedDemoDate = addDays(scheduleDate, 1);
+      const normalizedExpected = expectedDemoDate.toDateString();
+      const normalizedActual = demoDate.toDateString();
+
+      if (normalizedActual !== normalizedExpected) {
         setErrorMessage(
-          "Demo must be scheduled 7–14 days after your mapping date.",
+          "Demo must be scheduled the day after your mapping visit.",
         );
         return;
       }
