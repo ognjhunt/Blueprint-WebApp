@@ -40,7 +40,7 @@ export default function WearableAIDemos() {
           "How the new tooling connects spatial maps, sensor streams, and AI agents so your staff can orchestrate a venue hands-free.",
         takeaways: [
           "Stream real-time spatial anchors into your own AI flows",
-          "Provision wearables for teams in minutes, not weeks",
+          "Provision wearables for teams in minutes, not days",
           "Bring your existing CRM or ticketing data into the experience",
         ],
         video: {

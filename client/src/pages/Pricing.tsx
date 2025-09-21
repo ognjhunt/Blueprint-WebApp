@@ -154,13 +154,13 @@ const contrastRows: ContrastRow[] = [
     label: "Time to first location live",
     diy: "6–12+ weeks (build + content + QA) if starting from zero. Agency ranges for AR MVPs are often $30k–$150k over 2–4 months.",
     blueprint:
-      "<1–2 weeks typical for first site (subscribe → scan → place content) once your templates are ready.",
+      "<24 hours typical for first site (subscribe → scan → place content) once your templates are ready.",
     icon: Rocket,
   },
   {
     label: "Time to additional locations",
     diy: "3–7 days each (scheduling mapper, scans, content, QA).",
-    blueprint: "Same day to 2 days if self-scan + templated scenes.",
+    blueprint: "Same day if self-scan + templated scenes.",
     icon: RefreshCcw,
   },
   {
@@ -213,7 +213,7 @@ const tldrHighlights: { label: string; diy: string; blueprint: string }[] = [
   {
     label: "Time to first site live",
     diy: "6–12+ weeks",
-    blueprint: "<1–2 weeks",
+    blueprint: "<24 hours",
   },
   {
     label: "Time per additional site",
