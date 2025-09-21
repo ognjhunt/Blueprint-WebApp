@@ -41,7 +41,7 @@ export default function Hero({ onPrimaryCta }) {
       k: "compat",
       pre: "Built for real hardware:",
       highlight: "Works with today’s smart glasses and phones.",
-      sub: "Start on phones and current glasses now—future-proof your space as the next wave ships.",
+      sub: "Scan QR code on phones and start experience on AI smart glasses. Future-proof your space as the next wave ships.",
     },
   ];
 
@@ -49,7 +49,7 @@ export default function Hero({ onPrimaryCta }) {
     "No app to build",
     "Setup in ~10 days",
     "On-site demo 1–2 hrs",
-    "Works with smart glasses & phones",
+    "Works with all smart glasses brands",
     "Analytics & insights included",
   ];
 
@@ -83,7 +83,7 @@ export default function Hero({ onPrimaryCta }) {
   const features2 = [
     "Venue scan + AI flows in ~10 days",
     "No custom app required",
-    "Works with smart glasses & phones",
+    "Works with all smart glasses brands",
     "Staff onboarding + playbooks included",
     "Analytics & privacy controls baked in",
   ];
