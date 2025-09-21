@@ -20,7 +20,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import Nav from "@/components/Nav";
 import Hero from "@/components/sections/Hero";
-// ↓ Lazy-load below-the-fold UI so the Home above-the-fold gets first paint fastsball
+// ↓ Lazy-load below-the-fold UI so the Home above-the-fold gets first paint fastsballs
 const WearableAIDemos = lazy(
   () => import("@/components/sections/WearableAIDemos"),
 );
