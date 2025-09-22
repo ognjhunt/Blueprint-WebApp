@@ -2,7 +2,11 @@ import express from "express";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
-import { cacheKey, getCachedAnswer, putCachedAnswer } from "../retrieval/answerCache";
+import {
+  cacheKey,
+  getCachedAnswer,
+  putCachedAnswer,
+} from "../retrieval/answerCache";
 import { embedTexts } from "../retrieval/embeddings";
 import { searchVenue } from "../retrieval/venueIndexer";
 import {
@@ -21,7 +25,8 @@ const DEFAULT_MODEL =
   process.env.GEMINI_FLASH_MODEL ||
   "gemini-2.5-flash";
 const FALLBACK_MODEL =
-  process.env.GEMINI_STUDIO_FALLBACK_MODEL || process.env.GEMINI_FLASH_FALLBACK_MODEL;
+  process.env.GEMINI_STUDIO_FALLBACK_MODEL ||
+  process.env.GEMINI_FLASH_FALLBACK_MODEL;
 
 type ChatHistoryMessage = {
   role: "user" | "assistant";
@@ -97,8 +102,12 @@ function normalizeKnowledgeSources(value: any): KnowledgeSource[] {
     if (!entry || typeof entry !== "object") {
       continue;
     }
-    const title = typeof (entry as any).title === "string" ? (entry as any).title.trim() : "";
-    const url = typeof (entry as any).url === "string" ? (entry as any).url.trim() : "";
+    const title =
+      typeof (entry as any).title === "string"
+        ? (entry as any).title.trim()
+        : "";
+    const url =
+      typeof (entry as any).url === "string" ? (entry as any).url.trim() : "";
     if (!title || !url) {
       continue;
     }
@@ -106,11 +115,13 @@ function normalizeKnowledgeSources(value: any): KnowledgeSource[] {
       title,
       url,
       category:
-        typeof (entry as any).category === "string" && (entry as any).category.trim()
+        typeof (entry as any).category === "string" &&
+        (entry as any).category.trim()
           ? (entry as any).category.trim()
           : undefined,
       description:
-        typeof (entry as any).description === "string" && (entry as any).description.trim()
+        typeof (entry as any).description === "string" &&
+        (entry as any).description.trim()
           ? (entry as any).description.trim()
           : undefined,
     });
@@ -195,7 +206,8 @@ function formatToolHints(hints: unknown): ToolHint[] {
       continue;
     }
 
-    const name = typeof (hint as any).name === "string" ? (hint as any).name.trim() : "";
+    const name =
+      typeof (hint as any).name === "string" ? (hint as any).name.trim() : "";
     if (!name) {
       continue;
     }
@@ -234,6 +246,43 @@ function safeJsonStringify(value: unknown, indent = 2, limit = 1_200) {
     logger.warn({ err: error }, "Failed to serialize JSON for prompt context");
     return null;
   }
+}
+
+function canonicalizeUrl(raw: string): string {
+  try {
+    const u = new URL(raw);
+    u.protocol = u.protocol === "http:" ? "https:" : u.protocol;
+    u.hostname = u.hostname.toLowerCase(); // safe; leave path/query case as-is
+    u.hash = "";
+    [
+      "utm_source",
+      "utm_medium",
+      "utm_campaign",
+      "utm_term",
+      "utm_content",
+      "gclid",
+      "fbclid",
+    ].forEach((k) => u.searchParams.delete(k));
+    return u.toString();
+  } catch {
+    return raw;
+  }
+}
+
+function curatedUrlList(sources: KnowledgeSource[], max = 12): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const s of sources) {
+    const url = typeof s?.url === "string" ? s.url.trim() : "";
+    if (!/^https?:\/\//i.test(url)) continue;
+    const canon = canonicalizeUrl(url);
+    if (!seen.has(canon)) {
+      seen.add(canon);
+      out.push(canon);
+      if (out.length >= max) break;
+    }
+  }
+  return out;
 }
 
 function buildSystemInstruction(options: {
@@ -296,10 +345,11 @@ function buildSystemInstruction(options: {
       : null,
     toolHints.length
       ? `---\nTool call hints:\n${toolHints
-          .map((hint) =>
-            `- ${hint.name}${hint.whenToUse ? `: ${hint.whenToUse}` : ""}${
-              hint.metaCall ? ` (runtime: ${hint.metaCall})` : ""
-            }`,
+          .map(
+            (hint) =>
+              `- ${hint.name}${hint.whenToUse ? `: ${hint.whenToUse}` : ""}${
+                hint.metaCall ? ` (runtime: ${hint.metaCall})` : ""
+              }`,
           )
           .join("\n")}`
       : null,
@@ -340,8 +390,10 @@ function buildRetrievalContext(sources: SourceReference[]) {
 
 router.post("/chat", async (req, res) => {
   const payload = req.body as StudioChatRequest;
-  const blueprintId = typeof payload.blueprintId === "string" ? payload.blueprintId.trim() : "";
-  const message = typeof payload.message === "string" ? payload.message.trim() : "";
+  const blueprintId =
+    typeof payload.blueprintId === "string" ? payload.blueprintId.trim() : "";
+  const message =
+    typeof payload.message === "string" ? payload.message.trim() : "";
 
   if (!blueprintId) {
     return res.status(400).json({ error: "blueprintId is required" });
@@ -407,9 +459,12 @@ router.post("/chat", async (req, res) => {
         data.knowledgeSourceUrls || data.aiKnowledgeSources,
       ),
       runtimeNotes: formatRuntimeNotes(data.aiAssistantMetaRuntimeExpectations),
-      fallbackMessages: formatFallbackMessages(data.aiAssistantFallbackMessages),
+      fallbackMessages: formatFallbackMessages(
+        data.aiAssistantFallbackMessages,
+      ),
       operationalDetails:
-        typeof data.aiOperationalDetails === "object" && data.aiOperationalDetails
+        typeof data.aiOperationalDetails === "object" &&
+        data.aiOperationalDetails
           ? (data.aiOperationalDetails as Record<string, unknown>)
           : null,
       connectorsState,
@@ -426,10 +481,12 @@ router.post("/chat", async (req, res) => {
               typeof item.content === "string" &&
               item.content.trim().length > 0,
           )
-          .map((item): GeminiChatMessage => ({
-            role: item.role === "assistant" ? "assistant" : "user",
-            content: item.content.trim(),
-          }))
+          .map(
+            (item): GeminiChatMessage => ({
+              role: item.role === "assistant" ? "assistant" : "user",
+              content: item.content.trim(),
+            }),
+          )
       : [];
 
     let retrievedSources: SourceReference[] = [];
@@ -445,6 +502,11 @@ router.post("/chat", async (req, res) => {
 
     const retrievalContext = buildRetrievalContext(retrievedSources);
 
+    const knowledgeList = normalizeKnowledgeSources(
+      data.knowledgeSourceUrls || data.aiKnowledgeSources,
+    );
+    const urlContextList = curatedUrlList(knowledgeList, 12);
+
     const userPromptSections = [
       `You are responding from within the Blueprint AI Studio simulation for ${provider.name}.`,
       `Visitor persona focus: ${persona}.`,
@@ -452,6 +514,13 @@ router.post("/chat", async (req, res) => {
       `Question: ${message}`,
       "Provide an actionable, voice-ready answer in <=2 sentences and mention a relevant follow-up action if the connectors/functions allow it.",
     ];
+
+    if (urlContextList.length) {
+      userPromptSections.push(
+        `Use these URLs as authoritative context (you may open and read them):\n` +
+          urlContextList.join("\n"),
+      );
+    }
 
     const messages: GeminiChatMessage[] = [];
 
@@ -488,17 +557,10 @@ router.post("/chat", async (req, res) => {
     ): Promise<{ content: string; modelVersion?: string | null }> => {
       const requestBody: Record<string, unknown> = {
         contents: geminiContents,
-        generationConfig: {
-          temperature: 0.3,
-        },
+        generationConfig: { temperature: 0.3 },
         tools: [
-          {
-            googleSearchRetrieval: {
-              dynamicRetrievalConfig: {
-                mode: "MODE_DYNAMIC",
-              },
-            },
-          },
+          { url_context: {} }, // URL Context tool
+          { google_search: {} }, // Grounding with Google Search
         ],
       };
 
@@ -520,15 +582,21 @@ router.post("/chat", async (req, res) => {
 
       if (!response.ok) {
         const errorBody = await response.text().catch(() => "");
-        throw new Error(`Gemini API request failed (${response.status}): ${errorBody}`);
+        throw new Error(
+          `Gemini API request failed (${response.status}): ${errorBody}`,
+        );
       }
 
       const data = (await response.json()) as GeminiGenerateContentResponse;
       const candidate = data.candidates?.find((item) =>
-        item?.content?.parts?.some((part) => typeof part?.text === "string" && part.text.trim()),
+        item?.content?.parts?.some(
+          (part) => typeof part?.text === "string" && part.text.trim(),
+        ),
       );
       const content = candidate?.content?.parts
-        ?.map((part) => (typeof part?.text === "string" ? part.text.trim() : ""))
+        ?.map((part) =>
+          typeof part?.text === "string" ? part.text.trim() : "",
+        )
         .filter((part) => part.length > 0)
         .join("\n\n");
 
@@ -576,9 +644,13 @@ router.post("/chat", async (req, res) => {
 
     return res.json(payloadToCache);
   } catch (error) {
-    logger.error({ blueprintId, err: error }, "Failed to process AI Studio chat");
+    logger.error(
+      { blueprintId, err: error },
+      "Failed to process AI Studio chat",
+    );
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Failed to generate response",
+      error:
+        error instanceof Error ? error.message : "Failed to generate response",
     });
   }
 });

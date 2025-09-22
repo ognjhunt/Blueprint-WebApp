@@ -40,7 +40,7 @@ export default function Hero({ onPrimaryCta }) {
     {
       k: "compat",
       pre: "Built for real hardware:",
-      highlight: "Works with today’s smart glasses and phones.",
+      highlight: "Works with today’s smart glasses.",
       sub: "Scan QR code on phones and start experience on AI smart glasses. Future-proof your space as the next wave ships.",
     },
   ];
