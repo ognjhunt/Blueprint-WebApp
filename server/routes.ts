@@ -10,6 +10,7 @@ import uploadToB2Handler from "../client/src/pages/api/upload-to-b2";
 import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
 import webhooksRouter from "./routes/webhooks";
 import aiStudioRouter from "./routes/ai-studio";
+import qrLinkRouter from "./routes/qr-link";
 
 export function registerRoutes(app: Express) {
   // API routes for Express
@@ -24,4 +25,5 @@ export function registerRoutes(app: Express) {
   app.post("/api/upload-to-b2", uploadToB2Handler);
   app.post("/api/post-signup-workflows", postSignupWorkflowsHandler);
   app.use("/api/ai-studio", aiStudioRouter);
+  app.use("/api/qr", qrLinkRouter);
 }
