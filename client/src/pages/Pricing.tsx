@@ -3,8 +3,11 @@ import {
   Calculator,
   Sparkles,
   Zap,
-  InfoIcon,
   Users,
+  CheckCircle2,
+  Percent,
+  PlusCircle,
+  Gift,
   Image as ImageIcon,
   Video,
   Music2,
@@ -264,142 +267,218 @@ function pricePerHour(counts: Counts) {
   return BASE_RATE + addOns;
 }
 
-/* ------------------------------ Hero + Slider ----------------------------- */
+/* ------------------------------ Hero + Plans ------------------------------ */
 
-const INCLUDED_HOURS = 40;
-const MIN_HOURS = 40;
-const MAX_HOURS = 2500;
+type PlanTier = {
+  name: string;
+  price: string;
+  priceSuffix?: string;
+  target: string;
+  limit: string;
+  overage: string;
+  features: string[];
+  margin: string;
+  ctaLabel: string;
+  highlight?: boolean;
+};
 
-function formatUSD(n: number) {
-  return n.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
+const planTiers: PlanTier[] = [
+  {
+    name: "Starter",
+    price: "$79",
+    priceSuffix: "/month",
+    target: "Small shops (up to 500 MAUs)",
+    limit: "Cap: 500 MAUs/mo",
+    overage: "Overage: $0.15 per MAU beyond 500 (covers ~$0.10 cost + buffer).",
+    features: [
+      "Basic device mapping and glasses streaming",
+      "Baseline experiences covered by the Niantic free tier",
+      "Standard RAG with URL context for store FAQs",
+      "Email support plus foundational analytics",
+    ],
+    margin: "~75% avg. margin ($79 - ~$70 costs; Niantic usage stays free).",
+    ctaLabel: "Launch Starter",
+  },
+  {
+    name: "Pro",
+    price: "$199",
+    priceSuffix: "/month",
+    target: "Mid-size retail (500–1,000 MAUs)",
+    limit: "Cap: 1,000 MAUs/mo",
+    overage: "Overage: $0.12 per MAU beyond 1,000 (tracks Niantic volume tiers).",
+    features: [
+      "Premium experiences like blueprint PDFs and inventory grounding",
+      "Unlimited sessions with function calling integrations (POS, loyalty, etc.)",
+      "Dedicated strategy workshops on layouts, Q&A insights, and rollout plans",
+      "Priority chat support when new campaigns go live",
+    ],
+    margin: "~65% avg. margin ($199 - ~$70 platform + ~$50 Niantic usage).",
+    ctaLabel: "Scale with Pro",
+    highlight: true,
+  },
+  {
+    name: "Enterprise",
+    price: "$399+",
+    priceSuffix: "/month (custom)",
+    target: "Chains and high-traffic venues (1,000+ MAUs)",
+    limit: "Custom MAU tiers",
+    overage: "Usage-based pricing aligns with Niantic’s high-volume discounts ($0.08/MAU).",
+    features: [
+      "Full AR + IoT master dashboard for every location",
+      "Advanced features like live Google feeds and geo-fenced signage",
+      "Dedicated mapper onboarding with blueprints and signage kits",
+      "Managed updates, compliance reviews, and 99.9% uptime SLAs",
+    ],
+    margin: "~60% avg. margin ($399 - ~$160 platform + ~$120 Niantic @ $0.08/MAU).",
+    ctaLabel: "Talk to sales",
+  },
+];
 
-function clamp(n: number, lo: number, hi: number) {
-  return Math.min(hi, Math.max(lo, n));
-}
+const addOnItems = [
+  "$29/month per additional active location",
+  "$99 one-time setup for RAG build-out and initial scans",
+  "$0.15/session overage safety net for rare traffic spikes",
+];
 
-function PriceHero({
-  hours,
-  setHours,
-  hourly,
-  baseMonthly = 49.99,
-}: {
-  hours: number;
-  setHours: (n: number) => void;
-  hourly: number;
-  baseMonthly?: number;
-}) {
-  const monthly = useMemo(() => {
-    const overage = Math.max(0, hours - INCLUDED_HOURS) * hourly;
-    return baseMonthly + overage;
-  }, [hours, hourly, baseMonthly]);
+const billingPerks = [
+  "15% discount when you pay annually",
+  "Free 30-day trial with every Pro feature unlocked",
+  "Up to 500 MAUs are covered by Niantic’s free tier during trial",
+];
 
-  const pct = (hours - MIN_HOURS) / (MAX_HOURS - MIN_HOURS);
-
+function PriceHero() {
   return (
-    <section className="max-w-6xl mx-auto pt-20 pb-10 px-4 sm:px-6 lg:px-8 text-center">
+    <section className="max-w-6xl mx-auto pt-20 pb-12 px-4 sm:px-6 lg:px-8 text-center">
       <motion.h1
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         className="text-5xl sm:text-6xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-emerald-500 to-cyan-500"
       >
-        Pay only for the hours you use
+        Spatial pricing that scales with every location
       </motion.h1>
 
-      <p className="mt-4 text-lg text-slate-300 flex items-center justify-center gap-2">
-        Start with a flat monthly rate that includes{" "}
-        <span className="font-semibold text-emerald-300">
-          {INCLUDED_HOURS} hours
-        </span>
-        .
-        <span
-          className="inline-flex items-center gap-1 text-slate-400"
-          title="After included hours, pay a simple hourly rate that reflects your content mix."
-        >
-          <InfoIcon className="w-4 h-4" />
-        </span>
+      <p className="mt-4 max-w-3xl mx-auto text-lg text-slate-300">
+        Try Blueprint Pro free for 30 days. Launch with guided scans, then pick the
+        MAU tier that matches your foot traffic—no surprise platform fees.
       </p>
 
-      {/* Price pill */}
-      <div className="mt-8 flex items-center justify-center">
-        <div className="relative rounded-3xl border border-white/15 bg-white/[0.04] backdrop-blur-sm px-8 py-6 shadow-2xl">
-          <div className="text-sm uppercase tracking-wider text-slate-400">
-            Estimated monthly
-          </div>
-          <div className="mt-1 flex items-baseline justify-center gap-1">
-            <span className="text-4xl sm:text-5xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">
-              ${formatUSD(monthly)}
-            </span>
-          </div>
-          <div className="mt-2 text-xs text-slate-400">
-            Base ${formatUSD(baseMonthly)} +{" "}
-            {hours - INCLUDED_HOURS < 0 ? 0 : hours - INCLUDED_HOURS} hr × $
-            {hourly.toFixed(2)}
-          </div>
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200">
+          <Clock className="h-4 w-4" />
+          Free 30-day trial, full Pro features
+        </div>
+        <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm text-cyan-100">
+          <Percent className="h-4 w-4" />
+          15% off when billed annually
         </div>
       </div>
+    </section>
+  );
+}
 
-      {/* Slider */}
-      <div className="mt-10 relative max-w-3xl mx-auto">
-        {/* bubble */}
-        <div
-          className="absolute -top-8 translate-x-[-50%] rounded-full border border-white/15 bg-white/[0.08] px-3 py-1 text-xs text-slate-100 shadow"
-          style={{ left: `calc(${pct * 100}% )` }}
-        >
-          {hours.toLocaleString()} hours
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="text-xs text-slate-400">
-            {MIN_HOURS.toLocaleString()}
-          </div>
-          <input
-            type="range"
-            min={MIN_HOURS}
-            max={MAX_HOURS}
-            step={10}
-            value={hours}
-            onChange={(e) =>
-              setHours(
-                clamp(
-                  parseInt(e.target.value || "0", 10),
-                  MIN_HOURS,
-                  MAX_HOURS,
-                ),
-              )
-            }
-            className="w-full h-2 appearance-none bg-white/10 rounded-full outline-none cursor-pointer"
-          />
-          <div className="text-xs text-slate-400">
-            {MAX_HOURS.toLocaleString()}
-          </div>
-        </div>
-
-        <div className="mt-3 text-sm text-slate-400">
-          This pricing scales as your deployments do. No surprises — just usage.
-        </div>
-
-        {/* Range thumb/track styles */}
-        <style>{`
-          input[type="range"] { background: linear-gradient(90deg, rgba(52,211,153,0.9), rgba(34,211,238,0.9)) 0/0% 100% no-repeat, rgba(255,255,255,0.08); }
-          input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; height: 22px; width: 22px; border-radius: 9999px; background: white; border: 2px solid rgba(255,255,255,0.25); box-shadow: 0 2px 8px rgba(0,0,0,0.35); }
-          input[type="range"]::-moz-range-thumb { height: 22px; width: 22px; border-radius: 9999px; background: white; border: 2px solid rgba(255,255,255,0.25); box-shadow: 0 2px 8px rgba(0,0,0,0.35); }
-        `}</style>
+function PlanCards() {
+  return (
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="grid gap-6 lg:grid-cols-3">
+        {planTiers.map((plan) => (
+          <Card
+            key={plan.name}
+            className={`rounded-2xl border ${
+              plan.highlight
+                ? "border-emerald-400/60 bg-emerald-500/10"
+                : "border-white/15 bg-white/[0.04]"
+            } backdrop-blur-sm shadow-2xl`}
+          >
+            <CardHeader className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-xs uppercase tracking-[0.2em] text-emerald-200">
+                  {plan.name}
+                </div>
+                <Badge variant="secondary" className="bg-white/10 text-slate-100">
+                  {plan.limit}
+                </Badge>
+              </div>
+              <CardTitle className="text-white text-3xl flex items-baseline gap-1">
+                {plan.price}
+                {plan.priceSuffix ? (
+                  <span className="text-base font-normal text-slate-300">
+                    {plan.priceSuffix}
+                  </span>
+                ) : null}
+              </CardTitle>
+              <CardDescription className="text-slate-300 text-sm">
+                {plan.target}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm text-slate-200">
+                {plan.overage}
+              </div>
+              <ul className="space-y-3">
+                {plan.features.map((feature) => (
+                  <li key={feature} className="flex items-start gap-3 text-sm text-slate-100">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-300" />
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs text-slate-400">
+                {plan.margin}
+              </div>
+              <Button
+                className={`w-full ${plan.highlight ? "bg-emerald-500 hover:bg-emerald-600" : "bg-white/10 hover:bg-white/15"}`}
+              >
+                {plan.ctaLabel}
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Hourly callout */}
-      <div className="mt-8 inline-flex items-center gap-3 rounded-full bg-white/5 border border-white/10 px-4 py-2">
-        <Clock className="w-4 h-4 text-emerald-400" />
-        <span className="text-sm text-slate-200">
-          Current <span className="font-semibold">price/hr</span> ={" "}
-          <span className="font-semibold text-emerald-300">
-            ${hourly.toFixed(2)}
-          </span>{" "}
-          (base ${BASE_RATE.toFixed(2)} + content add-ons)
-        </span>
+      <div className="mt-10 grid gap-6 md:grid-cols-2">
+        <Card className="rounded-2xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl">
+          <CardHeader className="space-y-2">
+            <div className="flex items-center gap-2 text-emerald-300 text-xs uppercase tracking-[0.2em]">
+              <PlusCircle className="h-4 w-4" /> Add-ons
+            </div>
+            <CardTitle className="text-white text-2xl">Scale as you add locations</CardTitle>
+            <CardDescription className="text-slate-300 text-sm">
+              Keep your base tier and bolt on extra capacity when you need it.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-3 text-sm text-slate-100">
+              {addOnItems.map((item) => (
+                <li key={item} className="flex items-start gap-3">
+                  <Sparkles className="mt-0.5 h-4 w-4 text-emerald-300" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl">
+          <CardHeader className="space-y-2">
+            <div className="flex items-center gap-2 text-cyan-200 text-xs uppercase tracking-[0.2em]">
+              <Gift className="h-4 w-4" /> Billing perks
+            </div>
+            <CardTitle className="text-white text-2xl">Built-in savings</CardTitle>
+            <CardDescription className="text-slate-300 text-sm">
+              Rewards for launching fast and committing to scale.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-3 text-sm text-slate-100">
+              {billingPerks.map((perk) => (
+                <li key={perk} className="flex items-start gap-3">
+                  <Sparkles className="mt-0.5 h-4 w-4 text-cyan-200" />
+                  <span>{perk}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
       </div>
     </section>
   );
@@ -646,16 +725,6 @@ function PricingCalculator({
 export default function PricingPage() {
   const [counts, setCounts] = useState<Counts>(defaultCounts);
   const hourly = useMemo(() => pricePerHour(counts), [counts]);
-  const [hours, setHours] = useState<number>(MIN_HOURS);
-
-  const exampleHourly =
-    BASE_RATE +
-    defaultCounts.image * RATES.image +
-    defaultCounts.video * RATES.video +
-    defaultCounts.audio * RATES.audio +
-    defaultCounts.model * RATES.model +
-    defaultCounts.webpage * RATES.webpage +
-    defaultCounts.text * RATES.text;
 
   return (
     <div className="min-h-screen bg-[#0B1220] text-slate-100">
@@ -674,218 +743,19 @@ export default function PricingPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/[0.10] via-cyan-500/[0.08] to-transparent mix-blend-screen" />
       </div>
 
-      {/* Hero with slider (Cofounder-style, Blueprint colors) */}
-      <PriceHero hours={hours} setHours={setHours} hourly={hourly} />
+      {/* Pricing hero */}
+      <PriceHero />
 
-      {/* Three-column core + calculator */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-3 items-start gap-8 md:gap-10">
-        {/* Card 1: Simple Pricing */}
-        <Card className="lg:col-span-1 rounded-2xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl">
-          <CardHeader className="pb-4">
-            <div className="flex items-center gap-2 text-emerald-300">
-              <Sparkles className="h-5 w-5" />
-              <span className="text-xs tracking-wide uppercase">Pricing</span>
-            </div>
-            <CardTitle className="text-white text-2xl">
-              Simple Pricing
-            </CardTitle>
-            <CardDescription className="text-slate-300">
-              Base price + content add-ons. Clear, cumulative, predictable.
-            </CardDescription>
-          </CardHeader>
+      {/* Tier cards */}
+      <PlanCards />
 
-          <CardContent className="space-y-6">
-            <div className="flex flex-wrap items-end justify-between gap-3 sm:gap-4 rounded-xl border border-white/10 bg-white/[0.06] p-4">
-              <div>
-                <div className="text-xs text-slate-400">Base price</div>
-                <div className="text-[11px] text-slate-400">
-                  Applies to every active hour
-                </div>
-              </div>
-              <div className="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">
-                ${BASE_RATE.toFixed(2)}/hr
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="text-xs text-slate-400">Add-ons (stacking)</div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <ImageIcon className="h-4 w-4 text-emerald-300" />
-                    <span className="text-sm text-white">Images</span>
-                  </div>
-                  <Badge className="bg-white/10 text-slate-100 shrink-0">
-                    +${RATES.image.toFixed(3)}/hr
-                  </Badge>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Video className="h-4 w-4 text-emerald-300" />
-                    <span className="text-sm text-white">Videos</span>
-                  </div>
-                  <Badge className="bg-white/10 text-slate-100 shrink-0">
-                    +${RATES.video.toFixed(3)}/hr
-                  </Badge>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Music2 className="h-4 w-4 text-emerald-300" />
-                    <span className="text-sm text-white">Audio</span>
-                  </div>
-                  <Badge className="bg-white/10 text-slate-100 shrink-0">
-                    +${RATES.audio.toFixed(3)}/hr
-                  </Badge>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Box className="h-4 w-4 text-emerald-300" />
-                    <span className="text-sm text-white">3D Models</span>
-                  </div>
-                  <Badge className="bg-white/10 text-slate-100 shrink-0">
-                    +${RATES.model.toFixed(3)}/hr
-                  </Badge>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Globe className="h-4 w-4 text-emerald-300" />
-                    <span className="text-sm text-white">Webpages</span>
-                  </div>
-                  <Badge className="bg-white/10 text-slate-100 shrink-0">
-                    +${RATES.webpage.toFixed(3)}/hr
-                  </Badge>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Type className="h-4 w-4 text-emerald-300" />
-                    <span className="text-sm text-white">Text</span>
-                  </div>
-                  <Badge className="bg-white/10 text-slate-100 shrink-0">
-                    +${RATES.text.toFixed(3)}/hr
-                  </Badge>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-lg border border-white/10 bg-white/[0.06] p-3 text-xs text-slate-300">
-              <div className="flex items-start gap-2">
-                <InfoIcon className="h-4 w-4 mt-0.5 text-emerald-300" />
-                <p>
-                  <span className="font-medium text-white">Cumulative:</span>{" "}
-                  price/hr = base + Σ(content count × rate).
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card 2: Concrete Example */}
-        <Card className="lg:col-span-1 rounded-2xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl">
-          <CardHeader className="pb-4">
-            <div className="flex items-center gap-2 text-emerald-300">
-              <Zap className="h-5 w-5" />
-              <span className="text-xs tracking-wide uppercase">Example</span>
-            </div>
-            <CardTitle className="text-white text-2xl">
-              Concrete Example
-            </CardTitle>
-            <CardDescription className="text-slate-300">
-              A typical 5,000&nbsp;ft² Blueprint content mix.
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <ImageIcon className="h-4 w-4 text-emerald-300" />
-                  <span className="text-sm text-white">Images</span>
-                </div>
-                <Badge className="bg-white/10 text-slate-100 shrink-0">
-                  {defaultCounts.image} × ${RATES.image.toFixed(3)}
-                </Badge>
-              </div>
-
-              <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <Video className="h-4 w-4 text-emerald-300" />
-                  <span className="text-sm text-white">Videos</span>
-                </div>
-                <Badge className="bg-white/10 text-slate-100 shrink-0">
-                  {defaultCounts.video} × ${RATES.video.toFixed(3)}
-                </Badge>
-              </div>
-
-              <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <Music2 className="h-4 w-4 text-emerald-300" />
-                  <span className="text-sm text-white">Audio</span>
-                </div>
-                <Badge className="bg-white/10 text-slate-100 shrink-0">
-                  {defaultCounts.audio} × ${RATES.audio.toFixed(3)}
-                </Badge>
-              </div>
-
-              <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <Box className="h-4 w-4 text-emerald-300" />
-                  <span className="text-sm text-white">3D Models</span>
-                </div>
-                <Badge className="bg-white/10 text-slate-100 shrink-0">
-                  {defaultCounts.model} × ${RATES.model.toFixed(3)}
-                </Badge>
-              </div>
-
-              <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-emerald-300" />
-                  <span className="text-sm text-white">Webpages</span>
-                </div>
-                <Badge className="bg-white/10 text-slate-100 shrink-0">
-                  {defaultCounts.webpage} × ${RATES.webpage.toFixed(3)}
-                </Badge>
-              </div>
-
-              <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <Type className="h-4 w-4 text-emerald-300" />
-                  <span className="text-sm text-white">Text</span>
-                </div>
-                <Badge className="bg-white/10 text-slate-100 shrink-0">
-                  {defaultCounts.text} × ${RATES.text.toFixed(3)}
-                </Badge>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-end justify-between gap-3 sm:gap-4 rounded-xl border border-white/10 bg-white/[0.06] p-4">
-              <div>
-                <div className="text-xs text-slate-400">
-                  Example price per hour
-                </div>
-                <div className="text-[11px] text-slate-400">
-                  Base ${BASE_RATE.toFixed(2)} + add-ons above
-                </div>
-              </div>
-              <div className="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">
-                ${exampleHourly.toFixed(2)}/hr
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card 3: Usage Calculator */}
-        <div className="lg:col-span-1 xl:col-span-2">
-          <PricingCalculator
-            counts={counts}
-            setCounts={setCounts}
-            hourly={hourly}
-          />
-        </div>
+      {/* Usage calculator */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-14">
+        <PricingCalculator
+          counts={counts}
+          setCounts={setCounts}
+          hourly={hourly}
+        />
       </section>
 
       {/* FAQs */}
@@ -894,43 +764,46 @@ export default function PricingPage() {
           <Card className="rounded-2xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl hover:bg-white/[0.06] transition-colors">
             <CardHeader className="pb-2">
               <CardTitle className="text-white text-lg">
-                What’s included in $0.75/hr?
+                What’s included in the free trial?
               </CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-slate-300">
-              Core runtime, hosting, and orchestration. You add content types
-              (images, video, 3D, etc.) and your price/hr adjusts automatically.
+              Every Pro feature is unlocked for 30 days, including guided scans,
+              premium experiences, and analytics. The first 500 MAUs ride on the
+              Niantic free tier, so you can validate in-market without a bill.
             </CardContent>
           </Card>
 
           <Card className="rounded-2xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl hover:bg-white/[0.06] transition-colors">
             <CardHeader className="pb-2">
               <CardTitle className="text-white text-lg">
-                Do add-ons stack?
+                How do MAU caps and overages work?
               </CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-slate-300">
-              Yes. If your space has 10 images and 2 videos, you pay base + (10
-              × image rate) + (2 × video rate) each active hour.
+              Starter includes up to 500 MAUs/month with $0.15 per MAU if you go
+              over. Pro includes 1,000 MAUs/month with a $0.12 per MAU overage
+              that mirrors Niantic’s volume discounts. Enterprise tiers are custom.
             </CardContent>
           </Card>
 
           <Card className="rounded-2xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl hover:bg-white/[0.06] transition-colors">
             <CardHeader className="pb-2">
               <CardTitle className="text-white text-lg">
-                Is there a team plan?
+                Can I add more locations later?
               </CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-slate-300">
-              Teams are available as an optional add-on; talk to us if you need
-              seats &amp; SSO. Your usage pricing stays the same.
+              Yes. Add locations for $29/month each, with a $99 setup to build
+              RAG context and run initial scans. Rare traffic spikes are covered by
+              a $0.15/session overage so guests never see throttling.
             </CardContent>
           </Card>
         </div>
 
         <div className="mt-8 flex items-center justify-center">
           <Button className="bg-emerald-600 hover:bg-emerald-700">
-            Get started
+            Start your free trial
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
         </div>
