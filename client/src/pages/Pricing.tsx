@@ -677,217 +677,207 @@ export default function PricingPage() {
       {/* Hero with slider (Cofounder-style, Blueprint colors) */}
       <PriceHero hours={hours} setHours={setHours} hourly={hourly} />
 
-      {/* Three-column core + calculator */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-3 items-start gap-8 md:gap-10">
-        {/* Card 1: Simple Pricing */}
-        <Card className="lg:col-span-1 rounded-2xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl">
-          <CardHeader className="pb-4">
-            <div className="flex items-center gap-2 text-emerald-300">
-              <Sparkles className="h-5 w-5" />
-              <span className="text-xs tracking-wide uppercase">Pricing</span>
-            </div>
-            <CardTitle className="text-white text-2xl">
-              Simple Pricing
-            </CardTitle>
-            <CardDescription className="text-slate-300">
-              Base price + content add-ons. Clear, cumulative, predictable.
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="space-y-6">
-            <div className="flex flex-wrap items-end justify-between gap-3 sm:gap-4 rounded-xl border border-white/10 bg-white/[0.06] p-4">
-              <div>
-                <div className="text-xs text-slate-400">Base price</div>
-                <div className="text-[11px] text-slate-400">
-                  Applies to every active hour
+      {/* Plan tiers + add-ons */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid lg:grid-cols-3 gap-6 md:gap-8">
+          {[
+            {
+              name: "Starter",
+              tagline: "Small shops (≤500 MAUs)",
+              price: "$79",
+              cadence: "per month",
+              limit: "Up to 500 monthly active users",
+              overage: "$0.15 per MAU beyond 500 (covers Niantic fees + buffer)",
+              features: [
+                "Basic device mapping + glasses streaming",
+                "Standard RAG (URL context + starter FAQs)",
+                "Email support and baseline analytics",
+              ],
+              cta: "Start your 30-day trial",
+              highlighted: false,
+            },
+            {
+              name: "Pro",
+              tagline: "Mid-size retail (≈1,000 MAUs)",
+              price: "$199",
+              cadence: "per month",
+              limit: "Up to 1,000 monthly active users",
+              overage: "$0.12 per MAU beyond 1,000 (volume pricing like Niantic's $0.08 tier)",
+              features: [
+                "Unlimited sessions + function calling integrations",
+                "Blueprint PDFs, inventory grounding, loyalty hooks",
+                "Priority chat support and rollout playbooks",
+              ],
+              cta: "Talk to us",
+              highlighted: true,
+            },
+            {
+              name: "Enterprise",
+              tagline: "Chains & high-traffic (1,000+ MAUs)",
+              price: "Custom",
+              cadence: "multi-location",
+              limit: "Scale across locations with 99.9% uptime",
+              overage: "Volume-based MAU pricing + dedicated SLA",
+              features: [
+                "All Pro features plus multi-location dashboards",
+                "Advanced activations (live Google feeds, co-creation)",
+                "Dedicated manager, compliance reviews, on-call support",
+              ],
+              cta: "Book a blueprint session",
+              highlighted: false,
+            },
+          ].map((tier) => (
+            <Card
+              key={tier.name}
+              className={`rounded-2xl border backdrop-blur-sm shadow-2xl bg-white/[0.04] transition-all duration-300 ${
+                tier.highlighted
+                  ? "border-emerald-400/40 ring-1 ring-emerald-400/40"
+                  : "border-white/15"
+              }`}
+            >
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-2 text-emerald-300">
+                  {tier.highlighted ? (
+                    <Zap className="h-5 w-5" />
+                  ) : (
+                    <Sparkles className="h-5 w-5" />
+                  )}
+                  <span className="text-xs tracking-wide uppercase">Plan</span>
                 </div>
-              </div>
-              <div className="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">
-                ${BASE_RATE.toFixed(2)}/hr
-              </div>
-            </div>
+                <CardTitle className="text-white text-2xl flex items-center justify-between">
+                  <span>{tier.name}</span>
+                  {tier.highlighted && (
+                    <Badge className="bg-emerald-400/20 text-emerald-200">Most popular</Badge>
+                  )}
+                </CardTitle>
+                <CardDescription className="text-slate-300">
+                  {tier.tagline}
+                </CardDescription>
+              </CardHeader>
 
-            <div className="space-y-2">
-              <div className="text-xs text-slate-400">Add-ons (stacking)</div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <ImageIcon className="h-4 w-4 text-emerald-300" />
-                    <span className="text-sm text-white">Images</span>
+              <CardContent className="space-y-6">
+                <div className="rounded-xl border border-white/10 bg-white/[0.06] p-4">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">
+                      {tier.price}
+                    </span>
+                    <span className="text-sm text-slate-300">{tier.cadence}</span>
                   </div>
-                  <Badge className="bg-white/10 text-slate-100 shrink-0">
-                    +${RATES.image.toFixed(3)}/hr
-                  </Badge>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Video className="h-4 w-4 text-emerald-300" />
-                    <span className="text-sm text-white">Videos</span>
+                  <div className="mt-3 flex flex-col gap-2 text-sm text-slate-200">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-emerald-300" />
+                      <span>{tier.limit}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-emerald-300" />
+                      <span>{tier.overage}</span>
+                    </div>
                   </div>
-                  <Badge className="bg-white/10 text-slate-100 shrink-0">
-                    +${RATES.video.toFixed(3)}/hr
-                  </Badge>
                 </div>
 
-                <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Music2 className="h-4 w-4 text-emerald-300" />
-                    <span className="text-sm text-white">Audio</span>
-                  </div>
-                  <Badge className="bg-white/10 text-slate-100 shrink-0">
-                    +${RATES.audio.toFixed(3)}/hr
-                  </Badge>
-                </div>
+                <ul className="space-y-3 text-sm text-slate-200">
+                  {tier.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2">
+                      <span className="mt-1 h-2 w-2 rounded-full bg-emerald-300" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
 
-                <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Box className="h-4 w-4 text-emerald-300" />
-                    <span className="text-sm text-white">3D Models</span>
-                  </div>
-                  <Badge className="bg-white/10 text-slate-100 shrink-0">
-                    +${RATES.model.toFixed(3)}/hr
-                  </Badge>
-                </div>
+                <Button
+                  variant={tier.highlighted ? "default" : "secondary"}
+                  className={`w-full justify-between ${
+                    tier.highlighted
+                      ? "bg-gradient-to-r from-emerald-400 to-cyan-400 text-slate-900 hover:from-emerald-300 hover:to-cyan-300"
+                      : "bg-white/10 text-slate-100 hover:bg-white/20"
+                  }`}
+                >
+                  {tier.cta}
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
-                <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Globe className="h-4 w-4 text-emerald-300" />
-                    <span className="text-sm text-white">Webpages</span>
-                  </div>
-                  <Badge className="bg-white/10 text-slate-100 shrink-0">
-                    +${RATES.webpage.toFixed(3)}/hr
-                  </Badge>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Type className="h-4 w-4 text-emerald-300" />
-                    <span className="text-sm text-white">Text</span>
-                  </div>
-                  <Badge className="bg-white/10 text-slate-100 shrink-0">
-                    +${RATES.text.toFixed(3)}/hr
-                  </Badge>
+        <div className="mt-10 grid gap-6 md:grid-cols-2">
+          <Card className="rounded-2xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2 text-emerald-300">
+                <Building2 className="h-5 w-5" />
+                <span className="text-xs tracking-wide uppercase">Add-ons & Usage</span>
+              </div>
+              <CardTitle className="text-white text-xl">Scale as you grow</CardTitle>
+              <CardDescription className="text-slate-300">
+                Predictable extras when you need more locations or bursts of traffic.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-slate-200">
+              <div className="flex items-start gap-3 rounded-lg border border-white/10 bg-white/[0.05] p-3">
+                <TabletSmartphone className="h-5 w-5 text-emerald-300" />
+                <div>
+                  <p className="font-medium text-slate-100">$29/mo per additional location</p>
+                  <p className="text-slate-300">Bring new venues online with templated scanning + publishing.</p>
                 </div>
               </div>
-            </div>
-
-            <div className="rounded-lg border border-white/10 bg-white/[0.06] p-3 text-xs text-slate-300">
-              <div className="flex items-start gap-2">
-                <InfoIcon className="h-4 w-4 mt-0.5 text-emerald-300" />
-                <p>
-                  <span className="font-medium text-white">Cumulative:</span>{" "}
-                  price/hr = base + Σ(content count × rate).
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card 2: Concrete Example */}
-        <Card className="lg:col-span-1 rounded-2xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl">
-          <CardHeader className="pb-4">
-            <div className="flex items-center gap-2 text-emerald-300">
-              <Zap className="h-5 w-5" />
-              <span className="text-xs tracking-wide uppercase">Example</span>
-            </div>
-            <CardTitle className="text-white text-2xl">
-              Concrete Example
-            </CardTitle>
-            <CardDescription className="text-slate-300">
-              A typical 5,000&nbsp;ft² Blueprint content mix.
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <ImageIcon className="h-4 w-4 text-emerald-300" />
-                  <span className="text-sm text-white">Images</span>
-                </div>
-                <Badge className="bg-white/10 text-slate-100 shrink-0">
-                  {defaultCounts.image} × ${RATES.image.toFixed(3)}
-                </Badge>
-              </div>
-
-              <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <Video className="h-4 w-4 text-emerald-300" />
-                  <span className="text-sm text-white">Videos</span>
-                </div>
-                <Badge className="bg-white/10 text-slate-100 shrink-0">
-                  {defaultCounts.video} × ${RATES.video.toFixed(3)}
-                </Badge>
-              </div>
-
-              <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <Music2 className="h-4 w-4 text-emerald-300" />
-                  <span className="text-sm text-white">Audio</span>
-                </div>
-                <Badge className="bg-white/10 text-slate-100 shrink-0">
-                  {defaultCounts.audio} × ${RATES.audio.toFixed(3)}
-                </Badge>
-              </div>
-
-              <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <Box className="h-4 w-4 text-emerald-300" />
-                  <span className="text-sm text-white">3D Models</span>
-                </div>
-                <Badge className="bg-white/10 text-slate-100 shrink-0">
-                  {defaultCounts.model} × ${RATES.model.toFixed(3)}
-                </Badge>
-              </div>
-
-              <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-emerald-300" />
-                  <span className="text-sm text-white">Webpages</span>
-                </div>
-                <Badge className="bg-white/10 text-slate-100 shrink-0">
-                  {defaultCounts.webpage} × ${RATES.webpage.toFixed(3)}
-                </Badge>
-              </div>
-
-              <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <Type className="h-4 w-4 text-emerald-300" />
-                  <span className="text-sm text-white">Text</span>
-                </div>
-                <Badge className="bg-white/10 text-slate-100 shrink-0">
-                  {defaultCounts.text} × ${RATES.text.toFixed(3)}
-                </Badge>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-end justify-between gap-3 sm:gap-4 rounded-xl border border-white/10 bg-white/[0.06] p-4">
-              <div>
-                <div className="text-xs text-slate-400">
-                  Example price per hour
-                </div>
-                <div className="text-[11px] text-slate-400">
-                  Base ${BASE_RATE.toFixed(2)} + add-ons above
+              <div className="flex items-start gap-3 rounded-lg border border-white/10 bg-white/[0.05] p-3">
+                <Scan className="h-5 w-5 text-emerald-300" />
+                <div>
+                  <p className="font-medium text-slate-100">$99 one-time setup</p>
+                  <p className="text-slate-300">RAG build, initial scans, and content grounding to launch your first experience.</p>
                 </div>
               </div>
-              <div className="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">
-                ${exampleHourly.toFixed(2)}/hr
+              <div className="flex items-start gap-3 rounded-lg border border-white/10 bg-white/[0.05] p-3">
+                <Cloud className="h-5 w-5 text-emerald-300" />
+                <div>
+                  <p className="font-medium text-slate-100">$0.15 per session overage</p>
+                  <p className="text-slate-300">Covers rare usage spikes beyond your plan’s MAU allotment.</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {/* Card 3: Usage Calculator */}
-        <div className="lg:col-span-1 xl:col-span-2">
-          <PricingCalculator
-            counts={counts}
-            setCounts={setCounts}
-            hourly={hourly}
-          />
+          <Card className="rounded-2xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2 text-emerald-300">
+                <PiggyBank className="h-5 w-5" />
+                <span className="text-xs tracking-wide uppercase">Billing perks</span>
+              </div>
+              <CardTitle className="text-white text-xl">Flexible ways to buy</CardTitle>
+              <CardDescription className="text-slate-300">
+                Reduce risk while you pilot Blueprint in your venues.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm text-slate-200">
+              <div className="flex items-start gap-3 rounded-lg border border-white/10 bg-white/[0.05] p-3">
+                <Sparkles className="h-5 w-5 text-emerald-300" />
+                <div>
+                  <p className="font-medium text-slate-100">Free 30-day trial</p>
+                  <p className="text-slate-300">Full Pro features with up to 500 MAUs covered by Niantic’s free tier.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 rounded-lg border border-white/10 bg-white/[0.05] p-3">
+                <RefreshCcw className="h-5 w-5 text-emerald-300" />
+                <div>
+                  <p className="font-medium text-slate-100">15% annual discount</p>
+                  <p className="text-slate-300">Prepay annually to lock in savings and priority roadmap input.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 rounded-lg border border-white/10 bg-white/[0.05] p-3">
+                <Wrench className="h-5 w-5 text-emerald-300" />
+                <div>
+                  <p className="font-medium text-slate-100">Onboarding concierge</p>
+                  <p className="text-slate-300">We co-create your first activation so your team can scale confidently.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="mt-12">
+          <PricingCalculator counts={counts} setCounts={setCounts} hourly={hourly} />
         </div>
       </section>
-
       {/* FAQs */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-14 mb-20">
         <div className="grid md:grid-cols-3 items-stretch gap-6 md:gap-8">
