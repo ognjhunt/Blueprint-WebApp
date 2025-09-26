@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const APP_STORE_URL =
   import.meta.env.VITE_APP_STORE_URL ?? "https://apps.apple.com/app/idYOUR_APP_ID";
@@ -228,7 +228,8 @@ export default function Go() {
   const [hasAutoLaunched, setHasAutoLaunched] = useState(false);
   const [deepLinkAttempted, setDeepLinkAttempted] = useState(false);
   const [showStorePrompt, setShowStorePrompt] = useState(false);
-  const [fallbackTimer, setFallbackTimer] = useState<number | null>(null);
+  const promptFallbackRef = useRef<number | null>(null);
+  const storeRedirectRef = useRef<number | null>(null);
   const [isFetchingVenues, setIsFetchingVenues] = useState(false);
 
   const selectedVenue = useMemo(
@@ -242,11 +243,40 @@ export default function Go() {
 
   useEffect(() => {
     return () => {
-      if (fallbackTimer !== null) {
-        window.clearTimeout(fallbackTimer);
+      if (promptFallbackRef.current !== null) {
+        window.clearTimeout(promptFallbackRef.current);
+        promptFallbackRef.current = null;
+      }
+      if (storeRedirectRef.current !== null) {
+        window.clearTimeout(storeRedirectRef.current);
+        storeRedirectRef.current = null;
       }
     };
-  }, [fallbackTimer]);
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        if (promptFallbackRef.current !== null) {
+          window.clearTimeout(promptFallbackRef.current);
+          promptFallbackRef.current = null;
+        }
+        if (storeRedirectRef.current !== null) {
+          window.clearTimeout(storeRedirectRef.current);
+          storeRedirectRef.current = null;
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   const loadVenues = useCallback(
     async (coords: Coordinates | null) => {
@@ -353,8 +383,13 @@ export default function Go() {
       setDeepLinkAttempted(true);
       setStatusMessage(manual ? "Opening the Blueprint app…" : "Connecting you to Blueprint…");
 
-      if (fallbackTimer !== null) {
-        window.clearTimeout(fallbackTimer);
+      if (promptFallbackRef.current !== null) {
+        window.clearTimeout(promptFallbackRef.current);
+        promptFallbackRef.current = null;
+      }
+      if (storeRedirectRef.current !== null) {
+        window.clearTimeout(storeRedirectRef.current);
+        storeRedirectRef.current = null;
       }
 
       const timeoutId = window.setTimeout(() => {
@@ -362,14 +397,29 @@ export default function Go() {
         setStatusMessage(
           "If the Blueprint app didn't open, install it below or tap the button to try again after install.",
         );
+
+        if (storeRedirectRef.current !== null) {
+          window.clearTimeout(storeRedirectRef.current);
+          storeRedirectRef.current = null;
+        }
+
+        if (platform === "ios" || platform === "android") {
+          const storeUrl = platform === "ios" ? APP_STORE_URL : PLAY_STORE_URL;
+          const storeTimeoutId = window.setTimeout(() => {
+            if (document.visibilityState === "visible") {
+              window.location.href = storeUrl;
+            }
+          }, 1200);
+          storeRedirectRef.current = storeTimeoutId;
+        }
       }, manual ? 1500 : 2200);
 
-      setFallbackTimer(timeoutId);
+      promptFallbackRef.current = timeoutId;
 
       const deepLink = buildDeepLink(intent, version ?? null, platform, venue, token);
       window.location.href = deepLink;
     },
-    [coordinates, fallbackTimer, intent, platform, version],
+    [coordinates, intent, platform, version],
   );
 
   const prepareAndLaunch = useCallback(
