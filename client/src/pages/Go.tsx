@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const APP_STORE_URL =
-  import.meta.env.VITE_APP_STORE_URL ?? "https://apps.apple.com/app/idYOUR_APP_ID";
+  import.meta.env.VITE_APP_STORE_URL ??
+  "https://apps.apple.com/app/idYOUR_APP_ID";
 const PLAY_STORE_URL =
   import.meta.env.VITE_PLAY_STORE_URL ??
   "https://play.google.com/store/apps/details?id=io.tryblueprint.app";
@@ -71,7 +72,10 @@ function formatDistance(meters: number | null): string | null {
 }
 
 function generateToken(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return crypto.randomUUID();
   }
   return Math.random().toString(36).slice(2, 10);
@@ -219,16 +223,21 @@ export default function Go() {
 
   const [platform, setPlatform] = useState<Platform>(() => detectPlatform());
   const [phase, setPhase] = useState<Phase>("boot");
-  const [statusMessage, setStatusMessage] = useState("Preparing your Blueprint experience…");
+  const [statusMessage, setStatusMessage] = useState(
+    "Preparing your Blueprint experience…",
+  );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [venues, setVenues] = useState<NearbyVenue[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
-  const [sessionToken, setSessionToken] = useState<string | null>(existingToken);
+  const [sessionToken, setSessionToken] = useState<string | null>(
+    existingToken,
+  );
   const [hasAutoLaunched, setHasAutoLaunched] = useState(false);
   const [deepLinkAttempted, setDeepLinkAttempted] = useState(false);
   const [showStorePrompt, setShowStorePrompt] = useState(false);
-  const [fallbackTimer, setFallbackTimer] = useState<number | null>(null);
+  const promptFallbackRef = useRef<number | null>(null);
+  const storeRedirectRef = useRef<number | null>(null);
   const [isFetchingVenues, setIsFetchingVenues] = useState(false);
 
   const selectedVenue = useMemo(
@@ -242,43 +251,69 @@ export default function Go() {
 
   useEffect(() => {
     return () => {
-      if (fallbackTimer !== null) {
-        window.clearTimeout(fallbackTimer);
+      if (promptFallbackRef.current !== null) {
+        window.clearTimeout(promptFallbackRef.current);
+        promptFallbackRef.current = null;
+      }
+      if (storeRedirectRef.current !== null) {
+        window.clearTimeout(storeRedirectRef.current);
+        storeRedirectRef.current = null;
       }
     };
-  }, [fallbackTimer]);
+  }, []);
 
-  const loadVenues = useCallback(
-    async (coords: Coordinates | null) => {
-      setIsFetchingVenues(true);
-      const results = await fetchNearbyVenues(coords);
-      setIsFetchingVenues(false);
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
 
-      if (results === null) {
-        setErrorMessage(
-          "We couldn't reach Blueprint to look up nearby locations. You can still open the app below.",
-        );
-        setPhase("error");
-        setShowStorePrompt(true);
-        return;
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        if (promptFallbackRef.current !== null) {
+          window.clearTimeout(promptFallbackRef.current);
+          promptFallbackRef.current = null;
+        }
+        if (storeRedirectRef.current !== null) {
+          window.clearTimeout(storeRedirectRef.current);
+          storeRedirectRef.current = null;
+        }
       }
+    };
 
-      if (results.length === 0) {
-        setErrorMessage(
-          "Blueprint is coming soon to this area. We'll open the welcome screen so you can get started.",
-        );
-        setVenues([]);
-        setPhase("ready");
-        setShowStorePrompt(true);
-        return;
-      }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
-      setVenues(results);
-      setSelectedVenueId((current) => current ?? results[0]?.id ?? null);
+  const loadVenues = useCallback(async (coords: Coordinates | null) => {
+    setIsFetchingVenues(true);
+    const results = await fetchNearbyVenues(coords);
+    setIsFetchingVenues(false);
+
+    if (results === null) {
+      setErrorMessage(
+        "We couldn't reach Blueprint to look up nearby locations. You can still open the app below.",
+      );
+      setPhase("error");
+      setShowStorePrompt(true);
+      return;
+    }
+
+    if (results.length === 0) {
+      setErrorMessage(
+        "Blueprint is coming soon to this area. We'll open the welcome screen so you can get started.",
+      );
+      setVenues([]);
       setPhase("ready");
-    },
-    [],
-  );
+      setShowStorePrompt(true);
+      return;
+    }
+
+    setVenues(results);
+    setSelectedVenueId((current) => current ?? results[0]?.id ?? null);
+    setPhase("ready");
+  }, []);
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -351,25 +386,57 @@ export default function Go() {
       persistContext(token, intent, version ?? null, venue, coordinates);
       setShowStorePrompt(false);
       setDeepLinkAttempted(true);
-      setStatusMessage(manual ? "Opening the Blueprint app…" : "Connecting you to Blueprint…");
+      setStatusMessage(
+        manual ? "Opening the Blueprint app…" : "Connecting you to Blueprint…",
+      );
 
-      if (fallbackTimer !== null) {
-        window.clearTimeout(fallbackTimer);
+      if (promptFallbackRef.current !== null) {
+        window.clearTimeout(promptFallbackRef.current);
+        promptFallbackRef.current = null;
+      }
+      if (storeRedirectRef.current !== null) {
+        window.clearTimeout(storeRedirectRef.current);
+        storeRedirectRef.current = null;
       }
 
-      const timeoutId = window.setTimeout(() => {
-        setShowStorePrompt(true);
-        setStatusMessage(
-          "If the Blueprint app didn't open, install it below or tap the button to try again after install.",
-        );
-      }, manual ? 1500 : 2200);
+      const timeoutId = window.setTimeout(
+        () => {
+          setShowStorePrompt(true);
+          setStatusMessage(
+            "If the Blueprint app didn't open, install it below or tap the button to try again after install.",
+          );
 
-      setFallbackTimer(timeoutId);
+          if (storeRedirectRef.current !== null) {
+            window.clearTimeout(storeRedirectRef.current);
+            storeRedirectRef.current = null;
+          }
 
-      const deepLink = buildDeepLink(intent, version ?? null, platform, venue, token);
+          if (platform === "ios" || platform === "android") {
+            const storeUrl =
+              platform === "ios" ? APP_STORE_URL : PLAY_STORE_URL;
+            const storeTimeoutId = window.setTimeout(() => {
+              if (document.visibilityState === "visible") {
+                window.location.href = storeUrl;
+              }
+            }, 1200);
+            storeRedirectRef.current = storeTimeoutId;
+          }
+        },
+        manual ? 1500 : 2200,
+      );
+
+      promptFallbackRef.current = timeoutId;
+
+      const deepLink = buildDeepLink(
+        intent,
+        version ?? null,
+        platform,
+        venue,
+        token,
+      );
       window.location.href = deepLink;
     },
-    [coordinates, fallbackTimer, intent, platform, version],
+    [coordinates, intent, platform, version],
   );
 
   const prepareAndLaunch = useCallback(
@@ -379,22 +446,24 @@ export default function Go() {
     ) => {
       const token =
         sessionToken ??
-        (await createPendingSession({
-          intent,
-          version,
-          platform,
-          venueId: venue.id,
-          venueName: venue.name,
-          venueSlug: venue.slug ?? undefined,
-          coordinates: coordinates
-            ? {
-                lat: coordinates.latitude,
-                lng: coordinates.longitude,
-                accuracy: coordinates.accuracy ?? undefined,
-              }
-            : undefined,
-          distanceMeters: venue.distanceMeters ?? undefined,
-        })).token ??
+        (
+          await createPendingSession({
+            intent,
+            version,
+            platform,
+            venueId: venue.id,
+            venueName: venue.name,
+            venueSlug: venue.slug ?? undefined,
+            coordinates: coordinates
+              ? {
+                  lat: coordinates.latitude,
+                  lng: coordinates.longitude,
+                  accuracy: coordinates.accuracy ?? undefined,
+                }
+              : undefined,
+            distanceMeters: venue.distanceMeters ?? undefined,
+          })
+        ).token ??
         generateToken();
 
       setSessionToken(token);
@@ -404,7 +473,12 @@ export default function Go() {
   );
 
   useEffect(() => {
-    if (!selectedVenue || hasAutoLaunched || isFetchingVenues || phase !== "ready") {
+    if (
+      !selectedVenue ||
+      hasAutoLaunched ||
+      isFetchingVenues ||
+      phase !== "ready"
+    ) {
       return;
     }
 
@@ -420,10 +494,20 @@ export default function Go() {
     return () => {
       cancelled = true;
     };
-  }, [hasAutoLaunched, isFetchingVenues, phase, prepareAndLaunch, selectedVenue]);
+  }, [
+    hasAutoLaunched,
+    isFetchingVenues,
+    phase,
+    prepareAndLaunch,
+    selectedVenue,
+  ]);
 
   const storeLinks = useMemo(() => {
-    const links: Array<{ label: string; href: string; platform: Platform } | null> = [
+    const links: Array<{
+      label: string;
+      href: string;
+      platform: Platform;
+    } | null> = [
       {
         label: "Download on the App Store",
         href: APP_STORE_URL,
@@ -439,14 +523,20 @@ export default function Go() {
     const currentPlatform = platform;
     return links
       .filter(Boolean)
-      .filter((link) => link && (currentPlatform === "other" || link.platform === currentPlatform)) as Array<{
+      .filter(
+        (link) =>
+          link &&
+          (currentPlatform === "other" || link.platform === currentPlatform),
+      ) as Array<{
       label: string;
       href: string;
       platform: Platform;
     }>;
   }, [platform]);
 
-  const selectedDistance = formatDistance(selectedVenue?.distanceMeters ?? null);
+  const selectedDistance = formatDistance(
+    selectedVenue?.distanceMeters ?? null,
+  );
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
@@ -469,7 +559,9 @@ export default function Go() {
 
         <section className="space-y-5 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur">
           <div className="space-y-2">
-            <h2 className="text-lg font-semibold text-white">Nearest Blueprint</h2>
+            <h2 className="text-lg font-semibold text-white">
+              Nearest Blueprint
+            </h2>
             <p className="text-sm text-slate-300">
               {phase === "requestingLocation" && "Requesting location…"}
               {phase === "locating" && "Finding a match near you…"}
@@ -477,7 +569,8 @@ export default function Go() {
                 (selectedVenue
                   ? "Confirm the Blueprint you want to open."
                   : "Blueprint will open to the welcome screen.")}
-              {phase === "error" && "We’ll open Blueprint without a specific location."}
+              {phase === "error" &&
+                "We’ll open Blueprint without a specific location."}
             </p>
           </div>
 
@@ -505,8 +598,9 @@ export default function Go() {
                     <div>
                       <p className="text-base font-semibold">{venue.name}</p>
                       <p className="text-sm text-slate-300">
-                        {[venue.address, venue.city, venue.state].filter(Boolean).join(", ") ||
-                          "Blueprint location"}
+                        {[venue.address, venue.city, venue.state]
+                          .filter(Boolean)
+                          .join(", ") || "Blueprint location"}
                       </p>
                     </div>
                     {formatDistance(venue.distanceMeters ?? null) && (
@@ -521,7 +615,8 @@ export default function Go() {
 
             {phase === "ready" && venues.length === 0 && (
               <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
-                No specific Blueprint detected nearby. We’ll route you to the welcome screen so you can choose inside the app.
+                No specific Blueprint detected nearby. We’ll route you to the
+                welcome screen so you can choose inside the app.
               </div>
             )}
           </div>
@@ -533,14 +628,17 @@ export default function Go() {
               </p>
               <p className="text-xs text-slate-300">
                 {selectedVenue
-                  ? selectedDistance ?? "Close by"
+                  ? (selectedDistance ?? "Close by")
                   : "We’ll start you on the welcome screen."}
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <button
                 type="button"
-                onClick={() => selectedVenue && prepareAndLaunch(selectedVenue, { manualLaunch: true })}
+                onClick={() =>
+                  selectedVenue &&
+                  prepareAndLaunch(selectedVenue, { manualLaunch: true })
+                }
                 className="inline-flex items-center justify-center rounded-full bg-blue-500 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:bg-blue-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
               >
                 Open Blueprint App
@@ -559,9 +657,12 @@ export default function Go() {
 
         {(showStorePrompt || !deepLinkAttempted) && (
           <section className="space-y-3 rounded-2xl border border-white/10 bg-slate-900/70 p-6">
-            <h2 className="text-lg font-semibold text-white">Install or reopen the Blueprint app</h2>
+            <h2 className="text-lg font-semibold text-white">
+              Install or reopen the Blueprint app
+            </h2>
             <p className="text-sm text-slate-300">
-              If the app didn’t open automatically, install it for your device and then tap “Open Blueprint App” again.
+              If the app didn’t open automatically, install it for your device
+              and then tap “Open Blueprint App” again.
             </p>
             <div className="flex flex-col gap-3 sm:flex-row">
               {storeLinks.map((link) => (
@@ -579,11 +680,18 @@ export default function Go() {
 
         <footer className="mt-auto space-y-2 border-t border-white/10 pt-6 text-xs text-slate-400">
           <p>
-            Once inside the Blueprint app, we’ll pair with your Meta glasses and continue the experience with camera, mic, and
-            spatial context.
+            Once inside the Blueprint app, we’ll pair with your Meta glasses and
+            continue the experience with camera, mic, and spatial context.
           </p>
           <p>
-            Questions? Email <a href="mailto:hello@tryblueprint.io" className="text-blue-300 underline">hello@tryblueprint.io</a>.
+            Questions? Email{" "}
+            <a
+              href="mailto:hello@tryblueprint.io"
+              className="text-blue-300 underline"
+            >
+              hello@tryblueprint.io
+            </a>
+            .
           </p>
         </footer>
       </div>
