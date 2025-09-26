@@ -287,26 +287,25 @@ const planTiers: PlanTier[] = [
     name: "Starter",
     price: "$79",
     priceSuffix: "/month",
-    target: "Small shops (up to 500 MAUs)",
-    limit: "Cap: 500 MAUs/mo",
-    overage: "Overage: $0.15 per MAU beyond 500 (covers ~$0.10 cost + buffer).",
+    target: "Small shops (up to 250 MAUs)",
+    limit: "Cap: 250 MAUs/mo",
+    overage: "Overage: $0.50 per MAU beyond 250.",
     features: [
       "Basic device mapping and glasses streaming",
-      "Baseline experiences covered by the Niantic free tier",
+      "Baseline experiences",
       "Standard RAG with URL context for store FAQs",
       "Email support plus foundational analytics",
     ],
     margin: "~75% avg. margin ($79 - ~$70 costs; Niantic usage stays free).",
-    ctaLabel: "Launch Starter",
+    ctaLabel: "Start your 30-day trial",
   },
   {
     name: "Pro",
     price: "$199",
     priceSuffix: "/month",
-    target: "Mid-size retail (500–1,000 MAUs)",
+    target: "Mid-size retail (250–1,000 MAUs)",
     limit: "Cap: 1,000 MAUs/mo",
-    overage:
-      "Overage: $0.12 per MAU beyond 1,000 (tracks Niantic volume tiers).",
+    overage: "Overage: $0.35 per MAU beyond 1,000",
     features: [
       "Premium experiences like blueprint PDFs and inventory grounding",
       "Unlimited sessions with function calling integrations (POS, loyalty, etc.)",
@@ -320,11 +319,10 @@ const planTiers: PlanTier[] = [
   {
     name: "Enterprise",
     price: "$399+",
-    priceSuffix: "/month (custom)",
+    priceSuffix: "/month",
     target: "Chains and high-traffic venues (1,000+ MAUs)",
     limit: "Custom MAU tiers",
-    overage:
-      "Usage-based pricing aligns with Niantic’s high-volume discounts ($0.08/MAU).",
+    overage: "Overage: $0.25 per MAU beyond set limit.",
     features: [
       "Full AR + IoT master dashboard for every location",
       "Advanced features like live Google feeds and geo-fenced signage",
@@ -339,7 +337,7 @@ const planTiers: PlanTier[] = [
 
 const addOnItems = [
   "$29/month per additional active location",
-  "$99 one-time setup for RAG build-out and initial scans",
+  "$149 one-time setup for RAG build-out and initial scans",
   "$0.15/session overage safety net for rare traffic spikes",
 ];
 
@@ -431,9 +429,9 @@ function PlanCards() {
                   </li>
                 ))}
               </ul>
-              <div className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs text-slate-400">
+              {/* <div className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs text-slate-400">
                 {plan.margin}
-              </div>
+              </div> */}
               <Button
                 className={`w-full ${plan.highlight ? "bg-emerald-500 hover:bg-emerald-600" : "bg-white/10 hover:bg-white/15"}`}
               >
