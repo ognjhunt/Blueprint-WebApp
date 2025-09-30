@@ -212,7 +212,7 @@ const personaOptions = [
 ];
 
 export default function BlueprintAiStudio() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { toast } = useToast();
   const [selectedProviderId, setSelectedProviderId] = useState<string>("meta");
   const [selectedPersona, setSelectedPersona] = useState<string>(
@@ -320,6 +320,19 @@ export default function BlueprintAiStudio() {
         ? "Function calls will become available to the Device Access Toolkit runtime."
         : "The AI will skip this function until it is re-enabled.",
     });
+  };
+
+  const handleOpenEditor = () => {
+    if (!blueprintId) {
+      toast({
+        title: "Select a blueprint",
+        description:
+          "Open this AI Studio from a specific blueprint to access the editor.",
+      });
+      return;
+    }
+
+    setLocation(`/blueprint-editor/${blueprintId}`);
   };
 
   const handleSendMessage = async () => {
@@ -494,6 +507,15 @@ export default function BlueprintAiStudio() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
+                <Button
+                  variant="secondary"
+                  className="bg-slate-800/80 text-slate-100 hover:bg-slate-800"
+                  onClick={handleOpenEditor}
+                  disabled={!blueprintId}
+                >
+                  <Layers className="mr-2 h-4 w-4" />
+                  Open Blueprint Editor
+                </Button>
                 <Button
                   onClick={handleSave}
                   className="bg-emerald-500 text-slate-900 hover:bg-emerald-400"
