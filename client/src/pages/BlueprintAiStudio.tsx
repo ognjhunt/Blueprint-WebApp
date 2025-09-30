@@ -13,12 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
@@ -115,27 +110,32 @@ const connectorCatalog: ConnectorConfig[] = [
   {
     id: "googleDrive",
     name: "Google Drive",
-    description: "Surface SOPs, menus, and onboarding decks stored in shared drives.",
+    description:
+      "Surface SOPs, menus, and onboarding decks stored in shared drives.",
   },
   {
     id: "microsoftOneDrive",
     name: "Microsoft OneDrive",
-    description: "Sync operational checklists from Microsoft 365 tenants via WorkOS Files.",
+    description:
+      "Sync operational checklists from Microsoft 365 tenants via WorkOS Files.",
   },
   {
     id: "dropbox",
     name: "Dropbox",
-    description: "Pull signage decks and merchandising guides without duplicating uploads.",
+    description:
+      "Pull signage decks and merchandising guides without duplicating uploads.",
   },
   {
     id: "notion",
     name: "Notion HQ",
-    description: "Expose runbooks, shift notes, and launch checklists from Notion pages.",
+    description:
+      "Expose runbooks, shift notes, and launch checklists from Notion pages.",
   },
   {
     id: "sharepoint",
     name: "SharePoint",
-    description: "Access compliance binders and facility documentation managed by IT.",
+    description:
+      "Access compliance binders and facility documentation managed by IT.",
   },
 ];
 
@@ -212,7 +212,7 @@ const personaOptions = [
 ];
 
 export default function BlueprintAiStudio() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { toast } = useToast();
   const [selectedProviderId, setSelectedProviderId] = useState<string>("meta");
   const [selectedPersona, setSelectedPersona] = useState<string>(
@@ -220,20 +220,27 @@ export default function BlueprintAiStudio() {
   );
   const [connectorState, setConnectorState] = useState<Record<string, boolean>>(
     () =>
-      connectorCatalog.reduce((acc, connector) => {
-        acc[connector.id] =
-          connector.id === "blueprintAssets" || connector.id === "googleDrive";
-        return acc;
-      }, {} as Record<string, boolean>),
+      connectorCatalog.reduce(
+        (acc, connector) => {
+          acc[connector.id] =
+            connector.id === "blueprintAssets" ||
+            connector.id === "googleDrive";
+          return acc;
+        },
+        {} as Record<string, boolean>,
+      ),
   );
   const [functionState, setFunctionState] = useState<Record<string, boolean>>(
     () =>
-      functionCatalog.reduce((acc, capability) => {
-        acc[capability.id] =
-          capability.id === "knowledgeGuardrails" ||
-          capability.id === "deviceHandOff";
-        return acc;
-      }, {} as Record<string, boolean>),
+      functionCatalog.reduce(
+        (acc, capability) => {
+          acc[capability.id] =
+            capability.id === "knowledgeGuardrails" ||
+            capability.id === "deviceHandOff";
+          return acc;
+        },
+        {} as Record<string, boolean>,
+      ),
   );
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -244,7 +251,9 @@ export default function BlueprintAiStudio() {
     },
   ]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [playgroundInput, setPlaygroundInput] = useState("Ask how the AI should greet guests in the lobby.");
+  const [playgroundInput, setPlaygroundInput] = useState(
+    "Ask how the AI should greet guests in the lobby.",
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [blueprintName, setBlueprintName] = useState<string>("");
   const [isLoadingBlueprint, setIsLoadingBlueprint] = useState(true);
@@ -322,6 +331,19 @@ export default function BlueprintAiStudio() {
     });
   };
 
+  const handleOpenEditor = () => {
+    if (!blueprintId) {
+      toast({
+        title: "Select a blueprint",
+        description:
+          "Open this AI Studio from a specific blueprint to access the editor.",
+      });
+      return;
+    }
+
+    setLocation(`/blueprint-editor/${blueprintId}`);
+  };
+
   const handleSendMessage = async () => {
     const trimmedInput = playgroundInput.trim();
     if (!trimmedInput || isGenerating) {
@@ -331,7 +353,8 @@ export default function BlueprintAiStudio() {
     if (!blueprintId) {
       toast({
         title: "Select a blueprint",
-        description: "Open an AI Studio session from a specific venue to chat with the assistant.",
+        description:
+          "Open an AI Studio session from a specific venue to chat with the assistant.",
       });
       return;
     }
@@ -378,16 +401,21 @@ export default function BlueprintAiStudio() {
         ? data.sources
             .map((source: any) => {
               if (!source || typeof source !== "object") return null;
-              const title = typeof source.title === "string" ? source.title : "";
+              const title =
+                typeof source.title === "string" ? source.title : "";
               const url = typeof source.url === "string" ? source.url : "";
               if (!title && !url) return null;
               return {
                 title,
                 url,
                 snippet:
-                  typeof source.snippet === "string" ? source.snippet : undefined,
+                  typeof source.snippet === "string"
+                    ? source.snippet
+                    : undefined,
                 distance:
-                  typeof source.distance === "number" ? source.distance : undefined,
+                  typeof source.distance === "number"
+                    ? source.distance
+                    : undefined,
               } satisfies SourceReference;
             })
             .filter((item): item is SourceReference => Boolean(item))
@@ -409,7 +437,8 @@ export default function BlueprintAiStudio() {
       console.error("Failed to generate AI Studio response", error);
       toast({
         title: "Assistant unavailable",
-        description: "We couldn't reach Gemini just now. The last request was logged for review.",
+        description:
+          "We couldn't reach Gemini just now. The last request was logged for review.",
         variant: "destructive",
       });
       setMessages((prev) => [
@@ -481,9 +510,10 @@ export default function BlueprintAiStudio() {
                   AI Access Studio
                 </h1>
                 <p className="text-slate-300">
-                  Configure how your Blueprint location shares data, orchestrates
-                  function calls, and speaks through Meta wearables. Give local
-                  teams control without exposing the 3D scene.
+                  Configure how your Blueprint location shares data,
+                  orchestrates function calls, and speaks through Meta
+                  wearables. Give local teams control without exposing the 3D
+                  scene.
                 </p>
                 <p className="text-sm text-slate-500">
                   {isLoadingBlueprint
@@ -494,6 +524,15 @@ export default function BlueprintAiStudio() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
+                <Button
+                  variant="secondary"
+                  className="bg-slate-800/80 text-slate-100 hover:bg-slate-800"
+                  onClick={handleOpenEditor}
+                  disabled={!blueprintId}
+                >
+                  <Layers className="mr-2 h-4 w-4" />
+                  Open Blueprint Editor
+                </Button>
                 <Button
                   onClick={handleSave}
                   className="bg-emerald-500 text-slate-900 hover:bg-emerald-400"
@@ -588,7 +627,8 @@ export default function BlueprintAiStudio() {
                       Test the wearable co-pilot
                     </CardTitle>
                     <CardDescription className="text-slate-400">
-                      Prototype responses exactly how they will sound through Meta wearables before publishing.
+                      Prototype responses exactly how they will sound through
+                      Meta wearables before publishing.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -615,31 +655,40 @@ export default function BlueprintAiStudio() {
                                     Knowledge sources
                                   </p>
                                   <div className="flex flex-col gap-2">
-                                    {message.sources.map((source, sourceIndex) => (
-                                      <a
-                                        key={`${source.url}-${sourceIndex}`}
-                                        href={source.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="rounded-xl border border-slate-700/60 bg-slate-950/60 px-3 py-2 text-left text-xs text-slate-200 transition hover:border-emerald-400/40 hover:text-emerald-200"
-                                      >
-                                        <span className="font-medium text-slate-100">
-                                          {source.title || "Source"}
-                                        </span>
-                                        {source.snippet ? (
-                                          <p className="mt-1 text-[11px] text-slate-400">
-                                            {source.snippet}
-                                          </p>
-                                        ) : null}
-                                      </a>
-                                    ))}
+                                    {message.sources.map(
+                                      (source, sourceIndex) => (
+                                        <a
+                                          key={`${source.url}-${sourceIndex}`}
+                                          href={source.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="rounded-xl border border-slate-700/60 bg-slate-950/60 px-3 py-2 text-left text-xs text-slate-200 transition hover:border-emerald-400/40 hover:text-emerald-200"
+                                        >
+                                          <span className="font-medium text-slate-100">
+                                            {source.title || "Source"}
+                                          </span>
+                                          {source.snippet ? (
+                                            <p className="mt-1 text-[11px] text-slate-400">
+                                              {source.snippet}
+                                            </p>
+                                          ) : null}
+                                        </a>
+                                      ),
+                                    )}
                                   </div>
                                 </div>
                               ) : null}
                               <span className="mt-3 block text-[10px] uppercase tracking-wide text-slate-500">
-                                {isAssistant ? selectedProvider?.name ?? "AI" : "You"} · {formatTime(message.timestamp)}
-                                {isAssistant && message.model ? ` · ${message.model}` : ""}
-                                {isAssistant && message.fromCache ? " · cached" : ""}
+                                {isAssistant
+                                  ? (selectedProvider?.name ?? "AI")
+                                  : "You"}{" "}
+                                · {formatTime(message.timestamp)}
+                                {isAssistant && message.model
+                                  ? ` · ${message.model}`
+                                  : ""}
+                                {isAssistant && message.fromCache
+                                  ? " · cached"
+                                  : ""}
                               </span>
                             </div>
                           );
@@ -649,9 +698,14 @@ export default function BlueprintAiStudio() {
                     <div className="flex flex-col gap-3 md:flex-row">
                       <Textarea
                         value={playgroundInput}
-                        onChange={(event) => setPlaygroundInput(event.target.value)}
+                        onChange={(event) =>
+                          setPlaygroundInput(event.target.value)
+                        }
                         onKeyDown={(event) => {
-                          if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                          if (
+                            (event.metaKey || event.ctrlKey) &&
+                            event.key === "Enter"
+                          ) {
                             event.preventDefault();
                             void handleSendMessage();
                           }
@@ -732,7 +786,11 @@ export default function BlueprintAiStudio() {
                           {personaOptions.map((persona) => (
                             <Button
                               key={persona}
-                              variant={selectedPersona === persona ? "default" : "outline"}
+                              variant={
+                                selectedPersona === persona
+                                  ? "default"
+                                  : "outline"
+                              }
                               onClick={() => setSelectedPersona(persona)}
                               className={cn(
                                 "rounded-full border",
@@ -756,7 +814,8 @@ export default function BlueprintAiStudio() {
                         Function permissions
                       </CardTitle>
                       <CardDescription className="text-slate-400">
-                        Decide which capabilities the AI is allowed to execute from the wearable.
+                        Decide which capabilities the AI is allowed to execute
+                        from the wearable.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -796,7 +855,8 @@ export default function BlueprintAiStudio() {
                       Data sources & permissions
                     </CardTitle>
                     <CardDescription className="text-slate-400">
-                      Toggle which repositories the co-pilot can reference. All requests respect your enterprise access rules.
+                      Toggle which repositories the co-pilot can reference. All
+                      requests respect your enterprise access rules.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -837,14 +897,15 @@ export default function BlueprintAiStudio() {
                       WorkOS Files federation
                     </CardTitle>
                     <CardDescription className="text-slate-400">
-                      Offload OAuth maintenance to WorkOS so you can add cloud drives without building each connector.
+                      Offload OAuth maintenance to WorkOS so you can add cloud
+                      drives without building each connector.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <p className="text-sm text-slate-300">
-                      Blueprint delegates Google Drive, OneDrive, Box, and future
-                      storage sources to WorkOS Files. Your IT team approves once
-                      and every location inherits the connection.
+                      Blueprint delegates Google Drive, OneDrive, Box, and
+                      future storage sources to WorkOS Files. Your IT team
+                      approves once and every location inherits the connection.
                     </p>
                     <Button
                       onClick={handleAggregatorConnect}
@@ -877,7 +938,8 @@ export default function BlueprintAiStudio() {
                       External AI platforms
                     </CardTitle>
                     <CardDescription className="text-slate-400">
-                      Blend Blueprint's wearable-native runtime with partners you already use inside the business.
+                      Blend Blueprint's wearable-native runtime with partners
+                      you already use inside the business.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="grid gap-4">
@@ -888,7 +950,9 @@ export default function BlueprintAiStudio() {
                       >
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
-                            <p className="font-medium text-white">{vendor.name}</p>
+                            <p className="font-medium text-white">
+                              {vendor.name}
+                            </p>
                             <p className="text-sm text-slate-400">
                               {vendor.description}
                             </p>
@@ -909,7 +973,8 @@ export default function BlueprintAiStudio() {
                       Publish to teams
                     </CardTitle>
                     <CardDescription className="text-slate-400">
-                      Give operators visibility without exposing the 3D scene or developer tooling.
+                      Give operators visibility without exposing the 3D scene or
+                      developer tooling.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4 text-sm text-slate-300">
@@ -920,19 +985,24 @@ export default function BlueprintAiStudio() {
                       the internal code flow.
                     </p>
                     <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-                      <p className="font-medium text-white">Suggested next steps</p>
+                      <p className="font-medium text-white">
+                        Suggested next steps
+                      </p>
                       <ul className="mt-3 space-y-2 text-sm text-slate-400">
                         <li className="flex items-start gap-2">
                           <ArrowUpRight className="mt-1 h-4 w-4 text-emerald-400" />
-                          Invite facilities supervisors to review guardrails before your next Meta headset rollout.
+                          Invite facilities supervisors to review guardrails
+                          before your next Meta headset rollout.
                         </li>
                         <li className="flex items-start gap-2">
                           <ArrowUpRight className="mt-1 h-4 w-4 text-emerald-400" />
-                          Connect Glean or OpenAI Assistants for knowledge continuity across channels.
+                          Connect Glean or OpenAI Assistants for knowledge
+                          continuity across channels.
                         </li>
                         <li className="flex items-start gap-2">
                           <ArrowUpRight className="mt-1 h-4 w-4 text-emerald-400" />
-                          Coordinate with IT to approve WorkOS Files so Drive and OneDrive sources stay in sync automatically.
+                          Coordinate with IT to approve WorkOS Files so Drive
+                          and OneDrive sources stay in sync automatically.
                         </li>
                       </ul>
                     </div>
@@ -947,4 +1017,3 @@ export default function BlueprintAiStudio() {
     </div>
   );
 }
-
