@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Helmet } from "react-helmet";
 
 const APP_STORE_URL =
   import.meta.env.VITE_APP_STORE_URL ??
@@ -6,6 +7,21 @@ const APP_STORE_URL =
 const PLAY_STORE_URL =
   import.meta.env.VITE_PLAY_STORE_URL ??
   "https://play.google.com/store/apps/details?id=io.tryblueprint.app";
+
+const APP_CLIP_URL = "https://www.tryblueprint.io/go";
+const APP_STORE_APP_ID =
+  (import.meta.env.VITE_APP_STORE_APP_ID as string | undefined)?.trim() ?? "";
+const APP_CLIP_BUNDLE_ID =
+  (import.meta.env.VITE_APP_CLIP_BUNDLE_ID as string | undefined)?.trim() ??
+  "";
+
+const APP_CLIP_META_CONTENT = [
+  APP_STORE_APP_ID ? `app-id=${APP_STORE_APP_ID}` : null,
+  APP_CLIP_BUNDLE_ID ? `app-clip-bundle-id=${APP_CLIP_BUNDLE_ID}` : null,
+  `app-clip-url=${APP_CLIP_URL}`,
+]
+  .filter((segment): segment is string => Boolean(segment && segment.length))
+  .join(", ");
 
 type Platform = "ios" | "android" | "other";
 
@@ -539,9 +555,13 @@ export default function Go() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50">
-      <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-8 px-6 pb-16 pt-12">
-        <header className="space-y-2">
+    <>
+      <Helmet>
+        <meta name="apple-itunes-app" content={APP_CLIP_META_CONTENT} />
+      </Helmet>
+      <div className="min-h-screen bg-slate-950 text-slate-50">
+        <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-8 px-6 pb-16 pt-12">
+          <header className="space-y-2">
           <p className="text-sm font-semibold uppercase tracking-[0.28em] text-blue-300">
             Blueprint Link
           </p>
@@ -696,5 +716,6 @@ export default function Go() {
         </footer>
       </div>
     </div>
+    </>
   );
 }

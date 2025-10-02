@@ -11,8 +11,10 @@ import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
 import webhooksRouter from "./routes/webhooks";
 import aiStudioRouter from "./routes/ai-studio";
 import qrLinkRouter from "./routes/qr-link";
+import appleAssociationRouter from "./routes/apple-app-site-association";
 
 export function registerRoutes(app: Express) {
+  app.use(appleAssociationRouter);
   // API routes for Express
   app.use("/api/webhooks", webhooksRouter);
   app.post("/api/create-checkout-session", createCheckoutSessionHandler);
