@@ -291,10 +291,12 @@ const planTiers: PlanTier[] = [
     limit: "Cap: 250 MAUs/mo",
     overage: "Overage: $0.50 per MAU beyond 250.",
     features: [
+      "On-demand map refreshes (up to once a month) when you flag layout or signage changes",
       "Basic device mapping and glasses streaming",
       "Baseline experiences",
       "Standard RAG with URL context for store FAQs",
-      "Email support plus foundational analytics",
+      "Essential analytics and insights dashboard",
+      "Email support for day-to-day questions",
     ],
     margin: "~75% avg. margin ($79 - ~$70 costs; Niantic usage stays free).",
     ctaLabel: "Start your 30-day trial",
@@ -307,9 +309,11 @@ const planTiers: PlanTier[] = [
     limit: "Cap: 1,000 MAUs/mo",
     overage: "Overage: $0.35 per MAU beyond 1,000",
     features: [
+      "Automated weekly map refreshes whenever we detect layout or signage shifts",
       "Premium experiences like blueprint PDFs and inventory grounding",
       "Unlimited sessions with function calling integrations (POS, loyalty, etc.)",
       "Dedicated strategy workshops on layouts, Q&A insights, and rollout plans",
+      "Deep-dive analytics and insight reports for merchandising and ops",
       "Priority chat support when new campaigns go live",
     ],
     margin: "~65% avg. margin ($199 - ~$70 platform + ~$50 Niantic usage).",
@@ -324,9 +328,11 @@ const planTiers: PlanTier[] = [
     limit: "Custom MAU tiers",
     overage: "Overage: $0.25 per MAU beyond set limit.",
     features: [
+      "Managed weekly map refreshes triggered by change detection across every location",
       "Full AR + IoT master dashboard for every location",
       "Advanced features like live Google feeds and geo-fenced signage",
       "Dedicated mapper onboarding with blueprints and signage kits",
+      "Enterprise-grade analytics and intelligence suite",
       "Managed updates, compliance reviews, and 99.9% uptime SLAs",
     ],
     margin:
