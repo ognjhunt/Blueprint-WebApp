@@ -69,15 +69,11 @@ export default function Nav({
   const userInitials = getInitials(userData?.name || userData?.displayName);
 
   const navLinks = [
-    { href: "/blog", label: "Blog" },
-    { href: "/venue-materials", label: "Venues" },
     { href: "/pilot-program", label: "Pilot Program", badge: "New" },
+    { href: "/pricing", label: "Pricing" },
     // Show these only if authenticated and not hidden
     ...(currentUser && !hideAuthenticatedFeatures
-      ? [
-          { href: "/scanner-portal", label: "Scanner Portal" },
-          { href: "/pricing", label: "Pricing" },
-        ]
+      ? [{ href: "/scanner-portal", label: "Scanner Portal" }]
       : []),
   ];
 
