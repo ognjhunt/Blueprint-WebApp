@@ -285,55 +285,96 @@ type PlanTier = {
 const planTiers: PlanTier[] = [
   {
     name: "Starter",
-    price: "$79",
+    price: "$99",
     priceSuffix: "/month",
-    target: "Small shops (up to 250 MAUs)",
-    limit: "Cap: 250 MAUs/mo",
-    overage: "Overage: $0.50 per MAU beyond 250.",
+    target: "Supports up to 100 MAUs",
+    limit: "Includes 100 MAUs/mo",
+    overage: "Overage: $1.29 per MAU beyond 250.",
     features: [
-      "Basic device mapping and glasses streaming",
-      "Baseline experiences",
-      "Standard RAG with URL context for store FAQs",
-      "Email support plus foundational analytics",
+      "Free onboarding + instant App Clip entry",
+      "“Ask-Where?” voice concierge (aisle/bay + quick follow-ups)",
+      "SOP checklists & tours — audio-first with tap/voice advance",
+      "Context nudges by zone (rate-limited to avoid spam)",
+      "Session logging with baseline analytics",
     ],
-    margin: "~75% avg. margin ($79 - ~$70 costs; Niantic usage stays free).",
+    margin: "~75% avg. margin ($99 - ~$70 costs; Niantic usage stays free).",
     ctaLabel: "Start your 30-day trial",
   },
   {
     name: "Pro",
     price: "$199",
     priceSuffix: "/month",
-    target: "Mid-size retail (250–1,000 MAUs)",
-    limit: "Cap: 1,000 MAUs/mo",
-    overage: "Overage: $0.35 per MAU beyond 1,000",
+    target: "Supports up to 250 MAUs",
+    limit: "Includes 250 MAUs/mo",
+    overage: "Overage: $0.99 per MAU beyond 250.",
     features: [
-      "Premium experiences like blueprint PDFs and inventory grounding",
-      "Unlimited sessions with function calling integrations (POS, loyalty, etc.)",
-      "Dedicated strategy workshops on layouts, Q&A insights, and rollout plans",
-      "Priority chat support when new campaigns go live",
+      "Everything in Starter, plus:",
+      "Function-calling integrations (POS, loyalty, ticketing, inventory)",
+      "Inventory/planogram grounding for precise “where is it?” answers",
+      "Auto-detect entry (geofences) with smart re-engage flows",
+      "“Extend Map” change-aware updates (background 2D refresh)",
+      "Remote assist, micro-huddles, and priority chat support",
     ],
     margin: "~65% avg. margin ($199 - ~$70 platform + ~$50 Niantic usage).",
     ctaLabel: "Scale with Pro",
     highlight: true,
   },
-  {
-    name: "Enterprise",
-    price: "$399+",
-    priceSuffix: "/month",
-    target: "Chains and high-traffic venues (1,000+ MAUs)",
-    limit: "Custom MAU tiers",
-    overage: "Overage: $0.25 per MAU beyond set limit.",
-    features: [
-      "Full AR + IoT master dashboard for every location",
-      "Advanced features like live Google feeds and geo-fenced signage",
-      "Dedicated mapper onboarding with blueprints and signage kits",
-      "Managed updates, compliance reviews, and 99.9% uptime SLAs",
-    ],
-    margin:
-      "~60% avg. margin ($399 - ~$160 platform + ~$120 Niantic @ $0.08/MAU).",
-    ctaLabel: "Talk to sales",
-  },
 ];
+
+// const planTiers: PlanTier[] = [
+//   {
+//     name: "Starter",
+//     price: "$79",
+//     priceSuffix: "/month",
+//     target: "Small shops (up to 250 MAUs)",
+//     limit: "Cap: 250 MAUs/mo",
+//     overage: "Overage: $0.50 per MAU beyond 250.",
+//     features: [
+//       "On-demand map refreshes (up to once a month) when you flag layout or signage changes",
+//       "Basic device mapping and glasses streaming",
+//       "Standard RAG with URL context for store FAQs",
+//       "Essential analytics and insights dashboard",
+//       "Email support for day-to-day questions",
+//     ],
+//     margin: "~75% avg. margin ($79 - ~$70 costs; Niantic usage stays free).",
+//     ctaLabel: "Start your 30-day trial",
+//   },
+//   {
+//     name: "Pro",
+//     price: "$199",
+//     priceSuffix: "/month",
+//     target: "Mid-size retail (250–1,000 MAUs)",
+//     limit: "Cap: 1,000 MAUs/mo",
+//     overage: "Overage: $0.35 per MAU beyond 1,000",
+//     features: [
+//       "Everything in Starter, plus:",
+//       "Automated weekly map refreshes whenever we detect layout or signage shifts",
+//       "Deep-dive analytics and insight reports for merchandising and ops",
+//       "Priority chat support when new campaigns go live",
+//     ],
+//     margin: "~65% avg. margin ($199 - ~$70 platform + ~$50 Niantic usage).",
+//     ctaLabel: "Scale with Pro",
+//     highlight: true,
+//   },
+//   {
+//     name: "Enterprise",
+//     price: "$399+",
+//     priceSuffix: "/month",
+//     target: "Chains and high-traffic venues (1,000+ MAUs)",
+//     limit: "Custom MAU tiers",
+//     overage: "Overage: $0.25 per MAU beyond set limit.",
+//     features: [
+//       "Everything in Pro, plus:",
+//       "Managed weekly map refreshes triggered by change detection across every location",
+//       "Dedicated mapper onboarding with blueprints and signage kits",
+//       "Enterprise-grade analytics and intelligence suite",
+//       "Managed updates, compliance reviews, and 99.9% uptime SLAs",
+//     ],
+//     margin:
+//       "~60% avg. margin ($399 - ~$160 platform + ~$120 Niantic @ $0.08/MAU).",
+//     ctaLabel: "Talk to sales",
+//   },
+// ];
 
 const addOnItems = [
   "$29/month per additional active location",
@@ -379,20 +420,20 @@ function PriceHero() {
 
 function PlanCards() {
   return (
-    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="grid gap-6 lg:grid-cols-3">
+    <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-10 items-stretch justify-items-stretch">
         {planTiers.map((plan) => (
           <Card
             key={plan.name}
-            className={`rounded-2xl border ${
+            className={`rounded-3xl border ${
               plan.highlight
                 ? "border-emerald-400/60 bg-emerald-500/10"
                 : "border-white/15 bg-white/[0.04]"
-            } backdrop-blur-sm shadow-2xl`}
+            } backdrop-blur-sm shadow-[0_10px_40px_rgba(0,0,0,0.4)] h-full flex flex-col min-h-[560px]`}
           >
-            <CardHeader className="space-y-3">
+            <CardHeader className="space-y-4 pb-0">
               <div className="flex items-center justify-between">
-                <div className="text-xs uppercase tracking-[0.2em] text-emerald-200">
+                <div className="text-xs uppercase tracking-[0.25em] text-emerald-200">
                   {plan.name}
                 </div>
                 <Badge
@@ -402,7 +443,7 @@ function PlanCards() {
                   {plan.limit}
                 </Badge>
               </div>
-              <CardTitle className="text-white text-3xl flex items-baseline gap-1">
+              <CardTitle className="text-white text-4xl sm:text-5xl leading-none flex items-baseline gap-1">
                 {plan.price}
                 {plan.priceSuffix ? (
                   <span className="text-base font-normal text-slate-300">
@@ -410,30 +451,27 @@ function PlanCards() {
                   </span>
                 ) : null}
               </CardTitle>
-              <CardDescription className="text-slate-300 text-sm">
+              <CardDescription className="text-slate-300 text-base">
                 {plan.target}
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm text-slate-200">
+            <CardContent className="space-y-5 pt-4 flex-1 flex flex-col">
+              <div className="rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm md:text-base text-slate-200">
                 {plan.overage}
               </div>
-              <ul className="space-y-3">
+              <ul className="space-y-3 md:space-y-3.5 flex-1">
                 {plan.features.map((feature) => (
                   <li
                     key={feature}
-                    className="flex items-start gap-3 text-sm text-slate-100"
+                    className="flex items-start gap-3 text-sm md:text-base text-slate-100"
                   >
                     <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-300" />
                     <span>{feature}</span>
                   </li>
                 ))}
               </ul>
-              {/* <div className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs text-slate-400">
-                {plan.margin}
-              </div> */}
               <Button
-                className={`w-full ${plan.highlight ? "bg-emerald-500 hover:bg-emerald-600" : "bg-white/10 hover:bg-white/15"}`}
+                className={`w-full mt-auto py-6 text-base ${plan.highlight ? "bg-emerald-500 hover:bg-emerald-600" : "bg-white/10 hover:bg-white/15"}`}
               >
                 {plan.ctaLabel}
               </Button>
