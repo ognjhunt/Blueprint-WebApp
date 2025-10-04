@@ -310,7 +310,6 @@ const planTiers: PlanTier[] = [
     features: [
       "Everything in Starter, plus:",
       "Function-calling integrations (POS, loyalty, ticketing, inventory)",
-      "Inventory/planogram grounding for precise “where is it?” answers",
       "Auto-detect entry (geofences) with smart re-engage flows",
       "“Extend Map” change-aware updates (keeping map up-to-date)",
       "Priority customer support",
@@ -420,7 +419,7 @@ function PriceHero() {
 
 function PlanCards() {
   return (
-    <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-16">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-10 items-stretch justify-items-stretch">
         {planTiers.map((plan) => (
           <Card
@@ -782,7 +781,7 @@ export default function PricingPage() {
   // const hourly = useMemo(() => pricePerHour(counts), [counts]);
 
   return (
-    <div className="min-h-screen bg-[#0B1220] text-slate-100">
+    <div className="min-h-screen bg-[#0B1220] text-slate-100 pb-24">
       <Nav />
 
       {/* Decorative background */}
