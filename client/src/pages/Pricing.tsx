@@ -798,259 +798,269 @@ export default function PricingPage() {
       {/* Tier cards */}
       <PlanCards />
 
-      {/* Usage calculator */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-14">
-        <PricingCalculator
-          counts={counts}
-          setCounts={setCounts}
-          hourly={hourly}
-        />
-      </section>
+      {/* Usage calculator (hidden temporarily) */}
+      {false && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-14">
+          <PricingCalculator
+            counts={counts}
+            setCounts={setCounts}
+            hourly={hourly}
+          />
+        </section>
+      )}
 
-      {/* FAQs */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-14 mb-20">
-        <div className="grid md:grid-cols-3 items-stretch gap-6 md:gap-8">
-          <Card className="rounded-2xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl hover:bg-white/[0.06] transition-colors">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-white text-lg">
-                What’s included in the free trial?
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-slate-300">
-              Every Pro feature is unlocked for 30 days, including guided scans,
-              premium experiences, and analytics. The first 500 MAUs ride on the
-              Niantic free tier, so you can validate in-market without a bill.
-            </CardContent>
-          </Card>
+      {/* FAQs (hidden temporarily) */}
+      {false && (
+        <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-14 mb-20">
+          <div className="grid md:grid-cols-3 items-stretch gap-6 md:gap-8">
+            <Card className="rounded-2xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl hover:bg-white/[0.06] transition-colors">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-white text-lg">
+                  What’s included in the free trial?
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-slate-300">
+                Every Pro feature is unlocked for 30 days, including guided scans,
+                premium experiences, and analytics. The first 500 MAUs ride on the
+                Niantic free tier, so you can validate in-market without a bill.
+              </CardContent>
+            </Card>
 
-          <Card className="rounded-2xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl hover:bg-white/[0.06] transition-colors">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-white text-lg">
-                How do MAU caps and overages work?
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-slate-300">
-              Starter includes up to 500 MAUs/month with $0.15 per MAU if you go
-              over. Pro includes 1,000 MAUs/month with a $0.12 per MAU overage
-              that mirrors Niantic’s volume discounts. Enterprise tiers are
-              custom.
-            </CardContent>
-          </Card>
+            <Card className="rounded-2xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl hover:bg-white/[0.06] transition-colors">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-white text-lg">
+                  How do MAU caps and overages work?
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-slate-300">
+                Starter includes up to 500 MAUs/month with $0.15 per MAU if you go
+                over. Pro includes 1,000 MAUs/month with a $0.12 per MAU overage
+                that mirrors Niantic’s volume discounts. Enterprise tiers are
+                custom.
+              </CardContent>
+            </Card>
 
-          <Card className="rounded-2xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl hover:bg-white/[0.06] transition-colors">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-white text-lg">
-                Can I add more locations later?
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-slate-300">
-              Yes. Add locations for $29/month each, with a $99 setup to build
-              RAG context and run initial scans. Rare traffic spikes are covered
-              by a $0.15/session overage so guests never see throttling.
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="mt-8 flex items-center justify-center">
-          <Button className="bg-emerald-600 hover:bg-emerald-700">
-            Start your free trial
-            <ArrowRight className="w-4 h-4 ml-2" />
-          </Button>
-        </div>
-      </section>
-
-      {/* DIY vs Blueprint contrast */}
-      <section className="relative mt-16 lg:mt-20 px-4 sm:px-6 lg:px-8">
-        <div className="pointer-events-none absolute inset-0 -z-10">
-          <div className="absolute inset-x-6 top-0 h-3/4 rounded-3xl bg-gradient-to-b from-emerald-500/15 via-cyan-500/10 to-transparent blur-3xl" />
-        </div>
-
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1 text-[11px] uppercase tracking-[0.2em] text-emerald-200">
-              <Sparkles className="h-3.5 w-3.5 text-emerald-300" />
-              DIY vs Blueprint
-            </div>
-            <h2 className="mt-4 text-3xl sm:text-4xl font-bold text-white">
-              Compare total cost of ownership at a glance
-            </h2>
-            <p className="mt-3 text-sm sm:text-base text-slate-300">
-              Swap in your numbers to see how a managed rollout stacks up
-              against building and operating everything in-house.
-            </p>
+            <Card className="rounded-2xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl hover:bg-white/[0.06] transition-colors">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-white text-lg">
+                  Can I add more locations later?
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-slate-300">
+                Yes. Add locations for $29/month each, with a $99 setup to build
+                RAG context and run initial scans. Rare traffic spikes are covered
+                by a $0.15/session overage so guests never see throttling.
+              </CardContent>
+            </Card>
           </div>
 
-          <div className="mt-10">
-            <div className="hidden md:block">
-              <div className="overflow-hidden rounded-3xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl">
-                <div className="grid grid-cols-[1.2fr,1fr,1fr] gap-6 border-b border-white/10 bg-white/[0.03] px-8 py-5 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-300">
-                  <div className="text-left">Line item</div>
-                  <div className="text-center text-emerald-200">
-                    Do it internally (DIY)
+          <div className="mt-8 flex items-center justify-center">
+            <Button className="bg-emerald-600 hover:bg-emerald-700">
+              Start your free trial
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {/* DIY vs Blueprint contrast (hidden temporarily) */}
+      {false && (
+        <section className="relative mt-16 lg:mt-20 px-4 sm:px-6 lg:px-8">
+          <div className="pointer-events-none absolute inset-0 -z-10">
+            <div className="absolute inset-x-6 top-0 h-3/4 rounded-3xl bg-gradient-to-b from-emerald-500/15 via-cyan-500/10 to-transparent blur-3xl" />
+          </div>
+
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1 text-[11px] uppercase tracking-[0.2em] text-emerald-200">
+                <Sparkles className="h-3.5 w-3.5 text-emerald-300" />
+                DIY vs Blueprint
+              </div>
+              <h2 className="mt-4 text-3xl sm:text-4xl font-bold text-white">
+                Compare total cost of ownership at a glance
+              </h2>
+              <p className="mt-3 text-sm sm:text-base text-slate-300">
+                Swap in your numbers to see how a managed rollout stacks up
+                against building and operating everything in-house.
+              </p>
+            </div>
+
+            <div className="mt-10">
+              <div className="hidden md:block">
+                <div className="overflow-hidden rounded-3xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl">
+                  <div className="grid grid-cols-[1.2fr,1fr,1fr] gap-6 border-b border-white/10 bg-white/[0.03] px-8 py-5 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-300">
+                    <div className="text-left">Line item</div>
+                    <div className="text-center text-emerald-200">
+                      Do it internally (DIY)
+                    </div>
+                    <div className="text-center text-cyan-200">
+                      Use Blueprint (managed)
+                    </div>
                   </div>
-                  <div className="text-center text-cyan-200">
-                    Use Blueprint (managed)
-                  </div>
-                </div>
-                <div className="divide-y divide-white/10">
-                  {contrastRows.map((row) => {
-                    const Icon = row.icon;
-                    return (
-                      <div
-                        key={row.label}
-                        className="grid grid-cols-[1.2fr,1fr,1fr] items-start gap-6 px-8 py-6 transition-colors hover:bg-white/[0.05]"
-                      >
-                        <div className="flex gap-4">
-                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-br from-emerald-500/20 to-cyan-500/20">
-                            <Icon className="h-5 w-5 text-emerald-300" />
-                          </div>
-                          <div>
-                            <div className="text-base font-semibold text-white">
-                              {row.label}
+                  <div className="divide-y divide-white/10">
+                    {contrastRows.map((row) => {
+                      const Icon = row.icon;
+                      return (
+                        <div
+                          key={row.label}
+                          className="grid grid-cols-[1.2fr,1fr,1fr] items-start gap-6 px-8 py-6 transition-colors hover:bg-white/[0.05]"
+                        >
+                          <div className="flex gap-4">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-br from-emerald-500/20 to-cyan-500/20">
+                              <Icon className="h-5 w-5 text-emerald-300" />
                             </div>
-                            {row.subLabel ? (
-                              <div className="mt-1 text-xs text-slate-400">
-                                {row.subLabel}
+                            <div>
+                              <div className="text-base font-semibold text-white">
+                                {row.label}
                               </div>
-                            ) : null}
+                              {row.subLabel ? (
+                                <div className="mt-1 text-xs text-slate-400">
+                                  {row.subLabel}
+                                </div>
+                              ) : null}
+                            </div>
                           </div>
+                          <p className="text-sm leading-relaxed text-slate-200">
+                            {row.diy}
+                          </p>
+                          <p className="text-sm leading-relaxed text-slate-200">
+                            {row.blueprint}
+                          </p>
                         </div>
-                        <p className="text-sm leading-relaxed text-slate-200">
-                          {row.diy}
-                        </p>
-                        <p className="text-sm leading-relaxed text-slate-200">
-                          {row.blueprint}
-                        </p>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="md:hidden space-y-4">
-              {contrastRows.map((row) => {
-                const Icon = row.icon;
-                return (
-                  <div
-                    key={row.label}
-                    className="rounded-2xl border border-white/10 bg-white/[0.05] p-5 shadow-xl shadow-emerald-500/10"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-br from-emerald-500/20 to-cyan-500/20">
-                        <Icon className="h-5 w-5 text-emerald-300" />
-                      </div>
-                      <div>
-                        <div className="text-base font-semibold text-white">
-                          {row.label}
+              <div className="md:hidden space-y-4">
+                {contrastRows.map((row) => {
+                  const Icon = row.icon;
+                  return (
+                    <div
+                      key={row.label}
+                      className="rounded-2xl border border-white/10 bg-white/[0.05] p-5 shadow-xl shadow-emerald-500/10"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-br from-emerald-500/20 to-cyan-500/20">
+                          <Icon className="h-5 w-5 text-emerald-300" />
                         </div>
-                        {row.subLabel ? (
-                          <div className="mt-1 text-xs text-slate-400">
-                            {row.subLabel}
+                        <div>
+                          <div className="text-base font-semibold text-white">
+                            {row.label}
                           </div>
-                        ) : null}
-                      </div>
-                    </div>
-                    <div className="mt-4 space-y-3">
-                      <div>
-                        <div className="text-[11px] uppercase tracking-wide text-emerald-300">
-                          Do it internally (DIY)
+                          {row.subLabel ? (
+                            <div className="mt-1 text-xs text-slate-400">
+                              {row.subLabel}
+                            </div>
+                          ) : null}
                         </div>
-                        <p className="mt-1 text-sm leading-relaxed text-slate-200">
-                          {row.diy}
-                        </p>
                       </div>
-                      <div className="border-t border-white/10 pt-3">
-                        <div className="text-[11px] uppercase tracking-wide text-cyan-300">
-                          Use Blueprint (managed)
+                      <div className="mt-4 space-y-3">
+                        <div>
+                          <div className="text-[11px] uppercase tracking-wide text-emerald-300">
+                            Do it internally (DIY)
+                          </div>
+                          <p className="mt-1 text-sm leading-relaxed text-slate-200">
+                            {row.diy}
+                          </p>
                         </div>
-                        <p className="mt-1 text-sm leading-relaxed text-slate-200">
-                          {row.blueprint}
-                        </p>
+                        <div className="border-t border-white/10 pt-3">
+                          <div className="text-[11px] uppercase tracking-wide text-cyan-300">
+                            Use Blueprint (managed)
+                          </div>
+                          <p className="mt-1 text-sm leading-relaxed text-slate-200">
+                            {row.blueprint}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
 
-          <div className="mt-12 grid gap-6 lg:grid-cols-2">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-6 shadow-2xl">
-              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] uppercase tracking-wide text-emerald-200">
-                <Zap className="h-3.5 w-3.5" />
-                Takeaways
-              </div>
-              <ul className="mt-4 space-y-3 text-sm leading-relaxed text-slate-200">
-                {takeaways.map((point) => (
-                  <li key={point} className="flex gap-3">
-                    <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
-                    <span>{point}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-6 shadow-2xl">
-              <div className="inline-flex items-center gap-2 rounded-full bg-cyan-500/10 px-3 py-1 text-[11px] uppercase tracking-wide text-cyan-200">
-                <Sparkles className="h-3.5 w-3.5" />
-                TL;DR metrics
-              </div>
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                {tldrHighlights.map((item) => (
-                  <div
-                    key={item.label}
-                    className="rounded-xl border border-white/10 bg-white/[0.04] p-4"
-                  >
-                    <div className="text-xs uppercase tracking-wide text-slate-400">
-                      {item.label}
-                    </div>
-                    <div className="mt-2 text-sm font-semibold text-emerald-200">
-                      DIY: {item.diy}
-                    </div>
-                    <div className="mt-1 text-sm text-cyan-200">
-                      Blueprint: {item.blueprint}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-10 grid gap-6 md:grid-cols-2">
-            {scenarioData.map((scenario) => (
-              <div
-                key={scenario.name}
-                className="rounded-2xl border border-white/10 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10 p-6 shadow-2xl"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10">
-                    <PiggyBank className="h-5 w-5 text-emerald-300" />
-                  </div>
-                  <div>
-                    <div className="text-lg font-semibold text-white">
-                      {scenario.name}
-                    </div>
-                    <div className="text-xs text-slate-300">
-                      {scenario.subtitle}
-                    </div>
-                  </div>
+            <div className="mt-12 grid gap-6 lg:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-6 shadow-2xl">
+                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] uppercase tracking-wide text-emerald-200">
+                  <Zap className="h-3.5 w-3.5" />
+                  Takeaways
                 </div>
                 <ul className="mt-4 space-y-3 text-sm leading-relaxed text-slate-200">
-                  {scenario.bullets.map((bullet) => (
-                    <li key={bullet} className="flex gap-3">
-                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-cyan-400" />
-                      <span>{bullet}</span>
+                  {takeaways.map((point) => (
+                    <li key={point} className="flex gap-3">
+                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
+                      <span>{point}</span>
                     </li>
                   ))}
                 </ul>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-6 shadow-2xl">
+                <div className="inline-flex items-center gap-2 rounded-full bg-cyan-500/10 px-3 py-1 text-[11px] uppercase tracking-wide text-cyan-200">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  TL;DR metrics
+                </div>
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                  {tldrHighlights.map((item) => (
+                    <div
+                      key={item.label}
+                      className="rounded-xl border border-white/10 bg-white/[0.04] p-4"
+                    >
+                      <div className="text-xs uppercase tracking-wide text-slate-400">
+                        {item.label}
+                      </div>
+                      <div className="mt-2 text-sm font-semibold text-emerald-200">
+                        DIY: {item.diy}
+                      </div>
+                      <div className="mt-1 text-sm text-cyan-200">
+                        Blueprint: {item.blueprint}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
 
-      <Footer />
-      <LindyChat />
+            <div className="mt-10 grid gap-6 md:grid-cols-2">
+              {scenarioData.map((scenario) => (
+                <div
+                  key={scenario.name}
+                  className="rounded-2xl border border-white/10 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10 p-6 shadow-2xl"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10">
+                      <PiggyBank className="h-5 w-5 text-emerald-300" />
+                    </div>
+                    <div>
+                      <div className="text-lg font-semibold text-white">
+                        {scenario.name}
+                      </div>
+                      <div className="text-xs text-slate-300">
+                        {scenario.subtitle}
+                      </div>
+                    </div>
+                  </div>
+                  <ul className="mt-4 space-y-3 text-sm leading-relaxed text-slate-200">
+                    {scenario.bullets.map((bullet) => (
+                      <li key={bullet} className="flex gap-3">
+                        <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-cyan-400" />
+                        <span>{bullet}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {false && (
+        <>
+          <Footer />
+          <LindyChat />
+        </>
+      )}
     </div>
   );
 }
