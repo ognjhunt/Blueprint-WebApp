@@ -480,6 +480,11 @@ function PlanCards() {
         ))}
       </div>
 
+      {/**
+       * Temporarily hide the add-on and billing perk cards so that only the
+       * primary Starter and Pro plan cards remain visible on the page.
+       */}
+      {/*
       <div className="mt-10 grid gap-6 md:grid-cols-2">
         <Card className="rounded-2xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl">
           <CardHeader className="space-y-2">
@@ -529,6 +534,7 @@ function PlanCards() {
           </CardContent>
         </Card>
       </div>
+      */}
     </section>
   );
 }
@@ -772,8 +778,8 @@ function PricingCalculator({
 /* --------------------------------- Page ---------------------------------- */
 
 export default function PricingPage() {
-  const [counts, setCounts] = useState<Counts>(defaultCounts);
-  const hourly = useMemo(() => pricePerHour(counts), [counts]);
+  // const [counts, setCounts] = useState<Counts>(defaultCounts);
+  // const hourly = useMemo(() => pricePerHour(counts), [counts]);
 
   return (
     <div className="min-h-screen bg-[#0B1220] text-slate-100">
@@ -799,6 +805,7 @@ export default function PricingPage() {
       <PlanCards />
 
       {/* Usage calculator */}
+      {/*
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-14">
         <PricingCalculator
           counts={counts}
@@ -806,8 +813,10 @@ export default function PricingPage() {
           hourly={hourly}
         />
       </section>
+      */}
 
       {/* FAQs */}
+      {/*
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-14 mb-20">
         <div className="grid md:grid-cols-3 items-stretch gap-6 md:gap-8">
           <Card className="rounded-2xl border border-white/15 bg-white/[0.04] backdrop-blur-sm shadow-2xl hover:bg-white/[0.06] transition-colors">
@@ -858,8 +867,10 @@ export default function PricingPage() {
           </Button>
         </div>
       </section>
+      */}
 
       {/* DIY vs Blueprint contrast */}
+      {/*
       <section className="relative mt-16 lg:mt-20 px-4 sm:px-6 lg:px-8">
         <div className="pointer-events-none absolute inset-0 -z-10">
           <div className="absolute inset-x-6 top-0 h-3/4 rounded-3xl bg-gradient-to-b from-emerald-500/15 via-cyan-500/10 to-transparent blur-3xl" />
@@ -1048,9 +1059,10 @@ export default function PricingPage() {
           </div>
         </div>
       </section>
+      */}
 
-      <Footer />
-      <LindyChat />
+      {/* <Footer /> */}
+      {/* <LindyChat /> */}
     </div>
   );
 }
