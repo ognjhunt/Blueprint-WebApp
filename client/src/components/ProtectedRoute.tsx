@@ -28,9 +28,12 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     if (!loading) {
       if (!currentUser) {
         // Store the current location to redirect back after auth
-        const currentPath = window.location.pathname;
+        const currentPath =
+          window.location.pathname +
+          window.location.search +
+          window.location.hash;
         sessionStorage.setItem("redirectAfterAuth", currentPath);
-        setLocation("/sign-in");
+        setLocation("/login");
       } else if (!userData) {
         // Wait for user data to be loaded
         return;

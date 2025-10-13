@@ -283,7 +283,8 @@ export default function ClaimBlueprint() {
     e.preventDefault();
     if (!currentUser && currentStep === steps.length - 1) {
       localStorage.setItem("pendingBlueprintClaim", JSON.stringify(formData));
-      setLocation("/sign-in?redirect=/claim-blueprint");
+      const encoded = encodeURIComponent("/claim-blueprint");
+      setLocation(`/login?returnUrl=${encoded}`);
       return;
     }
     console.log("Blueprint claimed:", formData);

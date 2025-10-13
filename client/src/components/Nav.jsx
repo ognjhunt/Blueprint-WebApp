@@ -270,7 +270,7 @@ export default function Nav({
 
               {!currentUser ? (
                 <Link
-                  href="/sign-in"
+                  href="/login"
                   className="w-full"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
@@ -396,7 +396,7 @@ const InviteTeamButtonInternal = memo(() => (
 InviteTeamButtonInternal.displayName = "InviteTeamButtonInternal";
 
 const SignInButtonInternal = memo(() => (
-  <Link href="/sign-in">
+  <Link href="/login">
     <Button className="rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-900 font-semibold hover:opacity-90 px-6 py-2">
       Sign In
     </Button>
