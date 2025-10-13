@@ -25,91 +25,52 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getGoogleMapsApiKey } from "@/lib/client-env";
-import {
-  ArrowRight,
-  BadgeCheck,
-  Clock,
-  Compass,
-  Map,
-  Navigation2,
-  Radar,
-  Sparkles,
-  SquareStack,
-} from "lucide-react";
 
 const ONBOARDING_FEE = 499.99;
+const MONTHLY_RATE = 99;
+const MAPPING_FEE = 99;
 const INCLUDED_WEEKLY_HOURS = 40;
 const EXTRA_HOURLY_RATE = 1.25;
-const MAPPING_ADD_ON_PRICE = 99;
 
 const CHECKOUT_STORAGE_KEY = "blueprintCheckoutContext";
-const DEFAULT_MONTHLY_RATE = 99;
-
-type PlanTier = {
-  id: string;
-  name: string;
-  monthlyPrice: number;
-  mauLabel: string;
-  description: string;
-  recommended?: boolean;
-};
-
-const PLAN_TIERS: PlanTier[] = [
-  {
-    id: "starter",
-    name: "Starter",
-    monthlyPrice: 99,
-    mauLabel: "Supports up to 100 monthly active users",
-    description: "Best for a single location or flagship launch.",
-    recommended: true,
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    monthlyPrice: 149,
-    mauLabel: "Supports up to 250 monthly active users",
-    description: "Multi-location teams and higher traffic venues.",
-  },
-];
 
 type KitOption = {
   id: string;
   name: string;
   includedKitQuantity: number;
-  oneTimePrice: number;
-  description: string;
-  recommendedFor: string;
+  oneTimeUpgradeFee: number;
+  highlight: string;
 };
 
-const QR_KITS: KitOption[] = [
+const KIT_OPTIONS: KitOption[] = [
   {
     id: "starter",
-    name: "Starter kit",
+    name: "Starter kit (4 QR kits)",
     includedKitQuantity: 4,
-    oneTimePrice: 0,
-    description: "Launch-ready placements for your first blueprint zones.",
-    recommendedFor: "Boutiques, cafes, and first location pilots.",
+    oneTimeUpgradeFee: 0,
+    highlight: "Ideal for piloting in a single storefront or lobby.",
   },
   {
     id: "growth",
-    name: "Growth kit",
+    name: "Growth kit (8 QR kits)",
     includedKitQuantity: 8,
-    oneTimePrice: 15,
-    description:
-      "Double coverage so multiple rooms or entrances stay activated.",
-    recommendedFor: "Museums, hotels, and multi-wing experiences.",
+    oneTimeUpgradeFee: 15,
+    highlight: "Extra coverage for multi-room venues or dual entrances.",
   },
   {
     id: "enterprise",
-    name: "Enterprise kit",
+    name: "Enterprise kit (16 QR kits)",
     includedKitQuantity: 16,
-    oneTimePrice: 45,
-    description: "Full campus or arena coverage with redundancy for events.",
-    recommendedFor: "Large-format venues, stadiums, and campuses.",
+    oneTimeUpgradeFee: 45,
+    highlight: "Great for campuses, arenas, and large-footprint deployments.",
   },
 ];
 
-const DEFAULT_PLAN = PLAN_TIERS[0];
+const DEFAULT_CARE_PLAN = {
+  id: "blueprint-care",
+  name: "Blueprint Care",
+  monthlyPrice: MONTHLY_RATE,
+} as const;
 
 const MAPPING_RECOMMENDED_TYPES = new Set([
   "museum",
@@ -129,63 +90,20 @@ const MAPPING_RECOMMENDED_TYPES = new Set([
   "cafe",
 ]);
 
-const MAPPING_BENEFITS = [
-  {
-    icon: Navigation2,
-    title: "Guests can ask where anything is",
-    description:
-      "Blueprint answers questions like “Where is the merch desk?” with precise turn-by-turn guidance.",
-  },
-  {
-    icon: Map,
-    title: "Guided indoor navigation",
-    description:
-      "Deliver a visual map that orients visitors and staff in seconds.",
-  },
-  {
-    icon: Sparkles,
-    title: "Contextual nudges",
-    description:
-      "Trigger promos, safety reminders, or concierge tips at the right zone.",
-  },
-  {
-    icon: Radar,
-    title: "Movement intelligence",
-    description:
-      "See hot zones, dwell time, and peak flows to improve staffing.",
-  },
-  {
-    icon: Compass,
-    title: "Niantic VPS localization",
-    description:
-      "Lightship-ready anchors help devices instantly understand where they are.",
-  },
-  {
-    icon: SquareStack,
-    title: "Future-proof for AR launches",
-    description:
-      "Use the same spatial map for upcoming wearable and heads-up experiences.",
-  },
+const MAPPING_BENEFITS: string[] = [
+  "Guests can ask conversationally where something is and get precise directions.",
+  "Live indoor navigation guides visitors to any point of interest.",
+  "Contextual nudges and updates trigger automatically in the right zone.",
+  "Heatmaps and dwell analytics reveal hot zones and movement patterns.",
+  "Supports Niantic Lightship/VPS localization so devices instantly know where they are.",
+  "Ready for future AR experiences and spatial content drops with no extra work.",
+  "Unlocks post-visit retargeting from privacy-safe engagement signals.",
 ];
 
-const MAPPING_REQUIREMENTS = [
-  {
-    icon: Clock,
-    title: "30–60 minute visit",
-    description:
-      "A Blueprint Mapper captures LiDAR on-site at a scheduled time.",
-  },
-  {
-    icon: BadgeCheck,
-    title: "One-time $99 add-on",
-    description: "Charged at the end of onboarding alongside your QR kits.",
-  },
-  {
-    icon: Sparkles,
-    title: "Content planning session",
-    description:
-      "We plan zones and journeys before your first visitors arrive.",
-  },
+const MAPPING_REQUIREMENTS: string[] = [
+  "A Blueprint Mapper visits at your scheduled date and time.",
+  "On-site LiDAR capture typically takes 30–60 minutes.",
+  "One-time $99 mapping fee is added to your onboarding invoice.",
 ];
 
 type StepKey =
@@ -254,15 +172,11 @@ export default function Onboarding() {
   const placesEnabled = Boolean(googleApiKey);
 
   const [stepIndex, setStepIndex] = useState(0);
+
+  const [organizationName, setOrganizationName] = useState("");
+  const [organizationSaved, setOrganizationSaved] = useState(false);
   const [isSavingOrganization, setIsSavingOrganization] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
-
-  const [organizationName, setOrganizationName] = useState(
-    () => currentUser?.displayName ?? "",
-  );
-  const [activeSearchContext, setActiveSearchContext] = useState<
-    "account" | "mapping" | null
-  >(null);
 
   const [placeQuery, setPlaceQuery] = useState("");
   const [placePredictions, setPlacePredictions] = useState<
@@ -288,14 +202,17 @@ export default function Onboarding() {
   const [mappingDate, setMappingDate] = useState("");
   const [mappingTime, setMappingTime] = useState("");
 
-  const [selectedPlanId, setSelectedPlanId] = useState<string>(DEFAULT_PLAN.id);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>(
+    DEFAULT_CARE_PLAN.id,
+  );
   const [selectedPlanName, setSelectedPlanName] = useState<string>(
-    DEFAULT_PLAN.name,
+    DEFAULT_CARE_PLAN.name,
   );
   const [planMonthlyPrice, setPlanMonthlyPrice] = useState<number>(
-    DEFAULT_PLAN.monthlyPrice,
+    DEFAULT_CARE_PLAN.monthlyPrice,
   );
-  const [selectedKitId, setSelectedKitId] = useState<string>(QR_KITS[0].id);
+
+  const [selectedKitId, setSelectedKitId] = useState<string>(KIT_OPTIONS[0].id);
   const [useContactForShipping, setUseContactForShipping] = useState(true);
   const [shippingName, setShippingName] = useState("");
   const [shippingLine1, setShippingLine1] = useState("");
@@ -478,28 +395,24 @@ export default function Onboarding() {
   }, [mappingOptIn, recommendedMapping]);
 
   useEffect(() => {
-    if (!placeQuery && organizationName) {
-      setPlaceQuery(organizationName);
-    }
-  }, [organizationName, placeQuery]);
-
-  useEffect(() => {
     if (mappingOptIn === false) {
       setUseContactForShipping(false);
     }
   }, [mappingOptIn]);
 
-  const selectedPlan = useMemo(
-    () => PLAN_TIERS.find((plan) => plan.id === selectedPlanId) ?? DEFAULT_PLAN,
-    [selectedPlanId],
-  );
+  useEffect(() => {
+    setPlaceQuery(organizationName);
+  }, [organizationName]);
 
   const selectedKit = useMemo(
-    () => QR_KITS.find((kit) => kit.id === selectedKitId) ?? QR_KITS[0],
+    () => KIT_OPTIONS.find((kit) => kit.id === selectedKitId) ?? KIT_OPTIONS[0],
     [selectedKitId],
   );
 
-  const kitUpgradeOneTime = selectedKit.oneTimePrice;
+  const kitUpgradeFee = useMemo(
+    () => selectedKit.oneTimeUpgradeFee,
+    [selectedKit],
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -514,6 +427,7 @@ export default function Onboarding() {
     try {
       const parsed = JSON.parse(storedContext) as Partial<{
         organizationName: string;
+        organizationSaved: boolean;
         mappingOptIn: boolean | null;
         contactName: string;
         contactPhone: string;
@@ -539,6 +453,9 @@ export default function Onboarding() {
       if (typeof parsed.organizationName === "string") {
         setOrganizationName(parsed.organizationName);
       }
+      if (typeof parsed.organizationSaved === "boolean") {
+        setOrganizationSaved(parsed.organizationSaved);
+      }
       if (typeof parsed.mappingOptIn === "boolean") {
         setMappingOptIn(parsed.mappingOptIn);
       }
@@ -561,25 +478,22 @@ export default function Onboarding() {
         setMappingTime(parsed.mappingTime);
       }
       if (typeof parsed.selectedPlanId === "string") {
-        const matchingPlan = PLAN_TIERS.find(
-          (plan) => plan.id === parsed.selectedPlanId,
-        );
-        if (matchingPlan) {
-          setSelectedPlanId(matchingPlan.id);
-          setSelectedPlanName(parsed.selectedPlanName ?? matchingPlan.name);
-          setPlanMonthlyPrice(
-            typeof parsed.planMonthlyPrice === "number" &&
-              Number.isFinite(parsed.planMonthlyPrice)
-              ? parsed.planMonthlyPrice
-              : matchingPlan.monthlyPrice,
-          );
-        }
+        setSelectedPlanId(parsed.selectedPlanId);
+      }
+      if (typeof parsed.selectedPlanName === "string") {
+        setSelectedPlanName(parsed.selectedPlanName);
+      }
+      if (
+        typeof parsed.planMonthlyPrice === "number" &&
+        Number.isFinite(parsed.planMonthlyPrice)
+      ) {
+        setPlanMonthlyPrice(parsed.planMonthlyPrice);
       }
       if (typeof parsed.selectedKitId === "string") {
-        const kitExists = QR_KITS.some(
+        const exists = KIT_OPTIONS.some(
           (kit) => kit.id === parsed.selectedKitId,
         );
-        if (kitExists) {
+        if (exists) {
           setSelectedKitId(parsed.selectedKitId);
         }
       }
@@ -616,6 +530,10 @@ export default function Onboarding() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
     const params = new URLSearchParams(window.location.search);
     const planParam = params.get("planId") ?? params.get("plan");
     const planNameParam = params.get("planName");
@@ -679,7 +597,7 @@ export default function Onboarding() {
     return localDateTime.toISOString();
   }, [mappingDate, mappingOptIn, mappingTime, wantsSchedule]);
 
-  const shippingAddress: ShippingAddress = useMemo(() => {
+  const shippingAddress: ShippingAddress | undefined = useMemo(() => {
     if (useContactForShipping && mappingOptIn) {
       return {
         name: contactName || organizationName,
@@ -689,6 +607,17 @@ export default function Onboarding() {
         postalCode: "",
         country: "US",
       };
+    }
+
+    if (
+      !shippingName &&
+      !shippingLine1 &&
+      !shippingLine2 &&
+      !shippingCity &&
+      !shippingState &&
+      !shippingPostalCode
+    ) {
+      return undefined;
     }
 
     return {
@@ -715,78 +644,87 @@ export default function Onboarding() {
     useContactForShipping,
   ]);
 
-  const totalDueToday = useMemo(
-    () => ONBOARDING_FEE + kitUpgradeOneTime,
-    [kitUpgradeOneTime],
+  const mappingFeeDueToday = useMemo(
+    () => (mappingOptIn ? MAPPING_FEE : 0),
+    [mappingOptIn],
   );
 
-  const inputClasses =
-    "border-white/10 bg-slate-900/60 text-white placeholder:text-slate-500 focus-visible:border-emerald-400 focus-visible:ring-emerald-400/40";
+  const totalDueToday = useMemo(
+    () => ONBOARDING_FEE + kitUpgradeFee + mappingFeeDueToday,
+    [kitUpgradeFee, mappingFeeDueToday],
+  );
 
-  const handleSelectPrediction = async (
-    prediction: PlacesAutocompleteSuggestion,
-  ) => {
-    setPlaceQuery(prediction.description);
-    setOrganizationName(prediction.description);
-    setPlacePredictions([]);
-    setActiveSearchContext(null);
-    setPlaceError(null);
-    setLoadingPlaceDetails(true);
-    try {
-      const details = await fetchPlaceDetails(prediction.placeId);
-      setPlaceDetails(details);
-      if (details.formattedAddress) {
-        setLocationAddress(details.formattedAddress);
+  const handleSelectPrediction = useCallback(
+    async (prediction: PlacesAutocompleteSuggestion) => {
+      setPlaceQuery(prediction.description);
+      setPlacePredictions([]);
+      setPlaceError(null);
+      setLoadingPlaceDetails(true);
+      try {
+        const details = await fetchPlaceDetails(prediction.placeId);
+        setPlaceDetails(details);
+        const displayName = details.displayName?.text ?? prediction.description;
+        setOrganizationName(displayName);
+        if (details.formattedAddress) {
+          setLocationAddress(details.formattedAddress);
+        }
+        const isRecommended = Boolean(
+          details.types?.some((type) => MAPPING_RECOMMENDED_TYPES.has(type)),
+        );
+        setRecommendedMapping(isRecommended);
+      } catch (error) {
+        console.error("Error fetching place details", error);
+        setPlaceError("We couldn't load details for that location.");
+      } finally {
+        setLoadingPlaceDetails(false);
       }
-      const isRecommended = Boolean(
-        details.types?.some((type) => MAPPING_RECOMMENDED_TYPES.has(type)),
-      );
-      setRecommendedMapping(isRecommended);
-    } catch (error) {
-      console.error("Error fetching place details", error);
-      setPlaceError("We couldn't load details for that location.");
-    } finally {
-      setLoadingPlaceDetails(false);
-    }
-  };
+    },
+    [fetchPlaceDetails],
+  );
 
-  const completeAccountCreation = async () => {
+  const saveOrganization = useCallback(async () => {
     const trimmedName = organizationName.trim();
     if (!trimmedName) {
-      setAccountError("Add your organization name to continue.");
+      setAccountError("Enter your organization name to continue.");
       return false;
     }
-
     if (!currentUser) {
-      setAccountError("Please sign in before continuing.");
+      setAccountError("Please sign in to continue onboarding.");
       return false;
-    }
-
-    if (currentUser.displayName === trimmedName) {
-      setAccountError(null);
-      return true;
     }
 
     setIsSavingOrganization(true);
     setAccountError(null);
     try {
-      await updateProfile(currentUser, { displayName: trimmedName });
-      setCurrentUser(auth.currentUser);
+      await updateProfile(currentUser, {
+        displayName: trimmedName,
+      });
+      await setDoc(
+        doc(db, "onboardingProfiles", currentUser.uid),
+        {
+          organizationName: trimmedName,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+      setOrganizationSaved(true);
       return true;
     } catch (error) {
-      console.error("Unable to update organization name", error);
-      setAccountError(
-        "We couldn't save your organization. Try again in a moment.",
-      );
+      console.error("Unable to save organization", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "We couldn't save your organization. Try again.";
+      setAccountError(message);
       return false;
     } finally {
       setIsSavingOrganization(false);
     }
-  };
+  }, [currentUser, organizationName]);
 
-  const handleNext = async () => {
+  const handleNext = useCallback(async () => {
     if (currentStep === "account") {
-      const saved = await completeAccountCreation();
+      const saved = await saveOrganization();
       if (!saved) {
         return;
       }
@@ -818,11 +756,9 @@ export default function Onboarding() {
     }
 
     if (currentStep === "schedule") {
-      if (wantsSchedule) {
-        if (!mappingDate || !mappingTime) {
-          setPlaceError("Choose a date and time or skip scheduling for now.");
-          return;
-        }
+      if (wantsSchedule && (!mappingDate || !mappingTime)) {
+        setPlaceError("Choose a date and time or skip scheduling for now.");
+        return;
       }
       setPlaceError(null);
       setStepIndex((index) => Math.min(index + 1, stepOrder.length - 1));
@@ -849,16 +785,31 @@ export default function Onboarding() {
       }
       setPlaceError(null);
       setStepIndex((index) => Math.min(index + 1, stepOrder.length - 1));
-      return;
     }
-  };
+  }, [
+    contactName,
+    contactPhone,
+    currentStep,
+    mappingDate,
+    mappingOptIn,
+    mappingTime,
+    saveOrganization,
+    selectedPlanId,
+    shippingCity,
+    shippingLine1,
+    shippingName,
+    shippingPostalCode,
+    stepOrder.length,
+    useContactForShipping,
+    wantsSchedule,
+  ]);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     setPlaceError(null);
     setStepIndex((index) => Math.max(0, index - 1));
-  };
+  }, []);
 
-  const startStripeCheckout = async () => {
+  const startStripeCheckout = useCallback(async () => {
     try {
       setIsRedirectingToStripe(true);
       setPaymentError(null);
@@ -868,7 +819,6 @@ export default function Onboarding() {
           doc(db, "onboardingProfiles", currentUser.uid),
           {
             organizationName: organizationName.trim(),
-            email: currentUser.email ?? "",
             mappingOptIn: true,
             recommendedMapping,
             updatedAt: serverTimestamp(),
@@ -898,6 +848,7 @@ export default function Onboarding() {
           CHECKOUT_STORAGE_KEY,
           JSON.stringify({
             organizationName,
+            organizationSaved,
             mappingOptIn,
             contactName,
             contactPhone,
@@ -945,23 +896,24 @@ export default function Onboarding() {
           extraHourlyRate: EXTRA_HOURLY_RATE,
           planId: selectedPlanId,
           planName: selectedPlanName,
-          kitUpgradeSurcharge: kitUpgradeOneTime,
+          kitUpgradeSurcharge: kitUpgradeFee,
+          mappingFee: mappingFeeDueToday,
           organizationName: organizationName.trim(),
           contactName: mappingOptIn ? contactName.trim() : "",
           contactEmail: currentUser?.email ?? "",
           mappingDateTime: mappingDateTimeIso,
           mappingOptIn: mappingOptIn === true,
           plan: {
-            id: selectedPlan.id,
-            name: `${selectedPlan.name} plan`,
+            id: selectedPlanId,
+            name: selectedPlanName,
             monthlyPrice: planMonthlyPrice,
             includedKitQuantity: selectedKit.includedKitQuantity,
-            upgradeSurcharge: 0,
+            upgradeSurcharge: kitUpgradeFee,
           },
           qrKit: {
             id: selectedKit.id,
-            name: `${selectedKit.name} (${selectedKit.includedKitQuantity} QR kits)`,
-            price: selectedKit.oneTimePrice,
+            name: selectedKit.name,
+            price: kitUpgradeFee,
           },
           shippingAddress,
           successPath,
@@ -995,78 +947,95 @@ export default function Onboarding() {
         try {
           return window.self !== window.top;
         } catch (error) {
-          console.warn(
-            "Unable to determine frame context, defaulting to bypass Stripe redirect.",
-            error,
-          );
-          return true;
+          return false;
         }
       };
 
-      if (stripe && !shouldBypassStripeRedirect()) {
-        const result = await stripe.redirectToCheckout({
-          sessionId: data.sessionId,
-        });
-        if (!result?.error) {
+      if (sessionUrl) {
+        if (shouldBypassStripeRedirect()) {
+          window.location.href = sessionUrl;
           return;
         }
-        if (!sessionUrl) {
-          throw new Error(result.error.message);
-        }
-        console.warn(
-          "Stripe redirectToCheckout failed, falling back to direct session URL.",
-          result.error,
-        );
-      }
-
-      if (sessionUrl) {
-        const newWindow = window.open(
-          sessionUrl,
-          "_blank",
-          "noopener,noreferrer",
-        );
-        if (!newWindow) {
-          window.location.href = sessionUrl;
-        }
+        window.location.href = sessionUrl;
         return;
       }
 
-      throw new Error("We couldn't start checkout just yet. Please try again.");
+      if (!stripe) {
+        throw new Error("Stripe failed to initialize");
+      }
+
+      const result = await stripe.redirectToCheckout({
+        sessionId: data.sessionId,
+      });
+      if (result.error) {
+        throw result.error;
+      }
     } catch (error) {
-      console.error("Stripe checkout error", error);
+      console.error("Unable to start Stripe checkout", error);
       const message =
         error instanceof Error
           ? error.message
-          : "We couldn't reach Stripe. Please try again.";
-      sessionStorage.removeItem(CHECKOUT_STORAGE_KEY);
-      setPaymentStatus("error");
+          : "We couldn't start checkout just yet. Please try again.";
       setPaymentError(message);
+      setPaymentStatus("error");
     } finally {
       setIsRedirectingToStripe(false);
     }
-  };
+  }, [
+    contactName,
+    contactPhone,
+    currentUser,
+    kitUpgradeFee,
+    mappingDate,
+    mappingDateTimeIso,
+    mappingFeeDueToday,
+    mappingOptIn,
+    mappingTime,
+    organizationName,
+    organizationSaved,
+    planMonthlyPrice,
+    recommendedMapping,
+    selectedKit,
+    selectedKitId,
+    selectedPlanId,
+    selectedPlanName,
+    shippingAddress,
+    shippingCity,
+    shippingCountry,
+    shippingLine1,
+    shippingLine2,
+    shippingName,
+    shippingPostalCode,
+    shippingState,
+    squareFootage,
+    useContactForShipping,
+    wantsSchedule,
+  ]);
 
   const renderAccountStep = () => {
-    const showAccountPredictions =
-      activeSearchContext === "account" &&
-      !loadingPlaces &&
-      placePredictions.length > 0;
+    const signedInEmail = currentUser?.email;
 
     return (
       <div className="space-y-8">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 text-emerald-300/80">
-            <Sparkles className="h-4 w-4" />
-            <span className="text-xs font-semibold uppercase tracking-[0.4em]">
-              Blueprint profile
-            </span>
-          </div>
+        <div className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-300/70">
+            Step 1 · Organization
+          </p>
           <h2 className="text-3xl font-semibold text-white">
             Who are we onboarding?
           </h2>
           <p className="text-sm text-slate-300">
-            We’ll reference this organization in your assistant, billing, and
-            kit artwork.
+            Search for your organization so we can preload location details and
+            match any existing mapping or content.{" "}
+            {signedInEmail ? (
+              <span className="text-slate-400">
+                Signed in as {signedInEmail}.
+              </span>
+            ) : (
+              <span className="text-slate-400">
+                You are signed in and ready to continue.
+              </span>
+            )}
           </p>
         </div>
         <div className="space-y-3">
@@ -1080,40 +1049,35 @@ export default function Onboarding() {
               onChange={(event) => {
                 const value = event.target.value;
                 setOrganizationName(value);
-                setPlaceQuery(value);
-                setPlaceDetails(null);
-                setAccountError(null);
-                setActiveSearchContext("account");
-              }}
-              onFocus={() => setActiveSearchContext("account")}
-              onBlur={() => {
-                setTimeout(() => {
-                  setActiveSearchContext((context) =>
-                    context === "account" ? null : context,
-                  );
-                }, 120);
+                setOrganizationSaved(false);
+                if (!value) {
+                  setPlacePredictions([]);
+                  setPlaceDetails(null);
+                  setRecommendedMapping(null);
+                }
               }}
               placeholder="Start typing your business name"
-              autoComplete="organization"
-              className={`${inputClasses} pr-10`}
+              className="border-white/10 bg-white/5 text-slate-100 placeholder:text-slate-500"
             />
-            {loadingPlaces && activeSearchContext === "account" && (
-              <p className="absolute right-0 top-full mt-2 text-xs text-slate-400">
+            {loadingPlaces && (
+              <p className="mt-2 text-xs text-slate-400">
                 Looking for matches…
               </p>
             )}
-            {showAccountPredictions && (
-              <div className="absolute z-30 mt-3 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-900/95 shadow-xl backdrop-blur">
+            {!loadingPlaces && placePredictions.length > 0 && (
+              <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-white/10 bg-[#0E1624] shadow-2xl">
                 <ul className="divide-y divide-white/5">
                   {placePredictions.map((prediction) => (
                     <li key={prediction.placeId}>
                       <button
                         type="button"
-                        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm text-slate-200 transition hover:bg-emerald-500/10"
+                        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm text-slate-200 transition hover:bg-white/5"
                         onClick={() => handleSelectPrediction(prediction)}
                       >
                         <span>{prediction.description}</span>
-                        <ArrowRight className="h-4 w-4 text-emerald-300" />
+                        <span className="text-xs uppercase tracking-wide text-sky-300/80">
+                          Select
+                        </span>
                       </button>
                     </li>
                   ))}
@@ -1121,23 +1085,29 @@ export default function Onboarding() {
               </div>
             )}
           </div>
-          {!placesEnabled && (
-            <p className="text-xs text-amber-300/80">
-              Google Places isn’t configured in this environment. Continue and
-              enter your venue details manually.
+          {placeDetails?.formattedAddress && (
+            <p className="text-xs text-slate-400">
+              Primary location: {placeDetails.formattedAddress}
             </p>
           )}
-          <p className="text-xs text-slate-400">
-            Selecting a result keeps your address and website synced across
-            Blueprint.
-          </p>
+          {!placesEnabled && (
+            <p className="text-xs text-amber-400">
+              Google Places isn't configured in this environment. Type your
+              organization name manually.
+            </p>
+          )}
+          {organizationSaved && (
+            <p className="text-xs text-emerald-300">
+              Organization saved for your account.
+            </p>
+          )}
           {accountError && (
-            <p className="text-sm text-rose-400" role="alert">
+            <p className="text-sm text-rose-300" role="alert">
               {accountError}
             </p>
           )}
         </div>
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
           <Button onClick={handleNext} disabled={isSavingOrganization}>
             {isSavingOrganization ? "Saving…" : "Continue"}
           </Button>
@@ -1146,332 +1116,243 @@ export default function Onboarding() {
     );
   };
 
-  const renderMappingStep = () => {
-    const showMappingPredictions =
-      activeSearchContext === "mapping" &&
-      !loadingPlaces &&
-      placePredictions.length > 0;
+  const renderMappingStep = () => (
+    <div className="space-y-10">
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-300/70">
+          Step 2 · Mapping
+        </p>
+        <h2 className="text-3xl font-semibold text-white">
+          Would you like Blueprint to map your space?
+        </h2>
+        <p className="text-sm text-slate-300">
+          Mapping unlocks AR navigation, in-store journeys, and post-visit
+          retargeting.
+        </p>
+      </div>
 
-    return (
-      <div className="space-y-8">
-        <div className="space-y-3">
-          <div className="inline-flex items-center gap-2 text-emerald-300/80">
-            <Radar className="h-4 w-4" />
-            <span className="text-xs font-semibold uppercase tracking-[0.4em]">
-              Spatial mapping
-            </span>
-          </div>
-          <h2 className="text-3xl font-semibold text-white">
-            Would you like Blueprint to map your space?
-          </h2>
-          <p className="text-sm text-slate-300">
-            Mapping unlocks AR navigation, in-store journeys, and post-visit
-            retargeting.
-          </p>
-          <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-100 shadow-[0_0_25px_rgba(16,185,129,0.25)]">
-            <p className="font-semibold">
-              Add Blueprint mapping — {formatUsd(MAPPING_ADD_ON_PRICE)} one-time
-            </p>
-            <p className="mt-1 text-emerald-100/80">
-              Includes on-site LiDAR capture, a content planning session, and
-              your spatial blueprint generation.
-            </p>
-          </div>
-        </div>
-        <div className="grid gap-6 lg:grid-cols-[1.7fr_1fr]">
-          <div className="space-y-5">
-            <div className="space-y-3">
-              <Label htmlFor="place-search" className="text-slate-200">
-                Search for your venue
-              </Label>
-              <div className="relative">
-                <Input
-                  id="place-search"
-                  value={placeQuery}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setPlaceQuery(value);
-                    setPlaceDetails(null);
-                    setActiveSearchContext("mapping");
-                    setPlaceError(null);
-                  }}
-                  onFocus={() => setActiveSearchContext("mapping")}
-                  onBlur={() => {
-                    setTimeout(() => {
-                      setActiveSearchContext((context) =>
-                        context === "mapping" ? null : context,
-                      );
-                    }, 120);
-                  }}
-                  placeholder="Start typing your business name"
-                  className={`${inputClasses} pr-10`}
-                  disabled={!placesEnabled}
-                />
-                {loadingPlaces && activeSearchContext === "mapping" && (
-                  <p className="absolute right-0 top-full mt-2 text-xs text-slate-400">
-                    Looking for matches…
-                  </p>
-                )}
-                {showMappingPredictions && (
-                  <div className="absolute z-30 mt-3 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-900/95 shadow-xl backdrop-blur">
-                    <ul className="divide-y divide-white/5">
-                      {placePredictions.map((prediction) => (
-                        <li key={prediction.placeId}>
-                          <button
-                            type="button"
-                            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm text-slate-200 transition hover:bg-emerald-500/10"
-                            onClick={() => handleSelectPrediction(prediction)}
-                          >
-                            <span>{prediction.description}</span>
-                            <ArrowRight className="h-4 w-4 text-emerald-300" />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-              {!placesEnabled && (
-                <p className="text-xs text-amber-300/80">
-                  Google Places isn’t configured in this environment. You can
-                  continue and enter your address on the next step.
-                </p>
-              )}
-              {loadingPlaceDetails && (
-                <p className="text-xs text-slate-400">Loading place details…</p>
-              )}
-              {placeDetails?.formattedAddress && (
-                <p className="text-sm text-slate-300">
-                  We’ll map: {placeDetails.formattedAddress}
-                </p>
-              )}
-              {recommendedMapping !== null && (
-                <div
-                  className={`rounded-2xl border p-4 text-sm ${
-                    recommendedMapping
-                      ? "border-emerald-400/60 bg-emerald-500/10 text-emerald-100 shadow-[0_0_20px_rgba(16,185,129,0.25)]"
-                      : "border-white/10 bg-white/5 text-slate-200"
-                  }`}
-                >
-                  {recommendedMapping ? (
-                    <>
-                      Based on Google data we recommend mapping this venue.
-                      Museums, hotels, and multi-room retail see the biggest
-                      lift.
-                    </>
-                  ) : (
-                    <>
-                      Mapping is optional for tighter spaces, but you can still
-                      enable it if you want the guided experience.
-                    </>
-                  )}
-                </div>
-              )}
-              <p className="text-xs text-slate-400">
-                We currently recommend mapping for museums, hotels, multi-level
-                retail, campuses, and attractions—but any location can opt in.
-              </p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {[
-                {
-                  value: true,
-                  title: "Yes, map our location",
-                  description:
-                    "Unlock navigation, contextual nudges, and location analytics from day one.",
-                  icon: Navigation2,
-                  highlight: recommendedMapping === true,
-                },
-                {
-                  value: false,
-                  title: "Not right now",
-                  description:
-                    "Skip the visit today—you can request mapping later from your dashboard.",
-                  icon: Clock,
-                },
-              ].map((option) => {
-                const Icon = option.icon;
-                const isSelected = mappingOptIn === option.value;
-                return (
-                  <button
-                    key={option.title}
-                    type="button"
-                    onClick={() => {
-                      setMappingOptIn(option.value);
-                      setPlaceError(null);
-                    }}
-                    className={`rounded-2xl border p-4 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400/60 ${
-                      isSelected
-                        ? "border-emerald-400/60 bg-emerald-500/10 text-emerald-100 shadow-[0_0_30px_rgba(16,185,129,0.25)]"
-                        : "border-white/10 bg-slate-900/50 text-slate-200 hover:border-emerald-400/40"
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="rounded-xl border border-emerald-400/40 bg-emerald-500/10 p-2 text-emerald-200">
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <p className="font-semibold text-white">
-                            {option.title}
-                          </p>
-                          {option.highlight && (
-                            <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200">
-                              Recommended
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-300">
-                          {option.description}
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-            {placeError && (
-              <p className="text-sm text-rose-400" role="alert">
-                {placeError}
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
+          <Label htmlFor="place-search" className="text-slate-200">
+            Search for your venue
+          </Label>
+          <div className="relative mt-2">
+            <Input
+              id="place-search"
+              value={placeQuery || organizationName}
+              onChange={(event) => {
+                const value = event.target.value;
+                setPlaceQuery(value);
+                setOrganizationName(value);
+                setOrganizationSaved(false);
+                if (!value) {
+                  setPlacePredictions([]);
+                  setPlaceDetails(null);
+                  setRecommendedMapping(null);
+                }
+              }}
+              placeholder="Start typing your business name"
+              disabled={!placesEnabled}
+              className="border-white/10 bg-white/5 text-slate-100 placeholder:text-slate-500"
+            />
+            {loadingPlaces && (
+              <p className="mt-2 text-xs text-slate-400">
+                Looking for matches…
               </p>
             )}
-          </div>
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4 sm:p-6">
-              <h3 className="text-sm font-semibold uppercase tracking-widest text-slate-300">
-                What you unlock
-              </h3>
-              <ul className="mt-4 space-y-3">
-                {MAPPING_BENEFITS.map((benefit) => {
-                  const Icon = benefit.icon;
-                  return (
-                    <li key={benefit.title} className="flex items-start gap-3">
-                      <div className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 p-2 text-emerald-200">
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-white">
-                          {benefit.title}
-                        </p>
-                        <p className="text-xs text-slate-300">
-                          {benefit.description}
-                        </p>
-                      </div>
+            {!loadingPlaces && placePredictions.length > 0 && (
+              <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-white/10 bg-[#0E1624] shadow-2xl">
+                <ul className="divide-y divide-white/5">
+                  {placePredictions.map((prediction) => (
+                    <li key={prediction.placeId}>
+                      <button
+                        type="button"
+                        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm text-slate-200 transition hover:bg-white/5"
+                        onClick={() => handleSelectPrediction(prediction)}
+                      >
+                        <span>{prediction.description}</span>
+                        <span className="text-xs uppercase tracking-wide text-sky-300/80">
+                          Select
+                        </span>
+                      </button>
                     </li>
-                  );
-                })}
-              </ul>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4 sm:p-6">
-              <h3 className="text-sm font-semibold uppercase tracking-widest text-slate-300">
-                What we need from you
-              </h3>
-              <ul className="mt-4 space-y-3">
-                {MAPPING_REQUIREMENTS.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <li key={item.title} className="flex items-start gap-3">
-                      <div className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 p-2 text-emerald-200">
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-white">{item.title}</p>
-                        <p className="text-xs text-slate-300">
-                          {item.description}
-                        </p>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
+          {loadingPlaceDetails && (
+            <p className="mt-3 text-xs text-slate-400">
+              Fetching location details…
+            </p>
+          )}
+          {placeDetails?.formattedAddress && (
+            <p className="mt-3 text-xs text-slate-400">
+              We will map: {placeDetails.formattedAddress}
+            </p>
+          )}
+          {!placesEnabled && (
+            <p className="mt-3 text-xs text-amber-400">
+              Google Places is disabled here, so type your venue name and we'll
+              confirm it manually.
+            </p>
+          )}
         </div>
-        <div className="flex justify-between">
-          <Button variant="ghost" onClick={handleBack}>
-            Back
-          </Button>
-          <Button onClick={handleNext}>Continue</Button>
+
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-1">
+              <p className="text-lg font-semibold text-white">
+                Add Blueprint mapping
+              </p>
+              <p className="text-sm text-slate-300">
+                Includes on-site LiDAR capture, a content planning session, and
+                blueprint generation.
+              </p>
+            </div>
+            <Switch
+              checked={Boolean(mappingOptIn)}
+              onCheckedChange={(checked) => {
+                setMappingOptIn(checked);
+                setPlaceError(null);
+              }}
+            />
+          </div>
+          <div className="mt-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-slate-200">
+            {mappingOptIn ? (
+              <>
+                One-time <span className="font-semibold text-white">$99</span>{" "}
+                mapping fee will be added at checkout. We'll coordinate a mapper
+                visit after this flow.
+              </>
+            ) : (
+              <>
+                You can skip mapping now—ideal if you're piloting in a single
+                room. Turn it on anytime from the dashboard.
+              </>
+            )}
+          </div>
+          {recommendedMapping !== null && (
+            <p className="mt-3 text-xs font-medium text-sky-200">
+              {recommendedMapping
+                ? "Great fit: venues like museums, hotels, restaurants, and multi-room retail gain the most from mapping."
+                : "Mapping is optional for this location, but you can enable it if you want Blueprint's team to visit."}
+            </p>
+          )}
         </div>
       </div>
-    );
-  };
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-300/70">
+            Benefits
+          </p>
+          <ul className="mt-3 space-y-2 text-sm text-slate-200">
+            {MAPPING_BENEFITS.map((benefit) => (
+              <li key={benefit} className="flex items-start gap-2">
+                <span className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-sky-400" />
+                <span>{benefit}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-300/70">
+            What we need
+          </p>
+          <ul className="mt-3 space-y-2 text-sm text-slate-200">
+            {MAPPING_REQUIREMENTS.map((requirement) => (
+              <li key={requirement} className="flex items-start gap-2">
+                <span className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-emerald-400" />
+                <span>{requirement}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {placeError && (
+        <p className="text-sm text-rose-300" role="alert">
+          {placeError}
+        </p>
+      )}
+      <div className="flex justify-between">
+        <Button variant="ghost" onClick={handleBack}>
+          Back
+        </Button>
+        <Button onClick={handleNext}>Continue</Button>
+      </div>
+    </div>
+  );
 
   const renderContactStep = () => (
     <div className="space-y-8">
-      <div className="space-y-2">
-        <div className="inline-flex items-center gap-2 text-emerald-300/80">
-          <BadgeCheck className="h-4 w-4" />
-          <span className="text-xs font-semibold uppercase tracking-[0.4em]">
-            On-site contact
-          </span>
-        </div>
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-300/70">
+          On-site contact
+        </p>
         <h2 className="text-3xl font-semibold text-white">
           Who should we meet on-site?
         </h2>
         <p className="text-sm text-slate-300">
-          We’ll confirm by email and SMS before your mapping appointment.
+          We'll confirm by email and SMS before your mapping appointment so your
+          team knows when we're arriving.
         </p>
       </div>
-      <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4 sm:p-6">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="contact-name" className="text-slate-200">
-              Primary contact
-            </Label>
-            <Input
-              id="contact-name"
-              value={contactName}
-              onChange={(event) => setContactName(event.target.value)}
-              placeholder="Jordan Smith"
-              className={inputClasses}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="contact-phone" className="text-slate-200">
-              Mobile number
-            </Label>
-            <Input
-              id="contact-phone"
-              value={contactPhone}
-              onChange={(event) => setContactPhone(event.target.value)}
-              placeholder="(555) 555-5555"
-              className={inputClasses}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="square-footage" className="text-slate-200">
-              Approximate square footage
-            </Label>
-            <Input
-              id="square-footage"
-              type="number"
-              min={0}
-              value={squareFootage}
-              onChange={(event) => setSquareFootage(event.target.value)}
-              placeholder="5000"
-              className={inputClasses}
-            />
-            <p className="text-xs text-slate-400">
-              Rough estimates help us plan the right capture path.
-            </p>
-          </div>
-          <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="location-address" className="text-slate-200">
-              Location address
-            </Label>
-            <Input
-              id="location-address"
-              value={locationAddress}
-              onChange={(event) => setLocationAddress(event.target.value)}
-              placeholder="123 Main Street, Durham, NC"
-              className={inputClasses}
-            />
-          </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor="contact-name" className="text-slate-200">
+            Primary contact
+          </Label>
+          <Input
+            id="contact-name"
+            value={contactName}
+            onChange={(event) => setContactName(event.target.value)}
+            placeholder="Jordan Smith"
+            className="border-white/10 bg-white/5 text-slate-100"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="contact-phone" className="text-slate-200">
+            Mobile number
+          </Label>
+          <Input
+            id="contact-phone"
+            value={contactPhone}
+            onChange={(event) => setContactPhone(event.target.value)}
+            placeholder="(555) 555-5555"
+            className="border-white/10 bg-white/5 text-slate-100"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="square-footage" className="text-slate-200">
+            Approximate square footage
+          </Label>
+          <Input
+            id="square-footage"
+            type="number"
+            min={0}
+            value={squareFootage}
+            onChange={(event) => setSquareFootage(event.target.value)}
+            placeholder="5000"
+            className="border-white/10 bg-white/5 text-slate-100"
+          />
+        </div>
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor="location-address" className="text-slate-200">
+            Location address
+          </Label>
+          <Input
+            id="location-address"
+            value={locationAddress}
+            onChange={(event) => setLocationAddress(event.target.value)}
+            placeholder="123 Main Street, Durham, NC"
+            className="border-white/10 bg-white/5 text-slate-100"
+          />
         </div>
       </div>
       {placeError && (
-        <p className="text-sm text-rose-400" role="alert">
+        <p className="text-sm text-rose-300" role="alert">
           {placeError}
         </p>
       )}
@@ -1486,13 +1367,10 @@ export default function Onboarding() {
 
   const renderScheduleStep = () => (
     <div className="space-y-8">
-      <div className="space-y-2">
-        <div className="inline-flex items-center gap-2 text-emerald-300/80">
-          <Clock className="h-4 w-4" />
-          <span className="text-xs font-semibold uppercase tracking-[0.4em]">
-            Mapping visit
-          </span>
-        </div>
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-300/70">
+          Scheduling
+        </p>
         <h2 className="text-3xl font-semibold text-white">
           Schedule your mapping day (optional)
         </h2>
@@ -1501,51 +1379,49 @@ export default function Onboarding() {
           later.
         </p>
       </div>
-      <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-1">
-            <p className="font-medium text-white">Schedule now</p>
-            <p className="text-sm text-slate-300">
-              We’ll send confirmations and reminders before the visit.
-            </p>
-          </div>
-          <Switch
-            checked={wantsSchedule}
-            onCheckedChange={(checked) => setWantsSchedule(checked)}
-          />
+      <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
+        <div className="space-y-1">
+          <p className="font-medium text-white">Schedule now</p>
+          <p className="text-sm text-slate-300">
+            We'll send confirmations and reminders before the visit.
+          </p>
         </div>
-        {wantsSchedule && (
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="mapping-date" className="text-slate-200">
-                Preferred date
-              </Label>
-              <Input
-                id="mapping-date"
-                type="date"
-                value={mappingDate}
-                onChange={(event) => setMappingDate(event.target.value)}
-                min={new Date().toISOString().split("T")[0]}
-                className={inputClasses}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="mapping-time" className="text-slate-200">
-                Preferred start time
-              </Label>
-              <Input
-                id="mapping-time"
-                type="time"
-                value={mappingTime}
-                onChange={(event) => setMappingTime(event.target.value)}
-                className={inputClasses}
-              />
-            </div>
-          </div>
-        )}
+        <Switch
+          checked={wantsSchedule}
+          onCheckedChange={(checked) => setWantsSchedule(checked)}
+        />
       </div>
+      {wantsSchedule && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="mapping-date" className="text-slate-200">
+              Preferred date
+            </Label>
+            <Input
+              id="mapping-date"
+              type="date"
+              value={mappingDate}
+              onChange={(event) => setMappingDate(event.target.value)}
+              min={new Date().toISOString().split("T")[0]}
+              className="border-white/10 bg-white/5 text-slate-100"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="mapping-time" className="text-slate-200">
+              Preferred start time
+            </Label>
+            <Input
+              id="mapping-time"
+              type="time"
+              value={mappingTime}
+              onChange={(event) => setMappingTime(event.target.value)}
+              className="border-white/10 bg-white/5 text-slate-100"
+            />
+          </div>
+        </div>
+      )}
       {placeError && (
-        <p className="text-sm text-rose-400" role="alert">
+        <p className="text-sm text-rose-300" role="alert">
           {placeError}
         </p>
       )}
@@ -1560,123 +1436,70 @@ export default function Onboarding() {
 
   const renderQrStep = () => (
     <div className="space-y-8">
-      <div className="space-y-2">
-        <div className="inline-flex items-center gap-2 text-emerald-300/80">
-          <SquareStack className="h-4 w-4" />
-          <span className="text-xs font-semibold uppercase tracking-[0.4em]">
-            Plan & kits
-          </span>
-        </div>
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-300/70">
+          QR Kits
+        </p>
         <h2 className="text-3xl font-semibold text-white">
-          Choose your Blueprint Care plan & QR kit
+          Choose your Blueprint QR kit
         </h2>
         <p className="text-sm text-slate-300">
-          Monthly pricing stays the same across kit sizes—upgrades are a
-          one-time print and fulfillment cost.
+          {`Blueprint Care is ${formatUsd(planMonthlyPrice)} per month after activation. QR kit upgrades are a one-time cost today.`}
         </p>
       </div>
-      <div className="space-y-4">
-        <h3 className="text-sm font-semibold uppercase tracking-widest text-slate-300">
-          Plan tiers
-        </h3>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {PLAN_TIERS.map((plan) => {
-            const isSelected = selectedPlanId === plan.id;
-            return (
-              <button
-                key={plan.id}
-                type="button"
-                onClick={() => {
-                  setSelectedPlanId(plan.id);
-                  setSelectedPlanName(plan.name);
-                  setPlanMonthlyPrice(plan.monthlyPrice);
-                  setPlaceError(null);
-                }}
-                className={`rounded-2xl border p-4 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400/60 ${
-                  isSelected
-                    ? "border-emerald-400/60 bg-emerald-500/10 text-emerald-100 shadow-[0_0_30px_rgba(16,185,129,0.25)]"
-                    : "border-white/10 bg-slate-900/50 text-slate-200 hover:border-emerald-400/30"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <p className="text-lg font-semibold text-white">
-                      {plan.name}
-                    </p>
-                    <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">
-                      {plan.mauLabel}
-                    </p>
-                    <p className="text-sm text-slate-300">{plan.description}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xl font-semibold text-white">
-                      {formatUsd(plan.monthlyPrice)}
-                      <span className="ml-1 text-sm text-slate-300">/mo</span>
-                    </p>
-                    {plan.recommended && (
-                      <span className="mt-2 inline-flex rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-100">
-                        Popular
-                      </span>
-                    )}
-                  </div>
+
+      <div className="space-y-3">
+        {KIT_OPTIONS.map((kit) => {
+          const isSelected = selectedKitId === kit.id;
+          const oneTimeFee = kit.oneTimeUpgradeFee;
+          return (
+            <button
+              key={kit.id}
+              type="button"
+              onClick={() => {
+                setSelectedKitId(kit.id);
+                setPlaceError(null);
+              }}
+              className={`w-full rounded-2xl border px-5 py-4 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 ${
+                isSelected
+                  ? "border-sky-400/60 bg-sky-400/10 shadow-lg"
+                  : "border-white/10 bg-white/5 hover:border-sky-400/30"
+              }`}
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <p className="text-lg font-semibold text-white">{kit.name}</p>
+                  <p className="text-sm text-slate-300">
+                    Ships with {kit.includedKitQuantity} QR placements.
+                  </p>
+                  <p className="text-xs text-slate-400">{kit.highlight}</p>
                 </div>
-              </button>
-            );
-          })}
-        </div>
-        <p className="text-xs text-slate-400">
-          Billing begins after your kits are activated.
-        </p>
-      </div>
-      <div className="space-y-4">
-        <h3 className="text-sm font-semibold uppercase tracking-widest text-slate-300">
-          QR kit size
-        </h3>
-        <div className="grid gap-3 md:grid-cols-3">
-          {QR_KITS.map((kit) => {
-            const isSelected = selectedKitId === kit.id;
-            return (
-              <button
-                key={kit.id}
-                type="button"
-                onClick={() => {
-                  setSelectedKitId(kit.id);
-                  setPlaceError(null);
-                }}
-                className={`rounded-2xl border p-4 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400/60 ${
-                  isSelected
-                    ? "border-emerald-400/60 bg-emerald-500/10 text-emerald-100 shadow-[0_0_30px_rgba(16,185,129,0.25)]"
-                    : "border-white/10 bg-slate-900/50 text-slate-200 hover:border-emerald-400/30"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <p className="text-lg font-semibold text-white">
-                      {kit.includedKitQuantity} QR kits
-                    </p>
-                    <p className="text-sm text-slate-300">{kit.description}</p>
-                    <p className="text-xs text-slate-400">
-                      {kit.recommendedFor}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-white">
-                      {kit.oneTimePrice === 0
-                        ? "Included"
-                        : `${formatUsd(kit.oneTimePrice)} one-time`}
-                    </p>
-                  </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-sm font-medium text-slate-200">
+                    {oneTimeFee > 0
+                      ? `+${formatUsd(oneTimeFee)} today`
+                      : "Included"}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    Billed once during onboarding
+                  </p>
                 </div>
-              </button>
-            );
-          })}
-        </div>
+              </div>
+            </button>
+          );
+        })}
       </div>
-      <div className="space-y-4 rounded-2xl border border-white/10 bg-slate-900/60 p-4 sm:p-6">
-        <div className="flex items-center justify-between gap-4">
-          <div>
+
+      <p className="text-sm text-slate-300">
+        Kits arrive pre-labeled with venue copy and QR art. We notify your team
+        as soon as shipping and activation milestones complete.
+      </p>
+
+      <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
             <p className="font-medium text-white">
-              Ship kits to mapping location
+              Ship kits to the mapping location
             </p>
             <p className="text-sm text-slate-300">
               Toggle off to enter a different shipping address.
@@ -1689,7 +1512,7 @@ export default function Onboarding() {
           />
         </div>
         {!useContactForShipping && (
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1 sm:col-span-2">
               <Label htmlFor="shipping-name" className="text-slate-200">
                 Recipient name
@@ -1698,7 +1521,7 @@ export default function Onboarding() {
                 id="shipping-name"
                 value={shippingName}
                 onChange={(event) => setShippingName(event.target.value)}
-                className={inputClasses}
+                className="border-white/10 bg-white/5 text-slate-100"
               />
             </div>
             <div className="space-y-1 sm:col-span-2">
@@ -1709,7 +1532,7 @@ export default function Onboarding() {
                 id="shipping-line1"
                 value={shippingLine1}
                 onChange={(event) => setShippingLine1(event.target.value)}
-                className={inputClasses}
+                className="border-white/10 bg-white/5 text-slate-100"
               />
             </div>
             <div className="space-y-1 sm:col-span-2">
@@ -1720,7 +1543,7 @@ export default function Onboarding() {
                 id="shipping-line2"
                 value={shippingLine2}
                 onChange={(event) => setShippingLine2(event.target.value)}
-                className={inputClasses}
+                className="border-white/10 bg-white/5 text-slate-100"
               />
             </div>
             <div className="space-y-1">
@@ -1731,7 +1554,7 @@ export default function Onboarding() {
                 id="shipping-city"
                 value={shippingCity}
                 onChange={(event) => setShippingCity(event.target.value)}
-                className={inputClasses}
+                className="border-white/10 bg-white/5 text-slate-100"
               />
             </div>
             <div className="space-y-1">
@@ -1742,7 +1565,7 @@ export default function Onboarding() {
                 id="shipping-state"
                 value={shippingState}
                 onChange={(event) => setShippingState(event.target.value)}
-                className={inputClasses}
+                className="border-white/10 bg-white/5 text-slate-100"
               />
             </div>
             <div className="space-y-1">
@@ -1753,7 +1576,7 @@ export default function Onboarding() {
                 id="shipping-postal"
                 value={shippingPostalCode}
                 onChange={(event) => setShippingPostalCode(event.target.value)}
-                className={inputClasses}
+                className="border-white/10 bg-white/5 text-slate-100"
               />
             </div>
             <div className="space-y-1">
@@ -1764,14 +1587,15 @@ export default function Onboarding() {
                 id="shipping-country"
                 value={shippingCountry}
                 onChange={(event) => setShippingCountry(event.target.value)}
-                className={inputClasses}
+                className="border-white/10 bg-white/5 text-slate-100"
               />
             </div>
           </div>
         )}
       </div>
+
       {placeError && (
-        <p className="text-sm text-rose-400" role="alert">
+        <p className="text-sm text-rose-300" role="alert">
           {placeError}
         </p>
       )}
@@ -1785,146 +1609,96 @@ export default function Onboarding() {
   );
 
   const renderPaymentStep = () => {
-    const dueTodayItems = [
-      {
-        label: "Blueprint onboarding experience",
-        amount: ONBOARDING_FEE,
-      },
-    ];
-
-    if (kitUpgradeOneTime > 0) {
-      dueTodayItems.push({
-        label: `${selectedKit.name} upgrade (${selectedKit.includedKitQuantity} kits)`,
-        amount: kitUpgradeOneTime,
-      });
-    }
+    const kitSummary = `${selectedKit.name}`;
 
     return (
       <div className="space-y-8">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 text-emerald-300/80">
-            <Sparkles className="h-4 w-4" />
-            <span className="text-xs font-semibold uppercase tracking-[0.4em]">
-              Checkout
-            </span>
-          </div>
-          <h2 className="text-3xl font-semibold text-white">
-            Review and confirm
-          </h2>
+        <div className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-300/70">
+            Review
+          </p>
+          <h2 className="text-3xl font-semibold text-white">Plan & payment</h2>
           <p className="text-sm text-slate-300">
-            You’ll pay today for onboarding and any kit upgrades. Monthly
-            billing starts after activation.
+            Billing for Blueprint Care starts after your kits are activated.
+            Today's checkout covers onboarding and any kit upgrade you selected.
           </p>
         </div>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="space-y-4 rounded-2xl border border-white/10 bg-slate-900/60 p-4 sm:p-6">
-            <h3 className="text-sm font-semibold uppercase tracking-widest text-slate-300">
-              Subscription summary
-            </h3>
-            <div className="space-y-3 text-sm text-slate-300">
-              <div className="flex items-center justify-between gap-3 text-base text-white">
-                <span>{selectedPlanName} plan</span>
-                <span>{formatUsd(planMonthlyPrice)}/mo</span>
-              </div>
-              <p className="text-xs text-slate-400">
-                Monthly pricing stays the same across kit sizes. Billing begins
-                once your kits are activated.
-              </p>
-              <div className="flex items-start justify-between gap-3 pt-2">
-                <div>
-                  <p className="font-medium text-white">{selectedKit.name}</p>
-                  <p className="text-xs text-slate-300">
-                    {selectedKit.includedKitQuantity} QR kits —{" "}
-                    {selectedKit.description}
-                  </p>
-                </div>
-                <span className="text-sm text-slate-200">
-                  {kitUpgradeOneTime === 0
-                    ? "Included"
-                    : `${formatUsd(kitUpgradeOneTime)} one-time`}
-                </span>
-              </div>
-              {mappingOptIn && (
-                <div className="flex items-start justify-between gap-3 pt-2">
-                  <div>
-                    <p className="font-medium text-white">
-                      Blueprint mapping add-on
-                    </p>
-                    <p className="text-xs text-slate-300">
-                      {MAPPING_BENEFITS[0].title}, LiDAR capture, and zone
-                      planning.
-                    </p>
-                  </div>
-                  <span className="text-sm text-slate-200">
-                    {formatUsd(MAPPING_ADD_ON_PRICE)} billed after visit
-                  </span>
-                </div>
-              )}
-            </div>
+
+        <div className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
+          <div className="flex items-center justify-between text-sm text-slate-200">
+            <span>Onboarding experience</span>
+            <span className="font-medium text-white">
+              {formatUsd(ONBOARDING_FEE)}
+            </span>
           </div>
-          <div className="space-y-4 rounded-2xl border border-white/10 bg-slate-900/60 p-4 sm:p-6">
-            <h3 className="text-sm font-semibold uppercase tracking-widest text-slate-300">
-              Due today
-            </h3>
-            <div className="space-y-3 text-sm text-slate-300">
-              {dueTodayItems.map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-center justify-between gap-3"
-                >
-                  <span>{item.label}</span>
-                  <span className="font-semibold text-white">
-                    {formatUsd(item.amount)}
-                  </span>
-                </div>
-              ))}
-              <div className="mt-4 border-t border-white/10 pt-4">
-                <div className="flex items-center justify-between gap-3 text-base">
-                  <span className="font-semibold text-white">Total today</span>
-                  <span className="text-lg font-semibold text-white">
-                    {formatUsd(totalDueToday)}
-                  </span>
-                </div>
-                <p className="mt-2 text-xs text-slate-400">
-                  We’ll redirect you to Stripe to complete payment securely.
-                </p>
-              </div>
+          <div className="flex items-center justify-between text-sm text-slate-200">
+            <span>{kitSummary}</span>
+            <span className="font-medium text-white">
+              {kitUpgradeFee > 0 ? `+${formatUsd(kitUpgradeFee)}` : "Included"}
+            </span>
+          </div>
+          {mappingOptIn && (
+            <div className="flex items-center justify-between text-sm text-slate-200">
+              <span>Blueprint mapping visit</span>
+              <span className="font-medium text-white">
+                +{formatUsd(mappingFeeDueToday)}
+              </span>
             </div>
-            {shippingAddress?.line1 && (
-              <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
-                <p className="font-medium text-white">Shipping to</p>
-                <p>{shippingAddress.name}</p>
-                <p>{shippingAddress.line1}</p>
-                {shippingAddress.line2 && <p>{shippingAddress.line2}</p>}
-                <p>
-                  {[
-                    shippingAddress.city,
-                    shippingAddress.state,
-                    shippingAddress.postalCode,
-                  ]
-                    .filter(Boolean)
-                    .join(", ")}
-                </p>
-                <p>{shippingAddress.country}</p>
-              </div>
-            )}
+          )}
+          <div className="flex items-center justify-between border-t border-white/10 pt-3 text-base font-semibold text-white">
+            <span>Total due today</span>
+            <span>{formatUsd(totalDueToday)}</span>
           </div>
         </div>
+
+        <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
+          <div className="flex items-center justify-between text-sm text-slate-200">
+            <span>Blueprint Care</span>
+            <span className="font-medium text-white">
+              {formatUsd(planMonthlyPrice)} / month
+            </span>
+          </div>
+          <p className="text-sm text-slate-300">
+            Monthly billing begins once your kits are delivered and activated.
+            You'll get a heads-up before the first charge hits your card.
+          </p>
+        </div>
+
+        {shippingAddress?.line1 && (
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-200">
+            <p className="font-medium text-white">Shipping to</p>
+            <p>{shippingAddress.name}</p>
+            <p>{shippingAddress.line1}</p>
+            {shippingAddress.line2 && <p>{shippingAddress.line2}</p>}
+            <p>
+              {[
+                shippingAddress.city,
+                shippingAddress.state,
+                shippingAddress.postalCode,
+              ]
+                .filter(Boolean)
+                .join(", ")}
+            </p>
+            <p>{shippingAddress.country}</p>
+          </div>
+        )}
+
         {paymentError && (
-          <p className="text-sm text-rose-400" role="alert">
+          <p className="text-sm text-rose-300" role="alert">
             {paymentError}
           </p>
         )}
         {paymentStatus === "canceled" && (
-          <p className="text-sm text-amber-300/80">
-            Checkout was canceled. You can resume whenever you’re ready.
+          <p className="text-sm text-amber-300">
+            Checkout was canceled. You can resume whenever you're ready.
           </p>
         )}
         {paymentStatus === "success" && (
-          <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+          <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 p-4 text-emerald-200">
             Payment confirmed! Redirecting you to the dashboard…
           </div>
         )}
+
         <div className="flex justify-between">
           <Button
             variant="ghost"
@@ -1964,12 +1738,12 @@ export default function Onboarding() {
   };
 
   const stepNames: Record<StepKey, string> = {
-    account: "Organization",
+    account: "Account",
     mapping: "Mapping",
     contact: "Contact",
     schedule: "Schedule",
-    qr: "Plan & kits",
-    payment: "Checkout",
+    qr: "QR kit",
+    payment: "Payment",
   };
 
   const stepColumnsClass =
@@ -1980,45 +1754,39 @@ export default function Onboarding() {
         : "grid-cols-4";
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-slate-950 text-slate-100">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.18),_transparent_60%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(13,148,136,0.18),_transparent_55%)]" />
+    <div className="relative flex min-h-screen flex-col bg-[#050814] text-slate-100">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -left-24 top-32 h-72 w-72 rounded-full bg-sky-500/20 blur-[120px]" />
+        <div className="absolute right-[-6rem] bottom-16 h-96 w-96 rounded-full bg-emerald-500/10 blur-[140px]" />
       </div>
       <Nav hideAuthenticatedFeatures={true} />
-      <main className="relative mx-auto flex w-full max-w-5xl flex-1 flex-col gap-10 px-4 py-16 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-8 rounded-3xl border border-white/10 bg-slate-900/60 p-6 shadow-[0_0_60px_rgba(16,185,129,0.12)] backdrop-blur">
+      <main className="relative mx-auto flex w-full max-w-5xl flex-1 flex-col gap-12 px-4 py-16">
+        <div
+          className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-white/10 via-transparent to-sky-500/10 blur-3xl"
+          aria-hidden="true"
+        />
+        <div className="relative flex flex-col gap-8 rounded-3xl border border-white/10 bg-white/5 p-10 shadow-[0_40px_140px_-60px_rgba(59,130,246,0.6)] backdrop-blur-xl">
           <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-semibold uppercase tracking-[0.45em] text-emerald-300/80">
-                Blueprint onboarding
-              </span>
-              <p className="text-sm text-slate-300">
-                Guided setup so your assistant, QR kits, and optional mapping
-                are ready to deploy.
-              </p>
-            </div>
+            <p className="text-sm font-semibold uppercase tracking-[0.4em] text-sky-300/70">
+              Blueprint onboarding
+            </p>
             <div
-              className={`grid ${stepColumnsClass} gap-2 text-xs font-semibold`}
+              className={`grid ${stepColumnsClass} gap-2 text-xs font-medium text-slate-200`}
             >
-              {stepOrder.map((step, index) => {
-                const isActive = index === stepIndex;
-                const isComplete = index < stepIndex;
-                return (
-                  <div
-                    key={step}
-                    className={`rounded-full px-3 py-2 text-center transition ${
-                      isActive
-                        ? "bg-emerald-500/20 text-emerald-100 ring-1 ring-emerald-400/40"
-                        : isComplete
-                          ? "bg-emerald-500/10 text-emerald-200/90"
-                          : "bg-white/5 text-slate-400"
-                    }`}
-                  >
-                    {stepNames[step]}
-                  </div>
-                );
-              })}
+              {stepOrder.map((step, index) => (
+                <div
+                  key={step}
+                  className={`rounded-full px-3 py-2 text-center transition ${
+                    index === stepIndex
+                      ? "bg-sky-400 text-[#041021] shadow-lg"
+                      : index < stepIndex
+                        ? "bg-white/15 text-slate-100"
+                        : "bg-white/5 text-slate-400"
+                  }`}
+                >
+                  {stepNames[step]}
+                </div>
+              ))}
             </div>
           </div>
           {renderStep()}
