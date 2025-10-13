@@ -1381,164 +1381,46 @@ export default function OutboundSignUpFlow() {
     });
     const evening = slots.filter((s) => parseInt(s.split(":")[0]) >= 17);
 
-    return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl md:text-3xl font-bold text-white">
-            Schedule Next-Day Demo
-          </h2>
-          <p className="text-slate-300 mt-2">
-            We present your completed Blueprint within 24 hours. Pick the time
-            for the follow-up visit the day after mapping.
-          </p>
-        </div>
+    // NOTE: Next-Day Demo UI temporarily disabled. Preserve previous markup below for future restoration.
+    return null;
 
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Calendar */}
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <div className="mb-3 flex items-center gap-2 text-slate-200">
-              <Calendar className="w-5 h-5 text-cyan-300" />
-              <Label className="font-medium text-slate-200">
-                Select Demo Date (Next Day)
-              </Label>
-              <p className="text-xs text-slate-400 -mt-1 mb-2">
-                Demo happens the day after your mapping visit—choose the time
-                for that follow-up.
-              </p>
-            </div>
-            <DatePicker
-              selected={demoDate}
-              onChange={(d: Date | null) => {
-                if (!d) return;
-                setDemoDate(clampDate(d, demoMin, demoMax));
-              }}
-              inline
-              minDate={demoMin}
-              maxDate={demoMax}
-              // Disable anything outside the locked next-day window
-              filterDate={(date) => date >= demoMin && date <= demoMax}
-              calendarClassName="!bg-transparent !border-0 !shadow-none reactpicker-dark"
-              wrapperClassName="!block w-full"
-              dayClassName={(date) => {
-                const base = "rounded-md flex items-center justify-center";
-                const isDisabled = date < demoMin || date > demoMax;
-                const isSel = date.toDateString() === demoDate.toDateString();
-
-                if (isDisabled)
-                  return `${base} !opacity-30 !pointer-events-none`;
-                return isSel
-                  ? `${base} !bg-gradient-to-r from-emerald-500 to-cyan-600 !text-white`
-                  : `${base} hover:!bg-white/10 !text-slate-200`;
-              }}
-            />
-          </div>
-
-          {/* Time slots */}
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <div className="mb-1">
-              <Label className="font-medium text-slate-200">
-                Select Demo Time
-              </Label>
-              <p className="text-xs text-slate-400 mt-1">
-                Times in Eastern Time (ET)
-              </p>
-            </div>
-
-            {isLoading ? (
-              <div className="flex justify-center py-10">
-                <Loader2 className="w-6 h-6 animate-spin text-cyan-300" />
-              </div>
-            ) : slots.length ? (
-              <div className="space-y-4">
-                {morning.length > 0 && (
-                  <div>
-                    <p className="text-xs text-slate-400 mb-2">Morning</p>
-                    <div className="flex flex-wrap gap-2">
-                      {morning.map((s) => (
-                        <button
-                          key={s}
-                          onClick={() => setDemoTime(s)}
-                          className={`px-3 py-2 rounded-md text-sm transition-all border ${
-                            demoTime === s
-                              ? "bg-gradient-to-r from-emerald-500 to-cyan-600 text-white border-transparent"
-                              : "bg-white/5 hover:bg-white/10 text-slate-200 border-white/10"
-                          }`}
-                        >
-                          {formatSlot(s)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {afternoon.length > 0 && (
-                  <div>
-                    <p className="text-xs text-slate-400 mb-2">Afternoon</p>
-                    <div className="flex flex-wrap gap-2">
-                      {afternoon.map((s) => (
-                        <button
-                          key={s}
-                          onClick={() => setDemoTime(s)}
-                          className={`px-3 py-2 rounded-md text-sm transition-all border ${
-                            demoTime === s
-                              ? "bg-gradient-to-r from-emerald-500 to-cyan-600 text-white border-transparent"
-                              : "bg-white/5 hover:bg-white/10 text-slate-200 border-white/10"
-                          }`}
-                        >
-                          {formatSlot(s)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {evening.length > 0 && (
-                  <div>
-                    <p className="text-xs text-slate-400 mb-2">Evening</p>
-                    <div className="flex flex-wrap gap-2">
-                      {evening.map((s) => (
-                        <button
-                          key={s}
-                          onClick={() => setDemoTime(s)}
-                          className={`px-3 py-2 rounded-md text-sm transition-all border ${
-                            demoTime === s
-                              ? "bg-gradient-to-r from-emerald-500 to-cyan-600 text-white border-transparent"
-                              : "bg-white/5 hover:bg-white/10 text-slate-200 border-white/10"
-                          }`}
-                        >
-                          {formatSlot(s)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-amber-300/90 text-sm p-4 bg-amber-500/10 border border-amber-500/20 rounded-md">
-                No available demo times for this date. Please pick another date.
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between pt-2">
-          <Button
-            variant="outline"
-            onClick={handlePrevStep}
-            className="border-white/20 text-slate-200 hover:bg-white/10"
-          >
-            <ChevronLeft className="w-4 h-4 mr-1" />
-            Back
-          </Button>
-          <Button
-            onClick={handleNextStep}
-            disabled={!demoTime || isLoading}
-            className="rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-600 hover:from-emerald-600 hover:to-cyan-700"
-          >
-            Complete Setup
-            <CheckCircle2 className="w-4 h-4 ml-2" />
-          </Button>
-        </div>
+    /*
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl md:text-3xl font-bold text-white">
+          Schedule Next-Day Demo
+        </h2>
+        <p className="text-slate-300 mt-2">
+          We present your completed Blueprint within 24 hours. Pick the time
+          for the follow-up visit the day after mapping.
+        </p>
       </div>
-    );
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        [Calendar UI]
+        [Time slots UI]
+      </div>
+
+      <div className="flex items-center justify-between pt-2">
+        <Button
+          variant="outline"
+          onClick={handlePrevStep}
+          className="border-white/20 text-slate-200 hover:bg-white/10"
+        >
+          <ChevronLeft className="w-4 h-4 mr-1" />
+          Back
+        </Button>
+        <Button
+          onClick={handleNextStep}
+          disabled={!demoTime || isLoading}
+          className="rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-600 hover:from-emerald-600 hover:to-cyan-700"
+        >
+          Complete Setup
+          <CheckCircle2 className="w-4 h-4 ml-2" />
+        </Button>
+      </div>
+    </div>
+    */
   };
 
   const PaymentStep = () => {

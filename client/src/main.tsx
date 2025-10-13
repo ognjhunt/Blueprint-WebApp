@@ -22,10 +22,7 @@ const BlueprintEditor = lazy(() => import("./pages/BlueprintEditor"));
 const BlueprintAiStudio = lazy(() => import("./pages/BlueprintAiStudio"));
 const Discover = lazy(() => import("./pages/Discover"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
-const OffWaitlistSignUpFlow = lazy(
-  () => import("./pages/OffWaitlistSignUpFlow"),
-);
-const OutboundSignUpFlow = lazy(() => import("./pages/OutboundSignUpFlow"));
+const Onboarding = lazy(() => import("./pages/Onboarding"));
 const WorkflowHub = lazy(() => import("@/components/WorkflowHub"));
 const WorkspacePage = lazy(() => import("./pages/Workspace"));
 const Help = lazy(() => import("./pages/Help"));
@@ -64,6 +61,17 @@ function LegacyAuthRedirect() {
   return null;
 }
 
+function OnboardingLegacyRedirect() {
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    const search = window.location.search || "";
+    setLocation(`/onboarding${search}`);
+  }, [setLocation]);
+
+  return null;
+}
+
 function Router() {
   return (
     <Switch>
@@ -75,8 +83,9 @@ function Router() {
       <Route path="/how-it-works" component={HowItWorks} />
       <Route path="/sign-in" component={LegacyAuthRedirect} />
       <Route path="/create-account" component={LegacyAuthRedirect} />
-      <Route path="/off-waitlist-signup" component={OffWaitlistSignUpFlow} />
-      <Route path="/outbound-signup" component={OutboundSignUpFlow} />
+      <Route path="/onboarding" component={Onboarding} />
+      <Route path="/off-waitlist-signup" component={OnboardingLegacyRedirect} />
+      <Route path="/outbound-signup" component={OnboardingLegacyRedirect} />
       <Route path="/workspace" component={WorkspacePage} />
       <Route path="/help" component={Help} />
       <Route path="/blog" component={Blog} />

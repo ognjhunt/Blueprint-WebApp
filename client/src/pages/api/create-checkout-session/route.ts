@@ -15,6 +15,20 @@ type CheckoutRequestBody = {
   contactName?: string;
   contactEmail?: string;
   mappingDateTime?: string;
+  mappingOptIn?: boolean;
+  qrKit?: {
+    name?: string;
+    price?: number;
+  };
+  shippingAddress?: {
+    name?: string;
+    line1?: string;
+    line2?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+  };
   successPath?: string;
   cancelPath?: string;
   totalCost?: number;
@@ -104,22 +118,44 @@ export default async function handler(req: Request, res: Response) {
         }
       }
 
+      const qrKitPrice =
+        typeof body.qrKit?.price === "number" && !Number.isNaN(body.qrKit.price)
+          ? body.qrKit.price
+          : 0;
+      const qrKitName = body.qrKit?.name || "Blueprint QR Kit";
+
+      const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: "Blueprint Onboarding Experience",
+              description: "One-time on-site activation & setup",
+            },
+            unit_amount: Math.round(onboardingFee * 100),
+          },
+          quantity: 1,
+        },
+      ];
+
+      if (qrKitPrice > 0) {
+        lineItems.push({
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: qrKitName,
+              description: "Blueprint QR engagement kit",
+            },
+            unit_amount: Math.round(qrKitPrice * 100),
+          },
+          quantity: 1,
+        });
+      }
+
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         payment_method_types: ["card"],
-        line_items: [
-          {
-            price_data: {
-              currency: "usd",
-              product_data: {
-                name: "Blueprint Onboarding Experience",
-                description: "One-time on-site activation & setup",
-              },
-              unit_amount: Math.round(onboardingFee * 100),
-            },
-            quantity: 1,
-          },
-        ],
+        line_items: lineItems,
         metadata: {
           plan: "blueprint-care",
           onboardingFee: onboardingFee.toString(),
@@ -130,6 +166,19 @@ export default async function handler(req: Request, res: Response) {
           contactName: body.contactName || "",
           contactEmail: body.contactEmail || "",
           mappingDateTime: body.mappingDateTime || "",
+          mappingOptIn:
+            typeof body.mappingOptIn === "boolean"
+              ? body.mappingOptIn.toString()
+              : "",
+          qrKitName,
+          qrKitPrice: qrKitPrice ? qrKitPrice.toString() : "0",
+          shippingName: body.shippingAddress?.name || "",
+          shippingLine1: body.shippingAddress?.line1 || "",
+          shippingLine2: body.shippingAddress?.line2 || "",
+          shippingCity: body.shippingAddress?.city || "",
+          shippingState: body.shippingAddress?.state || "",
+          shippingPostalCode: body.shippingAddress?.postalCode || "",
+          shippingCountry: body.shippingAddress?.country || "",
           subscriptionTrialEnd: trialEndUnix ? trialEndUnix.toString() : "",
         },
         custom_text: {
