@@ -231,7 +231,7 @@ export default function Login() {
                   Access the Blueprint pilot
                 </h1>
                 <p className="max-w-xl text-lg leading-relaxed text-slate-300">
-                  Sign in or create your account in one place. Blueprint helps local retail, museums, restaurants, and showrooms launch mixed-reality experiences in less than 24 hours.
+                  Sign in or create your account in one place. Blueprint helps local retail, museums, restaurants, and showrooms launch AI-powered experiences in less than 24 hours.
                 </p>
               </div>
 
