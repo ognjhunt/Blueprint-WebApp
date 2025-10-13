@@ -690,6 +690,107 @@ export default function Onboarding() {
     );
   }, [mappingOptIn]);
 
+  const persistOnboardingCompletion = useCallback(async () => {
+    const user = currentUser ?? auth.currentUser;
+
+    if (!user) {
+      throw new Error(
+        "Unable to finalize onboarding because no authenticated user was found.",
+      );
+    }
+
+    if (hasPersistedCompletionRef.current) {
+      return;
+    }
+
+    const kitDeliveryEstimate = mappingOptIn === false
+      ? addBusinessDays(new Date(), KIT_DELIVERY_LEAD_TIME_BUSINESS_DAYS)
+      : null;
+
+    const onboardingPayload: Record<string, unknown> = {
+      organizationName: organizationName.trim(),
+      mappingOptIn: mappingOptIn === true,
+      recommendedMapping,
+      planId: selectedPlanId,
+      planName: selectedPlanName,
+      planMonthlyPrice,
+      selectedKitId,
+      updatedAt: serverTimestamp(),
+      shippingAddress: shippingAddress ?? null,
+    };
+
+    if (mappingOptIn) {
+      onboardingPayload.contactName = contactName.trim();
+      onboardingPayload.contactPhone = contactPhone.trim();
+      onboardingPayload.locationAddress = locationAddress.trim();
+      onboardingPayload.squareFootage = squareFootage
+        ? Number(squareFootage)
+        : null;
+      onboardingPayload.mappingScheduledAt = mappingDateTimeIso || null;
+    } else {
+      onboardingPayload.kitDeliveryEstimate = kitDeliveryEstimate;
+      onboardingPayload.kitTrackingUrl = DEFAULT_KIT_TRACKING_URL;
+      onboardingPayload.subscriptionStartEstimate = kitDeliveryEstimate;
+    }
+
+    try {
+      await setDoc(doc(db, "onboardingProfiles", user.uid), onboardingPayload, {
+        merge: true,
+      });
+
+      const userUpdate: Record<string, unknown> = {
+        mappingOptIn: mappingOptIn === true,
+      };
+
+      if (mappingOptIn) {
+        userUpdate.kitDeliveryEstimate = null;
+        userUpdate.kitTrackingUrl = null;
+        userUpdate.subscriptionStartEstimate = null;
+      } else {
+        userUpdate.kitDeliveryEstimate = kitDeliveryEstimate;
+        userUpdate.kitTrackingUrl = DEFAULT_KIT_TRACKING_URL;
+        userUpdate.subscriptionStartEstimate = kitDeliveryEstimate;
+        userUpdate.finishedOnboarding = true;
+      }
+
+      await setDoc(doc(db, "users", user.uid), userUpdate, { merge: true });
+
+      if (mappingOptIn) {
+        await addDoc(collection(db, "mappingRequests"), {
+          userId: user.uid,
+          organizationName: organizationName.trim(),
+          contactName: contactName.trim(),
+          contactPhone: contactPhone.trim(),
+          locationAddress: locationAddress.trim(),
+          squareFootage: squareFootage ? Number(squareFootage) : null,
+          mappingScheduledAt: mappingDateTimeIso || null,
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      hasPersistedCompletionRef.current = true;
+    } catch (error) {
+      console.error("Error finalizing onboarding:", error);
+      throw error;
+    }
+  }, [
+    auth,
+    contactName,
+    contactPhone,
+    currentUser,
+    locationAddress,
+    mappingDateTimeIso,
+    mappingOptIn,
+    organizationName,
+    recommendedMapping,
+    selectedKitId,
+    selectedPlanId,
+    selectedPlanName,
+    shippingAddress,
+    squareFootage,
+    planMonthlyPrice,
+  ]);
+
   useEffect(() => {
     if (!shouldFinalizeAfterCheckout) {
       return;
@@ -915,107 +1016,6 @@ export default function Onboarding() {
     stepOrder.length,
     useContactForShipping,
     wantsSchedule,
-  ]);
-
-  const persistOnboardingCompletion = useCallback(async () => {
-    const user = currentUser ?? auth.currentUser;
-
-    if (!user) {
-      throw new Error(
-        "Unable to finalize onboarding because no authenticated user was found.",
-      );
-    }
-
-    if (hasPersistedCompletionRef.current) {
-      return;
-    }
-
-    const kitDeliveryEstimate = mappingOptIn === false
-      ? addBusinessDays(new Date(), KIT_DELIVERY_LEAD_TIME_BUSINESS_DAYS)
-      : null;
-
-    const onboardingPayload: Record<string, unknown> = {
-      organizationName: organizationName.trim(),
-      mappingOptIn: mappingOptIn === true,
-      recommendedMapping,
-      planId: selectedPlanId,
-      planName: selectedPlanName,
-      planMonthlyPrice,
-      selectedKitId,
-      updatedAt: serverTimestamp(),
-      shippingAddress: shippingAddress ?? null,
-    };
-
-    if (mappingOptIn) {
-      onboardingPayload.contactName = contactName.trim();
-      onboardingPayload.contactPhone = contactPhone.trim();
-      onboardingPayload.locationAddress = locationAddress.trim();
-      onboardingPayload.squareFootage = squareFootage
-        ? Number(squareFootage)
-        : null;
-      onboardingPayload.mappingScheduledAt = mappingDateTimeIso || null;
-    } else {
-      onboardingPayload.kitDeliveryEstimate = kitDeliveryEstimate;
-      onboardingPayload.kitTrackingUrl = DEFAULT_KIT_TRACKING_URL;
-      onboardingPayload.subscriptionStartEstimate = kitDeliveryEstimate;
-    }
-
-    try {
-      await setDoc(doc(db, "onboardingProfiles", user.uid), onboardingPayload, {
-        merge: true,
-      });
-
-      const userUpdate: Record<string, unknown> = {
-        mappingOptIn: mappingOptIn === true,
-      };
-
-      if (mappingOptIn) {
-        userUpdate.kitDeliveryEstimate = null;
-        userUpdate.kitTrackingUrl = null;
-        userUpdate.subscriptionStartEstimate = null;
-      } else {
-        userUpdate.kitDeliveryEstimate = kitDeliveryEstimate;
-        userUpdate.kitTrackingUrl = DEFAULT_KIT_TRACKING_URL;
-        userUpdate.subscriptionStartEstimate = kitDeliveryEstimate;
-        userUpdate.finishedOnboarding = true;
-      }
-
-      await setDoc(doc(db, "users", user.uid), userUpdate, { merge: true });
-
-      if (mappingOptIn) {
-        await addDoc(collection(db, "mappingRequests"), {
-          userId: user.uid,
-          organizationName: organizationName.trim(),
-          contactName: contactName.trim(),
-          contactPhone: contactPhone.trim(),
-          locationAddress: locationAddress.trim(),
-          squareFootage: squareFootage ? Number(squareFootage) : null,
-          mappingScheduledAt: mappingDateTimeIso || null,
-          createdAt: serverTimestamp(),
-        });
-      }
-
-      hasPersistedCompletionRef.current = true;
-    } catch (error) {
-      console.error("Error finalizing onboarding:", error);
-      throw error;
-    }
-  }, [
-    auth,
-    contactName,
-    contactPhone,
-    currentUser,
-    locationAddress,
-    mappingDateTimeIso,
-    mappingOptIn,
-    organizationName,
-    recommendedMapping,
-    selectedKitId,
-    selectedPlanId,
-    selectedPlanName,
-    shippingAddress,
-    squareFootage,
-    planMonthlyPrice,
   ]);
 
   const handleBack = useCallback(() => {
