@@ -211,7 +211,7 @@ const tldrHighlights: { label: string; diy: string; blueprint: string }[] = [
   {
     label: "Activation kits",
     diy: "$75–$150/location (design + print + install)",
-    blueprint: "Starter Kit included; Growth +$15/mo, Enterprise +$45/mo",
+    blueprint: "Starter Kit (4 QR codes) included; optional upgrades: 8 QR codes (+$15 one-time), 16 QR codes (+$45 one-time)",
   },
   {
     label: "Time to first site live",
@@ -303,10 +303,10 @@ const planTiers: PlanTier[] = [
     margin: "~75% avg. margin (kits + shipping included).",
     ctaLabel: "Start your 30-day trial",
     kitIncluded:
-      "Includes 1 Starter Kit (10 QR placements) that ships before billing starts.",
+      "FREE Starter Kit with 4 QR codes (ships during onboarding, before your first bill).",
     kitUpgrades: [
-      "+$15/mo upgrade to the Growth Kit (50 placements).",
-      "+$45/mo upgrade to the Enterprise Kit (200 placements).",
+      "Upgrade to 8 QR codes for a one-time fee of $15 (charged at shipping).",
+      "Upgrade to 16 QR codes for a one-time fee of $45 (charged at shipping).",
     ],
   },
   {
@@ -327,10 +327,10 @@ const planTiers: PlanTier[] = [
     ctaLabel: "Scale with Pro",
     highlight: true,
     kitIncluded:
-      "Includes 3 Starter Kits (30 QR placements) so multi-room venues launch together.",
+      "FREE Starter Kit with 4 QR codes (ships during onboarding, before your first bill).",
     kitUpgrades: [
-      "+$15/mo upgrade any bundle to the Growth Kit (50 placements).",
-      "+$45/mo upgrade to the Enterprise Kit (200 placements).",
+      "Upgrade to 8 QR codes for a one-time fee of $15 (charged at shipping).",
+      "Upgrade to 16 QR codes for a one-time fee of $45 (charged at shipping).",
     ],
   },
 ];
@@ -589,7 +589,7 @@ function KitFulfillmentCallout() {
             How kit fulfillment works
           </CardTitle>
           <CardDescription className="text-slate-300">
-            Activation kits ship ahead of your first invoice so your team can install and be ready to go live on day one.
+            All plans include a FREE Starter Kit (4 QR codes). If you need more, choose 8 or 16 QR codes at onboarding for a one-time fee—the monthly subscription price stays the same.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
@@ -597,8 +597,8 @@ function KitFulfillmentCallout() {
             <li className="flex items-start gap-3">
               <Box className="mt-0.5 h-5 w-5 text-emerald-300" />
               <div className="text-sm text-slate-200">
-                <span className="font-semibold text-white">Shipped before billing.</span>{" "}
-                Your Starter Kit heads out immediately after signup, so installation can finish before the first charge posts.
+                <span className="font-semibold text-white">Shipped during onboarding.</span>{" "}
+                Your QR kit ships immediately after signup. If you choose an upgrade (8 or 16 QR codes), the one-time charge is applied at shipping—your monthly subscription price remains unchanged.
               </div>
             </li>
             <li className="flex items-start gap-3">
@@ -611,8 +611,8 @@ function KitFulfillmentCallout() {
             <li className="flex items-start gap-3">
               <Gift className="mt-0.5 h-5 w-5 text-emerald-300" />
               <div className="text-sm text-slate-200">
-                <span className="font-semibold text-white">Starter Kit included.</span>{" "}
-                The base Starter Kit is free with every active subscription; upgrades to Growth (+$15/mo) or Enterprise (+$45/mo) kits stay optional.
+                <span className="font-semibold text-white">QR kit options.</span>{" "}
+                Every plan includes a FREE Starter Kit (4 QR codes). Optionally upgrade to 8 QR codes (+$15 one-time) or 16 QR codes (+$45 one-time)—charged at shipping, not monthly.
               </div>
             </li>
           </ul>
