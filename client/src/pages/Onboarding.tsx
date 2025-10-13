@@ -15,12 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { loadStripe } from "@stripe/stripe-js";
-import {
-  createUserWithEmailAndPassword,
-  getAuth,
-  sendPasswordResetEmail,
-  updateProfile,
-} from "firebase/auth";
+import { getAuth, updateProfile } from "firebase/auth";
 import {
   collection,
   doc,
@@ -32,40 +27,42 @@ import { db } from "@/lib/firebase";
 import { getGoogleMapsApiKey } from "@/lib/client-env";
 
 const ONBOARDING_FEE = 499.99;
+const MONTHLY_RATE = 99;
+const MAPPING_FEE = 99;
 const INCLUDED_WEEKLY_HOURS = 40;
 const EXTRA_HOURLY_RATE = 1.25;
 
 const CHECKOUT_STORAGE_KEY = "blueprintCheckoutContext";
 
-type PlanDefinition = {
+type KitOption = {
   id: string;
   name: string;
-  monthlyPrice: number;
   includedKitQuantity: number;
-  upgradeSurcharge: number;
+  oneTimeUpgradeFee: number;
+  highlight: string;
 };
 
-const PLANS: PlanDefinition[] = [
+const KIT_OPTIONS: KitOption[] = [
   {
     id: "starter",
-    name: "Blueprint Care Starter",
-    monthlyPrice: 49.99,
+    name: "Starter kit (4 QR kits)",
     includedKitQuantity: 4,
-    upgradeSurcharge: 0,
+    oneTimeUpgradeFee: 0,
+    highlight: "Ideal for piloting in a single storefront or lobby.",
   },
   {
     id: "growth",
-    name: "Blueprint Care + 8 kits",
-    monthlyPrice: 64.99,
+    name: "Growth kit (8 QR kits)",
     includedKitQuantity: 8,
-    upgradeSurcharge: 15,
+    oneTimeUpgradeFee: 15,
+    highlight: "Extra coverage for multi-room venues or dual entrances.",
   },
   {
     id: "enterprise",
-    name: "Blueprint Care + 16 kits",
-    monthlyPrice: 94.99,
+    name: "Enterprise kit (16 QR kits)",
     includedKitQuantity: 16,
-    upgradeSurcharge: 45,
+    oneTimeUpgradeFee: 45,
+    highlight: "Great for campuses, arenas, and large-footprint deployments.",
   },
 ];
 
@@ -74,12 +71,6 @@ const DEFAULT_CARE_PLAN = {
   name: "Blueprint Care",
   monthlyPrice: MONTHLY_RATE,
 } as const;
-
-const KIT_UPGRADE_SURCHARGES: Record<(typeof QR_KITS)[number]["id"], number> = {
-  starter: 0,
-  growth: 15,
-  enterprise: 45,
-};
 
 const MAPPING_RECOMMENDED_TYPES = new Set([
   "museum",
@@ -98,6 +89,22 @@ const MAPPING_RECOMMENDED_TYPES = new Set([
   "food",
   "cafe",
 ]);
+
+const MAPPING_BENEFITS: string[] = [
+  "Guests can ask conversationally where something is and get precise directions.",
+  "Live indoor navigation guides visitors to any point of interest.",
+  "Contextual nudges and updates trigger automatically in the right zone.",
+  "Heatmaps and dwell analytics reveal hot zones and movement patterns.",
+  "Supports Niantic Lightship/VPS localization so devices instantly know where they are.",
+  "Ready for future AR experiences and spatial content drops with no extra work.",
+  "Unlocks post-visit retargeting from privacy-safe engagement signals.",
+];
+
+const MAPPING_REQUIREMENTS: string[] = [
+  "A Blueprint Mapper visits at your scheduled date and time.",
+  "On-site LiDAR capture typically takes 30–60 minutes.",
+  "One-time $99 mapping fee is added to your onboarding invoice.",
+];
 
 type StepKey =
   | "account"
@@ -144,13 +151,6 @@ type ShippingAddress = {
   country?: string;
 };
 
-function generateRandomPassword() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-}
-
 function formatUsd(amount: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -172,12 +172,11 @@ export default function Onboarding() {
   const placesEnabled = Boolean(googleApiKey);
 
   const [stepIndex, setStepIndex] = useState(0);
-  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
-  const [accountError, setAccountError] = useState<string | null>(null);
 
   const [organizationName, setOrganizationName] = useState("");
-  const [email, setEmail] = useState("");
-  const [accountCreated, setAccountCreated] = useState(false);
+  const [organizationSaved, setOrganizationSaved] = useState(false);
+  const [isSavingOrganization, setIsSavingOrganization] = useState(false);
+  const [accountError, setAccountError] = useState<string | null>(null);
 
   const [placeQuery, setPlaceQuery] = useState("");
   const [placePredictions, setPlacePredictions] = useState<
@@ -189,8 +188,9 @@ export default function Onboarding() {
   const [loadingPlaces, setLoadingPlaces] = useState(false);
   const [loadingPlaceDetails, setLoadingPlaceDetails] = useState(false);
   const [mappingOptIn, setMappingOptIn] = useState<boolean | null>(null);
-  const [recommendedMapping, setRecommendedMapping] =
-    useState<boolean | null>(null);
+  const [recommendedMapping, setRecommendedMapping] = useState<
+    boolean | null
+  >(null);
   const [placeError, setPlaceError] = useState<string | null>(null);
 
   const [contactName, setContactName] = useState("");
@@ -202,7 +202,6 @@ export default function Onboarding() {
   const [mappingDate, setMappingDate] = useState("");
   const [mappingTime, setMappingTime] = useState("");
 
-  const [selectedPlanId, setSelectedPlanId] = useState<string>(PLANS[0].id);
   const [selectedPlanId, setSelectedPlanId] = useState<string>(
     DEFAULT_CARE_PLAN.id,
   );
@@ -212,7 +211,8 @@ export default function Onboarding() {
   const [planMonthlyPrice, setPlanMonthlyPrice] = useState<number>(
     DEFAULT_CARE_PLAN.monthlyPrice,
   );
-  const [selectedKitId, setSelectedKitId] = useState<string>(QR_KITS[0].id);
+
+  const [selectedKitId, setSelectedKitId] = useState<string>(KIT_OPTIONS[0].id);
   const [useContactForShipping, setUseContactForShipping] = useState(true);
   const [shippingName, setShippingName] = useState("");
   const [shippingLine1, setShippingLine1] = useState("");
@@ -402,14 +402,18 @@ export default function Onboarding() {
     }
   }, [mappingOptIn]);
 
-  const selectedPlan = useMemo(
-    () => PLANS.find((plan) => plan.id === selectedPlanId) ?? PLANS[0],
-    [selectedPlanId],
+  useEffect(() => {
+    setPlaceQuery(organizationName);
+  }, [organizationName]);
+
+  const selectedKit = useMemo(
+    () => KIT_OPTIONS.find((kit) => kit.id === selectedKitId) ?? KIT_OPTIONS[0],
+    [selectedKitId],
   );
 
-  const kitUpgradeSurcharge = useMemo(
-    () => KIT_UPGRADE_SURCHARGES[selectedKit.id] ?? 0,
-    [selectedKit.id],
+  const kitUpgradeFee = useMemo(
+    () => selectedKit.oneTimeUpgradeFee,
+    [selectedKit],
   );
 
   useEffect(() => {
@@ -425,7 +429,7 @@ export default function Onboarding() {
     try {
       const parsed = JSON.parse(storedContext) as Partial<{
         organizationName: string;
-        email: string;
+        organizationSaved: boolean;
         mappingOptIn: boolean | null;
         contactName: string;
         contactPhone: string;
@@ -451,8 +455,8 @@ export default function Onboarding() {
       if (typeof parsed.organizationName === "string") {
         setOrganizationName(parsed.organizationName);
       }
-      if (typeof parsed.email === "string") {
-        setEmail(parsed.email);
+      if (typeof parsed.organizationSaved === "boolean") {
+        setOrganizationSaved(parsed.organizationSaved);
       }
       if (typeof parsed.mappingOptIn === "boolean") {
         setMappingOptIn(parsed.mappingOptIn);
@@ -476,18 +480,9 @@ export default function Onboarding() {
         setMappingTime(parsed.mappingTime);
       }
       if (typeof parsed.selectedPlanId === "string") {
-        const planExists = PLANS.some((plan) => plan.id === parsed.selectedPlanId);
-        if (planExists) {
-          setSelectedPlanId(parsed.selectedPlanId);
-        }
-      } else if (typeof parsed.selectedKitId === "string") {
-        const planExists = PLANS.some((plan) => plan.id === parsed.selectedKitId);
-        if (planExists) {
-          setSelectedPlanId(parsed.selectedKitId);
-      if (typeof parsed.selectedPlanId === "string" && parsed.selectedPlanId) {
         setSelectedPlanId(parsed.selectedPlanId);
       }
-      if (typeof parsed.selectedPlanName === "string" && parsed.selectedPlanName) {
+      if (typeof parsed.selectedPlanName === "string") {
         setSelectedPlanName(parsed.selectedPlanName);
       }
       if (
@@ -497,8 +492,8 @@ export default function Onboarding() {
         setPlanMonthlyPrice(parsed.planMonthlyPrice);
       }
       if (typeof parsed.selectedKitId === "string") {
-        const kitExists = QR_KITS.some((kit) => kit.id === parsed.selectedKitId);
-        if (kitExists) {
+        const exists = KIT_OPTIONS.some((kit) => kit.id === parsed.selectedKitId);
+        if (exists) {
           setSelectedKitId(parsed.selectedKitId);
         }
       }
@@ -535,6 +530,10 @@ export default function Onboarding() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
     const params = new URLSearchParams(window.location.search);
     const planParam = params.get("planId") ?? params.get("plan");
     const planNameParam = params.get("planName");
@@ -598,7 +597,7 @@ export default function Onboarding() {
     return localDateTime.toISOString();
   }, [mappingDate, mappingOptIn, mappingTime, wantsSchedule]);
 
-  const shippingAddress: ShippingAddress = useMemo(() => {
+  const shippingAddress: ShippingAddress | undefined = useMemo(() => {
     if (useContactForShipping && mappingOptIn) {
       return {
         name: contactName || organizationName,
@@ -608,6 +607,17 @@ export default function Onboarding() {
         postalCode: "",
         country: "US",
       };
+    }
+
+    if (
+      !shippingName &&
+      !shippingLine1 &&
+      !shippingLine2 &&
+      !shippingCity &&
+      !shippingState &&
+      !shippingPostalCode
+    ) {
+      return undefined;
     }
 
     return {
@@ -634,87 +644,88 @@ export default function Onboarding() {
     useContactForShipping,
   ]);
 
-  const totalDueToday = useMemo(() => ONBOARDING_FEE, []);
+  const mappingFeeDueToday = useMemo(
+    () => (mappingOptIn ? MAPPING_FEE : 0),
+    [mappingOptIn],
+  );
 
-  const handleSelectPrediction = async (
-    prediction: PlacesAutocompleteSuggestion,
-  ) => {
-    setPlaceQuery(prediction.description);
-    setPlacePredictions([]);
-    setPlaceError(null);
-    setLoadingPlaceDetails(true);
-    try {
-      const details = await fetchPlaceDetails(prediction.placeId);
-      setPlaceDetails(details);
-      if (details.formattedAddress) {
-        setLocationAddress(details.formattedAddress);
-      }
-      const isRecommended = Boolean(
-        details.types?.some((type) => MAPPING_RECOMMENDED_TYPES.has(type)),
-      );
-      setRecommendedMapping(isRecommended);
-    } catch (error) {
-      console.error("Error fetching place details", error);
-      setPlaceError("We couldn't load details for that location.");
-    } finally {
-      setLoadingPlaceDetails(false);
-    }
-  };
+  const totalDueToday = useMemo(
+    () => ONBOARDING_FEE + kitUpgradeFee + mappingFeeDueToday,
+    [kitUpgradeFee, mappingFeeDueToday],
+  );
 
-  const completeAccountCreation = async () => {
-    if (!email || !organizationName) {
-      setAccountError("Enter your organization and email to continue.");
-      return;
-    }
-
-    if (currentUser && !accountCreated) {
+  const handleSelectPrediction = useCallback(
+    async (prediction: PlacesAutocompleteSuggestion) => {
+      setPlaceQuery(prediction.description);
+      setPlacePredictions([]);
+      setPlaceError(null);
+      setLoadingPlaceDetails(true);
       try {
-        await updateProfile(currentUser, {
-          displayName: organizationName,
-        });
+        const details = await fetchPlaceDetails(prediction.placeId);
+        setPlaceDetails(details);
+        const displayName = details.displayName?.text ?? prediction.description;
+        setOrganizationName(displayName);
+        if (details.formattedAddress) {
+          setLocationAddress(details.formattedAddress);
+        }
+        const isRecommended = Boolean(
+          details.types?.some((type) => MAPPING_RECOMMENDED_TYPES.has(type)),
+        );
+        setRecommendedMapping(isRecommended);
       } catch (error) {
-        console.error("Unable to update display name", error);
+        console.error("Error fetching place details", error);
+        setPlaceError("We couldn't load details for that location.");
+      } finally {
+        setLoadingPlaceDetails(false);
       }
-      setAccountCreated(true);
-      setAccountError(null);
-      return;
+    },
+    [fetchPlaceDetails],
+  );
+
+  const saveOrganization = useCallback(async () => {
+    const trimmedName = organizationName.trim();
+    if (!trimmedName) {
+      setAccountError("Enter your organization name to continue.");
+      return false;
+    }
+    if (!currentUser) {
+      setAccountError("Please sign in to continue onboarding.");
+      return false;
     }
 
-    if (accountCreated) {
-      return;
-    }
-
-    setIsCreatingAccount(true);
+    setIsSavingOrganization(true);
     setAccountError(null);
     try {
-      const password = generateRandomPassword();
-      const credential = await createUserWithEmailAndPassword(
-        auth,
-        email.trim(),
-        password,
-      );
-      await updateProfile(credential.user, {
-        displayName: organizationName,
+      await updateProfile(currentUser, {
+        displayName: trimmedName,
       });
-      await sendPasswordResetEmail(auth, email.trim());
-      setAccountCreated(true);
-      setCurrentUser(credential.user);
+      await setDoc(
+        doc(db, "onboardingProfiles", currentUser.uid),
+        {
+          organizationName: trimmedName,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+      setOrganizationSaved(true);
+      return true;
     } catch (error) {
-      console.error("Account creation failed", error);
+      console.error("Unable to save organization", error);
       const message =
         error instanceof Error
           ? error.message
-          : "We couldn't create your account. Try again.";
+          : "We couldn't save your organization. Try again.";
       setAccountError(message);
+      return false;
     } finally {
-      setIsCreatingAccount(false);
+      setIsSavingOrganization(false);
     }
-  };
+  }, [currentUser, organizationName]);
 
-  const handleNext = async () => {
+  const handleNext = useCallback(async () => {
     if (currentStep === "account") {
-      await completeAccountCreation();
-      if (!accountCreated && !currentUser) {
+      const saved = await saveOrganization();
+      if (!saved) {
         return;
       }
       setPlaceError(null);
@@ -743,11 +754,9 @@ export default function Onboarding() {
     }
 
     if (currentStep === "schedule") {
-      if (wantsSchedule) {
-        if (!mappingDate || !mappingTime) {
-          setPlaceError("Choose a date and time or skip scheduling for now.");
-          return;
-        }
+      if (wantsSchedule && (!mappingDate || !mappingTime)) {
+        setPlaceError("Choose a date and time or skip scheduling for now.");
+        return;
       }
       setPlaceError(null);
       setStepIndex((index) => Math.min(index + 1, stepOrder.length - 1));
@@ -774,16 +783,31 @@ export default function Onboarding() {
       }
       setPlaceError(null);
       setStepIndex((index) => Math.min(index + 1, stepOrder.length - 1));
-      return;
     }
-  };
+  }, [
+    contactName,
+    contactPhone,
+    currentStep,
+    mappingDate,
+    mappingOptIn,
+    mappingTime,
+    saveOrganization,
+    selectedPlanId,
+    shippingCity,
+    shippingLine1,
+    shippingName,
+    shippingPostalCode,
+    stepOrder.length,
+    useContactForShipping,
+    wantsSchedule,
+  ]);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     setPlaceError(null);
     setStepIndex((index) => Math.max(0, index - 1));
-  };
+  }, []);
 
-  const startStripeCheckout = async () => {
+  const startStripeCheckout = useCallback(async () => {
     try {
       setIsRedirectingToStripe(true);
       setPaymentError(null);
@@ -793,7 +817,6 @@ export default function Onboarding() {
           doc(db, "onboardingProfiles", currentUser.uid),
           {
             organizationName: organizationName.trim(),
-            email: email.trim(),
             mappingOptIn: true,
             recommendedMapping,
             updatedAt: serverTimestamp(),
@@ -823,7 +846,7 @@ export default function Onboarding() {
           CHECKOUT_STORAGE_KEY,
           JSON.stringify({
             organizationName,
-            email,
+            organizationSaved,
             mappingOptIn,
             contactName,
             contactPhone,
@@ -832,7 +855,6 @@ export default function Onboarding() {
             mappingDate,
             mappingTime,
             selectedPlanId,
-            selectedKitId: selectedPlanId,
             selectedPlanName,
             planMonthlyPrice,
             selectedKitId,
@@ -863,31 +885,29 @@ export default function Onboarding() {
         body: JSON.stringify({
           sessionType: "onboarding",
           onboardingFee: ONBOARDING_FEE,
-          monthlyPrice: selectedPlan.monthlyPrice,
+          monthlyPrice: planMonthlyPrice,
           includedHours: INCLUDED_WEEKLY_HOURS,
           extraHourlyRate: EXTRA_HOURLY_RATE,
           planId: selectedPlanId,
           planName: selectedPlanName,
-          monthlyPrice: planMonthlyPrice,
-          kitUpgradeSurcharge,
+          kitUpgradeSurcharge: kitUpgradeFee,
+          mappingFee: mappingFeeDueToday,
           organizationName: organizationName.trim(),
           contactName: mappingOptIn ? contactName.trim() : "",
-          contactEmail: email.trim(),
+          contactEmail: currentUser?.email ?? "",
           mappingDateTime: mappingDateTimeIso,
           mappingOptIn: mappingOptIn === true,
           plan: {
-            id: selectedPlan.id,
-            name: selectedPlan.name,
-            monthlyPrice: selectedPlan.monthlyPrice,
-            includedKitQuantity: selectedPlan.includedKitQuantity,
-            upgradeSurcharge: selectedPlan.upgradeSurcharge,
+            id: selectedPlanId,
+            name: selectedPlanName,
+            monthlyPrice: planMonthlyPrice,
+            includedKitQuantity: selectedKit.includedKitQuantity,
+            upgradeSurcharge: kitUpgradeFee,
           },
           qrKit: {
-            name: `Starter kit (${selectedPlan.includedKitQuantity} QR kits)`,
-            price: 0,
             id: selectedKit.id,
             name: selectedKit.name,
-            price: selectedKit.price,
+            price: kitUpgradeFee,
           },
           shippingAddress,
           successPath,
@@ -920,91 +940,153 @@ export default function Onboarding() {
         try {
           return window.self !== window.top;
         } catch (error) {
-          console.warn(
-            "Unable to determine frame context, defaulting to bypass Stripe redirect.",
-            error,
-          );
-          return true;
+          return false;
         }
       };
 
-      if (stripe && !shouldBypassStripeRedirect()) {
-        const result = await stripe.redirectToCheckout({ sessionId: data.sessionId });
-        if (!result?.error) {
+      if (sessionUrl) {
+        if (shouldBypassStripeRedirect()) {
+          window.location.href = sessionUrl;
           return;
         }
-        if (!sessionUrl) {
-          throw new Error(result.error.message);
-        }
-        console.warn(
-          "Stripe redirectToCheckout failed, falling back to direct session URL.",
-          result.error,
-        );
-      }
-
-      if (sessionUrl) {
-        const newWindow = window.open(sessionUrl, "_blank", "noopener,noreferrer");
-        if (!newWindow) {
-          window.location.href = sessionUrl;
-        }
+        window.location.href = sessionUrl;
         return;
       }
 
-      throw new Error("We couldn't start checkout just yet. Please try again.");
+      if (!stripe) {
+        throw new Error("Stripe failed to initialize");
+      }
+
+      const result = await stripe.redirectToCheckout({ sessionId: data.sessionId });
+      if (result.error) {
+        throw result.error;
+      }
     } catch (error) {
-      console.error("Stripe checkout error", error);
+      console.error("Unable to start Stripe checkout", error);
       const message =
         error instanceof Error
           ? error.message
-          : "We couldn't reach Stripe. Please try again.";
-      sessionStorage.removeItem(CHECKOUT_STORAGE_KEY);
-      setPaymentStatus("error");
+          : "We couldn't start checkout just yet. Please try again.";
       setPaymentError(message);
+      setPaymentStatus("error");
     } finally {
       setIsRedirectingToStripe(false);
     }
-  };
+  }, [
+    contactName,
+    contactPhone,
+    currentUser,
+    kitUpgradeFee,
+    mappingDate,
+    mappingDateTimeIso,
+    mappingFeeDueToday,
+    mappingOptIn,
+    mappingTime,
+    organizationName,
+    organizationSaved,
+    planMonthlyPrice,
+    recommendedMapping,
+    selectedKit,
+    selectedKitId,
+    selectedPlanId,
+    selectedPlanName,
+    shippingAddress,
+    shippingCity,
+    shippingCountry,
+    shippingLine1,
+    shippingLine2,
+    shippingName,
+    shippingPostalCode,
+    shippingState,
+    squareFootage,
+    useContactForShipping,
+    wantsSchedule,
+  ]);
 
   const renderAccountStep = () => {
+    const signedInEmail = currentUser?.email;
+
     return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-semibold text-slate-900">
-            Let's set up your Blueprint account
-          </h2>
-          <p className="text-slate-500">
-            We'll email you a link to set your password after you create your account.
+      <div className="space-y-8">
+        <div className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-300/70">
+            Step 1 · Organization
+          </p>
+          <h2 className="text-3xl font-semibold text-white">Who are we onboarding?</h2>
+          <p className="text-sm text-slate-300">
+            Search for your organization so we can preload location details and match any existing mapping or content.{' '}
+            {signedInEmail ? (
+              <span className="text-slate-400">Signed in as {signedInEmail}.</span>
+            ) : (
+              <span className="text-slate-400">You are signed in and ready to continue.</span>
+            )}
           </p>
         </div>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="organization">Organization name</Label>
+        <div className="space-y-3">
+          <Label htmlFor="organization" className="text-slate-200">
+            Organization name
+          </Label>
+          <div className="relative">
             <Input
               id="organization"
               value={organizationName}
-              onChange={(event) => setOrganizationName(event.target.value)}
-              placeholder="Durham Museum of Science"
+              onChange={(event) => {
+                const value = event.target.value;
+                setOrganizationName(value);
+                setOrganizationSaved(false);
+                if (!value) {
+                  setPlacePredictions([]);
+                  setPlaceDetails(null);
+                  setRecommendedMapping(null);
+                }
+              }}
+              placeholder="Start typing your business name"
+              className="border-white/10 bg-white/5 text-slate-100 placeholder:text-slate-500"
             />
+            {loadingPlaces && (
+              <p className="mt-2 text-xs text-slate-400">Looking for matches…</p>
+            )}
+            {!loadingPlaces && placePredictions.length > 0 && (
+              <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-white/10 bg-[#0E1624] shadow-2xl">
+                <ul className="divide-y divide-white/5">
+                  {placePredictions.map((prediction) => (
+                    <li key={prediction.placeId}>
+                      <button
+                        type="button"
+                        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm text-slate-200 transition hover:bg-white/5"
+                        onClick={() => handleSelectPrediction(prediction)}
+                      >
+                        <span>{prediction.description}</span>
+                        <span className="text-xs uppercase tracking-wide text-sky-300/80">Select</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">Work email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="you@organization.com"
-            />
-          </div>
+          {placeDetails?.formattedAddress && (
+            <p className="text-xs text-slate-400">
+              Primary location: {placeDetails.formattedAddress}
+            </p>
+          )}
+          {!placesEnabled && (
+            <p className="text-xs text-amber-400">
+              Google Places isn't configured in this environment. Type your organization name manually.
+            </p>
+          )}
+          {organizationSaved && (
+            <p className="text-xs text-emerald-300">Organization saved for your account.</p>
+          )}
           {accountError && (
-            <p className="text-sm text-red-600" role="alert">
+            <p className="text-sm text-rose-300" role="alert">
               {accountError}
             </p>
           )}
         </div>
         <div className="flex justify-end gap-2">
-          <Button onClick={handleNext} disabled={isCreatingAccount}>
-            {isCreatingAccount ? "Creating account…" : "Continue"}
+          <Button onClick={handleNext} disabled={isSavingOrganization}>
+            {isSavingOrganization ? "Saving…" : "Continue"}
           </Button>
         </div>
       </div>
@@ -1012,97 +1094,141 @@ export default function Onboarding() {
   };
 
   const renderMappingStep = () => (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold text-slate-900">
+    <div className="space-y-10">
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-300/70">
+          Step 2 · Mapping
+        </p>
+        <h2 className="text-3xl font-semibold text-white">
           Would you like Blueprint to map your space?
         </h2>
-        <p className="text-slate-500">
+        <p className="text-sm text-slate-300">
           Mapping unlocks AR navigation, in-store journeys, and post-visit retargeting.
         </p>
       </div>
+
       <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="place-search">Search for your venue</Label>
-          <Input
-            id="place-search"
-            value={placeQuery}
-            onChange={(event) => {
-              setPlaceQuery(event.target.value);
-              setPlaceDetails(null);
-            }}
-            placeholder="Start typing your business name"
-            disabled={!placesEnabled}
-          />
-          {!placesEnabled && (
-            <p className="text-xs text-amber-600">
-              Google Places isn't configured in this environment. You can still continue and provide your address in the next step.
-            </p>
-          )}
-          {loadingPlaces && (
-            <p className="text-xs text-slate-400">Looking for matches…</p>
-          )}
-          {!loadingPlaces && placePredictions.length > 0 && (
-            <div className="rounded-md border border-slate-200 bg-white shadow-sm">
-              <ul className="divide-y divide-slate-100">
-                {placePredictions.map((prediction) => (
-                  <li key={prediction.placeId}>
-                    <button
-                      type="button"
-                      className="w-full text-left px-3 py-2 hover:bg-slate-50"
-                      onClick={() => handleSelectPrediction(prediction)}
-                    >
-                      {prediction.description}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
+          <Label htmlFor="place-search" className="text-slate-200">
+            Search for your venue
+          </Label>
+          <div className="relative mt-2">
+            <Input
+              id="place-search"
+              value={placeQuery || organizationName}
+              onChange={(event) => {
+                const value = event.target.value;
+                setPlaceQuery(value);
+                setOrganizationName(value);
+                setOrganizationSaved(false);
+                if (!value) {
+                  setPlacePredictions([]);
+                  setPlaceDetails(null);
+                  setRecommendedMapping(null);
+                }
+              }}
+              placeholder="Start typing your business name"
+              disabled={!placesEnabled}
+              className="border-white/10 bg-white/5 text-slate-100 placeholder:text-slate-500"
+            />
+            {loadingPlaces && (
+              <p className="mt-2 text-xs text-slate-400">Looking for matches…</p>
+            )}
+            {!loadingPlaces && placePredictions.length > 0 && (
+              <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-white/10 bg-[#0E1624] shadow-2xl">
+                <ul className="divide-y divide-white/5">
+                  {placePredictions.map((prediction) => (
+                    <li key={prediction.placeId}>
+                      <button
+                        type="button"
+                        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm text-slate-200 transition hover:bg-white/5"
+                        onClick={() => handleSelectPrediction(prediction)}
+                      >
+                        <span>{prediction.description}</span>
+                        <span className="text-xs uppercase tracking-wide text-sky-300/80">Select</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
           {loadingPlaceDetails && (
-            <p className="text-xs text-slate-400">Loading place details…</p>
+            <p className="mt-3 text-xs text-slate-400">Fetching location details…</p>
           )}
           {placeDetails?.formattedAddress && (
-            <p className="text-sm text-slate-500">
-              We'll map: {placeDetails.formattedAddress}
+            <p className="mt-3 text-xs text-slate-400">
+              We will map: {placeDetails.formattedAddress}
             </p>
           )}
-          {recommendedMapping !== null && (
-            <div className="rounded-md bg-slate-50 p-3 text-sm text-slate-600">
-              {recommendedMapping ? (
-                <>
-                  Based on Google Places data, Blueprint recommends mapping this location.
-                  Venues like museums, hotels, and retail benefit from AR navigation.
-                </>
-              ) : (
-                <>
-                  Mapping is optional for this location, but you can still enable it if you want Blueprint to visit.
-                </>
-              )}
+          {!placesEnabled && (
+            <p className="mt-3 text-xs text-amber-400">
+              Google Places is disabled here, so type your venue name and we'll confirm it manually.
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-1">
+              <p className="text-lg font-semibold text-white">Add Blueprint mapping</p>
+              <p className="text-sm text-slate-300">Includes on-site LiDAR capture, a content planning session, and blueprint generation.</p>
             </div>
+            <Switch
+              checked={Boolean(mappingOptIn)}
+              onCheckedChange={(checked) => {
+                setMappingOptIn(checked);
+                setPlaceError(null);
+              }}
+            />
+          </div>
+          <div className="mt-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-slate-200">
+            {mappingOptIn ? (
+              <>One-time <span className="font-semibold text-white">$99</span> mapping fee will be added at checkout. We'll coordinate a mapper visit after this flow.</>
+            ) : (
+              <>You can skip mapping now—ideal if you're piloting in a single room. Turn it on anytime from the dashboard.</>
+            )}
+          </div>
+          {recommendedMapping !== null && (
+            <p className="mt-3 text-xs font-medium text-sky-200">
+              {recommendedMapping
+                ? "Great fit: venues like museums, hotels, restaurants, and multi-room retail gain the most from mapping."
+                : "Mapping is optional for this location, but you can enable it if you want Blueprint's team to visit."}
+            </p>
           )}
         </div>
-        <div className="flex items-center justify-between rounded-lg border border-slate-200 p-4">
-          <div>
-            <p className="font-medium text-slate-900">Add Blueprint mapping</p>
-            <p className="text-sm text-slate-500">
-              Includes on-site LiDAR capture, content planning session, and blueprint generation.
-            </p>
-          </div>
-          <Switch
-            checked={Boolean(mappingOptIn)}
-            onCheckedChange={(checked) => {
-              setMappingOptIn(checked);
-              setPlaceError(null);
-            }}
-          />
-        </div>
-        {placeError && (
-          <p className="text-sm text-red-600" role="alert">
-            {placeError}
-          </p>
-        )}
       </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-300/70">Benefits</p>
+          <ul className="mt-3 space-y-2 text-sm text-slate-200">
+            {MAPPING_BENEFITS.map((benefit) => (
+              <li key={benefit} className="flex items-start gap-2">
+                <span className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-sky-400" />
+                <span>{benefit}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-300/70">What we need</p>
+          <ul className="mt-3 space-y-2 text-sm text-slate-200">
+            {MAPPING_REQUIREMENTS.map((requirement) => (
+              <li key={requirement} className="flex items-start gap-2">
+                <span className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-emerald-400" />
+                <span>{requirement}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {placeError && (
+        <p className="text-sm text-rose-300" role="alert">
+          {placeError}
+        </p>
+      )}
       <div className="flex justify-between">
         <Button variant="ghost" onClick={handleBack}>
           Back
@@ -1113,36 +1239,37 @@ export default function Onboarding() {
   );
 
   const renderContactStep = () => (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold text-slate-900">
-          Who should we meet on-site?
-        </h2>
-        <p className="text-slate-500">
-          We'll confirm by email and SMS before your mapping appointment.
+    <div className="space-y-8">
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-300/70">On-site contact</p>
+        <h2 className="text-3xl font-semibold text-white">Who should we meet on-site?</h2>
+        <p className="text-sm text-slate-300">
+          We'll confirm by email and SMS before your mapping appointment so your team knows when we're arriving.
         </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="contact-name">Primary contact</Label>
+          <Label htmlFor="contact-name" className="text-slate-200">Primary contact</Label>
           <Input
             id="contact-name"
             value={contactName}
             onChange={(event) => setContactName(event.target.value)}
             placeholder="Jordan Smith"
+            className="border-white/10 bg-white/5 text-slate-100"
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="contact-phone">Mobile number</Label>
+          <Label htmlFor="contact-phone" className="text-slate-200">Mobile number</Label>
           <Input
             id="contact-phone"
             value={contactPhone}
             onChange={(event) => setContactPhone(event.target.value)}
             placeholder="(555) 555-5555"
+            className="border-white/10 bg-white/5 text-slate-100"
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="square-footage">Approximate square footage</Label>
+          <Label htmlFor="square-footage" className="text-slate-200">Approximate square footage</Label>
           <Input
             id="square-footage"
             type="number"
@@ -1150,20 +1277,22 @@ export default function Onboarding() {
             value={squareFootage}
             onChange={(event) => setSquareFootage(event.target.value)}
             placeholder="5000"
+            className="border-white/10 bg-white/5 text-slate-100"
           />
         </div>
         <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="location-address">Location address</Label>
+          <Label htmlFor="location-address" className="text-slate-200">Location address</Label>
           <Input
             id="location-address"
             value={locationAddress}
             onChange={(event) => setLocationAddress(event.target.value)}
             placeholder="123 Main Street, Durham, NC"
+            className="border-white/10 bg-white/5 text-slate-100"
           />
         </div>
       </div>
       {placeError && (
-        <p className="text-sm text-red-600" role="alert">
+        <p className="text-sm text-rose-300" role="alert">
           {placeError}
         </p>
       )}
@@ -1177,52 +1306,48 @@ export default function Onboarding() {
   );
 
   const renderScheduleStep = () => (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold text-slate-900">
-          Schedule your mapping day (optional)
-        </h2>
-        <p className="text-slate-500">
+    <div className="space-y-8">
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-300/70">Scheduling</p>
+        <h2 className="text-3xl font-semibold text-white">Schedule your mapping day (optional)</h2>
+        <p className="text-sm text-slate-300">
           Pick a slot now or skip and our team will coordinate with your contact later.
         </p>
       </div>
-      <div className="flex items-center justify-between rounded-lg border border-slate-200 p-4">
-        <div>
-          <p className="font-medium text-slate-900">Schedule now</p>
-          <p className="text-sm text-slate-500">
-            We'll send confirmation and reminders before the visit.
-          </p>
+      <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
+        <div className="space-y-1">
+          <p className="font-medium text-white">Schedule now</p>
+          <p className="text-sm text-slate-300">We'll send confirmations and reminders before the visit.</p>
         </div>
-        <Switch
-          checked={wantsSchedule}
-          onCheckedChange={(checked) => setWantsSchedule(checked)}
-        />
+        <Switch checked={wantsSchedule} onCheckedChange={(checked) => setWantsSchedule(checked)} />
       </div>
       {wantsSchedule && (
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="mapping-date">Preferred date</Label>
+            <Label htmlFor="mapping-date" className="text-slate-200">Preferred date</Label>
             <Input
               id="mapping-date"
               type="date"
               value={mappingDate}
               onChange={(event) => setMappingDate(event.target.value)}
               min={new Date().toISOString().split("T")[0]}
+              className="border-white/10 bg-white/5 text-slate-100"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="mapping-time">Preferred start time</Label>
+            <Label htmlFor="mapping-time" className="text-slate-200">Preferred start time</Label>
             <Input
               id="mapping-time"
               type="time"
               value={mappingTime}
               onChange={(event) => setMappingTime(event.target.value)}
+              className="border-white/10 bg-white/5 text-slate-100"
             />
           </div>
         </div>
       )}
       {placeError && (
-        <p className="text-sm text-red-600" role="alert">
+        <p className="text-sm text-rose-300" role="alert">
           {placeError}
         </p>
       )}
@@ -1236,74 +1361,60 @@ export default function Onboarding() {
   );
 
   const renderQrStep = () => (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold text-slate-900">
-          Choose your Blueprint QR kit
-        </h2>
-        <p className="text-slate-500">
-          Kits arrive ready to deploy with venue-specific copy and call-to-action.
+    <div className="space-y-8">
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-300/70">QR Kits</p>
+        <h2 className="text-3xl font-semibold text-white">Choose your Blueprint QR kit</h2>
+        <p className="text-sm text-slate-300">
+          {`Blueprint Care is ${formatUsd(planMonthlyPrice)} per month after activation. QR kit upgrades are a one-time cost today.`}
         </p>
       </div>
-      <div className="space-y-3">
-        {PLANS.map((plan) => {
-          const isSelected = selectedPlanId === plan.id;
-          const isBasePlan = plan.id === PLANS[0].id;
-          const upgradeCopy = isBasePlan
-            ? "Included in the base Blueprint Care subscription."
-            : `Adds ${formatUsd(plan.upgradeSurcharge)} / month for more kits.`;
-          const description = plan.includedKitQuantity >= 16
-            ? "Campus, arena, or large-format coverage."
-            : plan.includedKitQuantity >= 8
-            ? "Extra kits for multi-room venues or dual locations."
-            : "Launch-ready coverage for your first location.";
 
+      <div className="space-y-3">
+        {KIT_OPTIONS.map((kit) => {
+          const isSelected = selectedKitId === kit.id;
+          const oneTimeFee = kit.oneTimeUpgradeFee;
           return (
             <button
-              key={plan.id}
+              key={kit.id}
               type="button"
               onClick={() => {
-                setSelectedPlanId(plan.id);
+                setSelectedKitId(kit.id);
                 setPlaceError(null);
               }}
-              className={`w-full rounded-lg border p-4 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-500 ${
+              className={`w-full rounded-2xl border px-5 py-4 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 ${
                 isSelected
-                  ? "border-slate-900 bg-slate-900/5"
-                  : "border-slate-200 hover:border-slate-300"
+                  ? "border-sky-400/60 bg-sky-400/10 shadow-lg"
+                  : "border-white/10 bg-white/5 hover:border-sky-400/30"
               }`}
             >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="font-semibold text-slate-900">
-                    {plan.includedKitQuantity} QR kits
-                  </p>
-                  <p className="text-sm text-slate-500">{description}</p>
-                  <p className="text-xs text-slate-500">{upgradeCopy}</p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <p className="text-lg font-semibold text-white">{kit.name}</p>
+                  <p className="text-sm text-slate-300">Ships with {kit.includedKitQuantity} QR placements.</p>
+                  <p className="text-xs text-slate-400">{kit.highlight}</p>
                 </div>
-                <div className="text-right">
-                  <p className="font-semibold text-slate-900">
-                    {formatUsd(plan.monthlyPrice)} / month
+                <div className="shrink-0 text-right">
+                  <p className="text-sm font-medium text-slate-200">
+                    {oneTimeFee > 0 ? `+${formatUsd(oneTimeFee)} today` : "Included"}
                   </p>
-                  {!isBasePlan && (
-                    <p className="text-xs text-slate-500">
-                      +{formatUsd(plan.upgradeSurcharge)} vs. starter
-                    </p>
-                  )}
+                  <p className="text-xs text-slate-400">Billed once during onboarding</p>
                 </div>
               </div>
             </button>
           );
         })}
       </div>
-      <p className="text-sm text-slate-500">
-        We automatically share shipping progress and activation notifications so your
-        team knows when every QR kit goes live.
+
+      <p className="text-sm text-slate-300">
+        Kits arrive pre-labeled with venue copy and QR art. We notify your team as soon as shipping and activation milestones complete.
       </p>
-      <div className="space-y-3 rounded-lg border border-slate-200 p-4">
+
+      <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="font-medium text-slate-900">Ship kits to mapping location</p>
-            <p className="text-sm text-slate-500">Toggle off to enter a different shipping address.</p>
+          <div className="space-y-1">
+            <p className="font-medium text-white">Ship kits to the mapping location</p>
+            <p className="text-sm text-slate-300">Toggle off to enter a different shipping address.</p>
           </div>
           <Switch
             checked={useContactForShipping}
@@ -1314,66 +1425,74 @@ export default function Onboarding() {
         {!useContactForShipping && (
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1 sm:col-span-2">
-              <Label htmlFor="shipping-name">Recipient name</Label>
+              <Label htmlFor="shipping-name" className="text-slate-200">Recipient name</Label>
               <Input
                 id="shipping-name"
                 value={shippingName}
                 onChange={(event) => setShippingName(event.target.value)}
+                className="border-white/10 bg-white/5 text-slate-100"
               />
             </div>
             <div className="space-y-1 sm:col-span-2">
-              <Label htmlFor="shipping-line1">Street address</Label>
+              <Label htmlFor="shipping-line1" className="text-slate-200">Street address</Label>
               <Input
                 id="shipping-line1"
                 value={shippingLine1}
                 onChange={(event) => setShippingLine1(event.target.value)}
+                className="border-white/10 bg-white/5 text-slate-100"
               />
             </div>
             <div className="space-y-1 sm:col-span-2">
-              <Label htmlFor="shipping-line2">Apartment, suite, etc. (optional)</Label>
+              <Label htmlFor="shipping-line2" className="text-slate-200">Apartment, suite, etc. (optional)</Label>
               <Input
                 id="shipping-line2"
                 value={shippingLine2}
                 onChange={(event) => setShippingLine2(event.target.value)}
+                className="border-white/10 bg-white/5 text-slate-100"
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="shipping-city">City</Label>
+              <Label htmlFor="shipping-city" className="text-slate-200">City</Label>
               <Input
                 id="shipping-city"
                 value={shippingCity}
                 onChange={(event) => setShippingCity(event.target.value)}
+                className="border-white/10 bg-white/5 text-slate-100"
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="shipping-state">State / Province</Label>
+              <Label htmlFor="shipping-state" className="text-slate-200">State / Province</Label>
               <Input
                 id="shipping-state"
                 value={shippingState}
                 onChange={(event) => setShippingState(event.target.value)}
+                className="border-white/10 bg-white/5 text-slate-100"
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="shipping-postal">Postal code</Label>
+              <Label htmlFor="shipping-postal" className="text-slate-200">Postal code</Label>
               <Input
                 id="shipping-postal"
                 value={shippingPostalCode}
                 onChange={(event) => setShippingPostalCode(event.target.value)}
+                className="border-white/10 bg-white/5 text-slate-100"
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="shipping-country">Country</Label>
+              <Label htmlFor="shipping-country" className="text-slate-200">Country</Label>
               <Input
                 id="shipping-country"
                 value={shippingCountry}
                 onChange={(event) => setShippingCountry(event.target.value)}
+                className="border-white/10 bg-white/5 text-slate-100"
               />
             </div>
           </div>
         )}
       </div>
+
       {placeError && (
-        <p className="text-sm text-red-600" role="alert">
+        <p className="text-sm text-rose-300" role="alert">
           {placeError}
         </p>
       )}
@@ -1387,91 +1506,92 @@ export default function Onboarding() {
   );
 
   const renderPaymentStep = () => {
-    const isBasePlan = selectedPlan.id === PLANS[0].id;
-    const kitSummary = `Starter kit (${selectedPlan.includedKitQuantity} QR kits)`;
+    const kitSummary = `${selectedKit.name}`;
 
     return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-semibold text-slate-900">
-            Plan & payment
-          </h2>
-          <p className="text-slate-500">
-            Review your Blueprint Care plan details. Billing for the monthly subscription
-            starts after your kits are activated.
+      <div className="space-y-8">
+        <div className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-300/70">Review</p>
+          <h2 className="text-3xl font-semibold text-white">Plan & payment</h2>
+          <p className="text-sm text-slate-300">
+            Billing for Blueprint Care starts after your kits are activated. Today's checkout covers onboarding and any kit upgrade you selected.
           </p>
         </div>
-        <div className="space-y-4 rounded-lg border border-slate-200 p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-slate-600">Onboarding experience</span>
-            <span className="font-medium text-slate-900">{formatUsd(ONBOARDING_FEE)}</span>
+
+        <div className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
+          <div className="flex items-center justify-between text-sm text-slate-200">
+            <span>Onboarding experience</span>
+            <span className="font-medium text-white">{formatUsd(ONBOARDING_FEE)}</span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-slate-600">{kitSummary}</span>
-            <span className="font-medium text-slate-900">Included</span>
+          <div className="flex items-center justify-between text-sm text-slate-200">
+            <span>{kitSummary}</span>
+            <span className="font-medium text-white">
+              {kitUpgradeFee > 0 ? `+${formatUsd(kitUpgradeFee)}` : "Included"}
+            </span>
           </div>
-          <div className="flex items-center justify-between border-t border-slate-200 pt-3 text-base font-semibold text-slate-900">
+          {mappingOptIn && (
+            <div className="flex items-center justify-between text-sm text-slate-200">
+              <span>Blueprint mapping visit</span>
+              <span className="font-medium text-white">+{formatUsd(mappingFeeDueToday)}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between border-t border-white/10 pt-3 text-base font-semibold text-white">
             <span>Total due today</span>
             <span>{formatUsd(totalDueToday)}</span>
           </div>
         </div>
-        <div className="space-y-3 rounded-lg border border-slate-200 p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-slate-600">Blueprint Care plan</span>
-            <span className="font-medium text-slate-900">
-              {formatUsd(selectedPlan.monthlyPrice)} / month
-            </span>
+
+        <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
+          <div className="flex items-center justify-between text-sm text-slate-200">
+            <span>Blueprint Care</span>
+            <span className="font-medium text-white">{formatUsd(planMonthlyPrice)} / month</span>
           </div>
-          <p className="text-sm text-slate-500">
-            {isBasePlan
-              ? `Includes your starter kit with ${selectedPlan.includedKitQuantity} QR kits.`
-              : `Includes ${selectedPlan.includedKitQuantity} QR kits and adds ${formatUsd(
-                  selectedPlan.upgradeSurcharge,
-                )} / month for additional coverage.`}
-          </p>
-          <p className="text-sm text-slate-500">
-            Monthly billing only begins after your team activates the delivered kits.
+          <p className="text-sm text-slate-300">
+            Monthly billing begins once your kits are delivered and activated. You'll get a heads-up before the first charge hits your card.
           </p>
         </div>
-      {shippingAddress?.line1 && (
-        <div className="rounded-lg border border-slate-200 p-4 text-sm text-slate-600">
-          <p className="font-medium text-slate-900">Shipping to</p>
-          <p>{shippingAddress.name}</p>
-          <p>{shippingAddress.line1}</p>
-          {shippingAddress.line2 && <p>{shippingAddress.line2}</p>}
-          <p>
-            {[shippingAddress.city, shippingAddress.state, shippingAddress.postalCode]
-              .filter(Boolean)
-              .join(", ")}
+
+        {shippingAddress?.line1 && (
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-200">
+            <p className="font-medium text-white">Shipping to</p>
+            <p>{shippingAddress.name}</p>
+            <p>{shippingAddress.line1}</p>
+            {shippingAddress.line2 && <p>{shippingAddress.line2}</p>}
+            <p>
+              {[shippingAddress.city, shippingAddress.state, shippingAddress.postalCode]
+                .filter(Boolean)
+                .join(", ")}
+            </p>
+            <p>{shippingAddress.country}</p>
+          </div>
+        )}
+
+        {paymentError && (
+          <p className="text-sm text-rose-300" role="alert">
+            {paymentError}
           </p>
-          <p>{shippingAddress.country}</p>
+        )}
+        {paymentStatus === "canceled" && (
+          <p className="text-sm text-amber-300">
+            Checkout was canceled. You can resume whenever you're ready.
+          </p>
+        )}
+        {paymentStatus === "success" && (
+          <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 p-4 text-emerald-200">
+            Payment confirmed! Redirecting you to the dashboard…
+          </div>
+        )}
+
+        <div className="flex justify-between">
+          <Button variant="ghost" onClick={handleBack} disabled={isRedirectingToStripe}>
+            Back
+          </Button>
+          <Button onClick={startStripeCheckout} disabled={isRedirectingToStripe}>
+            {isRedirectingToStripe ? "Redirecting…" : "Start checkout"}
+          </Button>
         </div>
-      )}
-      {paymentError && (
-        <p className="text-sm text-red-600" role="alert">
-          {paymentError}
-        </p>
-      )}
-      {paymentStatus === "canceled" && (
-        <p className="text-sm text-amber-600">
-          Checkout was canceled. You can resume whenever you're ready.
-        </p>
-      )}
-      {paymentStatus === "success" && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
-          Payment confirmed! Redirecting you to the dashboard…
-        </div>
-      )}
-      <div className="flex justify-between">
-        <Button variant="ghost" onClick={handleBack} disabled={isRedirectingToStripe}>
-          Back
-        </Button>
-        <Button onClick={startStripeCheckout} disabled={isRedirectingToStripe}>
-          {isRedirectingToStripe ? "Redirecting…" : "Start checkout"}
-        </Button>
       </div>
-    </div>
-  );
+    );
   };
 
   const renderStep = () => {
@@ -1510,26 +1630,29 @@ export default function Onboarding() {
       : "grid-cols-4";
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-white via-slate-50 to-slate-100">
+    <div className="relative flex min-h-screen flex-col bg-[#050814] text-slate-100">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -left-24 top-32 h-72 w-72 rounded-full bg-sky-500/20 blur-[120px]" />
+        <div className="absolute right-[-6rem] bottom-16 h-96 w-96 rounded-full bg-emerald-500/10 blur-[140px]" />
+      </div>
       <Nav hideAuthenticatedFeatures={true} />
-      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-10 px-4 py-16">
-        <div className="flex flex-col gap-6 rounded-2xl border border-slate-200 bg-white p-8 shadow-lg">
+      <main className="relative mx-auto flex w-full max-w-5xl flex-1 flex-col gap-12 px-4 py-16">
+        <div className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-white/10 via-transparent to-sky-500/10 blur-3xl" aria-hidden="true" />
+        <div className="relative flex flex-col gap-8 rounded-3xl border border-white/10 bg-white/5 p-10 shadow-[0_40px_140px_-60px_rgba(59,130,246,0.6)] backdrop-blur-xl">
           <div className="flex flex-col gap-4">
-            <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
+            <p className="text-sm font-semibold uppercase tracking-[0.4em] text-sky-300/70">
               Blueprint onboarding
             </p>
-            <div
-              className={`grid ${stepColumnsClass} gap-2 text-xs font-medium text-slate-500`}
-            >
+            <div className={`grid ${stepColumnsClass} gap-2 text-xs font-medium text-slate-200`}>
               {stepOrder.map((step, index) => (
                 <div
                   key={step}
-                  className={`rounded-full px-3 py-2 text-center ${
+                  className={`rounded-full px-3 py-2 text-center transition ${
                     index === stepIndex
-                      ? "bg-slate-900 text-white"
+                      ? "bg-sky-400 text-[#041021] shadow-lg"
                       : index < stepIndex
-                      ? "bg-slate-200 text-slate-700"
-                      : "bg-slate-100"
+                      ? "bg-white/15 text-slate-100"
+                      : "bg-white/5 text-slate-400"
                   }`}
                 >
                   {stepNames[step]}
@@ -1544,4 +1667,3 @@ export default function Onboarding() {
     </div>
   );
 }
-
