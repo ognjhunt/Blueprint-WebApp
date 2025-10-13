@@ -209,9 +209,9 @@ const tldrHighlights: { label: string; diy: string; blueprint: string }[] = [
     blueprint: "Often none (no-code); add if custom dev",
   },
   {
-    label: "Scanner hardware",
-    diy: "$999 per kit",
-    blueprint: "Same (or BYOD if self-scan)",
+    label: "Activation kits",
+    diy: "$75–$150/location (design + print + install)",
+    blueprint: "Starter Kit included; Growth +$15/mo, Enterprise +$45/mo",
   },
   {
     label: "Time to first site live",
@@ -280,6 +280,9 @@ type PlanTier = {
   margin: string;
   ctaLabel: string;
   highlight?: boolean;
+  kitIncluded: string;
+  kitUpgrades: string[];
+  kitNote?: string;
 };
 
 const planTiers: PlanTier[] = [
@@ -297,12 +300,18 @@ const planTiers: PlanTier[] = [
       "Context nudges by zone (rate-limited to avoid spam)",
       "Session logging with baseline analytics",
     ],
-    margin: "~75% avg. margin ($99 - ~$70 costs; Niantic usage stays free).",
+    margin: "~75% avg. margin (kits + shipping included).",
     ctaLabel: "Start your 30-day trial",
+    kitIncluded:
+      "Includes 1 Starter Kit (10 QR placements) that ships before billing starts.",
+    kitUpgrades: [
+      "+$15/mo upgrade to the Growth Kit (50 placements).",
+      "+$45/mo upgrade to the Enterprise Kit (200 placements).",
+    ],
   },
   {
     name: "Pro",
-    price: "$199",
+    price: "$149",
     priceSuffix: "/month",
     target: "Supports up to 250 MAUs",
     limit: "Includes 250 MAUs/mo",
@@ -314,9 +323,15 @@ const planTiers: PlanTier[] = [
       "“Extend Map” change-aware updates (keeping map up-to-date)",
       "Priority customer support",
     ],
-    margin: "~65% avg. margin ($199 - ~$70 platform + ~$50 Niantic usage).",
+    margin: "~68% avg. margin (multi-location kit coverage included).",
     ctaLabel: "Scale with Pro",
     highlight: true,
+    kitIncluded:
+      "Includes 3 Starter Kits (30 QR placements) so multi-room venues launch together.",
+    kitUpgrades: [
+      "+$15/mo upgrade any bundle to the Growth Kit (50 placements).",
+      "+$45/mo upgrade to the Enterprise Kit (200 placements).",
+    ],
   },
 ];
 
@@ -453,6 +468,29 @@ function PlanCards() {
               <CardDescription className="text-slate-300 text-base">
                 {plan.target}
               </CardDescription>
+              <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.05] p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
+                  <Gift className="h-4 w-4" />
+                  Activation kits
+                </div>
+                <p className="mt-2 text-sm text-slate-100">
+                  {plan.kitIncluded}
+                </p>
+                <ul className="mt-3 space-y-1.5">
+                  {plan.kitUpgrades.map((upgrade) => (
+                    <li
+                      key={upgrade}
+                      className="flex items-start gap-2 text-xs text-slate-300"
+                    >
+                      <PlusCircle className="mt-[2px] h-3.5 w-3.5 text-cyan-300" />
+                      <span>{upgrade}</span>
+                    </li>
+                  ))}
+                </ul>
+                {plan.kitNote ? (
+                  <p className="mt-3 text-xs text-slate-400">{plan.kitNote}</p>
+                ) : null}
+              </div>
             </CardHeader>
             <CardContent className="space-y-5 pt-4 flex-1 flex flex-col">
               <div className="rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm md:text-base text-slate-200">
@@ -534,6 +572,52 @@ function PlanCards() {
         </Card>
       </div>
       */}
+    </section>
+  );
+}
+
+function KitFulfillmentCallout() {
+  return (
+    <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-16 -mt-6">
+      <Card className="rounded-3xl border border-white/15 bg-white/[0.05] backdrop-blur-sm shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
+        <CardHeader className="pb-4 space-y-3">
+          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] uppercase tracking-wide text-emerald-200">
+            <Gift className="h-3.5 w-3.5" />
+            Fulfillment
+          </div>
+          <CardTitle className="text-white text-2xl">
+            How kit fulfillment works
+          </CardTitle>
+          <CardDescription className="text-slate-300">
+            Activation kits ship ahead of your first invoice so your team can install and be ready to go live on day one.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <ul className="space-y-4">
+            <li className="flex items-start gap-3">
+              <Box className="mt-0.5 h-5 w-5 text-emerald-300" />
+              <div className="text-sm text-slate-200">
+                <span className="font-semibold text-white">Shipped before billing.</span>{" "}
+                Your Starter Kit heads out immediately after signup, so installation can finish before the first charge posts.
+              </div>
+            </li>
+            <li className="flex items-start gap-3">
+              <Sparkles className="mt-0.5 h-5 w-5 text-cyan-300" />
+              <div className="text-sm text-slate-200">
+                <span className="font-semibold text-white">Progress + “flip on” alerts.</span>{" "}
+                Subscribers receive shipping progress, install status, and the final “flip on” notification when placements are ready for guests.
+              </div>
+            </li>
+            <li className="flex items-start gap-3">
+              <Gift className="mt-0.5 h-5 w-5 text-emerald-300" />
+              <div className="text-sm text-slate-200">
+                <span className="font-semibold text-white">Starter Kit included.</span>{" "}
+                The base Starter Kit is free with every active subscription; upgrades to Growth (+$15/mo) or Enterprise (+$45/mo) kits stay optional.
+              </div>
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
     </section>
   );
 }
@@ -802,6 +886,9 @@ export default function PricingPage() {
 
       {/* Tier cards */}
       <PlanCards />
+
+      {/* Kit fulfillment details */}
+      <KitFulfillmentCallout />
 
       {/* Usage calculator */}
       {/*
