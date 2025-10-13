@@ -13,6 +13,7 @@ import {
   logOut,
   onAuthStateChanged,
   getUserData,
+  createUserDocument,
   UserData,
 } from "@/lib/firebase";
 import { User as FirebaseUser } from "firebase/auth";
@@ -21,9 +22,9 @@ interface AuthContextType {
   currentUser: FirebaseUser | null;
   userData: UserData | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name?: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
+  signIn: (email: string, password: string) => Promise<string>;
+  signUp: (email: string, password: string, name?: string) => Promise<string>;
+  signInWithGoogle: () => Promise<string>;
   logout: () => Promise<void>;
 }
 
@@ -61,6 +62,93 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = React.useState(true);
   const [, setLocation] = useLocation();
 
+  const normalizeUserData = React.useCallback((data: UserData | null) => {
+    if (!data) {
+      return null;
+    }
+    return {
+      ...data,
+      finishedOnboarding: data.finishedOnboarding ?? false,
+    };
+  }, []);
+
+  const resolveRedirectPath = React.useCallback(
+    (data: UserData | null): string => {
+      let storedRedirect: string | null = null;
+      try {
+        storedRedirect = sessionStorage.getItem("redirectAfterAuth");
+      } catch (storageError) {
+        console.error("Unable to read redirectAfterAuth from sessionStorage:", storageError);
+      }
+
+      if (storedRedirect) {
+        try {
+          sessionStorage.removeItem("redirectAfterAuth");
+        } catch (storageError) {
+          console.error(
+            "Unable to clear redirectAfterAuth from sessionStorage:",
+            storageError,
+          );
+        }
+        return storedRedirect;
+      }
+
+      if (data && data.finishedOnboarding !== true) {
+        return "/onboarding";
+      }
+
+      return "/dashboard";
+    },
+    [],
+  );
+
+  const navigateAfterAuth = React.useCallback(
+    (data: UserData | null): string => {
+      const destination = resolveRedirectPath(data);
+      if (destination.startsWith("http")) {
+        if (typeof window !== "undefined") {
+          window.location.href = destination;
+        } else {
+          console.warn(
+            "Attempted to redirect to an external URL without a window context:",
+            destination,
+          );
+        }
+      } else {
+        setLocation(destination);
+      }
+      return destination;
+    },
+    [resolveRedirectPath, setLocation],
+  );
+
+  const ACCESS_DENIED_CODE = "auth/access-denied";
+  const USER_DATA_MISSING_CODE = "auth/user-data-missing";
+
+  const isPermissionDeniedError = (error: unknown): boolean => {
+    if (!error || typeof error !== "object") {
+      return false;
+    }
+    const code = (error as { code?: unknown }).code;
+    return typeof code === "string" && code.includes("permission-denied");
+  };
+
+  const createAccessDeniedError = () => {
+    const accessError: any = new Error(
+      "Access to Blueprint is currently invite-only. Please request an invitation to continue.",
+    );
+    accessError.code = ACCESS_DENIED_CODE;
+    return accessError;
+  };
+
+  const createUserDataMissingError = () => {
+    const dataError: any = new Error(
+      "We created your account but couldn't finish loading it. Please try signing in again.",
+    );
+    dataError.code = USER_DATA_MISSING_CODE;
+    return dataError;
+  };
+
   React.useEffect(() => {
     if (!auth) {
       setLoading(false);
@@ -72,7 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (user) {
         try {
           const userData = await getUserData(user.uid);
-          setUserData(userData);
+          setUserData(normalizeUserData(userData));
         } catch (error) {
           console.error("Error fetching user data:", error);
         }
@@ -90,35 +178,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const user = await loginWithEmailAndPassword(email, password);
       console.log("User signed in successfully:", user.uid);
 
+      let userDataRecord: UserData | null = null;
       try {
-        const userData = await getUserData(user.uid);
-        if (!userData) {
-          throw new Error("User data not found");
-        }
-        setUserData(userData);
-
-        // Handle redirect
-        try {
-          const redirectPath = sessionStorage.getItem("redirectAfterAuth");
-          if (redirectPath) {
-            sessionStorage.removeItem("redirectAfterAuth");
-            setLocation(redirectPath);
-          } else {
-            setLocation("/dashboard");
-          }
-          console.log("Successfully redirected after sign in");
-        } catch (redirectError: any) {
-          console.error("Error during redirect after sign in:", redirectError);
-          throw new Error(
-            "Failed to navigate after sign in. Please try again.",
-          );
-        }
+        userDataRecord = await getUserData(user.uid);
       } catch (userDataError: any) {
         console.error("Error fetching user data after sign in:", userDataError);
+        if (isPermissionDeniedError(userDataError)) {
+          throw createAccessDeniedError();
+        }
         throw new Error(
           "Failed to load user data. Please try signing in again.",
         );
       }
+
+      if (!userDataRecord) {
+        throw createUserDataMissingError();
+      }
+
+      const normalizedUserData = normalizeUserData(userDataRecord);
+      setUserData(normalizedUserData);
+      return navigateAfterAuth(normalizedUserData);
     } catch (error: any) {
       console.error("Sign in error:", {
         code: error.code,
@@ -133,22 +212,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const user = await registerWithEmailAndPassword(email, password, name);
       console.log("User registered successfully:", user.uid);
 
+      let userDataRecord: UserData | null = null;
       try {
-        const userData = await getUserData(user.uid);
-        if (!userData) {
-          throw new Error("User document not created properly");
-        }
-        setUserData(userData);
-        setLocation("/");
+        userDataRecord = await getUserData(user.uid);
       } catch (userDataError: any) {
         console.error(
           "Error creating/fetching user data after registration:",
           userDataError,
         );
+        if (isPermissionDeniedError(userDataError)) {
+          throw createAccessDeniedError();
+        }
         throw new Error(
           "Account created but failed to set up user profile. Please try signing in again.",
         );
       }
+
+      if (!userDataRecord) {
+        throw createUserDataMissingError();
+      }
+
+      const normalizedUserData = normalizeUserData(userDataRecord);
+      setUserData(normalizedUserData);
+      return navigateAfterAuth(normalizedUserData);
     } catch (error: any) {
       console.error("Sign up error:", {
         code: error.code,
@@ -162,14 +248,69 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const user = await firebaseSignInWithGoogle();
       console.log("User signed in with Google successfully:", user.uid);
-      const userData = await getUserData(user.uid);
-      if (!userData) {
-        await logOut();
-        const error: any = new Error("No account found with this email");
-        error.code = "auth/user-not-found";
-        throw error;
+      let userDataRecord: UserData | null = null;
+
+      try {
+        userDataRecord = await getUserData(user.uid);
+      } catch (userDataError: any) {
+        console.error("Error fetching Google user data:", userDataError);
+        if (isPermissionDeniedError(userDataError)) {
+          throw createAccessDeniedError();
+        }
+        throw new Error(
+          "We couldn't load your profile after signing in with Google. Please try again.",
+        );
       }
-      setUserData(userData);
+
+      let createdProfile = false;
+
+      if (!userDataRecord) {
+        try {
+          await createUserDocument(user, {
+            name: user.displayName ?? undefined,
+          });
+          createdProfile = true;
+        } catch (creationError: any) {
+          console.error("Error creating user document after Google sign in:", creationError);
+          if (isPermissionDeniedError(creationError)) {
+            throw createAccessDeniedError();
+          }
+          throw new Error(
+            "We couldn't finish setting up your profile after Google sign in. Please try again.",
+          );
+        }
+
+        try {
+          userDataRecord = await getUserData(user.uid);
+        } catch (userDataFetchError: any) {
+          console.error(
+            "Error fetching user data after creating Google profile:",
+            userDataFetchError,
+          );
+          if (isPermissionDeniedError(userDataFetchError)) {
+            throw createAccessDeniedError();
+          }
+          throw new Error(
+            "Your account was created, but we couldn't finish loading it. Please try signing in again.",
+          );
+        }
+      }
+
+      if (!userDataRecord) {
+        throw createUserDataMissingError();
+      }
+
+      const normalizedUserData = normalizeUserData(userDataRecord);
+      if (!normalizedUserData) {
+        throw createUserDataMissingError();
+      }
+
+      const onboardingReadyUserData = createdProfile
+        ? { ...normalizedUserData, finishedOnboarding: false }
+        : normalizedUserData;
+
+      setUserData(onboardingReadyUserData);
+      return navigateAfterAuth(onboardingReadyUserData);
     } catch (error: any) {
       console.error("Google sign in error:", {
         code: error.code,
@@ -213,6 +354,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return "Google sign-in was cancelled";
       case "auth/network-request-failed":
         return "Network error occurred. Please check your connection";
+      case ACCESS_DENIED_CODE:
+      case "permission-denied":
+        return "Blueprint access is currently invite-only. Please request an invitation to continue.";
+      case USER_DATA_MISSING_CODE:
+        return "We created your account but couldn't finish loading it. Please try signing in again.";
       default:
         return "";
     }

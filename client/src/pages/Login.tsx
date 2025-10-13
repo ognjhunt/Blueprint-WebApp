@@ -123,7 +123,14 @@ export default function Login() {
     setLocation(target);
   };
 
-  const handlePostAuthNavigation = (options?: { fallbackToDashboard?: boolean }) => {
+  const handlePostAuthNavigation = (
+    destination?: string,
+    options?: { fallbackToDashboard?: boolean },
+  ) => {
+    if (destination) {
+      return;
+    }
+
     const stored = sessionStorage.getItem("redirectAfterAuth");
     if (stored) {
       sessionStorage.removeItem("redirectAfterAuth");
@@ -144,12 +151,12 @@ export default function Login() {
   const handleGoogleAuth = async () => {
     setIsGoogleSubmitting(true);
     try {
-      await signInWithGoogle();
+      const destination = await signInWithGoogle();
       toast({
         title: "Welcome to Blueprint",
         description: "You are signed in with Google.",
       });
-      handlePostAuthNavigation();
+      handlePostAuthNavigation(destination);
     } catch (error: any) {
       toast({
         title: "Google sign-in failed",
@@ -165,20 +172,24 @@ export default function Login() {
     setIsSubmitting(true);
     try {
       if (mode === "signin") {
-        await signIn(values.email, values.password);
+        const destination = await signIn(values.email, values.password);
         toast({
           title: "Welcome back",
           description: "You are signed in.",
         });
-        handlePostAuthNavigation({ fallbackToDashboard: true });
+        handlePostAuthNavigation(destination, { fallbackToDashboard: true });
       } else {
         const signUpValues = values as SignUpValues;
-        await signUp(signUpValues.email, signUpValues.password, signUpValues.name);
+        const destination = await signUp(
+          signUpValues.email,
+          signUpValues.password,
+          signUpValues.name,
+        );
         toast({
           title: "Account created",
           description: "You are ready to explore Blueprint.",
         });
-      handlePostAuthNavigation({ fallbackToDashboard: true });
+        handlePostAuthNavigation(destination, { fallbackToDashboard: true });
       }
     } catch (error: any) {
       toast({
