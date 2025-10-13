@@ -1657,7 +1657,7 @@ export default function Onboarding() {
           </p>
         </div>
         <div className="flex justify-center">
-          <div className="w-full max-w-sm overflow-hidden rounded-xl border border-white/10 bg-black/30">
+          <div className="w-full max-w-[200px] overflow-hidden rounded-xl border border-white/10 bg-black/30">
             <img 
               src="/qr-kit-example.png" 
               alt="Example of Blueprint QR kit poster" 
