@@ -32,6 +32,7 @@ import { db } from "@/lib/firebase";
 import { getGoogleMapsApiKey } from "@/lib/client-env";
 
 const ONBOARDING_FEE = 499.99;
+const MONTHLY_RATE = 49.99;
 const INCLUDED_WEEKLY_HOURS = 40;
 const EXTRA_HOURLY_RATE = 1.25;
 
@@ -68,6 +69,8 @@ const PLANS: PlanDefinition[] = [
     upgradeSurcharge: 45,
   },
 ];
+
+const QR_KITS = PLANS;
 
 const DEFAULT_CARE_PLAN = {
   id: "blueprint-care",
@@ -203,9 +206,6 @@ export default function Onboarding() {
   const [mappingTime, setMappingTime] = useState("");
 
   const [selectedPlanId, setSelectedPlanId] = useState<string>(PLANS[0].id);
-  const [selectedPlanId, setSelectedPlanId] = useState<string>(
-    DEFAULT_CARE_PLAN.id,
-  );
   const [selectedPlanName, setSelectedPlanName] = useState<string>(
     DEFAULT_CARE_PLAN.name,
   );
@@ -407,6 +407,11 @@ export default function Onboarding() {
     [selectedPlanId],
   );
 
+  const selectedKit = useMemo(
+    () => QR_KITS.find((kit) => kit.id === selectedKitId) ?? QR_KITS[0],
+    [selectedKitId],
+  );
+
   const kitUpgradeSurcharge = useMemo(
     () => KIT_UPGRADE_SURCHARGES[selectedKit.id] ?? 0,
     [selectedKit.id],
@@ -480,12 +485,6 @@ export default function Onboarding() {
         if (planExists) {
           setSelectedPlanId(parsed.selectedPlanId);
         }
-      } else if (typeof parsed.selectedKitId === "string") {
-        const planExists = PLANS.some((plan) => plan.id === parsed.selectedKitId);
-        if (planExists) {
-          setSelectedPlanId(parsed.selectedKitId);
-      if (typeof parsed.selectedPlanId === "string" && parsed.selectedPlanId) {
-        setSelectedPlanId(parsed.selectedPlanId);
       }
       if (typeof parsed.selectedPlanName === "string" && parsed.selectedPlanName) {
         setSelectedPlanName(parsed.selectedPlanName);
@@ -832,7 +831,6 @@ export default function Onboarding() {
             mappingDate,
             mappingTime,
             selectedPlanId,
-            selectedKitId: selectedPlanId,
             selectedPlanName,
             planMonthlyPrice,
             selectedKitId,
@@ -863,12 +861,11 @@ export default function Onboarding() {
         body: JSON.stringify({
           sessionType: "onboarding",
           onboardingFee: ONBOARDING_FEE,
-          monthlyPrice: selectedPlan.monthlyPrice,
+          monthlyPrice: planMonthlyPrice,
           includedHours: INCLUDED_WEEKLY_HOURS,
           extraHourlyRate: EXTRA_HOURLY_RATE,
           planId: selectedPlanId,
           planName: selectedPlanName,
-          monthlyPrice: planMonthlyPrice,
           kitUpgradeSurcharge,
           organizationName: organizationName.trim(),
           contactName: mappingOptIn ? contactName.trim() : "",
@@ -883,11 +880,10 @@ export default function Onboarding() {
             upgradeSurcharge: selectedPlan.upgradeSurcharge,
           },
           qrKit: {
-            name: `Starter kit (${selectedPlan.includedKitQuantity} QR kits)`,
-            price: 0,
             id: selectedKit.id,
             name: selectedKit.name,
-            price: selectedKit.price,
+            quantity: selectedKit.includedKitQuantity,
+            monthlyPrice: selectedKit.monthlyPrice,
           },
           shippingAddress,
           successPath,
