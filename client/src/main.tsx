@@ -1,6 +1,6 @@
-import { StrictMode, Suspense, lazy } from "react";
+import { StrictMode, Suspense, lazy, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { LiveAPIProvider } from "@/contexts/LiveAPIContext";
 import "./index.css";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -17,8 +17,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const PricingPage = lazy(() => import("./pages/Pricing"));
 const BusinessSearch = lazy(() => import("./pages/BusinessSearch"));
 const Profile = lazy(() => import("./pages/Profile"));
-const SignIn = lazy(() => import("./pages/SignIn"));
-const CreateAccount = lazy(() => import("./pages/CreateAccount"));
+const Login = lazy(() => import("./pages/Login"));
 const BlueprintEditor = lazy(() => import("./pages/BlueprintEditor"));
 const BlueprintAiStudio = lazy(() => import("./pages/BlueprintAiStudio"));
 const Discover = lazy(() => import("./pages/Discover"));
@@ -54,16 +53,28 @@ const RoboticsOS = lazy(() => import("./pages/blog/RoboticsOS"));
 const Go = lazy(() => import("./pages/Go"));
 const WebXR = lazy(() => import("./pages/WebXR"));
 
+function LegacyAuthRedirect() {
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    const search = window.location.search || "";
+    setLocation(`/login${search}`);
+  }, [setLocation]);
+
+  return null;
+}
+
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/pricing" component={PricingPage} />
       <Route path="/search" component={BusinessSearch} />
-      <Route path="/sign-in" component={SignIn} />
+      <Route path="/login" component={Login} />
       <Route path="/discover" component={Discover} />
       <Route path="/how-it-works" component={HowItWorks} />
-      <Route path="/create-account" component={CreateAccount} />
+      <Route path="/sign-in" component={LegacyAuthRedirect} />
+      <Route path="/create-account" component={LegacyAuthRedirect} />
       <Route path="/off-waitlist-signup" component={OffWaitlistSignUpFlow} />
       <Route path="/outbound-signup" component={OutboundSignUpFlow} />
       <Route path="/workspace" component={WorkspacePage} />

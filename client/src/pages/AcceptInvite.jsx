@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-//import { useRouter } from "next/navigation";
+import { useLocation } from "wouter";
 import { db } from "@/lib/firebase";
 import {
   doc,
@@ -22,7 +22,7 @@ import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 
 export default function AcceptInvite() {
-  //const router = useRouter();
+  const [, setLocation] = useLocation();
   const { currentUser, signIn, signUp } = useAuth();
   const { toast } = useToast();
 
@@ -104,7 +104,7 @@ export default function AcceptInvite() {
     if (!currentUser) {
       // If not logged in, redirect to login page with return URL
       const returnUrl = encodeURIComponent(window.location.href);
-      router.push(`/sign-in?returnUrl=${returnUrl}`);
+      setLocation(`/login?returnUrl=${returnUrl}`);
       return;
     }
 
@@ -134,7 +134,7 @@ export default function AcceptInvite() {
       });
 
       // Redirect to dashboard
-      router.push("/dashboard");
+      setLocation("/dashboard");
     } catch (error) {
       console.error("Error accepting invitation:", error);
       toast({
@@ -192,7 +192,7 @@ export default function AcceptInvite() {
             </h2>
             <p className="text-gray-600 mb-6">{error}</p>
             <Button
-              onClick={() => router.push("/")}
+              onClick={() => setLocation("/")}
               className="bg-indigo-600 hover:bg-indigo-700"
             >
               Return to Homepage
