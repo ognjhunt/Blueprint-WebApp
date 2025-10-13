@@ -1649,6 +1649,22 @@ export default function Onboarding() {
         </p>
       </div>
 
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg">
+        <div className="mb-3">
+          <p className="text-sm font-semibold text-sky-300/90">What you'll receive</p>
+          <p className="mt-1 text-xs text-slate-400">
+            Each QR kit includes a professionally designed poster with your venue branding
+          </p>
+        </div>
+        <div className="overflow-hidden rounded-xl border border-white/10 bg-black/30">
+          <img 
+            src="/qr-kit-example.png" 
+            alt="Example of Blueprint QR kit poster" 
+            className="w-full h-auto"
+          />
+        </div>
+      </div>
+
       <div className="space-y-3">
         {KIT_OPTIONS.map((kit) => {
           const isSelected = selectedKitId === kit.id;
