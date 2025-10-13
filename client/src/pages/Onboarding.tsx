@@ -25,6 +25,10 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getGoogleMapsApiKey } from "@/lib/client-env";
+import KitArrivalCountdown, {
+  DEFAULT_KIT_TRACKING_URL,
+  KIT_DELIVERY_LEAD_TIME_BUSINESS_DAYS,
+} from "@/components/KitArrivalCountdown";
 
 const MAPPING_FEE = 99;
 const INCLUDED_WEEKLY_HOURS = 40;
@@ -173,6 +177,21 @@ function formatUsd(amount: number) {
   }).format(amount);
 }
 
+function addBusinessDays(start: Date, businessDays: number) {
+  const result = new Date(start);
+  let added = 0;
+
+  while (added < businessDays) {
+    result.setDate(result.getDate() + 1);
+    const day = result.getDay();
+    if (day !== 0 && day !== 6) {
+      added += 1;
+    }
+  }
+
+  return result;
+}
+
 export default function Onboarding() {
   const auth = useMemo(() => getAuth(), []);
   const [, setLocation] = useLocation();
@@ -241,7 +260,12 @@ export default function Onboarding() {
   const [paymentStatus, setPaymentStatus] = useState<
     "idle" | "success" | "canceled" | "error"
   >("idle");
+  const [shouldFinalizeAfterCheckout, setShouldFinalizeAfterCheckout] =
+    useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+
+  const hasPersistedCompletionRef = useRef(false);
+  const redirectTimerRef = useRef<number | null>(null);
 
   const orgSessionTokenRef = useRef<string | null>(null);
 
@@ -585,19 +609,15 @@ export default function Onboarding() {
 
     const checkoutStatus = params.get("checkout");
     if (checkoutStatus === "success") {
-      if (typeof window !== "undefined") {
-        window.sessionStorage.removeItem(CHECKOUT_STORAGE_KEY);
-      }
-      setPaymentStatus("success");
-      const timer = window.setTimeout(() => {
-        setLocation("/dashboard");
-      }, 2500);
-      return () => window.clearTimeout(timer);
+      setShouldFinalizeAfterCheckout(true);
     }
     if (checkoutStatus === "canceled") {
       setPaymentStatus("canceled");
+      if (typeof window !== "undefined") {
+        window.sessionStorage.removeItem(CHECKOUT_STORAGE_KEY);
+      }
     }
-  }, [setLocation]);
+  }, [setLocation, setShouldFinalizeAfterCheckout]);
 
   const currentStep = stepOrder[stepIndex];
 
@@ -657,6 +677,84 @@ export default function Onboarding() {
     shippingPostalCode,
     shippingState,
     useContactForShipping,
+  ]);
+
+  const kitDeliveryPreviewDate = useMemo(() => {
+    if (mappingOptIn !== false) {
+      return null;
+    }
+
+    return addBusinessDays(
+      new Date(),
+      KIT_DELIVERY_LEAD_TIME_BUSINESS_DAYS,
+    );
+  }, [mappingOptIn]);
+
+  useEffect(() => {
+    if (!shouldFinalizeAfterCheckout) {
+      return;
+    }
+
+    const activeUser = currentUser ?? auth.currentUser;
+    if (!activeUser) {
+      return;
+    }
+
+    setIsRedirectingToStripe(true);
+
+    let isCancelled = false;
+
+    const finalizeAfterCheckout = async () => {
+      try {
+        await persistOnboardingCompletion();
+      } catch (error) {
+        console.error("Unable to finalize onboarding after checkout:", error);
+        if (!isCancelled) {
+          setPaymentError(
+            error instanceof Error
+              ? error.message
+              : "We couldn't save your onboarding details. Please try again.",
+          );
+          setPaymentStatus("error");
+          setIsRedirectingToStripe(false);
+          setShouldFinalizeAfterCheckout(false);
+        }
+        return;
+      }
+
+      if (isCancelled) {
+        return;
+      }
+
+      if (typeof window !== "undefined") {
+        window.sessionStorage.removeItem(CHECKOUT_STORAGE_KEY);
+      }
+      setPaymentStatus("success");
+      setIsRedirectingToStripe(false);
+      setShouldFinalizeAfterCheckout(false);
+      redirectTimerRef.current = window.setTimeout(() => {
+        setLocation("/dashboard");
+      }, 2500);
+    };
+
+    finalizeAfterCheckout();
+
+    return () => {
+      isCancelled = true;
+      if (redirectTimerRef.current !== null) {
+        window.clearTimeout(redirectTimerRef.current);
+      }
+    };
+  }, [
+    auth,
+    currentUser,
+    persistOnboardingCompletion,
+    setLocation,
+    setIsRedirectingToStripe,
+    setPaymentError,
+    setPaymentStatus,
+    setShouldFinalizeAfterCheckout,
+    shouldFinalizeAfterCheckout,
   ]);
 
   const mappingFeeDueToday = useMemo(
@@ -819,6 +917,107 @@ export default function Onboarding() {
     wantsSchedule,
   ]);
 
+  const persistOnboardingCompletion = useCallback(async () => {
+    const user = currentUser ?? auth.currentUser;
+
+    if (!user) {
+      throw new Error(
+        "Unable to finalize onboarding because no authenticated user was found.",
+      );
+    }
+
+    if (hasPersistedCompletionRef.current) {
+      return;
+    }
+
+    const kitDeliveryEstimate = mappingOptIn === false
+      ? addBusinessDays(new Date(), KIT_DELIVERY_LEAD_TIME_BUSINESS_DAYS)
+      : null;
+
+    const onboardingPayload: Record<string, unknown> = {
+      organizationName: organizationName.trim(),
+      mappingOptIn: mappingOptIn === true,
+      recommendedMapping,
+      planId: selectedPlanId,
+      planName: selectedPlanName,
+      planMonthlyPrice,
+      selectedKitId,
+      updatedAt: serverTimestamp(),
+      shippingAddress: shippingAddress ?? null,
+    };
+
+    if (mappingOptIn) {
+      onboardingPayload.contactName = contactName.trim();
+      onboardingPayload.contactPhone = contactPhone.trim();
+      onboardingPayload.locationAddress = locationAddress.trim();
+      onboardingPayload.squareFootage = squareFootage
+        ? Number(squareFootage)
+        : null;
+      onboardingPayload.mappingScheduledAt = mappingDateTimeIso || null;
+    } else {
+      onboardingPayload.kitDeliveryEstimate = kitDeliveryEstimate;
+      onboardingPayload.kitTrackingUrl = DEFAULT_KIT_TRACKING_URL;
+      onboardingPayload.subscriptionStartEstimate = kitDeliveryEstimate;
+    }
+
+    try {
+      await setDoc(doc(db, "onboardingProfiles", user.uid), onboardingPayload, {
+        merge: true,
+      });
+
+      const userUpdate: Record<string, unknown> = {
+        mappingOptIn: mappingOptIn === true,
+      };
+
+      if (mappingOptIn) {
+        userUpdate.kitDeliveryEstimate = null;
+        userUpdate.kitTrackingUrl = null;
+        userUpdate.subscriptionStartEstimate = null;
+      } else {
+        userUpdate.kitDeliveryEstimate = kitDeliveryEstimate;
+        userUpdate.kitTrackingUrl = DEFAULT_KIT_TRACKING_URL;
+        userUpdate.subscriptionStartEstimate = kitDeliveryEstimate;
+        userUpdate.finishedOnboarding = true;
+      }
+
+      await setDoc(doc(db, "users", user.uid), userUpdate, { merge: true });
+
+      if (mappingOptIn) {
+        await addDoc(collection(db, "mappingRequests"), {
+          userId: user.uid,
+          organizationName: organizationName.trim(),
+          contactName: contactName.trim(),
+          contactPhone: contactPhone.trim(),
+          locationAddress: locationAddress.trim(),
+          squareFootage: squareFootage ? Number(squareFootage) : null,
+          mappingScheduledAt: mappingDateTimeIso || null,
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      hasPersistedCompletionRef.current = true;
+    } catch (error) {
+      console.error("Error finalizing onboarding:", error);
+      throw error;
+    }
+  }, [
+    auth,
+    contactName,
+    contactPhone,
+    currentUser,
+    locationAddress,
+    mappingDateTimeIso,
+    mappingOptIn,
+    organizationName,
+    recommendedMapping,
+    selectedKitId,
+    selectedPlanId,
+    selectedPlanName,
+    shippingAddress,
+    squareFootage,
+    planMonthlyPrice,
+  ]);
+
   const handleBack = useCallback(() => {
     setPlaceError(null);
     setStepIndex((index) => Math.max(0, index - 1));
@@ -831,61 +1030,17 @@ export default function Onboarding() {
 
       // If no charges today, skip Stripe and go directly to dashboard
       if (totalDueToday === 0) {
-        if (currentUser) {
-          await setDoc(
-            doc(db, "onboardingProfiles", currentUser.uid),
-            {
-              organizationName: organizationName.trim(),
-              mappingOptIn: mappingOptIn || false,
-              recommendedMapping,
-              planId: selectedPlanId,
-              planName: selectedPlanName,
-              planMonthlyPrice,
-              selectedKitId,
-              updatedAt: serverTimestamp(),
-            },
-            { merge: true },
-          );
-        }
-        
+        await persistOnboardingCompletion();
+
         if (typeof window !== "undefined") {
           window.sessionStorage.removeItem(CHECKOUT_STORAGE_KEY);
         }
-        
+
         setPaymentStatus("success");
-        setTimeout(() => {
+        redirectTimerRef.current = window.setTimeout(() => {
           setLocation("/dashboard");
         }, 1500);
         return;
-      }
-
-      if (currentUser && mappingOptIn) {
-        await setDoc(
-          doc(db, "onboardingProfiles", currentUser.uid),
-          {
-            organizationName: organizationName.trim(),
-            mappingOptIn: true,
-            recommendedMapping,
-            updatedAt: serverTimestamp(),
-            contactName: contactName.trim(),
-            contactPhone: contactPhone.trim(),
-            locationAddress: locationAddress.trim(),
-            squareFootage: squareFootage ? Number(squareFootage) : null,
-            mappingScheduledAt: mappingDateTimeIso || null,
-          },
-          { merge: true },
-        );
-
-        await addDoc(collection(db, "mappingRequests"), {
-          userId: currentUser.uid,
-          organizationName: organizationName.trim(),
-          contactName: contactName.trim(),
-          contactPhone: contactPhone.trim(),
-          locationAddress: locationAddress.trim(),
-          squareFootage: squareFootage ? Number(squareFootage) : null,
-          mappingScheduledAt: mappingDateTimeIso || null,
-          createdAt: serverTimestamp(),
-        });
       }
 
       if (typeof window !== "undefined") {
@@ -1055,6 +1210,7 @@ export default function Onboarding() {
     squareFootage,
     useContactForShipping,
     wantsSchedule,
+    persistOnboardingCompletion,
   ]);
 
   const renderAccountStep = () => {
@@ -1729,10 +1885,18 @@ export default function Onboarding() {
           </div>
         )}
 
+        {mappingOptIn === false && kitDeliveryPreviewDate && (
+          <KitArrivalCountdown
+            targetDate={kitDeliveryPreviewDate}
+            trackingUrl={DEFAULT_KIT_TRACKING_URL}
+            context="onboarding"
+          />
+        )}
+
         {totalDueToday === 0 && (
           <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 p-4">
             <p className="text-sm text-emerald-200">
-              {selectedKit.name === "Starter kit (4 QR kits)" 
+              {selectedKit.name === "Starter kit (4 QR kits)"
                 ? "Your Starter Kit is included at no charge! " 
                 : "No charges today. "}
               Monthly billing begins once your kits are activated.
@@ -1844,6 +2008,14 @@ export default function Onboarding() {
       : stepOrder.length === 5
         ? "grid-cols-5"
         : "grid-cols-4";
+
+  useEffect(() => {
+    return () => {
+      if (redirectTimerRef.current !== null) {
+        window.clearTimeout(redirectTimerRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="relative flex min-h-screen flex-col bg-[#050814] text-slate-100">

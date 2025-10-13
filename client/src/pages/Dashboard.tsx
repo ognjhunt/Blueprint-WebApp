@@ -4,7 +4,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import GeminiChat from "@/components/GeminiChat";
 import GeminiMultimodal from "@/components/GeminiMultimodal";
 import { motion, AnimatePresence } from "framer-motion";
@@ -90,6 +90,9 @@ import {
 } from "firebase/firestore";
 import ScreenShareButton from "@/components/ScreenShareButton";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import KitArrivalCountdown, {
+  DEFAULT_KIT_TRACKING_URL,
+} from "@/components/KitArrivalCountdown";
 
 import {
   getGoogleGenerativeAiKey,
@@ -348,10 +351,86 @@ export default function Dashboard() {
     sessionGrowth?: number;
     newSessionsThisMonth?: number;
     ratingGrowth?: number;
+    mappingOptIn?: boolean | null;
+    kitDeliveryEstimate?: Date | FirestoreTimestamp | null;
+    kitTrackingUrl?: string | null;
+    subscriptionStartEstimate?: Date | FirestoreTimestamp | null;
     [key: string]: any; // Allow for additional properties
   }
 
   const [userData, setUserData] = useState<UserData | null>(null);
+
+  const kitDeliveryDate = useMemo(() => {
+    if (!userData?.kitDeliveryEstimate) {
+      return null;
+    }
+
+    const value = userData.kitDeliveryEstimate;
+
+    if (value instanceof Date) {
+      return value;
+    }
+
+    if (value && typeof (value as FirestoreTimestamp).toDate === "function") {
+      try {
+        return (value as FirestoreTimestamp).toDate();
+      } catch (error) {
+        console.error("Unable to convert kitDeliveryEstimate to Date:", error);
+      }
+    }
+
+    const parsed = new Date(value as unknown as string);
+    if (Number.isNaN(parsed.getTime())) {
+      console.error("Unable to parse kitDeliveryEstimate value:", value);
+      return null;
+    }
+
+    return parsed;
+  }, [userData?.kitDeliveryEstimate]);
+
+  const subscriptionStartEstimate = useMemo(() => {
+    if (!userData?.subscriptionStartEstimate) {
+      return kitDeliveryDate;
+    }
+
+    const value = userData.subscriptionStartEstimate;
+
+    if (value instanceof Date) {
+      return value;
+    }
+
+    if (value && typeof (value as FirestoreTimestamp).toDate === "function") {
+      try {
+        return (value as FirestoreTimestamp).toDate();
+      } catch (error) {
+        console.error(
+          "Unable to convert subscriptionStartEstimate to Date:",
+          error,
+        );
+      }
+    }
+
+    const parsed = new Date(value as unknown as string);
+    if (Number.isNaN(parsed.getTime())) {
+      console.error("Unable to parse subscriptionStartEstimate value:", value);
+      return kitDeliveryDate;
+    }
+
+    return parsed;
+  }, [kitDeliveryDate, userData?.subscriptionStartEstimate]);
+
+  const kitTrackingUrl = useMemo(
+    () => userData?.kitTrackingUrl || DEFAULT_KIT_TRACKING_URL,
+    [userData?.kitTrackingUrl],
+  );
+
+  const shouldShowKitCountdown = useMemo(
+    () =>
+      userData?.mappingOptIn === false &&
+      Boolean(kitDeliveryDate) &&
+      !isWaitingForMapping,
+    [kitDeliveryDate, isWaitingForMapping, userData?.mappingOptIn],
+  );
 
   /**
    * Formats a given date into a "time ago" string (e.g., "2 hours ago", "3 days ago").
@@ -1710,6 +1789,34 @@ export default function Dashboard() {
                             </CardContent>
                           </Card>
                         </motion.div>
+
+                        {shouldShowKitCountdown && (
+                          <motion.div variants={itemVariants}>
+                            <KitArrivalCountdown
+                              targetDate={kitDeliveryDate}
+                              trackingUrl={kitTrackingUrl}
+                              context="dashboard"
+                            />
+                            {subscriptionStartEstimate && (
+                              <p className="mt-3 text-sm text-emerald-100/80">
+                                Subscription set to activate around{" "}
+                                <span className="font-semibold text-white">
+                                  {subscriptionStartEstimate.toLocaleString(
+                                    "en-US",
+                                    {
+                                      weekday: "short",
+                                      month: "short",
+                                      day: "numeric",
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                    },
+                                  )}
+                                </span>
+                                .
+                              </p>
+                            )}
+                          </motion.div>
+                        )}
 
                         {/* Top Performing Blueprints */}
                         <motion.div variants={itemVariants}>
