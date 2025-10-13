@@ -1656,12 +1656,14 @@ export default function Onboarding() {
             Each QR kit includes a professionally designed poster with your venue branding
           </p>
         </div>
-        <div className="overflow-hidden rounded-xl border border-white/10 bg-black/30">
-          <img 
-            src="/qr-kit-example.png" 
-            alt="Example of Blueprint QR kit poster" 
-            className="w-full h-auto"
-          />
+        <div className="flex justify-center">
+          <div className="w-full max-w-sm overflow-hidden rounded-xl border border-white/10 bg-black/30">
+            <img 
+              src="/qr-kit-example.png" 
+              alt="Example of Blueprint QR kit poster" 
+              className="w-full h-auto"
+            />
+          </div>
         </div>
       </div>
 
