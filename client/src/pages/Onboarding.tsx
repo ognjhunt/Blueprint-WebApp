@@ -32,35 +32,42 @@ import { db } from "@/lib/firebase";
 import { getGoogleMapsApiKey } from "@/lib/client-env";
 
 const ONBOARDING_FEE = 499.99;
-const MONTHLY_RATE = 49.99;
 const INCLUDED_WEEKLY_HOURS = 40;
 const EXTRA_HOURLY_RATE = 1.25;
 
 const CHECKOUT_STORAGE_KEY = "blueprintCheckoutContext";
 
-const QR_KITS = [
+type PlanDefinition = {
+  id: string;
+  name: string;
+  monthlyPrice: number;
+  includedKitQuantity: number;
+  upgradeSurcharge: number;
+};
+
+const PLANS: PlanDefinition[] = [
   {
     id: "starter",
-    name: "Starter Kit",
-    description: "10 QR kits for intimate spaces or pilots.",
-    price: 0,
-    includedCodes: "10 codes",
+    name: "Blueprint Care Starter",
+    monthlyPrice: 49.99,
+    includedKitQuantity: 4,
+    upgradeSurcharge: 0,
   },
   {
     id: "growth",
-    name: "Growth Kit",
-    description: "50 QR kits for multi-room venues or small chains.",
-    price: 199,
-    includedCodes: "50 codes",
+    name: "Blueprint Care + 8 kits",
+    monthlyPrice: 64.99,
+    includedKitQuantity: 8,
+    upgradeSurcharge: 15,
   },
   {
     id: "enterprise",
-    name: "Enterprise Kit",
-    description: "200 QR kits for campuses, stadiums, or hospitality portfolios.",
-    price: 349,
-    includedCodes: "200 codes",
+    name: "Blueprint Care + 16 kits",
+    monthlyPrice: 94.99,
+    includedKitQuantity: 16,
+    upgradeSurcharge: 45,
   },
-] as const;
+];
 
 const MAPPING_RECOMMENDED_TYPES = new Set([
   "museum",
@@ -183,7 +190,7 @@ export default function Onboarding() {
   const [mappingDate, setMappingDate] = useState("");
   const [mappingTime, setMappingTime] = useState("");
 
-  const [selectedKitId, setSelectedKitId] = useState<string>(QR_KITS[0].id);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>(PLANS[0].id);
   const [useContactForShipping, setUseContactForShipping] = useState(true);
   const [shippingName, setShippingName] = useState("");
   const [shippingLine1, setShippingLine1] = useState("");
@@ -373,9 +380,9 @@ export default function Onboarding() {
     }
   }, [mappingOptIn]);
 
-  const selectedKit = useMemo(
-    () => QR_KITS.find((kit) => kit.id === selectedKitId) ?? QR_KITS[0],
-    [selectedKitId],
+  const selectedPlan = useMemo(
+    () => PLANS.find((plan) => plan.id === selectedPlanId) ?? PLANS[0],
+    [selectedPlanId],
   );
 
   useEffect(() => {
@@ -399,6 +406,7 @@ export default function Onboarding() {
         squareFootage: string;
         mappingDate: string;
         mappingTime: string;
+        selectedPlanId: string;
         selectedKitId: string;
         useContactForShipping: boolean;
         shippingName: string;
@@ -438,10 +446,15 @@ export default function Onboarding() {
       if (typeof parsed.mappingTime === "string") {
         setMappingTime(parsed.mappingTime);
       }
-      if (typeof parsed.selectedKitId === "string") {
-        const kitExists = QR_KITS.some((kit) => kit.id === parsed.selectedKitId);
-        if (kitExists) {
-          setSelectedKitId(parsed.selectedKitId);
+      if (typeof parsed.selectedPlanId === "string") {
+        const planExists = PLANS.some((plan) => plan.id === parsed.selectedPlanId);
+        if (planExists) {
+          setSelectedPlanId(parsed.selectedPlanId);
+        }
+      } else if (typeof parsed.selectedKitId === "string") {
+        const planExists = PLANS.some((plan) => plan.id === parsed.selectedKitId);
+        if (planExists) {
+          setSelectedPlanId(parsed.selectedKitId);
         }
       }
       if (typeof parsed.useContactForShipping === "boolean") {
@@ -543,9 +556,7 @@ export default function Onboarding() {
     useContactForShipping,
   ]);
 
-  const subtotal = useMemo(() => ONBOARDING_FEE + selectedKit.price, [
-    selectedKit.price,
-  ]);
+  const totalDueToday = useMemo(() => ONBOARDING_FEE, []);
 
   const handleSelectPrediction = async (
     prediction: PlacesAutocompleteSuggestion,
@@ -666,8 +677,8 @@ export default function Onboarding() {
     }
 
     if (currentStep === "qr") {
-      if (!selectedKitId) {
-        setPlaceError("Select a QR kit to continue.");
+      if (!selectedPlanId) {
+        setPlaceError("Select a Blueprint Care plan to continue.");
         return;
       }
       if (!useContactForShipping) {
@@ -742,7 +753,8 @@ export default function Onboarding() {
             squareFootage,
             mappingDate,
             mappingTime,
-            selectedKitId,
+            selectedPlanId,
+            selectedKitId: selectedPlanId,
             useContactForShipping,
             shippingName,
             shippingLine1,
@@ -770,7 +782,7 @@ export default function Onboarding() {
         body: JSON.stringify({
           sessionType: "onboarding",
           onboardingFee: ONBOARDING_FEE,
-          monthlyPrice: MONTHLY_RATE,
+          monthlyPrice: selectedPlan.monthlyPrice,
           includedHours: INCLUDED_WEEKLY_HOURS,
           extraHourlyRate: EXTRA_HOURLY_RATE,
           organizationName: organizationName.trim(),
@@ -778,9 +790,16 @@ export default function Onboarding() {
           contactEmail: email.trim(),
           mappingDateTime: mappingDateTimeIso,
           mappingOptIn: mappingOptIn === true,
+          plan: {
+            id: selectedPlan.id,
+            name: selectedPlan.name,
+            monthlyPrice: selectedPlan.monthlyPrice,
+            includedKitQuantity: selectedPlan.includedKitQuantity,
+            upgradeSurcharge: selectedPlan.upgradeSurcharge,
+          },
           qrKit: {
-            name: selectedKit.name,
-            price: selectedKit.price,
+            name: `Starter kit (${selectedPlan.includedKitQuantity} QR kits)`,
+            price: 0,
           },
           shippingAddress,
           successPath,
@@ -858,49 +877,51 @@ export default function Onboarding() {
     }
   };
 
-  const renderAccountStep = () => (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold text-slate-900">
-          Let's set up your Blueprint account
-        </h2>
-        <p className="text-slate-500">
-          We'll email you a link to set your password after you create your account.
-        </p>
-      </div>
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="organization">Organization name</Label>
-          <Input
-            id="organization"
-            value={organizationName}
-            onChange={(event) => setOrganizationName(event.target.value)}
-            placeholder="Durham Museum of Science"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="email">Work email</Label>
-          <Input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="you@organization.com"
-          />
-        </div>
-        {accountError && (
-          <p className="text-sm text-red-600" role="alert">
-            {accountError}
+  const renderAccountStep = () => {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-semibold text-slate-900">
+            Let's set up your Blueprint account
+          </h2>
+          <p className="text-slate-500">
+            We'll email you a link to set your password after you create your account.
           </p>
-        )}
+        </div>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="organization">Organization name</Label>
+            <Input
+              id="organization"
+              value={organizationName}
+              onChange={(event) => setOrganizationName(event.target.value)}
+              placeholder="Durham Museum of Science"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="email">Work email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="you@organization.com"
+            />
+          </div>
+          {accountError && (
+            <p className="text-sm text-red-600" role="alert">
+              {accountError}
+            </p>
+          )}
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button onClick={handleNext} disabled={isCreatingAccount}>
+            {isCreatingAccount ? "Creating account…" : "Continue"}
+          </Button>
+        </div>
       </div>
-      <div className="flex justify-end gap-2">
-        <Button onClick={handleNext} disabled={isCreatingAccount}>
-          {isCreatingAccount ? "Creating account…" : "Continue"}
-        </Button>
-      </div>
-    </div>
-  );
+    );
+  };
 
   const renderMappingStep = () => (
     <div className="space-y-6">
@@ -1137,35 +1158,59 @@ export default function Onboarding() {
         </p>
       </div>
       <div className="space-y-3">
-        {QR_KITS.map((kit) => (
-          <button
-            key={kit.id}
-            type="button"
-            onClick={() => {
-              setSelectedKitId(kit.id);
-              setPlaceError(null);
-            }}
-            className={`w-full rounded-lg border p-4 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-500 ${
-              selectedKitId === kit.id
-                ? "border-slate-900 bg-slate-900/5"
-                : "border-slate-200 hover:border-slate-300"
-            }`}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="font-semibold text-slate-900">{kit.name}</p>
-                <p className="text-sm text-slate-500">{kit.description}</p>
+        {PLANS.map((plan) => {
+          const isSelected = selectedPlanId === plan.id;
+          const isBasePlan = plan.id === PLANS[0].id;
+          const upgradeCopy = isBasePlan
+            ? "Included in the base Blueprint Care subscription."
+            : `Adds ${formatUsd(plan.upgradeSurcharge)} / month for more kits.`;
+          const description = plan.includedKitQuantity >= 16
+            ? "Campus, arena, or large-format coverage."
+            : plan.includedKitQuantity >= 8
+            ? "Extra kits for multi-room venues or dual locations."
+            : "Launch-ready coverage for your first location.";
+
+          return (
+            <button
+              key={plan.id}
+              type="button"
+              onClick={() => {
+                setSelectedPlanId(plan.id);
+                setPlaceError(null);
+              }}
+              className={`w-full rounded-lg border p-4 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-500 ${
+                isSelected
+                  ? "border-slate-900 bg-slate-900/5"
+                  : "border-slate-200 hover:border-slate-300"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="font-semibold text-slate-900">
+                    {plan.includedKitQuantity} QR kits
+                  </p>
+                  <p className="text-sm text-slate-500">{description}</p>
+                  <p className="text-xs text-slate-500">{upgradeCopy}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold text-slate-900">
+                    {formatUsd(plan.monthlyPrice)} / month
+                  </p>
+                  {!isBasePlan && (
+                    <p className="text-xs text-slate-500">
+                      +{formatUsd(plan.upgradeSurcharge)} vs. starter
+                    </p>
+                  )}
+                </div>
               </div>
-              <div className="text-right">
-                <p className="font-semibold text-slate-900">
-                  {kit.price === 0 ? "Included" : formatUsd(kit.price)}
-                </p>
-                <p className="text-xs text-slate-500">{kit.includedCodes}</p>
-              </div>
-            </div>
-          </button>
-        ))}
+            </button>
+          );
+        })}
       </div>
+      <p className="text-sm text-slate-500">
+        We automatically share shipping progress and activation notifications so your
+        team knows when every QR kit goes live.
+      </p>
       <div className="space-y-3 rounded-lg border border-slate-200 p-4">
         <div className="flex items-center justify-between">
           <div>
@@ -1253,35 +1298,53 @@ export default function Onboarding() {
     </div>
   );
 
-  const renderPaymentStep = () => (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold text-slate-900">
-          Plan & payment
-        </h2>
-        <p className="text-slate-500">
-          Complete onboarding and start Blueprint Care for {formatUsd(MONTHLY_RATE)} per month.
-        </p>
-      </div>
-      <div className="space-y-4 rounded-lg border border-slate-200 p-4">
-        <div className="flex items-center justify-between">
-          <span className="text-slate-600">Onboarding experience</span>
-          <span className="font-medium text-slate-900">{formatUsd(ONBOARDING_FEE)}</span>
+  const renderPaymentStep = () => {
+    const isBasePlan = selectedPlan.id === PLANS[0].id;
+    const kitSummary = `Starter kit (${selectedPlan.includedKitQuantity} QR kits)`;
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-semibold text-slate-900">
+            Plan & payment
+          </h2>
+          <p className="text-slate-500">
+            Review your Blueprint Care plan details. Billing for the monthly subscription
+            starts after your kits are activated.
+          </p>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-slate-600">{selectedKit.name}</span>
-          <span className="font-medium text-slate-900">
-            {selectedKit.price === 0 ? "Included" : formatUsd(selectedKit.price)}
-          </span>
+        <div className="space-y-4 rounded-lg border border-slate-200 p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-600">Onboarding experience</span>
+            <span className="font-medium text-slate-900">{formatUsd(ONBOARDING_FEE)}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-slate-600">{kitSummary}</span>
+            <span className="font-medium text-slate-900">Included</span>
+          </div>
+          <div className="flex items-center justify-between border-t border-slate-200 pt-3 text-base font-semibold text-slate-900">
+            <span>Total due today</span>
+            <span>{formatUsd(totalDueToday)}</span>
+          </div>
         </div>
-        <div className="border-t border-slate-200 pt-3 text-sm text-slate-500">
-          Recurring Blueprint Care subscription: {formatUsd(MONTHLY_RATE)} / month.
+        <div className="space-y-3 rounded-lg border border-slate-200 p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-600">Blueprint Care plan</span>
+            <span className="font-medium text-slate-900">
+              {formatUsd(selectedPlan.monthlyPrice)} / month
+            </span>
+          </div>
+          <p className="text-sm text-slate-500">
+            {isBasePlan
+              ? `Includes your starter kit with ${selectedPlan.includedKitQuantity} QR kits.`
+              : `Includes ${selectedPlan.includedKitQuantity} QR kits and adds ${formatUsd(
+                  selectedPlan.upgradeSurcharge,
+                )} / month for additional coverage.`}
+          </p>
+          <p className="text-sm text-slate-500">
+            Monthly billing only begins after your team activates the delivered kits.
+          </p>
         </div>
-        <div className="flex items-center justify-between border-t border-slate-200 pt-3 text-base font-semibold text-slate-900">
-          <span>Total due today</span>
-          <span>{formatUsd(subtotal)}</span>
-        </div>
-      </div>
       {shippingAddress?.line1 && (
         <div className="rounded-lg border border-slate-200 p-4 text-sm text-slate-600">
           <p className="font-medium text-slate-900">Shipping to</p>
@@ -1321,6 +1384,7 @@ export default function Onboarding() {
       </div>
     </div>
   );
+  };
 
   const renderStep = () => {
     switch (currentStep) {
