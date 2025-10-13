@@ -103,19 +103,19 @@ export default async function handler(req: Request, res: Response) {
     const originBase = resolveBaseOrigin(originHeader);
 
     if (sessionType === "onboarding") {
-      const onboardingFee = typeof body.onboardingFee === "number" ? body.onboardingFee : 499.99;
+      const onboardingFee = typeof body.onboardingFee === "number" ? body.onboardingFee : 0;
       const planId =
         typeof body.planId === "string" && body.planId.trim().length > 0
           ? body.planId.trim()
-          : "blueprint-care";
+          : "starter";
       const planName =
         typeof body.planName === "string" && body.planName.trim().length > 0
           ? body.planName.trim()
-          : "Blueprint Care";
+          : "Starter";
       const monthlyPrice =
         typeof body.monthlyPrice === "number" && Number.isFinite(body.monthlyPrice)
           ? body.monthlyPrice
-          : 49.99;
+          : 99;
       const kitUpgradeSurcharge =
         typeof body.kitUpgradeSurcharge === "number" && Number.isFinite(body.kitUpgradeSurcharge)
           ? Math.max(body.kitUpgradeSurcharge, 0)
@@ -146,8 +146,10 @@ export default async function handler(req: Request, res: Response) {
           : "";
       const qrKitName = body.qrKit?.name || "Blueprint QR Kit";
 
-      const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
-        {
+      const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+
+      if (onboardingFee > 0) {
+        lineItems.push({
           price_data: {
             currency: "usd",
             product_data: {
@@ -157,8 +159,8 @@ export default async function handler(req: Request, res: Response) {
             unit_amount: Math.round(onboardingFee * 100),
           },
           quantity: 1,
-        },
-      ];
+        });
+      }
 
       if (kitUpgradeSurcharge > 0) {
         lineItems.push({

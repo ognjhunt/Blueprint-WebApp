@@ -68,7 +68,7 @@ import {
 import { triggerPostSignupWorkflowsDetached } from "@/utils/postSignupWorkflows";
 import { getGoogleMapsApiKey } from "@/lib/client-env";
 
-const ONBOARDING_FEE = 499.99;
+const ONBOARDING_FEE = 0;
 const MONTHLY_RATE = 49.99;
 const INCLUDED_WEEKLY_HOURS = 40;
 const EXTRA_HOURLY_RATE = 1.25;

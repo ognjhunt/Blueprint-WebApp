@@ -26,11 +26,26 @@ import {
 import { db } from "@/lib/firebase";
 import { getGoogleMapsApiKey } from "@/lib/client-env";
 
-const ONBOARDING_FEE = 499.99;
-const MONTHLY_RATE = 99;
 const MAPPING_FEE = 99;
 const INCLUDED_WEEKLY_HOURS = 40;
 const EXTRA_HOURLY_RATE = 1.25;
+
+const SUBSCRIPTION_TIERS = [
+  {
+    id: "starter",
+    name: "Starter",
+    price: 99,
+    mauLimit: 100,
+    description: "Supports up to 100 MAUs",
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    price: 149,
+    mauLimit: 250,
+    description: "Supports up to 250 MAUs",
+  },
+] as const;
 
 const CHECKOUT_STORAGE_KEY = "blueprintCheckoutContext";
 
@@ -67,9 +82,9 @@ const KIT_OPTIONS: KitOption[] = [
 ];
 
 const DEFAULT_CARE_PLAN = {
-  id: "blueprint-care",
-  name: "Blueprint Care",
-  monthlyPrice: MONTHLY_RATE,
+  id: "starter",
+  name: "Starter",
+  monthlyPrice: SUBSCRIPTION_TIERS[0].price,
 } as const;
 
 const MAPPING_RECOMMENDED_TYPES = new Set([
@@ -650,7 +665,7 @@ export default function Onboarding() {
   );
 
   const totalDueToday = useMemo(
-    () => ONBOARDING_FEE + kitUpgradeFee + mappingFeeDueToday,
+    () => kitUpgradeFee + mappingFeeDueToday,
     [kitUpgradeFee, mappingFeeDueToday],
   );
 
@@ -814,6 +829,36 @@ export default function Onboarding() {
       setIsRedirectingToStripe(true);
       setPaymentError(null);
 
+      // If no charges today, skip Stripe and go directly to dashboard
+      if (totalDueToday === 0) {
+        if (currentUser) {
+          await setDoc(
+            doc(db, "onboardingProfiles", currentUser.uid),
+            {
+              organizationName: organizationName.trim(),
+              mappingOptIn: mappingOptIn || false,
+              recommendedMapping,
+              planId: selectedPlanId,
+              planName: selectedPlanName,
+              planMonthlyPrice,
+              selectedKitId,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true },
+          );
+        }
+        
+        if (typeof window !== "undefined") {
+          window.sessionStorage.removeItem(CHECKOUT_STORAGE_KEY);
+        }
+        
+        setPaymentStatus("success");
+        setTimeout(() => {
+          setLocation("/dashboard");
+        }, 1500);
+        return;
+      }
+
       if (currentUser && mappingOptIn) {
         await setDoc(
           doc(db, "onboardingProfiles", currentUser.uid),
@@ -890,13 +935,13 @@ export default function Onboarding() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sessionType: "onboarding",
-          onboardingFee: ONBOARDING_FEE,
+          onboardingFee: 0,
           monthlyPrice: planMonthlyPrice,
           includedHours: INCLUDED_WEEKLY_HOURS,
           extraHourlyRate: EXTRA_HOURLY_RATE,
           planId: selectedPlanId,
           planName: selectedPlanName,
-          kitUpgradeSurcharge: kitUpgradeFee,
+          kitUpgradeSurcharge: kitUpgradeFee + mappingFeeDueToday,
           mappingFee: mappingFeeDueToday,
           organizationName: organizationName.trim(),
           contactName: mappingOptIn ? contactName.trim() : "",
@@ -913,7 +958,7 @@ export default function Onboarding() {
           qrKit: {
             id: selectedKit.id,
             name: selectedKit.name,
-            price: kitUpgradeFee,
+            price: kitUpgradeFee + mappingFeeDueToday,
           },
           shippingAddress,
           successPath,
@@ -1619,41 +1664,86 @@ export default function Onboarding() {
           </p>
           <h2 className="text-3xl font-semibold text-white">Plan & payment</h2>
           <p className="text-sm text-slate-300">
-            Billing for Blueprint Care starts after your kits are activated.
-            Today's checkout covers onboarding and any kit upgrade you selected.
+            Monthly billing begins once your kits are delivered and activated. Today's checkout covers any kit upgrade you selected.
           </p>
         </div>
 
-        <div className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
-          <div className="flex items-center justify-between text-sm text-slate-200">
-            <span>Onboarding experience</span>
-            <span className="font-medium text-white">
-              {formatUsd(ONBOARDING_FEE)}
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-sm text-slate-200">
-            <span>{kitSummary}</span>
-            <span className="font-medium text-white">
-              {kitUpgradeFee > 0 ? `+${formatUsd(kitUpgradeFee)}` : "Included"}
-            </span>
-          </div>
-          {mappingOptIn && (
-            <div className="flex items-center justify-between text-sm text-slate-200">
-              <span>Blueprint mapping visit</span>
-              <span className="font-medium text-white">
-                +{formatUsd(mappingFeeDueToday)}
-              </span>
-            </div>
-          )}
-          <div className="flex items-center justify-between border-t border-white/10 pt-3 text-base font-semibold text-white">
-            <span>Total due today</span>
-            <span>{formatUsd(totalDueToday)}</span>
+        {/* Subscription tier selection */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-white">Choose your subscription tier</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {SUBSCRIPTION_TIERS.map((tier) => (
+              <button
+                key={tier.id}
+                type="button"
+                onClick={() => {
+                  setSelectedPlanId(tier.id);
+                  setSelectedPlanName(tier.name);
+                  setPlanMonthlyPrice(tier.price);
+                }}
+                className={`rounded-2xl border p-5 text-left transition-all ${
+                  selectedPlanId === tier.id
+                    ? "border-emerald-400/60 bg-emerald-500/10 shadow-lg"
+                    : "border-white/10 bg-white/5 hover:border-white/20"
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <p className="text-xl font-semibold text-white">{tier.name}</p>
+                    <p className="text-sm text-slate-300">{tier.description}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-white">${tier.price}</p>
+                    <p className="text-xs text-slate-400">/month</p>
+                  </div>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
 
+        {/* Today's charges */}
+        {totalDueToday > 0 && (
+          <div className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
+            <h3 className="text-sm font-semibold text-white">Today's charges</h3>
+            {kitUpgradeFee > 0 && (
+              <div className="flex items-center justify-between text-sm text-slate-200">
+                <span>{kitSummary} upgrade</span>
+                <span className="font-medium text-white">
+                  {formatUsd(kitUpgradeFee)}
+                </span>
+              </div>
+            )}
+            {mappingOptIn && (
+              <div className="flex items-center justify-between text-sm text-slate-200">
+                <span>Blueprint mapping visit</span>
+                <span className="font-medium text-white">
+                  {formatUsd(mappingFeeDueToday)}
+                </span>
+              </div>
+            )}
+            <div className="flex items-center justify-between border-t border-white/10 pt-3 text-base font-semibold text-white">
+              <span>Total due today</span>
+              <span>{formatUsd(totalDueToday)}</span>
+            </div>
+          </div>
+        )}
+
+        {totalDueToday === 0 && (
+          <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 p-4">
+            <p className="text-sm text-emerald-200">
+              {selectedKit.name === "Starter kit (4 QR kits)" 
+                ? "Your Starter Kit is included at no charge! " 
+                : "No charges today. "}
+              Monthly billing begins once your kits are activated.
+            </p>
+          </div>
+        )}
+
+        {/* Monthly subscription summary */}
         <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
           <div className="flex items-center justify-between text-sm text-slate-200">
-            <span>Blueprint Care</span>
+            <span>{selectedPlanName} subscription</span>
             <span className="font-medium text-white">
               {formatUsd(planMonthlyPrice)} / month
             </span>
@@ -1711,7 +1801,9 @@ export default function Onboarding() {
             onClick={startStripeCheckout}
             disabled={isRedirectingToStripe}
           >
-            {isRedirectingToStripe ? "Redirecting…" : "Start checkout"}
+            {isRedirectingToStripe 
+              ? (totalDueToday === 0 ? "Completing setup…" : "Redirecting…")
+              : (totalDueToday === 0 ? "Complete setup" : "Start checkout")}
           </Button>
         </div>
       </div>
