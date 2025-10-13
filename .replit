@@ -19,16 +19,16 @@ localPort = 34801
 externalPort = 3002
 
 [[ports]]
-localPort = 38999
-externalPort = 5000
-
-[[ports]]
 localPort = 41313
 externalPort = 3001
 
 [[ports]]
 localPort = 42185
 externalPort = 4200
+
+[[ports]]
+localPort = 43321
+externalPort = 5000
 
 [[ports]]
 localPort = 45411
@@ -63,13 +63,13 @@ args = "Start application"
 name = "Start application"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "node --max-old-space-size=4096 node_modules/.bin/tsx watch --clear-screen=false --exclude vite.config.ts.* server/index.ts"
-waitForPort = 5000
-
 [workflows.workflow.metadata]
 outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "NODE_OPTIONS='--max-old-space-size=4096' node --max-old-space-size=4096 node_modules/.bin/tsx watch --clear-screen=false --exclude vite.config.ts.* server/index.ts"
+waitForPort = 5000
 
 [agent]
 integrations = ["javascript_openai:1.0.0", "javascript_gemini:1.0.0"]
