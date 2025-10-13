@@ -69,6 +69,18 @@ const PLANS: PlanDefinition[] = [
   },
 ];
 
+const DEFAULT_CARE_PLAN = {
+  id: "blueprint-care",
+  name: "Blueprint Care",
+  monthlyPrice: MONTHLY_RATE,
+} as const;
+
+const KIT_UPGRADE_SURCHARGES: Record<(typeof QR_KITS)[number]["id"], number> = {
+  starter: 0,
+  growth: 15,
+  enterprise: 45,
+};
+
 const MAPPING_RECOMMENDED_TYPES = new Set([
   "museum",
   "art_gallery",
@@ -191,6 +203,16 @@ export default function Onboarding() {
   const [mappingTime, setMappingTime] = useState("");
 
   const [selectedPlanId, setSelectedPlanId] = useState<string>(PLANS[0].id);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>(
+    DEFAULT_CARE_PLAN.id,
+  );
+  const [selectedPlanName, setSelectedPlanName] = useState<string>(
+    DEFAULT_CARE_PLAN.name,
+  );
+  const [planMonthlyPrice, setPlanMonthlyPrice] = useState<number>(
+    DEFAULT_CARE_PLAN.monthlyPrice,
+  );
+  const [selectedKitId, setSelectedKitId] = useState<string>(QR_KITS[0].id);
   const [useContactForShipping, setUseContactForShipping] = useState(true);
   const [shippingName, setShippingName] = useState("");
   const [shippingLine1, setShippingLine1] = useState("");
@@ -385,6 +407,11 @@ export default function Onboarding() {
     [selectedPlanId],
   );
 
+  const kitUpgradeSurcharge = useMemo(
+    () => KIT_UPGRADE_SURCHARGES[selectedKit.id] ?? 0,
+    [selectedKit.id],
+  );
+
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
@@ -407,6 +434,8 @@ export default function Onboarding() {
         mappingDate: string;
         mappingTime: string;
         selectedPlanId: string;
+        selectedPlanName: string;
+        planMonthlyPrice: number;
         selectedKitId: string;
         useContactForShipping: boolean;
         shippingName: string;
@@ -455,6 +484,22 @@ export default function Onboarding() {
         const planExists = PLANS.some((plan) => plan.id === parsed.selectedKitId);
         if (planExists) {
           setSelectedPlanId(parsed.selectedKitId);
+      if (typeof parsed.selectedPlanId === "string" && parsed.selectedPlanId) {
+        setSelectedPlanId(parsed.selectedPlanId);
+      }
+      if (typeof parsed.selectedPlanName === "string" && parsed.selectedPlanName) {
+        setSelectedPlanName(parsed.selectedPlanName);
+      }
+      if (
+        typeof parsed.planMonthlyPrice === "number" &&
+        Number.isFinite(parsed.planMonthlyPrice)
+      ) {
+        setPlanMonthlyPrice(parsed.planMonthlyPrice);
+      }
+      if (typeof parsed.selectedKitId === "string") {
+        const kitExists = QR_KITS.some((kit) => kit.id === parsed.selectedKitId);
+        if (kitExists) {
+          setSelectedKitId(parsed.selectedKitId);
         }
       }
       if (typeof parsed.useContactForShipping === "boolean") {
@@ -491,6 +536,39 @@ export default function Onboarding() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const planParam = params.get("planId") ?? params.get("plan");
+    const planNameParam = params.get("planName");
+    const planPriceParam = params.get("planPrice") ?? params.get("price");
+
+    if (planParam) {
+      setSelectedPlanId(planParam);
+      if (!planNameParam) {
+        const derivedName = planParam
+          .split(/[-_]/)
+          .filter(Boolean)
+          .map((segment) =>
+            segment.length > 0
+              ? segment.charAt(0).toUpperCase() + segment.slice(1)
+              : segment,
+          )
+          .join(" ");
+        if (derivedName) {
+          setSelectedPlanName(derivedName);
+        }
+      }
+    }
+
+    if (planNameParam) {
+      setSelectedPlanName(planNameParam);
+    }
+
+    if (planPriceParam) {
+      const parsedPrice = Number.parseFloat(planPriceParam);
+      if (Number.isFinite(parsedPrice) && parsedPrice >= 0) {
+        setPlanMonthlyPrice(parsedPrice);
+      }
+    }
+
     const checkoutStatus = params.get("checkout");
     if (checkoutStatus === "success") {
       if (typeof window !== "undefined") {
@@ -755,6 +833,9 @@ export default function Onboarding() {
             mappingTime,
             selectedPlanId,
             selectedKitId: selectedPlanId,
+            selectedPlanName,
+            planMonthlyPrice,
+            selectedKitId,
             useContactForShipping,
             shippingName,
             shippingLine1,
@@ -785,6 +866,10 @@ export default function Onboarding() {
           monthlyPrice: selectedPlan.monthlyPrice,
           includedHours: INCLUDED_WEEKLY_HOURS,
           extraHourlyRate: EXTRA_HOURLY_RATE,
+          planId: selectedPlanId,
+          planName: selectedPlanName,
+          monthlyPrice: planMonthlyPrice,
+          kitUpgradeSurcharge,
           organizationName: organizationName.trim(),
           contactName: mappingOptIn ? contactName.trim() : "",
           contactEmail: email.trim(),
@@ -800,6 +885,9 @@ export default function Onboarding() {
           qrKit: {
             name: `Starter kit (${selectedPlan.includedKitQuantity} QR kits)`,
             price: 0,
+            id: selectedKit.id,
+            name: selectedKit.name,
+            price: selectedKit.price,
           },
           shippingAddress,
           successPath,
