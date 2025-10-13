@@ -11,12 +11,16 @@ type CheckoutRequestBody = {
   monthlyPrice?: number;
   includedHours?: number;
   extraHourlyRate?: number;
+  planId?: string;
+  planName?: string;
+  kitUpgradeSurcharge?: number;
   organizationName?: string;
   contactName?: string;
   contactEmail?: string;
   mappingDateTime?: string;
   mappingOptIn?: boolean;
   qrKit?: {
+    id?: string;
     name?: string;
     price?: number;
   };
@@ -100,9 +104,23 @@ export default async function handler(req: Request, res: Response) {
 
     if (sessionType === "onboarding") {
       const onboardingFee = typeof body.onboardingFee === "number" ? body.onboardingFee : 499.99;
-      const monthlyPrice = typeof body.monthlyPrice === "number" ? body.monthlyPrice : 49.99;
-      const includedHours = typeof body.includedHours === "number" ? body.includedHours : 40;
-      const extraHourlyRate = typeof body.extraHourlyRate === "number" ? body.extraHourlyRate : 1.25;
+      const planId =
+        typeof body.planId === "string" && body.planId.trim().length > 0
+          ? body.planId.trim()
+          : "blueprint-care";
+      const planName =
+        typeof body.planName === "string" && body.planName.trim().length > 0
+          ? body.planName.trim()
+          : "Blueprint Care";
+      const monthlyPrice =
+        typeof body.monthlyPrice === "number" && Number.isFinite(body.monthlyPrice)
+          ? body.monthlyPrice
+          : 49.99;
+      const kitUpgradeSurcharge =
+        typeof body.kitUpgradeSurcharge === "number" && Number.isFinite(body.kitUpgradeSurcharge)
+          ? Math.max(body.kitUpgradeSurcharge, 0)
+          : 0;
+      const monthlyPriceWithKit = monthlyPrice + kitUpgradeSurcharge;
 
       let billingAnchorText = "24 hours after onboarding";
       let trialEndUnix: number | undefined;
@@ -119,9 +137,13 @@ export default async function handler(req: Request, res: Response) {
       }
 
       const qrKitPrice =
-        typeof body.qrKit?.price === "number" && !Number.isNaN(body.qrKit.price)
+        typeof body.qrKit?.price === "number" && Number.isFinite(body.qrKit.price)
           ? body.qrKit.price
           : 0;
+      const qrKitId =
+        typeof body.qrKit?.id === "string" && body.qrKit.id.trim().length > 0
+          ? body.qrKit.id.trim()
+          : "";
       const qrKitName = body.qrKit?.name || "Blueprint QR Kit";
 
       const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
@@ -138,15 +160,15 @@ export default async function handler(req: Request, res: Response) {
         },
       ];
 
-      if (qrKitPrice > 0) {
+      if (kitUpgradeSurcharge > 0) {
         lineItems.push({
           price_data: {
             currency: "usd",
             product_data: {
-              name: qrKitName,
-              description: "Blueprint QR engagement kit",
+              name: `${qrKitName} upgrade`,
+              description: "One-time surcharge for QR kit upgrade",
             },
-            unit_amount: Math.round(qrKitPrice * 100),
+            unit_amount: Math.round(kitUpgradeSurcharge * 100),
           },
           quantity: 1,
         });
@@ -157,11 +179,15 @@ export default async function handler(req: Request, res: Response) {
         payment_method_types: ["card"],
         line_items: lineItems,
         metadata: {
-          plan: "blueprint-care",
+          plan: planId,
+          planId,
+          planName,
           onboardingFee: onboardingFee.toString(),
           monthlyPrice: monthlyPrice.toString(),
-          includedWeeklyHours: includedHours.toString(),
-          extraHourlyRate: extraHourlyRate.toString(),
+          planMonthlyPrice: monthlyPrice.toString(),
+          planMonthlyPriceWithKit: monthlyPriceWithKit.toString(),
+          kitUpgradeSurcharge: kitUpgradeSurcharge.toString(),
+          qrKitId,
           organizationName: body.organizationName || "",
           contactName: body.contactName || "",
           contactEmail: body.contactEmail || "",
@@ -171,7 +197,8 @@ export default async function handler(req: Request, res: Response) {
               ? body.mappingOptIn.toString()
               : "",
           qrKitName,
-          qrKitPrice: qrKitPrice ? qrKitPrice.toString() : "0",
+          qrKitBasePrice: qrKitPrice ? qrKitPrice.toString() : "0",
+          qrKitPrice: kitUpgradeSurcharge ? kitUpgradeSurcharge.toString() : "0",
           shippingName: body.shippingAddress?.name || "",
           shippingLine1: body.shippingAddress?.line1 || "",
           shippingLine2: body.shippingAddress?.line2 || "",
@@ -180,12 +207,13 @@ export default async function handler(req: Request, res: Response) {
           shippingPostalCode: body.shippingAddress?.postalCode || "",
           shippingCountry: body.shippingAddress?.country || "",
           subscriptionTrialEnd: trialEndUnix ? trialEndUnix.toString() : "",
+          billingAnchorText,
         },
         custom_text: {
           submit: {
-            message: `Your $${monthlyPrice.toFixed(
+            message: `Billing begins once your kits are delivered and activated. We'll notify you before the first $${monthlyPriceWithKit.toFixed(
               2,
-            )}/mo Blueprint Care plan begins ${billingAnchorText}.`,
+            )} charge.`,
           },
         },
         success_url: resolveUrl(
