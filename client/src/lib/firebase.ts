@@ -89,6 +89,10 @@ export interface UserData {
   uploadedContentCount: number;
   collectedContentCount: number;
   planType: string;
+  mappingOptIn?: boolean | null;
+  kitDeliveryEstimate?: Date | null;
+  kitTrackingUrl?: string | null;
+  subscriptionStartEstimate?: Date | null;
   credits: number;
   finishedOnboarding: boolean;
   hasEnteredNotes: boolean;
@@ -164,6 +168,10 @@ export const createUserDocument = async (
         uploadedContentCount: 0,
         collectedContentCount: 0,
         planType: "free",
+        mappingOptIn: null,
+        kitDeliveryEstimate: null,
+        kitTrackingUrl: null,
+        subscriptionStartEstimate: null,
         credits: 0,
         finishedOnboarding: false,
         hasEnteredNotes: false,
