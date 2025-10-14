@@ -302,21 +302,13 @@ export default function Home() {
                 booked on consecutive days (for example: map Monday at 5 PM,
                 demo Tuesday at 8 AM).
               </p>
-              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 justify-center">
+              <div className="mt-6 flex justify-center">
                 <Button
                   onClick={handleNavigateToLogin}
-                  className="h-12 w-full text-base rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white border-0 shadow-xl hover:shadow-2xl hover:scale-[1.02] transition will-change-transform"
+                  className="h-12 w-full sm:w-auto text-base rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white border-0 shadow-xl hover:shadow-2xl hover:scale-[1.02] transition will-change-transform px-8"
                 >
                   Get Started Today
                 </Button>
-                <a href="/pilot-program" className="w-full">
-                  <Button
-                    variant="outline"
-                    className="h-12 w-full text-base rounded-xl border-white/20 text-black hover:bg-white/10"
-                  >
-                    Learn How It Works
-                  </Button>
-                </a>
               </div>
             </div>
           </div>
