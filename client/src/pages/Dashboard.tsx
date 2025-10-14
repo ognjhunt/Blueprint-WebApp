@@ -1528,12 +1528,6 @@ export default function Dashboard() {
                         Workspace
                       </p>
                       <nav className="space-y-1">
-                        <Link href="/team-members">
-                          <div className="flex items-center px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/5 transition-colors cursor-pointer">
-                            <Users className="mr-3 h-5 w-5 text-slate-400" />
-                            Team Members
-                          </div>
-                        </Link>
                         <Link href="/settings">
                           <div className="flex items-center px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/5 transition-colors cursor-pointer">
                             <Settings className="mr-3 h-5 w-5 text-slate-400" />
@@ -1543,90 +1537,6 @@ export default function Dashboard() {
                       </nav>
                     </div>
 
-                    {/* Subscription Status */}
-                    <div className="border-t border-white/10 p-4">
-                      {userData?.planType === "pro" ? (
-                        <div className="bg-gradient-to-br from-emerald-500 to-cyan-600 rounded-lg p-4 text-white">
-                          <h3 className="font-semibold">Pro Subscription</h3>
-                          <p className="text-xs text-emerald-100 mt-1 mb-3">
-                            Valid until{" "}
-                            {userData?.planExpiryDate
-                              ? "toDate" in userData.planExpiryDate
-                                ? new Date(
-                                    userData.planExpiryDate.toDate(),
-                                  ).toLocaleDateString("en-US", {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                  })
-                                : new Date(
-                                    userData.planExpiryDate,
-                                  ).toLocaleDateString("en-US", {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                  })
-                              : "N/A"}
-                          </p>
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs font-medium">
-                              Usage: {userData?.planUsage || "0"}%
-                            </span>
-                            <span className="text-xs">
-                              {userData?.activeBlueprintsPercentage || "0"}%
-                              active
-                            </span>
-                          </div>
-                          <div className="w-full bg-white/20 rounded-full h-1.5 mt-1 mb-3">
-                            <div
-                              className="bg-white rounded-full h-1.5"
-                              style={{
-                                width: `${userData?.activeBlueprintsPercentage || 0}%`,
-                              }}
-                            ></div>
-                          </div>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="w-full bg-white/10 hover:bg-white/20 text-white border-0"
-                            onClick={() =>
-                              (window.location.href = "/manage-plan")
-                            }
-                          >
-                            Manage Plan
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg p-4 text-white">
-                          <h3 className="font-semibold">Free Tier</h3>
-                          <p className="text-xs text-cyan-100 mt-1 mb-3">
-                            Unlock more features with Pro
-                          </p>
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs font-medium">
-                              {totalBlueprints} / 3 Blueprints
-                            </span>
-                            <span className="text-xs">Limited features</span>
-                          </div>
-                          <div className="w-full bg-white/20 rounded-full h-1.5 mt-1 mb-3">
-                            <div
-                              className="bg-white rounded-full h-1.5"
-                              style={{
-                                width: `${Math.min((totalBlueprints / 3) * 100, 100)}%`,
-                              }}
-                            ></div>
-                          </div>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="w-full bg-white/10 hover:bg-white/20 text-white border-0"
-                            onClick={() => (window.location.href = "/pricing")}
-                          >
-                            Upgrade to Plus
-                          </Button>
-                        </div>
-                      )}
-                    </div>
                   </div>
                 </div>
 
