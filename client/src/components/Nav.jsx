@@ -275,7 +275,7 @@ export default function Nav({
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <Button className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-900 font-semibold hover:opacity-90">
-                    Sign In
+                    Sign Up
                   </Button>
                 </Link>
               ) : (
@@ -396,10 +396,20 @@ const InviteTeamButtonInternal = memo(() => (
 InviteTeamButtonInternal.displayName = "InviteTeamButtonInternal";
 
 const SignInButtonInternal = memo(() => (
-  <Link href="/login">
-    <Button className="rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-900 font-semibold hover:opacity-90 px-6 py-2">
-      Sign In
-    </Button>
-  </Link>
+  <div className="flex items-center gap-3">
+    <Link href="/login">
+      <Button 
+        variant="outline"
+        className="rounded-full border-2 border-slate-300 text-slate-900 bg-white hover:bg-slate-50 font-semibold px-6 py-2"
+      >
+        Log in
+      </Button>
+    </Link>
+    <Link href="/login">
+      <Button className="rounded-full bg-slate-900 text-white font-semibold hover:bg-slate-800 px-6 py-2">
+        Sign up
+      </Button>
+    </Link>
+  </div>
 ));
 SignInButtonInternal.displayName = "SignInButtonInternal";

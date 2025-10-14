@@ -75,7 +75,8 @@ export default function Hero({ onPrimaryCta }) {
     {
       k: "proof",
       pre: "Outcomes you can measure:",
-      highlight: "On-site experiences tied to staffing, revenue, and guest KPIs.",
+      highlight:
+        "On-site experiences tied to staffing, revenue, and guest KPIs.",
       sub: "We integrate with your CRM, LMS, and analytics so you learn what to scale.",
     },
   ];
@@ -234,7 +235,7 @@ export default function Hero({ onPrimaryCta }) {
               className="h-12 w-full sm:w-auto rounded-xl border-white/20 px-6 text-base text-slate-800 hover:bg-white/10"
             >
               <Sparkles className="mr-2 h-5 w-5 text-emerald-500" />
-              See AI workflows & how it works
+              See how it works (VIDEO ICON - in LocationShowcase area)
             </Button>
           </Link>
         </motion.div>
@@ -395,7 +396,7 @@ export default function Hero({ onPrimaryCta }) {
 //           transition={{ delay: 0.15 }}
 //           className="mt-5 flex flex-wrap gap-2"
 //         >
-//           {[ 
+//           {[
 //             "Launch in under 24 hours",
 //             "Mapping ~60 min",
 //             "Live demo 1–2 hrs",
@@ -592,7 +593,7 @@ export default function Hero({ onPrimaryCta }) {
 //           transition={{ delay: 0.15 }}
 //           className="mt-5 flex flex-wrap gap-2"
 //         >
-//           {[ 
+//           {[
 //             "Launch in under 24 hours",
 //             "Mapping ~60 min",
 //             "Live demo 1–2 hrs",
