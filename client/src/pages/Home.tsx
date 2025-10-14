@@ -240,7 +240,7 @@ export default function Home() {
         </section>
 
         {/* Video Section */}
-        <section className="py-8 md:py-12 relative">
+        <section id="videoSection" className="py-8 md:py-12 relative">
           <div className="container mx-auto px-4">
             <div className="rounded-2xl overflow-hidden border border-white/10 bg-white/5 shadow-2xl">
               <video

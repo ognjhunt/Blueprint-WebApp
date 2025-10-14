@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { ArrowRightIcon } from "@heroicons/react/24/solid";
-import { MapPin, Sparkles } from "lucide-react";
+import { MapPin, Sparkles, Video } from "lucide-react";
 
 export default function Hero({ onPrimaryCta }) {
   // Rotating, plain-English value props for owners/operators.
@@ -229,15 +229,19 @@ export default function Hero({ onPrimaryCta }) {
             Get Started with AI Glasses
             <ArrowRightIcon className="ml-2 h-5 w-5" />
           </Button>
-          <Link href="/pilot-program">
-            <Button
-              variant="outline"
-              className="h-12 w-full sm:w-auto rounded-xl border-white/20 px-6 text-base text-slate-800 hover:bg-white/10"
-            >
-              <Sparkles className="mr-2 h-5 w-5 text-emerald-500" />
-              See how it works (VIDEO ICON - in LocationShowcase area)
-            </Button>
-          </Link>
+          <Button
+            variant="outline"
+            onClick={() => {
+              const videoSection = document.getElementById("videoSection");
+              if (videoSection) {
+                videoSection.scrollIntoView({ behavior: "smooth", block: "center" });
+              }
+            }}
+            className="h-12 w-full sm:w-auto rounded-xl border-white/20 px-6 text-base text-slate-800 hover:bg-white/10"
+          >
+            <Video className="mr-2 h-5 w-5 text-emerald-500" />
+            See how it works
+          </Button>
         </motion.div>
 
         <p className="mt-2 text-xs text-slate-400">
