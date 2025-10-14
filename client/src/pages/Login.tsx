@@ -223,7 +223,7 @@ export default function Login() {
             >
               <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-400/15 px-4 py-2 text-emerald-100">
                 <Sparkles className="h-4 w-4" />
-                <span>Spatial experiences without the technical headache</span>
+                <span>Launch AI assistance in minutes</span>
               </div>
 
               <div className="space-y-4">
@@ -231,7 +231,7 @@ export default function Login() {
                   Access the Blueprint pilot
                 </h1>
                 <p className="max-w-xl text-lg leading-relaxed text-slate-300">
-                  Sign in or create your account in one place. Blueprint helps local retail, museums, restaurants, and showrooms launch AI-powered experiences in less than 24 hours.
+                  Complete onboarding in 5 minutes and get your activation QR kits shipped directly to your location. Your AI assistant goes live in under 24 hours.
                 </p>
               </div>
 
