@@ -4,7 +4,7 @@ export type FAQ = { q: string; a: string };
 export const PILOT_FAQ: FAQ[] = [
   {
     q: "What is Blueprint in one sentence?",
-    a: "It’s a custom AR layer for your physical space—scan a QR code, and visitors instantly get interactive guidance, stories, and offers on their device.",
+    a: "It’s an AI glasses concierge for your physical space—scan a QR code, and visitors instantly get guided answers, stories, and offers hands-free.",
   },
   {
     q: "What does the pilot cost?",
@@ -16,7 +16,7 @@ export const PILOT_FAQ: FAQ[] = [
   },
   {
     q: "Do customers need special hardware?",
-    a: "No. The AR runs in the browser via QR codes. For demo day, we bring a VR headset so your team can try it hands-on.",
+    a: "No. Guests launch the wearable AI experience through the browser with QR codes. For demo day, we bring AI glasses so your team can try it hands-on.",
   },
   {
     q: "What do you need from us?",
@@ -24,7 +24,7 @@ export const PILOT_FAQ: FAQ[] = [
   },
   {
     q: "Is the AR experience live for more than a day?",
-    a: "No. The experience is live during the activation session (1–2 hours) within 24 hours of mapping. The goal is to gather feedback and learn, not to run the experience continuously yet.",
+    a: "No. The AI glasses experience is live during the activation session (1–2 hours) within 24 hours of mapping. The goal is to gather feedback and learn, not to run the experience continuously yet.",
   },
   {
     q: "What happens after the pilot?",
@@ -35,11 +35,11 @@ export const PILOT_FAQ: FAQ[] = [
 export const SUPPORT = {
   email: "nijel@tryblueprint.io",
   hours: "Monday - Friday: 9AM - 6PM EST",
-  calendly: "https://calendly.com/blueprintar/30min",
+  calendly: "https://calendly.com/blueprintai/30min",
   reschedulePolicy:
     "You can reschedule up to 24 hours before your mapping appointment.",
   mappingTimeNote:
     "Most venues <5,000 sq ft take 30–60 minutes; larger venues 1–2 hours.",
   demoWindowNote:
-    "The AR experience is live during the scheduled Demo Day window (1–2 hours) on Visit 2.",
+    "The AI glasses experience is live during the scheduled Demo Day window (1–2 hours) on Visit 2.",
 };

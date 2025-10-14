@@ -30,24 +30,24 @@ const steps = [
   },
   {
     icon: <Edit3 className="w-10 h-10" />,
-    title: "Design Your Experience", 
-    description: "Upload your branding, menus, or product catalogs. Our AI transforms them into interactive AR elements automatically.",
+    title: "Design Your Experience",
+    description: "Upload your branding, menus, or product catalogs. Our AI turns them into guided wearable moments automatically.",
     highlight: "Drag & Drop",
     details: ["Brand assets", "Product catalogs", "Custom content"]
   },
   {
     icon: <Wand2 className="w-10 h-10" />,
-    title: "Place AR Elements",
-    description: "Position interactive hotspots, 3D models, and information overlays exactly where you want them in your physical space.",
+    title: "Program AI Glasses Moments",
+    description: "Position guided prompts, 3D assists, and information overlays exactly where you want them in your physical space.",
     highlight: "Real-time Preview",
     details: ["3D placement", "Interactive hotspots", "Live preview"]
   },
   {
     icon: <QrCode className="w-10 h-10" />,
     title: "Launch & Share",
-    description: "Generate a QR code or shareable link. Customers can instantly access your AR experience through any smartphone browser.",
+    description: "Generate a QR code or shareable link. Guests instantly launch the AI glasses experience through any smartphone browser.",
     highlight: "Instant Access",
-    details: ["QR code generation", "Browser-based AR", "Analytics dashboard"]
+    details: ["QR code generation", "Browser-launched AI", "Analytics dashboard"]
   },
 ];
 
@@ -102,7 +102,7 @@ function HeroSection() {
           >
             <div className="inline-flex items-center bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-medium mb-6">
               <Eye className="w-4 h-4 mr-2" />
-              Augmented Reality Made Simple
+              AI Glasses Made Simple
             </div>
 
             <h1 className="text-4xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-gray-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent leading-tight">
@@ -110,7 +110,7 @@ function HeroSection() {
             </h1>
 
             <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-              Blueprint lets businesses create stunning AR experiences that customers can access instantly through their phones—no app downloads required.
+              Blueprint lets businesses create stunning AI glasses experiences that customers can access instantly through their phones—no app downloads required.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 mb-8">
@@ -140,7 +140,7 @@ function HeroSection() {
             <div className="relative bg-white rounded-2xl shadow-2xl p-4 lg:p-8 border border-gray-100">
               <img
                 src={heroIllustration}
-                alt="AR Blueprint Demo"
+                alt="AI Glasses Blueprint Demo"
                 className="w-full h-auto rounded-xl"
               />
               {/* Floating Cards */}
@@ -149,7 +149,7 @@ function HeroSection() {
                 animate={{ y: [0, -10, 0] }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
-                Live AR View
+                Live AI Glasses View
               </motion.div>
               <motion.div
                 className="absolute -bottom-4 -left-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium"
@@ -209,7 +209,7 @@ function StepsSection() {
             Get Started in <span className="text-blue-600">4 Simple Steps</span>
           </h2>
           <p className="text-xl text-gray-600">
-            Our streamlined process gets you from idea to live AR experience in under 10 minutes
+            Our streamlined process gets you from idea to live AI glasses experience in under 10 minutes
           </p>
         </motion.div>
 
@@ -305,7 +305,7 @@ function LiveDemoSection() {
             See Blueprint in Action
           </h2>
           <p className="text-xl text-blue-100 mb-8">
-            Experience a live AR demo and discover how Blueprint can transform your business space
+            Experience a live AI glasses demo and discover how Blueprint can transform your business space
           </p>
           <Button 
             size="lg" 
@@ -333,7 +333,7 @@ function CallToActionSection() {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-3xl lg:text-4xl font-bold mb-6 text-gray-900">
-            Ready to Create Your First AR Experience?
+            Ready to Create Your First AI Glasses Experience?
           </h2>
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
             Join thousands of businesses already using Blueprint to engage customers in revolutionary new ways

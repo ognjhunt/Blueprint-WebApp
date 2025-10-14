@@ -89,12 +89,12 @@ export default function BusinessDashboard() {
           <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardContent className="p-6">
-                <h4 className="text-lg font-semibold mb-4">Popular AR Features</h4>
+                <h4 className="text-lg font-semibold mb-4">Popular AI Glasses Moments</h4>
                 <div className="space-y-4">
                   {[
-                    { name: "Virtual Product Tours", usage: "85%" },
-                    { name: "AR Navigation", usage: "72%" },
-                    { name: "Interactive Displays", usage: "68%" },
+                    { name: "Guided Onboarding Prompts", usage: "85%" },
+                    { name: "Hands-Free Navigation", usage: "72%" },
+                    { name: "Instant Answer Overlays", usage: "68%" },
                   ].map((feature) => (
                     <div key={feature.name} className="flex items-center justify-between">
                       <span className="text-gray-600">{feature.name}</span>

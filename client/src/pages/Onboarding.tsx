@@ -115,7 +115,7 @@ const MAPPING_BENEFITS: string[] = [
   "Contextual nudges and updates trigger automatically in the right zone.",
   "Heatmaps and dwell analytics reveal hot zones and movement patterns.",
   "Supports Niantic Lightship/VPS localization so devices instantly know where they are.",
-  "Ready for future AR experiences and spatial content drops with no extra work.",
+  "Ready for future AI glasses moments and ambient content drops with no extra work.",
   "Unlocks post-visit retargeting from privacy-safe engagement signals.",
 ];
 
@@ -1327,7 +1327,7 @@ export default function Onboarding() {
           Would you like Blueprint to map your space?
         </h2>
         <p className="text-sm text-slate-300">
-          Mapping unlocks AR navigation, in-store journeys, and post-visit
+          Mapping unlocks AI glasses navigation, in-store journeys, and post-visit
           retargeting.
         </p>
       </div>

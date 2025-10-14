@@ -6,7 +6,7 @@ const caseStudies = [
   {
     company: "Fine Dining Co.",
     result: "+35% Order Value",
-    quote: "Blueprint's AI-powered AR system transformed our traditional dining venue into a tech-forward destination, revolutionizing how customers experience our menu and service.",
+    quote: "Blueprint's AI-powered glasses concierge transformed our traditional dining venue into a tech-forward destination, revolutionizing how customers experience our menu and service.",
     image: "https://images.unsplash.com/photo-1493857671505-72967e2e2760",
     avatar: "https://i.pravatar.cc/150?u=1",
     name: "Sarah Chen",
@@ -15,7 +15,7 @@ const caseStudies = [
   {
     company: "Tech Retail",
     result: "+45% Engagement",
-    quote: "By implementing Blueprint's advanced AR technology, we've pioneered a new era of retail interaction, setting new industry standards for digital customer engagement.",
+    quote: "By implementing Blueprint's wearable AI platform, we've pioneered a new era of retail interaction, setting new industry standards for digital customer engagement.",
     image: "https://images.unsplash.com/photo-1520333789090-1afc82db536a",
     avatar: "https://i.pravatar.cc/150?u=2",
     name: "Michael Roberts",

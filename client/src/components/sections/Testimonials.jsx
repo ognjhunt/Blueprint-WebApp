@@ -24,7 +24,7 @@ export default function Testimonials() {
       role: "Operations Manager",
       company: "Urban Grocery Co.",
       image: "/images/testimonial-2.jpg", // Replace with actual image
-      text: "Blueprint's technology has revolutionized how our customers shop. The AR navigation and product information features have reduced customer service inquiries by 45% while improving customer satisfaction scores.",
+      text: "Blueprint's technology has revolutionized how our customers shop. The AI glasses guidance and product information features have reduced customer service inquiries by 45% while improving customer satisfaction scores.",
       rating: 5,
     },
     {
@@ -33,7 +33,7 @@ export default function Testimonials() {
       role: "Customer Experience Lead",
       company: "Luxury Hotels Group",
       image: "/images/testimonial-3.jpg", // Replace with actual image
-      text: "Our guests are amazed by the AR experiences Blueprint has enabled throughout our properties. From interactive room service to AR-guided tours, the technology has set us apart from competitors and justified our premium pricing.",
+      text: "Our guests are amazed by the AI glasses experiences Blueprint has enabled throughout our properties. From interactive room service to guided wearable tours, the technology has set us apart from competitors and justified our premium pricing.",
       rating: 5,
     },
   ];
@@ -85,7 +85,7 @@ export default function Testimonials() {
           </h2>
           <p className="text-xl text-gray-600">
             Businesses across industries are transforming their spaces with
-            Blueprint's AR technology.
+            Blueprint's AI glasses platform.
           </p>
         </motion.div>
 

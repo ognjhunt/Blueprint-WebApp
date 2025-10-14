@@ -12,16 +12,16 @@ export default function Features() {
   const features = [
     {
       icon: CubeTransparentIcon,
-      title: "AR Visualization",
+      title: "AI Glasses Concierge",
       description:
-        "Create immersive experiences that overlay digital information on the physical world in real-time.",
+        "Deploy guided, voice-ready assistants on wearable AI glasses tailored to your venue.",
       color: "from-blue-400 to-indigo-500",
     },
     {
       icon: BoltIcon,
       title: "No App Required",
       description:
-        "Your customers access AR experiences directly through their browser – no app download needed.",
+        "Guests launch the AI glasses flow with a QR code—no custom app build or installs needed.",
       color: "from-emerald-400 to-teal-500",
     },
     {
@@ -35,7 +35,7 @@ export default function Features() {
       icon: UserGroupIcon,
       title: "Customer Insights",
       description:
-        "Gain valuable data on how customers interact with your physical space and AR elements.",
+        "Understand how visitors use your space when guided by wearable AI and ambient prompts.",
       color: "from-pink-400 to-rose-500",
     },
     {

@@ -26,13 +26,13 @@ export default function Blog() {
     {
       title: "workplaceOS – our seventh phase",
       description:
-        "AR + AI for offices and frontline hubs—live KPIs for managers, guided work and instant answers for teams.",
+        "AI glasses + AI for offices and frontline hubs—live KPIs for managers, guided work and instant answers for teams.",
       href: "/blog/workplace-os",
     },
     {
       title: "restaurantOS – our sixth phase",
       description:
-        "Guest-centric AR: photoreal 3D menus, chef stories, smart recs, and contactless flows that enhance the meal.",
+        "Guest-centric AI glasses: photoreal 3D menus, chef stories, smart recs, and contactless flows that enhance the meal.",
       href: "/blog/restaurant-os",
     },
     {
@@ -50,19 +50,19 @@ export default function Blog() {
     {
       title: "propertyOS – our third era",
       description:
-        "How Blueprint uses AR + AI to personalize your own space beyond the limits of the physical world.",
+        "How Blueprint uses AI glasses + AI to personalize your own space beyond the limits of the physical world.",
       href: "/blog/property-os",
     },
     {
       title: "retailOS – our second phase",
       description:
-        "How Blueprint uses AR + AI to elevate in-store ops and customer experience in retail.",
+        "How Blueprint uses AI glasses + AI to elevate in-store ops and customer experience in retail.",
       href: "/blog/retail-os",
     },
     {
       title: "warehouseOS – our first vertical",
       description:
-        "How Blueprint brings AR and AI to warehouses for faster, safer operations.",
+        "How Blueprint brings AI glasses and AI to warehouses for faster, safer operations.",
       href: "/blog/warehouse-os",
     },
   ];
