@@ -226,7 +226,7 @@ function MobileProcessStepper({ steps, onGetStarted }) {
                     className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white py-4 font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
                     onClick={onGetStarted}
                   >
-                    Start Your AR Journey
+                    Start Your AI Glasses Journey
                     <ArrowRight className="w-5 h-5 ml-2" />
                   </Button>
                 )}
@@ -367,7 +367,7 @@ const MobileEnterpriseARSection = ({ scrollToContact, primaryFeatures }) => {
           </div>
 
           <h2 className="text-2xl md:text-3xl font-black mb-3 text-gray-900">
-            Professional AR
+            Professional AI Glasses
             <span className="block bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 bg-clip-text text-transparent">
               Made Simple
             </span>
@@ -533,7 +533,7 @@ const MobileEnterpriseARSection = ({ scrollToContact, primaryFeatures }) => {
           transition={{ duration: 0.6, delay: 0.4 }}
         >
           <p className="text-sm text-gray-600 mb-4">
-            Ready to experience enterprise AR?
+            Ready to experience enterprise AI glasses?
           </p>
           <Button
             className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white px-6 py-3 text-sm font-semibold shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl"
@@ -563,7 +563,7 @@ const EnterpriseARSection = ({ scrollToContact }) => {
       title: "Zero-Friction Access",
       subtitle: "No App Downloads Required",
       description:
-        "Customers access AR experiences instantly through any mobile browser. No app store visits, no storage space required.",
+        "Guests launch AI glasses experiences instantly through any mobile browser. No app store visits, no storage space required.",
       metrics: [
         { label: "Load Time", value: "< 2s" },
         { label: "Compatibility", value: "100%" },
@@ -571,7 +571,7 @@ const EnterpriseARSection = ({ scrollToContact }) => {
       benefits: [
         "Works on any smartphone",
         "Instant access via QR codes",
-        "No user friction barriers",
+        "No user friction barriers for wearable AI",
       ],
       gradient: "from-blue-500 via-cyan-500 to-teal-500",
       delay: 0.1,
@@ -581,7 +581,7 @@ const EnterpriseARSection = ({ scrollToContact }) => {
       title: "AI-Powered Optimization",
       subtitle: "Smart Content Placement",
       description:
-        "Our AI analyzes foot traffic, lighting, and spatial geometry to position AR elements exactly where they'll have maximum impact.",
+        "Our AI analyzes foot traffic, lighting, and spatial geometry to choreograph AI glasses prompts exactly where they'll have maximum impact.",
       metrics: [
         { label: "Speed", value: "Real-time" },
         { label: "Learning", value: "Continuous" },
@@ -597,15 +597,15 @@ const EnterpriseARSection = ({ scrollToContact }) => {
     {
       icon: <Users className="w-8 h-8" />,
       title: "Multi-User Experiences",
-      subtitle: "Shared AR Interactions",
+      subtitle: "Shared AI Glasses Interactions",
       description:
-        "Multiple customers can simultaneously interact with the same AR elements, creating collaborative and social experiences.",
+        "Multiple customers can simultaneously engage with the same AI glasses cues, creating collaborative and social experiences.",
       metrics: [
         { label: "Concurrent Users", value: "50+" },
         { label: "Stability", value: "99.9%" },
       ],
       benefits: [
-        "Social AR interactions",
+        "Social wearable interactions",
         "Real-time synchronization",
         "Scalable architecture",
       ],
@@ -633,7 +633,7 @@ const EnterpriseARSection = ({ scrollToContact }) => {
       icon: <Gauge className="w-6 h-6" />,
       title: "Lightning Performance",
       description:
-        "Optimized rendering engine ensures smooth 60fps AR experiences even on older devices.",
+        "Optimized rendering engine ensures smooth 60fps AI glasses experiences even on older devices.",
       color: "from-indigo-500 to-blue-500",
     },
     {
@@ -678,7 +678,7 @@ const EnterpriseARSection = ({ scrollToContact }) => {
           </div>
 
           <h2 className="text-5xl md:text-6xl font-black mb-8 text-gray-900 leading-tight">
-            Professional AR
+            Professional AI Glasses
             <span className="block bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 bg-clip-text text-transparent">
               Made Simple
             </span>
@@ -686,7 +686,7 @@ const EnterpriseARSection = ({ scrollToContact }) => {
 
           <p className="text-xl md:text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed mb-8">
             Enterprise-level capabilities with zero complexity. Our platform
-            delivers cutting-edge AR technology that scales from boutique shops
+            delivers cutting-edge AI glasses deployments that scale from boutique shops
             to global retailers.
           </p>
 
@@ -876,7 +876,7 @@ const ImageCarousel = () => {
       src: "/images/ChatGPT Image Apr 9, 2025, 10_28_16 AM.png",
       alt: "Step 3: AI Generation",
       caption: "AI-Powered Creation",
-      description: "Our AI helps our designers create custom AR experiences",
+      description: "Our AI helps our designers create custom AI glasses experiences",
       time: "1-2 days",
     },
     {
@@ -889,8 +889,8 @@ const ImageCarousel = () => {
     {
       src: "/images/ChatGPT Image Apr 9, 2025, 09_08_15 AM.png",
       alt: "Step 5: Customer Experience",
-      caption: "Instant AR Access",
-      description: "Customers scan QR codes to enter AR experiences",
+      caption: "Instant AI Glasses Access",
+      description: "Customers scan QR codes to launch AI glasses experiences",
       time: "Instant",
     },
     {
@@ -1176,16 +1176,16 @@ const techFeatures = [
   },
   {
     icon: <Layers className="w-8 h-8" />,
-    title: "Smart AR Placement",
+    title: "Smart AI Glasses Placement",
     description:
-      "AI analyzes your space to place AR elements exactly where they'll have maximum impact.",
+      "AI analyzes your space to place wearable prompts exactly where they'll have maximum impact.",
     gradient: "from-violet-500 to-purple-500",
   },
   {
     icon: <Users className="w-8 h-8" />,
     title: "Multi-User Experiences",
     description:
-      "Multiple customers can interact with the same AR elements simultaneously.",
+      "Multiple customers can interact with the same AI glasses prompts simultaneously.",
     gradient: "from-emerald-500 to-teal-500",
   },
   {
@@ -1206,7 +1206,7 @@ const techFeatures = [
     icon: <Zap className="w-8 h-8" />,
     title: "Lightning Fast",
     description:
-      "AR experiences load in under 2 seconds, ensuring zero customer friction.",
+      "AI glasses experiences load in under 2 seconds, ensuring zero customer friction.",
     gradient: "from-indigo-500 to-blue-500",
   },
 ];
@@ -1263,7 +1263,7 @@ export default function Discover() {
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-gray-900">
                 Turn Any Space Into an{" "}
                 <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 bg-clip-text text-transparent">
-                  AR Experience
+                  AI Glasses Experience
                 </span>
                 <span className="block mt-2 text-3xl md:text-4xl lg:text-5xl text-gray-700">
                   in Under 1 Hour
@@ -1272,7 +1272,7 @@ export default function Discover() {
 
               <p className="text-xl text-gray-600 leading-relaxed max-w-xl">
                 No coding. No apps. Just scan a QR code and watch your space
-                come alive with interactive AR that drives 3x more engagement.
+                come alive with AI glasses guidance that drives 3x more engagement.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
@@ -1332,7 +1332,7 @@ export default function Discover() {
               Simple 4-Step Process
             </div>
             <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-4 md:mb-6 text-gray-900 leading-tight">
-              From Sign-Up to Live AR in
+              From Sign-Up to Live AI Glasses in
               <span className="block mt-1 md:mt-2 bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
                 Less Than 24 Hours
               </span>
@@ -1413,7 +1413,7 @@ export default function Discover() {
                           className="w-full mt-8 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-base py-6 font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
                           onClick={handleScrollToContactForm}
                         >
-                          Start Your AR Journey
+                          Start Your AI Glasses Journey
                           <ArrowRight className="w-5 h-5 ml-2" />
                         </Button>
                       )}
@@ -1436,7 +1436,7 @@ export default function Discover() {
               title: "Zero-Friction Access",
               subtitle: "No App Downloads Required",
               description:
-                "Customers access AR experiences instantly through any mobile browser. No app store visits, no storage space required.",
+                "Guests launch AI glasses experiences instantly through any mobile browser. No app store visits, no storage space required.",
               metrics: [
                 { label: "Load Time", value: "< 2s" },
                 { label: "Compatibility", value: "100%" },
@@ -1444,7 +1444,7 @@ export default function Discover() {
               benefits: [
                 "Works on any smartphone",
                 "Instant access via QR codes",
-                "No user friction barriers",
+                "No user friction barriers for wearable AI",
               ],
               gradient: "from-blue-500 via-cyan-500 to-teal-500",
               delay: 0.1,
@@ -1454,7 +1454,7 @@ export default function Discover() {
               title: "AI-Powered Optimization",
               subtitle: "Smart Content Placement",
               description:
-                "Our AI analyzes foot traffic, lighting, and spatial geometry to position AR elements exactly where they'll have maximum impact.",
+                "Our AI analyzes foot traffic, lighting, and spatial geometry to choreograph AI glasses prompts exactly where they'll have maximum impact.",
               metrics: [
                 { label: "Speed", value: "Real-time" },
                 { label: "Learning", value: "Continuous" },
@@ -1470,15 +1470,15 @@ export default function Discover() {
             {
               icon: <Users className="w-8 h-8" />,
               title: "Multi-User Experiences",
-              subtitle: "Shared AR Interactions",
+              subtitle: "Shared AI Glasses Interactions",
               description:
-                "Multiple customers can simultaneously interact with the same AR elements, creating collaborative and social experiences.",
+                "Multiple customers can simultaneously engage with the same AI glasses cues, creating collaborative and social experiences.",
               metrics: [
                 { label: "Concurrent Users", value: "50+" },
                 { label: "Stability", value: "99.9%" },
               ],
               benefits: [
-                "Social AR interactions",
+                "Social wearable interactions",
                 "Real-time synchronization",
                 "Scalable architecture",
               ],

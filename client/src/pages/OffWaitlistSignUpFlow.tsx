@@ -2012,7 +2012,7 @@ export default function OffWaitlistSignUpFlow() {
                         <div>
                           <p className="text-sm text-slate-300">Why join</p>
                           <h3 className="text-lg font-bold text-white">
-                            AR that drives results
+                            AI glasses that drive results
                           </h3>
                         </div>
                       </div>
@@ -2020,8 +2020,8 @@ export default function OffWaitlistSignUpFlow() {
                         <li className="flex items-start gap-2">
                           <CheckCircle2 className="w-4 h-4 text-emerald-300 mt-0.5" />
                           <span>
-                            Delight visitors with interactive product & exhibit
-                            moments
+                            Delight visitors with guided product & exhibit
+                            moments on wearable AI
                           </span>
                         </li>
                         <li className="flex items-start gap-2">

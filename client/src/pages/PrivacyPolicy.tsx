@@ -92,7 +92,7 @@ export default function PrivacyPolicy() {
                 <p className="text-slate-300 leading-relaxed">
                   Welcome to Blueprint ("Blueprint," "we," "us," or "our").
                   Blueprint provides an AI-powered augmented reality platform
-                  that creates custom AR experiences for physical spaces
+                  that creates custom AI glasses experiences for physical spaces
                   ("Services"). This Privacy Policy explains how we collect,
                   use, disclose, and safeguard your information when you use our
                   website, mobile application, and Services.

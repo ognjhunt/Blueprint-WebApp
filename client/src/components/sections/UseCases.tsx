@@ -14,7 +14,7 @@ const useCases = [
   },
   {
     title: "Museums",
-    description: "Immersive exhibits, interactive tours, and educational AR experiences.",
+    description: "Immersive exhibits, interactive tours, and educational AI glasses companions.",
     image: "https://images.unsplash.com/photo-1581094651181-35942459ef62",
   },
 ];

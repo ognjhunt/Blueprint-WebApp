@@ -14,9 +14,9 @@ const benefits = [
     icon: BarChart3Icon,
   },
   {
-    title: "Immersive AR",
+    title: "Wearable AI Moments",
     description:
-      "Transform ordinary spaces into extraordinary experiences with interactive AR.",
+      "Delight guests with AI glasses that guide, answer, and activate service in real time.",
     icon: UsersIcon,
   },
   {
@@ -49,11 +49,11 @@ export default function Benefits() {
       >
         <div className="text-center mb-16">
           <h2 className="text-4xl font-bold mb-4">
-            Unlock the Power of AR + AI
+            Unlock the Power of AI Glasses
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             Blueprint helps you create exceptional customer experiences with
-            advanced AR technology.
+            wearable AI concierges.
           </p>
         </div>
 
