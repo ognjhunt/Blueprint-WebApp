@@ -5,7 +5,7 @@
 // - Premium "aurora glass" aesthetic with parallax orbs & grid
 // - Subtle motion with prefers-reduced-motion guard
 // - Sticky mobile CTA, above-the-fold trust chips, animated counters
-// - Uses existing: Nav, Hero, WearableAIDemos, ContactForm, Footer
+// - Uses existing: Nav, Hero, WearableAIDemos, Footer
 // ===============================================
 
 import React, {
@@ -24,7 +24,6 @@ import Hero from "@/components/sections/Hero";
 const WearableAIDemos = lazy(
   () => import("@/components/sections/WearableAIDemos"),
 );
-const ContactForm = lazy(() => import("@/components/sections/ContactForm"));
 import Footer from "@/components/Footer";
 import LindyChat from "@/components/LindyChat";
 import { Button } from "@/components/ui/button";
@@ -47,9 +46,6 @@ export default function Home() {
   const { currentUser } = useAuth();
   const [, setLocation] = useLocation();
   const mainRef = useRef<HTMLDivElement>(null);
-  const contactRef = useRef<HTMLDivElement>(null);
-  const [isContactInView, setIsContactInView] = useState(false);
-  const [hasReachedContact, setHasReachedContact] = useState(false);
   const shouldReduce = useReducedMotion();
   // Only enable heavy visuals on larger screens without reduced motion
 
@@ -70,40 +66,6 @@ export default function Home() {
     if (currentUser) setLocation("/dashboard");
   }, [currentUser, setLocation]);
 
-  // 👇 Set up intersection observer
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => setIsContactInView(entry.isIntersecting),
-      { threshold: 0.3 }, // adjust so it hides when ~30% of the contact section is visible
-    );
-    if (contactRef.current) observer.observe(contactRef.current);
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
-
-  // Hide CTA once we've reached the contact section (and keep it hidden below)
-  useEffect(() => {
-    const computeReached = () => {
-      const el = contactRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const contactTop = rect.top + window.scrollY;
-      const viewportBottom = window.scrollY + window.innerHeight;
-      // small buffer so it disappears a touch early
-      setHasReachedContact(viewportBottom >= contactTop - 8);
-    };
-
-    computeReached(); // initialize on first mount
-    window.addEventListener("scroll", computeReached, { passive: true });
-    window.addEventListener("resize", computeReached);
-
-    return () => {
-      window.removeEventListener("scroll", computeReached);
-      window.removeEventListener("resize", computeReached);
-    };
-  }, []);
-
   const benefits = useMemo(
     () => [
       { icon: <Clock className="w-4 h-4" />, label: "60-min spatial capture" },
@@ -123,9 +85,8 @@ export default function Home() {
     [],
   );
 
-  const handleScrollToContact = () => {
-    const el = document.getElementById("contactForm");
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  const handleNavigateToLogin = () => {
+    setLocation("/login");
   };
 
   // Parallax background orbs (desktop only, super subtle)
@@ -182,7 +143,7 @@ export default function Home() {
 
       <main ref={mainRef} className="flex-1 relative">
         {/* HERO */}
-        <Hero onPrimaryCta={handleScrollToContact} />
+        <Hero onPrimaryCta={handleNavigateToLogin} />
 
         {/* Benefit strip */}
         <section
@@ -369,10 +330,10 @@ export default function Home() {
                 </div>
 
                 <Button
-                  onClick={handleScrollToContact}
+                  onClick={handleNavigateToLogin}
                   className="w-full rounded-xl h-12 bg-gradient-to-r from-emerald-500 to-cyan-600 text-white font-semibold shadow-xl"
                 >
-                  Check my eligibility
+                  Sign Up Now
                 </Button>
               </div>
             </div>
@@ -451,7 +412,7 @@ export default function Home() {
                     </span>
                   </div>
                   <Button
-                    onClick={handleScrollToContact}
+                    onClick={handleNavigateToLogin}
                     className="rounded-xl h-10 bg-gradient-to-r from-emerald-500 to-cyan-600 text-white"
                   >
                     Get Started
@@ -508,7 +469,7 @@ export default function Home() {
               </p>
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 justify-center">
                 <Button
-                  onClick={handleScrollToContact}
+                  onClick={handleNavigateToLogin}
                   className="h-12 w-full text-base rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white border-0 shadow-xl hover:shadow-2xl hover:scale-[1.02] transition will-change-transform"
                 >
                   Get Started Today
@@ -526,42 +487,26 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Contact (lazy) */}
-        <div
-          ref={contactRef}
-          id="contactForm"
-          style={{
-            contentVisibility: "auto",
-            contain: "paint",
-            containIntrinsicSize: "1px 680px",
-          }}
-        >
-          <Suspense fallback={<div className="h-40" />}>
-            <ContactForm />
-          </Suspense>
-        </div>
       </main>
 
       {/* Sticky mobile CTA */}
-      {!hasReachedContact && (
-        <div className="md:hidden sticky bottom-4 z-50 px-4">
-          <motion.div
-            initial={{ y: 40, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.4 }}
+      <div className="md:hidden sticky bottom-4 z-50 px-4">
+        <motion.div
+          initial={{ y: 40, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.4 }}
+        >
+          <Button
+            onClick={handleNavigateToLogin}
+            className="w-full rounded-2xl h-14 text-base font-semibold shadow-2xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white"
           >
-            <Button
-              onClick={handleScrollToContact}
-              className="w-full rounded-2xl h-14 text-base font-semibold shadow-2xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white"
-            >
-              Get Started — Sign Up Now
-            </Button>
-          </motion.div>
-        </div>
-      )}
+            Get Started — Sign Up Now
+          </Button>
+        </motion.div>
+      </div>
 
       <Footer />
-      <LindyChat ctaVisible={!hasReachedContact} />
+      <LindyChat ctaVisible={true} />
     </div>
   );
 }
@@ -620,7 +565,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 // // - Premium "aurora glass" aesthetic with parallax orbs & grid
 // // - Subtle motion with prefers-reduced-motion guard
 // // - Sticky mobile CTA, above-the-fold trust chips, animated counters
-// // - Uses existing: Nav, Hero, WearableAIDemos, ContactForm, Footer
+// // - Uses existing: Nav, Hero, WearableAIDemos, Footer
 // // ===============================================
 
 // import React, {

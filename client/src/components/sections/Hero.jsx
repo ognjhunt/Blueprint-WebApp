@@ -126,9 +126,9 @@ export default function Hero({ onPrimaryCta }) {
   }, [variant]);
 
   const handlePrimary = () => {
-    if (typeof onPrimaryCta === "function") onPrimaryCta();
-    const el = document.getElementById("contactForm");
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (typeof onPrimaryCta === "function") {
+      onPrimaryCta();
+    }
   };
 
   return (
