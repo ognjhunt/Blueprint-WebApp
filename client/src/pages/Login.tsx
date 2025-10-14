@@ -96,7 +96,9 @@ export default function Login() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const rawReturn =
-      params.get("returnUrl") || params.get("redirectAfterAuth") || params.get("redirect");
+      params.get("returnUrl") ||
+      params.get("redirectAfterAuth") ||
+      params.get("redirect");
 
     if (rawReturn) {
       const decoded = decodeURIComponent(rawReturn);
@@ -223,15 +225,15 @@ export default function Login() {
             >
               <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-400/15 px-4 py-2 text-emerald-100">
                 <Sparkles className="h-4 w-4" />
-                <span>Launch AI assistance in minutes</span>
+                <span>AI glasses solutions for venues</span>
               </div>
 
               <div className="space-y-4">
                 <h1 className="text-4xl font-black tracking-tight text-white md:text-5xl">
-                  Access the Blueprint pilot
+                  Get started with Blueprint
                 </h1>
                 <p className="max-w-xl text-lg leading-relaxed text-slate-300">
-                  Complete onboarding in 5 minutes and get your activation QR kits shipped directly to your location. Your AI assistant goes live in under 24 hours.
+                  Sign up in 5 minutes and we'll ship activation QR kits directly to your venue. Your AI assistant goes live in under 24 hours.
                 </p>
               </div>
 
@@ -254,7 +256,9 @@ export default function Login() {
                   >
                     <feature.icon className="mt-1 h-5 w-5 text-emerald-300" />
                     <div>
-                      <h3 className="text-base font-semibold text-white">{feature.title}</h3>
+                      <h3 className="text-base font-semibold text-white">
+                        {feature.title}
+                      </h3>
                       <p className="text-sm text-slate-300">{feature.copy}</p>
                     </div>
                   </div>
@@ -270,13 +274,12 @@ export default function Login() {
               <div className="rounded-3xl border border-slate-700/80 bg-slate-900/70 p-8 shadow-2xl backdrop-blur-xl">
                 <div className="mb-6 flex items-center justify-between">
                   <div>
-                    <h2 className="text-2xl font-semibold text-white">Continue with Blueprint</h2>
+                    <h2 className="text-2xl font-semibold text-white">
+                      Continue with Blueprint
+                    </h2>
                     <p className="text-sm text-slate-400">
                       Use Google or your work email to access your workspace.
                     </p>
-                  </div>
-                  <div className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-100">
-                    Pilot access
                   </div>
                 </div>
 
@@ -313,11 +316,15 @@ export default function Login() {
                         />
                       </svg>
                     )}
-                    <span className="text-sm font-semibold">Continue with Google</span>
+                    <span className="text-sm font-semibold">
+                      Continue with Google
+                    </span>
                   </Button>
 
                   <div className="relative py-4 text-center text-xs uppercase tracking-[0.2em] text-slate-500">
-                    <span className="bg-slate-900/70 px-3">Or use your email</span>
+                    <span className="bg-slate-900/70 px-3">
+                      Or use your email
+                    </span>
                     <div className="absolute inset-x-0 top-1/2 -z-10 h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
                   </div>
 
@@ -336,21 +343,28 @@ export default function Login() {
                               : "text-slate-300 hover:text-white"
                           }`}
                         >
-                          {currentMode === "signin" ? "Sign in" : "Create account"}
+                          {currentMode === "signin"
+                            ? "Sign in"
+                            : "Create account"}
                         </button>
                       );
                     })}
                   </div>
 
                   <Form {...(form as any)}>
-                    <form className="mt-6 space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+                    <form
+                      className="mt-6 space-y-4"
+                      onSubmit={form.handleSubmit(onSubmit)}
+                    >
                       {mode === "signup" && (
                         <FormField
                           control={form.control as any}
                           name="name"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-sm text-slate-300">Full name</FormLabel>
+                              <FormLabel className="text-sm text-slate-300">
+                                Full name
+                              </FormLabel>
                               <FormControl>
                                 <Input
                                   {...field}
@@ -369,7 +383,9 @@ export default function Login() {
                         name="email"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-sm text-slate-300">Work email</FormLabel>
+                            <FormLabel className="text-sm text-slate-300">
+                              Work email
+                            </FormLabel>
                             <FormControl>
                               <div className="relative">
                                 <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
@@ -392,24 +408,40 @@ export default function Login() {
                         name="password"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-sm text-slate-300">Password</FormLabel>
+                            <FormLabel className="text-sm text-slate-300">
+                              Password
+                            </FormLabel>
                             <FormControl>
                               <div className="relative">
                                 <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                                 <Input
                                   {...field}
                                   type={showPassword ? "text" : "password"}
-                                  autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                                  autoComplete={
+                                    mode === "signin"
+                                      ? "current-password"
+                                      : "new-password"
+                                  }
                                   placeholder="Enter your password"
                                   className="pl-10 pr-10 rounded-2xl border-slate-700/70 bg-slate-900/60 text-slate-100 placeholder:text-slate-500"
                                 />
                                 <button
                                   type="button"
-                                  onClick={() => setShowPassword((prev) => !prev)}
+                                  onClick={() =>
+                                    setShowPassword((prev) => !prev)
+                                  }
                                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-                                  aria-label={showPassword ? "Hide password" : "Show password"}
+                                  aria-label={
+                                    showPassword
+                                      ? "Hide password"
+                                      : "Show password"
+                                  }
                                 >
-                                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                  {showPassword ? (
+                                    <EyeOff className="h-4 w-4" />
+                                  ) : (
+                                    <Eye className="h-4 w-4" />
+                                  )}
                                 </button>
                               </div>
                             </FormControl>
@@ -424,21 +456,31 @@ export default function Login() {
                           name="confirmPassword"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-sm text-slate-300">Confirm password</FormLabel>
+                              <FormLabel className="text-sm text-slate-300">
+                                Confirm password
+                              </FormLabel>
                               <FormControl>
                                 <div className="relative">
                                   <Input
                                     {...field}
-                                    type={showConfirmPassword ? "text" : "password"}
+                                    type={
+                                      showConfirmPassword ? "text" : "password"
+                                    }
                                     autoComplete="new-password"
                                     placeholder="Re-enter your password"
                                     className="pr-10 rounded-2xl border-slate-700/70 bg-slate-900/60 text-slate-100 placeholder:text-slate-500"
                                   />
                                   <button
                                     type="button"
-                                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                                    onClick={() =>
+                                      setShowConfirmPassword((prev) => !prev)
+                                    }
                                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-                                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                                    aria-label={
+                                      showConfirmPassword
+                                        ? "Hide password"
+                                        : "Show password"
+                                    }
                                   >
                                     {showConfirmPassword ? (
                                       <EyeOff className="h-4 w-4" />
@@ -470,7 +512,9 @@ export default function Login() {
                   </Form>
 
                   <p className="text-xs leading-relaxed text-slate-500">
-                    By continuing you agree to Blueprint's Terms of Service and Privacy Policy. You'll receive onboarding updates and can unsubscribe at any time.
+                    By continuing you agree to Blueprint's Terms of Service and
+                    Privacy Policy. You'll receive onboarding updates and can
+                    unsubscribe at any time.
                   </p>
                 </div>
               </div>

@@ -313,7 +313,7 @@ const planTiers: PlanTier[] = [
   },
   {
     name: "Pro",
-    price: "$149",
+    price: "$199",
     priceSuffix: "/month",
     target: "Supports up to 250 MAUs",
     limit: "Includes 250 MAUs/mo",
@@ -392,16 +392,8 @@ const planTiers: PlanTier[] = [
 //   },
 // ];
 
-const addOnItems = [
-  "$29/month per additional active location",
-  "$149 one-time setup for RAG build-out and initial scans",
-  "$0.15/session overage safety net for rare traffic spikes",
-];
-
 const billingPerks = [
   "15% discount when you pay annually",
-  "Free 30-day trial with every Pro feature unlocked",
-  "Up to 500 MAUs are covered by Niantic’s free tier during trial",
 ];
 
 function PriceHero() {
