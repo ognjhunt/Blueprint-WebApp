@@ -134,7 +134,7 @@ export default function Nav({
           {navLinks.map((link) => (
             <Link key={link.href} href={link.href}>
               <motion.div
-                className={`text-sm font-semibold relative group flex items-center gap-2 ${
+                className={`text-base font-semibold relative group flex items-center gap-2 ${
                   isScrolled ? "text-slate-200" : "text-white"
                 }`}
                 whileHover={{ scale: 1.05 }}
@@ -400,13 +400,13 @@ const SignInButtonInternal = memo(() => (
     <Link href="/login">
       <Button 
         variant="outline"
-        className="rounded-full border-2 border-slate-300 text-slate-900 bg-white hover:bg-slate-50 font-semibold px-6 py-2"
+        className="rounded-full border-2 border-slate-300 text-slate-900 bg-white hover:bg-slate-50 font-semibold px-8 py-2.5"
       >
         Log in
       </Button>
     </Link>
     <Link href="/login">
-      <Button className="rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-900 font-semibold hover:opacity-90 px-6 py-2">
+      <Button className="rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-900 font-semibold hover:opacity-90 px-8 py-2.5">
         Sign up
       </Button>
     </Link>
