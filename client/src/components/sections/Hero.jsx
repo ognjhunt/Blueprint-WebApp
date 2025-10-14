@@ -27,7 +27,7 @@ export default function Hero({ onPrimaryCta }) {
     },
     {
       k: "how",
-      pre: "Fast to pilot:",
+      pre: "Fast to launch:",
       highlight: "Scan today, go live tomorrow.",
       sub: "We capture your space, map common questions & tasks, and deliver a hands-on demo for your team the very next day.",
     },
@@ -58,7 +58,7 @@ export default function Hero({ onPrimaryCta }) {
       k: "owners",
       pre: "For location owners:",
       highlight: "Bring wearable AI service to your venue in 24 hours.",
-      sub: "Blueprint packages the new device access toolkits into guest-ready pilots for retail, hospitality, attractions, and campuses.",
+      sub: "Blueprint packages the new device access toolkits into guest-ready experiences for retail, hospitality, attractions, and campuses.",
     },
     {
       k: "how",
@@ -75,7 +75,7 @@ export default function Hero({ onPrimaryCta }) {
     {
       k: "proof",
       pre: "Outcomes you can measure:",
-      highlight: "On-site pilots tied to staffing, revenue, and guest KPIs.",
+      highlight: "On-site experiences tied to staffing, revenue, and guest KPIs.",
       sub: "We integrate with your CRM, LMS, and analytics so you learn what to scale.",
     },
   ];
@@ -168,7 +168,7 @@ export default function Hero({ onPrimaryCta }) {
           className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs md:text-sm text-slate-200"
         >
           <MapPin className="w-3.5 h-3.5 text-emerald-300" />
-          Durham area • AI glasses readiness pilot
+          Durham area • AI glasses solutions
         </motion.div>
 
         {/* Headline block */}
@@ -225,7 +225,7 @@ export default function Hero({ onPrimaryCta }) {
             onClick={handlePrimary}
             className="h-12 w-full sm:w-auto rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 px-6 text-base font-semibold text-white shadow-xl border-0 hover:shadow-2xl hover:scale-[1.02] transition"
           >
-            Join the Durham AI pilot (Free)
+            Get Started with AI Glasses
             <ArrowRightIcon className="ml-2 h-5 w-5" />
           </Button>
           <Link href="/pilot-program">
@@ -240,7 +240,7 @@ export default function Hero({ onPrimaryCta }) {
         </motion.div>
 
         <p className="mt-2 text-xs text-slate-400">
-          Pilot includes one on-site demo window; the AI experience is live
+          Onboarding includes one on-site demo window; the AI experience is live
           during that session only.
         </p>
 

@@ -1,6 +1,6 @@
 // ===============================================
 // FILE: src/pages/Home.tsx
-// PURPOSE: Flagship Landing (Home) tuned for Durham Pilot conversion
+// PURPOSE: Flagship Landing (Home) for user sign-up and onboarding
 // NOTES:
 // - Premium "aurora glass" aesthetic with parallax orbs & grid
 // - Subtle motion with prefers-reduced-motion guard
@@ -444,7 +444,7 @@ export default function Home() {
                 <div className="mt-auto flex items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
-                      24-hour pilot: map + demo
+                      24-hour setup: map + demo
                     </span>
                     <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
                       Limited spots
@@ -454,7 +454,7 @@ export default function Home() {
                     onClick={handleScrollToContact}
                     className="rounded-xl h-10 bg-gradient-to-r from-emerald-500 to-cyan-600 text-white"
                   >
-                    Join the AI pilot
+                    Get Started
                   </Button>
                 </div>
               </div>
@@ -504,21 +504,21 @@ export default function Home() {
                 hours. Two focused visits: Day 1 mapping (30–60 minutes) and a
                 next-day activation run-through. Mapping and demo are always
                 booked on consecutive days (for example: map Monday at 5 PM,
-                demo Tuesday at 8 AM). The pilot is free.
+                demo Tuesday at 8 AM).
               </p>
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 justify-center">
                 <Button
                   onClick={handleScrollToContact}
                   className="h-12 w-full text-base rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white border-0 shadow-xl hover:shadow-2xl hover:scale-[1.02] transition will-change-transform"
                 >
-                  Join the AI glasses pilot (Free)
+                  Get Started Today
                 </Button>
                 <a href="/pilot-program" className="w-full">
                   <Button
                     variant="outline"
                     className="h-12 w-full text-base rounded-xl border-white/20 text-black hover:bg-white/10"
                   >
-                    How the Pilot Works
+                    Learn How It Works
                   </Button>
                 </a>
               </div>
@@ -554,7 +554,7 @@ export default function Home() {
               onClick={handleScrollToContact}
               className="w-full rounded-2xl h-14 text-base font-semibold shadow-2xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white"
             >
-              Join Pilot — Free Setup
+              Get Started — Sign Up Now
             </Button>
           </motion.div>
         </div>
