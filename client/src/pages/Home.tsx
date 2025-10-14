@@ -239,6 +239,24 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Video Section */}
+        <section className="py-8 md:py-12 relative">
+          <div className="container mx-auto px-4">
+            <div className="rounded-2xl overflow-hidden border border-white/10 bg-white/5 shadow-2xl">
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                controls
+                className="w-full h-auto"
+                src="/5UlILJJpDlVSavybRSTMO_blNXLhqu.mp4"
+              >
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
+        </section>
 
         {/* Wearable AI demos (lazy) */}
         <Suspense
