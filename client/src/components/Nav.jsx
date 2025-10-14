@@ -406,7 +406,7 @@ const SignInButtonInternal = memo(() => (
       </Button>
     </Link>
     <Link href="/login">
-      <Button className="rounded-full bg-slate-900 text-white font-semibold hover:bg-slate-800 px-6 py-2">
+      <Button className="rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-900 font-semibold hover:opacity-90 px-6 py-2">
         Sign up
       </Button>
     </Link>
