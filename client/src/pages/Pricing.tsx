@@ -47,6 +47,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Link } from "wouter";
+import { useAuth } from "@/contexts/AuthContext";
 
 /* ----------------------------- Shared Pricing ----------------------------- */
 
@@ -433,6 +435,8 @@ function PriceHero() {
 }
 
 function PlanCards() {
+  const { currentUser } = useAuth();
+
   return (
     <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-16">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-10 items-stretch justify-items-stretch">
@@ -507,11 +511,13 @@ function PlanCards() {
                   </li>
                 ))}
               </ul>
-              <Button
-                className={`w-full mt-auto py-6 text-base ${plan.highlight ? "bg-emerald-500 hover:bg-emerald-600" : "bg-white/10 hover:bg-white/15"}`}
-              >
-                {plan.ctaLabel}
-              </Button>
+              <Link href="/login">
+                <Button
+                  className={`w-full mt-auto py-6 text-base ${plan.highlight ? "bg-emerald-500 hover:bg-emerald-600" : "bg-white/10 hover:bg-white/15"}`}
+                >
+                  {plan.ctaLabel}
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         ))}

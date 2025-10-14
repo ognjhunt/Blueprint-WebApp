@@ -169,7 +169,7 @@ export default function Hero({ onPrimaryCta }) {
           className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs md:text-sm text-slate-200"
         >
           <MapPin className="w-3.5 h-3.5 text-emerald-300" />
-          Durham area • AI glasses solutions
+          US-only • AI glasses solutions
         </motion.div>
 
         {/* Headline block */}
