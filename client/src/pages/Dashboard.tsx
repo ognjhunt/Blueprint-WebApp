@@ -1449,7 +1449,7 @@ export default function Dashboard() {
                         className="hidden md:flex items-center text-white bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 shadow-md hover:shadow-emerald-400/50 transition-all"
                         ref={createBlueprintRef}
                       >
-                        <Plus className="mr-2 h-4 w-4" /> Create Blueprint
+                        <Plus className="mr-2 h-4 w-4" /> Create New Blueprint
                       </Button>
                     </Link>
                   </div>
@@ -1552,7 +1552,7 @@ export default function Dashboard() {
                     <div className="md:hidden flex justify-center mb-4">
                       <Link href="/create-blueprint">
                         <Button className="w-full flex items-center justify-center text-white bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 shadow-md">
-                          <Plus className="mr-2 h-4 w-4" /> Create Blueprint
+                          <Plus className="mr-2 h-4 w-4" /> Create New Blueprint
                         </Button>
                       </Link>
                     </div>
