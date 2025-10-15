@@ -1,4 +1,10 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Sparkles,
@@ -122,6 +128,47 @@ export default function WearableAIDemos() {
 
   const [activeIndex, setActiveIndex] = useState(0);
   const activeDemo = demos[activeIndex];
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const setVideoElement = useCallback((element: HTMLVideoElement | null) => {
+    videoRef.current = element;
+  }, []);
+
+  const tryAutoplay = useCallback(() => {
+    const element = videoRef.current;
+    if (!element) {
+      return;
+    }
+
+    element.muted = true;
+    const playPromise = element.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(() => {
+        element.setAttribute("data-autoplay-failed", "true");
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const element = videoRef.current;
+    if (!element) {
+      return;
+    }
+
+    const handleCanPlay = () => {
+      tryAutoplay();
+    };
+
+    tryAutoplay();
+
+    element.addEventListener("canplay", handleCanPlay);
+    element.addEventListener("loadeddata", handleCanPlay);
+
+    return () => {
+      element.removeEventListener("canplay", handleCanPlay);
+      element.removeEventListener("loadeddata", handleCanPlay);
+    };
+  }, [activeIndex, activeDemo.video?.src, tryAutoplay]);
 
   const goTo = useCallback(
     (direction: "next" | "prev") => {
@@ -209,11 +256,14 @@ export default function WearableAIDemos() {
                       >
                         {activeDemo.video ? (
                           <video
+                            ref={setVideoElement}
                             key={`${activeDemo.id}-${activeIndex}`}
                             autoPlay
                             muted
                             loop
                             playsInline
+                            preload="metadata"
+                            onLoadedData={tryAutoplay}
                             poster={activeDemo.video.poster}
                             className="h-full w-full object-cover"
                           >
