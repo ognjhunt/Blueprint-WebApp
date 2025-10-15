@@ -40,6 +40,8 @@ import {
   Smartphone,
   Sparkles,
   BarChart3,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 export default function Home() {
@@ -47,7 +49,12 @@ export default function Home() {
   const [, setLocation] = useLocation();
   const mainRef = useRef<HTMLDivElement>(null);
   const shouldReduce = useReducedMotion();
-  // Only enable heavy visuals on larger screens without reduced motion
+  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+  
+  const videos = [
+    "/Format__look_202510151117 (1).mp4",
+    "/5UlILJJpDlVSavybRSTMO_blNXLhqu.mp4",
+  ];
 
   // Only enable heavy visuals on larger screens without reduced motion
   const [useLightFX, setUseLightFX] = useState(false);
@@ -239,21 +246,55 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Video Section */}
+        {/* Video Carousel Section */}
         <section id="videoSection" className="py-8 md:py-12 relative">
           <div className="container mx-auto px-4">
-            <div className="rounded-2xl overflow-hidden border border-white/10 bg-white/5 shadow-2xl">
+            <div className="relative rounded-2xl overflow-hidden border border-white/10 bg-white/5 shadow-2xl">
               <video
+                key={videos[currentVideoIndex]}
                 autoPlay
                 loop
                 muted
                 playsInline
                 controls
                 className="w-full h-auto"
-                src="/5UlILJJpDlVSavybRSTMO_blNXLhqu.mp4"
+                src={videos[currentVideoIndex]}
               >
                 Your browser does not support the video tag.
               </video>
+              
+              {/* Navigation Arrows */}
+              <button
+                onClick={() => setCurrentVideoIndex((prev) => (prev === 0 ? videos.length - 1 : prev - 1))}
+                className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-3 transition-all hover:scale-110 backdrop-blur-sm"
+                aria-label="Previous video"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              
+              <button
+                onClick={() => setCurrentVideoIndex((prev) => (prev === videos.length - 1 ? 0 : prev + 1))}
+                className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-3 transition-all hover:scale-110 backdrop-blur-sm"
+                aria-label="Next video"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+              
+              {/* Video indicator dots */}
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                {videos.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentVideoIndex(index)}
+                    className={`w-2 h-2 rounded-full transition-all ${
+                      index === currentVideoIndex
+                        ? "bg-white w-8"
+                        : "bg-white/50 hover:bg-white/75"
+                    }`}
+                    aria-label={`Go to video ${index + 1}`}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </section>
