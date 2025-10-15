@@ -226,7 +226,7 @@ export default function Hero({ onPrimaryCta }) {
             onClick={handlePrimary}
             className="h-12 w-full sm:w-auto rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 px-6 text-base font-semibold text-white shadow-xl border-0 hover:shadow-2xl hover:scale-[1.02] transition"
           >
-            Get Started with AI Glasses
+            Launch Your Solution
             <ArrowRightIcon className="ml-2 h-5 w-5" />
           </Button>
           <Button
