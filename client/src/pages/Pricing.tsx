@@ -303,7 +303,7 @@ const planTiers: PlanTier[] = [
       "Session logging with baseline analytics",
     ],
     margin: "~75% avg. margin (kits + shipping included).",
-    ctaLabel: "Start your 30-day trial",
+    ctaLabel: "Get Started",
     kitIncluded:
       "FREE Starter Kit with 4 QR codes (ships during onboarding, before your first bill).",
     kitUpgrades: [
@@ -408,20 +408,8 @@ function PriceHero() {
       </motion.h1>
 
       <p className="mt-4 max-w-3xl mx-auto text-lg text-slate-300">
-        Try Blueprint Pro free for 30 days. Launch with guided scans, then pick
-        the MAU tier that matches your foot traffic—no surprise platform fees.
+        Launch with guided scans, then pick the MAU tier that matches your foot traffic—no surprise platform fees.
       </p>
-
-      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200">
-          <Clock className="h-4 w-4" />
-          Free 30-day trial, full Pro features
-        </div>
-        <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm text-cyan-100">
-          <Percent className="h-4 w-4" />
-          15% off when billed annually
-        </div>
-      </div>
     </section>
   );
 }
