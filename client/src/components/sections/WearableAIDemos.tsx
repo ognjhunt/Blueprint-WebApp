@@ -1,4 +1,10 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Sparkles,
@@ -122,6 +128,25 @@ export default function WearableAIDemos() {
 
   const [activeIndex, setActiveIndex] = useState(0);
   const activeDemo = demos[activeIndex];
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const node = videoRef.current;
+
+    if (!node) {
+      return;
+    }
+
+    node.currentTime = 0;
+
+    const playPromise = node.play();
+
+    if (playPromise && typeof playPromise.then === "function") {
+      playPromise.catch(() => {
+        /* ignore autoplay errors */
+      });
+    }
+  }, [activeDemo, activeIndex]);
 
   const goTo = useCallback(
     (direction: "next" | "prev") => {
@@ -214,6 +239,21 @@ export default function WearableAIDemos() {
                             muted
                             loop
                             playsInline
+                            preload="auto"
+                            ref={videoRef}
+                            onLoadedData={() => {
+                              const node = videoRef.current;
+                              if (!node) {
+                                return;
+                              }
+
+                              const playPromise = node.play();
+                              if (playPromise && typeof playPromise.then === "function") {
+                                playPromise.catch(() => {
+                                  /* ignore autoplay errors */
+                                });
+                              }
+                            }}
                             poster={activeDemo.video.poster}
                             className="h-full w-full object-cover"
                           >
