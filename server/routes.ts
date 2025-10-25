@@ -12,6 +12,7 @@ import webhooksRouter from "./routes/webhooks";
 import aiStudioRouter from "./routes/ai-studio";
 import qrLinkRouter from "./routes/qr-link";
 import appleAssociationRouter from "./routes/apple-app-site-association";
+import stripeAccountRouter from "./routes/stripe";
 
 export function registerRoutes(app: Express) {
   app.use(appleAssociationRouter);
@@ -28,4 +29,5 @@ export function registerRoutes(app: Express) {
   app.post("/api/post-signup-workflows", postSignupWorkflowsHandler);
   app.use("/api/ai-studio", aiStudioRouter);
   app.use("/api/qr", qrLinkRouter);
+  app.use("/v1/stripe", stripeAccountRouter);
 }
