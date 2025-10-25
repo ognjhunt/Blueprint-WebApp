@@ -1,53 +1,23 @@
-import { Router } from "express";
-import Stripe from "stripe";
-
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "";
-const stripe = stripeSecretKey
-  ? new Stripe(stripeSecretKey, { apiVersion: "2024-11-20" })
-  : null;
-
-const CONNECT_ACCOUNT_ID =
-  process.env.STRIPE_CONNECT_ACCOUNT_ID || "acct_1OE1ptPrtLGHqzOG";
-
-const fallbackBaseUrl =
-  process.env.NEXT_PUBLIC_BASE_URL ||
-  process.env.VITE_PUBLIC_URL ||
-  process.env.BASE_URL ||
-  "https://blueprint.homes";
-
-function resolveOnboardingUrl(envVar: string | undefined, defaultPath: string) {
-  if (envVar) {
-    return envVar;
-  }
-
-  try {
-    return new URL(defaultPath, fallbackBaseUrl).toString();
-  } catch (_error) {
-    return "https://blueprint.homes" + defaultPath;
-  }
-}
-
-const ONBOARDING_REFRESH_URL = resolveOnboardingUrl(
-  process.env.STRIPE_ONBOARDING_REFRESH_URL,
-  "/stripe/onboarding/refresh",
-);
-
-const ONBOARDING_RETURN_URL = resolveOnboardingUrl(
-  process.env.STRIPE_ONBOARDING_RETURN_URL,
-  "/stripe/onboarding/return",
-);
+import { Router, type Response } from "express";
+import type Stripe from "stripe";
+import {
+  STRIPE_CONNECT_ACCOUNT_ID,
+  STRIPE_ONBOARDING_REFRESH_URL,
+  STRIPE_ONBOARDING_RETURN_URL,
+  stripeClient,
+} from "../constants/stripe";
 
 const VALID_SCHEDULES = new Set(["daily", "weekly", "monthly", "manual"]);
 
 const router = Router();
 
 function ensureStripeConfigured() {
-  if (!stripe) {
+  if (!stripeClient) {
     throw Object.assign(new Error("STRIPE_SECRET_KEY environment variable is required"), {
       status: 500,
     });
   }
-  if (!CONNECT_ACCOUNT_ID) {
+  if (!STRIPE_CONNECT_ACCOUNT_ID) {
     throw Object.assign(new Error("Stripe Connect account id is not configured"), {
       status: 500,
     });
@@ -57,19 +27,19 @@ function ensureStripeConfigured() {
 router.get("/account", async (_req, res) => {
   try {
     ensureStripeConfigured();
-    const account = await stripe!.accounts.retrieve(CONNECT_ACCOUNT_ID);
+    const account = await stripeClient!.accounts.retrieve(STRIPE_CONNECT_ACCOUNT_ID);
 
-    const payouts = await stripe!.payouts.list(
+    const payouts = await stripeClient!.payouts.list(
       { limit: 3 },
-      { stripeAccount: CONNECT_ACCOUNT_ID },
+      { stripeAccount: STRIPE_CONNECT_ACCOUNT_ID },
     );
 
     const pendingPayout = payouts.data
       .filter((payout) => payout.status === "pending")
       .sort((a, b) => (a.arrival_date || a.created) - (b.arrival_date || b.created))[0];
 
-    const instantBalance = await stripe!.balance.retrieve(undefined, {
-      stripeAccount: CONNECT_ACCOUNT_ID,
+    const instantBalance = await stripeClient!.balance.retrieve(undefined, {
+      stripeAccount: STRIPE_CONNECT_ACCOUNT_ID,
     });
 
     const instantAvailable = instantBalance.instant_available ?? [];
@@ -99,26 +69,40 @@ router.get("/account", async (_req, res) => {
   }
 });
 
+async function createOnboardingLink(res: Response) {
+  ensureStripeConfigured();
+
+  if (!STRIPE_ONBOARDING_REFRESH_URL || !STRIPE_ONBOARDING_RETURN_URL) {
+    return res.status(500).json({
+      error: "Stripe onboarding redirect URLs are not configured",
+    });
+  }
+
+  const link = await stripeClient!.accountLinks.create({
+    account: STRIPE_CONNECT_ACCOUNT_ID,
+    refresh_url: STRIPE_ONBOARDING_REFRESH_URL,
+    return_url: STRIPE_ONBOARDING_RETURN_URL,
+    type: "account_onboarding",
+  });
+
+  return res.status(200).json({
+    onboarding_url: link.url,
+  });
+}
+
 router.post("/account/onboarding_link", async (_req, res) => {
   try {
-    ensureStripeConfigured();
+    await createOnboardingLink(res);
+  } catch (error) {
+    const status = (error as any)?.status || 500;
+    const message = (error as Error).message || "Failed to create onboarding link";
+    return res.status(status).json({ error: message });
+  }
+});
 
-    if (!ONBOARDING_REFRESH_URL || !ONBOARDING_RETURN_URL) {
-      return res.status(500).json({
-        error: "Stripe onboarding redirect URLs are not configured",
-      });
-    }
-
-    const link = await stripe!.accountLinks.create({
-      account: CONNECT_ACCOUNT_ID,
-      refresh_url: ONBOARDING_REFRESH_URL,
-      return_url: ONBOARDING_RETURN_URL,
-      type: "account_onboarding",
-    });
-
-    return res.status(200).json({
-      onboarding_url: link.url,
-    });
+router.get("/account/onboarding_link", async (_req, res) => {
+  try {
+    await createOnboardingLink(res);
   } catch (error) {
     const status = (error as any)?.status || 500;
     const message = (error as Error).message || "Failed to create onboarding link";
@@ -138,7 +122,7 @@ router.put("/account/payout_schedule", async (req, res) => {
       });
     }
 
-    await stripe!.accounts.update(CONNECT_ACCOUNT_ID, {
+    await stripeClient!.accounts.update(STRIPE_CONNECT_ACCOUNT_ID, {
       settings: {
         payouts: {
           schedule: {
@@ -168,13 +152,13 @@ router.post("/account/instant_payout", async (req, res) => {
       });
     }
 
-    const payout = await stripe!.payouts.create(
+    const payout = await stripeClient!.payouts.create(
       {
         amount: Math.round(amount),
         currency: "usd",
         method: "instant",
       },
-      { stripeAccount: CONNECT_ACCOUNT_ID },
+      { stripeAccount: STRIPE_CONNECT_ACCOUNT_ID },
     );
 
     return res.status(200).json({
