@@ -6,7 +6,7 @@ const STRIPE_SECRET_KEY =
   "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";
 
 export const stripeClient = STRIPE_SECRET_KEY
-  ? new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-11-20" })
+  ? new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" })
   : null;
 
 export const STRIPE_CONNECT_ACCOUNT_ID =
