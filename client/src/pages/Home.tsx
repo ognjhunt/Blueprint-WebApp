@@ -142,7 +142,7 @@ export default function Home() {
               How it works
             </p>
             <h2 className="text-3xl font-semibold text-slate-900">
-              From seed mesh to SimReady scene in three moves.
+              From real-world capture to SimReady scene in three moves.
             </h2>
           </div>
           <div className="md:col-span-2 grid gap-6 md:grid-cols-3">
@@ -151,9 +151,9 @@ export default function Home() {
                 01 • Generate
               </span>
               <p className="mt-3 text-sm text-slate-600">
-                Start from on-site captures and internal asset libraries. We
-                clean topology, UVs, and materials to create watertight,
-                PBR-ready geometry.
+                Start from on-site captures or thoroughly documented real-world
+                locations. We clean topology, UVs, and materials to create
+                watertight, PBR-ready geometry.
               </p>
             </div>
             <div className="rounded-3xl border border-slate-200 bg-white p-6">
@@ -231,7 +231,7 @@ export default function Home() {
                 On-site capture → SimReady digital twin.
               </h3>
               <p className="mt-3 max-w-xl text-sm text-slate-600">
-                We scan your facility, rebuild it in USD, and return a validated
+                We scan your site-of-choice, rebuild it in USD, and return a validated
                 digital twin in days—not months. Join the waitlist to reserve an
                 on-site capture slot.
               </p>
