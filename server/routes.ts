@@ -13,6 +13,9 @@ import aiStudioRouter from "./routes/ai-studio";
 import qrLinkRouter from "./routes/qr-link";
 import appleAssociationRouter from "./routes/apple-app-site-association";
 import stripeAccountRouter from "./routes/stripe";
+import contactHandler from "./routes/contact";
+import waitlistHandler from "./routes/waitlist";
+import applyHandler from "./routes/apply";
 
 export function registerRoutes(app: Express) {
   app.use(appleAssociationRouter);
@@ -23,6 +26,9 @@ export function registerRoutes(app: Express) {
   app.all("/api/generate-image", generateImageHandler);
   app.post("/api/submit-to-sheets", submitToSheetsHandler);
   app.post("/api/process-waitlist", processWaitlistHandler);
+  app.post("/api/contact", contactHandler);
+  app.post("/api/waitlist", waitlistHandler);
+  app.post("/api/apply", applyHandler);
   // app.post("/api/mapping-confirmation", processMappingConfirmationHandler); // Commented out - handler is not exported
   app.post("/api/demo-day-confirmation", demoDayConfirmationHandler);
   app.post("/api/upload-to-b2", uploadToB2Handler);

@@ -1,1026 +1,219 @@
-// ===============================================
-// FILE: src/pages/Home.tsx
-// PURPOSE: Flagship Landing (Home) for user sign-up and onboarding
-// NOTES:
-// - Premium "aurora glass" aesthetic with parallax orbs & grid
-// - Subtle motion with prefers-reduced-motion guard
-// - Sticky mobile CTA, above-the-fold trust chips, animated counters
-// - Uses existing: Nav, Hero, WearableAIDemos, Footer
-// ===============================================
+import { CTAButtons } from "@/components/site/CTAButtons";
+import { LogoWall } from "@/components/site/LogoWall";
+import { TileGrid } from "@/components/site/TileGrid";
+import { WaitlistForm } from "@/components/site/WaitlistForm";
+import { environmentCategories } from "@/data/content";
 
-import React, {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  lazy,
-  Suspense,
-} from "react";
-import { useLocation } from "wouter";
-import { useAuth } from "@/contexts/AuthContext";
-import Nav from "@/components/Nav";
-import Hero from "@/components/sections/Hero";
-// ↓ Lazy-load below-the-fold UI so the Home above-the-fold gets first paint fastssadasdballsbrooklynjzxdasdaaywasdsadadaasdsdssdsdy
-const WearableAIDemos = lazy(
-  () => import("@/components/sections/WearableAIDemos"),
-);
-import Footer from "@/components/Footer";
-import LindyChat from "@/components/LindyChat";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  motion,
-  useMotionValue,
-  useTransform,
-  useReducedMotion,
-} from "framer-motion";
-import {
-  ShieldCheck,
-  Clock,
-  Smartphone,
-  Sparkles,
-  BarChart3,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+const whySimReady = [
+  {
+    title: "Contact-accurate geometry",
+    description:
+      "Watertight topology with sub-millimeter tolerances so perception and policy transfer hold up.",
+  },
+  {
+    title: "Correct pivots & joints",
+    description:
+      "Every articulated component ships with validated axes, limits, and authored USD skeletons.",
+  },
+  {
+    title: "USD + Isaac-ready",
+    description:
+      "Physics materials, collision proxies, and semantic schemas tuned for Isaac Sim out of the box.",
+  },
+];
+
+const labBullets = [
+  "Articulated containers (doors, drawers, racks)",
+  "Pick-place props with clean colliders",
+  "USD stages validated in Isaac",
+  "Replicator-ready semantics on request",
+];
+
+const artistBullets = [
+  "Join a network shipping scenes to leading labs",
+  "Focus on fidelity—we’ll handle the pipeline",
+  "Paid per scene, bonuses for articulation coverage",
+];
 
 export default function Home() {
-  const { currentUser } = useAuth();
-  const [, setLocation] = useLocation();
-  const mainRef = useRef<HTMLDivElement>(null);
-  const shouldReduce = useReducedMotion();
-  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
-  
-  const videos = [
-    "/Format__look_202510151117 (1).mp4",
-    "/5UlILJJpDlVSavybRSTMO_blNXLhqu.mp4",
-  ];
-
-  // Only enable heavy visuals on larger screens without reduced motion
-  const [useLightFX, setUseLightFX] = useState(false);
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const mql = window.matchMedia(
-        "(min-width: 1024px) and (prefers-reduced-motion: no-preference)",
-      );
-      setUseLightFX(mql.matches);
-    }
-  }, []);
-
-  //just to make changes. again.jk
-
-  useEffect(() => {
-    if (currentUser) setLocation("/dashboard");
-  }, [currentUser, setLocation]);
-
-  const benefits = useMemo(
-    () => [
-      { icon: <Clock className="w-4 h-4" />, label: "60-min spatial capture" },
-      {
-        icon: <Smartphone className="w-4 h-4" />,
-        label: "Smart glasses + phone ready",
-      },
-      {
-        icon: <Sparkles className="w-4 h-4" />,
-        label: "Hands-free AI concierge",
-      },
-      {
-        icon: <BarChart3 className="w-4 h-4" />,
-        label: "Live operations insights",
-      },
-    ],
-    [],
-  );
-
-  const handleNavigateToLogin = () => {
-    setLocation("/login");
-  };
-
-  // Parallax background orbs (desktop only, super subtle)
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-  const orbX = useTransform(mouseX, [0, 1], ["-2%", "2%"]);
-  const orbY = useTransform(mouseY, [0, 1], ["-1%", "1%"]);
-
-  const onMouseMove = (e: React.MouseEvent) => {
-    if (shouldReduce) return;
-    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-    mouseX.set((e.clientX - rect.left) / rect.width);
-    mouseY.set((e.clientY - rect.top) / rect.height);
-  };
-
   return (
-    <div
-      className="min-h-screen flex flex-col bg-[#0B1220] text-slate-100"
-      onMouseMove={onMouseMove}
-    >
-      {/* BACKGROUND: aurora + grid + parallax blobs */}
-      <div
-        className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
-        style={{ contain: "paint" }}
-      >
-        {/* Soft grid (cheap) */}
-        <div
-          className="absolute inset-0 opacity-[0.08]"
-          style={{
-            background:
-              "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.18) 1px, transparent 1px)",
-            backgroundSize: "32px 32px",
-          }}
+    <div className="space-y-24 pb-24">
+      <section className="mx-auto grid max-w-6xl gap-16 px-4 pt-16 sm:px-6 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="space-y-10">
+          <div className="space-y-6">
+            <div className="inline-flex rounded-full border border-slate-200 px-3 py-1 text-xs uppercase tracking-[0.3em] text-slate-500">
+              SimReady Environment Network
+            </div>
+            <h1 className="text-4xl font-semibold leading-tight text-slate-900 sm:text-5xl lg:text-6xl">
+              SimReady worlds for robotic training.
+            </h1>
+            <p className="max-w-xl text-lg text-slate-600">
+              High-fidelity scenes, physics-clean assets, delivered fast. Blueprint finishes procedural and real-world environments so your robots can prove ROI in simulation before hardware hits the floor.
+            </p>
+          </div>
+          <CTAButtons
+            primaryHref="/environments"
+            primaryLabel="Browse Environment Network"
+            secondaryHref="/contact"
+            secondaryLabel="Request a Scene"
+          />
+          <LogoWall />
+        </div>
+        <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 p-10">
+          <div className="absolute -top-24 right-8 h-48 w-48 rounded-full bg-emerald-200/40 blur-3xl" />
+          <div className="relative space-y-6 text-sm text-slate-600">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              Network coverage
+            </p>
+            <p>
+              Kitchens, groceries, warehouse lanes, labs, offices, retail, utility, and more. Each environment ships with articulated policies, pickable props, semantic labels, and Isaac validation reports.
+            </p>
+            <p>
+              Add on our on-site capture service to transform your real facility into a SimReady digital twin. Join the waitlist below.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 sm:px-6">
+        <h2 className="text-3xl font-semibold text-slate-900">Why SimReady</h2>
+        <div className="mt-8 grid gap-6 md:grid-cols-3">
+          {whySimReady.map((item) => (
+            <div
+              key={item.title}
+              className="rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-600"
+            >
+              <h3 className="text-lg font-semibold text-slate-900">{item.title}</h3>
+              <p className="mt-3 leading-relaxed">{item.description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl space-y-6 px-4 sm:px-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-3xl font-semibold text-slate-900">
+              Environment Network
+            </h2>
+            <p className="mt-2 max-w-xl text-sm text-slate-600">
+              60+ scene archetypes spanning robotic kitchens, warehouses, retail, offices, and labs. Browse categories below or jump into the full catalog.
+            </p>
+          </div>
+          <a
+            href="/environments"
+            className="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
+          >
+            View all scenes
+          </a>
+        </div>
+        <TileGrid
+          items={environmentCategories.map((category) => ({
+            label: category.title,
+            href: `/environments?category=${category.slug}`,
+            description: category.summary,
+          }))}
         />
-        {/* Aurora wash */}
-        <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/[0.10] via-cyan-500/[0.08] to-transparent mix-blend-screen" />
-        {/* Parallax blobs (desktop only) */}
-        {useLightFX && !shouldReduce && (
-          <>
-            <motion.div
-              style={{ x: orbX, y: orbY }}
-              className="absolute -top-40 -right-64 h-[50rem] w-[50rem] rounded-full md:blur-xl blur-none opacity-35 bg-gradient-to-br from-emerald-500/25 via-cyan-500/25 to-sky-500/10 will-change-transform"
-            />
-            <motion.div
-              style={{ x: orbX, y: orbY }}
-              className="absolute -bottom-56 -left-64 h-[46rem] w-[46rem] rounded-full md:blur-xl blur-none opacity-25 bg-gradient-to-tr from-cyan-500/15 via-emerald-500/15 to-amber-400/10 will-change-transform"
-            />
-          </>
-        )}
-        {/* No film-grain turbulence layer — it causes extra paints on scroll */}
-      </div>
+      </section>
 
-      <Nav />
-
-      <main ref={mainRef} className="flex-1 relative">
-        {/* HERO */}
-        <Hero onPrimaryCta={handleNavigateToLogin} />
-
-        {/* Benefit strip */}
-        <section
-          className="bg-[#0E172A]/90 py-4 border-y border-white/5"
-          style={{
-            contentVisibility: "auto",
-            contain: "paint",
-            containIntrinsicSize: "1px 240px",
-          }}
-        >
-          <div className="container mx-auto px-4 overflow-hidden">
-            <div className="marquee">
-              <div className="marquee__track">
-                {[
-                  {
-                    icon: <Clock className="w-4 h-4" />,
-                    label: "60-min spatial capture",
-                  },
-                  {
-                    icon: <Smartphone className="w-4 h-4" />,
-                    label: "Smart glasses + phone ready",
-                  },
-                  {
-                    icon: <Sparkles className="w-4 h-4" />,
-                    label: "Hands-free AI concierge",
-                  },
-                  {
-                    icon: <BarChart3 className="w-4 h-4" />,
-                    label: "Real-time operations insights",
-                  },
-                  {
-                    icon: <ShieldCheck className="w-4 h-4" />,
-                    label: "No hardware purchase required",
-                  },
-                  {
-                    icon: <Sparkles className="w-4 h-4" />,
-                    label: "Trained on your brand",
-                  },
-                  {
-                    icon: <Clock className="w-4 h-4" />,
-                    label: "White-glove onboarding",
-                  },
-                  {
-                    icon: <BarChart3 className="w-4 h-4" />,
-                    label: "Staff & visitor analytics",
-                  },
-                  // duplicate once for seamless loop:
-                  {
-                    icon: <Clock className="w-4 h-4" />,
-                    label: "60-min spatial capture",
-                  },
-                  {
-                    icon: <Smartphone className="w-4 h-4" />,
-                    label: "Smart glasses + phone ready",
-                  },
-                  {
-                    icon: <Sparkles className="w-4 h-4" />,
-                    label: "Hands-free AI concierge",
-                  },
-                  {
-                    icon: <BarChart3 className="w-4 h-4" />,
-                    label: "Real-time operations insights",
-                  },
-                  {
-                    icon: <ShieldCheck className="w-4 h-4" />,
-                    label: "No hardware purchase required",
-                  },
-                  {
-                    icon: <Sparkles className="w-4 h-4" />,
-                    label: "Trained on your brand",
-                  },
-                  {
-                    icon: <Clock className="w-4 h-4" />,
-                    label: "White-glove onboarding",
-                  },
-                  {
-                    icon: <BarChart3 className="w-4 h-4" />,
-                    label: "Staff & visitor analytics",
-                  },
-                ].map((b, i) => (
-                  <div
-                    key={i}
-                    className="shrink-0 rounded-xl border border-white/10 bg-white/5 px-3 py-2 flex items-center gap-2"
-                  >
-                    <span className="text-emerald-300">{b.icon}</span>
-                    <span className="text-sm font-medium text-slate-100 whitespace-nowrap">
-                      {b.label}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+      <section className="mx-auto max-w-6xl space-y-12 px-4 sm:px-6">
+        <div className="grid gap-12 md:grid-cols-3">
+          <div className="space-y-4">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              How it works
+            </p>
+            <h2 className="text-3xl font-semibold text-slate-900">
+              From seed mesh to SimReady scene in three moves.
+            </h2>
           </div>
-        </section>
-
-        {/* Video Carousel Section */}
-        <section id="videoSection" className="py-8 md:py-12 relative">
-          <div className="container mx-auto px-4">
-            <div className="relative rounded-2xl overflow-hidden border border-white/10 bg-white/5 shadow-2xl">
-              <video
-                key={videos[currentVideoIndex]}
-                autoPlay
-                loop
-                muted
-                playsInline
-                controls
-                className="w-full h-auto"
-                src={videos[currentVideoIndex]}
-              >
-                Your browser does not support the video tag.
-              </video>
-              
-              {/* Navigation Arrows */}
-              <button
-                onClick={() => setCurrentVideoIndex((prev) => (prev === 0 ? videos.length - 1 : prev - 1))}
-                className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-3 transition-all hover:scale-110 backdrop-blur-sm"
-                aria-label="Previous video"
-              >
-                <ChevronLeft className="w-6 h-6" />
-              </button>
-              
-              <button
-                onClick={() => setCurrentVideoIndex((prev) => (prev === videos.length - 1 ? 0 : prev + 1))}
-                className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-3 transition-all hover:scale-110 backdrop-blur-sm"
-                aria-label="Next video"
-              >
-                <ChevronRight className="w-6 h-6" />
-              </button>
-              
-              {/* Video indicator dots */}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                {videos.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentVideoIndex(index)}
-                    className={`w-2 h-2 rounded-full transition-all ${
-                      index === currentVideoIndex
-                        ? "bg-white w-8"
-                        : "bg-white/50 hover:bg-white/75"
-                    }`}
-                    aria-label={`Go to video ${index + 1}`}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Wearable AI demos (lazy) */}
-        <Suspense
-          fallback={
-            <div className="container mx-auto px-4 py-16 text-center text-slate-300">
-              Loading wearable AI demos…
-            </div>
-          }
-        >
-          <div
-            style={{
-              contentVisibility: "auto",
-              contain: "paint",
-              containIntrinsicSize: "1px 720px",
-            }}
-          >
-            <WearableAIDemos />
-          </div>
-        </Suspense>
-
-        {/* Conversion block (no backdrop-blur) */}
-        <section
-          className="relative py-16"
-          style={{
-            contentVisibility: "auto",
-            contain: "paint",
-            containIntrinsicSize: "1px 560px",
-          }}
-        >
-          <div className="container mx-auto px-4">
-            <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.03] p-6 md:p-10 text-center overflow-hidden relative">
-              {/* light sweep */}
-              <div className="pointer-events-none absolute -top-1/2 left-1/2 h-[120%] w-[60%] -translate-x-1/2 rotate-12 bg-gradient-to-b from-white/10 to-transparent blur-2xl" />
-              <h3 className="text-2xl md:text-4xl font-black text-white">
-                Ready to deliver an on-site AI solution?
-              </h3>
-              <p className="mt-3 text-slate-300 max-w-2xl mx-auto">
-                Smart glasses launches from Meta, Google, Apple, and Samsung are
-                bringing hands-free AI into the mainstream. We help you capture
-                your space, design the workflows, and test with your team in 24
-                hours. Two focused visits: Day 1 mapping (30–60 minutes) and a
-                next-day activation run-through. Mapping and demo are always
-                booked on consecutive days (for example: map Monday at 5 PM,
-                demo Tuesday at 8 AM).
+          <div className="md:col-span-2 grid gap-6 md:grid-cols-3">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6">
+              <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                01 • Generate
+              </span>
+              <p className="mt-3 text-sm text-slate-600">
+                Start from Seed3D captures and internal asset libraries. We clean topology, UVs, and materials to create watertight, PBR-ready geometry.
               </p>
-              <div className="mt-6 flex justify-center">
-                <Button
-                  onClick={handleNavigateToLogin}
-                  className="h-12 w-full sm:w-auto text-base rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white border-0 shadow-xl hover:shadow-2xl hover:scale-[1.02] transition will-change-transform px-8"
-                >
-                  Get Started Today
-                </Button>
-              </div>
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-white p-6">
+              <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                02 • Prep
+              </span>
+              <p className="mt-3 text-sm text-slate-600">
+                Blender finishing adds precise pivots, separated links, and optional joint rigs. Colliders are authored and tuned for contact-rich tasks.
+              </p>
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-white p-6">
+              <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                03 • Sim authoring
+              </span>
+              <p className="mt-3 text-sm text-slate-600">
+                Final USD staging with physics materials, articulation limits, and Isaac validation. Replicator annotations available on request.
+              </p>
             </div>
           </div>
-        </section>
+        </div>
 
-      </main>
+        <div className="grid gap-12 md:grid-cols-2">
+          <div className="space-y-4">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              For robotics labs
+            </p>
+            <h3 className="text-2xl font-semibold text-slate-900">
+              Open. Slide. Pick. Place. Repeat.
+            </h3>
+            <ul className="mt-4 space-y-3 text-sm text-slate-600">
+              {labBullets.map((item) => (
+                <li key={item} className="flex items-start gap-2">
+                  <span className="mt-1 h-2 w-2 rounded-full bg-emerald-500" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              For 3D artists
+            </p>
+            <h3 className="text-2xl font-semibold text-slate-900">
+              Join the network building the worlds robots learn in.
+            </h3>
+            <ul className="mt-4 space-y-3 text-sm text-slate-600">
+              {artistBullets.map((item) => (
+                <li key={item} className="flex items-start gap-2">
+                  <span className="mt-1 h-2 w-2 rounded-full bg-emerald-500" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+            <a
+              href="/careers"
+              className="inline-flex items-center text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
+            >
+              Apply
+            </a>
+          </div>
+        </div>
+      </section>
 
-      {/* Sticky mobile CTA */}
-      <div className="md:hidden sticky bottom-4 z-50 px-4">
-        <motion.div
-          initial={{ y: 40, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.4 }}
-        >
-          <Button
-            onClick={handleNavigateToLogin}
-            className="w-full rounded-2xl h-14 text-base font-semibold shadow-2xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white"
-          >
-            Get Started — Sign Up Now
-          </Button>
-        </motion.div>
-      </div>
-
-      <Footer />
-      <LindyChat ctaVisible={true} />
+      <section className="mx-auto max-w-6xl space-y-6 px-4 sm:px-6">
+        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-8 md:p-12">
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                Coming soon
+              </p>
+              <h3 className="mt-2 text-2xl font-semibold text-slate-900">
+                On-site capture → SimReady digital twin.
+              </h3>
+              <p className="mt-3 max-w-xl text-sm text-slate-600">
+                We scan your facility, rebuild it in USD, and return a validated digital twin in days—not months. Join the waitlist to reserve an on-site capture slot.
+              </p>
+            </div>
+            <WaitlistForm />
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
-
-function AssuranceCard({
-  title,
-  headlineSuffix,
-  body,
-  accentClass,
-}: {
-  title: React.ReactNode;
-  headlineSuffix: string;
-  body: string;
-  accentClass?: string;
-  icon?: React.ReactNode;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.45 }}
-      className="rounded-2xl border border-white/10 bg-white/5 p-6"
-    >
-      <p className={`text-4xl font-black ${accentClass}`}>
-        {title}
-        {typeof title === "string" ? "" : ""}
-      </p>
-      <p className="mt-1 text-slate-200 font-semibold">{headlineSuffix}</p>
-      <p className="mt-2 text-sm text-slate-400">{body}</p>
-    </motion.div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.35 }}
-      className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center"
-    >
-      <div className="text-xl font-extrabold text-white">{value}</div>
-      <div className="text-xs uppercase tracking-wider text-slate-400 mt-1">
-        {label}
-      </div>
-    </motion.div>
-  );
-}
-
-// // ===============================================
-// // FILE: src/pages/Home.tsx
-// // PURPOSE: Flagship Landing (Home) tuned for Durham Pilot conversion
-// // NOTES:
-// // - Premium "aurora glass" aesthetic with parallax orbs & grid
-// // - Subtle motion with prefers-reduced-motion guard
-// // - Sticky mobile CTA, above-the-fold trust chips, animated counters
-// // - Uses existing: Nav, Hero, WearableAIDemos, Footer
-// // ===============================================
-
-// import React, {
-//   useEffect,
-//   useMemo,
-//   useRef,
-//   useState,
-//   lazy,
-//   Suspense,
-// } from "react";
-// import { useLocation } from "wouter";
-// import { useAuth } from "@/contexts/AuthContext";
-// import Nav from "@/components/Nav";
-// import Hero from "@/components/sections/Hero";
-// // ↓ Lazy-load below-the-fold UI so the Home above-the-fold gets first paint fast
-// const WearableAIDemos = lazy(
-//   () => import("@/components/sections/WearableAIDemos"),
-// );
-// const ContactForm = lazy(() => import("@/components/sections/ContactForm"));
-// import Footer from "@/components/Footer";
-// import LindyChat from "@/components/LindyChat";
-// import { Button } from "@/components/ui/button";
-// import { Card, CardContent } from "@/components/ui/card";
-// import {
-//   motion,
-//   useMotionValue,
-//   useTransform,
-//   useReducedMotion,
-// } from "framer-motion";
-// import {
-//   ShieldCheck,
-//   Clock,
-//   Smartphone,
-//   Sparkles,
-//   BarChart3,
-// } from "lucide-react";
-
-// export default function Home() {
-//   const { currentUser } = useAuth();
-//   const [, setLocation] = useLocation();
-//   const mainRef = useRef<HTMLDivElement>(null);
-//   const contactRef = useRef<HTMLDivElement>(null);
-//   const [isContactInView, setIsContactInView] = useState(false);
-//   const [hasReachedContact, setHasReachedContact] = useState(false);
-//   const shouldReduce = useReducedMotion();
-//   // Only enable heavy visuals on larger screens without reduced motion
-
-//   // Only enable heavy visuals on larger screens without reduced motion
-//   const [useLightFX, setUseLightFX] = useState(false);
-//   useEffect(() => {
-//     if (typeof window !== "undefined") {
-//       const mql = window.matchMedia(
-//         "(min-width: 1024px) and (prefers-reduced-motion: no-preference)",
-//       );
-//       setUseLightFX(mql.matches);
-//     }
-//   }, []);
-
-//   //just to make changes, necessary again
-
-//   useEffect(() => {
-//     if (currentUser) setLocation("/dashboard");
-//   }, [currentUser, setLocation]);
-
-//   // 👇 Set up intersection observer
-//   useEffect(() => {
-//     const observer = new IntersectionObserver(
-//       ([entry]) => setIsContactInView(entry.isIntersecting),
-//       { threshold: 0.3 }, // adjust so it hides when ~30% of the contact section is visible
-//     );
-//     if (contactRef.current) observer.observe(contactRef.current);
-//     return () => {
-//       observer.disconnect();
-//     };
-//   }, []);
-
-//   // Hide CTA once we've reached the contact section (and keep it hidden below)
-//   useEffect(() => {
-//     const computeReached = () => {
-//       const el = contactRef.current;
-//       if (!el) return;
-//       const rect = el.getBoundingClientRect();
-//       const contactTop = rect.top + window.scrollY;
-//       const viewportBottom = window.scrollY + window.innerHeight;
-//       // small buffer so it disappears a touch early
-//       setHasReachedContact(viewportBottom >= contactTop - 8);
-//     };
-
-//     computeReached(); // initialize on first mount
-//     window.addEventListener("scroll", computeReached, { passive: true });
-//     window.addEventListener("resize", computeReached);
-
-//     return () => {
-//       window.removeEventListener("scroll", computeReached);
-//       window.removeEventListener("resize", computeReached);
-//     };
-//   }, []);
-
-//   const benefits = useMemo(
-//     () => [
-//       { icon: <Clock className="w-4 h-4" />, label: "60-min on-site setup" },
-//       { icon: <Smartphone className="w-4 h-4" />, label: "No app required" },
-//       {
-//         icon: <Sparkles className="w-4 h-4" />,
-//         label: "Custom AR for your space",
-//       },
-//       {
-//         icon: <BarChart3 className="w-4 h-4" />,
-//         label: "Live engagement analytics",
-//       },
-//     ],
-//     [],
-//   );
-
-//   const handleScrollToContact = () => {
-//     const el = document.getElementById("contactForm");
-//     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-//   };
-
-//   // Parallax background orbs (desktop only, super subtle)
-//   const mouseX = useMotionValue(0);
-//   const mouseY = useMotionValue(0);
-//   const orbX = useTransform(mouseX, [0, 1], ["-2%", "2%"]);
-//   const orbY = useTransform(mouseY, [0, 1], ["-1%", "1%"]);
-
-//   const onMouseMove = (e: React.MouseEvent) => {
-//     if (shouldReduce) return;
-//     const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-//     mouseX.set((e.clientX - rect.left) / rect.width);
-//     mouseY.set((e.clientY - rect.top) / rect.height);
-//   };
-
-//   return (
-//     <div
-//       className="min-h-screen flex flex-col bg-[#0B1220] text-slate-100"
-//       onMouseMove={onMouseMove}
-//     >
-//       {/* BACKGROUND: aurora + grid + parallax blobs */}
-//       <div
-//         className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
-//         style={{ contain: "paint" }}
-//       >
-//         {/* Soft grid (cheap) */}
-//         <div
-//           className="absolute inset-0 opacity-[0.08]"
-//           style={{
-//             background:
-//               "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.18) 1px, transparent 1px)",
-//             backgroundSize: "32px 32px",
-//           }}
-//         />
-//         {/* Aurora wash */}
-//         <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/[0.10] via-cyan-500/[0.08] to-transparent mix-blend-screen" />
-//         {/* Parallax blobs (desktop only) */}
-//         {useLightFX && !shouldReduce && (
-//           <>
-//             <motion.div
-//               style={{ x: orbX, y: orbY }}
-//               className="absolute -top-40 -right-64 h-[50rem] w-[50rem] rounded-full md:blur-xl blur-none opacity-35 bg-gradient-to-br from-emerald-500/25 via-cyan-500/25 to-sky-500/10 will-change-transform"
-//             />
-//             <motion.div
-//               style={{ x: orbX, y: orbY }}
-//               className="absolute -bottom-56 -left-64 h-[46rem] w-[46rem] rounded-full md:blur-xl blur-none opacity-25 bg-gradient-to-tr from-cyan-500/15 via-emerald-500/15 to-amber-400/10 will-change-transform"
-//             />
-//           </>
-//         )}
-//         {/* No film-grain turbulence layer — it causes extra paints on scroll */}
-//       </div>
-
-//       <Nav />
-
-//       <main ref={mainRef} className="flex-1 relative">
-//         {/* HERO */}
-//         <Hero onPrimaryCta={handleScrollToContact} />
-
-//         {/* Benefit strip */}
-//         <section
-//           className="bg-[#0E172A]/90 py-4 border-y border-white/5"
-//           style={{
-//             contentVisibility: "auto",
-//             contain: "paint",
-//             containIntrinsicSize: "1px 240px",
-//           }}
-//         >
-//           <div className="container mx-auto px-4 overflow-hidden">
-//             <div className="marquee">
-//               <div className="marquee__track">
-//                 {[
-//                   {
-//                     icon: <Clock className="w-4 h-4" />,
-//                     label: "60-min on-site setup",
-//                   },
-//                   {
-//                     icon: <Smartphone className="w-4 h-4" />,
-//                     label: "No app required",
-//                   },
-//                   {
-//                     icon: <Sparkles className="w-4 h-4" />,
-//                     label: "Custom AR for your space",
-//                   },
-//                   {
-//                     icon: <BarChart3 className="w-4 h-4" />,
-//                     label: "Live engagement analytics",
-//                   },
-//                   {
-//                     icon: <ShieldCheck className="w-4 h-4" />,
-//                     label: "No hardware cost",
-//                   },
-//                   {
-//                     icon: <Sparkles className="w-4 h-4" />,
-//                     label: "Works on headsets & glasses",
-//                   },
-//                   {
-//                     icon: <Clock className="w-4 h-4" />,
-//                     label: "White-glove onboarding",
-//                   },
-//                   {
-//                     icon: <BarChart3 className="w-4 h-4" />,
-//                     label: "Boosts customer engagement",
-//                   },
-//                   // duplicate once for seamless loop:
-//                   {
-//                     icon: <Clock className="w-4 h-4" />,
-//                     label: "60-min on-site setup",
-//                   },
-//                   {
-//                     icon: <Smartphone className="w-4 h-4" />,
-//                     label: "No app required",
-//                   },
-//                   {
-//                     icon: <Sparkles className="w-4 h-4" />,
-//                     label: "Custom AR for your space",
-//                   },
-//                   {
-//                     icon: <BarChart3 className="w-4 h-4" />,
-//                     label: "Live engagement analytics",
-//                   },
-//                   {
-//                     icon: <ShieldCheck className="w-4 h-4" />,
-//                     label: "No hardware cost",
-//                   },
-//                   {
-//                     icon: <Sparkles className="w-4 h-4" />,
-//                     label: "Works on headsets & glasses",
-//                   },
-//                   {
-//                     icon: <Clock className="w-4 h-4" />,
-//                     label: "White-glove onboarding",
-//                   },
-//                   {
-//                     icon: <BarChart3 className="w-4 h-4" />,
-//                     label: "Boosts customer engagement",
-//                   },
-//                 ].map((b, i) => (
-//                   <div
-//                     key={i}
-//                     className="shrink-0 rounded-xl border border-white/10 bg-white/5 px-3 py-2 flex items-center gap-2"
-//                   >
-//                     <span className="text-emerald-300">{b.icon}</span>
-//                     <span className="text-sm font-medium text-slate-100 whitespace-nowrap">
-//                       {b.label}
-//                     </span>
-//                   </div>
-//                 ))}
-//               </div>
-//             </div>
-//           </div>
-//         </section>
-
-//         {/* Quick Qualify (replaces the "Social proof / assurances" section) */}
-//         <section className="bg-[#0B1220] py-8 md:py-12">
-//           <div className="container mx-auto px-4">
-//             {/* MOBILE: stacked, compact */}
-//             <div className="md:hidden space-y-4">
-//               {/* Are you a fit? */}
-//               <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-//                 <p className="text-sm font-semibold text-emerald-300 mb-1">
-//                   Eligibility
-//                 </p>
-//                 <h3 className="text-lg font-bold text-white mb-3">
-//                   Are you a fit?
-//                 </h3>
-//                 <ul className="grid grid-cols-2 gap-2 text-sm">
-//                   {[
-//                     "Durham ≤ 30-min drive",
-//                     "Customer-facing space",
-//                     "On-site point of contact",
-//                     "~60-min access window",
-//                   ].map((t) => (
-//                     <li
-//                       key={t}
-//                       className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-slate-200"
-//                     >
-//                       {t}
-//                     </li>
-//                   ))}
-//                 </ul>
-//               </div>
-
-//               {/* What’s included */}
-//               <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-//                 <p className="text-sm font-semibold text-cyan-300 mb-1">
-//                   Included
-//                 </p>
-//                 <h3 className="text-lg font-bold text-white mb-3">
-//                   What you’ll get
-//                 </h3>
-//                 <ul className="space-y-2 text-sm text-slate-300">
-//                   <li>• LiDAR mapping of your space</li>
-//                   <li>• Custom AR layer tailored to your brand</li>
-//                   <li>• QR kit for instant access on-site</li>
-//                   <li>• VR headset demo day for your team</li>
-//                   <li>• Simple engagement recap & next-step options</li>
-//                 </ul>
-//               </div>
-
-//               {/* Who does what + availability */}
-//               <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-//                 <div className="grid grid-cols-2 gap-4 mb-4">
-//                   <div>
-//                     <p className="text-xs font-semibold text-emerald-300 mb-1">
-//                       We handle
-//                     </p>
-//                     <ul className="space-y-1 text-sm text-slate-300">
-//                       <li>• Mapping & design</li>
-//                       <li>• Setup & devices</li>
-//                       <li>• Analytics recap</li>
-//                     </ul>
-//                   </div>
-//                   <div>
-//                     <p className="text-xs font-semibold text-cyan-300 mb-1">
-//                       You provide
-//                     </p>
-//                     <ul className="space-y-1 text-sm text-slate-300">
-//                       <li>• 60-min window</li>
-//                       <li>• Logo/menu/product list</li>
-//                       <li>• Quick feedback</li>
-//                     </ul>
-//                   </div>
-//                 </div>
-
-//                 <div className="flex flex-wrap items-center gap-2 mb-4">
-//                   <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
-//                     Launch in under 24 hours
-//                   </span>
-//                   <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
-//                     Live demo 1–2 hrs
-//                   </span>
-//                   <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
-//                     Replies &lt; 24h
-//                   </span>
-//                   <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
-//                     Limited spots
-//                   </span>
-//                 </div>
-
-//                 <Button
-//                   onClick={handleScrollToContact}
-//                   className="w-full rounded-xl h-12 bg-gradient-to-r from-emerald-500 to-cyan-600 text-white font-semibold shadow-xl"
-//                 >
-//                   Check my eligibility
-//                 </Button>
-//               </div>
-//             </div>
-
-//             {/* DESKTOP: compact 3-card grid */}
-//             <div className="hidden md:grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-//               <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-//                 <p className="text-sm font-semibold text-emerald-300 mb-1">
-//                   Eligibility
-//                 </p>
-//                 <h3 className="text-xl font-bold text-white mb-3">
-//                   Are you a fit?
-//                 </h3>
-//                 <ul className="grid grid-cols-2 gap-2 text-sm">
-//                   {[
-//                     "Durham ≤ 30-min",
-//                     "Customer-facing",
-//                     "POC on-site",
-//                     "~60-min access",
-//                   ].map((t) => (
-//                     <li
-//                       key={t}
-//                       className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-slate-200"
-//                     >
-//                       {t}
-//                     </li>
-//                   ))}
-//                 </ul>
-//               </div>
-//               <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-//                 <p className="text-sm font-semibold text-cyan-300 mb-1">
-//                   Included
-//                 </p>
-//                 <h3 className="text-xl font-bold text-white mb-3">
-//                   What you’ll get
-//                 </h3>
-//                 <ul className="space-y-2 text-sm text-slate-300">
-//                   <li>• LiDAR mapping</li>
-//                   <li>• Custom AR layer</li>
-//                   <li>• QR kit</li>
-//                   <li>• VR headset demo day</li>
-//                   <li>• Engagement recap</li>
-//                 </ul>
-//               </div>
-//               <div className="rounded-2xl border border-white/10 bg-white/5 p-6 flex flex-col">
-//                 <div className="grid grid-cols-2 gap-4 mb-4">
-//                   <div>
-//                     <p className="text-xs font-semibold text-emerald-300 mb-1">
-//                       We handle
-//                     </p>
-//                     <ul className="space-y-1 text-sm text-slate-300">
-//                       <li>• Mapping & design</li>
-//                       <li>• Setup & devices</li>
-//                       <li>• Analytics recap</li>
-//                     </ul>
-//                   </div>
-//                   <div>
-//                     <p className="text-xs font-semibold text-cyan-300 mb-1">
-//                       You provide
-//                     </p>
-//                     <ul className="space-y-1 text-sm text-slate-300">
-//                       <li>• 60-min window</li>
-//                       <li>• Brand assets</li>
-//                       <li>• Feedback</li>
-//                     </ul>
-//                   </div>
-//                 </div>
-
-//                 <div className="mt-auto flex items-center justify-between gap-3">
-//                   <div className="flex flex-wrap items-center gap-2">
-//                     <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
-//                       Replies &lt; 24h
-//                     </span>
-//                     <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">
-//                       Limited spots
-//                     </span>
-//                   </div>
-//                   <Button
-//                     onClick={handleScrollToContact}
-//                     className="rounded-xl h-10 bg-gradient-to-r from-emerald-500 to-cyan-600 text-white"
-//                   >
-//                     Join the Pilot
-//                   </Button>
-//                 </div>
-//               </div>
-//             </div>
-//           </div>
-//         </section>
-
-//         {/* Showcase (lazy) */}
-//         <Suspense fallback={<div className="h-40" />}>
-//           <div
-//             style={{
-//               contentVisibility: "auto",
-//               contain: "paint",
-//               containIntrinsicSize: "1px 720px",
-//             }}
-//           >
-//             <WearableAIDemos />
-//           </div>
-//         </Suspense>
-
-//         {/* Conversion block (no backdrop-blur) */}
-//         <section
-//           className="relative py-16"
-//           style={{
-//             contentVisibility: "auto",
-//             contain: "paint",
-//             containIntrinsicSize: "1px 560px",
-//           }}
-//         >
-//           <div className="container mx-auto px-4">
-//             <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.03] p-6 md:p-10 text-center overflow-hidden relative">
-//               {/* light sweep */}
-//               <div className="pointer-events-none absolute -top-1/2 left-1/2 h-[120%] w-[60%] -translate-x-1/2 rotate-12 bg-gradient-to-b from-white/10 to-transparent blur-2xl" />
-//               <h3 className="text-2xl md:text-4xl font-black text-white">
-//                 Ready to put AR to work in your location?
-//               </h3>
-//               <p className="mt-3 text-slate-300 max-w-2xl mx-auto">
-//                 We’re onboarding businesses within a 30-minute drive of Durham.
-//                 Two quick visits about a week apart: mapping (~60 min) and an
-//                 on-site demo (1–2 hrs). The pilot is free.
-//               </p>
-//               <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 justify-center">
-//                 <Button
-//                   onClick={handleScrollToContact}
-//                   className="h-12 w-full text-base rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white border-0 shadow-xl hover:shadow-2xl hover:scale-[1.02] transition will-change-transform"
-//                 >
-//                   Join the Durham Pilot (Free)
-//                 </Button>
-//                 <a href="/pilot-program" className="w-full">
-//                   <Button
-//                     variant="outline"
-//                     className="h-12 w-full text-base rounded-xl border-white/20 text-black hover:bg-white/10"
-//                   >
-//                     How the Pilot Works
-//                   </Button>
-//                 </a>
-//               </div>
-//             </div>
-//           </div>
-//         </section>
-
-//         {/* Contact (lazy) */}
-//         <div
-//           ref={contactRef}
-//           id="contactForm"
-//           style={{
-//             contentVisibility: "auto",
-//             contain: "paint",
-//             containIntrinsicSize: "1px 680px",
-//           }}
-//         >
-//           <Suspense fallback={<div className="h-40" />}>
-//             <ContactForm />
-//           </Suspense>
-//         </div>
-//       </main>
-
-//       {/* Sticky mobile CTA */}
-//       {!hasReachedContact && (
-//         <div className="md:hidden sticky bottom-4 z-50 px-4">
-//           <motion.div
-//             initial={{ y: 40, opacity: 0 }}
-//             animate={{ y: 0, opacity: 1 }}
-//             transition={{ delay: 0.4 }}
-//           >
-//             <Button
-//               onClick={handleScrollToContact}
-//               className="w-full rounded-2xl h-14 text-base font-semibold shadow-2xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white"
-//             >
-//               Join Pilot — Free Setup
-//             </Button>
-//           </motion.div>
-//         </div>
-//       )}
-
-//       <Footer />
-//       <LindyChat ctaVisible={!hasReachedContact} />
-//     </div>
-//   );
-// }
-
-// function AssuranceCard({
-//   title,
-//   headlineSuffix,
-//   body,
-//   accentClass,
-// }: {
-//   title: React.ReactNode;
-//   headlineSuffix: string;
-//   body: string;
-//   accentClass?: string;
-//   icon?: React.ReactNode;
-// }) {
-//   return (
-//     <motion.div
-//       initial={{ opacity: 0, y: 8 }}
-//       whileInView={{ opacity: 1, y: 0 }}
-//       viewport={{ once: true }}
-//       transition={{ duration: 0.45 }}
-//       className="rounded-2xl border border-white/10 bg-white/5 p-6"
-//     >
-//       <p className={`text-4xl font-black ${accentClass}`}>
-//         {title}
-//         {typeof title === "string" ? "" : ""}
-//       </p>
-//       <p className="mt-1 text-slate-200 font-semibold">{headlineSuffix}</p>
-//       <p className="mt-2 text-sm text-slate-400">{body}</p>
-//     </motion.div>
-//   );
-// }
-
-// function Stat({ label, value }: { label: string; value: string }) {
-//   return (
-//     <motion.div
-//       initial={{ opacity: 0, y: 6 }}
-//       whileInView={{ opacity: 1, y: 0 }}
-//       viewport={{ once: true }}
-//       transition={{ duration: 0.35 }}
-//       className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center"
-//     >
-//       <div className="text-xl font-extrabold text-white">{value}</div>
-//       <div className="text-xs uppercase tracking-wider text-slate-400 mt-1">
-//         {label}
-//       </div>
-//     </motion.div>
-//   );
-// }
