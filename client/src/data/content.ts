@@ -1124,19 +1124,9 @@ export const jobs: Job[] = [
     applyEmail: "apply+artist@tryblueprint.io",
   },
   {
-    title: "Technical Artist (Simulation)",
-    type: "Contract",
-    location: "Remote",
-    summary:
-      "Author scene stages, tune joints, and validate physics so labs can drop environments straight into their simulator.",
-    description:
-      "Work across DCC tools and our internal pipeline to ensure every scene ships with precise limits, semantic schemas, and test harnesses. Bonus points for experience automating annotation exports.",
-    applyEmail: "apply+techartist@tryblueprint.io",
-  },
-  {
     title: "USD Tools Engineer",
     type: "Full-time",
-    location: "Durham, NC or Remote",
+    location: "Remote",
     summary: "Build the authoring tools that automate SimReady finishing across our environment network.",
     description:
       "Design and ship USD pipelines that enforce our SimReady spec, from collider validation to articulation presets. You'll collaborate with artists and robotics teams to accelerate delivery.",
