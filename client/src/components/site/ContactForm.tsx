@@ -56,6 +56,7 @@ const useCaseOptions = [
   "Panel interaction",
   "Logistics (bin picking / palletizing)",
   "Precision insertion & assembly",
+  "Laundry sorting & folding",
 ] as const;
 
 const exclusivityOptions = [
