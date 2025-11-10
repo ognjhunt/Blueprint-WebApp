@@ -1,12 +1,22 @@
+import { InformationCircleIcon } from "@heroicons/react/24/outline";
+
 import type { EnvironmentPolicy } from "@/data/content";
 
 interface PolicyCardProps {
   policy: EnvironmentPolicy;
+  onSelect?: (policy: EnvironmentPolicy) => void;
+  isActive?: boolean;
 }
 
-export function PolicyCard({ policy }: PolicyCardProps) {
+export function PolicyCard({ policy, onSelect, isActive = false }: PolicyCardProps) {
   return (
-    <article className="flex h-full flex-col gap-4 rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+    <article
+      className={`flex h-full flex-col gap-4 rounded-2xl border bg-white/80 p-6 shadow-sm transition ${
+        isActive
+          ? "border-emerald-500 shadow-emerald-100 ring-1 ring-emerald-200"
+          : "border-slate-200 hover:-translate-y-0.5 hover:shadow-md"
+      }`}
+    >
       <header className="flex items-center justify-between gap-3">
         <span className="text-[11px] uppercase tracking-[0.3em] text-slate-400">
           Policy
@@ -30,13 +40,21 @@ export function PolicyCard({ policy }: PolicyCardProps) {
         ))}
       </ul>
 
-      <footer className="mt-auto flex flex-wrap items-center justify-between gap-3 text-xs uppercase tracking-[0.2em] text-slate-400">
-        <span>{policy.cadence}</span>
+      <footer className="mt-auto space-y-3">
         {policy.metric ? (
-          <span className="text-sm font-medium normal-case tracking-normal text-slate-900">
-            {policy.metric}
-          </span>
+          <div className="text-sm font-medium text-slate-900">{policy.metric}</div>
         ) : null}
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs uppercase tracking-[0.2em] text-slate-400">
+          <span>{policy.cadence}</span>
+          <button
+            type="button"
+            onClick={() => onSelect?.(policy)}
+            className="flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-700 transition hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+          >
+            <InformationCircleIcon className="h-4 w-4" aria-hidden="true" />
+            <span>Read more</span>
+          </button>
+        </div>
       </footer>
     </article>
   );
