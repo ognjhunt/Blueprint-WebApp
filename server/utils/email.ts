@@ -7,6 +7,7 @@ interface SendEmailOptions {
   text: string;
   html?: string;
   replyTo?: string;
+  attachments?: nodemailer.SendMailOptions["attachments"];
 }
 
 let cachedTransporter: nodemailer.Transporter | null = null;
@@ -39,7 +40,14 @@ function getTransporter() {
   return cachedTransporter;
 }
 
-export async function sendEmail({ to, subject, text, html, replyTo }: SendEmailOptions) {
+export async function sendEmail({
+  to,
+  subject,
+  text,
+  html,
+  replyTo,
+  attachments,
+}: SendEmailOptions) {
   const transporter = getTransporter();
 
   if (!transporter) {
@@ -55,6 +63,7 @@ export async function sendEmail({ to, subject, text, html, replyTo }: SendEmailO
       text,
       html,
       replyTo,
+      attachments,
     });
 
     logger.info({ to, subject, replyTo }, "Email dispatched");
