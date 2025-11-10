@@ -143,7 +143,7 @@ export function ContactForm() {
 
       form.reset();
       setStatus("success");
-      setMessage("Thanks — we’ll review and follow up within one business day.");
+      setMessage("");
       setRequestType("dataset");
       setDatasetTier(datasetTiers[0].value);
       setSceneCategory(sceneCategories[0]);
@@ -157,6 +157,43 @@ export function ContactForm() {
     }
   };
 
+  if (status === "success") {
+    return (
+      <div className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:p-10">
+        <div className="space-y-3">
+          <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
+            Thanks for reaching out
+          </span>
+          <h2 className="text-2xl font-semibold text-slate-900">We’ll set up a walkthrough next</h2>
+          <p className="text-sm text-slate-600">
+            A Blueprint teammate will reach out shortly to coordinate a 30-minute session and
+            share prep materials. You can also reserve a slot right away below.
+          </p>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+          <a
+            href="https://calendly.com/blueprintar/30min"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center justify-center rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
+          >
+            Book a Calendly slot
+          </a>
+          <button
+            type="button"
+            onClick={() => {
+              setStatus("idle");
+              setMessage("");
+            }}
+            className="inline-flex items-center justify-center rounded-full border border-slate-200 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300"
+          >
+            Submit another request
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <form
       onSubmit={handleSubmit}
@@ -169,6 +206,10 @@ export function ContactForm() {
           <p className="text-sm text-slate-600">
             Labs usually start with datasets for coverage. You can still request a single hero scene if you know exactly what
             you need.
+          </p>
+          <p className="text-sm text-slate-500">
+            Once you submit, we’ll reach out to line up a 30-minute walkthrough and share our Calendly if you want to book
+            instantly.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -480,25 +521,46 @@ export function ContactForm() {
               className="w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
             />
           </div>
+          <div className="space-y-2">
+            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">Job title</label>
+            <input
+              required
+              name="jobTitle"
+              placeholder="Head of Robotics, Simulation Lead, etc."
+              className="w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">Country</label>
+            <input
+              required
+              name="country"
+              placeholder="Where you’re based"
+              className="w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
+            />
+          </div>
         </div>
       </section>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <button
-          type="submit"
-          className="inline-flex items-center justify-center rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-60"
-          disabled={status === "loading"}
-        >
-          {status === "loading" ? "Sending…" : "Submit request"}
-        </button>
-        {message ? (
-          <p
-            className={`text-sm ${
-              status === "error" ? "text-red-500" : "text-emerald-600"
-            }`}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+          <button
+            type="submit"
+            className="inline-flex items-center justify-center rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-60"
+            disabled={status === "loading"}
           >
-            {message}
+            {status === "loading" ? "Sending…" : "Submit & plan walkthrough"}
+          </button>
+          <p className="text-xs text-slate-500">
+            By submitting this form, your information will be processed in accordance with our {" "}
+            <a href="/privacy" className="underline transition hover:text-slate-700">
+              Privacy Policy
+            </a>
+            .
           </p>
+        </div>
+        {message ? (
+          <p className={`text-sm ${status === "error" ? "text-red-500" : "text-emerald-600"}`}>{message}</p>
         ) : null}
       </div>
     </form>
