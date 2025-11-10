@@ -49,10 +49,14 @@ export default function Home() {
             </h1>
             <p className="max-w-xl text-lg text-slate-600">
               High-fidelity scenes, physics-clean assets, delivered fast.
-              Blueprint finishes procedural and real-world environments so your
-              robots can prove ROI in simulation before hardware hits the floor.
-              Engage on exclusive dataset programs or license non-exclusive
-              catalog scenes depending on your coverage needs.
+              Every procedural world we ship is authored from real kitchens,
+              warehouses, utilities, bedrooms, and other everyday locations so
+              your synthetic datasets reflect the variety your robots meet in
+              the field. Blueprint finishes procedural and real-world
+              environments so your robots can prove ROI in simulation before
+              hardware hits the floor. Engage on exclusive dataset programs or
+              license non-exclusive catalog scenes depending on your coverage
+              needs.
             </p>
           </div>
           <CTAButtons
@@ -71,9 +75,11 @@ export default function Home() {
             </p>
             <p>
               Kitchens, groceries, warehouse lanes, labs, offices, retail,
-              utility, and more. Each environment ships with articulated
-              policy coverage, pickable props, semantic labels, and simulation
-              validation reports.
+              utility, and more. Our procedural sets are grounded in
+              photographic and scan references from active facilities so
+              catalog scenes mirror how real spaces are organized. Each
+              environment ships with articulated policy coverage, pickable
+              props, semantic labels, and simulation validation reports.
             </p>
             <p>
               Add on our on-site capture service to transform your real facility
@@ -108,8 +114,10 @@ export default function Home() {
             </h2>
             <p className="mt-2 max-w-xl text-sm text-slate-600">
               60+ scene archetypes spanning robotic kitchens, warehouses,
-              retail, offices, and labs. Browse categories below or jump into
-              the full catalog.
+              retail, offices, and labs—each patterned after documented real
+              sites to preserve aisle widths, counter heights, and task
+              diversity. Browse categories below or jump into the full
+              catalog.
             </p>
           </div>
           <a

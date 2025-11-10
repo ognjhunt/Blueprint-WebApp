@@ -49,7 +49,7 @@ export default function Solutions() {
             Two ways to get SimReady scenes.
           </h1>
           <p className="text-sm text-slate-600">
-            Whether you need procedural synthetic data or a digital twin of a real facility, Blueprint delivers robotics-ready environments with precision pivots, physics materials, and simulation validation. Choose from non-exclusive catalog scenes or commission exclusive dataset programs tailored to your roadmap.
+            Whether you need procedural synthetic data grounded in documented kitchens, warehouses, utility rooms, and other real locations or a digital twin of a facility you operate, Blueprint delivers robotics-ready environments with precision pivots, physics materials, and simulation validation. Choose from non-exclusive catalog scenes or commission exclusive dataset programs tailored to your roadmap.
           </p>
           <CTAButtons
             primaryHref="/environments"
@@ -74,7 +74,7 @@ export default function Solutions() {
             Procedural & Synthetic Scene Data
           </h2>
           <p className="max-w-3xl text-sm text-slate-600">
-            Generate diverse training sets with curated procedural environments. We mix capture data, kitbashed assets, and authored variants to deliver coverage across kitchens, grocery, warehouse, and retail archetypes.
+            Generate diverse training sets with curated procedural environments. Each scene begins with survey photos, scans, or CAD from real-world analogs so the layouts, sight lines, and clutter patterns match kitchens, grocery aisles, warehouse pick lanes, retail floors, and residential rooms your robots will encounter.
           </p>
         </div>
         <div className="grid gap-6 md:grid-cols-3">
