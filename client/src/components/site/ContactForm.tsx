@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { countries } from "@/data/countries";
+
 const requestOptions = [
   {
     value: "dataset" as const,
@@ -164,21 +166,12 @@ export function ContactForm() {
           <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
             Thanks for reaching out
           </span>
-          <h2 className="text-2xl font-semibold text-slate-900">We’ll set up a walkthrough next</h2>
+          <h2 className="text-2xl font-semibold text-slate-900">We’ll be in touch soon</h2>
           <p className="text-sm text-slate-600">
-            A Blueprint teammate will reach out shortly to coordinate a 30-minute session and
-            share prep materials. You can also reserve a slot right away below.
+            A Blueprint teammate will review your request and follow up by email with next steps if it’s a match.
           </p>
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <a
-            href="https://calendly.com/blueprintar/30min"
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center justify-center rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
-          >
-            Book a Calendly slot
-          </a>
+        <div className="flex justify-center">
           <button
             type="button"
             onClick={() => {
@@ -208,8 +201,7 @@ export function ContactForm() {
             you need.
           </p>
           <p className="text-sm text-slate-500">
-            Once you submit, we’ll reach out to line up a 30-minute walkthrough and share our Calendly if you want to book
-            instantly.
+            Once you submit, we’ll review your request and email you with next steps if we’re a fit for your needs.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -535,9 +527,15 @@ export function ContactForm() {
             <input
               required
               name="country"
+              list="contact-country-options"
               placeholder="Where you’re based"
               className="w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
             />
+            <datalist id="contact-country-options">
+              {countries.map((country) => (
+                <option key={country} value={country} />
+              ))}
+            </datalist>
           </div>
         </div>
       </section>
@@ -549,7 +547,7 @@ export function ContactForm() {
             className="inline-flex items-center justify-center rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-60"
             disabled={status === "loading"}
           >
-            {status === "loading" ? "Sending…" : "Submit & plan walkthrough"}
+            {status === "loading" ? "Sending…" : "Submit request"}
           </button>
           <p className="text-xs text-slate-500">
             By submitting this form, your information will be processed in accordance with our {" "}
