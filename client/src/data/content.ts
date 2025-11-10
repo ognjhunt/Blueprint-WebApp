@@ -44,6 +44,15 @@ export interface EnvironmentCategory {
   scenes: string[];
 }
 
+export interface Policy {
+  title: string;
+  slug: string;
+  summary: string;
+  focusAreas: string[];
+  tags: string[];
+  environments: string[];
+}
+
 export interface CaseStudy {
   title: string;
   slug: string;
@@ -135,6 +144,100 @@ export const environmentCategories: EnvironmentCategory[] = [
       "Consumer-grade washer/dryer stacks with articulated doors, knobs, and hampers for assistive robotics research.",
     tags: ["Home"],
     scenes: ["laundry-alcove"],
+  },
+];
+
+export const policies: Policy[] = [
+  {
+    title: "Inventory Replenishment",
+    slug: "inventory-replenishment",
+    summary:
+      "Sequenced pick, place, and verification routines for keeping high-demand SKUs stocked without interrupting shoppers or operators.",
+    focusAreas: [
+      "Bin and shelf restock playbooks",
+      "Cart traffic awareness",
+      "Exception logging for missing items",
+    ],
+    tags: ["Fulfillment", "Perception"],
+    environments: ["grocery-aisles", "warehouse-lanes"],
+  },
+  {
+    title: "Dock Turnaround",
+    slug: "dock-turnaround",
+    summary:
+      "Coordinated trailer arrival, restraint, and staging workflows for shortening dwell time at busy distribution hubs.",
+    focusAreas: [
+      "Trailer presence validation",
+      "Restraint engagement checks",
+      "Hand-off to yard management",
+    ],
+    tags: ["Logistics", "Safety"],
+    environments: ["loading-docks", "warehouse-lanes"],
+  },
+  {
+    title: "Kitchen Line QA",
+    slug: "kitchen-line-qa",
+    summary:
+      "Sanitation, temperature, and station readiness inspections designed for multi-shift commercial kitchen operations.",
+    focusAreas: [
+      "Surface contact verification",
+      "Thermal probe sampling",
+      "Consumables stock confirmation",
+    ],
+    tags: ["Safety", "Inspection"],
+    environments: ["kitchens"],
+  },
+  {
+    title: "Sample Chain of Custody",
+    slug: "sample-chain-of-custody",
+    summary:
+      "Interlocked hand-off and labeling routines that preserve specimen traceability across prep, analysis, and cold storage.",
+    focusAreas: [
+      "Label verification",
+      "Instrument queue staging",
+      "Cold room access logging",
+    ],
+    tags: ["Compliance", "Precision"],
+    environments: ["labs"],
+  },
+  {
+    title: "Office Service Sweep",
+    slug: "office-service-sweep",
+    summary:
+      "After-hours routes for desk reset, amenity restock, and occupant feedback capture in flexible office footprints.",
+    focusAreas: [
+      "Surface reset playbook",
+      "Amenity stock sensing",
+      "Feedback kiosk sync",
+    ],
+    tags: ["Hospitality", "Experience"],
+    environments: ["office-pods", "utility-rooms"],
+  },
+  {
+    title: "Laundry Assist Loop",
+    slug: "laundry-assist-loop",
+    summary:
+      "Loading, cycle monitoring, and folding preparation designed for assistive home robotics pilots.",
+    focusAreas: [
+      "Washer and dryer door actuation",
+      "Detergent dosing guidance",
+      "Laundry bin hand-offs",
+    ],
+    tags: ["Assistive", "Manipulation"],
+    environments: ["home-laundry"],
+  },
+  {
+    title: "Mechanical Room Inspection",
+    slug: "mechanical-room-inspection",
+    summary:
+      "Routine valve, gauge, and panel checks to surface anomalies before they escalate into outages.",
+    focusAreas: [
+      "Gauge reading digitization",
+      "Valve position confirmation",
+      "Service ticket escalation",
+    ],
+    tags: ["Maintenance", "Safety"],
+    environments: ["utility-rooms", "warehouse-lanes"],
   },
 ];
 
