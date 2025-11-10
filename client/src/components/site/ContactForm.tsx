@@ -1,11 +1,19 @@
 import { useState } from "react";
 
 const projectTypes = [
+  "Catalog scene license (non-exclusive)",
+  "Exclusive dataset program",
   "Procedural synthetic scene",
   "Real-world scan to SimReady",
-  "Asset finishing",
-  "Consultation",
 ];
+
+const engagementScopes = [
+  "Single scene",
+  "Multi-scene dataset",
+  "Ongoing refresh program",
+];
+
+const emailOptInOptions = ["Yes", "Not right now"] as const;
 
 const policyOptions = [
   "Open/slide",
@@ -103,6 +111,17 @@ export function ContactForm() {
           </div>
         </div>
         <div>
+          <label className="text-xs uppercase tracking-[0.3em] text-slate-400">Engagement scope</label>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            {engagementScopes.map((option) => (
+              <label key={option} className="flex items-center gap-2 text-sm text-slate-600">
+                <input type="radio" name="engagementScope" value={option} defaultChecked={option === "Single scene"} />
+                {option}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div>
           <label className="text-xs uppercase tracking-[0.3em] text-slate-400">Target policies</label>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {policyOptions.map((option) => (
@@ -170,10 +189,10 @@ export function ContactForm() {
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">Isaac version</label>
+            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">Integration context</label>
             <input
-              name="isaacVersion"
-              placeholder="e.g. 4.2"
+              name="integrationContext"
+              placeholder="Workflow, platform, or downstream use"
               className="mt-2 w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
             />
           </div>
@@ -194,6 +213,25 @@ export function ContactForm() {
             placeholder="Tell us about the scene, success criteria, and timeline."
             className="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
           />
+        </div>
+        <div>
+          <label className="text-xs uppercase tracking-[0.3em] text-slate-400">
+            Do you want to get emails from us about future updates?*
+          </label>
+          <div className="mt-3 flex flex-wrap gap-3">
+            {emailOptInOptions.map((option) => (
+              <label key={option} className="flex items-center gap-2 text-sm text-slate-600">
+                <input
+                  type="radio"
+                  name="emailOptIn"
+                  value={option}
+                  required
+                  defaultChecked={option === "Yes"}
+                />
+                {option}
+              </label>
+            ))}
+          </div>
         </div>
         <button
           type="submit"

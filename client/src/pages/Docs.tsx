@@ -9,7 +9,7 @@ export default function Docs() {
           Blueprint SimReady specification.
         </h1>
         <p className="max-w-3xl text-sm text-slate-600">
-          Every scene we ship follows the SimReady spec: metric accuracy, clean articulation, physics-ready materials, and semantic coverage. Use this guide to integrate Blueprint scenes into Isaac Sim or extend them with your own tooling.
+          Every scene we ship follows the SimReady spec: metric accuracy, clean articulation, physics-ready materials, and semantic coverage. Use this guide to integrate Blueprint scenes into your simulator or extend them with your own tooling.
         </p>
       </header>
 
@@ -17,7 +17,7 @@ export default function Docs() {
         <h2 className="text-2xl font-semibold text-slate-900">Units & coordinate system</h2>
         <div className="space-y-3 text-sm text-slate-600">
           <p>• Linear units: meters. Angular units: degrees. Scene origin at floor center unless otherwise annotated.</p>
-          <p>• Forward axis: +X, up axis: +Z, matching Isaac Sim defaults.</p>
+          <p>• Forward axis: +X, up axis: +Z, matching common robotics sim defaults.</p>
           <p>• Scale variations for dataset diversity are provided as USD variants.</p>
         </div>
       </section>
@@ -35,25 +35,25 @@ export default function Docs() {
         <h2 className="text-2xl font-semibold text-slate-900">Colliders & physics</h2>
         <div className="space-y-3 text-sm text-slate-600">
           <p>• Default collider strategy mixes convex decomposition and SDF volumes. Each scene ships with collider preview renders.</p>
-          <p>• Physics materials use Isaac-compliant coefficients for stainless, polymer, wood, and fabric surfaces.</p>
+          <p>• Physics materials use calibrated coefficients for stainless, polymer, wood, and fabric surfaces.</p>
           <p>• AMR clearance envelopes, safety zones, and interaction volumes are packaged as USD prims.</p>
         </div>
       </section>
 
       <section className="space-y-6">
-        <h2 className="text-2xl font-semibold text-slate-900">Semantics & replicator</h2>
+        <h2 className="text-2xl font-semibold text-slate-900">Semantics & annotations</h2>
         <div className="space-y-3 text-sm text-slate-600">
-          <p>• Semantic labels follow Blueprint’s ontology and map cleanly to Replicator annotations (class, instance, SKU).</p>
+          <p>• Semantic labels follow Blueprint’s ontology and map cleanly to class, instance, and SKU exports.</p>
           <p>• Scenes include optional CSV/JSON metadata for planograms, signage, and device IDs.</p>
-          <p>• Ask for Replicator bundles to receive camera rigs, lighting variants, and sensor trajectories.</p>
+          <p>• Ask for annotation bundles to receive camera rigs, lighting variants, and sensor trajectories.</p>
         </div>
       </section>
 
       <section className="space-y-6">
-        <h2 className="text-2xl font-semibold text-slate-900">Importing into Isaac Sim</h2>
+        <h2 className="text-2xl font-semibold text-slate-900">Importing into your simulator</h2>
         <div className="space-y-3 text-sm text-slate-600">
-          <p>1. Add the USD stage to your Omniverse project or mount via Nucleus.</p>
-          <p>2. Open Isaac Sim and use <em>File → Open</em> to load the stage. Enable physics and articulation inspector to confirm limits.</p>
+          <p>1. Add the scene package to your preferred project workspace or file mount.</p>
+          <p>2. Load the stage, enable physics inspection, and confirm articulation limits.</p>
           <p>3. Attach your policies or task graphs; Blueprint colliders and semantics are ready for pick-place, inspection, or manipulation workflows.</p>
         </div>
       </section>
@@ -78,7 +78,7 @@ export default function Docs() {
                 <td className="px-4 py-3">Custom task graphs, policy training</td>
               </tr>
               <tr className="border-t border-slate-100">
-                <td className="px-4 py-3">Semantic labels, Replicator schemas, metadata exports</td>
+                <td className="px-4 py-3">Semantic labels, annotation schemas, metadata exports</td>
                 <td className="px-4 py-3">Integration with internal analytics, additional sensors</td>
               </tr>
             </tbody>

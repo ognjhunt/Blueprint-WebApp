@@ -11,7 +11,7 @@ export default function Contact() {
           Tell us what your robot needs to practice.
         </h1>
         <p className="max-w-3xl text-sm text-slate-600">
-          Share your target policies, categories, and delivery timeline. We’ll follow up within one business day with scope, pricing, and draft coverage.
+          Share your target policies, categories, and delivery timeline. We support both exclusive dataset programs and non-exclusive catalog scenes, and we’ll follow up within one business day with scope, pricing, and draft coverage.
         </p>
       </header>
       <ContactForm />

@@ -68,7 +68,7 @@ export default function Environments() {
           Browse ready-to-train scenes.
         </h1>
         <p className="max-w-2xl text-sm text-slate-600">
-          Every environment below includes articulated joints, physics-clean colliders, and Isaac validation notes. Filter by environment type, interaction coverage, or deployment focus.
+          Every environment below includes articulated joints, physics-clean colliders, and simulation validation notes. Filter by environment type, interaction coverage, or deployment focus.
         </p>
       </header>
 

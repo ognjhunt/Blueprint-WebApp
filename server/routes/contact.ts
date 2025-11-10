@@ -11,14 +11,16 @@ export default async function contactHandler(req: Request, res: Response) {
     email,
     company,
     projectType,
+    engagementScope,
     targetPolicies,
     desiredCategories,
     deadline,
     budget,
     message,
     deliveryFormat,
-    isaacVersion,
+    integrationContext,
     interactables,
+    emailOptIn,
   } = req.body ?? {};
 
   if (!name || !email || !company) {
@@ -38,13 +40,15 @@ export default async function contactHandler(req: Request, res: Response) {
 Email: ${email}
 Company: ${company}
 Project type: ${projectType ?? ""}
+Engagement scope: ${engagementScope ?? ""}
 Target policies: ${policies}
 Desired categories: ${categories}
 Deadline: ${deadline ?? ""}
 Budget: ${budget ?? ""}
 Delivery format: ${deliveryFormat ?? ""}
-Isaac version: ${isaacVersion ?? ""}
+Integration context: ${integrationContext ?? ""}
 Interactables: ${interactables ?? ""}
+Email opt-in: ${emailOptIn ?? ""}
 Message: ${message ?? ""}`;
 
   const { sent } = await sendEmail({ to, subject, text: summary });

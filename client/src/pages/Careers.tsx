@@ -12,7 +12,7 @@ export default function Careers() {
           Join the network building the worlds robots learn in.
         </h1>
         <p className="max-w-3xl text-sm text-slate-600">
-          Blueprint’s artist and technical director network turns real spaces into SimReady scenes. We’re looking for specialists who love polishing geometry, authoring USD, and pushing Isaac Sim to its limits.
+          Blueprint’s artist and technical director network turns real spaces into SimReady scenes. We’re looking for specialists who love polishing geometry, building simulation-ready assets, and crafting premium training environments.
         </p>
       </header>
 
