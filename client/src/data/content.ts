@@ -44,6 +44,17 @@ export interface EnvironmentCategory {
   scenes: string[];
 }
 
+export interface EnvironmentPolicy {
+  slug: string;
+  title: string;
+  focus: string;
+  cadence: string;
+  summary: string;
+  coverage: string[];
+  metric?: string;
+  environments: string[];
+}
+
 export interface CaseStudy {
   title: string;
   slug: string;
@@ -135,6 +146,113 @@ export const environmentCategories: EnvironmentCategory[] = [
       "Consumer-grade washer/dryer stacks with articulated doors, knobs, and hampers for assistive robotics research.",
     tags: ["Home"],
     scenes: ["laundry-alcove"],
+  },
+];
+
+export const environmentPolicies: EnvironmentPolicy[] = [
+  {
+    slug: "restocking-planogram",
+    title: "Restocking & Planogram QA",
+    focus: "Inventory accuracy",
+    cadence: "Shift open + close",
+    summary:
+      "Monitor shelf compliance, restock priorities, and aisle readiness with structured annotations for each bay.",
+    coverage: [
+      "Facing and gap detection across gondolas",
+      "Dynamic restock queue export for associates",
+      "Exception hand-off with annotated product IDs",
+    ],
+    metric: "96% shelf compliance in sim",
+    environments: ["grocery-aisles"],
+  },
+  {
+    slug: "kitchen-safety-sops",
+    title: "Kitchen Safety SOP Walkthrough",
+    focus: "Food safety",
+    cadence: "Pre-service",
+    summary:
+      "Validate sanitation, cookline readiness, and HACCP checkpoints before service windows open.",
+    coverage: [
+      "Hot-zone clearance and PPE confirmation",
+      "Chemical storage and label verification",
+      "Temperature log capture from articulated equipment",
+    ],
+    metric: "Cuts audit prep time by 40%",
+    environments: ["kitchens"],
+  },
+  {
+    slug: "dock-safety-checks",
+    title: "Dock Safety Checklist",
+    focus: "Operations safety",
+    cadence: "Per trailer move",
+    summary:
+      "Run restraint, light curtain, and chock confirmation before AMRs or lift operators engage the bay.",
+    coverage: [
+      "Verify restraint engagement and signal lights",
+      "Scan dock pit for foreign objects",
+      "Confirm staged pallet clearances for AMR entries",
+    ],
+    metric: "90% incident reduction in pilots",
+    environments: ["loading-docks", "warehouse-lanes"],
+  },
+  {
+    slug: "lane-clearance-monitoring",
+    title: "Lane Clearance Monitoring",
+    focus: "AMR readiness",
+    cadence: "Continuous",
+    summary:
+      "Ensure high-traffic warehouse lanes stay within clearance tolerances for autonomous fleets.",
+    coverage: [
+      "Detect protrusions into AMR lanes",
+      "Alert on pallet overhang and tote stack height",
+      "Log timestamped exceptions for retraining",
+    ],
+    metric: "Keeps 1.8m clearance 99% of shift",
+    environments: ["warehouse-lanes", "utility-rooms"],
+  },
+  {
+    slug: "lab-protocol-audit",
+    title: "Lab Protocol Audit",
+    focus: "Compliance",
+    cadence: "Run start",
+    summary:
+      "Verify bench readiness, sample custody, and enclosure interlocks before lab automation kicks off.",
+    coverage: [
+      "Checklist for PPE storage and eyewash access",
+      "Sample ID validation via label scans",
+      "Enclosure door and sensor interlock tests",
+    ],
+    metric: "Automates 18-point GLP checklist",
+    environments: ["labs"],
+  },
+  {
+    slug: "office-service-routes",
+    title: "Office Service Routes",
+    focus: "Hospitality",
+    cadence: "Daily",
+    summary:
+      "Guide service robots through office pods and pantries to restock amenities and reset collaboration rooms.",
+    coverage: [
+      "Prioritized loop for pantry restock and waste pickup",
+      "Door, drawer, and switch manipulation prompts",
+      "End-of-route report with consumable counts",
+    ],
+    environments: ["office-pods", "utility-rooms"],
+  },
+  {
+    slug: "laundry-assist",
+    title: "Laundry Assist Program",
+    focus: "Assistive",
+    cadence: "On-demand",
+    summary:
+      "Coordinate washer/dryer cycles, hamper sorting, and folding sequences for in-home service robots.",
+    coverage: [
+      "Cycle scheduling with detergent prompts",
+      "Adaptive hamper sorting by fabric class",
+      "Fold stack placement with reach envelopes",
+    ],
+    metric: "Cuts cycle handling time to 12 min",
+    environments: ["home-laundry"],
   },
 ];
 

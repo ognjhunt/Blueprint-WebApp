@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { SceneCard } from "@/components/site/SceneCard";
-import { environmentCategories, scenes } from "@/data/content";
+import { PolicyCard } from "@/components/site/PolicyCard";
+import {
+  environmentCategories,
+  environmentPolicies,
+} from "@/data/content";
 
 const badgeFilters = ["Indoor", "Industrial", "Retail", "Home"];
 
@@ -11,9 +14,15 @@ const sortOptions = [
   { label: "Newest", value: "newest" },
 ];
 
+const policyFilters = environmentPolicies.map((policy) => ({
+  label: policy.title,
+  value: policy.slug,
+}));
+
 export default function Environments() {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [badgeFilter, setBadgeFilter] = useState<string | null>(null);
+  const [policyFilter, setPolicyFilter] = useState<string | null>(null);
   const [sortOption, setSortOption] = useState<string>("most-requested");
 
   useEffect(() => {
@@ -23,40 +32,74 @@ export default function Environments() {
       if (category) {
         setCategoryFilter(category);
       }
+      const policy = params.get("policy");
+      if (policy) {
+        setPolicyFilter(policy);
+      }
     }
   }, []);
 
-  const filteredScenes = useMemo(() => {
-    let result = scenes.slice();
+  const filteredCategories = useMemo(() => {
+    let result = environmentCategories.slice();
 
     if (categoryFilter) {
-      result = result.filter((scene) =>
-        scene.categories.includes(categoryFilter),
-      );
+      result = result.filter((category) => category.slug === categoryFilter);
     }
 
     if (badgeFilter) {
-      result = result.filter((scene) => scene.tags.includes(badgeFilter));
+      result = result.filter((category) =>
+        category.tags.includes(badgeFilter),
+      );
+    }
+
+    if (policyFilter) {
+      result = result.filter((category) =>
+        environmentPolicies.some(
+          (policy) =>
+            policy.slug === policyFilter &&
+            policy.environments.includes(category.slug),
+        ),
+      );
     }
 
     switch (sortOption) {
       case "industrial":
-        result = result.filter((scene) => scene.tags.includes("Industrial"));
+        result = result.sort((a, b) => {
+          const aHas = a.tags.includes("Industrial");
+          const bHas = b.tags.includes("Industrial");
+          if (aHas === bHas) {
+            return 0;
+          }
+          return bHas ? 1 : -1;
+        });
         break;
       case "household":
-        result = result.filter((scene) => scene.tags.includes("Home"));
+        result = result.sort((a, b) => {
+          const aHas = a.tags.includes("Home");
+          const bHas = b.tags.includes("Home");
+          if (aHas === bHas) {
+            return 0;
+          }
+          return bHas ? 1 : -1;
+        });
         break;
       case "newest":
-        result = result
-          .slice()
-          .reverse();
+        result = result.slice().reverse();
         break;
       default:
         break;
     }
 
     return result;
-  }, [badgeFilter, categoryFilter, sortOption]);
+  }, [badgeFilter, categoryFilter, policyFilter, sortOption]);
+
+  const activePolicy = useMemo(
+    () =>
+      policyFilter
+        ? environmentPolicies.find((policy) => policy.slug === policyFilter)
+        : null,
+    [policyFilter],
+  );
 
   return (
     <div className="mx-auto max-w-6xl space-y-12 px-4 pb-24 pt-16 sm:px-6">
@@ -70,8 +113,17 @@ export default function Environments() {
         <p className="max-w-2xl text-sm text-slate-600">
           Every environment below includes articulated joints, physics-clean colliders, and simulation validation notes. Each
           synthetic build is patterned after a documented real-world location so dataset diversity tracks what your fleets see
-          in production. Filter by environment type, interaction coverage, or deployment focus.
+          in production. Filter by environment type, policy coverage, interaction focus, or deployment cadence.
         </p>
+        {activePolicy ? (
+          <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-slate-700">
+            <span className="text-xs uppercase tracking-[0.3em] text-emerald-600">
+              Policy focus
+            </span>
+            <span className="font-medium text-slate-900">{activePolicy.title}</span>
+            <span className="hidden text-slate-500 sm:inline">{activePolicy.summary}</span>
+          </div>
+        ) : null}
       </header>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -85,6 +137,7 @@ export default function Environments() {
           onClick={() => {
             setBadgeFilter(null);
             setCategoryFilter(null);
+            setPolicyFilter(null);
           }}
         >
           All environments
@@ -124,6 +177,38 @@ export default function Environments() {
         ))}
       </div>
 
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          className={`rounded-full border px-4 py-2 text-sm transition ${
+            policyFilter === null
+              ? "border-emerald-500 bg-emerald-500 text-black"
+              : "border-slate-200 text-slate-600 hover:border-slate-300"
+          }`}
+          onClick={() => setPolicyFilter(null)}
+        >
+          All policies
+        </button>
+        {policyFilters.map((policy) => (
+          <button
+            key={policy.value}
+            type="button"
+            className={`rounded-full border px-4 py-2 text-sm transition ${
+              policyFilter === policy.value
+                ? "border-emerald-500 bg-emerald-500 text-black"
+                : "border-slate-200 text-slate-600 hover:border-slate-300"
+            }`}
+            onClick={() =>
+              setPolicyFilter((prev) =>
+                prev === policy.value ? null : policy.value,
+              )
+            }
+          >
+            {policy.label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
         <span>Sort by</span>
         {sortOptions.map((option) => (
@@ -142,15 +227,83 @@ export default function Environments() {
         ))}
       </div>
 
-      <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-        {filteredScenes.map((scene) => (
-          <SceneCard key={scene.slug} scene={scene} />
-        ))}
+      <div className="space-y-10">
+        {filteredCategories.map((category) => {
+          const categoryPolicies = environmentPolicies.filter(
+            (policy) =>
+              policy.environments.includes(category.slug) &&
+              (!policyFilter || policy.slug === policyFilter),
+          );
+
+          return (
+            <section
+              key={category.slug}
+              className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
+            >
+              <div className="flex flex-col gap-6 md:flex-row">
+                <div className="flex-1 space-y-4 p-6 md:p-8">
+                  <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                    Environment type
+                  </span>
+                  <div>
+                    <h2 className="text-2xl font-semibold text-slate-900">
+                      {category.title}
+                    </h2>
+                    <p className="mt-3 text-sm text-slate-600">
+                      {category.summary}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {category.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full bg-slate-100 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-500"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="relative h-56 w-full flex-1 overflow-hidden md:h-auto">
+                  <img
+                    src={category.heroImage}
+                    alt={category.title}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+              </div>
+              <div className="border-t border-slate-200 bg-slate-50/70 p-6 md:p-8">
+                <div className="flex items-center justify-between gap-4">
+                  <h3 className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-500">
+                    Policy coverage
+                  </h3>
+                  <span className="text-sm text-slate-500">
+                    {categoryPolicies.length} {categoryPolicies.length === 1 ? "policy" : "policies"}
+                  </span>
+                </div>
+                {categoryPolicies.length > 0 ? (
+                  <div className="mt-6 grid gap-6 md:grid-cols-2">
+                    {categoryPolicies.map((policy) => (
+                      <PolicyCard key={policy.slug} policy={policy} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-6 text-sm text-slate-500">
+                    {policyFilter
+                      ? "This environment does not include the selected policy yet."
+                      : "Policy cards for this environment are coming soon."}
+                  </p>
+                )}
+              </div>
+            </section>
+          );
+        })}
       </div>
 
-      {filteredScenes.length === 0 ? (
+      {filteredCategories.length === 0 ? (
         <p className="text-sm text-slate-500">
-          No scenes found. Adjust your filters to explore more environments.
+          No environments found. Adjust your filters to explore more policy coverage.
         </p>
       ) : null}
     </div>
