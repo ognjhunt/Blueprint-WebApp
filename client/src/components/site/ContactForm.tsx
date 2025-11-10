@@ -51,10 +51,11 @@ const interactionOptions = [
 ] as const;
 
 const useCaseOptions = [
-  "Open/slide",
-  "Pick-place",
-  "Palletize",
-  "Other",
+  "Pick & place",
+  "Articulated access",
+  "Panel interaction",
+  "Logistics (bin picking / palletizing)",
+  "Precision insertion & assembly",
 ] as const;
 
 const exclusivityOptions = [
