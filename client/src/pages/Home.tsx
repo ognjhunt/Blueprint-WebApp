@@ -2,7 +2,7 @@ import { CTAButtons } from "@/components/site/CTAButtons";
 import { LogoWall } from "@/components/site/LogoWall";
 import { TileGrid } from "@/components/site/TileGrid";
 import { WaitlistForm } from "@/components/site/WaitlistForm";
-import { environmentCategories } from "@/data/content";
+import { environmentCategories } from "@/data/content"; //yeet
 
 const whySimReady = [
   {
@@ -48,7 +48,9 @@ export default function Home() {
               SimReady worlds for robotic training.
             </h1>
             <p className="max-w-xl text-lg text-slate-600">
-              High-fidelity scenes, physics-clean assets, delivered fast. Blueprint finishes procedural and real-world environments so your robots can prove ROI in simulation before hardware hits the floor.
+              High-fidelity scenes, physics-clean assets, delivered fast.
+              Blueprint finishes procedural and real-world environments so your
+              robots can prove ROI in simulation before hardware hits the floor.
             </p>
           </div>
           <CTAButtons
@@ -66,10 +68,14 @@ export default function Home() {
               Network coverage
             </p>
             <p>
-              Kitchens, groceries, warehouse lanes, labs, offices, retail, utility, and more. Each environment ships with articulated policies, pickable props, semantic labels, and Isaac validation reports.
+              Kitchens, groceries, warehouse lanes, labs, offices, retail,
+              utility, and more. Each environment ships with articulated
+              policies, pickable props, semantic labels, and Isaac validation
+              reports.
             </p>
             <p>
-              Add on our on-site capture service to transform your real facility into a SimReady digital twin. Join the waitlist below.
+              Add on our on-site capture service to transform your real facility
+              into a SimReady digital twin. Join the waitlist below.
             </p>
           </div>
         </div>
@@ -83,7 +89,9 @@ export default function Home() {
               key={item.title}
               className="rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-600"
             >
-              <h3 className="text-lg font-semibold text-slate-900">{item.title}</h3>
+              <h3 className="text-lg font-semibold text-slate-900">
+                {item.title}
+              </h3>
               <p className="mt-3 leading-relaxed">{item.description}</p>
             </div>
           ))}
@@ -97,7 +105,9 @@ export default function Home() {
               Environment Network
             </h2>
             <p className="mt-2 max-w-xl text-sm text-slate-600">
-              60+ scene archetypes spanning robotic kitchens, warehouses, retail, offices, and labs. Browse categories below or jump into the full catalog.
+              60+ scene archetypes spanning robotic kitchens, warehouses,
+              retail, offices, and labs. Browse categories below or jump into
+              the full catalog.
             </p>
           </div>
           <a
@@ -132,7 +142,9 @@ export default function Home() {
                 01 • Generate
               </span>
               <p className="mt-3 text-sm text-slate-600">
-                Start from Seed3D captures and internal asset libraries. We clean topology, UVs, and materials to create watertight, PBR-ready geometry.
+                Start from Seed3D captures and internal asset libraries. We
+                clean topology, UVs, and materials to create watertight,
+                PBR-ready geometry.
               </p>
             </div>
             <div className="rounded-3xl border border-slate-200 bg-white p-6">
@@ -140,7 +152,9 @@ export default function Home() {
                 02 • Prep
               </span>
               <p className="mt-3 text-sm text-slate-600">
-                Blender finishing adds precise pivots, separated links, and optional joint rigs. Colliders are authored and tuned for contact-rich tasks.
+                Blender finishing adds precise pivots, separated links, and
+                optional joint rigs. Colliders are authored and tuned for
+                contact-rich tasks.
               </p>
             </div>
             <div className="rounded-3xl border border-slate-200 bg-white p-6">
@@ -148,7 +162,9 @@ export default function Home() {
                 03 • Sim authoring
               </span>
               <p className="mt-3 text-sm text-slate-600">
-                Final USD staging with physics materials, articulation limits, and Isaac validation. Replicator annotations available on request.
+                Final USD staging with physics materials, articulation limits,
+                and Isaac validation. Replicator annotations available on
+                request.
               </p>
             </div>
           </div>
@@ -207,7 +223,9 @@ export default function Home() {
                 On-site capture → SimReady digital twin.
               </h3>
               <p className="mt-3 max-w-xl text-sm text-slate-600">
-                We scan your facility, rebuild it in USD, and return a validated digital twin in days—not months. Join the waitlist to reserve an on-site capture slot.
+                We scan your facility, rebuild it in USD, and return a validated
+                digital twin in days—not months. Join the waitlist to reserve an
+                on-site capture slot.
               </p>
             </div>
             <WaitlistForm />
