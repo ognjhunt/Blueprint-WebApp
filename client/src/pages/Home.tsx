@@ -142,7 +142,7 @@ export default function Home() {
               How it works
             </p>
             <h2 className="text-3xl font-semibold text-slate-900">
-              From real-world capture to SimReady scene in three moves.
+              From real-world location to SimReady scene in three moves.
             </h2>
           </div>
           <div className="md:col-span-2 grid gap-6 md:grid-cols-3">
