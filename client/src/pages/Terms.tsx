@@ -13,6 +13,10 @@ export default function Terms() {
       <section className="space-y-3 text-sm text-slate-600">
         <h2 className="text-lg font-semibold text-slate-900">1. Services</h2>
         <p>Blueprint provides procedural/synthetic scene data, SimReady finishing, and on-site capture services as described in project agreements.</p>
+        <p>
+          Procedural deliverables are derived from real-world references—such as kitchens, warehouses, utility rooms, and
+          residential settings—to maintain the spatial fidelity and diversity required for robotics training datasets.
+        </p>
         <p>Deliverables include USD assets, textures, documentation, and related metadata as specified in the SOW.</p>
       </section>
       <section className="space-y-3 text-sm text-slate-600">
