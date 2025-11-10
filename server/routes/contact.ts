@@ -175,22 +175,22 @@ export default async function contactHandler(req: Request, res: Response) {
     const confirmationText = [
       `Hi ${firstName},`,
       "",
-      "Thank you for your interest in Scale. The team has received your request and will contact you if we determine our products are well-suited to meet your needs.",
+      "Thank you for your interest in Blueprint. The team has received your request and will contact you if we determine our products are well-suited to meet your needs.",
       "",
       "In the meantime, please check out the following resources:",
-      "- Blog: https://scale.com/blog",
-      "- Technical Guides: https://scale.com/technical-guides",
-      "- Upcoming Events: https://scale.com/events",
+      "- Blog: https://tryblueprint.io/blog",
+      "- Technical Guides: https://tryblueprint.io/technical-guides",
+      "- Upcoming Events: https://tryblueprint.io/events",
       "",
       "Best,",
-      "The Scale Team",
+      "The Blueprint Team",
       "",
-      "Download the 2024 AI Readiness Report: https://scale.com/resources/reports/ai-readiness-report",
-      "LinkedIn: https://www.linkedin.com/company/scaleai/",
-      "X: https://twitter.com/scale_ai",
-      "YouTube: https://www.youtube.com/c/ScaleAI",
+      "Download the 2024 AI Readiness Report: https://tryblueprint.io/resources/reports/ai-readiness-report",
+      "LinkedIn: https://www.linkedin.com/company/blueprintsim/",
+      "X: https://twitter.com/try_blueprint",
+      "YouTube: https://www.youtube.com/c/BlueprintAI",
       "",
-      "Scale AI, 650 Townsend, San Francisco, CA 94103",
+      "Blueprint, 1005 Crete St, Durham, NC 27707",
     ].join("\n");
 
     const confirmationHtml = `<!DOCTYPE html>
@@ -207,7 +207,7 @@ export default async function contactHandler(req: Request, res: Response) {
           <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;width:100%;background-color:#141414;border-radius:8px;padding:32px;">
             <tr>
               <td style="text-align:center;padding-bottom:24px;">
-                <span style="display:inline-block;color:#f4f4f4;font-size:18px;font-weight:600;letter-spacing:0.05em;">Scale Logo</span>
+                <span style="display:inline-block;color:#f4f4f4;font-size:18px;font-weight:600;letter-spacing:0.05em;">Blueprint Logo</span>
               </td>
             </tr>
             <tr>
@@ -215,30 +215,30 @@ export default async function contactHandler(req: Request, res: Response) {
                 <h1 style="margin:0 0 16px;font-size:28px;color:#ffffff;">Thank You for Your Submission!</h1>
                 <p style="margin:0 0 16px;font-size:16px;color:#d8d8d8;">Hi ${firstName},</p>
                 <p style="margin:0 0 16px;font-size:16px;color:#d8d8d8;">
-                  Thank you for your interest in Scale. The team has received your request and will contact you if we determine our products are well-suited to meet your needs.
+                  Thank you for your interest in Blueprint. The team has received your request and will contact you if we determine our products are well-suited to meet your needs.
                 </p>
                 <p style="margin:0 0 16px;font-size:16px;color:#d8d8d8;">In the meantime, please check out the following resources:</p>
                 <ul style="margin:0 0 24px;padding-left:20px;color:#78a0ff;">
-                  <li style="margin-bottom:8px;"><a href="https://scale.com/blog" style="color:#78a0ff;text-decoration:none;">Blog</a></li>
-                  <li style="margin-bottom:8px;"><a href="https://scale.com/technical-guides" style="color:#78a0ff;text-decoration:none;">Technical Guides</a></li>
-                  <li><a href="https://scale.com/events" style="color:#78a0ff;text-decoration:none;">Upcoming Events</a></li>
+                  <li style="margin-bottom:8px;"><a href="https://tryblueprint.io/blog" style="color:#78a0ff;text-decoration:none;">Blog</a></li>
+                  <li style="margin-bottom:8px;"><a href="https://tryblueprint.io/technical-guides" style="color:#78a0ff;text-decoration:none;">Technical Guides</a></li>
+                  <li><a href="https://tryblueprint.io/events" style="color:#78a0ff;text-decoration:none;">Upcoming Events</a></li>
                 </ul>
                 <p style="margin:0 0 16px;font-size:16px;color:#d8d8d8;">Best,</p>
-                <p style="margin:0 0 24px;font-size:16px;color:#d8d8d8;">The Scale Team</p>
+                <p style="margin:0 0 24px;font-size:16px;color:#d8d8d8;">The Blueprint Team</p>
                 <div style="margin-bottom:32px;">
                   <a
-                    href="https://scale.com/resources/reports/ai-readiness-report"
+                    href="https://tryblueprint.io/resources/reports/ai-readiness-report"
                     style="display:inline-block;padding:12px 24px;background-color:#34d399;color:#0b0b0b;font-weight:600;text-decoration:none;border-radius:4px;"
                   >Download the 2024 AI Readiness Report</a>
                 </div>
                 <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto 24px;">
                   <tr>
-                    <td style="padding:0 12px;"><a href="https://www.linkedin.com/company/scaleai/" style="color:#78a0ff;text-decoration:none;">LinkedIn</a></td>
-                    <td style="padding:0 12px;"><a href="https://twitter.com/scale_ai" style="color:#78a0ff;text-decoration:none;">X</a></td>
-                    <td style="padding:0 12px;"><a href="https://www.youtube.com/c/ScaleAI" style="color:#78a0ff;text-decoration:none;">YouTube</a></td>
+                    <td style="padding:0 12px;"><a href="https://www.linkedin.com/company/blueprint/" style="color:#78a0ff;text-decoration:none;">LinkedIn</a></td>
+                    <td style="padding:0 12px;"><a href="https://twitter.com/try_blueprint" style="color:#78a0ff;text-decoration:none;">X</a></td>
+                    <td style="padding:0 12px;"><a href="https://www.youtube.com/c/BlueprintAI" style="color:#78a0ff;text-decoration:none;">YouTube</a></td>
                   </tr>
                 </table>
-                <p style="margin:0;font-size:12px;color:#6b7280;">Scale AI, 650 Townsend, San Francisco, CA 94103</p>
+                <p style="margin:0;font-size:12px;color:#6b7280;">Blueprint, 1005 Crete St, Durham, NC 27707</p>
               </td>
             </tr>
           </table>
