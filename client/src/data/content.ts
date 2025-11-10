@@ -1120,7 +1120,7 @@ export const jobs: Job[] = [
     location: "Remote",
     summary: "Create high-fidelity assets with watertight topology and clean UVs for SimReady delivery.",
     description:
-      "You will translate capture outputs and kitbashed assets into polished simulation-ready geometry. Expect to iterate with our robotics specialists on articulation coverage, pivots, and collider tuning.",
+      "You will translate capture outputs and kitbashed assets into polished simulation-ready geometry. Expect to iterate with our robotics specialists on articulation coverage, pivots, and collider tuning. Compensation is per scene annotated or edited and averages approximately $50 per hour.",
     applyEmail: "apply+artist@tryblueprint.io",
   },
   {
