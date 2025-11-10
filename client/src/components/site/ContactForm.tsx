@@ -62,10 +62,10 @@ const exclusivityOptions = [
 ];
 
 const budgetRanges = [
-  "Under $10k",
-  "$10k – $25k",
-  "$25k – $50k",
-  "$50k+",
+  "Under $50k",
+  "$50k – $100k",
+  "$100k – $500k",
+  "$500k+",
 ];
 
 const isaacVersions = ["Isaac 4.x", "Isaac 5.x", "Both", "Other"] as const;
