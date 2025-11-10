@@ -23,17 +23,17 @@ const onsiteSteps = [
   {
     title: "Scan",
     description:
-      "Lidar + photogrammetry capture of your facility with robotics-safe coverage and survey-grade alignment.",
+      "Lidar + photogrammetry capture of either your in-house testbed or the customer site you need to validate—aligned for robotics-safe coverage and survey-grade accuracy.",
   },
   {
     title: "Rebuild",
     description:
-      "Blueprint engineers convert captures into SimReady scene packages with joints, colliders, and semantics.",
+      "Blueprint engineers convert captures into SimReady scene packages with joints, colliders, semantics, and the exact layout your team will deploy into.",
   },
   {
     title: "Prove",
     description:
-      "Run in your preferred simulator to prove ROI before hardware deployment, with change orders handled in days.",
+      "Run targeted policies in your preferred simulator to forecast KPIs, adapt behaviors to site-specific constraints, and prove ROI before hardware deployment.",
   },
 ];
 
@@ -101,8 +101,19 @@ export default function Solutions() {
             On-site SimReady Location (waitlist)
           </h2>
           <p className="max-w-3xl text-sm text-slate-600">
-            Turn a real site into a validated digital twin. We scan, rebuild the space, and deliver SimReady scenes within days so your robotics team can prove ROI in simulation before rolling out hardware.
+            Turn a real site into a validated digital twin. Whether you need to capture a facility you already control or a prospect’s floor you hope to deploy into, we scan, rebuild, and deliver SimReady scenes within days so your robotics team can prove ROI in simulation before rolling out hardware.
           </p>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+            <p className="font-semibold text-slate-900">Two ways customers use the service today:</p>
+            <ul className="mt-2 space-y-2 list-disc pl-5">
+              <li>
+                Capture a lab-owned environment so you can iterate and post-train policies against a space you control before inviting external stakeholders.
+              </li>
+              <li>
+                Scan the exact warehouse, grocery, or retail floor you’re selling into, then simulate workflows to quantify savings, prove uptime, and de-risk the rollout before robots ever arrive.
+              </li>
+            </ul>
+          </div>
         </div>
         <div className="grid gap-6 md:grid-cols-3">
           {onsiteSteps.map((step, index) => (
