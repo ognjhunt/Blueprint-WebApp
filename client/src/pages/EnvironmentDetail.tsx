@@ -114,12 +114,12 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
             <li>USD stage referencing articulated assets with validated limits.</li>
             <li>Texture set (albedo, normal, roughness) and OpenPBR material definitions.</li>
             <li>Collision package ({scene.colliders}) tuned for robotics simulation.</li>
-            <li>Optional Replicator annotations: {scene.replicator ?? "available on request"}.</li>
+            <li>Optional annotation bundles: {scene.replicator ?? "available on request"}.</li>
           </ul>
           <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">
             <h3 className="text-sm font-semibold text-slate-900">Delivery</h3>
             <p className="mt-2">
-              Standard lead time: {scene.leadTime}. Rush delivery available pending scope. Scenes are shipped via secure link with release notes and Isaac validation checklists.
+              Standard lead time: {scene.leadTime}. Rush delivery available pending scope. Scenes are shipped via secure link with release notes and simulation validation checklists.
             </p>
           </div>
         </div>

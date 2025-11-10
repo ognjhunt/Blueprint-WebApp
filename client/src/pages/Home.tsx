@@ -16,17 +16,17 @@ const whySimReady = [
       "Every articulated component ships with validated axes, limits, and authored USD skeletons.",
   },
   {
-    title: "USD + Isaac-ready",
+    title: "Simulation-ready handoff",
     description:
-      "Physics materials, collision proxies, and semantic schemas tuned for Isaac Sim out of the box.",
+      "Physics materials, collision proxies, and semantic schemas tuned for leading robotics simulators out of the box.",
   },
 ];
 
 const labBullets = [
   "Articulated containers (doors, drawers, racks)",
   "Pick-place props with clean colliders",
-  "USD stages validated in Isaac",
-  "Replicator-ready semantics on request",
+  "Simulation packages validated in our QA stack",
+  "Annotation-ready semantics on request",
 ];
 
 const artistBullets = [
@@ -51,6 +51,8 @@ export default function Home() {
               High-fidelity scenes, physics-clean assets, delivered fast.
               Blueprint finishes procedural and real-world environments so your
               robots can prove ROI in simulation before hardware hits the floor.
+              Engage on exclusive dataset programs or license non-exclusive
+              catalog scenes depending on your coverage needs.
             </p>
           </div>
           <CTAButtons
@@ -70,8 +72,8 @@ export default function Home() {
             <p>
               Kitchens, groceries, warehouse lanes, labs, offices, retail,
               utility, and more. Each environment ships with articulated
-              policies, pickable props, semantic labels, and Isaac validation
-              reports.
+              policy coverage, pickable props, semantic labels, and simulation
+              validation reports.
             </p>
             <p>
               Add on our on-site capture service to transform your real facility
@@ -142,7 +144,7 @@ export default function Home() {
                 01 • Generate
               </span>
               <p className="mt-3 text-sm text-slate-600">
-                Start from Seed3D captures and internal asset libraries. We
+                Start from on-site captures and internal asset libraries. We
                 clean topology, UVs, and materials to create watertight,
                 PBR-ready geometry.
               </p>
@@ -152,7 +154,7 @@ export default function Home() {
                 02 • Prep
               </span>
               <p className="mt-3 text-sm text-slate-600">
-                Blender finishing adds precise pivots, separated links, and
+                Artist finishing adds precise pivots, separated links, and
                 optional joint rigs. Colliders are authored and tuned for
                 contact-rich tasks.
               </p>
@@ -162,8 +164,8 @@ export default function Home() {
                 03 • Sim authoring
               </span>
               <p className="mt-3 text-sm text-slate-600">
-                Final USD staging with physics materials, articulation limits,
-                and Isaac validation. Replicator annotations available on
+                Final packaging with physics materials, articulation limits,
+                and simulation validation. Annotation exports available on
                 request.
               </p>
             </div>

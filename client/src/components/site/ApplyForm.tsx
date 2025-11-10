@@ -66,7 +66,7 @@ export function ApplyForm({ role, email }: ApplyFormProps) {
       <textarea
         name="notes"
         rows={3}
-        placeholder="Relevant USD, Isaac, or tooling experience"
+        placeholder="Relevant simulation or environment build experience"
         className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
       />
       <button

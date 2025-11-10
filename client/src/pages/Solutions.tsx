@@ -15,7 +15,7 @@ const proceduralSteps = [
   {
     title: "Validate",
     description:
-      "Every delivery ships with Isaac physics tests, semantic labels on request, and Replicator-ready metadata.",
+      "Every delivery ships with simulation QA runs, semantic labels on request, and annotation-ready metadata.",
   },
 ];
 
@@ -28,12 +28,12 @@ const onsiteSteps = [
   {
     title: "Rebuild",
     description:
-      "Blueprint engineers convert captures into SimReady USD scenes with joints, colliders, and semantics.",
+      "Blueprint engineers convert captures into SimReady scene packages with joints, colliders, and semantics.",
   },
   {
     title: "Prove",
     description:
-      "Drop into Isaac Sim to prove ROI before hardware deployment, with change orders handled in days.",
+      "Run in your preferred simulator to prove ROI before hardware deployment, with change orders handled in days.",
   },
 ];
 
@@ -49,7 +49,7 @@ export default function Solutions() {
             Two ways to get SimReady scenes.
           </h1>
           <p className="text-sm text-slate-600">
-            Whether you need procedural synthetic data or a digital twin of a real facility, Blueprint delivers robotics-ready environments with precision pivots, physics materials, and Isaac validation.
+            Whether you need procedural synthetic data or a digital twin of a real facility, Blueprint delivers robotics-ready environments with precision pivots, physics materials, and simulation validation. Choose from non-exclusive catalog scenes or commission exclusive dataset programs tailored to your roadmap.
           </p>
           <CTAButtons
             primaryHref="/environments"
@@ -63,7 +63,7 @@ export default function Solutions() {
             What makes a scene SimReady?
           </h2>
           <p className="mt-3 text-sm text-slate-600">
-            We measure every build against contact accuracy, articulated coverage, clean semantics, and Isaac compatibility. Delivery includes validation videos, collider previews, and annotated USD files.
+            We measure every build against contact accuracy, articulated coverage, clean semantics, and integration readiness. Delivery includes validation videos, collider previews, and annotated scene files.
           </p>
         </div>
       </header>
@@ -74,7 +74,7 @@ export default function Solutions() {
             Procedural & Synthetic Scene Data
           </h2>
           <p className="max-w-3xl text-sm text-slate-600">
-            Generate diverse training sets with curated procedural environments. We mix Seed3D captures, kitbashed assets, and authored variants to deliver coverage across kitchens, grocery, warehouse, and retail archetypes.
+            Generate diverse training sets with curated procedural environments. We mix capture data, kitbashed assets, and authored variants to deliver coverage across kitchens, grocery, warehouse, and retail archetypes.
           </p>
         </div>
         <div className="grid gap-6 md:grid-cols-3">
@@ -90,7 +90,7 @@ export default function Solutions() {
         </div>
         <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">
           <p>
-            Deliverables: USD scene with articulated assets, texture libraries, replicator schema (optional), Isaac validation video, change-log, and recommended policy tasks.
+            Deliverables: Scene package with articulated assets, texture libraries, annotation schema (optional), simulation validation reel, change-log, and recommended policy tasks.
           </p>
         </div>
       </section>
@@ -101,7 +101,7 @@ export default function Solutions() {
             On-site SimReady Location (waitlist)
           </h2>
           <p className="max-w-3xl text-sm text-slate-600">
-            Turn a real site into a validated digital twin. We scan, rebuild in USD, and deliver SimReady scenes within days so your robotics team can prove ROI in simulation before rolling out hardware.
+            Turn a real site into a validated digital twin. We scan, rebuild the space, and deliver SimReady scenes within days so your robotics team can prove ROI in simulation before rolling out hardware.
           </p>
         </div>
         <div className="grid gap-6 md:grid-cols-3">
