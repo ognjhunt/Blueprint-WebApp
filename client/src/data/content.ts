@@ -225,6 +225,21 @@ export const environmentPolicies: EnvironmentPolicy[] = [
     metric: "<0.5 mm positional drift across 10k simulated insertions",
     environments: ["labs", "utility-rooms"],
   },
+  {
+    slug: "laundry-folding-assist",
+    title: "Laundry Sorting & Folding Assist",
+    focus: "Home Services",
+    cadence: "Biweekly sim QA",
+    summary:
+      "Bedroom and laundry alcove routines tuned for hamper pickup, garment classification, and fold placement autonomy.",
+    coverage: [
+      "Washer, dryer, and hamper retrieval loops with Isaac Manipulator cloth proxies",
+      "Garment spread, fold, and stack sequences referencing FoldingBench and ALOHA laundry baselines",
+      "Closet handoff routines with hanger alignment and dresser drawer organization checks",
+    ],
+    metric: "Maintains 88% fold quality on FoldingBench long-horizon tasks",
+    environments: ["home-laundry"],
+  },
 ];
 
 export const scenes: Scene[] = [
