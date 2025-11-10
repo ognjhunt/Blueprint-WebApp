@@ -170,25 +170,90 @@ export default async function contactHandler(req: Request, res: Response) {
   const { sent } = await sendEmail({ to, subject, text: summary, replyTo: email });
 
   if (email) {
-    const confirmationSubject = "Thanks for requesting a Blueprint walkthrough";
+    const confirmationSubject = "Thank You for Your Submission!";
     const firstName = requesterName.split(" ")[0] || requesterName;
-    const confirmationLines = [
+    const confirmationText = [
       `Hi ${firstName},`,
       "",
-      "Thanks for sharing what you’re building. We’ll review the details you submitted and reach out to schedule a 30-minute walkthrough tailored to your use case.",
+      "Thank you for your interest in Scale. The team has received your request and will contact you if we determine our products are well-suited to meet your needs.",
       "",
-      "If you’d like to grab time right away, you can pick a slot here:",
-      "https://calendly.com/blueprintar/30min",
+      "In the meantime, please check out the following resources:",
+      "- Blog: https://scale.com/blog",
+      "- Technical Guides: https://scale.com/technical-guides",
+      "- Upcoming Events: https://scale.com/events",
       "",
-      "Talk soon,",
-      "Team Blueprint",
-    ];
+      "Best,",
+      "The Scale Team",
+      "",
+      "Download the 2024 AI Readiness Report: https://scale.com/resources/reports/ai-readiness-report",
+      "LinkedIn: https://www.linkedin.com/company/scaleai/",
+      "X: https://twitter.com/scale_ai",
+      "YouTube: https://www.youtube.com/c/ScaleAI",
+      "",
+      "Scale AI, 650 Townsend, San Francisco, CA 94103",
+    ].join("\n");
+
+    const confirmationHtml = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Thank You for Your Submission!</title>
+  </head>
+  <body style="margin:0;padding:0;background-color:#0b0b0b;color:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0b0b0b;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;width:100%;background-color:#141414;border-radius:8px;padding:32px;">
+            <tr>
+              <td style="text-align:center;padding-bottom:24px;">
+                <span style="display:inline-block;color:#f4f4f4;font-size:18px;font-weight:600;letter-spacing:0.05em;">Scale Logo</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding-bottom:24px;">
+                <h1 style="margin:0 0 16px;font-size:28px;color:#ffffff;">Thank You for Your Submission!</h1>
+                <p style="margin:0 0 16px;font-size:16px;color:#d8d8d8;">Hi ${firstName},</p>
+                <p style="margin:0 0 16px;font-size:16px;color:#d8d8d8;">
+                  Thank you for your interest in Scale. The team has received your request and will contact you if we determine our products are well-suited to meet your needs.
+                </p>
+                <p style="margin:0 0 16px;font-size:16px;color:#d8d8d8;">In the meantime, please check out the following resources:</p>
+                <ul style="margin:0 0 24px;padding-left:20px;color:#78a0ff;">
+                  <li style="margin-bottom:8px;"><a href="https://scale.com/blog" style="color:#78a0ff;text-decoration:none;">Blog</a></li>
+                  <li style="margin-bottom:8px;"><a href="https://scale.com/technical-guides" style="color:#78a0ff;text-decoration:none;">Technical Guides</a></li>
+                  <li><a href="https://scale.com/events" style="color:#78a0ff;text-decoration:none;">Upcoming Events</a></li>
+                </ul>
+                <p style="margin:0 0 16px;font-size:16px;color:#d8d8d8;">Best,</p>
+                <p style="margin:0 0 24px;font-size:16px;color:#d8d8d8;">The Scale Team</p>
+                <div style="margin-bottom:32px;">
+                  <a
+                    href="https://scale.com/resources/reports/ai-readiness-report"
+                    style="display:inline-block;padding:12px 24px;background-color:#34d399;color:#0b0b0b;font-weight:600;text-decoration:none;border-radius:4px;"
+                  >Download the 2024 AI Readiness Report</a>
+                </div>
+                <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto 24px;">
+                  <tr>
+                    <td style="padding:0 12px;"><a href="https://www.linkedin.com/company/scaleai/" style="color:#78a0ff;text-decoration:none;">LinkedIn</a></td>
+                    <td style="padding:0 12px;"><a href="https://twitter.com/scale_ai" style="color:#78a0ff;text-decoration:none;">X</a></td>
+                    <td style="padding:0 12px;"><a href="https://www.youtube.com/c/ScaleAI" style="color:#78a0ff;text-decoration:none;">YouTube</a></td>
+                  </tr>
+                </table>
+                <p style="margin:0;font-size:12px;color:#6b7280;">Scale AI, 650 Townsend, San Francisco, CA 94103</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
 
     await sendEmail({
       to: email,
       subject: confirmationSubject,
-      text: confirmationLines.join("\n"),
-      replyTo: "hello@tryblueprint.io",
+      text: confirmationText,
+      html: confirmationHtml,
+      replyTo: "ohstnhunt@gmail.com",
     });
   }
 
