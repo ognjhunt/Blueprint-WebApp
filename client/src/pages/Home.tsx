@@ -2,7 +2,7 @@ import { CTAButtons } from "@/components/site/CTAButtons";
 import { LogoWall } from "@/components/site/LogoWall";
 import { TileGrid } from "@/components/site/TileGrid";
 import { WaitlistForm } from "@/components/site/WaitlistForm";
-import { environmentCategories } from "@/data/content"; //yeet
+import { environmentCategories } from "@/data/content"; //yeetasdasd
 
 const whySimReady = [
   {
@@ -48,8 +48,8 @@ export default function Home() {
               SimReady worlds for robotic training.
             </h1>
             <p className="max-w-xl text-lg text-slate-600">
-              High-fidelity scenes, physics-clean assets, delivered fast.
-              Every procedural world we ship is authored from real kitchens,
+              High-fidelity scenes, physics-clean assets, delivered fast. Every
+              procedural world we ship is authored from real kitchens,
               warehouses, utilities, bedrooms, and other everyday locations so
               your synthetic datasets reflect the variety your robots meet in
               the field. Blueprint finishes procedural and real-world
@@ -76,10 +76,10 @@ export default function Home() {
             <p>
               Kitchens, groceries, warehouse lanes, labs, offices, retail,
               utility, and more. Our procedural sets are grounded in
-              photographic and scan references from active facilities so
-              catalog scenes mirror how real spaces are organized. Each
-              environment ships with articulated policy coverage, pickable
-              props, semantic labels, and simulation validation reports.
+              photographic and scan references from active facilities so catalog
+              scenes mirror how real spaces are organized. Each environment
+              ships with articulated policy coverage, pickable props, semantic
+              labels, and simulation validation reports.
             </p>
             <p>
               Add on our on-site capture service to transform your real facility
@@ -116,8 +116,7 @@ export default function Home() {
               60+ scene archetypes spanning robotic kitchens, warehouses,
               retail, offices, and labs—each patterned after documented real
               sites to preserve aisle widths, counter heights, and task
-              diversity. Browse categories below or jump into the full
-              catalog.
+              diversity. Browse categories below or jump into the full catalog.
             </p>
           </div>
           <a
@@ -172,9 +171,8 @@ export default function Home() {
                 03 • Sim authoring
               </span>
               <p className="mt-3 text-sm text-slate-600">
-                Final packaging with physics materials, articulation limits,
-                and simulation validation. Annotation exports available on
-                request.
+                Final packaging with physics materials, articulation limits, and
+                simulation validation. Annotation exports available on request.
               </p>
             </div>
           </div>
