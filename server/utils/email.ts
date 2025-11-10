@@ -6,6 +6,7 @@ interface SendEmailOptions {
   subject: string;
   text: string;
   html?: string;
+  replyTo?: string;
 }
 
 let cachedTransporter: nodemailer.Transporter | null = null;
@@ -38,27 +39,28 @@ function getTransporter() {
   return cachedTransporter;
 }
 
-export async function sendEmail({ to, subject, text, html }: SendEmailOptions) {
+export async function sendEmail({ to, subject, text, html, replyTo }: SendEmailOptions) {
   const transporter = getTransporter();
 
   if (!transporter) {
-    logger.info({ to, subject, text }, "Email transport not configured; logging message");
+    logger.info({ to, subject, text, replyTo }, "Email transport not configured; logging message");
     return { sent: false };
   }
 
   try {
     await transporter.sendMail({
-      from: process.env.SMTP_FROM ?? "Blueprint <ops@tryblueprint.io>",
+      from: process.env.SMTP_FROM ?? "Blueprint <ohstnhunt@gmail.com>",
       to,
       subject,
       text,
       html,
+      replyTo,
     });
 
-    logger.info({ to, subject }, "Email dispatched");
+    logger.info({ to, subject, replyTo }, "Email dispatched");
     return { sent: true };
   } catch (error) {
-    logger.error({ error, to, subject }, "Failed to send email");
+    logger.error({ error, to, subject, replyTo }, "Failed to send email");
     return { sent: false, error };
   }
 }

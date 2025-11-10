@@ -10,6 +10,8 @@ export default async function contactHandler(req: Request, res: Response) {
     name,
     email,
     company,
+    jobTitle,
+    country,
     requestType,
     datasetTier,
     datasetNotes,
@@ -35,7 +37,7 @@ export default async function contactHandler(req: Request, res: Response) {
     emailOptIn,
   } = req.body ?? {};
 
-  if (!name || !email || !company) {
+  if (!name || !email || !company || !jobTitle || !country) {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
@@ -60,10 +62,13 @@ export default async function contactHandler(req: Request, res: Response) {
     ? [desiredCategories]
     : [];
 
+  const requesterName = String(name);
   const summaryLines = [
-    `Name: ${name}`,
+    `Name: ${requesterName}`,
     `Email: ${email}`,
     `Company: ${company}`,
+    `Job title: ${jobTitle}`,
+    `Country: ${country}`,
   ];
 
   if (requestType) {
@@ -156,11 +161,36 @@ export default async function contactHandler(req: Request, res: Response) {
     summaryLines.push(`Message: ${message}`);
   }
 
+  summaryLines.push("Calendly link: https://calendly.com/blueprintar/30min");
+
   const to = process.env.CONTACT_TO ?? "ops@tryblueprint.io";
   const subject = `Blueprint request from ${company}`;
   const summary = summaryLines.join("\n");
 
-  const { sent } = await sendEmail({ to, subject, text: summary });
+  const { sent } = await sendEmail({ to, subject, text: summary, replyTo: email });
+
+  if (email) {
+    const confirmationSubject = "Thanks for requesting a Blueprint walkthrough";
+    const firstName = requesterName.split(" ")[0] || requesterName;
+    const confirmationLines = [
+      `Hi ${firstName},`,
+      "",
+      "Thanks for sharing what you’re building. We’ll review the details you submitted and reach out to schedule a 30-minute walkthrough tailored to your use case.",
+      "",
+      "If you’d like to grab time right away, you can pick a slot here:",
+      "https://calendly.com/blueprintar/30min",
+      "",
+      "Talk soon,",
+      "Team Blueprint",
+    ];
+
+    await sendEmail({
+      to: email,
+      subject: confirmationSubject,
+      text: confirmationLines.join("\n"),
+      replyTo: "hello@tryblueprint.io",
+    });
+  }
 
   return res.status(sent ? 200 : 202).json({ success: true, sent });
 }
