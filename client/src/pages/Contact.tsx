@@ -7,19 +7,24 @@ export default function Contact() {
   return (
     <div className="mx-auto max-w-6xl space-y-10 px-4 pb-24 pt-16 sm:px-6">
       <header className="space-y-4">
-        <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Build your training coverage</p>
+        <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+          Build your training coverage
+        </p>
         <h1 className="text-4xl font-semibold text-slate-900">
           Start with the dataset your lab actually needs.
         </h1>
         <p className="max-w-3xl text-sm text-slate-600">
-          Labs are tuning the same manipulation families everyone is benchmarking going into 2025 and 2026—dexterous pick-
-          place, articulated access, panel interaction, mixed-SKU logistics, and precision insertion. That’s why we lead with
-          dataset programs that hit those policy tracks while still making it easy to request a specific kitchen, warehouse
-          aisle, or other hero scene. Share what your robot needs and we’ll align on scope, delivery, and budget within one
+          Labs are tuning the same manipulation families everyone is
+          benchmarking going into 2025 and 2026—dexterous pick- place,
+          articulated access, panel interaction, mixed-SKU logistics, and
+          precision insertion. That’s why we lead with dataset programs that hit
+          those policy tracks while still making it easy to request a specific
+          kitchen, warehouse aisle, or other hero scene. Share what your robot
+          needs and we’ll align on scope, delivery, and budget within one
           business day.
         </p>
       </header>
-      <section className="space-y-6 rounded-3xl border border-slate-200 bg-white/70 p-6 shadow-sm sm:p-8">
+      {/* <section className="space-y-6 rounded-3xl border border-slate-200 bg-white/70 p-6 shadow-sm sm:p-8">
         <div className="space-y-2">
           <span className="text-xs uppercase tracking-[0.3em] text-slate-400">Policy coverage</span>
           <h2 className="text-xl font-semibold text-slate-900">Top robotics policy tracks for 2025/2026</h2>
@@ -50,7 +55,7 @@ export default function Contact() {
             </article>
           ))}
         </div>
-      </section>
+      </section> */}
       <ContactForm />
     </div>
   );
