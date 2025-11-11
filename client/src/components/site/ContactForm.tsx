@@ -59,6 +59,17 @@ const useCaseOptions = [
   "Laundry sorting & folding",
 ] as const;
 
+const environmentOptions = [
+  "Kitchens",
+  "Grocery Aisles",
+  "Warehouse Lanes",
+  "Loading Docks",
+  "Labs",
+  "Office Pods",
+  "Utility Rooms",
+  "Home Laundry",
+] as const;
+
 const exclusivityOptions = [
   { value: "none", label: "Shared catalog is fine" },
   { value: "preferred", label: "Prefer exclusivity" },
@@ -82,6 +93,7 @@ export function ContactForm() {
   const [sceneCategory, setSceneCategory] = useState<string>(sceneCategories[0]);
   const [sceneInteractions, setSceneInteractions] = useState<string[]>([]);
   const [selectedUseCases, setSelectedUseCases] = useState<string[]>([]);
+  const [selectedEnvironments, setSelectedEnvironments] = useState<string[]>([]);
   const [exclusivity, setExclusivity] = useState<string>(exclusivityOptions[0].value);
 
   const handleInteractionToggle = (value: string) => {
@@ -107,6 +119,12 @@ export function ContactForm() {
     });
   };
 
+  const handleEnvironmentToggle = (value: string) => {
+    setSelectedEnvironments((prev) =>
+      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value],
+    );
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -124,6 +142,7 @@ export function ContactForm() {
 
     const payload: Record<string, unknown> = Object.fromEntries(data.entries());
     payload["useCases"] = selectedUseCases;
+    payload["environments"] = selectedEnvironments;
     payload["sceneInteractions"] = sceneInteractions;
     payload["requestType"] = requestType;
     payload["datasetTier"] = datasetTier;
@@ -153,6 +172,7 @@ export function ContactForm() {
       setSceneCategory(sceneCategories[0]);
       setSceneInteractions([]);
       setSelectedUseCases([]);
+      setSelectedEnvironments([]);
       setExclusivity(exclusivityOptions[0].value);
     } catch (error) {
       console.error(error);
@@ -414,6 +434,31 @@ export function ContactForm() {
                   value={option}
                   checked={selectedUseCases.includes(option)}
                   onChange={() => handleUseCaseToggle(option)}
+                  className="sr-only"
+                />
+                {option}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-2">
+          <span className="text-xs uppercase tracking-[0.3em] text-slate-400">Environment type</span>
+          <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-4">
+            {environmentOptions.map((option) => (
+              <label
+                key={option}
+                className={`flex cursor-pointer items-center justify-between rounded-full border px-4 py-2 text-sm transition hover:border-slate-300 ${
+                  selectedEnvironments.includes(option)
+                    ? "border-slate-900 bg-slate-50 font-medium"
+                    : "border-slate-200"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  name="environments"
+                  value={option}
+                  checked={selectedEnvironments.includes(option)}
+                  onChange={() => handleEnvironmentToggle(option)}
                   className="sr-only"
                 />
                 {option}
