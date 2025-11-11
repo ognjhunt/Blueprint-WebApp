@@ -2,7 +2,7 @@ import { CTAButtons } from "@/components/site/CTAButtons";
 import { LogoWall } from "@/components/site/LogoWall";
 import { TileGrid } from "@/components/site/TileGrid";
 import { WaitlistForm } from "@/components/site/WaitlistForm";
-import { environmentCategories } from "@/data/content"; //yeetasdasddasdsadsadsdasd
+import { environmentCategories } from "@/data/content"; //yeetasdasddasdsadsadsdasdasdasd
 
 const whySimReady = [
   {
