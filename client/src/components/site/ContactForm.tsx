@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+import { Loader } from "@googlemaps/js-api-loader";
 
 import { countries } from "@/data/countries";
+import { getGoogleMapsApiKey } from "@/lib/client-env";
 
 const requestOptions = [
   {
@@ -12,9 +15,9 @@ const requestOptions = [
   },
   {
     value: "scene" as const,
-    label: "I need a specific scene",
+    label: "On-site SimReady location (waitlist)",
     description:
-      "Per-scene SKU for targeted pilots. Choose the layout, interactions, and delivery version you need to ship.",
+      "We’ll visit the facility you care about, scan it, and return a validated digital twin so you can prove ROI before hardware ships.",
     recommended: false,
   },
 ];
@@ -39,16 +42,6 @@ const datasetTiers = [
     secondary: "Exclusivity, SLA options, and program co-design for scale.",
   },
 ];
-
-const sceneCategories = ["Kitchen", "Warehouse", "Retail", "Office", "Lab"] as const;
-
-const interactionOptions = [
-  "Revolute",
-  "Prismatic",
-  "Buttons",
-  "Knobs",
-  "Pickables",
-] as const;
 
 const useCaseOptions = [
   "Pick & place",
@@ -76,31 +69,106 @@ const exclusivityOptions = [
   { value: "required", label: "Exclusivity required" },
 ];
 
-const budgetRanges = [
+const datasetBudgetRanges = [
   "Under $50k",
   "$50k – $100k",
   "$100k – $500k",
   "$500k+",
 ];
 
+const sceneBudgetRanges = ["Under $5k", "$5k – $10k", "$10k – $25k", "$25k+"];
+
 const isaacVersions = ["Isaac 4.x", "Isaac 5.x", "Both", "Other"] as const;
 
 export function ContactForm() {
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
   const [message, setMessage] = useState("");
-  const [requestType, setRequestType] = useState<"dataset" | "scene">("dataset");
+  const [requestType, setRequestType] = useState<"dataset" | "scene">(
+    "dataset",
+  );
   const [datasetTier, setDatasetTier] = useState<string>(datasetTiers[0].value);
-  const [sceneCategory, setSceneCategory] = useState<string>(sceneCategories[0]);
-  const [sceneInteractions, setSceneInteractions] = useState<string[]>([]);
   const [selectedUseCases, setSelectedUseCases] = useState<string[]>([]);
-  const [selectedEnvironments, setSelectedEnvironments] = useState<string[]>([]);
-  const [exclusivity, setExclusivity] = useState<string>(exclusivityOptions[0].value);
+  const [selectedEnvironments, setSelectedEnvironments] = useState<string[]>(
+    [],
+  );
+  const [exclusivity, setExclusivity] = useState<string>(
+    exclusivityOptions[0].value,
+  );
+  const [siteAddress, setSiteAddress] = useState<string>("");
+  const [sitePlaceId, setSitePlaceId] = useState<string>("");
+  const addressInputRef = useRef<HTMLInputElement | null>(null);
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const [placesUnavailable, setPlacesUnavailable] = useState<boolean>(false);
 
-  const handleInteractionToggle = (value: string) => {
-    setSceneInteractions((prev) =>
-      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value],
-    );
-  };
+  useEffect(() => {
+    if (requestType !== "scene") {
+      if (autocompleteRef.current) {
+        google.maps.event.clearInstanceListeners(autocompleteRef.current);
+        autocompleteRef.current = null;
+      }
+      return;
+    }
+
+    const apiKey = getGoogleMapsApiKey();
+    if (!apiKey) {
+      setPlacesUnavailable(true);
+      return;
+    }
+
+    if (!addressInputRef.current) {
+      return;
+    }
+
+    let isCancelled = false;
+    const loader = new Loader({
+      apiKey,
+      version: "weekly",
+      libraries: ["places"],
+    });
+
+    loader
+      .load()
+      .then(() => {
+        if (isCancelled || !addressInputRef.current) {
+          return;
+        }
+
+        const autocomplete = new google.maps.places.Autocomplete(
+          addressInputRef.current,
+          {
+            fields: ["place_id", "formatted_address", "name"],
+            types: ["establishment", "geocode"],
+          },
+        );
+
+        autocompleteRef.current = autocomplete;
+        setPlacesUnavailable(false);
+
+        autocomplete.addListener("place_changed", () => {
+          const place = autocomplete.getPlace();
+          const formatted =
+            place.formatted_address ?? addressInputRef.current?.value ?? "";
+          setSiteAddress(formatted);
+          setSitePlaceId(place.place_id ?? "");
+        });
+      })
+      .catch((error) => {
+        console.error("Failed to load Google Maps Places API", error);
+        if (!isCancelled) {
+          setPlacesUnavailable(true);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+      if (autocompleteRef.current) {
+        google.maps.event.clearInstanceListeners(autocompleteRef.current);
+        autocompleteRef.current = null;
+      }
+    };
+  }, [requestType]);
 
   const handleUseCaseToggle = (value: string) => {
     setSelectedUseCases((prev) => {
@@ -121,7 +189,9 @@ export function ContactForm() {
 
   const handleEnvironmentToggle = (value: string) => {
     setSelectedEnvironments((prev) =>
-      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value],
+      prev.includes(value)
+        ? prev.filter((item) => item !== value)
+        : [...prev, value],
     );
   };
 
@@ -138,15 +208,16 @@ export function ContactForm() {
     const data = new FormData(form);
     data.set("requestType", requestType);
     data.set("datasetTier", datasetTier);
-    data.set("sceneCategory", sceneCategory);
+    data.set("siteAddress", siteAddress);
+    data.set("sitePlaceId", sitePlaceId);
 
     const payload: Record<string, unknown> = Object.fromEntries(data.entries());
     payload["useCases"] = selectedUseCases;
     payload["environments"] = selectedEnvironments;
-    payload["sceneInteractions"] = sceneInteractions;
     payload["requestType"] = requestType;
     payload["datasetTier"] = datasetTier;
-    payload["sceneCategory"] = sceneCategory;
+    payload["siteAddress"] = siteAddress;
+    payload["sitePlaceId"] = sitePlaceId;
     payload["exclusivityNeeds"] = exclusivity;
     payload["budgetRange"] = data.get("budgetRange") ?? "";
 
@@ -169,11 +240,11 @@ export function ContactForm() {
       setMessage("");
       setRequestType("dataset");
       setDatasetTier(datasetTiers[0].value);
-      setSceneCategory(sceneCategories[0]);
-      setSceneInteractions([]);
       setSelectedUseCases([]);
       setSelectedEnvironments([]);
       setExclusivity(exclusivityOptions[0].value);
+      setSiteAddress("");
+      setSitePlaceId("");
     } catch (error) {
       console.error(error);
       setStatus("error");
@@ -188,9 +259,12 @@ export function ContactForm() {
           <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
             Thanks for reaching out
           </span>
-          <h2 className="text-2xl font-semibold text-slate-900">We’ll be in touch soon</h2>
+          <h2 className="text-2xl font-semibold text-slate-900">
+            We’ll be in touch soon
+          </h2>
           <p className="text-sm text-slate-600">
-            A Blueprint teammate will review your request and follow up by email with next steps if it’s a match.
+            A Blueprint teammate will review your request and follow up by email
+            with next steps if it’s a match.
           </p>
         </div>
         <div className="flex justify-center">
@@ -216,14 +290,19 @@ export function ContactForm() {
     >
       <section className="space-y-3">
         <div className="flex flex-col gap-1">
-          <span className="text-xs uppercase tracking-[0.3em] text-slate-400">Choose your path</span>
-          <h2 className="text-xl font-semibold text-slate-900">How can we help?</h2>
+          <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
+            Choose your path
+          </span>
+          <h2 className="text-xl font-semibold text-slate-900">
+            How can we help?
+          </h2>
           <p className="text-sm text-slate-600">
-            Labs usually start with datasets for coverage. You can still request a single hero scene if you know exactly what
-            you need.
+            Labs usually start with datasets for coverage. You can still request
+            a single hero scene if you know exactly what you need.
           </p>
           <p className="text-sm text-slate-500">
-            Once you submit, we’ll review your request and email you with next steps if we’re a fit for your needs.
+            Once you submit, we’ll review your request and email you with next
+            steps if we’re a fit for your needs.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -245,9 +324,13 @@ export function ContactForm() {
                 className="sr-only"
               />
               <div className="flex items-center justify-between gap-3">
-                <span className="text-base font-semibold text-slate-900">{option.label}</span>
+                <span className="text-base font-semibold text-slate-900">
+                  {option.label}
+                </span>
                 {option.recommended ? (
-                  <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-medium text-white">Recommended</span>
+                  <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-medium text-white">
+                    Recommended
+                  </span>
                 ) : null}
               </div>
               <p className="text-sm text-slate-600">{option.description}</p>
@@ -259,9 +342,12 @@ export function ContactForm() {
       {requestType === "dataset" ? (
         <section className="space-y-4">
           <div className="flex flex-col gap-1">
-            <span className="text-xs uppercase tracking-[0.3em] text-slate-400">Dataset tiers</span>
+            <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              Dataset tiers
+            </span>
             <p className="text-sm text-slate-600">
-              These anchors are non-binding, but they map to how teams scope training corpora. Bigger bundles beat one-offs.
+              These anchors are non-binding, but they map to how teams scope
+              training corpora. Bigger bundles beat one-offs.
             </p>
           </div>
           <div className="grid gap-4 lg:grid-cols-3">
@@ -269,7 +355,9 @@ export function ContactForm() {
               <label
                 key={tier.value}
                 className={`flex h-full cursor-pointer flex-col gap-2 rounded-2xl border p-5 transition hover:border-slate-300 ${
-                  datasetTier === tier.value ? "border-slate-900 bg-slate-50 shadow-sm" : "border-slate-200"
+                  datasetTier === tier.value
+                    ? "border-slate-900 bg-slate-50 shadow-sm"
+                    : "border-slate-200"
                 }`}
               >
                 <input
@@ -280,117 +368,186 @@ export function ContactForm() {
                   onChange={() => setDatasetTier(tier.value)}
                   className="sr-only"
                 />
-                <span className="text-base font-semibold text-slate-900">{tier.label}</span>
-                <p className="text-sm font-medium text-slate-800">{tier.primary}</p>
+                <span className="text-base font-semibold text-slate-900">
+                  {tier.label}
+                </span>
+                <p className="text-sm font-medium text-slate-800">
+                  {tier.primary}
+                </p>
                 <p className="text-sm text-slate-600">{tier.secondary}</p>
               </label>
             ))}
           </div>
-          {/* <div className="space-y-2">
-            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">Notes</label>
+          <div className="space-y-2">
+            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              Notes
+            </label>
             <textarea
               name="datasetNotes"
               rows={3}
               placeholder="Anything specific about capture, semantics, or pilot milestones?"
               className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
             />
-          </div> */}
+          </div>
         </section>
       ) : (
-        <section className="space-y-6">
-          <div className="flex flex-col gap-1">
-            <span className="text-xs uppercase tracking-[0.3em] text-slate-400">Scene details</span>
+        <section className="space-y-8">
+          {/* <div className="space-y-4">
+            <div className="space-y-2">
+              <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                SimReady location capture
+              </span>
+              <h3 className="text-xl font-semibold text-slate-900">
+                On-site SimReady Location (waitlist)
+              </h3>
+              <p className="text-sm text-slate-600">
+                Turn a real site into a validated digital twin. Whether you need
+                to capture a facility you already control or a prospect’s floor
+                you hope to deploy into, we scan, rebuild, and deliver SimReady
+                scenes within days so your robotics team can prove ROI in
+                simulation before rolling out hardware.
+              </p>
+            </div>
+            <div className="space-y-3 rounded-3xl border border-slate-200 bg-slate-50 p-5">
+              <h4 className="text-sm font-semibold text-slate-900">
+                Two ways customers use the service today:
+              </h4>
+              <ul className="list-disc space-y-2 pl-5 text-sm text-slate-600">
+                <li>
+                  Capture a lab-owned environment so you can iterate and
+                  post-train policies against a space you control before
+                  inviting external stakeholders.
+                </li>
+                <li>
+                  Scan the exact warehouse, grocery, or retail floor you’re
+                  selling into, then simulate workflows to quantify savings,
+                  prove uptime, and de-risk the rollout before robots ever
+                  arrive.
+                </li>
+              </ul>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {["Scan", "Rebuild", "Prove"].map((step, index) => {
+                const copy = [
+                  "Lidar + photogrammetry capture of either your in-house testbed or the customer site you need to validate—aligned for robotics-safe coverage and survey-grade accuracy.",
+                  "Blueprint engineers convert captures into SimReady scene packages with joints, colliders, semantics, and the exact layout your team will deploy into.",
+                  "Run targeted policies in your preferred simulator to forecast KPIs, adapt behaviors to site-specific constraints, and prove ROI before hardware deployment.",
+                ][index];
+
+                return (
+                  <div
+                    key={step}
+                    className="space-y-2 rounded-3xl border border-slate-200 p-5"
+                  >
+                    <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <h5 className="text-base font-semibold text-slate-900">
+                      {step}
+                    </h5>
+                    <p className="text-sm text-slate-600">{copy}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-5">
+            <h4 className="text-sm font-semibold text-slate-900">
+              Reserve your slot
+            </h4>
             <p className="text-sm text-slate-600">
-              Pick the layout and interactions you need. We’ll confirm lighting, dressing, and any hardware fixtures after you
-              submit.
+              Priority goes to facilities with active robotic deployments. Join
+              the waitlist and we’ll coordinate capture windows, SLAs, and
+              pricing.
             </p>
-          </div>
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-3">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Category</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {sceneCategories.map((category) => (
-                  <label
-                    key={category}
-                    className={`flex cursor-pointer items-center justify-between rounded-full border px-4 py-2 text-sm transition hover:border-slate-300 ${
-                      sceneCategory === category ? "border-slate-900 bg-slate-50 font-medium" : "border-slate-200"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="sceneCategory"
-                      value={category}
-                      checked={sceneCategory === category}
-                      onChange={() => setSceneCategory(category)}
-                      className="sr-only"
-                      required
-                    />
-                    {category}
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-3">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Interactions</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {interactionOptions.map((interaction) => (
-                  <label
-                    key={interaction}
-                    className={`flex cursor-pointer items-center justify-between rounded-full border px-4 py-2 text-sm transition hover:border-slate-300 ${
-                      sceneInteractions.includes(interaction)
-                        ? "border-slate-900 bg-slate-50 font-medium"
-                        : "border-slate-200"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      name="sceneInteractions"
-                      value={interaction}
-                      checked={sceneInteractions.includes(interaction)}
-                      onChange={() => handleInteractionToggle(interaction)}
-                      className="sr-only"
-                    />
-                    {interaction}
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="grid gap-4 md:grid-cols-3">
+          </div> */}
+
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-xs uppercase tracking-[0.3em] text-slate-400">Quantity</label>
-              <input
-                type="number"
-                name="sceneQuantity"
-                min={1}
-                required
-                defaultValue={1}
-                className="w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs uppercase tracking-[0.3em] text-slate-400">Delivery date</label>
-              <input
-                type="date"
-                name="sceneDeliveryDate"
-                required
-                className="w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs uppercase tracking-[0.3em] text-slate-400">Isaac version</label>
-              <select
-                name="isaacVersion"
-                required
-                className="w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
+              <label
+                className="text-xs uppercase tracking-[0.3em] text-slate-400"
+                htmlFor="scene-facility-address"
               >
-                {isaacVersions.map((version) => (
-                  <option key={version} value={version}>
-                    {version}
-                  </option>
-                ))}
-              </select>
+                Facility address
+              </label>
+              <input
+                ref={addressInputRef}
+                id="scene-facility-address"
+                name="siteAddress"
+                value={siteAddress}
+                onChange={(event) => {
+                  setSiteAddress(event.target.value);
+                  setSitePlaceId("");
+                }}
+                required
+                placeholder="Street, city, state"
+                autoComplete="off"
+                className="w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
+              />
+              <input type="hidden" name="sitePlaceId" value={sitePlaceId} />
+              {placesUnavailable ? (
+                <p className="text-xs text-slate-500">
+                  Autocomplete unavailable—enter the address manually.
+                </p>
+              ) : (
+                <p className="text-xs text-slate-400">
+                  Powered by Google Places Autocomplete.
+                </p>
+              )}
             </div>
+            <div className="space-y-2">
+              <label
+                className="text-xs uppercase tracking-[0.3em] text-slate-400"
+                htmlFor="scene-location-type"
+              >
+                Location type
+              </label>
+              <input
+                id="scene-location-type"
+                name="locationType"
+                required
+                placeholder="e.g. Grocery micro-fulfillment"
+                className="w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label
+              className="text-xs uppercase tracking-[0.3em] text-slate-400"
+              htmlFor="scene-notes"
+            >
+              Capture context
+            </label>
+            <textarea
+              id="scene-notes"
+              name="sceneNotes"
+              rows={3}
+              placeholder="Share access details, coordination needs, or anything the capture crew should prep."
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label
+              className="text-xs uppercase tracking-[0.3em] text-slate-400"
+              htmlFor="scene-simulator"
+            >
+              Preferred simulator / format
+            </label>
+            <select
+              id="scene-simulator"
+              name="isaacVersion"
+              required
+              className="w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
+            >
+              {isaacVersions.map((version) => (
+                <option key={version} value={version}>
+                  {version}
+                </option>
+              ))}
+            </select>
           </div>
         </section>
       )}
@@ -398,7 +555,9 @@ export function ContactForm() {
       <section className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">Company</label>
+            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              Company
+            </label>
             <input
               required
               name="company"
@@ -407,7 +566,9 @@ export function ContactForm() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">Robot platform</label>
+            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              Robot platform
+            </label>
             <input
               required
               name="robotPlatform"
@@ -417,7 +578,9 @@ export function ContactForm() {
           </div>
         </div>
         <div className="space-y-2">
-          <span className="text-xs uppercase tracking-[0.3em] text-slate-400">Use case</span>
+          <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
+            Use case
+          </span>
           <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-4">
             {useCaseOptions.map((option) => (
               <label
@@ -442,7 +605,9 @@ export function ContactForm() {
           </div>
         </div>
         <div className="space-y-2">
-          <span className="text-xs uppercase tracking-[0.3em] text-slate-400">Environment type</span>
+          <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
+            Environment type
+          </span>
           <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-4">
             {environmentOptions.map((option) => (
               <label
@@ -468,7 +633,9 @@ export function ContactForm() {
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">Required semantics</label>
+            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              Required semantics
+            </label>
             <textarea
               required
               name="requiredSemantics"
@@ -477,41 +644,48 @@ export function ContactForm() {
               className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
             />
           </div>
-            <div className="space-y-2">
-              <label className="text-xs uppercase tracking-[0.3em] text-slate-400">Exclusivity needs</label>
-              <div className="grid gap-2">
-                {exclusivityOptions.map((option) => (
-                  <label
-                    key={option.value}
-                    className={`flex cursor-pointer items-center justify-between rounded-full border px-4 py-2 text-sm transition hover:border-slate-300 ${
-                      exclusivity === option.value
-                        ? "border-slate-900 bg-slate-50 font-medium"
-                        : "border-slate-200"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="exclusivityNeeds"
-                      value={option.value}
-                      checked={exclusivity === option.value}
-                      onChange={() => setExclusivity(option.value)}
-                      className="sr-only"
-                    />
-                    {option.label}
-                  </label>
-                ))}
-              </div>
+          <div className="space-y-2">
+            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              Exclusivity needs
+            </label>
+            <div className="grid gap-2">
+              {exclusivityOptions.map((option) => (
+                <label
+                  key={option.value}
+                  className={`flex cursor-pointer items-center justify-between rounded-full border px-4 py-2 text-sm transition hover:border-slate-300 ${
+                    exclusivity === option.value
+                      ? "border-slate-900 bg-slate-50 font-medium"
+                      : "border-slate-200"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="exclusivityNeeds"
+                    value={option.value}
+                    checked={exclusivity === option.value}
+                    onChange={() => setExclusivity(option.value)}
+                    className="sr-only"
+                  />
+                  {option.label}
+                </label>
+              ))}
             </div>
+          </div>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">Budget range</label>
+            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              Budget range
+            </label>
             <select
               name="budgetRange"
               required
               className="w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
             >
-              {budgetRanges.map((range) => (
+              {(requestType === "scene"
+                ? sceneBudgetRanges
+                : datasetBudgetRanges
+              ).map((range) => (
                 <option key={range} value={range}>
                   {range}
                 </option>
@@ -519,17 +693,33 @@ export function ContactForm() {
             </select>
           </div>
           <div className="space-y-2">
-            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">Deadline</label>
-            <input
-              type="date"
-              name="deadline"
-              required
-              className="w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
-            />
+            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              {requestType === "scene"
+                ? "Preferred capture window"
+                : "Deadline"}
+            </label>
+            {requestType === "scene" ? (
+              <input
+                type="text"
+                name="deadline"
+                placeholder="e.g. Week of March 18"
+                required
+                className="w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
+              />
+            ) : (
+              <input
+                type="date"
+                name="deadline"
+                required
+                className="w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
+              />
+            )}
           </div>
         </div>
         <div className="space-y-2">
-          <label className="text-xs uppercase tracking-[0.3em] text-slate-400">Anything else we should know?</label>
+          <label className="text-xs uppercase tracking-[0.3em] text-slate-400">
+            Anything else we should know?
+          </label>
           <textarea
             name="message"
             rows={4}
@@ -542,7 +732,9 @@ export function ContactForm() {
       <section className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">Your name</label>
+            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              Your name
+            </label>
             <input
               required
               name="name"
@@ -551,7 +743,9 @@ export function ContactForm() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">Email</label>
+            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              Email
+            </label>
             <input
               required
               type="email"
@@ -561,7 +755,9 @@ export function ContactForm() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">Job title</label>
+            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              Job title
+            </label>
             <input
               required
               name="jobTitle"
@@ -570,7 +766,9 @@ export function ContactForm() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">Country</label>
+            <label className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              Country
+            </label>
             <input
               required
               name="country"
@@ -597,15 +795,23 @@ export function ContactForm() {
             {status === "loading" ? "Sending…" : "Submit request"}
           </button>
           <p className="text-xs text-slate-500">
-            By submitting this form, your information will be processed in accordance with our {" "}
-            <a href="/privacy" className="underline transition hover:text-slate-700">
+            By submitting this form, your information will be processed in
+            accordance with our{" "}
+            <a
+              href="/privacy"
+              className="underline transition hover:text-slate-700"
+            >
               Privacy Policy
             </a>
             .
           </p>
         </div>
         {message ? (
-          <p className={`text-sm ${status === "error" ? "text-red-500" : "text-emerald-600"}`}>{message}</p>
+          <p
+            className={`text-sm ${status === "error" ? "text-red-500" : "text-emerald-600"}`}
+          >
+            {message}
+          </p>
         ) : null}
       </div>
     </form>
