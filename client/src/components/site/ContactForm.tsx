@@ -63,6 +63,60 @@ const environmentOptions = [
   "Home Laundry",
 ] as const;
 
+const placeTypeToEnvironmentMap: Record<
+  string,
+  (typeof environmentOptions)[number]
+> = {
+  bakery: "Kitchens",
+  cafe: "Kitchens",
+  convenience_store: "Grocery Aisles",
+  department_store: "Grocery Aisles",
+  distribution_center: "Warehouse Lanes",
+  food: "Kitchens",
+  grocery_or_supermarket: "Grocery Aisles",
+  laundromat: "Home Laundry",
+  laundry: "Home Laundry",
+  medical_lab: "Labs",
+  meal_delivery: "Kitchens",
+  meal_takeaway: "Kitchens",
+  office: "Office Pods",
+  research_facility: "Labs",
+  restaurant: "Kitchens",
+  storage: "Warehouse Lanes",
+  supermarket: "Grocery Aisles",
+  warehouse: "Warehouse Lanes",
+};
+
+function findEnvironmentMatch(types?: readonly string[]) {
+  if (!types) {
+    return undefined;
+  }
+
+  for (const type of types) {
+    const normalized = type.toLowerCase();
+    if (normalized in placeTypeToEnvironmentMap) {
+      return placeTypeToEnvironmentMap[normalized];
+    }
+  }
+
+  return undefined;
+}
+
+function humanizePlaceType(type?: string) {
+  if (!type) {
+    return "";
+  }
+
+  return type
+    .split("_")
+    .map((segment) =>
+      segment.length > 0
+        ? segment[0].toUpperCase() + segment.slice(1).toLowerCase()
+        : segment,
+    )
+    .join(" ");
+}
+
 const exclusivityOptions = [
   { value: "none", label: "Shared catalog is fine" },
   { value: "preferred", label: "Prefer exclusivity" },
@@ -98,9 +152,19 @@ export function ContactForm() {
   );
   const [siteAddress, setSiteAddress] = useState<string>("");
   const [sitePlaceId, setSitePlaceId] = useState<string>("");
+  const [locationTypeSelection, setLocationTypeSelection] =
+    useState<string>("");
+  const [customLocationType, setCustomLocationType] = useState<string>("");
   const addressInputRef = useRef<HTMLInputElement | null>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const [placesUnavailable, setPlacesUnavailable] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (requestType !== "scene") {
+      setLocationTypeSelection("");
+      setCustomLocationType("");
+    }
+  }, [requestType]);
 
   useEffect(() => {
     if (requestType !== "scene") {
@@ -138,7 +202,7 @@ export function ContactForm() {
         const autocomplete = new google.maps.places.Autocomplete(
           addressInputRef.current,
           {
-            fields: ["place_id", "formatted_address", "name"],
+            fields: ["place_id", "formatted_address", "name", "types"],
             types: ["establishment", "geocode"],
           },
         );
@@ -152,6 +216,16 @@ export function ContactForm() {
             place.formatted_address ?? addressInputRef.current?.value ?? "";
           setSiteAddress(formatted);
           setSitePlaceId(place.place_id ?? "");
+
+          const matchedEnvironment = findEnvironmentMatch(place.types);
+          if (matchedEnvironment) {
+            setLocationTypeSelection(matchedEnvironment);
+            setCustomLocationType("");
+          } else {
+            const fallback = place.name ?? humanizePlaceType(place.types?.[0]);
+            setLocationTypeSelection("Other");
+            setCustomLocationType(fallback ?? "");
+          }
         });
       })
       .catch((error) => {
@@ -479,6 +553,8 @@ export function ContactForm() {
                 onChange={(event) => {
                   setSiteAddress(event.target.value);
                   setSitePlaceId("");
+                  setLocationTypeSelection("");
+                  setCustomLocationType("");
                 }}
                 required
                 placeholder="Street, city, state"
@@ -503,12 +579,49 @@ export function ContactForm() {
               >
                 Location type
               </label>
-              <input
+              <select
                 id="scene-location-type"
-                name="locationType"
+                value={locationTypeSelection}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setLocationTypeSelection(value);
+                  if (value !== "Other") {
+                    setCustomLocationType("");
+                  }
+                }}
                 required
-                placeholder="e.g. Grocery micro-fulfillment"
                 className="w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
+              >
+                <option value="" disabled>
+                  Select a location type
+                </option>
+                {environmentOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+                <option value="Other">Other</option>
+              </select>
+              {locationTypeSelection === "Other" ? (
+                <input
+                  type="text"
+                  value={customLocationType}
+                  onChange={(event) =>
+                    setCustomLocationType(event.target.value)
+                  }
+                  required
+                  placeholder="Describe the environment"
+                  className="mt-2 w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
+                />
+              ) : null}
+              <input
+                type="hidden"
+                name="locationType"
+                value={
+                  locationTypeSelection === "Other"
+                    ? customLocationType
+                    : locationTypeSelection
+                }
               />
             </div>
           </div>
@@ -604,33 +717,35 @@ export function ContactForm() {
             ))}
           </div>
         </div>
-        <div className="space-y-2">
-          <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
-            Environment type
-          </span>
-          <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-4">
-            {environmentOptions.map((option) => (
-              <label
-                key={option}
-                className={`flex cursor-pointer items-center justify-between rounded-full border px-4 py-2 text-sm transition hover:border-slate-300 ${
-                  selectedEnvironments.includes(option)
-                    ? "border-slate-900 bg-slate-50 font-medium"
-                    : "border-slate-200"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  name="environments"
-                  value={option}
-                  checked={selectedEnvironments.includes(option)}
-                  onChange={() => handleEnvironmentToggle(option)}
-                  className="sr-only"
-                />
-                {option}
-              </label>
-            ))}
+        {requestType === "dataset" ? (
+          <div className="space-y-2">
+            <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              Environment type
+            </span>
+            <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-4">
+              {environmentOptions.map((option) => (
+                <label
+                  key={option}
+                  className={`flex cursor-pointer items-center justify-between rounded-full border px-4 py-2 text-sm transition hover:border-slate-300 ${
+                    selectedEnvironments.includes(option)
+                      ? "border-slate-900 bg-slate-50 font-medium"
+                      : "border-slate-200"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    name="environments"
+                    value={option}
+                    checked={selectedEnvironments.includes(option)}
+                    onChange={() => handleEnvironmentToggle(option)}
+                    className="sr-only"
+                  />
+                  {option}
+                </label>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : null}
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <label className="text-xs uppercase tracking-[0.3em] text-slate-400">
