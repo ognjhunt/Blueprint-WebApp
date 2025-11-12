@@ -286,7 +286,7 @@ export function ContactForm() {
               </label>
             ))}
           </div>
-          <div className="space-y-2">
+          {/* <div className="space-y-2">
             <label className="text-xs uppercase tracking-[0.3em] text-slate-400">Notes</label>
             <textarea
               name="datasetNotes"
@@ -294,7 +294,7 @@ export function ContactForm() {
               placeholder="Anything specific about capture, semantics, or pilot milestones?"
               className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
             />
-          </div>
+          </div> */}
         </section>
       ) : (
         <section className="space-y-6">
