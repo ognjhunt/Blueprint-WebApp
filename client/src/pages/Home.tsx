@@ -2,7 +2,7 @@ import { CTAButtons } from "@/components/site/CTAButtons";
 import { LogoWall } from "@/components/site/LogoWall";
 import { TileGrid } from "@/components/site/TileGrid";
 import { WaitlistForm } from "@/components/site/WaitlistForm";
-import { environmentCategories } from "@/data/content"; //yeetasdasddasdsadsadsdanjnkjsdasdasd
+import { environmentCategories, syntheticDatasets } from "@/data/content"; //yeetasdasddasdsadsadsdanjnkjsdasdasd
 
 const whySimReady = [
   {
@@ -35,7 +35,36 @@ const artistBullets = [
   "Paid per scene, bonuses for articulation coverage",
 ];
 
+const offeringCards = [
+  {
+    title: "Synthetic SimReady Scenes Marketplace",
+    description:
+      "Daily synthetic dataset drops with plug-and-play USD, randomizer scripts, and policy validation notes.",
+    bullets: [
+      "Filter by policy, object coverage, and facility archetype",
+      "Variants + scripting so labs can train without touching pipelines",
+      "Pricing starts around $50/scene depending on scale",
+    ],
+    ctaLabel: "Browse drops",
+    ctaHref: "/environments",
+  },
+  {
+    title: "Real-world SimReady capture",
+    description:
+      "We scan your exact facility, rebuild it in USD, and return a validated scene tuned to your deployment stack.",
+    bullets: [
+      "On-site capture crews for kitchens, warehouses, labs, and more",
+      "Plug-and-play handoff for Isaac 4.x/5.x, URDF, or custom formats",
+      "Site-specific randomizers + QA so you ship with confidence",
+    ],
+    ctaLabel: "Book a capture",
+    ctaHref: "/contact",
+  },
+];
+
 export default function Home() {
+  const datasetPreview = syntheticDatasets.slice(0, 3);
+
   return (
     <div className="space-y-24 pb-24">
       <section className="mx-auto grid max-w-6xl gap-16 px-4 pt-16 sm:px-6 lg:grid-cols-[1.1fr_0.9fr]">
@@ -48,22 +77,19 @@ export default function Home() {
               SimReady worlds for robotic training.
             </h1>
             <p className="max-w-xl text-lg text-slate-600">
-              High-fidelity scenes, physics-clean assets, delivered fast. Every
-              procedural world we ship is authored from real kitchens,
-              warehouses, utilities, bedrooms, and other everyday locations so
-              your synthetic datasets reflect the variety your robots meet in
-              the field. Blueprint finishes procedural and real-world
-              environments so your robots can prove ROI in simulation before
-              hardware hits the floor. Engage on exclusive dataset programs or
-              license non-exclusive catalog scenes depending on your coverage
-              needs.
+              High-fidelity scenes, physics-clean assets, delivered fast. Pick
+              from our synthetic marketplace—new datasets publish daily with
+              variants, randomizers, and plug-and-play USD—or send us to your
+              actual site and we’ll return a SimReady digital twin tuned to your
+              deployment stack. Either path keeps labs out of DCC tools so they
+              can focus on training and proving ROI sooner.
             </p>
           </div>
           <CTAButtons
             primaryHref="/environments"
-            primaryLabel="Browse Environment Network"
+            primaryLabel="Browse Synthetic Marketplace"
             secondaryHref="/contact"
-            secondaryLabel="Request a Scene"
+            secondaryLabel="Book a Real-World Capture"
           />
           <LogoWall />
         </div>
@@ -75,17 +101,53 @@ export default function Home() {
             </p>
             <p>
               Kitchens, groceries, warehouse lanes, labs, offices, retail,
-              utility, and more. Our procedural sets are grounded in
-              photographic and scan references from active facilities so catalog
-              scenes mirror how real spaces are organized. Each environment
-              ships with articulated policy coverage, pickable props, semantic
-              labels, and simulation validation reports.
+              utility, and more. The synthetic marketplace blends scan-derived
+              references with procedural scale so you get the layouts, objects,
+              and articulation policies you actually deploy.
             </p>
             <p>
-              Add on our on-site capture service to transform your real facility
-              into a SimReady digital twin. Join the waitlist below.
+              Need something site-specific? Add on our capture service and the
+              same team will rebuild your exact facility with plugs for Isaac
+              and your QA stack.
             </p>
           </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="grid gap-6 md:grid-cols-2">
+          {offeringCards.map((offering) => (
+            <article
+              key={offering.title}
+              className="flex h-full flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-6"
+            >
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                  {offering.title.includes("Synthetic") ? "Marketplace" : "Capture"}
+                </p>
+                <h3 className="text-2xl font-semibold text-slate-900">
+                  {offering.title}
+                </h3>
+                <p className="text-sm text-slate-600">{offering.description}</p>
+              </div>
+              <ul className="space-y-3 text-sm text-slate-600">
+                {offering.bullets.map((bullet) => (
+                  <li key={bullet} className="flex items-start gap-2">
+                    <span className="mt-1 h-2 w-2 rounded-full bg-emerald-500" />
+                    <span>{bullet}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="pt-2">
+                <a
+                  href={offering.ctaHref}
+                  className="inline-flex items-center text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
+                >
+                  {offering.ctaLabel}
+                </a>
+              </div>
+            </article>
+          ))}
         </div>
       </section>
 
@@ -110,20 +172,113 @@ export default function Home() {
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <h2 className="text-3xl font-semibold text-slate-900">
-              Environment Network
+              Synthetic marketplace highlights
             </h2>
-            <p className="mt-2 max-w-xl text-sm text-slate-600">
-              60+ scene archetypes spanning robotic kitchens, warehouses,
-              retail, offices, and labs—each patterned after documented real
-              sites to preserve aisle widths, counter heights, and task
-              diversity. Browse categories below or jump into the full catalog.
+            <p className="mt-2 max-w-2xl text-sm text-slate-600">
+              Here’s a peek at today’s drops. Filter every dataset by policy,
+              location type, objects, variants, and cadence in the full
+              marketplace.
             </p>
           </div>
           <a
             href="/environments"
             className="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
           >
-            View all scenes
+            Explore marketplace
+          </a>
+        </div>
+        <div className="grid gap-6 md:grid-cols-3">
+          {datasetPreview.map((dataset) => (
+            <article
+              key={dataset.slug}
+              className="flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white"
+            >
+              <div className="relative h-48 w-full">
+                <img
+                  src={dataset.heroImage}
+                  alt={dataset.title}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+                {dataset.isNew ? (
+                  <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-slate-900">
+                    New drop
+                  </span>
+                ) : null}
+              </div>
+              <div className="flex flex-1 flex-col gap-4 p-5">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                    {dataset.locationType}
+                  </p>
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    {dataset.title}
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-600">
+                    {dataset.description}
+                  </p>
+                </div>
+                <dl className="grid grid-cols-3 gap-3 text-center text-xs text-slate-500">
+                  <div>
+                    <dt className="uppercase tracking-[0.2em]">$/scene</dt>
+                    <dd className="text-base font-semibold text-slate-900">
+                      ${dataset.pricePerScene}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="uppercase tracking-[0.2em]">Scenes</dt>
+                    <dd className="text-base font-semibold text-slate-900">
+                      {dataset.sceneCount}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="uppercase tracking-[0.2em]">Variants</dt>
+                    <dd className="text-base font-semibold text-slate-900">
+                      {dataset.variantCount}
+                    </dd>
+                  </div>
+                </dl>
+                <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+                  {dataset.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full border border-slate-200 px-3 py-1"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+                <div className="mt-auto">
+                  <a
+                    href={`/environments?dataset=${dataset.slug}`}
+                    className="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
+                  >
+                    See details
+                  </a>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl space-y-6 px-4 sm:px-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-3xl font-semibold text-slate-900">
+              Environment families we cover daily
+            </h2>
+            <p className="mt-2 max-w-xl text-sm text-slate-600">
+              Use these archetypes to anchor your wishlist or capture brief.
+              We keep releasing variants that span aisle widths, heights, and
+              policy complexity so your models see the long tail.
+            </p>
+          </div>
+          <a
+            href="/environments"
+            className="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
+          >
+            View full taxonomy
           </a>
         </div>
         <TileGrid
@@ -225,15 +380,15 @@ export default function Home() {
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-                Coming soon
+                Real-world capture waitlist
               </p>
               <h3 className="mt-2 text-2xl font-semibold text-slate-900">
-                On-site capture → SimReady digital twin.
+                Turn any facility into a SimReady digital twin.
               </h3>
               <p className="mt-3 max-w-xl text-sm text-slate-600">
-                We scan your site-of-choice, rebuild it in USD, and return a validated
-                digital twin in days—not months. Join the waitlist to reserve an
-                on-site capture slot.
+                Share the address you care about and we’ll coordinate a capture
+                window. Expect delivery in days—not months—with USD, URDF, and
+                QA reports ready for your simulator.
               </p>
             </div>
             <WaitlistForm />

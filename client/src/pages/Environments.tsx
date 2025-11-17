@@ -1,580 +1,393 @@
-import { useEffect, useMemo, useState } from "react";
-import { PolicyCard } from "@/components/site/PolicyCard";
-import { PolicyDetailPanel } from "@/components/site/PolicyDetailPanel";
-import {
-  environmentCategories,
-  environmentPolicies,
-} from "@/data/content";
-import type { EnvironmentPolicy } from "@/data/content";
+import { useMemo, useState } from "react";
 
-const badgeFilters = ["Indoor", "Industrial", "Retail", "Home"];
+import {
+  environmentPolicies,
+  syntheticDatasets,
+} from "@/data/content";
 
 const sortOptions = [
-  { label: "Most requested", value: "most-requested" },
-  { label: "Industrial", value: "industrial" },
-  { label: "Household", value: "household" },
-  { label: "Newest", value: "newest" },
+  { label: "Newest drops", value: "newest" },
+  { label: "Price: Low → High", value: "price-asc" },
+  { label: "Price: High → Low", value: "price-desc" },
+  { label: "Scene count", value: "scene-desc" },
 ];
+
+const locationOptions = Array.from(
+  new Set(syntheticDatasets.map((dataset) => dataset.locationType)),
+).sort();
+
+const objectOptions = Array.from(
+  new Set(syntheticDatasets.flatMap((dataset) => dataset.objectTags)),
+).sort();
 
 const policyFilters = environmentPolicies.map((policy) => ({
   label: policy.title,
   value: policy.slug,
 }));
 
+const newestRelease = syntheticDatasets.reduce<string | null>((latest, dataset) => {
+  if (!latest) {
+    return dataset.releaseDate;
+  }
+  return new Date(dataset.releaseDate) > new Date(latest)
+    ? dataset.releaseDate
+    : latest;
+}, null);
+
+const totalScenes = syntheticDatasets.reduce(
+  (sum, dataset) => sum + dataset.sceneCount,
+  0,
+);
+
 export default function Environments() {
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [badgeFilter, setBadgeFilter] = useState<string | null>(null);
+  const [locationFilter, setLocationFilter] = useState<string | null>(null);
   const [policyFilter, setPolicyFilter] = useState<string | null>(null);
-  const [sortOption, setSortOption] = useState<string>("most-requested");
-  const [selectedPolicy, setSelectedPolicy] = useState<EnvironmentPolicy | null>(null);
+  const [objectFiltersSelection, setObjectFiltersSelection] = useState<string[]>([]);
+  const [variantOnly, setVariantOnly] = useState(false);
+  const [sortOption, setSortOption] = useState<string>("newest");
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const category = params.get("category");
-      if (category) {
-        setCategoryFilter(category);
-      }
-      const policy = params.get("policy");
-      if (policy) {
-        setPolicyFilter(policy);
-        const match = environmentPolicies.find((entry) => entry.slug === policy);
-        if (match) {
-          setSelectedPolicy(match);
-        }
-      }
-    }
-  }, []);
+  const filteredDatasets = useMemo(() => {
+    let result = syntheticDatasets.slice();
 
-  useEffect(() => {
-    if (!policyFilter) {
-      return;
-    }
-
-    const match = environmentPolicies.find((policy) => policy.slug === policyFilter);
-    if (match && match.slug !== selectedPolicy?.slug) {
-      setSelectedPolicy(match);
-    }
-  }, [policyFilter, selectedPolicy?.slug]);
-
-  const filteredCategories = useMemo(() => {
-    let result = environmentCategories.slice();
-
-    if (categoryFilter) {
-      result = result.filter((category) => category.slug === categoryFilter);
-    }
-
-    if (badgeFilter) {
-      result = result.filter((category) =>
-        category.tags.includes(badgeFilter),
-      );
+    if (locationFilter) {
+      result = result.filter((dataset) => dataset.locationType === locationFilter);
     }
 
     if (policyFilter) {
-      result = result.filter((category) =>
-        environmentPolicies.some(
-          (policy) =>
-            policy.slug === policyFilter &&
-            policy.environments.includes(category.slug),
+      result = result.filter((dataset) =>
+        dataset.policySlugs.includes(policyFilter),
+      );
+    }
+
+    if (variantOnly) {
+      result = result.filter((dataset) => dataset.variantCount > 0);
+    }
+
+    if (objectFiltersSelection.length > 0) {
+      result = result.filter((dataset) =>
+        objectFiltersSelection.every((objectTag) =>
+          dataset.objectTags.includes(objectTag),
         ),
       );
     }
 
     switch (sortOption) {
-      case "industrial":
-        result = result.sort((a, b) => {
-          const aHas = a.tags.includes("Industrial");
-          const bHas = b.tags.includes("Industrial");
-          if (aHas === bHas) {
-            return 0;
-          }
-          return bHas ? 1 : -1;
-        });
+      case "price-asc":
+        result.sort((a, b) => a.pricePerScene - b.pricePerScene);
         break;
-      case "household":
-        result = result.sort((a, b) => {
-          const aHas = a.tags.includes("Home");
-          const bHas = b.tags.includes("Home");
-          if (aHas === bHas) {
-            return 0;
-          }
-          return bHas ? 1 : -1;
-        });
+      case "price-desc":
+        result.sort((a, b) => b.pricePerScene - a.pricePerScene);
+        break;
+      case "scene-desc":
+        result.sort((a, b) => b.sceneCount - a.sceneCount);
         break;
       case "newest":
-        result = result.slice().reverse();
-        break;
       default:
+        result.sort(
+          (a, b) =>
+            new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime(),
+        );
         break;
     }
 
     return result;
-  }, [badgeFilter, categoryFilter, policyFilter, sortOption]);
+  }, [locationFilter, objectFiltersSelection, policyFilter, sortOption, variantOnly]);
 
-  const activePolicy = useMemo(
-    () =>
-      policyFilter
-        ? environmentPolicies.find((policy) => policy.slug === policyFilter)
-        : null,
-    [policyFilter],
-  );
+  const handleObjectToggle = (objectTag: string) => {
+    setObjectFiltersSelection((prev) =>
+      prev.includes(objectTag)
+        ? prev.filter((tag) => tag !== objectTag)
+        : [...prev, objectTag],
+    );
+  };
+
+  const getPolicyTitle = (slug: string) =>
+    environmentPolicies.find((policy) => policy.slug === slug)?.title ?? slug;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-24 pt-16 sm:px-6">
-      <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="order-1 space-y-12 lg:order-none">
-          <header className="space-y-6">
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-              Environment catalog
-            </p>
-            <h1 className="text-4xl font-semibold text-slate-900">
-              Browse ready-to-train scenes.
-            </h1>
-            <p className="max-w-2xl text-sm text-slate-600">
-              Every environment below includes articulated joints, physics-clean colliders, and simulation validation notes. Each
-              synthetic build is patterned after a documented real-world location so dataset diversity tracks what your fleets see
-              in production. Filter by environment type, policy coverage, interaction focus, or deployment cadence.
-            </p>
-            {activePolicy ? (
-              <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-slate-700">
-                <span className="text-xs uppercase tracking-[0.3em] text-emerald-600">
-                  Policy focus
-                </span>
-                <span className="font-medium text-slate-900">{activePolicy.title}</span>
-                <span className="hidden text-slate-500 sm:inline">{activePolicy.summary}</span>
-              </div>
-            ) : null}
-          </header>
+    <div className="mx-auto max-w-6xl space-y-10 px-4 pb-24 pt-16 sm:px-6">
+      <header className="space-y-6">
+        <div className="inline-flex rounded-full border border-slate-200 px-3 py-1 text-xs uppercase tracking-[0.3em] text-slate-500">
+          Synthetic marketplace
+        </div>
+        <div className="space-y-4">
+          <h1 className="text-4xl font-semibold text-slate-900 sm:text-5xl">
+            Plug-and-play SimReady datasets.
+          </h1>
+          <p className="max-w-3xl text-sm text-slate-600">
+            Daily drops of synthetic scenes authored for Isaac-ready training. Filter by
+            policy coverage, the objects you care about, and the facility type your robots
+            deploy into. Each dataset includes randomizer scripts, USD packages, and
+            validation notes so you can train without touching the pipeline.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-4 text-sm text-slate-600">
+          <span>{syntheticDatasets.length} dataset families live</span>
+          <span>•</span>
+          <span>{totalScenes.toLocaleString()} scenes across the catalog</span>
+          {newestRelease ? (
+            <>
+              <span>•</span>
+              <span>Latest drop {new Date(newestRelease).toLocaleDateString()}</span>
+            </>
+          ) : null}
+        </div>
+      </header>
 
-          <div className="flex flex-wrap items-center gap-3">
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            className={`rounded-full border px-4 py-2 text-sm transition ${
+              locationFilter === null
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-200 text-slate-600 hover:border-slate-300"
+            }`}
+            onClick={() => setLocationFilter(null)}
+          >
+            All locations
+          </button>
+          {locationOptions.map((location) => (
             <button
+              key={location}
               type="button"
               className={`rounded-full border px-4 py-2 text-sm transition ${
-                badgeFilter === null && !categoryFilter
+                locationFilter === location
                   ? "border-slate-900 bg-slate-900 text-white"
                   : "border-slate-200 text-slate-600 hover:border-slate-300"
               }`}
-              onClick={() => {
-                setBadgeFilter(null);
-                setCategoryFilter(null);
-                setPolicyFilter(null);
-              }}
+              onClick={() => setLocationFilter(location)}
             >
-              All environments
+              {location}
             </button>
-            {environmentCategories.map((category) => (
-              <button
-                key={category.slug}
-                type="button"
-                className={`rounded-full border px-4 py-2 text-sm transition ${
-                  categoryFilter === category.slug
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-200 text-slate-600 hover:border-slate-300"
-                }`}
-                onClick={() => setCategoryFilter(category.slug)}
-              >
-                {category.title}
-              </button>
-            ))}
-          </div>
+          ))}
+        </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            {badgeFilters.map((filter) => (
-              <button
-                key={filter}
-                type="button"
-                className={`rounded-full border px-4 py-2 text-xs uppercase tracking-[0.2em] transition ${
-                  badgeFilter === filter
-                    ? "border-emerald-500 bg-emerald-500 text-black"
-                    : "border-slate-200 text-slate-500 hover:border-slate-300"
-                }`}
-                onClick={() =>
-                  setBadgeFilter((prev) => (prev === filter ? null : filter))
-                }
-              >
-                {filter}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            className={`rounded-full border px-4 py-2 text-sm transition ${
+              policyFilter === null
+                ? "border-emerald-500 bg-emerald-500 text-black"
+                : "border-slate-200 text-slate-600 hover:border-slate-300"
+            }`}
+            onClick={() => setPolicyFilter(null)}
+          >
+            All policies
+          </button>
+          {policyFilters.map((policy) => (
             <button
+              key={policy.value}
               type="button"
               className={`rounded-full border px-4 py-2 text-sm transition ${
-                policyFilter === null
+                policyFilter === policy.value
                   ? "border-emerald-500 bg-emerald-500 text-black"
                   : "border-slate-200 text-slate-600 hover:border-slate-300"
               }`}
-              onClick={() => setPolicyFilter(null)}
+              onClick={() =>
+                setPolicyFilter((prev) => (prev === policy.value ? null : policy.value))
+              }
             >
-              All policies
+              {policy.label}
             </button>
-            {policyFilters.map((policy) => (
-              <button
-                key={policy.value}
-                type="button"
-                className={`rounded-full border px-4 py-2 text-sm transition ${
-                  policyFilter === policy.value
-                    ? "border-emerald-500 bg-emerald-500 text-black"
-                    : "border-slate-200 text-slate-600 hover:border-slate-300"
-                }`}
-                onClick={() =>
-                  setPolicyFilter((prev) =>
-                    prev === policy.value ? null : policy.value,
-                  )
-                }
-              >
-                {policy.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
-            <span>Sort by</span>
-            {sortOptions.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className={`rounded-full border px-4 py-2 transition ${
-                  sortOption === option.value
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-200 text-slate-600 hover:border-slate-300"
-                }`}
-                onClick={() => setSortOption(option.value)}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="space-y-10">
-            {filteredCategories.map((category) => {
-              const categoryPolicies = environmentPolicies.filter(
-                (policy) =>
-                  policy.environments.includes(category.slug) &&
-                  (!policyFilter || policy.slug === policyFilter),
-              );
-
-              return (
-                <section
-                  key={category.slug}
-                  className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
-                >
-                  <div className="flex flex-col gap-6 md:flex-row">
-                    <div className="flex-1 space-y-4 p-6 md:p-8">
-                      <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
-                        Environment type
-                      </span>
-                      <div>
-                        <h2 className="text-2xl font-semibold text-slate-900">
-                          {category.title}
-                        </h2>
-                        <p className="mt-3 text-sm text-slate-600">
-                          {category.summary}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {category.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="rounded-full bg-slate-100 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-500"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="relative h-56 w-full flex-1 overflow-hidden md:h-auto">
-                      <img
-                        src={category.heroImage}
-                        alt={category.title}
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
-                    </div>
-                  </div>
-                  <div className="border-t border-slate-200 bg-slate-50/70 p-6 md:p-8">
-                    <div className="flex items-center justify-between gap-4">
-                      <h3 className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-500">
-                        Policy coverage
-                      </h3>
-                      <span className="text-sm text-slate-500">
-                        {categoryPolicies.length} {categoryPolicies.length === 1 ? "policy" : "policies"}
-                      </span>
-                    </div>
-                    {categoryPolicies.length > 0 ? (
-                      <div className="mt-6 grid gap-6 md:grid-cols-2">
-                        {categoryPolicies.map((policy) => (
-                          <PolicyCard
-                            key={policy.slug}
-                            policy={policy}
-                            onSelect={(nextPolicy) => setSelectedPolicy(nextPolicy)}
-                            isActive={selectedPolicy?.slug === policy.slug}
-                          />
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="mt-6 text-sm text-slate-500">
-                        {policyFilter
-                          ? "This environment does not include the selected policy yet."
-                          : "Policy cards for this environment are coming soon."}
-                      </p>
-                    )}
-                  </div>
-                </section>
-              );
-            })}
-          </div>
-
-          {filteredCategories.length === 0 ? (
-            <p className="text-sm text-slate-500">
-              No environments found. Adjust your filters to explore more policy coverage.
-            </p>
-          ) : null}
+          ))}
         </div>
-        <div className="order-2 lg:order-none">
-          <PolicyDetailPanel
-            policy={selectedPolicy}
-            onClear={() => setSelectedPolicy(null)}
-          />
+
+        <div className="flex flex-wrap items-center gap-3">
+          {objectOptions.map((objectTag) => (
+            <label
+              key={objectTag}
+              className={`flex cursor-pointer items-center gap-2 rounded-full border px-4 py-2 text-xs uppercase tracking-[0.2em] transition ${
+                objectFiltersSelection.includes(objectTag)
+                  ? "border-slate-900 bg-slate-50 text-slate-900"
+                  : "border-slate-200 text-slate-500 hover:border-slate-300"
+              }`}
+            >
+              <input
+                type="checkbox"
+                className="sr-only"
+                checked={objectFiltersSelection.includes(objectTag)}
+                onChange={() => handleObjectToggle(objectTag)}
+              />
+              {objectTag}
+            </label>
+          ))}
         </div>
-      </div>
+
+        <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
+          <span>Sort by</span>
+          {sortOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={`rounded-full border px-4 py-2 transition ${
+                sortOption === option.value
+                  ? "border-slate-900 bg-slate-900 text-white"
+                  : "border-slate-200 text-slate-600 hover:border-slate-300"
+              }`}
+              onClick={() => setSortOption(option.value)}
+            >
+              {option.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            className={`rounded-full border px-4 py-2 text-sm transition ${
+              variantOnly
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-200 text-slate-600 hover:border-slate-300"
+            }`}
+            onClick={() => setVariantOnly((prev) => !prev)}
+          >
+            Variants only
+          </button>
+        </div>
+      </section>
+
+      <section className="space-y-6">
+        {filteredDatasets.length === 0 ? (
+          <p className="rounded-3xl border border-dashed border-slate-200 p-10 text-center text-sm text-slate-500">
+            No datasets match those filters yet. Tell us what you need via the wishlist option on the contact form and we’ll prioritize it.
+          </p>
+        ) : (
+          filteredDatasets.map((dataset) => (
+            <article
+              key={dataset.slug}
+              className="grid gap-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm md:grid-cols-[minmax(0,1.1fr)_0.9fr]"
+            >
+              <div className="space-y-5 p-6 md:p-8">
+                <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.3em] text-slate-500">
+                  <span>{dataset.locationType}</span>
+                  {dataset.isNew ? (
+                    <span className="rounded-full bg-slate-900 px-3 py-1 text-[0.6rem] font-semibold text-white">
+                      New
+                    </span>
+                  ) : null}
+                  <span>
+                    Drop {new Date(dataset.releaseDate).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  <h2 className="text-2xl font-semibold text-slate-900">{dataset.title}</h2>
+                  <p className="text-sm text-slate-600">{dataset.description}</p>
+                </div>
+                <dl className="grid gap-4 sm:grid-cols-3">
+                  <div>
+                    <dt className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                      Price / scene
+                    </dt>
+                    <dd className="text-lg font-semibold text-slate-900">
+                      ${dataset.pricePerScene.toLocaleString()}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                      Scenes
+                    </dt>
+                    <dd className="text-lg font-semibold text-slate-900">
+                      {dataset.sceneCount}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                      Variants
+                    </dt>
+                    <dd className="text-lg font-semibold text-slate-900">
+                      {dataset.variantCount}
+                    </dd>
+                  </div>
+                </dl>
+                <div className="space-y-3">
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                    Randomizer scripts
+                  </p>
+                  <div className="flex flex-wrap gap-2 text-sm text-slate-600">
+                    {dataset.randomizerScripts.map((script) => (
+                      <span
+                        key={script}
+                        className="rounded-full bg-slate-100 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-600"
+                      >
+                        {script}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                    Policy coverage
+                  </p>
+                  <div className="flex flex-wrap gap-2 text-sm text-slate-700">
+                    {dataset.policySlugs.map((slug) => (
+                      <span
+                        key={slug}
+                        className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-900"
+                      >
+                        {getPolicyTitle(slug)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                    Deliverables
+                  </p>
+                  <div className="flex flex-wrap gap-2 text-sm text-slate-600">
+                    {dataset.deliverables.map((item) => (
+                      <span
+                        key={item}
+                        className="rounded-full border border-slate-200 px-3 py-1"
+                      >
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="relative min-h-[280px] overflow-hidden border-t border-slate-200 md:border-t-0">
+                <img
+                  src={dataset.heroImage}
+                  alt={dataset.title}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                <div className="absolute inset-0 flex flex-col justify-end gap-4 p-6 text-white">
+                  <div className="space-y-1 text-sm">
+                    <p className="text-xs uppercase tracking-[0.3em] text-white/70">
+                      Plug & play
+                    </p>
+                    <p>
+                      Variants + scripted randomizers ship with USD so your lab doesn’t have to
+                      touch the pipeline.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    {dataset.tags.map((tag) => (
+                      <span key={tag} className="rounded-full bg-white/15 px-3 py-1">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex flex-col gap-2 text-sm">
+                    <a
+                      href={`/contact?dataset=${dataset.slug}`}
+                      className="inline-flex items-center justify-center rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+                    >
+                      Request access
+                    </a>
+                    <span className="text-xs text-white/70">
+                      Include this slug in your note for prioritized delivery.
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </article>
+          ))
+        )}
+      </section>
     </div>
   );
 }
-
-// import { useEffect, useMemo, useState } from "react";
-// import { PolicyCard } from "@/components/site/PolicyCard";
-// import { environmentCategories, policies } from "@/data/content";
-
-// const badgeFilters = ["Indoor", "Industrial", "Retail", "Home"];
-
-// export default function Environments() {
-//   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-//   const [badgeFilter, setBadgeFilter] = useState<string | null>(null);
-//   const [policyFilter, setPolicyFilter] = useState<string | null>(null);
-
-//   useEffect(() => {
-//     if (typeof window !== "undefined") {
-//       const params = new URLSearchParams(window.location.search);
-//       const category = params.get("category");
-//       const policy = params.get("policy");
-//       if (category) {
-//         setCategoryFilter(category);
-//       }
-//       if (policy) {
-//         setPolicyFilter(policy);
-//       }
-//     }
-//   }, []);
-
-//   const filteredCategories = useMemo(() => {
-//     let result = environmentCategories.slice();
-
-//     if (categoryFilter) {
-//       result = result.filter((category) => category.slug === categoryFilter);
-//     }
-
-//     if (badgeFilter) {
-//       result = result.filter((category) => category.tags.includes(badgeFilter));
-//     }
-
-//     if (policyFilter) {
-//       result = result.filter((category) =>
-//         policies.some(
-//           (policy) => policy.slug === policyFilter && policy.environments.includes(category.slug),
-//         ),
-//       );
-//     }
-
-//     return result;
-//   }, [badgeFilter, categoryFilter, policyFilter]);
-
-//   const policyOptions = useMemo(
-//     () =>
-//       policies.map((policy) => ({
-//         label: policy.title,
-//         value: policy.slug,
-//       })),
-//     [],
-//   );
-
-//   return (
-//     <div className="mx-auto max-w-6xl space-y-12 px-4 pb-24 pt-16 sm:px-6">
-//       <header className="space-y-6">
-//         <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-//           Environment catalog
-//         </p>
-//         <h1 className="text-4xl font-semibold text-slate-900">
-//           Browse ready-to-train scenes.
-//         </h1>
-//         <p className="max-w-2xl text-sm text-slate-600">
-//           Every environment below includes articulated joints, physics-clean colliders, and simulation validation notes. Each
-//           synthetic build is patterned after a documented real-world location so dataset diversity tracks what your fleets see
-//           in production. Filter by environment type, policy coverage, or deployment focus to assemble the right training
-//           package.
-//         </p>
-//       </header>
-
-//       <div className="flex flex-wrap items-center gap-3">
-//         <button
-//           type="button"
-//           className={`rounded-full border px-4 py-2 text-sm transition ${
-//             badgeFilter === null && !categoryFilter && !policyFilter
-//               ? "border-slate-900 bg-slate-900 text-white"
-//               : "border-slate-200 text-slate-600 hover:border-slate-300"
-//           }`}
-//           onClick={() => {
-//             setBadgeFilter(null);
-//             setCategoryFilter(null);
-//             setPolicyFilter(null);
-//           }}
-//         >
-//           All environments
-//         </button>
-//         {environmentCategories.map((category) => (
-//           <button
-//             key={category.slug}
-//             type="button"
-//             className={`rounded-full border px-4 py-2 text-sm transition ${
-//               categoryFilter === category.slug
-//                 ? "border-slate-900 bg-slate-900 text-white"
-//                 : "border-slate-200 text-slate-600 hover:border-slate-300"
-//             }`}
-//             onClick={() =>
-//               setCategoryFilter((prev) => (prev === category.slug ? null : category.slug))
-//             }
-//           >
-//             {category.title}
-//           </button>
-//         ))}
-//       </div>
-
-//       <div className="flex flex-wrap items-center gap-3">
-//         {badgeFilters.map((filter) => (
-//           <button
-//             key={filter}
-//             type="button"
-//             className={`rounded-full border px-4 py-2 text-xs uppercase tracking-[0.2em] transition ${
-//               badgeFilter === filter
-//                 ? "border-emerald-500 bg-emerald-500 text-black"
-//                 : "border-slate-200 text-slate-500 hover:border-slate-300"
-//             }`}
-//             onClick={() =>
-//               setBadgeFilter((prev) => (prev === filter ? null : filter))
-//             }
-//           >
-//             {filter}
-//           </button>
-//         ))}
-//       </div>
-
-//       <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
-//         <span>Filter by policy</span>
-//         {policyOptions.map((option) => (
-//           <button
-//             key={option.value}
-//             type="button"
-//             className={`rounded-full border px-4 py-2 transition ${
-//               policyFilter === option.value
-//                 ? "border-emerald-500 bg-emerald-500 text-black"
-//                 : "border-slate-200 text-slate-600 hover:border-slate-300"
-//             }`}
-//             onClick={() =>
-//               setPolicyFilter((prev) => (prev === option.value ? null : option.value))
-//             }
-//           >
-//             {option.label}
-//           </button>
-//         ))}
-//       </div>
-
-//       <div className="space-y-8">
-//         {filteredCategories.map((category) => {
-//           const categoryPolicies = policies.filter(
-//             (policy) =>
-//               policy.environments.includes(category.slug) &&
-//               (!policyFilter || policy.slug === policyFilter),
-//           );
-
-//           if (policyFilter && categoryPolicies.length === 0) {
-//             return null;
-//           }
-
-//           return (
-//             <section
-//               key={category.slug}
-//               className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
-//             >
-//               <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
-//                 <div className="space-y-6 p-6 sm:p-8">
-//                   <div className="overflow-hidden rounded-3xl border border-slate-200">
-//                     <img
-//                       src={category.heroImage}
-//                       alt={category.title}
-//                       className="h-full w-full object-cover"
-//                       loading="lazy"
-//                     />
-//                   </div>
-//                   <div className="space-y-4">
-//                     <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.3em] text-slate-400">
-//                       {category.tags.map((tag) => (
-//                         <span key={tag}>{tag}</span>
-//                       ))}
-//                     </div>
-//                     <div className="space-y-2">
-//                       <h2 className="text-2xl font-semibold text-slate-900">
-//                         {category.title}
-//                       </h2>
-//                       <p className="text-sm text-slate-600">{category.summary}</p>
-//                     </div>
-//                     <a
-//                       href={`#policy-${category.slug}`}
-//                       className="inline-flex items-center justify-center rounded-full border border-slate-300 px-5 py-2 text-sm font-semibold text-slate-900 transition hover:border-slate-400 hover:text-slate-700"
-//                     >
-//                       View policies ↓
-//                     </a>
-//                   </div>
-//                 </div>
-//                 <div
-//                   id={`policy-${category.slug}`}
-//                   className="border-t border-slate-200 bg-slate-50 p-6 sm:p-8 lg:border-l lg:border-t-0"
-//                 >
-//                   <div className="flex flex-wrap items-center justify-between gap-3">
-//                     <h3 className="text-lg font-semibold text-slate-900">
-//                       Policies in this environment
-//                     </h3>
-//                     <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-500">
-//                       {categoryPolicies.length} active
-//                     </span>
-//                   </div>
-//                   {categoryPolicies.length ? (
-//                     <div className="mt-6 grid gap-4 sm:grid-cols-2">
-//                       {categoryPolicies.map((policy) => (
-//                         <PolicyCard
-//                           key={policy.slug}
-//                           policy={policy}
-//                           isHighlighted={policyFilter === policy.slug}
-//                         />
-//                       ))}
-//                     </div>
-//                   ) : (
-//                     <p className="mt-6 text-sm text-slate-500">
-//                       No policies currently mapped. Adjust your filters to explore related playbooks.
-//                     </p>
-//                   )}
-//                 </div>
-//               </div>
-//             </section>
-//           );
-//         })}
-//       </div>
-
-//       {filteredCategories.length === 0 ? (
-//         <p className="text-sm text-slate-500">
-//           No environments match the current filters. Adjust your selection to explore more options.
-//         </p>
-//       ) : null}
-//     </div>
-//   );
-// }
