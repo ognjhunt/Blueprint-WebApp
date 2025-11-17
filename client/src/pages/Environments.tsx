@@ -45,6 +45,7 @@ export default function Environments() {
   const [objectFiltersSelection, setObjectFiltersSelection] = useState<string[]>([]);
   const [variantOnly, setVariantOnly] = useState(false);
   const [sortOption, setSortOption] = useState<string>("newest");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const filteredDatasets = useMemo(() => {
     let result = syntheticDatasets.slice();
@@ -71,6 +72,24 @@ export default function Environments() {
       );
     }
 
+    const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+
+    if (normalizedSearchQuery) {
+      result = result.filter((dataset) => {
+        const searchableString = [
+          dataset.title,
+          dataset.description,
+          dataset.locationType,
+          dataset.objectTags.join(" "),
+          dataset.policySlugs.join(" "),
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        return searchableString.includes(normalizedSearchQuery);
+      });
+    }
+
     switch (sortOption) {
       case "price-asc":
         result.sort((a, b) => a.pricePerScene - b.pricePerScene);
@@ -91,7 +110,14 @@ export default function Environments() {
     }
 
     return result;
-  }, [locationFilter, objectFiltersSelection, policyFilter, sortOption, variantOnly]);
+  }, [
+    locationFilter,
+    objectFiltersSelection,
+    policyFilter,
+    sortOption,
+    variantOnly,
+    searchQuery,
+  ]);
 
   const handleObjectToggle = (objectTag: string) => {
     setObjectFiltersSelection((prev) =>
@@ -134,113 +160,177 @@ export default function Environments() {
         </div>
       </header>
 
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            className={`rounded-full border px-4 py-2 text-sm transition ${
-              locationFilter === null
-                ? "border-slate-900 bg-slate-900 text-white"
-                : "border-slate-200 text-slate-600 hover:border-slate-300"
-            }`}
-            onClick={() => setLocationFilter(null)}
-          >
-            All locations
-          </button>
-          {locationOptions.map((location) => (
-            <button
-              key={location}
-              type="button"
-              className={`rounded-full border px-4 py-2 text-sm transition ${
-                locationFilter === location
-                  ? "border-slate-900 bg-slate-900 text-white"
-                  : "border-slate-200 text-slate-600 hover:border-slate-300"
-              }`}
-              onClick={() => setLocationFilter(location)}
-            >
-              {location}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            className={`rounded-full border px-4 py-2 text-sm transition ${
-              policyFilter === null
-                ? "border-emerald-500 bg-emerald-500 text-black"
-                : "border-slate-200 text-slate-600 hover:border-slate-300"
-            }`}
-            onClick={() => setPolicyFilter(null)}
-          >
-            All policies
-          </button>
-          {policyFilters.map((policy) => (
-            <button
-              key={policy.value}
-              type="button"
-              className={`rounded-full border px-4 py-2 text-sm transition ${
-                policyFilter === policy.value
-                  ? "border-emerald-500 bg-emerald-500 text-black"
-                  : "border-slate-200 text-slate-600 hover:border-slate-300"
-              }`}
-              onClick={() =>
-                setPolicyFilter((prev) => (prev === policy.value ? null : policy.value))
-              }
-            >
-              {policy.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          {objectOptions.map((objectTag) => (
+      <section className="space-y-6 rounded-3xl border border-slate-200 bg-white/70 p-6 shadow-sm backdrop-blur">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div className="w-full md:max-w-md">
             <label
-              key={objectTag}
-              className={`flex cursor-pointer items-center gap-2 rounded-full border px-4 py-2 text-xs uppercase tracking-[0.2em] transition ${
-                objectFiltersSelection.includes(objectTag)
-                  ? "border-slate-900 bg-slate-50 text-slate-900"
-                  : "border-slate-200 text-slate-500 hover:border-slate-300"
-              }`}
+              htmlFor="dataset-search"
+              className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500"
             >
-              <input
-                type="checkbox"
-                className="sr-only"
-                checked={objectFiltersSelection.includes(objectTag)}
-                onChange={() => handleObjectToggle(objectTag)}
-              />
-              {objectTag}
+              Search catalog
             </label>
-          ))}
+            <div className="relative mt-2">
+              <svg
+                className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+              <input
+                id="dataset-search"
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search by name, policy, or object"
+                className="w-full rounded-2xl border border-slate-200 bg-white/90 py-3 pl-11 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+              />
+            </div>
+          </div>
+          <p className="text-sm text-slate-500">
+            Showing {filteredDatasets.length} of {syntheticDatasets.length} datasets
+          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
-          <span>Sort by</span>
-          {sortOptions.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              className={`rounded-full border px-4 py-2 transition ${
-                sortOption === option.value
-                  ? "border-slate-900 bg-slate-900 text-white"
-                  : "border-slate-200 text-slate-600 hover:border-slate-300"
-              }`}
-              onClick={() => setSortOption(option.value)}
-            >
-              {option.label}
-            </button>
-          ))}
-          <button
-            type="button"
-            className={`rounded-full border px-4 py-2 text-sm transition ${
-              variantOnly
-                ? "border-slate-900 bg-slate-900 text-white"
-                : "border-slate-200 text-slate-600 hover:border-slate-300"
-            }`}
-            onClick={() => setVariantOnly((prev) => !prev)}
-          >
-            Variants only
-          </button>
+        <div className="grid gap-5 lg:grid-cols-3">
+          <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+            <div className="space-y-1">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Facility</p>
+              <p className="text-sm text-slate-600">Pick the deployment environment</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className={`rounded-full border px-4 py-2 text-sm transition ${
+                  locationFilter === null
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-transparent bg-white text-slate-600 hover:border-slate-200"
+                }`}
+                onClick={() => setLocationFilter(null)}
+              >
+                All locations
+              </button>
+              {locationOptions.map((location) => (
+                <button
+                  key={location}
+                  type="button"
+                  className={`rounded-full border px-4 py-2 text-sm transition ${
+                    locationFilter === location
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-200 bg-white/80 text-slate-600 hover:border-slate-300"
+                  }`}
+                  onClick={() => setLocationFilter(location)}
+                >
+                  {location}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+            <div className="space-y-1">
+              <p className="text-xs uppercase tracking-[0.3em] text-emerald-700">Policy</p>
+              <p className="text-sm text-emerald-800">Highlight available coverage</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className={`rounded-full border px-4 py-2 text-sm transition ${
+                  policyFilter === null
+                    ? "border-emerald-600 bg-emerald-600 text-white"
+                    : "border-transparent bg-white/70 text-emerald-800 hover:border-emerald-200"
+                }`}
+                onClick={() => setPolicyFilter(null)}
+              >
+                All policies
+              </button>
+              {policyFilters.map((policy) => (
+                <button
+                  key={policy.value}
+                  type="button"
+                  className={`rounded-full border px-4 py-2 text-sm transition ${
+                    policyFilter === policy.value
+                      ? "border-emerald-600 bg-emerald-600 text-white"
+                      : "border-emerald-200 bg-white/80 text-emerald-800 hover:border-emerald-300"
+                  }`}
+                  onClick={() =>
+                    setPolicyFilter((prev) => (prev === policy.value ? null : policy.value))
+                  }
+                >
+                  {policy.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3 rounded-2xl border border-slate-900/10 bg-slate-900/5 p-4">
+            <div className="space-y-1">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-700">Objects</p>
+              <p className="text-sm text-slate-600">Stack object tags you care about</p>
+            </div>
+            <div className="flex max-h-48 flex-wrap gap-2 overflow-y-auto pr-1">
+              {objectOptions.map((objectTag) => (
+                <label
+                  key={objectTag}
+                  className={`flex cursor-pointer items-center gap-2 rounded-full border px-4 py-1.5 text-[0.65rem] uppercase tracking-[0.25em] transition ${
+                    objectFiltersSelection.includes(objectTag)
+                      ? "border-slate-900 bg-white text-slate-900 shadow-sm"
+                      : "border-transparent bg-white/70 text-slate-500 hover:border-slate-300"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={objectFiltersSelection.includes(objectTag)}
+                    onChange={() => handleObjectToggle(objectTag)}
+                  />
+                  {objectTag}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3 rounded-2xl border border-slate-100 bg-white/80 p-4 lg:col-span-3">
+            <div className="flex flex-col gap-2 text-sm text-slate-600 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Sort & focus</p>
+                <p>Control presentation of the drop list.</p>
+              </div>
+              <button
+                type="button"
+                className={`inline-flex items-center rounded-full border px-4 py-2 text-sm transition ${
+                  variantOnly
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-200 text-slate-600 hover:border-slate-300"
+                }`}
+                onClick={() => setVariantOnly((prev) => !prev)}
+              >
+                {variantOnly ? "Filtering variants" : "Variants only"}
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {sortOptions.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`rounded-full border px-4 py-2 text-sm transition ${
+                    sortOption === option.value
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-200 text-slate-600 hover:border-slate-300"
+                  }`}
+                  onClick={() => setSortOption(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
