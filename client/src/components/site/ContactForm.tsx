@@ -7,17 +7,17 @@ import { getGoogleMapsApiKey } from "@/lib/client-env";
 
 const requestOptions = [
   {
-    value: "dataset" as const,
-    label: "I need a dataset",
+    value: "scene" as const,
+    label: "Scan my real-world facility",
     description:
-      "Best for labs that need coverage across layouts and tasks. We’ll anchor scope, semantics, and delivery windows together.",
+      "Best for labs heading toward deployment. We coordinate on-site capture, rebuild the space in USD, and deliver a plug-and-play package.",
     recommended: true,
   },
   {
-    value: "scene" as const,
-    label: "On-site SimReady location (waitlist)",
+    value: "dataset" as const,
+    label: "Synthetic marketplace wishlist",
     description:
-      "We’ll visit the facility you care about, scan it, and return a validated digital twin so you can prove ROI before hardware ships.",
+      "Tell us which policies, objects, or locations you need most so we can prioritize the next drop. No purchase required.",
     recommended: false,
   },
 ];
@@ -140,7 +140,7 @@ export function ContactForm() {
   >("idle");
   const [message, setMessage] = useState("");
   const [requestType, setRequestType] = useState<"dataset" | "scene">(
-    "dataset",
+    "scene",
   );
   const [datasetTier, setDatasetTier] = useState<string>(datasetTiers[0].value);
   const [selectedUseCases, setSelectedUseCases] = useState<string[]>([]);
@@ -312,7 +312,7 @@ export function ContactForm() {
       form.reset();
       setStatus("success");
       setMessage("");
-      setRequestType("dataset");
+      setRequestType("scene");
       setDatasetTier(datasetTiers[0].value);
       setSelectedUseCases([]);
       setSelectedEnvironments([]);
@@ -371,8 +371,9 @@ export function ContactForm() {
             How can we help?
           </h2>
           <p className="text-sm text-slate-600">
-            Labs usually start with datasets for coverage. You can still request
-            a single hero scene if you know exactly what you need.
+            Most labs start by scanning the real site they plan to deploy into.
+            If you’re just steering the synthetic marketplace, pick the
+            wishlist option and tell us what to drop next.
           </p>
           <p className="text-sm text-slate-500">
             Once you submit, we’ll review your request and email you with next
@@ -417,11 +418,11 @@ export function ContactForm() {
         <section className="space-y-4">
           <div className="flex flex-col gap-1">
             <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
-              Dataset tiers
+              Wishlist scale
             </span>
             <p className="text-sm text-slate-600">
-              These anchors are non-binding, but they map to how teams scope
-              training corpora. Bigger bundles beat one-offs.
+              Non-binding, but helps us size how many scenes/variants to line up
+              when we drop the dataset you care about.
             </p>
           </div>
           <div className="grid gap-4 lg:grid-cols-3">
@@ -454,18 +455,37 @@ export function ContactForm() {
           </div>
           <div className="space-y-2">
             <label className="text-xs uppercase tracking-[0.3em] text-slate-400">
-              Notes
+              Wishlist notes
             </label>
             <textarea
               name="datasetNotes"
               rows={3}
-              placeholder="Anything specific about capture, semantics, or pilot milestones?"
+              placeholder="Tell us which policies, objects, semantics, or deployment milestones we should prioritize."
               className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
             />
           </div>
         </section>
       ) : (
         <section className="space-y-8">
+          <div className="space-y-3 rounded-3xl border border-slate-200 bg-slate-50 p-5">
+            <h3 className="text-base font-semibold text-slate-900">
+              What the capture crew delivers
+            </h3>
+            <ul className="list-disc space-y-2 pl-5 text-sm text-slate-600">
+              <li>
+                Survey-grade lidar + photogrammetry aligned to the facility you
+                specify (labs, warehouses, kitchens, utilities, etc.).
+              </li>
+              <li>
+                SimReady USD/URDF with articulation, materials, semantics, and
+                QA against Isaac 4.x/5.x.
+              </li>
+              <li>
+                Optional randomizer scripts + annotation exports so you can run
+                site-specific experiments immediately.
+              </li>
+            </ul>
+          </div>
           {/* <div className="space-y-4">
             <div className="space-y-2">
               <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
@@ -794,7 +814,7 @@ export function ContactForm() {
             </label>
             <select
               name="budgetRange"
-              required
+              required={requestType === "scene"}
               className="w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-slate-400 focus:outline-none"
             >
               {(requestType === "scene"

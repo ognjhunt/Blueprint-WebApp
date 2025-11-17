@@ -55,6 +55,24 @@ export interface EnvironmentPolicy {
   environments: string[];
 }
 
+export interface SyntheticDataset {
+  slug: string;
+  title: string;
+  description: string;
+  heroImage: string;
+  locationType: string;
+  policySlugs: string[];
+  objectTags: string[];
+  pricePerScene: number;
+  sceneCount: number;
+  variantCount: number;
+  releaseDate: string;
+  tags: string[];
+  randomizerScripts: string[];
+  deliverables: string[];
+  isNew?: boolean;
+}
+
 export interface CaseStudy {
   title: string;
   slug: string;
@@ -239,6 +257,133 @@ export const environmentPolicies: EnvironmentPolicy[] = [
     ],
     metric: "Maintains 88% fold quality on FoldingBench long-horizon tasks",
     environments: ["home-laundry"],
+  },
+];
+
+export const syntheticDatasets: SyntheticDataset[] = [
+  {
+    slug: "prep-line-essentials",
+    title: "Prep-Line Essentials",
+    description:
+      "150-scene bundle covering prep tables, dish pits, and service pass-throughs with drawer, door, and appliance articulation baked in.",
+    heroImage:
+      "https://images.unsplash.com/photo-1504753793650-d4a2b783c15e?auto=format&fit=crop&w=1600&q=80",
+    locationType: "Kitchens",
+    policySlugs: [
+      "dexterous-pick-place",
+      "articulated-access-validation",
+      "panel-interaction-suite",
+    ],
+    objectTags: ["drawers", "dishwashers", "utensils", "appliances"],
+    pricePerScene: 65,
+    sceneCount: 150,
+    variantCount: 8,
+    releaseDate: "2024-12-12",
+    tags: ["Articulated", "Plug & Play", "USD"],
+    randomizerScripts: [
+      "Lighting drift",
+      "Stock level shuffle",
+      "Tool clutter permutations",
+    ],
+    deliverables: ["USD / Isaac 4.x", "Isaac 5.x", "Replicator semantics"],
+    isNew: true,
+  },
+  {
+    slug: "retail-restock-loop",
+    title: "Retail Restock Loop",
+    description:
+      "110 grocery and convenience aisles with planogrammed shelving, refrigeration bays, and pallet drops for mixed-SKU restock policies.",
+    heroImage:
+      "https://images.unsplash.com/photo-1586202692873-0227667ccf6b?auto=format&fit=crop&w=1600&q=80",
+    locationType: "Grocery / Retail",
+    policySlugs: ["dexterous-pick-place", "mixed-sku-logistics"],
+    objectTags: ["shelves", "pallets", "totes", "coolers"],
+    pricePerScene: 58,
+    sceneCount: 110,
+    variantCount: 6,
+    releaseDate: "2024-12-05",
+    tags: ["Retail", "High SKU", "Randomized"],
+    randomizerScripts: ["SKU swaps", "Cart clutter", "Lighting color temp"],
+    deliverables: ["USD", "Onshape", "Synthetic sensor captures"],
+  },
+  {
+    slug: "warehouse-flow-kit",
+    title: "Warehouse Flow Kit",
+    description:
+      "200-lane dataset covering cross-dock staging, tote picking, and pallet buffers tuned for AMR and arm-on-rail deployments.",
+    heroImage:
+      "https://images.unsplash.com/photo-1517502884422-41eaead166d4?auto=format&fit=crop&w=1600&q=80",
+    locationType: "Warehouses",
+    policySlugs: ["mixed-sku-logistics", "dexterous-pick-place"],
+    objectTags: ["pallets", "totes", "cartons", "racking"],
+    pricePerScene: 72,
+    sceneCount: 200,
+    variantCount: 10,
+    releaseDate: "2024-11-28",
+    tags: ["Industrial", "Heavy lift", "Conveyor-ready"],
+    randomizerScripts: [
+      "Forklift traffic",
+      "Pallet height shuffle",
+      "Spill + debris events",
+    ],
+    deliverables: ["USD", "URDF", "Isaac Mission playback"],
+  },
+  {
+    slug: "lab-procedures-pack",
+    title: "Lab Procedures Pack",
+    description:
+      "65 precision lab benches with gloveboxes, articulated enclosures, and sample handoff tooling for panel + insertion curricula.",
+    heroImage:
+      "https://images.unsplash.com/photo-1582719478250-02c3c15b6640?auto=format&fit=crop&w=1600&q=80",
+    locationType: "Labs",
+    policySlugs: [
+      "panel-interaction-suite",
+      "precision-insertion-assembly",
+    ],
+    objectTags: ["valves", "switches", "drawers", "sample racks"],
+    pricePerScene: 84,
+    sceneCount: 65,
+    variantCount: 5,
+    releaseDate: "2024-11-22",
+    tags: ["Cleanroom", "Controls", "QA"],
+    randomizerScripts: ["Gauge offsets", "Cabinet wiring", "Consumable clutter"],
+    deliverables: ["USD", "STEP", "Semantic layers"],
+  },
+  {
+    slug: "utility-panel-tour",
+    title: "Utility Panel Tour",
+    description:
+      "90 mechanical rooms and utility closets with valves, breakers, and switches for inspection and panel interaction testing.",
+    heroImage:
+      "https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1600&q=80",
+    locationType: "Utility Rooms",
+    policySlugs: ["panel-interaction-suite"],
+    objectTags: ["breakers", "knobs", "switches", "valves"],
+    pricePerScene: 52,
+    sceneCount: 90,
+    variantCount: 4,
+    releaseDate: "2024-11-18",
+    tags: ["Inspection", "Low light", "Compact"],
+    randomizerScripts: ["Status LEDs", "Valve state", "Dust + grime"],
+    deliverables: ["USD", "GLTF", "Event scripts"],
+  },
+  {
+    slug: "laundry-assist-starter",
+    title: "Laundry Assist Starter",
+    description:
+      "50 assistive home laundry alcoves with washers, dryers, and hampers for folding and transfer training.",
+    heroImage:
+      "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1600&q=80",
+    locationType: "Home / Assistive",
+    policySlugs: ["laundry-folding-assist"],
+    objectTags: ["washers", "dryers", "hampers", "folding tables"],
+    pricePerScene: 50,
+    sceneCount: 50,
+    variantCount: 3,
+    releaseDate: "2024-11-12",
+    tags: ["Assistive", "Household", "Soft goods"],
+    randomizerScripts: ["Fabric types", "Lighting temp", "Clutter"],
+    deliverables: ["USD", "URDF", "Teleop demos"],
   },
 ];
 
