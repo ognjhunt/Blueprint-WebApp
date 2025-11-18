@@ -70,7 +70,7 @@ export default function Contact() {
 
           <h1 className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl">
             Scan a site or <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">
+            <span className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl">
               steer the roadmap.
             </span>
           </h1>

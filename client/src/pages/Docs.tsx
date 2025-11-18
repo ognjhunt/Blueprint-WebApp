@@ -202,11 +202,7 @@ export default function Docs() {
                 Version 2.1
               </div>
               <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl">
-                The{" "}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">
-                  SimReady
-                </span>{" "}
-                Standard.
+                The SimReady Standard.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-zinc-600">
                 Every scene we ship follows strict engineering specs: metric

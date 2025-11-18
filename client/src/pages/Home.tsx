@@ -533,10 +533,7 @@ export default function Home() {
                   SimReady Environment Network
                 </div>
                 <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl lg:text-7xl">
-                  SimReady worlds for{" "}
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">
-                    robotic training.
-                  </span>
+                  SimReady worlds for robotic training.
                 </h1>
                 <p className="max-w-xl text-lg leading-relaxed text-zinc-600">
                   High-fidelity scenes, physics-clean assets, delivered fast.
@@ -906,7 +903,7 @@ export default function Home() {
                 <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
                   For 3D Artists
                 </p>
-                <h3 className="mt-2 text-2xl font-bold">
+                <h3 className="mt-2 text-2xl font-bold text-white">
                   Build the worlds robots learn in.
                 </h3>
               </div>

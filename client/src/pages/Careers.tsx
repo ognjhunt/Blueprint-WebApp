@@ -111,7 +111,7 @@ export default function Careers() {
 
           <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl md:max-w-2xl">
             Build the worlds <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">
+            <span className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl md:max-w-2xl">
               robots learn in.
             </span>
           </h1>

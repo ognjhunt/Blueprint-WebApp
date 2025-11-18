@@ -286,7 +286,7 @@ export default function Solutions() {
               </div>
               <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
                 Two paths to <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">
+                <span className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
                   SimReady reality.
                 </span>
               </h1>

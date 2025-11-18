@@ -680,10 +680,7 @@ export default function Environments() {
 
             <div className="max-w-4xl">
               <h1 className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl">
-                Plug-and-play{" "}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">
-                  SimReady datasets.
-                </span>
+                Plug-and-play SimReady datasets.
               </h1>
               <p className="mt-6 max-w-2xl text-lg text-zinc-600">
                 Daily drops of synthetic scenes authored for Isaac-ready
