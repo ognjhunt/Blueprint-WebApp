@@ -965,7 +965,7 @@ export default function Portal() {
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
                 <LayoutGrid className="h-3 w-3" />
-                Contractor Portal
+                Artist Portal
               </div>
               <h1 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
                 SimReady Work Queue
