@@ -69,16 +69,17 @@ export default function Contact() {
           </div>
 
           <h1 className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl">
-            Scan a site or <br />
+            Scan a site, upload a photo, or <br />
             <span className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl">
               steer the roadmap.
             </span>
           </h1>
 
           <p className="max-w-2xl text-lg leading-relaxed text-zinc-600 sm:mx-0">
-            Most teams land here to book a real-world SimReady capture. If
-            you’re primarily buying synthetic data, use the wishlist path to
-            tell us which policy, object, or location types you need most—the
+            Book a real-world SimReady capture, upload a single wide photo of a
+            supported archetype for an exclusive reconstruction (default—you can
+            opt into open catalog), or steer the synthetic marketplace roadmap.
+            Tell us which policy, object, or location types you need most—the
             signal helps decide our next drops.
           </p>
         </header>

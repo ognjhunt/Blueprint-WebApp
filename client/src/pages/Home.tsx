@@ -415,6 +415,7 @@ import {
   Settings2,
   Sparkles,
   Terminal,
+  Camera,
 } from "lucide-react";
 
 // --- Data & Config ---
@@ -467,6 +468,20 @@ const offeringCards = [
     ctaLabel: "Browse drops",
     ctaHref: "/environments",
     icon: <LayoutGrid className="h-8 w-8 text-zinc-900" />,
+  },
+  {
+    title: "Reference Photo Reconstruction",
+    badge: "Exclusive",
+    description:
+      "Upload a single wide photo of a supported archetype and we’ll rebuild that exact layout into a SimReady scene.",
+    bullets: [
+      "Submit a kitchen, aisle, lab, or other covered archetype",
+      "We author USD/URDF handoff with QA against your use cases",
+      "Exclusive delivery by default; opt into open catalog if you prefer",
+    ],
+    ctaLabel: "Upload a photo",
+    ctaHref: "/contact",
+    icon: <Camera className="h-8 w-8 text-zinc-900" />,
   },
   {
     title: "Real-world Capture",
@@ -587,15 +602,16 @@ export default function Home() {
                       articulation policies you actually deploy.
                     </p>
                     <div className="rounded-lg bg-zinc-50 p-4 text-xs text-zinc-500 border border-zinc-100">
-                      <span className="block font-mono text-indigo-600 mb-1">
-                        $ system_check --site-specific
-                      </span>
-                      Need exact facility matching? Add on our capture service.
-                      We rebuild your facility with plugs for Isaac and your QA
-                      stack.
-                    </div>
+                    <span className="block font-mono text-indigo-600 mb-1">
+                      $ system_check --site-specific
+                    </span>
+                    Need exact facility matching? Add on our capture service or
+                    upload one reference photo for an exclusive reconstruction.
+                    We rebuild your facility with plugs for Isaac and your QA
+                    stack.
                   </div>
                 </div>
+              </div>
               </div>
             </div>
           </div>
