@@ -979,6 +979,8 @@ import { SUPPORT } from "../pilotCopy";
 
 // --- Configuration ---
 
+const SHOW_REAL_WORLD_CAPTURE = false;
+
 const requestOptions = [
   {
     value: "scene" as const,
@@ -1005,6 +1007,10 @@ const requestOptions = [
     recommended: false,
   },
 ];
+
+const visibleRequestOptions = SHOW_REAL_WORLD_CAPTURE
+  ? requestOptions
+  : requestOptions.filter((option) => option.value !== "scene");
 
 const datasetTiers = [
   {
@@ -1115,6 +1121,8 @@ const deriveQuote = (analysis: SnapshotAnalysis | null) => {
   return clampQuote(analysis.suggestedQuote ?? inferred);
 };
 
+const defaultRequestType = SHOW_REAL_WORLD_CAPTURE ? "scene" : "dataset";
+
 export function ContactForm() {
   // --- State ---
   const [status, setStatus] = useState<
@@ -1123,7 +1131,7 @@ export function ContactForm() {
   const [message, setMessage] = useState("");
   const [requestType, setRequestType] = useState<
     "dataset" | "scene" | "snapshot"
-  >("scene");
+  >(defaultRequestType);
 
   // Form Data
   const [datasetTier, setDatasetTier] = useState<string>(datasetTiers[0].value);
@@ -1475,7 +1483,7 @@ export function ContactForm() {
       setStatus("success");
       form.reset();
       // Reset State
-      setRequestType("scene");
+      setRequestType(defaultRequestType);
       setDatasetTier(datasetTiers[0].value);
       setSelectedUseCases([]);
       setSelectedEnvironments([]);
@@ -1525,7 +1533,7 @@ export function ContactForm() {
     <form onSubmit={handleSubmit} className="space-y-8">
       {/* 1. Path Selection */}
       <div className="grid gap-4 md:grid-cols-2">
-        {requestOptions.map((option) => (
+        {visibleRequestOptions.map((option) => (
           <div
             key={option.value}
             onClick={() => setRequestType(option.value)}

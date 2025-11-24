@@ -26,6 +26,24 @@
 import { ContactForm } from "@/components/site/ContactForm";
 import { MessageSquare } from "lucide-react";
 
+const SHOW_REAL_WORLD_CAPTURE = false;
+
+const badgeLabel = SHOW_REAL_WORLD_CAPTURE
+  ? "Capture & Marketplace Requests"
+  : "Marketplace & Photo Rebuild Requests";
+
+const headingLead = SHOW_REAL_WORLD_CAPTURE
+  ? "Scan a site, upload a photo, or"
+  : "Upload a photo or";
+
+const headingEmphasis = "steer the roadmap.";
+
+const descriptionWithCapture =
+  "Book a real-world SimReady capture, upload a single wide photo of a supported archetype for an exclusive reconstruction (default—you can opt into open catalog), or steer the synthetic marketplace roadmap. Tell us which policy, object, or location types you need most—the signal helps decide our next drops.";
+
+const descriptionWithoutCapture =
+  "Upload a single wide photo of a supported archetype for an exclusive reconstruction (default—you can opt into open catalog), or steer the synthetic marketplace roadmap. Tell us which policy, object, or location types you need most—the signal helps decide our next drops.";
+
 // --- Visual Helper ---
 function DotPattern() {
   return (
@@ -65,22 +83,20 @@ export default function Contact() {
         <header className="mb-16 space-y-6 text-center sm:text-left">
           <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-bold uppercase tracking-wider text-zinc-500 shadow-sm">
             <MessageSquare className="h-3 w-3" />
-            Capture & Marketplace Requests
+            {badgeLabel}
           </div>
 
           <h1 className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl">
-            Scan a site, upload a photo, or <br />
+            {headingLead} <br />
             <span className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl">
-              steer the roadmap.
+              {headingEmphasis}
             </span>
           </h1>
 
           <p className="max-w-2xl text-lg leading-relaxed text-zinc-600 sm:mx-0">
-            Book a real-world SimReady capture, upload a single wide photo of a
-            supported archetype for an exclusive reconstruction (default—you can
-            opt into open catalog), or steer the synthetic marketplace roadmap.
-            Tell us which policy, object, or location types you need most—the
-            signal helps decide our next drops.
+            {SHOW_REAL_WORLD_CAPTURE
+              ? descriptionWithCapture
+              : descriptionWithoutCapture}
           </p>
         </header>
 
