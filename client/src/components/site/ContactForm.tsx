@@ -1001,7 +1001,7 @@ const requestOptions = [
     label: "Reference Photo Rebuild",
     icon: <Camera className="h-6 w-6" />,
     description:
-      "Upload a single reference photo and let Gemini 3 Pro estimate feasibility, effort, and a quote in real time.",
+      "Upload a single well-lit photo of a supported archetype. We’ll reconstruct that exact layout into a SimReady scene.",
     recommended: false,
   },
 ];
@@ -1121,8 +1121,9 @@ export function ContactForm() {
     "idle" | "loading" | "success" | "error"
   >("idle");
   const [message, setMessage] = useState("");
-  const [requestType, setRequestType] =
-    useState<"dataset" | "scene" | "snapshot">("scene");
+  const [requestType, setRequestType] = useState<
+    "dataset" | "scene" | "snapshot"
+  >("scene");
 
   // Form Data
   const [datasetTier, setDatasetTier] = useState<string>(datasetTiers[0].value);
@@ -1307,11 +1308,13 @@ export function ContactForm() {
       return;
     }
 
-    const key = import.meta.env.VITE_GEMINI_API_KEY;
+    const key = "AIzaSyDpEZHda1az1ynC96pDfFbiHtyat7AWS-8";
     if (!key) {
       setAnalysisStatus("error");
       setAnalysisMessage("Gemini analysis is temporarily unavailable.");
-      setMessage("We couldn't auto-run Gemini. You can still submit the request.");
+      setMessage(
+        "We couldn't auto-run Gemini. You can still submit the request.",
+      );
       return;
     }
 
@@ -1352,17 +1355,18 @@ export function ContactForm() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (result as any)?.response?.text?.() ??
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ((result as any)?.candidates?.[0]?.content?.parts
+        (result as any)?.candidates?.[0]?.content?.parts
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ?.map((p: any) => p.text ?? "")
-          .join("") ?? "");
+          .join("") ??
+        "";
 
       const parsed: SnapshotAnalysis = JSON.parse(rawText);
       const normalizedNotes = Array.isArray(parsed.extraNotes)
         ? parsed.extraNotes.map((note) => String(note))
         : parsed.extraNotes
-        ? [String(parsed.extraNotes)]
-        : [];
+          ? [String(parsed.extraNotes)]
+          : [];
       const normalizedArchetype =
         typeof parsed.sceneArchetype === "string" &&
         environmentOptions.includes(
@@ -1402,7 +1406,9 @@ export function ContactForm() {
     } catch (error) {
       console.error("Gemini analysis failed", error);
       setAnalysisStatus("error");
-      setAnalysisMessage("Gemini analysis failed. Try again or contact support.");
+      setAnalysisMessage(
+        "Gemini analysis failed. Try again or contact support.",
+      );
       setStatus("error");
       setMessage("We couldn’t complete the Gemini review. Please retry.");
     }
@@ -1618,264 +1624,282 @@ export function ContactForm() {
               />
             </div>
           </section>
-          ) : requestType === "snapshot" ? (
-            <section className="mb-12 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="flex flex-col gap-3 border-b border-zinc-100 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-700">
-                    <Camera className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold uppercase tracking-[0.35em] text-indigo-700">
-                      Reference Photo Brief
-                    </h4>
-                    <p className="text-sm text-zinc-600">
-                      Upload one wide, well-lit frame. Gemini 3 Pro will estimate feasibility, effort, and a quote before you submit.
+        ) : requestType === "snapshot" ? (
+          <section className="mb-12 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex flex-col gap-3 border-b border-zinc-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-700">
+                  <Camera className="h-4 w-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-[0.35em] text-indigo-700">
+                    Reference Photo Brief
+                  </h4>
+                  <p className="text-sm text-zinc-600">
+                    Upload one wide, well-lit frame. Gemini 3 Pro will estimate
+                    feasibility, effort, and a quote before you submit.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                      Reference photo
+                    </label>
+                    <label className="group flex h-full cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-4 text-center transition hover:border-indigo-300 hover:bg-indigo-50/50">
+                      <input
+                        type="file"
+                        name="referenceImages"
+                        accept="image/*"
+                        required
+                        onChange={(e) => handleSnapshotUpload(e.target.files)}
+                        className="hidden"
+                      />
+                      {snapshotPreview ? (
+                        <div className="w-full space-y-3">
+                          <div className="overflow-hidden rounded-xl border border-zinc-200">
+                            <img
+                              src={snapshotPreview}
+                              alt="Reference preview"
+                              className="h-48 w-full object-cover"
+                            />
+                          </div>
+                          <p className="text-sm font-medium text-zinc-800">
+                            {snapshotFile?.name ?? "Reference photo attached"}
+                          </p>
+                          <p className="text-xs text-zinc-500">
+                            Replace the file to re-run Gemini analysis.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-2 text-zinc-500">
+                          <Camera className="h-5 w-5 text-indigo-500" />
+                          <p className="text-sm font-semibold text-zinc-700">
+                            Drop a single well-lit frame
+                          </p>
+                          <p className="text-xs text-zinc-500">
+                            Wide shot of the entire scene. JPG or PNG works
+                            great.
+                          </p>
+                        </div>
+                      )}
+                    </label>
+                    <p className="text-xs text-zinc-500">
+                      Capture a single wide, well-lit frame of the entire scene.
+                      We’ll reconstruct a SimReady version of that exact layout.
                     </p>
                   </div>
                 </div>
-              </div>
 
-              <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
-                <div className="space-y-6">
-                  <div className="space-y-4">
-                    <div className="space-y-3">
-                      <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                        Reference photo
-                      </label>
-                      <label className="group flex h-full cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-4 text-center transition hover:border-indigo-300 hover:bg-indigo-50/50">
-                        <input
-                          type="file"
-                          name="referenceImages"
-                          accept="image/*"
-                          required
-                          onChange={(e) => handleSnapshotUpload(e.target.files)}
-                          className="hidden"
-                        />
-                        {snapshotPreview ? (
-                          <div className="w-full space-y-3">
-                            <div className="overflow-hidden rounded-xl border border-zinc-200">
-                              <img
-                                src={snapshotPreview}
-                                alt="Reference preview"
-                                className="h-48 w-full object-cover"
-                              />
-                            </div>
-                            <p className="text-sm font-medium text-zinc-800">
-                              {snapshotFile?.name ?? "Reference photo attached"}
-                            </p>
-                            <p className="text-xs text-zinc-500">
-                              Replace the file to re-run Gemini analysis.
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center gap-2 text-zinc-500">
-                            <Camera className="h-5 w-5 text-indigo-500" />
-                            <p className="text-sm font-semibold text-zinc-700">
-                              Drop a single well-lit frame
-                            </p>
-                            <p className="text-xs text-zinc-500">
-                              Wide shot of the entire scene. JPG or PNG works great.
-                            </p>
-                          </div>
-                        )}
-                      </label>
-                      <p className="text-xs text-zinc-500">
-                        Capture a single wide, well-lit frame of the entire scene. We’ll reconstruct a SimReady version of that exact layout.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                        Scene Archetype (existing coverage)
-                      </label>
-                      <select
-                        required
-                        value={snapshotEnvironment}
-                        onChange={(e) => {
-                          setSnapshotEnvironment(e.target.value);
-                          setSnapshotEnvironmentManuallySet(true);
-                          snapshotEnvironmentManualRef.current = true;
-                        }}
-                        className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500/20"
-                      >
-                        <option value="" disabled>
-                          Select archetype...
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                      Scene Archetype (existing coverage)
+                    </label>
+                    <select
+                      required
+                      value={snapshotEnvironment}
+                      onChange={(e) => {
+                        setSnapshotEnvironment(e.target.value);
+                        setSnapshotEnvironmentManuallySet(true);
+                        snapshotEnvironmentManualRef.current = true;
+                      }}
+                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500/20"
+                    >
+                      <option value="" disabled>
+                        Select archetype...
+                      </option>
+                      {environmentOptions.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
                         </option>
-                        {environmentOptions.map((opt) => (
-                          <option key={opt} value={opt}>
-                            {opt}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                        Notes about this location
-                      </label>
-                      <input
-                        name="snapshotNotes"
-                        placeholder="What must stay true in the reconstruction?"
-                        className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500/20"
-                      />
-                    </div>
+                      ))}
+                    </select>
                   </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                      Notes about this location
+                    </label>
+                    <input
+                      name="snapshotNotes"
+                      placeholder="What must stay true in the reconstruction?"
+                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500/20"
+                    />
+                  </div>
+                </div>
 
-                  <div className="space-y-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-500">
-                        <Terminal className="h-3.5 w-3.5" /> Gemini Analysis
-                      </div>
-                      {analysisStatus === "analyzing" && (
-                        <div className="flex items-center gap-2 text-xs text-indigo-600">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Thinking
-                        </div>
-                      )}
+                <div className="space-y-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-500">
+                      <Terminal className="h-3.5 w-3.5" /> Gemini Analysis
                     </div>
-                    <p className="text-sm text-zinc-600">
-                      We’ll auto-run Gemini after you add a reference photo. It checks coverage, counts articulated vs static objects, and suggests effort.
-                    </p>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    {analysisStatus === "analyzing" && (
+                      <div className="flex items-center gap-2 text-xs text-indigo-600">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Thinking
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-sm text-zinc-600">
+                    We’ll auto-run Gemini after you add a reference photo. It
+                    checks coverage, counts articulated vs static objects, and
+                    suggests effort.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
                         analysisStatus === "ready"
                           ? "bg-emerald-100 text-emerald-700"
                           : analysisStatus === "error"
-                          ? "bg-red-100 text-red-700"
-                          : analysisStatus === "analyzing"
-                          ? "bg-indigo-100 text-indigo-700"
-                          : "bg-zinc-100 text-zinc-600"
-                      }`}>
-                        {analysisStatus === "ready"
-                          ? "Analysis ready"
-                          : analysisStatus === "analyzing"
+                            ? "bg-red-100 text-red-700"
+                            : analysisStatus === "analyzing"
+                              ? "bg-indigo-100 text-indigo-700"
+                              : "bg-zinc-100 text-zinc-600"
+                      }`}
+                    >
+                      {analysisStatus === "ready"
+                        ? "Analysis ready"
+                        : analysisStatus === "analyzing"
                           ? "Running automatically"
                           : analysisStatus === "error"
-                          ? "Needs retry"
-                          : "Waiting for photo"}
-                      </div>
-                      {analysisStatus === "error" && (
-                        <span className="text-xs text-amber-700">
-                          We’ll handle review manually if needed.
-                        </span>
-                      )}
+                            ? "Needs retry"
+                            : "Waiting for photo"}
                     </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">
-                          Gemini 3 Pro Findings
-                        </p>
-                        <p className="text-sm text-zinc-600">
-                          {analysisMessage ||
-                            "Upload a reference photo to see support and effort signals."}
-                        </p>
-                      </div>
-                      <div className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        analysisResult?.supported === false
-                          ? "bg-amber-100 text-amber-700"
-                          : analysisResult?.supported
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-zinc-100 text-zinc-600"
-                      }`}>
-                        {analysisResult
-                          ? analysisResult.supported
-                            ? "Supported"
-                            : "Manual review"
-                          : "Not yet analyzed"}
-                      </div>
-                    </div>
-
-                    <div className="mt-4 grid gap-3 rounded-xl bg-white p-4 shadow-sm">
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div className="rounded-lg border border-zinc-100 p-3">
-                          <p className="text-xs font-semibold text-zinc-500">Total things</p>
-                          <p className="text-lg font-bold text-zinc-900">
-                            {analysisResult?.totalThings ?? "—"}
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-zinc-100 p-3">
-                          <p className="text-xs font-semibold text-zinc-500">Articulated objects</p>
-                          <p className="text-lg font-bold text-zinc-900">
-                            {analysisResult?.articulatedObjects ?? "—"}
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-zinc-100 p-3">
-                          <p className="text-xs font-semibold text-zinc-500">Static objects</p>
-                          <p className="text-lg font-bold text-zinc-900">
-                            {analysisResult?.staticObjects ?? "—"}
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-zinc-100 p-3">
-                          <p className="text-xs font-semibold text-zinc-500">Support match</p>
-                          <p className="text-lg font-bold text-zinc-900">
-                            {analysisResult?.supported
-                              ? "Looks covered"
-                              : analysisResult?.supported === false
-                              ? "Needs review"
-                              : "Pending"}
-                          </p>
-                        </div>
-                      </div>
-                      {analysisResult?.extraNotes?.length ? (
-                        <div className="space-y-2">
-                          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                            Notes
-                          </p>
-                          <ul className="list-disc space-y-1 pl-4 text-sm text-zinc-700">
-                            {analysisResult.extraNotes.map((note) => (
-                              <li key={note}>{note}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-bold uppercase tracking-wider text-indigo-700">
-                          Gemini Quote Range
-                        </p>
-                        <p className="text-2xl font-bold text-indigo-900">
-                          ${deriveQuote(analysisResult).toLocaleString()}
-                        </p>
-                        <p className="text-xs text-indigo-700/80">
-                          Estimated per-scene effort based on the current analysis.
-                        </p>
-                      </div>
-                      <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-indigo-700">
-                        $1,000 – $5,000 window
-                      </div>
-                    </div>
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <a
-                        href={`mailto:${SUPPORT.email}?subject=Reference%20photo%20question`}
-                        className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-indigo-700 shadow-sm transition hover:bg-indigo-100"
-                      >
-                        <Mail className="h-4 w-4" /> Email support
-                      </a>
-                      <a
-                        href={SUPPORT.calendly}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-2 rounded-full border border-indigo-200 px-4 py-2 text-sm font-semibold text-indigo-800 transition hover:bg-indigo-100"
-                      >
-                        <MessageCircle className="h-4 w-4" /> Book time
-                      </a>
-                    </div>
+                    {analysisStatus === "error" && (
+                      <span className="text-xs text-amber-700">
+                        We’ll handle review manually if needed.
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
-            </section>
-          ) : (
+
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                        Gemini 3 Pro Findings
+                      </p>
+                      <p className="text-sm text-zinc-600">
+                        {analysisMessage ||
+                          "Upload a reference photo to see support and effort signals."}
+                      </p>
+                    </div>
+                    <div
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        analysisResult?.supported === false
+                          ? "bg-amber-100 text-amber-700"
+                          : analysisResult?.supported
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-zinc-100 text-zinc-600"
+                      }`}
+                    >
+                      {analysisResult
+                        ? analysisResult.supported
+                          ? "Supported"
+                          : "Manual review"
+                        : "Not yet analyzed"}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 rounded-xl bg-white p-4 shadow-sm">
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="rounded-lg border border-zinc-100 p-3">
+                        <p className="text-xs font-semibold text-zinc-500">
+                          Total things
+                        </p>
+                        <p className="text-lg font-bold text-zinc-900">
+                          {analysisResult?.totalThings ?? "—"}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-zinc-100 p-3">
+                        <p className="text-xs font-semibold text-zinc-500">
+                          Articulated objects
+                        </p>
+                        <p className="text-lg font-bold text-zinc-900">
+                          {analysisResult?.articulatedObjects ?? "—"}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-zinc-100 p-3">
+                        <p className="text-xs font-semibold text-zinc-500">
+                          Static objects
+                        </p>
+                        <p className="text-lg font-bold text-zinc-900">
+                          {analysisResult?.staticObjects ?? "—"}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-zinc-100 p-3">
+                        <p className="text-xs font-semibold text-zinc-500">
+                          Support match
+                        </p>
+                        <p className="text-lg font-bold text-zinc-900">
+                          {analysisResult?.supported
+                            ? "Looks covered"
+                            : analysisResult?.supported === false
+                              ? "Needs review"
+                              : "Pending"}
+                        </p>
+                      </div>
+                    </div>
+                    {analysisResult?.extraNotes?.length ? (
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                          Notes
+                        </p>
+                        <ul className="list-disc space-y-1 pl-4 text-sm text-zinc-700">
+                          {analysisResult.extraNotes.map((note) => (
+                            <li key={note}>{note}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-indigo-700">
+                        Gemini Quote Range
+                      </p>
+                      <p className="text-2xl font-bold text-indigo-900">
+                        ${deriveQuote(analysisResult).toLocaleString()}
+                      </p>
+                      <p className="text-xs text-indigo-700/80">
+                        Estimated per-scene effort based on the current
+                        analysis.
+                      </p>
+                    </div>
+                    <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-indigo-700">
+                      $1,000 – $5,000 window
+                    </div>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <a
+                      href={`mailto:${SUPPORT.email}?subject=Reference%20photo%20question`}
+                      className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-indigo-700 shadow-sm transition hover:bg-indigo-100"
+                    >
+                      <Mail className="h-4 w-4" /> Email support
+                    </a>
+                    <a
+                      href={SUPPORT.calendly}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 rounded-full border border-indigo-200 px-4 py-2 text-sm font-semibold text-indigo-800 transition hover:bg-indigo-100"
+                    >
+                      <MessageCircle className="h-4 w-4" /> Book time
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : (
           <section className="mb-12 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="border-b border-zinc-100 pb-4">
               <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-emerald-600">
@@ -2087,7 +2111,8 @@ export function ContactForm() {
                       Keep this reconstruction exclusive by default
                     </p>
                     <p className="text-sm text-zinc-600">
-                      Uncheck to allow an open catalog listing; pricing stays the same.
+                      Uncheck to allow an open catalog listing; pricing stays
+                      the same.
                     </p>
                   </div>
                 </div>
