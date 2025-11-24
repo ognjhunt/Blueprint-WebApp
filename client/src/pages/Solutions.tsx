@@ -194,6 +194,7 @@ import {
   Sparkles,
   Factory,
   Beaker,
+  Camera,
 } from "lucide-react";
 
 // --- Configuration ---
@@ -285,14 +286,15 @@ export default function Solutions() {
                 Solutions
               </div>
               <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
-                Two paths to <br />
+                Three paths to <br />
                 <span className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
                   SimReady reality.
                 </span>
               </h1>
               <p className="max-w-2xl text-lg leading-relaxed text-zinc-600">
                 Whether you need procedural synthetic data grounded in
-                real-world analogs or a digital twin of a facility you operate,
+                real-world analogs, an exclusive one-photo reconstruction of a
+                known archetype, or a digital twin of a facility you operate,
                 we deliver environments engineered for physics, not just
                 rendering.
               </p>
@@ -427,6 +429,88 @@ export default function Solutions() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          </section>
+
+          {/* --- Section: Reference Photo Reconstruction --- */}
+          <section className="relative overflow-hidden rounded-[2.5rem] border border-indigo-100 bg-white p-8 shadow-sm sm:p-12 lg:p-16">
+            <div className="absolute -left-10 -top-10 h-64 w-64 rounded-full bg-indigo-100/60 blur-3xl" />
+            <div className="relative z-10 grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+              <div className="space-y-6">
+                <div className="inline-flex items-center gap-2 rounded-md bg-indigo-50 px-2 py-1 text-xs font-bold uppercase tracking-wider text-indigo-700">
+                  <Camera className="h-3 w-3" /> Reference Photo Reconstruction
+                </div>
+                <h2 className="text-3xl font-bold text-zinc-900 sm:text-4xl">
+                  Exclusive, one-shot rebuilds.
+                </h2>
+                <p className="text-zinc-600 leading-relaxed">
+                  Upload a single wide, well-lit image of a kitchen, aisle, lab,
+                  or other supported archetype. We reconstruct that exact layout
+                  into a SimReady scene with USD/URDF handoff and QA against your
+                  mission profile.
+                </p>
+
+                <ul className="grid gap-3 text-sm text-zinc-700 sm:grid-cols-2">
+                  {["Budget averages around $1k per scene", "Exclusive delivery by default—opt into open catalog if you want", "Includes authored colliders, pivots, and materials", "Submit use cases so we validate against your policies"].map(
+                    (item) => (
+                      <li
+                        key={item}
+                        className="flex items-start gap-2 rounded-xl bg-indigo-50/80 p-3 ring-1 ring-indigo-100"
+                      >
+                        <span className="mt-1 h-2 w-2 rounded-full bg-indigo-500" />
+                        <span>{item}</span>
+                      </li>
+                    ),
+                  )}
+                </ul>
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <a
+                    href="/contact"
+                    className="inline-flex items-center justify-center rounded-full bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+                  >
+                    Submit a reference photo
+                  </a>
+                  <span className="text-xs uppercase tracking-[0.2em] text-indigo-500">
+                    Exclusive by default
+                  </span>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-6 shadow-inner">
+                <div className="flex items-center gap-3 border-b border-indigo-100 pb-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-indigo-600 shadow-sm">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-indigo-500">
+                      Delivery Checklist
+                    </p>
+                    <p className="text-sm text-zinc-700">
+                      Built for labs that need a specific, exclusive layout.
+                    </p>
+                  </div>
+                </div>
+
+                <ul className="mt-4 space-y-3 text-sm text-zinc-700">
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                    Wide-shot photo intake (multiple allowed)
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                    USD/URDF handoff with authored colliders & pivots
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                    Mission-profile QA against your provided use cases
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                    Optional open-catalog toggle with pricing unchanged
+                  </li>
+                </ul>
               </div>
             </div>
           </section>

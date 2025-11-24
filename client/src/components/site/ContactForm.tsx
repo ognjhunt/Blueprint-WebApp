@@ -970,6 +970,7 @@ import {
   User,
   Layers,
   Terminal,
+  Camera,
 } from "lucide-react";
 
 // --- Configuration ---
@@ -989,6 +990,14 @@ const requestOptions = [
     icon: <Sparkles className="h-6 w-6" />,
     description:
       "Tell us which policies or environments to prioritize for the next synthetic drop. Help steer the roadmap.",
+    recommended: false,
+  },
+  {
+    value: "snapshot" as const,
+    label: "Reference Photo Rebuild",
+    icon: <Camera className="h-6 w-6" />,
+    description:
+      "Upload a single well-lit photo of a supported archetype. We’ll reconstruct that exact layout into a SimReady scene.",
     recommended: false,
   },
 ];
@@ -1074,6 +1083,11 @@ const datasetBudgetRanges = [
   "$100k – $500k",
   "$500k+",
 ];
+const snapshotBudgetRanges = [
+  "$750 – $1,250 per scene",
+  "$1,500 – $3,000 per scene",
+  "Enterprise quote",
+];
 const isaacVersions = ["Isaac 4.x", "Isaac 5.x", "Both", "Other"] as const;
 
 export function ContactForm() {
@@ -1082,7 +1096,8 @@ export function ContactForm() {
     "idle" | "loading" | "success" | "error"
   >("idle");
   const [message, setMessage] = useState("");
-  const [requestType, setRequestType] = useState<"dataset" | "scene">("scene");
+  const [requestType, setRequestType] =
+    useState<"dataset" | "scene" | "snapshot">("scene");
 
   // Form Data
   const [datasetTier, setDatasetTier] = useState<string>(datasetTiers[0].value);
@@ -1093,11 +1108,14 @@ export function ContactForm() {
   const [exclusivity, setExclusivity] = useState<string>(
     exclusivityOptions[0].value,
   );
+  const [snapshotExclusive, setSnapshotExclusive] = useState<boolean>(true);
   const [siteAddress, setSiteAddress] = useState<string>("");
   const [sitePlaceId, setSitePlaceId] = useState<string>("");
   const [locationTypeSelection, setLocationTypeSelection] =
     useState<string>("");
   const [customLocationType, setCustomLocationType] = useState<string>("");
+  const [snapshotEnvironment, setSnapshotEnvironment] = useState<string>("");
+  const [referenceImagesCount, setReferenceImagesCount] = useState<number>(0);
 
   // Refs
   const addressInputRef = useRef<HTMLInputElement | null>(null);
@@ -1111,6 +1129,12 @@ export function ContactForm() {
     if (requestType !== "scene") {
       setLocationTypeSelection("");
       setCustomLocationType("");
+    }
+
+    if (requestType !== "snapshot") {
+      setSnapshotEnvironment("");
+      setSnapshotExclusive(true);
+      setReferenceImagesCount(0);
     }
   }, [requestType]);
 
@@ -1213,6 +1237,18 @@ export function ContactForm() {
       return;
     }
 
+    if (requestType === "snapshot") {
+      const uploads = data
+        .getAll("referenceImages")
+        .filter((file) => file instanceof File && file.size > 0);
+
+      if (uploads.length === 0) {
+        setStatus("error");
+        setMessage("Please attach at least one reference photo.");
+        return;
+      }
+    }
+
     const data = new FormData(form);
     const payload: Record<string, unknown> = Object.fromEntries(data.entries());
 
@@ -1224,8 +1260,19 @@ export function ContactForm() {
       sitePlaceId,
       useCases: selectedUseCases,
       environments: selectedEnvironments,
-      exclusivityNeeds: exclusivity,
+      exclusivityNeeds:
+        requestType === "snapshot"
+          ? snapshotExclusive
+            ? "exclusive-default"
+            : "open-catalog-ok"
+          : exclusivity,
     });
+
+    if (requestType === "snapshot") {
+      payload["snapshotExclusive"] = snapshotExclusive;
+      payload["snapshotEnvironment"] = snapshotEnvironment;
+      payload["referenceImagesCount"] = referenceImagesCount;
+    }
 
     setStatus("loading");
     setMessage("");
@@ -1245,6 +1292,9 @@ export function ContactForm() {
       setExclusivity(exclusivityOptions[0].value);
       setSiteAddress("");
       setSitePlaceId("");
+      setSnapshotExclusive(true);
+      setSnapshotEnvironment("");
+      setReferenceImagesCount(0);
     } catch (error) {
       setStatus("error");
       setMessage("Transmission failed. Please try again.");
@@ -1375,6 +1425,89 @@ export function ContactForm() {
                 placeholder="E.g. We need transparent plastics and reflective metals in warehouse lighting..."
                 className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500/20"
               />
+            </div>
+          </section>
+        ) : requestType === "snapshot" ? (
+          <section className="mb-12 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="border-b border-zinc-100 pb-4">
+              <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-indigo-600">
+                <Camera className="h-3.5 w-3.5" /> Reference Photo Brief
+              </h4>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-3">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                  Reference photo(s)
+                </label>
+                <input
+                  type="file"
+                  name="referenceImages"
+                  accept="image/*"
+                  required
+                  multiple
+                  onChange={(e) =>
+                    setReferenceImagesCount(e.target.files?.length ?? 0)
+                  }
+                  className="w-full rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-10 text-center text-sm text-zinc-500 hover:border-indigo-300"
+                />
+                <p className="text-xs text-zinc-500">
+                  Capture a single wide, well-lit frame of the entire scene. We’ll use it to reconstruct a SimReady version of that exact layout.
+                </p>
+              </div>
+
+              <div className="space-y-3 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-indigo-700">
+                  <Layers className="h-3.5 w-3.5" /> Exclusivity
+                </div>
+                <label className="flex items-start gap-3 rounded-xl bg-white/80 p-3 text-sm text-zinc-700 shadow-sm">
+                  <input
+                    type="checkbox"
+                    checked={snapshotExclusive}
+                    onChange={(e) => setSnapshotExclusive(e.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span>
+                    Keep this reconstruction exclusive by default. Uncheck to allow us to list the scene in the open catalog (pricing stays the same).
+                  </span>
+                </label>
+                <div className="rounded-lg bg-white/80 p-3 text-xs text-zinc-600 shadow-sm">
+                  Typical budgets land around $1k per scene for photo-based rebuilds.
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                  Scene Archetype (existing coverage)
+                </label>
+                <select
+                  required
+                  value={snapshotEnvironment}
+                  onChange={(e) => setSnapshotEnvironment(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500/20"
+                >
+                  <option value="" disabled>
+                    Select archetype...
+                  </option>
+                  {environmentOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                  Notes about this location
+                </label>
+                <input
+                  name="snapshotNotes"
+                  placeholder="What must stay true in the reconstruction?"
+                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500/20"
+                />
+              </div>
             </div>
           </section>
         ) : (
@@ -1582,6 +1715,8 @@ export function ContactForm() {
               >
                 {(requestType === "scene"
                   ? sceneBudgetRanges
+                  : requestType === "snapshot"
+                  ? snapshotBudgetRanges
                   : datasetBudgetRanges
                 ).map((r) => (
                   <option key={r} value={r}>
@@ -1590,22 +1725,48 @@ export function ContactForm() {
                 ))}
               </select>
             </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                Exclusivity
-              </label>
-              <select
-                value={exclusivity}
-                onChange={(e) => setExclusivity(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500/20"
-              >
-                {exclusivityOptions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {requestType === "snapshot" ? (
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                  Exclusivity
+                </label>
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={snapshotExclusive}
+                      onChange={(e) => setSnapshotExclusive(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <div>
+                      <p className="font-semibold text-zinc-900">
+                        Keep this drop exclusive by default
+                      </p>
+                      <p className="text-sm text-zinc-600">
+                        You can uncheck to allow an open catalog listing; pricing stays the same.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                  Exclusivity
+                </label>
+                <select
+                  value={exclusivity}
+                  onChange={(e) => setExclusivity(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500/20"
+                >
+                  {exclusivityOptions.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         </section>
 
