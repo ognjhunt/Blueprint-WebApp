@@ -199,6 +199,8 @@ import {
 
 // --- Configuration ---
 
+const SHOW_REAL_WORLD_CAPTURE = false;
+
 const proceduralSteps = [
   {
     title: "Author",
@@ -515,8 +517,9 @@ export default function Solutions() {
             </div>
           </section>
 
-          {/* --- Section 2: On-Site (Dark/Premium Theme) --- */}
-          <section
+          {SHOW_REAL_WORLD_CAPTURE && (
+            /* --- Section 2: On-Site (Dark/Premium Theme) --- */
+            <section
             id="pricing"
             className="relative overflow-hidden rounded-[2.5rem] bg-zinc-900 p-8 text-zinc-300 sm:p-12 lg:p-16 shadow-2xl"
           >
@@ -622,7 +625,8 @@ export default function Solutions() {
                 </div>
               </div>
             </div>
-          </section>
+            </section>
+          )}
         </div>
       </div>
     </div>

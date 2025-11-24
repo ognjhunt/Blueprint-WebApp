@@ -454,6 +454,8 @@ const artistBullets = [
   "Paid per scene, bonuses for articulation coverage",
 ];
 
+const SHOW_REAL_WORLD_CAPTURE = false;
+
 const offeringCards = [
   {
     title: "Synthetic SimReady Scenes",
@@ -499,6 +501,10 @@ const offeringCards = [
   },
 ];
 
+const visibleOfferingCards = SHOW_REAL_WORLD_CAPTURE
+  ? offeringCards
+  : offeringCards.filter((card) => card.title !== "Real-world Capture");
+
 // --- Helper Components ---
 
 function DotPattern() {
@@ -529,6 +535,16 @@ function DotPattern() {
   );
 }
 
+const heroDescriptionWithCapture =
+  "High-fidelity scenes, physics-clean assets, delivered fast. Pick from our synthetic marketplace or send us to your actual site for a digital twin tuned to your deployment stack.";
+
+const heroDescriptionWithoutCapture =
+  "High-fidelity scenes, physics-clean assets, delivered fast. Pick from our synthetic marketplace or upload a reference photo for an exclusive reconstruction.";
+
+const facilitySupportCopy = SHOW_REAL_WORLD_CAPTURE
+  ? "Need exact facility matching? Add on our capture service or upload one reference photo for an exclusive reconstruction. We rebuild your facility with plugs for Isaac and your QA stack."
+  : "Need exact facility matching? Upload one reference photo for an exclusive reconstruction. We’ll return a SimReady scene with plugs for Isaac and your QA stack.";
+
 export default function Home() {
   const datasetPreview = syntheticDatasets.slice(0, 3);
 
@@ -551,9 +567,9 @@ export default function Home() {
                   SimReady worlds for robotic training.
                 </h1>
                 <p className="max-w-xl text-lg leading-relaxed text-zinc-600">
-                  High-fidelity scenes, physics-clean assets, delivered fast.
-                  Pick from our synthetic marketplace or send us to your actual
-                  site for a digital twin tuned to your deployment stack.
+                  {SHOW_REAL_WORLD_CAPTURE
+                    ? heroDescriptionWithCapture
+                    : heroDescriptionWithoutCapture}
                 </p>
               </div>
 
@@ -605,10 +621,7 @@ export default function Home() {
                     <span className="block font-mono text-indigo-600 mb-1">
                       $ system_check --site-specific
                     </span>
-                    Need exact facility matching? Add on our capture service or
-                    upload one reference photo for an exclusive reconstruction.
-                    We rebuild your facility with plugs for Isaac and your QA
-                    stack.
+                    {facilitySupportCopy}
                   </div>
                 </div>
               </div>
@@ -621,7 +634,7 @@ export default function Home() {
       {/* --- Offering Cards --- */}
       <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
         <div className="grid gap-8 md:grid-cols-2">
-          {offeringCards.map((offering) => (
+          {visibleOfferingCards.map((offering) => (
             <article
               key={offering.title}
               className="group relative flex h-full flex-col gap-6 rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-indigo-200"
