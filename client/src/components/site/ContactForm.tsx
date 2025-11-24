@@ -954,6 +954,7 @@
 // }
 import { useEffect, useRef, useState } from "react";
 import { Loader } from "@googlemaps/js-api-loader";
+import { GoogleGenAI } from "@google/genai";
 import { countries } from "@/data/countries";
 import { getGoogleMapsApiKey } from "@/lib/client-env";
 import {
@@ -971,7 +972,10 @@ import {
   Layers,
   Terminal,
   Camera,
+  Loader2,
+  MessageCircle,
 } from "lucide-react";
+import { SUPPORT } from "../pilotCopy";
 
 // --- Configuration ---
 
@@ -997,7 +1001,7 @@ const requestOptions = [
     label: "Reference Photo Rebuild",
     icon: <Camera className="h-6 w-6" />,
     description:
-      "Upload a single well-lit photo of a supported archetype. We’ll reconstruct that exact layout into a SimReady scene.",
+      "Upload a single reference photo and let Gemini 3 Pro estimate feasibility, effort, and a quote in real time.",
     recommended: false,
   },
 ];
@@ -1090,6 +1094,38 @@ const snapshotBudgetRanges = [
 ];
 const isaacVersions = ["Isaac 4.x", "Isaac 5.x", "Both", "Other"] as const;
 
+type SnapshotAnalysis = {
+  supported: boolean;
+  supportedReason?: string;
+  totalThings: number;
+  articulatedObjects: number;
+  staticObjects: number;
+  extraNotes?: string[];
+  suggestedQuote?: number;
+};
+
+const clampQuote = (value: number) =>
+  Math.min(5000, Math.max(1000, Math.round(value / 50) * 50));
+
+const base64FromFile = async (file: File) => {
+  const buffer = await file.arrayBuffer();
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+};
+
+const deriveQuote = (analysis: SnapshotAnalysis | null) => {
+  if (!analysis) return 1500;
+  const complexityBias =
+    analysis.totalThings * 120 + analysis.articulatedObjects * 180;
+  const supportedBuffer = analysis.supported ? 0 : 250;
+  const inferred = 1200 + complexityBias + supportedBuffer;
+  return clampQuote(analysis.suggestedQuote ?? inferred);
+};
+
 export function ContactForm() {
   // --- State ---
   const [status, setStatus] = useState<
@@ -1116,6 +1152,18 @@ export function ContactForm() {
   const [customLocationType, setCustomLocationType] = useState<string>("");
   const [snapshotEnvironment, setSnapshotEnvironment] = useState<string>("");
   const [referenceImagesCount, setReferenceImagesCount] = useState<number>(0);
+  const [snapshotFile, setSnapshotFile] = useState<File | null>(null);
+  const [snapshotPreview, setSnapshotPreview] = useState<string | null>(null);
+  const [analysisStatus, setAnalysisStatus] = useState<
+    "idle" | "analyzing" | "ready" | "error"
+  >("idle");
+  const [analysisResult, setAnalysisResult] = useState<SnapshotAnalysis | null>(
+    null,
+  );
+  const [analysisMessage, setAnalysisMessage] = useState<string>("");
+  const [geminiApiKey, setGeminiApiKey] = useState<string>(
+    import.meta.env.VITE_GEMINI_API_KEY ?? "",
+  );
 
   // Refs
   const addressInputRef = useRef<HTMLInputElement | null>(null);
@@ -1135,6 +1183,11 @@ export function ContactForm() {
       setSnapshotEnvironment("");
       setSnapshotExclusive(true);
       setReferenceImagesCount(0);
+      setSnapshotFile(null);
+      setSnapshotPreview(null);
+      setAnalysisStatus("idle");
+      setAnalysisResult(null);
+      setAnalysisMessage("");
     }
   }, [requestType]);
 
@@ -1227,9 +1280,130 @@ export function ContactForm() {
     );
   };
 
+  const handleSnapshotUpload = (fileList: FileList | null) => {
+    const firstFile = fileList?.[0];
+    if (!firstFile) {
+      setSnapshotFile(null);
+      setSnapshotPreview(null);
+      setReferenceImagesCount(0);
+      return;
+    }
+
+    setSnapshotFile(firstFile);
+    setReferenceImagesCount(1);
+    setAnalysisStatus("idle");
+    setAnalysisResult(null);
+    setAnalysisMessage("");
+
+    const previewUrl = URL.createObjectURL(firstFile);
+    setSnapshotPreview(previewUrl);
+  };
+
+  const runSnapshotAnalysis = async () => {
+    if (!snapshotFile) {
+      setAnalysisStatus("error");
+      setAnalysisMessage("Add a reference photo to analyze.");
+      setMessage("Please attach a reference photo for Gemini to review.");
+      setStatus("error");
+      return;
+    }
+
+    const key = geminiApiKey || import.meta.env.VITE_GEMINI_API_KEY;
+    if (!key) {
+      setAnalysisStatus("error");
+      setAnalysisMessage("Add your Gemini 3 Pro API key to run analysis.");
+      setMessage("Gemini API key required for the reference photo review.");
+      setStatus("error");
+      return;
+    }
+
+    setAnalysisStatus("analyzing");
+    setAnalysisMessage("Gemini 3 Pro is reviewing your scene...");
+    setMessage("");
+
+    try {
+      const ai = new GoogleGenAI({ apiKey: key });
+
+      const encodedImage = await base64FromFile(snapshotFile);
+      const prompt = `You are Blueprint's quoting assistant. Analyze the uploaded reference photo for a robotics simulation rebuild. Return JSON with keys: supported (boolean), supportedReason (string), totalThings (integer count of visually distinct items), articulatedObjects (integer count of things that must move or hinge), staticObjects (integer count of items that can stay fixed), extraNotes (array of 1-3 bullet strings), suggestedQuote (number between 1000 and 5000 estimating USD effort for rebuild). Be concise.`;
+
+      const result = await ai.models.generateContent({
+        model: "gemini-3-pro-preview",
+        config: {
+          thinkingConfig: { thinkingLevel: "HIGH" },
+          tools: [{ googleSearch: {} }],
+          responseMimeType: "application/json",
+        } as any,
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { text: prompt },
+              {
+                inlineData: {
+                  data: encodedImage,
+                  mimeType: snapshotFile.type || "image/jpeg",
+                },
+              },
+            ],
+          },
+        ],
+      });
+
+      const rawText =
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (result as any)?.response?.text?.() ??
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ((result as any)?.candidates?.[0]?.content?.parts
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ?.map((p: any) => p.text ?? "")
+          .join("") ?? "");
+
+      const parsed: SnapshotAnalysis = JSON.parse(rawText);
+      const normalizedNotes = Array.isArray(parsed.extraNotes)
+        ? parsed.extraNotes.map((note) => String(note))
+        : parsed.extraNotes
+        ? [String(parsed.extraNotes)]
+        : [];
+      const normalized: SnapshotAnalysis = {
+        supported: Boolean(parsed.supported),
+        supportedReason: parsed.supportedReason ?? "",
+        totalThings: Number.isFinite(parsed.totalThings)
+          ? Math.max(0, Math.round(parsed.totalThings))
+          : 0,
+        articulatedObjects: Number.isFinite(parsed.articulatedObjects)
+          ? Math.max(0, Math.round(parsed.articulatedObjects))
+          : 0,
+        staticObjects: Number.isFinite(parsed.staticObjects)
+          ? Math.max(0, Math.round(parsed.staticObjects))
+          : 0,
+        extraNotes: normalizedNotes,
+        suggestedQuote: parsed.suggestedQuote,
+      };
+
+      const quote = deriveQuote(normalized);
+      setAnalysisResult({ ...normalized, suggestedQuote: quote });
+      setAnalysisStatus("ready");
+      setAnalysisMessage(
+        normalized.supported
+          ? "Scene looks compatible with our coverage."
+          : "Scene may need a manual review — we’ll help you triage.",
+      );
+      setStatus("idle");
+    } catch (error) {
+      console.error("Gemini analysis failed", error);
+      setAnalysisStatus("error");
+      setAnalysisMessage("Gemini analysis failed. Try again or contact support.");
+      setStatus("error");
+      setMessage("We couldn’t complete the Gemini review. Please retry.");
+    }
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
+
+    const data = new FormData(form);
 
     if (selectedUseCases.length === 0) {
       setStatus("error");
@@ -1249,7 +1423,6 @@ export function ContactForm() {
       }
     }
 
-    const data = new FormData(form);
     const payload: Record<string, unknown> = Object.fromEntries(data.entries());
 
     // Append React State
@@ -1272,6 +1445,8 @@ export function ContactForm() {
       payload["snapshotExclusive"] = snapshotExclusive;
       payload["snapshotEnvironment"] = snapshotEnvironment;
       payload["referenceImagesCount"] = referenceImagesCount;
+      payload["snapshotAnalysis"] = analysisResult;
+      payload["snapshotQuote"] = deriveQuote(analysisResult);
     }
 
     setStatus("loading");
@@ -1295,6 +1470,11 @@ export function ContactForm() {
       setSnapshotExclusive(true);
       setSnapshotEnvironment("");
       setReferenceImagesCount(0);
+      setSnapshotFile(null);
+      setSnapshotPreview(null);
+      setAnalysisStatus("idle");
+      setAnalysisResult(null);
+      setAnalysisMessage("");
     } catch (error) {
       setStatus("error");
       setMessage("Transmission failed. Please try again.");
@@ -1427,90 +1607,305 @@ export function ContactForm() {
               />
             </div>
           </section>
-        ) : requestType === "snapshot" ? (
-          <section className="mb-12 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="border-b border-zinc-100 pb-4">
-              <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-indigo-600">
-                <Camera className="h-3.5 w-3.5" /> Reference Photo Brief
-              </h4>
-            </div>
-
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-3">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                  Reference photo(s)
-                </label>
-                <input
-                  type="file"
-                  name="referenceImages"
-                  accept="image/*"
-                  required
-                  multiple
-                  onChange={(e) =>
-                    setReferenceImagesCount(e.target.files?.length ?? 0)
-                  }
-                  className="w-full rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-10 text-center text-sm text-zinc-500 hover:border-indigo-300"
-                />
-                <p className="text-xs text-zinc-500">
-                  Capture a single wide, well-lit frame of the entire scene. We’ll use it to reconstruct a SimReady version of that exact layout.
-                </p>
-              </div>
-
-              <div className="space-y-3 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-indigo-700">
-                  <Layers className="h-3.5 w-3.5" /> Exclusivity
-                </div>
-                <label className="flex items-start gap-3 rounded-xl bg-white/80 p-3 text-sm text-zinc-700 shadow-sm">
-                  <input
-                    type="checkbox"
-                    checked={snapshotExclusive}
-                    onChange={(e) => setSnapshotExclusive(e.target.checked)}
-                    className="mt-1 h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span>
-                    Keep this reconstruction exclusive by default. Uncheck to allow us to list the scene in the open catalog (pricing stays the same).
-                  </span>
-                </label>
-                <div className="rounded-lg bg-white/80 p-3 text-xs text-zinc-600 shadow-sm">
-                  Typical budgets land around $1k per scene for photo-based rebuilds.
+          ) : requestType === "snapshot" ? (
+            <section className="mb-12 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex flex-col gap-3 border-b border-zinc-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-700">
+                    <Camera className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-[0.35em] text-indigo-700">
+                      Reference Photo Brief
+                    </h4>
+                    <p className="text-sm text-zinc-600">
+                      Upload one wide, well-lit frame. Gemini 3 Pro will estimate feasibility, effort, and a quote before you submit.
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                  Scene Archetype (existing coverage)
-                </label>
-                <select
-                  required
-                  value={snapshotEnvironment}
-                  onChange={(e) => setSnapshotEnvironment(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500/20"
-                >
-                  <option value="" disabled>
-                    Select archetype...
-                  </option>
-                  {environmentOptions.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
+              <div className="grid gap-6 lg:grid-cols-3">
+                <div className="space-y-6 lg:col-span-2">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-3">
+                      <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                        Reference photo
+                      </label>
+                      <label className="group flex h-full cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-4 text-center transition hover:border-indigo-300 hover:bg-indigo-50/50">
+                        <input
+                          type="file"
+                          name="referenceImages"
+                          accept="image/*"
+                          required
+                          onChange={(e) => handleSnapshotUpload(e.target.files)}
+                          className="hidden"
+                        />
+                        {snapshotPreview ? (
+                          <div className="w-full space-y-3">
+                            <div className="overflow-hidden rounded-xl border border-zinc-200">
+                              <img
+                                src={snapshotPreview}
+                                alt="Reference preview"
+                                className="h-48 w-full object-cover"
+                              />
+                            </div>
+                            <p className="text-sm font-medium text-zinc-800">
+                              {snapshotFile?.name ?? "Reference photo attached"}
+                            </p>
+                            <p className="text-xs text-zinc-500">
+                              Replace the file to re-run Gemini analysis.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center gap-2 text-zinc-500">
+                            <Camera className="h-5 w-5 text-indigo-500" />
+                            <p className="text-sm font-semibold text-zinc-700">
+                              Drop a single well-lit frame
+                            </p>
+                            <p className="text-xs text-zinc-500">
+                              Wide shot of the entire scene. JPG or PNG works great.
+                            </p>
+                          </div>
+                        )}
+                      </label>
+                      <p className="text-xs text-zinc-500">
+                        Capture a single wide, well-lit frame of the entire scene. We’ll reconstruct a SimReady version of that exact layout.
+                      </p>
+                    </div>
+
+                    <div className="space-y-3 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-indigo-700">
+                        <Layers className="h-3.5 w-3.5" /> Exclusivity
+                      </div>
+                      <label className="flex items-start gap-3 rounded-xl bg-white/80 p-3 text-sm text-zinc-700 shadow-sm">
+                        <input
+                          type="checkbox"
+                          checked={snapshotExclusive}
+                          onChange={(e) => setSnapshotExclusive(e.target.checked)}
+                          className="mt-1 h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span>
+                          Keep this reconstruction exclusive by default. Uncheck to allow us to list the scene in the open catalog (pricing stays the same).
+                        </span>
+                      </label>
+                      <div className="rounded-lg bg-white/80 p-3 text-xs text-zinc-600 shadow-sm">
+                        Typical budgets land around $1k per scene for photo-based rebuilds. Gemini will refine the quote after analysis.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                        Scene Archetype (existing coverage)
+                      </label>
+                      <select
+                        required
+                        value={snapshotEnvironment}
+                        onChange={(e) => setSnapshotEnvironment(e.target.value)}
+                        className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500/20"
+                      >
+                        <option value="" disabled>
+                          Select archetype...
+                        </option>
+                        {environmentOptions.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                        Notes about this location
+                      </label>
+                      <input
+                        name="snapshotNotes"
+                        placeholder="What must stay true in the reconstruction?"
+                        className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500/20"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                        Gemini 3 Pro API Key
+                      </label>
+                      <input
+                        type="password"
+                        value={geminiApiKey}
+                        onChange={(e) => setGeminiApiKey(e.target.value)}
+                        placeholder="Paste your key or set VITE_GEMINI_API_KEY"
+                        className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500/20"
+                      />
+                      <p className="text-xs text-zinc-500">
+                        Key stays in-browser for this session. Add <code className="rounded bg-zinc-100 px-1">VITE_GEMINI_API_KEY</code> to your env to auto-fill.
+                      </p>
+                    </div>
+                    <div className="space-y-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-500">
+                          <Terminal className="h-3.5 w-3.5" /> Gemini Analysis
+                        </div>
+                        {analysisStatus === "analyzing" && (
+                          <div className="flex items-center gap-2 text-xs text-indigo-600">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Thinking
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-sm text-zinc-600">
+                        We’ll check coverage, count articulated vs static objects, and suggest effort. You can still submit even if Gemini flags the scene.
+                      </p>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                          analysisStatus === "ready"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : analysisStatus === "error"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-zinc-100 text-zinc-600"
+                        }`}>
+                          {analysisStatus === "ready"
+                            ? "Analysis ready"
+                            : analysisStatus === "analyzing"
+                            ? "Running"
+                            : analysisStatus === "error"
+                            ? "Needs retry"
+                            : "Waiting for photo"}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={runSnapshotAnalysis}
+                          disabled={analysisStatus === "analyzing"}
+                          className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-60"
+                        >
+                          {analysisStatus === "analyzing" ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" /> Analyzing...
+                            </>
+                          ) : (
+                            <>
+                              Run Gemini Review <ArrowRight className="h-4 w-4" />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                          Gemini 3 Pro Findings
+                        </p>
+                        <p className="text-sm text-zinc-600">
+                          {analysisMessage || "Run the analysis to see support and effort signals."}
+                        </p>
+                      </div>
+                      <div className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        analysisResult?.supported === false
+                          ? "bg-amber-100 text-amber-700"
+                          : analysisResult?.supported
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-zinc-100 text-zinc-600"
+                      }`}>
+                        {analysisResult
+                          ? analysisResult.supported
+                            ? "Supported"
+                            : "Manual review"
+                          : "Not yet analyzed"}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 rounded-xl bg-white p-4 shadow-sm">
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className="rounded-lg border border-zinc-100 p-3">
+                          <p className="text-xs font-semibold text-zinc-500">Total things</p>
+                          <p className="text-lg font-bold text-zinc-900">
+                            {analysisResult?.totalThings ?? "—"}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-zinc-100 p-3">
+                          <p className="text-xs font-semibold text-zinc-500">Articulated objects</p>
+                          <p className="text-lg font-bold text-zinc-900">
+                            {analysisResult?.articulatedObjects ?? "—"}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-zinc-100 p-3">
+                          <p className="text-xs font-semibold text-zinc-500">Static objects</p>
+                          <p className="text-lg font-bold text-zinc-900">
+                            {analysisResult?.staticObjects ?? "—"}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-zinc-100 p-3">
+                          <p className="text-xs font-semibold text-zinc-500">Support match</p>
+                          <p className="text-lg font-bold text-zinc-900">
+                            {analysisResult?.supported
+                              ? "Looks covered"
+                              : analysisResult?.supported === false
+                              ? "Needs review"
+                              : "Pending"}
+                          </p>
+                        </div>
+                      </div>
+                      {analysisResult?.extraNotes?.length ? (
+                        <div className="space-y-2">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                            Notes
+                          </p>
+                          <ul className="list-disc space-y-1 pl-4 text-sm text-zinc-700">
+                            {analysisResult.extraNotes.map((note) => (
+                              <li key={note}>{note}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-indigo-700">
+                          Gemini Quote Range
+                        </p>
+                        <p className="text-2xl font-bold text-indigo-900">
+                          ${deriveQuote(analysisResult).toLocaleString()}
+                        </p>
+                        <p className="text-xs text-indigo-700/80">
+                          Estimated per-scene effort based on the current analysis.
+                        </p>
+                      </div>
+                      <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-indigo-700">
+                        $1,000 – $5,000 window
+                      </div>
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <a
+                        href={`mailto:${SUPPORT.email}?subject=Reference%20photo%20question`}
+                        className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-indigo-700 shadow-sm transition hover:bg-indigo-100"
+                      >
+                        <Mail className="h-4 w-4" /> Email support
+                      </a>
+                      <a
+                        href={SUPPORT.calendly}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 rounded-full border border-indigo-200 px-4 py-2 text-sm font-semibold text-indigo-800 transition hover:bg-indigo-100"
+                      >
+                        <MessageCircle className="h-4 w-4" /> Book time
+                      </a>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                  Notes about this location
-                </label>
-                <input
-                  name="snapshotNotes"
-                  placeholder="What must stay true in the reconstruction?"
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500/20"
-                />
-              </div>
-            </div>
-          </section>
-        ) : (
+            </section>
+          ) : (
           <section className="mb-12 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="border-b border-zinc-100 pb-4">
               <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-emerald-600">
