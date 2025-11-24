@@ -1080,18 +1080,6 @@ const exclusivityOptions = [
   { value: "required", label: "Strict exclusivity required" },
 ];
 
-const sceneBudgetRanges = ["Under $5k", "$5k – $10k", "$10k – $25k", "$25k+"];
-const datasetBudgetRanges = [
-  "Under $50k",
-  "$50k – $100k",
-  "$100k – $500k",
-  "$500k+",
-];
-const snapshotBudgetRanges = [
-  "$750 – $1,250 per scene",
-  "$1,500 – $3,000 per scene",
-  "Enterprise quote",
-];
 const isaacVersions = ["Isaac 4.x", "Isaac 5.x", "Both", "Other"] as const;
 
 type SnapshotAnalysis = {
@@ -1102,6 +1090,7 @@ type SnapshotAnalysis = {
   staticObjects: number;
   extraNotes?: string[];
   suggestedQuote?: number;
+  sceneArchetype?: (typeof environmentOptions)[number];
 };
 
 const clampQuote = (value: number) =>
@@ -1151,6 +1140,8 @@ export function ContactForm() {
     useState<string>("");
   const [customLocationType, setCustomLocationType] = useState<string>("");
   const [snapshotEnvironment, setSnapshotEnvironment] = useState<string>("");
+  const [snapshotEnvironmentManuallySet, setSnapshotEnvironmentManuallySet] =
+    useState<boolean>(false);
   const [referenceImagesCount, setReferenceImagesCount] = useState<number>(0);
   const [snapshotFile, setSnapshotFile] = useState<File | null>(null);
   const [snapshotPreview, setSnapshotPreview] = useState<string | null>(null);
@@ -1161,13 +1152,11 @@ export function ContactForm() {
     null,
   );
   const [analysisMessage, setAnalysisMessage] = useState<string>("");
-  const [geminiApiKey, setGeminiApiKey] = useState<string>(
-    import.meta.env.VITE_GEMINI_API_KEY ?? "",
-  );
 
   // Refs
   const addressInputRef = useRef<HTMLInputElement | null>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const snapshotEnvironmentManualRef = useRef<boolean>(false);
   const [placesUnavailable, setPlacesUnavailable] = useState<boolean>(false);
 
   // --- Effects ---
@@ -1181,6 +1170,8 @@ export function ContactForm() {
 
     if (requestType !== "snapshot") {
       setSnapshotEnvironment("");
+      setSnapshotEnvironmentManuallySet(false);
+      snapshotEnvironmentManualRef.current = false;
       setSnapshotExclusive(true);
       setReferenceImagesCount(0);
       setSnapshotFile(null);
@@ -1286,6 +1277,8 @@ export function ContactForm() {
       setSnapshotFile(null);
       setSnapshotPreview(null);
       setReferenceImagesCount(0);
+      setSnapshotEnvironmentManuallySet(false);
+      snapshotEnvironmentManualRef.current = false;
       return;
     }
 
@@ -1294,13 +1287,19 @@ export function ContactForm() {
     setAnalysisStatus("idle");
     setAnalysisResult(null);
     setAnalysisMessage("");
+    setSnapshotEnvironmentManuallySet(false);
+    snapshotEnvironmentManualRef.current = false;
 
     const previewUrl = URL.createObjectURL(firstFile);
     setSnapshotPreview(previewUrl);
+
+    void runSnapshotAnalysis(firstFile);
   };
 
-  const runSnapshotAnalysis = async () => {
-    if (!snapshotFile) {
+  const runSnapshotAnalysis = async (file: File | null = snapshotFile) => {
+    const targetFile = file ?? snapshotFile;
+
+    if (!targetFile) {
       setAnalysisStatus("error");
       setAnalysisMessage("Add a reference photo to analyze.");
       setMessage("Please attach a reference photo for Gemini to review.");
@@ -1308,12 +1307,11 @@ export function ContactForm() {
       return;
     }
 
-    const key = geminiApiKey || import.meta.env.VITE_GEMINI_API_KEY;
+    const key = import.meta.env.VITE_GEMINI_API_KEY;
     if (!key) {
       setAnalysisStatus("error");
-      setAnalysisMessage("Add your Gemini 3 Pro API key to run analysis.");
-      setMessage("Gemini API key required for the reference photo review.");
-      setStatus("error");
+      setAnalysisMessage("Gemini analysis is temporarily unavailable.");
+      setMessage("We couldn't auto-run Gemini. You can still submit the request.");
       return;
     }
 
@@ -1324,8 +1322,8 @@ export function ContactForm() {
     try {
       const ai = new GoogleGenAI({ apiKey: key });
 
-      const encodedImage = await base64FromFile(snapshotFile);
-      const prompt = `You are Blueprint's quoting assistant. Analyze the uploaded reference photo for a robotics simulation rebuild. Return JSON with keys: supported (boolean), supportedReason (string), totalThings (integer count of visually distinct items), articulatedObjects (integer count of things that must move or hinge), staticObjects (integer count of items that can stay fixed), extraNotes (array of 1-3 bullet strings), suggestedQuote (number between 1000 and 5000 estimating USD effort for rebuild). Be concise.`;
+      const encodedImage = await base64FromFile(targetFile);
+      const prompt = `You are Blueprint's quoting assistant. Analyze the uploaded reference photo for a robotics simulation rebuild. Return JSON with keys: supported (boolean), supportedReason (string), totalThings (integer count of visually distinct items), articulatedObjects (integer count of things that must move or hinge), staticObjects (integer count of items that can stay fixed), extraNotes (array of 1-3 bullet strings), suggestedQuote (number between 1000 and 5000 estimating USD effort for rebuild), sceneArchetype (choose one best-fit string from [${environmentOptions.join(", ")}]). Be concise.`;
 
       const result = await ai.models.generateContent({
         model: "gemini-3-pro-preview",
@@ -1342,7 +1340,7 @@ export function ContactForm() {
               {
                 inlineData: {
                   data: encodedImage,
-                  mimeType: snapshotFile.type || "image/jpeg",
+                  mimeType: targetFile.type || "image/jpeg",
                 },
               },
             ],
@@ -1365,6 +1363,13 @@ export function ContactForm() {
         : parsed.extraNotes
         ? [String(parsed.extraNotes)]
         : [];
+      const normalizedArchetype =
+        typeof parsed.sceneArchetype === "string" &&
+        environmentOptions.includes(
+          parsed.sceneArchetype as (typeof environmentOptions)[number],
+        )
+          ? (parsed.sceneArchetype as (typeof environmentOptions)[number])
+          : undefined;
       const normalized: SnapshotAnalysis = {
         supported: Boolean(parsed.supported),
         supportedReason: parsed.supportedReason ?? "",
@@ -1379,6 +1384,7 @@ export function ContactForm() {
           : 0,
         extraNotes: normalizedNotes,
         suggestedQuote: parsed.suggestedQuote,
+        sceneArchetype: normalizedArchetype,
       };
 
       const quote = deriveQuote(normalized);
@@ -1389,6 +1395,9 @@ export function ContactForm() {
           ? "Scene looks compatible with our coverage."
           : "Scene may need a manual review — we’ll help you triage.",
       );
+      if (normalized.sceneArchetype && !snapshotEnvironmentManualRef.current) {
+        setSnapshotEnvironment(normalized.sceneArchetype);
+      }
       setStatus("idle");
     } catch (error) {
       console.error("Gemini analysis failed", error);
@@ -1469,6 +1478,8 @@ export function ContactForm() {
       setSitePlaceId("");
       setSnapshotExclusive(true);
       setSnapshotEnvironment("");
+      setSnapshotEnvironmentManuallySet(false);
+      snapshotEnvironmentManualRef.current = false;
       setReferenceImagesCount(0);
       setSnapshotFile(null);
       setSnapshotPreview(null);
@@ -1625,9 +1636,9 @@ export function ContactForm() {
                 </div>
               </div>
 
-              <div className="grid gap-6 lg:grid-cols-3">
-                <div className="space-y-6 lg:col-span-2">
-                  <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
+                <div className="space-y-6">
+                  <div className="space-y-4">
                     <div className="space-y-3">
                       <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
                         Reference photo
@@ -1673,26 +1684,6 @@ export function ContactForm() {
                         Capture a single wide, well-lit frame of the entire scene. We’ll reconstruct a SimReady version of that exact layout.
                       </p>
                     </div>
-
-                    <div className="space-y-3 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
-                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-indigo-700">
-                        <Layers className="h-3.5 w-3.5" /> Exclusivity
-                      </div>
-                      <label className="flex items-start gap-3 rounded-xl bg-white/80 p-3 text-sm text-zinc-700 shadow-sm">
-                        <input
-                          type="checkbox"
-                          checked={snapshotExclusive}
-                          onChange={(e) => setSnapshotExclusive(e.target.checked)}
-                          className="mt-1 h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                        <span>
-                          Keep this reconstruction exclusive by default. Uncheck to allow us to list the scene in the open catalog (pricing stays the same).
-                        </span>
-                      </label>
-                      <div className="rounded-lg bg-white/80 p-3 text-xs text-zinc-600 shadow-sm">
-                        Typical budgets land around $1k per scene for photo-based rebuilds. Gemini will refine the quote after analysis.
-                      </div>
-                    </div>
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
@@ -1703,7 +1694,11 @@ export function ContactForm() {
                       <select
                         required
                         value={snapshotEnvironment}
-                        onChange={(e) => setSnapshotEnvironment(e.target.value)}
+                        onChange={(e) => {
+                          setSnapshotEnvironment(e.target.value);
+                          setSnapshotEnvironmentManuallySet(true);
+                          snapshotEnvironmentManualRef.current = true;
+                        }}
                         className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500/20"
                       >
                         <option value="" disabled>
@@ -1728,70 +1723,44 @@ export function ContactForm() {
                     </div>
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                        Gemini 3 Pro API Key
-                      </label>
-                      <input
-                        type="password"
-                        value={geminiApiKey}
-                        onChange={(e) => setGeminiApiKey(e.target.value)}
-                        placeholder="Paste your key or set VITE_GEMINI_API_KEY"
-                        className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500/20"
-                      />
-                      <p className="text-xs text-zinc-500">
-                        Key stays in-browser for this session. Add <code className="rounded bg-zinc-100 px-1">VITE_GEMINI_API_KEY</code> to your env to auto-fill.
-                      </p>
+                  <div className="space-y-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-500">
+                        <Terminal className="h-3.5 w-3.5" /> Gemini Analysis
+                      </div>
+                      {analysisStatus === "analyzing" && (
+                        <div className="flex items-center gap-2 text-xs text-indigo-600">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Thinking
+                        </div>
+                      )}
                     </div>
-                    <div className="space-y-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-500">
-                          <Terminal className="h-3.5 w-3.5" /> Gemini Analysis
-                        </div>
-                        {analysisStatus === "analyzing" && (
-                          <div className="flex items-center gap-2 text-xs text-indigo-600">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Thinking
-                          </div>
-                        )}
+                    <p className="text-sm text-zinc-600">
+                      We’ll auto-run Gemini after you add a reference photo. It checks coverage, counts articulated vs static objects, and suggests effort.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        analysisStatus === "ready"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : analysisStatus === "error"
+                          ? "bg-red-100 text-red-700"
+                          : analysisStatus === "analyzing"
+                          ? "bg-indigo-100 text-indigo-700"
+                          : "bg-zinc-100 text-zinc-600"
+                      }`}>
+                        {analysisStatus === "ready"
+                          ? "Analysis ready"
+                          : analysisStatus === "analyzing"
+                          ? "Running automatically"
+                          : analysisStatus === "error"
+                          ? "Needs retry"
+                          : "Waiting for photo"}
                       </div>
-                      <p className="text-sm text-zinc-600">
-                        We’ll check coverage, count articulated vs static objects, and suggest effort. You can still submit even if Gemini flags the scene.
-                      </p>
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                          analysisStatus === "ready"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : analysisStatus === "error"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-zinc-100 text-zinc-600"
-                        }`}>
-                          {analysisStatus === "ready"
-                            ? "Analysis ready"
-                            : analysisStatus === "analyzing"
-                            ? "Running"
-                            : analysisStatus === "error"
-                            ? "Needs retry"
-                            : "Waiting for photo"}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={runSnapshotAnalysis}
-                          disabled={analysisStatus === "analyzing"}
-                          className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-60"
-                        >
-                          {analysisStatus === "analyzing" ? (
-                            <>
-                              <Loader2 className="h-4 w-4 animate-spin" /> Analyzing...
-                            </>
-                          ) : (
-                            <>
-                              Run Gemini Review <ArrowRight className="h-4 w-4" />
-                            </>
-                          )}
-                        </button>
-                      </div>
+                      {analysisStatus === "error" && (
+                        <span className="text-xs text-amber-700">
+                          We’ll handle review manually if needed.
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1804,7 +1773,8 @@ export function ContactForm() {
                           Gemini 3 Pro Findings
                         </p>
                         <p className="text-sm text-zinc-600">
-                          {analysisMessage || "Run the analysis to see support and effort signals."}
+                          {analysisMessage ||
+                            "Upload a reference photo to see support and effort signals."}
                         </p>
                       </div>
                       <div className={`rounded-full px-3 py-1 text-xs font-semibold ${
@@ -2099,70 +2069,48 @@ export function ContactForm() {
             </div>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
+          {requestType === "snapshot" ? (
             <div className="space-y-2">
               <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                Budget Range
+                Exclusivity
+              </label>
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={snapshotExclusive}
+                    onChange={(e) => setSnapshotExclusive(e.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <div>
+                    <p className="font-semibold text-zinc-900">
+                      Keep this reconstruction exclusive by default
+                    </p>
+                    <p className="text-sm text-zinc-600">
+                      Uncheck to allow an open catalog listing; pricing stays the same.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                Exclusivity
               </label>
               <select
-                name="budgetRange"
+                value={exclusivity}
+                onChange={(e) => setExclusivity(e.target.value)}
                 className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500/20"
               >
-                {(requestType === "scene"
-                  ? sceneBudgetRanges
-                  : requestType === "snapshot"
-                  ? snapshotBudgetRanges
-                  : datasetBudgetRanges
-                ).map((r) => (
-                  <option key={r} value={r}>
-                    {r}
+                {exclusivityOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
                   </option>
                 ))}
               </select>
             </div>
-            {requestType === "snapshot" ? (
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                  Exclusivity
-                </label>
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={snapshotExclusive}
-                      onChange={(e) => setSnapshotExclusive(e.target.checked)}
-                      className="mt-1 h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <div>
-                      <p className="font-semibold text-zinc-900">
-                        Keep this drop exclusive by default
-                      </p>
-                      <p className="text-sm text-zinc-600">
-                        You can uncheck to allow an open catalog listing; pricing stays the same.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                  Exclusivity
-                </label>
-                <select
-                  value={exclusivity}
-                  onChange={(e) => setExclusivity(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500/20"
-                >
-                  {exclusivityOptions.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
+          )}
         </section>
 
         {/* 4. Contact Info */}
