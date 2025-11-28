@@ -482,7 +482,7 @@ const offeringCards = [
       "Exclusive delivery by default; opt into open catalog if you prefer",
     ],
     ctaLabel: "Upload a photo",
-    ctaHref: "/contact",
+    ctaHref: "/contact?request=snapshot",
     icon: <Camera className="h-8 w-8 text-zinc-900" />,
   },
   {
