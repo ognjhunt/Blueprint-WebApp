@@ -1121,7 +1121,31 @@ const deriveQuote = (analysis: SnapshotAnalysis | null) => {
   return clampQuote(analysis.suggestedQuote ?? inferred);
 };
 
-const defaultRequestType = SHOW_REAL_WORLD_CAPTURE ? "scene" : "dataset";
+type RequestType = "dataset" | "scene" | "snapshot";
+
+const defaultRequestType: RequestType = SHOW_REAL_WORLD_CAPTURE
+  ? "scene"
+  : "dataset";
+
+const getInitialRequestType = (): RequestType => {
+  if (typeof window === "undefined") {
+    return defaultRequestType;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("request");
+  const allowedRequests: RequestType[] = ["dataset", "scene", "snapshot"];
+
+  if (requested && allowedRequests.includes(requested as RequestType)) {
+    if (!SHOW_REAL_WORLD_CAPTURE && requested === "scene") {
+      return defaultRequestType;
+    }
+
+    return requested as RequestType;
+  }
+
+  return defaultRequestType;
+};
 
 export function ContactForm() {
   // --- State ---
@@ -1129,9 +1153,9 @@ export function ContactForm() {
     "idle" | "loading" | "success" | "error"
   >("idle");
   const [message, setMessage] = useState("");
-  const [requestType, setRequestType] = useState<
-    "dataset" | "scene" | "snapshot"
-  >(defaultRequestType);
+  const [requestType, setRequestType] = useState<RequestType>(
+    getInitialRequestType,
+  );
 
   // Form Data
   const [datasetTier, setDatasetTier] = useState<string>(datasetTiers[0].value);
