@@ -46,7 +46,7 @@ type CheckoutRequestBody = {
   };
 };
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "";
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "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";
 const stripe = stripeSecretKey
   ? new Stripe(stripeSecretKey)
   : null;
