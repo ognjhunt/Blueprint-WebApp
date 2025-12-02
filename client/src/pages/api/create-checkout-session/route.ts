@@ -1,9 +1,7 @@
 import type { Request, Response } from "express";
 import Stripe from "stripe";
 
-type PaymentSessionType =
-  | "onboarding"
-  | "legacy-hourly";
+type PaymentSessionType = "onboarding" | "legacy-hourly" | "marketplace";
 
 type CheckoutRequestBody = {
   sessionType?: PaymentSessionType;
@@ -38,6 +36,14 @@ type CheckoutRequestBody = {
   totalCost?: number;
   hours?: number;
   costPerHour?: number;
+  marketplaceItem?: {
+    sku?: string;
+    title?: string;
+    description?: string;
+    price?: number;
+    quantity?: number;
+    itemType?: string;
+  };
 };
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "";
@@ -101,6 +107,67 @@ export default async function handler(req: Request, res: Response) {
 
     const originHeader = req.headers.origin as string | undefined;
     const originBase = resolveBaseOrigin(originHeader);
+
+    if (sessionType === "marketplace") {
+      const { marketplaceItem } = body;
+      const price = marketplaceItem?.price;
+      const quantity =
+        typeof marketplaceItem?.quantity === "number" &&
+        Number.isFinite(marketplaceItem.quantity) &&
+        marketplaceItem.quantity > 0
+          ? Math.floor(marketplaceItem.quantity)
+          : 1;
+
+      if (
+        !marketplaceItem?.title ||
+        typeof marketplaceItem.title !== "string" ||
+        typeof price !== "number" ||
+        !Number.isFinite(price)
+      ) {
+        return res.status(400).json({
+          error: "A valid marketplace item title and price are required",
+        });
+      }
+
+      const sanitizedDescription = (marketplaceItem.description || "").slice(0, 500);
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name: marketplaceItem.title,
+                description: sanitizedDescription || undefined,
+                metadata: {
+                  sku: marketplaceItem.sku || "",
+                  itemType: marketplaceItem.itemType || "",
+                },
+              },
+              unit_amount: Math.round(price * 100),
+            },
+            quantity,
+          },
+        ],
+        metadata: {
+          marketplaceSku: marketplaceItem.sku || "",
+          marketplaceItemType: marketplaceItem.itemType || "",
+          marketplaceTitle: marketplaceItem.title,
+          marketplaceDescription: sanitizedDescription,
+          marketplacePrice: price.toFixed(2),
+          marketplaceQuantity: quantity.toString(),
+        },
+        success_url: resolveUrl(
+          originBase,
+          body.successPath,
+          "/environments?checkout=success",
+        ),
+        cancel_url: resolveUrl(originBase, body.cancelPath, "/environments?checkout=cancel"),
+      });
+
+      return res.json({ sessionId: session.id, sessionUrl: session.url });
+    }
 
     if (sessionType === "onboarding") {
       const onboardingFee = typeof body.onboardingFee === "number" ? body.onboardingFee : 0;
