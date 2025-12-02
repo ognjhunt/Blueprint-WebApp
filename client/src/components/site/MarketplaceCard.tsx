@@ -1,7 +1,9 @@
+import type { MouseEvent } from "react";
 import { useState, useCallback } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Shield, Package, Sparkles, TrendingUp, ShoppingCart } from "lucide-react";
 import type { SyntheticDataset, MarketplaceScene } from "@/data/content";
+import { useLocation } from "wouter";
 
 interface MarketplaceCardProps {
   item: SyntheticDataset | MarketplaceScene;
@@ -10,9 +12,11 @@ interface MarketplaceCardProps {
 
 export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [, navigate] = useLocation();
   const isDataset = type === "dataset";
   const dataset = isDataset ? (item as SyntheticDataset) : null;
   const scene = !isDataset ? (item as MarketplaceScene) : null;
+  const slug = isDataset ? dataset!.slug : scene!.slug;
 
   // Calculate savings for datasets
   const savingsPercent = dataset?.standardPricePerScene
@@ -33,79 +37,101 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
   const thumbnail = isDataset ? dataset!.heroImage : scene!.thumbnail;
   const tags = item.tags;
 
-  const handleBuyNow = useCallback(async () => {
-    if (!scene || isRedirecting) return;
+  const handleCheckout = useCallback(
+    async (event?: MouseEvent<HTMLButtonElement>) => {
+      event?.stopPropagation();
+      if (isRedirecting) return;
 
-    setIsRedirecting(true);
-    try {
-      const response = await fetch("/api/create-checkout-session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          sessionType: "marketplace",
-          successPath: "/environments?checkout=success",
-          cancelPath: "/environments?checkout=cancel",
-          marketplaceItem: {
-            sku: scene.slug,
-            title: scene.title,
-            description: scene.description,
-            price: scene.price,
+      const checkoutItem = isDataset
+        ? {
+            sku: dataset!.slug,
+            title: dataset!.title,
+            description: dataset!.description,
+            price: dataset!.pricePerScene,
+            quantity: dataset!.sceneCount || 1,
+            itemType: "dataset" as const,
+          }
+        : {
+            sku: scene!.slug,
+            title: scene!.title,
+            description: scene!.description,
+            price: scene!.price,
             quantity: 1,
-            itemType: "scene",
+            itemType: "scene" as const,
+          };
+
+      setIsRedirecting(true);
+      try {
+        const response = await fetch("/api/create-checkout-session", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
-        }),
-      });
+          body: JSON.stringify({
+            sessionType: "marketplace",
+            successPath: `/environments/${slug}?checkout=success`,
+            cancelPath: `/environments/${slug}?checkout=cancel`,
+            marketplaceItem: checkoutItem,
+          }),
+        });
 
-      const data = await response.json();
-      if (!response.ok || !data?.sessionId) {
-        throw new Error(
-          data?.error || "We couldn't start checkout just yet. Please try again.",
-        );
+        const data = await response.json();
+        if (!response.ok || !data?.sessionId) {
+          throw new Error(
+            data?.error || "We couldn't start checkout just yet. Please try again.",
+          );
+        }
+
+        const sessionUrl =
+          typeof data.sessionUrl === "string" && data.sessionUrl.length > 0
+            ? data.sessionUrl
+            : undefined;
+
+        const publishableKey =
+          import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
+          import.meta.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ||
+          "pk_test_51ODuefLAUkK46LtZQ7o2si0POvd89pgNhE8pRcCCqMmmp9z534veOOiz81xMZcjZuEDK2CkdQnE9NhRy4WEoqWJG00ErDRTYlA";
+
+        if (sessionUrl) {
+          window.location.href = sessionUrl;
+          return;
+        }
+
+        const stripe = await loadStripe(publishableKey);
+        if (!stripe) {
+          throw new Error("Stripe failed to initialize");
+        }
+
+        const result = await stripe.redirectToCheckout({
+          sessionId: data.sessionId,
+        });
+
+        if (result.error) {
+          throw result.error;
+        }
+      } catch (error) {
+        console.error("Unable to start Stripe checkout", error);
+        const message =
+          error instanceof Error
+            ? error.message
+            : "We couldn't start checkout just yet. Please try again.";
+        alert(message);
+      } finally {
+        setIsRedirecting(false);
       }
+    },
+    [dataset, isDataset, isRedirecting, scene, slug],
+  );
 
-      const sessionUrl =
-        typeof data.sessionUrl === "string" && data.sessionUrl.length > 0
-          ? data.sessionUrl
-          : undefined;
-
-      const publishableKey =
-        import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
-        import.meta.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ||
-        "pk_test_51ODuefLAUkK46LtZQ7o2si0POvd89pgNhE8pRcCCqMmmp9z534veOOiz81xMZcjZuEDK2CkdQnE9NhRy4WEoqWJG00ErDRTYlA";
-
-      if (sessionUrl) {
-        window.location.href = sessionUrl;
-        return;
-      }
-
-      const stripe = await loadStripe(publishableKey);
-      if (!stripe) {
-        throw new Error("Stripe failed to initialize");
-      }
-
-      const result = await stripe.redirectToCheckout({
-        sessionId: data.sessionId,
-      });
-
-      if (result.error) {
-        throw result.error;
-      }
-    } catch (error) {
-      console.error("Unable to start Stripe checkout", error);
-      const message =
-        error instanceof Error
-          ? error.message
-          : "We couldn't start checkout just yet. Please try again.";
-      alert(message);
-    } finally {
-      setIsRedirecting(false);
-    }
-  }, [isRedirecting, scene]);
+  const handleCardClick = () => {
+    navigate(`/environments/${slug}`);
+  };
 
   return (
-    <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition-all hover:shadow-xl hover:border-zinc-300">
+    <article
+      className="group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition-all hover:shadow-xl hover:border-zinc-300"
+      onClick={handleCardClick}
+    >
       {/* Image */}
       <div className="relative aspect-[4/3] overflow-hidden bg-zinc-100">
         <img
@@ -276,12 +302,14 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
         {/* CTA Button */}
         <button
           className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:bg-indigo-600 hover:shadow-lg active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
-          onClick={isDataset ? undefined : handleBuyNow}
-          disabled={!isDataset && isRedirecting}
+          onClick={handleCheckout}
+          disabled={isRedirecting}
         >
           <ShoppingCart className="h-4 w-4" />
           {isDataset
-            ? "Add Bundle to Cart"
+            ? isRedirecting
+              ? "Redirecting..."
+              : "Buy Bundle"
             : isRedirecting
             ? "Redirecting..."
             : "Buy Now"}
