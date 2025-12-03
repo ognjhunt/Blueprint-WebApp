@@ -802,7 +802,7 @@ export const scenes: Scene[] = [
     replicator: "Surface class + SKU tags",
     testedWith: "Simulation QA suite",
     leadTime: "7 business days",
-    ctaText: "Book delivery",
+    ctaText: "Book a build",
     seo: "SimReady dishroom with revolute doors and prismatic racks for articulated policy training.",
     highlights: [
       "High-gloss stainless with baked AO",
@@ -939,7 +939,7 @@ export const scenes: Scene[] = [
     colliders: "Convex decomp with door sweep volumes",
     testedWith: "Simulation QA suite",
     leadTime: "6 business days",
-    ctaText: "Schedule delivery",
+    ctaText: "Schedule a build",
     seo: "SimReady refrigerated grocery aisle with articulated doors and shelf slides.",
     highlights: [
       "Thermal gradients for sensor testing",
@@ -1589,9 +1589,9 @@ export const jobs: Job[] = [
     title: "3D Artist",
     type: "Contract",
     location: "Remote",
-    summary: "Create high-fidelity assets with watertight topology and clean UVs for SimReady delivery.",
+    summary: "Create high-fidelity assets with watertight topology and clean UVs for SimReady handoff.",
     description:
-      "You will translate capture outputs and kitbashed assets into polished simulation-ready geometry. Expect to iterate with our robotics specialists on articulation coverage, pivots, and collider tuning. Compensation is per scene annotated or edited and averages approximately $50 per hour.",
+      "You will translate capture outputs and kitbashed assets into polished simulation-ready geometry. Expect to iterate with our robotics specialists on articulation coverage, pivots, and collider tuning. Compensation is scoped to each project and averages approximately $50 per hour.",
     applyEmail: "apply+artist@tryblueprint.io",
   },
   {
@@ -1600,7 +1600,7 @@ export const jobs: Job[] = [
     location: "Remote",
     summary: "Build the authoring tools that automate SimReady finishing across our environment network.",
     description:
-      "Design and ship USD pipelines that enforce our SimReady spec, from collider validation to articulation presets. You'll collaborate with artists and robotics teams to accelerate delivery.",
+      "Design and ship USD pipelines that enforce our SimReady spec, from collider validation to articulation presets. You'll collaborate with artists and robotics teams to accelerate turnaround.",
     applyEmail: "apply+usd@tryblueprint.io",
   },
 ];

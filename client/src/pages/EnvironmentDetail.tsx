@@ -151,7 +151,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     const quantityLabel = isDataset
       ? `${(marketplaceDataset as SyntheticDataset).sceneCount} scenes`
       : `${(variantCount ?? 1)} variants`;
-    const priceLabel = isDataset ? "/scene" : "per scene";
+    const priceLabel = isDataset ? "/scene" : "";
     const bundleTotal = isDataset
       ? ((marketplaceDataset as SyntheticDataset).pricePerScene || 0) *
         ((marketplaceDataset as SyntheticDataset).sceneCount || 1)
@@ -250,7 +250,9 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                         ? (marketplaceDataset as SyntheticDataset).pricePerScene
                         : (marketplaceScene as MarketplaceScene).price}
                     </span>
-                    <span className="text-sm text-zinc-500">{priceLabel}</span>
+                    {priceLabel ? (
+                      <span className="text-sm text-zinc-500">{priceLabel}</span>
+                    ) : null}
                     {isDataset && (marketplaceDataset as SyntheticDataset).standardPricePerScene ? (
                       <span className="text-xs text-zinc-400 line-through">
                         ${(marketplaceDataset as SyntheticDataset).standardPricePerScene}
@@ -264,9 +266,11 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                     }`}
                   </p>
                 ) : (
-                    <p className="mt-1 text-xs text-emerald-600">
-                      {(marketplaceScene as MarketplaceScene).inStock ? "In stock for immediate delivery" : "Pre-order"}
-                    </p>
+                  <p className="mt-1 text-xs text-emerald-600">
+                    {(marketplaceScene as MarketplaceScene).inStock
+                      ? "Available for immediate access"
+                      : "Join the waitlist"}
+                  </p>
                   )}
                 </div>
                 <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">
@@ -524,9 +528,9 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
             <li>Optional annotation bundles: {scene.replicator ?? "available on request"}.</li>
           </ul>
           <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">
-            <h3 className="text-sm font-semibold text-slate-900">Delivery</h3>
+            <h3 className="text-sm font-semibold text-slate-900">Access</h3>
             <p className="mt-2">
-              Standard lead time: {scene.leadTime}. Rush delivery available pending scope. Scenes are shipped via secure link with release notes and simulation validation checklists.
+              Standard lead time: {scene.leadTime}. Expedited turnaround is available pending scope. Scenes are provided via secure download with release notes and simulation validation checklists.
             </p>
           </div>
         </div>
