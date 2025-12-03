@@ -217,7 +217,7 @@ const proceduralSteps = [
   {
     title: "Validate",
     description:
-      "Every delivery ships with simulation QA runs, semantic labels on request, and annotation-ready metadata.",
+      "Every release includes simulation QA runs, semantic labels on request, and annotation-ready metadata.",
     icon: <CheckCircle2 className="h-6 w-6 text-indigo-600" />,
   },
 ];
@@ -323,7 +323,7 @@ export default function Solutions() {
                     The SimReady Standard
                   </h2>
                   <p className="text-xs text-zinc-500">
-                    Guaranteed on every delivery
+                    Guaranteed in every release
                   </p>
                 </div>
               </div>
@@ -454,7 +454,7 @@ export default function Solutions() {
                 </p>
 
                 <ul className="grid gap-3 text-sm text-zinc-700 sm:grid-cols-2">
-                  {["Budget averages around $1k per scene", "Exclusive delivery by default—opt into open catalog if you want", "Includes authored colliders, pivots, and materials", "Submit use cases so we validate against your policies"].map(
+                  {["Budget averages around $1k per environment", "Exclusive access by default—opt into open catalog if you want", "Includes authored colliders, pivots, and materials", "Submit use cases so we validate against your policies"].map(
                     (item) => (
                       <li
                         key={item}
@@ -487,7 +487,7 @@ export default function Solutions() {
                   </div>
                   <div>
                     <p className="text-xs font-bold uppercase tracking-widest text-indigo-500">
-                      Delivery Checklist
+                      Release Checklist
                     </p>
                     <p className="text-sm text-zinc-700">
                       Built for labs that need a specific, exclusive layout.

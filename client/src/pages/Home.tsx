@@ -451,7 +451,7 @@ const labBullets = [
 const artistBullets = [
   "Join a network shipping scenes to leading labs",
   "Focus on fidelity—we’ll handle the pipeline",
-  "Paid per scene, bonuses for articulation coverage",
+  "Project-based pay with bonuses for articulation coverage",
 ];
 
 const SHOW_REAL_WORLD_CAPTURE = false;
@@ -479,7 +479,7 @@ const offeringCards = [
     bullets: [
       "Submit a kitchen, aisle, lab, or other covered archetype",
       "We author USD/URDF handoff with QA against your use cases",
-      "Exclusive delivery by default; opt into open catalog if you prefer",
+      "Exclusive access by default; opt into open catalog if you prefer",
     ],
     ctaLabel: "Upload a photo",
     ctaHref: "/contact?request=snapshot",

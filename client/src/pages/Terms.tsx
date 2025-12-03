@@ -7,7 +7,7 @@ export default function Terms() {
         </p>
         <h1 className="text-4xl font-semibold text-slate-900">Terms of Service</h1>
         <p className="text-sm text-slate-600">
-          Updated December 2024. These terms govern your access to and use of Blueprint’s services, including environment delivery, on-site capture, and supporting software.
+          Updated December 2024. These terms govern your access to and use of Blueprint’s services, including environment access, on-site capture, and supporting software.
         </p>
       </header>
       <section className="space-y-3 text-sm text-slate-600">
