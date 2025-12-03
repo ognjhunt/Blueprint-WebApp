@@ -1,0 +1,43 @@
+# Dockerfile Patch for HF Token Authentication
+# Apply this to /home/nijelhunt1999/BlueprintPipeline/physx-service/Dockerfile
+
+# ============================================
+# CHANGE 1: Add after the transformers install step (around Step 19)
+# ============================================
+
+# FIND:
+# RUN pip install --no-cache-dir transformers==4.50.0 tokenizers==0.21.4 qwen-vl-utils accelerate av
+
+# ADD IMMEDIATELY AFTER:
+ARG HF_TOKEN
+ENV HUGGING_FACE_HUB_TOKEN=$HF_TOKEN
+ENV HF_TOKEN=$HF_TOKEN
+
+# ============================================
+# CHANGE 2: Update the download.py step (around Step 20)
+# ============================================
+
+# REPLACE THIS:
+# RUN echo "Attempting to download models using download.py..." && \
+#     if [ -f download.py ]; then \
+#         python download.py && echo "download.py succeeded" || \
+#         echo "Warning: download.py failed, trying alternative methods..."; \
+#     else \
+#         echo "download.py not found, will try alternative methods..."; \
+#     fi
+
+# WITH THIS:
+RUN echo "Attempting to download models using download.py..." && \
+    echo "HF_TOKEN status: $(if [ -z "$HF_TOKEN" ]; then echo 'NOT SET'; else echo 'SET'; fi)" && \
+    if [ -z "$HF_TOKEN" ]; then \
+        echo "WARNING: HF_TOKEN not provided. Download may fail for gated models."; \
+    else \
+        echo "HF_TOKEN provided, attempting authenticated download..."; \
+    fi && \
+    if [ -f download.py ]; then \
+        python download.py && echo "download.py succeeded" || \
+        (echo "ERROR: download.py failed! Check HF_TOKEN and network." && exit 1); \
+    else \
+        echo "ERROR: download.py not found!"; \
+        exit 1; \
+    fi

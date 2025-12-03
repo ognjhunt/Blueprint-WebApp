@@ -1,0 +1,78 @@
+# Cloud Build configuration for physx-service with HF Token support
+# Save this as: /home/nijelhunt1999/BlueprintPipeline/physx-service/cloudbuild.yaml
+
+steps:
+  # Build the Docker image with HF_TOKEN
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-image'
+    args:
+      - 'build'
+      - '--build-arg'
+      - 'HF_TOKEN=${_HF_TOKEN}'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/physx-service:latest'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/physx-service:$SHORT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/physx-service:$BUILD_ID'
+      - '--file'
+      - 'Dockerfile'
+      - '.'
+    timeout: 7200s  # 2 hours for large model download
+
+  # Push the image to GCR
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-image'
+    args:
+      - 'push'
+      - '--all-tags'
+      - 'gcr.io/$PROJECT_ID/physx-service'
+    waitFor: ['build-image']
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-service'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'physx-service'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/physx-service:$SHORT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--memory'
+      - '16Gi'
+      - '--cpu'
+      - '4'
+      - '--timeout'
+      - '3600'
+      - '--max-instances'
+      - '10'
+      - '--min-instances'
+      - '0'
+      - '--allow-unauthenticated'
+      - '--execution-environment'
+      - 'gen2'
+    waitFor: ['push-image']
+
+# Substitution variables
+substitutions:
+  _HF_TOKEN: ''  # Will be provided via --substitutions flag
+
+# Build configuration
+options:
+  machineType: 'E2_HIGHCPU_8'  # Faster build machine
+  diskSizeGb: 200  # More disk space for model download
+  logging: CLOUD_LOGGING_ONLY
+  timeout: 7200s  # 2 hours total timeout
+
+# Images to store
+images:
+  - 'gcr.io/$PROJECT_ID/physx-service:latest'
+  - 'gcr.io/$PROJECT_ID/physx-service:$SHORT_SHA'
+  - 'gcr.io/$PROJECT_ID/physx-service:$BUILD_ID'
+
+timeout: 7200s  # 2 hours
