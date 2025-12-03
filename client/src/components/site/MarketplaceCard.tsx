@@ -219,13 +219,14 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
               <span className="text-2xl font-bold text-zinc-900">
                 ${mainPrice}
               </span>
-              <span className="text-sm text-zinc-500">per scene</span>
             </div>
           )}
         </div>
 
         {/* Stats Grid */}
-        <div className="mb-4 grid grid-cols-2 gap-2 rounded-lg border border-zinc-100 bg-zinc-50 p-3">
+        <div
+          className={`mb-4 grid ${isDataset ? "grid-cols-2" : "grid-cols-1"} gap-2 rounded-lg border border-zinc-100 bg-zinc-50 p-3`}
+        >
           {isDataset ? (
             <>
               <div>
@@ -246,24 +247,14 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
               </div>
             </>
           ) : (
-            <>
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-zinc-500">
-                  Variants
-                </div>
-                <div className="font-mono text-sm font-semibold text-zinc-900">
-                  {scene!.variantCount || 1}
-                </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-zinc-500">
+                Variants
               </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-zinc-500">
-                  Stock
-                </div>
-                <div className="font-mono text-sm font-semibold text-emerald-600">
-                  {scene!.inStock ? "In Stock" : "Pre-order"}
-                </div>
+              <div className="font-mono text-sm font-semibold text-zinc-900">
+                {scene!.variantCount || 1}
               </div>
-            </>
+            </div>
           )}
         </div>
 
