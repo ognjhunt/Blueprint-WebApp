@@ -421,7 +421,7 @@
 //               Wishlist scale
 //             </span>
 //             <p className="text-sm text-slate-600">
-//               Non-binding, but helps us size how many scenes/variants to line up
+//               Non-binding, but helps us size how many scenes/frames to line up
 //               when we drop the dataset you care about.
 //             </p>
 //           </div>

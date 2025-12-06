@@ -140,9 +140,9 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     const heroImage = isDataset
       ? (marketplaceDataset as SyntheticDataset).heroImage
       : (marketplaceScene as MarketplaceScene).thumbnail;
-    const variantCount = isDataset
-      ? (marketplaceDataset as SyntheticDataset).variantCount
-      : (marketplaceScene as MarketplaceScene).variantCount;
+    const frameCount = isDataset
+      ? (marketplaceDataset as SyntheticDataset).frameCount
+      : (marketplaceScene as MarketplaceScene).frameCount;
     const deliverables = marketplaceItem.deliverables || [];
     const randomizers = (marketplaceDataset as SyntheticDataset | undefined)
       ?.randomizerScripts;
@@ -150,7 +150,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
       ?.interactions;
     const quantityLabel = isDataset
       ? `${(marketplaceDataset as SyntheticDataset).sceneCount} scenes`
-      : `${(variantCount ?? 1)} variants`;
+      : `${(frameCount ?? 1)} frames`;
     const priceLabel = isDataset ? "/scene" : "";
     const bundleTotal = isDataset
       ? ((marketplaceDataset as SyntheticDataset).pricePerScene || 0) *
@@ -224,8 +224,8 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                 <div className="mt-2 text-sm font-medium text-zinc-900">
                   {quantityLabel}
                 </div>
-                {variantCount ? (
-                  <div className="text-xs text-zinc-500">{variantCount} variants</div>
+                {frameCount ? (
+                  <div className="text-xs text-zinc-500">{frameCount} frames</div>
                 ) : null}
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-white p-4">
