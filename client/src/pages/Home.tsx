@@ -42,7 +42,7 @@
 //       "Daily synthetic dataset drops with plug-and-play USD, randomizer scripts, and policy validation notes.",
 //     bullets: [
 //       "Filter by policy, object coverage, and facility archetype",
-//       "Variants + scripting so labs can train without touching pipelines",
+//       "Frames + scripting so labs can train without touching pipelines",
 //       "Pricing starts around $50/scene depending on scale",
 //     ],
 //     ctaLabel: "Browse drops",
@@ -79,7 +79,7 @@
 //             <p className="max-w-xl text-lg text-slate-600">
 //               High-fidelity scenes, physics-clean assets, delivered fast. Pick
 //               from our synthetic marketplace—new datasets publish daily with
-//               variants, randomizers, and plug-and-play USD—or send us to your
+//               frames, randomizers, and plug-and-play USD—or send us to your
 //               actual site and we’ll return a SimReady digital twin tuned to your
 //               deployment stack. Either path keeps labs out of DCC tools so they
 //               can focus on training and proving ROI sooner.
@@ -178,7 +178,7 @@
 //             </h2>
 //             <p className="mt-2 max-w-2xl text-sm text-slate-600">
 //               Here’s a peek at today’s drops. Filter every dataset by policy,
-//               location type, objects, variants, and cadence in the full
+//               location type, objects, frames, and cadence in the full
 //               marketplace.
 //             </p>
 //           </div>
@@ -234,9 +234,9 @@
 //                     </dd>
 //                   </div>
 //                   <div>
-//                     <dt className="uppercase tracking-[0.2em]">Variants</dt>
+//                     <dt className="uppercase tracking-[0.2em]">Frames</dt>
 //                     <dd className="text-base font-semibold text-slate-900">
-//                       {dataset.variantCount}
+//                       {dataset.frameCount}
 //                     </dd>
 //                   </div>
 //                 </dl>
@@ -272,7 +272,7 @@
 //             </h2>
 //             <p className="mt-2 max-w-xl text-sm text-slate-600">
 //               Use these archetypes to anchor your wishlist or capture brief. We
-//               keep releasing variants that span aisle widths, heights, and
+//               keep releasing frames that span aisle widths, heights, and
 //               policy complexity so your models see the long tail.
 //             </p>
 //           </div>
@@ -464,7 +464,7 @@ const offeringCards = [
       "Daily synthetic dataset drops with plug-and-play USD, randomizer scripts, and policy validation notes.",
     bullets: [
       "Filter by policy, object coverage, and facility archetype",
-      "Variants + scripting so labs can train without touching pipelines",
+      "Frames + scripting so labs can train without touching pipelines",
       "Pricing starts around $50/scene depending on scale",
     ],
     ctaLabel: "Browse drops",
@@ -793,10 +793,10 @@ export default function Home() {
                   </div>
                   <div className="text-center border-l border-zinc-200">
                     <dt className="text-[10px] uppercase tracking-wider text-zinc-400">
-                      Vars
+                      Frames
                     </dt>
                     <dd className="font-mono text-sm font-semibold text-zinc-900">
-                      {dataset.variantCount}
+                      {dataset.frameCount}
                     </dd>
                   </div>
                 </div>
@@ -825,7 +825,7 @@ export default function Home() {
               Environment families
             </h2>
             <p className="mt-2 max-w-xl text-zinc-600">
-              Archetypes to anchor your wishlist. We keep releasing variants
+              Archetypes to anchor your wishlist. We keep releasing frames
               that span aisle widths, heights, and policy complexity.
             </p>
           </div>

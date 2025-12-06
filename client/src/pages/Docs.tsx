@@ -45,7 +45,7 @@
 //         <div className="space-y-3 text-sm text-slate-600">
 //           <p>• Semantic labels follow Blueprint’s ontology and map cleanly to class, instance, and SKU exports.</p>
 //           <p>• Scenes include optional CSV/JSON metadata for planograms, signage, and device IDs.</p>
-//           <p>• Ask for annotation bundles to receive camera rigs, lighting variants, and sensor trajectories.</p>
+//           <p>• Ask for annotation bundles to receive camera rigs, lighting frames, and sensor trajectories.</p>
 //         </div>
 //       </section>
 

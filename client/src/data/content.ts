@@ -65,7 +65,7 @@ export interface SyntheticDataset {
   objectTags: string[];
   pricePerScene: number;
   sceneCount: number;
-  variantCount: number;
+  frameCount: number;
   releaseDate: string;
   tags: string[];
   randomizerScripts: string[];
@@ -86,7 +86,7 @@ export interface MarketplaceScene {
   policySlugs: string[];
   objectTags: string[];
   price: number; // Individual scene price
-  variantCount?: number;
+  frameCount?: number;
   releaseDate: string;
   tags: string[];
   deliverables: string[];
@@ -306,7 +306,7 @@ export const syntheticDatasets: SyntheticDataset[] = [
     pricePerScene: 65,
     standardPricePerScene: 185,
     sceneCount: 150,
-    variantCount: 8,
+    frameCount: 8,
     releaseDate: "2024-12-12",
     tags: ["Articulated", "Plug & Play", "USD"],
     randomizerScripts: [
@@ -331,7 +331,7 @@ export const syntheticDatasets: SyntheticDataset[] = [
     pricePerScene: 58,
     standardPricePerScene: 175,
     sceneCount: 110,
-    variantCount: 6,
+    frameCount: 6,
     releaseDate: "2024-12-05",
     tags: ["Retail", "High SKU", "Randomized"],
     randomizerScripts: ["SKU swaps", "Cart clutter", "Lighting color temp"],
@@ -351,7 +351,7 @@ export const syntheticDatasets: SyntheticDataset[] = [
     pricePerScene: 72,
     standardPricePerScene: 195,
     sceneCount: 200,
-    variantCount: 10,
+    frameCount: 10,
     releaseDate: "2024-11-28",
     tags: ["Industrial", "Heavy lift", "Conveyor-ready"],
     randomizerScripts: [
@@ -379,7 +379,7 @@ export const syntheticDatasets: SyntheticDataset[] = [
     pricePerScene: 84,
     standardPricePerScene: 220,
     sceneCount: 65,
-    variantCount: 5,
+    frameCount: 5,
     releaseDate: "2024-11-22",
     tags: ["Cleanroom", "Controls", "QA"],
     randomizerScripts: ["Gauge offsets", "Cabinet wiring", "Consumable clutter"],
@@ -398,7 +398,7 @@ export const syntheticDatasets: SyntheticDataset[] = [
     pricePerScene: 52,
     standardPricePerScene: 150,
     sceneCount: 90,
-    variantCount: 4,
+    frameCount: 4,
     releaseDate: "2024-11-18",
     tags: ["Inspection", "Low light", "Compact"],
     randomizerScripts: ["Status LEDs", "Valve state", "Dust + grime"],
@@ -417,7 +417,7 @@ export const syntheticDatasets: SyntheticDataset[] = [
     pricePerScene: 50,
     standardPricePerScene: 165,
     sceneCount: 50,
-    variantCount: 3,
+    frameCount: 3,
     releaseDate: "2024-11-12",
     tags: ["Assistive", "Household", "Soft goods"],
     randomizerScripts: ["Fabric types", "Lighting temp", "Clutter"],
@@ -436,7 +436,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     policySlugs: ["dexterous-pick-place", "articulated-access-validation"],
     objectTags: ["dishwashers", "shelves", "utensils"],
     price: 185,
-    variantCount: 3,
+    frameCount: 3,
     releaseDate: "2024-12-01",
     tags: ["Articulated", "High-detail", "USD"],
     deliverables: ["USD / Isaac 4.x", "Replicator semantics"],
@@ -453,7 +453,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     policySlugs: ["dexterous-pick-place", "mixed-sku-logistics"],
     objectTags: ["coolers", "shelves", "totes"],
     price: 195,
-    variantCount: 2,
+    frameCount: 2,
     releaseDate: "2024-11-29",
     tags: ["Retail", "Cold storage", "Randomized"],
     deliverables: ["USD", "Synthetic sensor captures"],
@@ -484,7 +484,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     policySlugs: ["precision-insertion-assembly", "panel-interaction-suite"],
     objectTags: ["sample racks", "valves", "drawers"],
     price: 220,
-    variantCount: 2,
+    frameCount: 2,
     releaseDate: "2024-11-20",
     tags: ["Cleanroom", "Precision", "Controls"],
     deliverables: ["USD", "STEP", "Semantic layers"],
@@ -516,7 +516,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     policySlugs: ["laundry-folding-assist"],
     objectTags: ["washers", "dryers", "hampers"],
     price: 165,
-    variantCount: 2,
+    frameCount: 2,
     releaseDate: "2024-11-15",
     tags: ["Assistive", "Household"],
     deliverables: ["USD", "URDF"],
@@ -532,7 +532,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     policySlugs: ["dexterous-pick-place", "articulated-access-validation"],
     objectTags: ["drawers", "utensils", "appliances"],
     price: 170,
-    variantCount: 4,
+    frameCount: 4,
     releaseDate: "2024-12-08",
     tags: ["Articulated", "USD"],
     deliverables: ["USD / Isaac 4.x", "Isaac 5.x"],
@@ -579,7 +579,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     policySlugs: ["precision-insertion-assembly"],
     objectTags: ["sample racks", "drawers"],
     price: 210,
-    variantCount: 3,
+    frameCount: 3,
     releaseDate: "2024-11-19",
     tags: ["Precision", "Assembly"],
     deliverables: ["USD", "STEP"],
@@ -625,7 +625,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     policySlugs: ["dexterous-pick-place"],
     objectTags: ["shelves", "appliances"],
     price: 175,
-    variantCount: 2,
+    frameCount: 2,
     releaseDate: "2024-12-02",
     tags: ["Food service", "Articulated"],
     deliverables: ["USD / Isaac 4.x"],
@@ -641,7 +641,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     policySlugs: ["dexterous-pick-place", "precision-insertion-assembly"],
     objectTags: ["drawers", "shelves"],
     price: 225,
-    variantCount: 1,
+    frameCount: 1,
     releaseDate: "2024-11-30",
     tags: ["Healthcare", "Precision", "Secure"],
     deliverables: ["USD", "Semantic layers"],
@@ -673,7 +673,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     policySlugs: ["articulated-access-validation", "panel-interaction-suite"],
     objectTags: ["doors", "switches"],
     price: 200,
-    variantCount: 2,
+    frameCount: 2,
     releaseDate: "2024-11-21",
     tags: ["Cleanroom", "Safety"],
     deliverables: ["USD", "Event scripts"],
@@ -704,7 +704,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     policySlugs: ["laundry-folding-assist", "articulated-access-validation"],
     objectTags: ["drawers", "hampers"],
     price: 180,
-    variantCount: 3,
+    frameCount: 3,
     releaseDate: "2024-11-13",
     tags: ["Assistive", "Organization"],
     deliverables: ["USD"],
@@ -987,7 +987,7 @@ export const scenes: Scene[] = [
     ctaText: "Add to quote",
     seo: "Bulk dry goods aisle with articulated dispensers and scale for manipulation tasks.",
     highlights: [
-      "Seeded variations for dataset diversity",
+      "Seeded frames for dataset diversity",
       "Embedded signage metadata",
       "Material IDs for granular fill levels",
     ],
@@ -1078,7 +1078,7 @@ export const scenes: Scene[] = [
     ctaText: "Reserve",
     seo: "Cross-dock staging area with articulated dock lever and pallet handling assets.",
     highlights: [
-      "Rainy + sunny lighting variants",
+      "Rainy + sunny lighting frames",
       "Restraint sensors flagged as USD tokens",
       "Line markings exported as semantic layers",
     ],
@@ -1124,7 +1124,7 @@ export const scenes: Scene[] = [
     seo: "Pallet buffer zone tuned for palletizing and AMR handoff policies.",
     highlights: [
       "Fork pocket physics volumes",
-      "Dynamic signage variations",
+      "Dynamic signage frames",
       "Safety envelope markup",
     ],
   },
@@ -1168,7 +1168,7 @@ export const scenes: Scene[] = [
     ctaText: "Join waitlist",
     seo: "Dock-high bay environment with articulated leveler and vehicle restraint for automation pilots.",
     highlights: [
-      "Weather variants bundled",
+      "Weather frames bundled",
       "Truck approach spline annotated",
       "Collision proxies tuned for compliance",
     ],
@@ -1304,7 +1304,7 @@ export const scenes: Scene[] = [
     ctaText: "Book",
     seo: "Sample preparation lab with articulated fume hood and carousel.",
     highlights: [
-      "UV-safe texture variants",
+      "UV-safe texture frames",
       "Calibrated lighting for machine vision",
       "Semantic tags for reagents",
     ],
@@ -1441,7 +1441,7 @@ export const scenes: Scene[] = [
     highlights: [
       "Utility labels with text metadata",
       "Floor drain SDF",
-      "Hook height variations",
+      "Hook height frames",
     ],
   },
   {
@@ -1529,7 +1529,7 @@ export const scenes: Scene[] = [
     ctaText: "Request scene",
     seo: "Residential laundry alcove with articulated washer and dryer controls.",
     highlights: [
-      "Stacked + side-by-side variants",
+      "Stacked + side-by-side frames",
       "Laundry basket spawn points",
       "High-contrast textures for assistive research",
     ],
@@ -1563,7 +1563,7 @@ export const caseStudies: CaseStudy[] = [
     outcomes: [
       "Cut policy tuning time by 60%",
       "Validated AMR clearances before site visit",
-      "Delivered 4 scenario variants in under 10 days",
+      "Delivered 4 scenario frames in under 10 days",
     ],
     cta: "Book a warehouse walkthrough",
   },
@@ -1576,7 +1576,7 @@ export const caseStudies: CaseStudy[] = [
     body:
       "We rebuilt a flagship retail aisle with signage, price tags, and semantic IDs. Teams trained grasp-place behaviors, tuned suction compliance, and exported annotation-ready datasets.",
     outcomes: [
-      "8x shelf variations",
+      "8x shelf frames",
       "Product-level semantic metadata",
       "SLAM validation with synthetic-lidar",
     ],
@@ -2140,7 +2140,7 @@ export const jobs: Job[] = [
 //     ctaText: "Add to quote",
 //     seo: "Bulk dry goods aisle with articulated dispensers and scale for manipulation tasks.",
 //     highlights: [
-//       "Seeded variations for dataset diversity",
+//       "Seeded frames for dataset diversity",
 //       "Embedded signage metadata",
 //       "Material IDs for granular fill levels",
 //     ],
@@ -2233,7 +2233,7 @@ export const jobs: Job[] = [
 //     ctaText: "Reserve",
 //     seo: "Cross-dock staging area with articulated dock lever and pallet handling assets.",
 //     highlights: [
-//       "Rainy + sunny lighting variants",
+//       "Rainy + sunny lighting frames",
 //       "Restraint sensors flagged as USD tokens",
 //       "Line markings exported as semantic layers",
 //     ],
@@ -2280,7 +2280,7 @@ export const jobs: Job[] = [
 //     seo: "Pallet buffer zone tuned for palletizing and AMR handoff policies.",
 //     highlights: [
 //       "Fork pocket physics volumes",
-//       "Dynamic signage variations",
+//       "Dynamic signage frames",
 //       "Safety envelope markup",
 //     ],
 //   },
@@ -2325,7 +2325,7 @@ export const jobs: Job[] = [
 //     ctaText: "Join waitlist",
 //     seo: "Dock-high bay environment with articulated leveler and vehicle restraint for automation pilots.",
 //     highlights: [
-//       "Weather variants bundled",
+//       "Weather frames bundled",
 //       "Truck approach spline annotated",
 //       "Collision proxies tuned for compliance",
 //     ],
@@ -2464,7 +2464,7 @@ export const jobs: Job[] = [
 //     ctaText: "Book",
 //     seo: "Sample preparation lab with articulated fume hood and carousel.",
 //     highlights: [
-//       "UV-safe texture variants",
+//       "UV-safe texture frames",
 //       "Calibrated lighting for machine vision",
 //       "Semantic tags for reagents",
 //     ],
@@ -2604,7 +2604,7 @@ export const jobs: Job[] = [
 //     highlights: [
 //       "Utility labels with text metadata",
 //       "Floor drain SDF",
-//       "Hook height variations",
+//       "Hook height frames",
 //     ],
 //   },
 //   {
@@ -2694,7 +2694,7 @@ export const jobs: Job[] = [
 //     ctaText: "Request scene",
 //     seo: "Residential laundry alcove with articulated washer and dryer controls.",
 //     highlights: [
-//       "Stacked + side-by-side variants",
+//       "Stacked + side-by-side frames",
 //       "Laundry basket spawn points",
 //       "High-contrast textures for assistive research",
 //     ],
@@ -2726,7 +2726,7 @@ export const jobs: Job[] = [
 //     outcomes: [
 //       "Cut policy tuning time by 60%",
 //       "Validated AMR clearances before site visit",
-//       "Delivered 4 scenario variants in under 10 days",
+//       "Delivered 4 scenario frames in under 10 days",
 //     ],
 //     cta: "Book a warehouse walkthrough",
 //   },
@@ -2738,7 +2738,7 @@ export const jobs: Job[] = [
 //     hero: "https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=1200&q=80",
 //     body: "We rebuilt a flagship retail aisle with signage, price tags, and semantic IDs. Teams trained grasp-place behaviors, tuned suction compliance, and exported annotation-ready datasets.",
 //     outcomes: [
-//       "8x shelf variations",
+//       "8x shelf frames",
 //       "Product-level semantic metadata",
 //       "SLAM validation with synthetic-lidar",
 //     ],
