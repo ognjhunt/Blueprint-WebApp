@@ -195,6 +195,7 @@ import {
   Factory,
   Beaker,
   Camera,
+  Terminal,
 } from "lucide-react";
 
 // --- Configuration ---
