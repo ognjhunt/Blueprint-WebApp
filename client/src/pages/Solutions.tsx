@@ -243,6 +243,24 @@ const onsiteSteps = [
   },
 ];
 
+const recipeDeliverables = [
+  {
+    icon: <FileCode className="h-5 w-5 text-indigo-600" />,
+    title: "USD recipe layer",
+    desc: "Room shell, prim hierarchy, transforms, semantics, and physics defaults in a lightweight .usda layer.",
+  },
+  {
+    icon: <FileJson className="h-5 w-5 text-indigo-600" />,
+    title: "Dependency manifest",
+    desc: "References to required NVIDIA SimReady packs, expected root paths, and fallbacks so you install assets locally.",
+  },
+  {
+    icon: <Terminal className="h-5 w-5 text-indigo-600" />,
+    title: "Variant generator",
+    desc: "Omniverse Replicator scripts for swaps, clutter, lighting, material variants, and articulation state noise.",
+  },
+];
+
 // --- Visual Helpers ---
 
 function DotPattern() {
@@ -431,6 +449,69 @@ export default function Solutions() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          </section>
+
+          {/* --- Section: Scene Recipes --- */}
+          <section className="relative overflow-hidden rounded-[2.5rem] border border-emerald-100 bg-white p-8 shadow-sm sm:p-12 lg:p-16">
+            <div className="absolute -right-16 -bottom-16 h-64 w-64 rounded-full bg-emerald-100/60 blur-3xl" />
+            <div className="relative z-10 grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+              <div className="space-y-6">
+                <div className="inline-flex items-center gap-2 rounded-md bg-emerald-50 px-2 py-1 text-xs font-bold uppercase tracking-wider text-emerald-700">
+                  <Terminal className="h-3 w-3" /> Scene Recipes
+                </div>
+                <h2 className="text-3xl font-bold text-zinc-900 sm:text-4xl">
+                  Layouts, manifests, and variants—BYO SimReady assets.
+                </h2>
+                <p className="text-zinc-600 leading-relaxed">
+                  We deliver a lightweight USD layer plus a manifest that references NVIDIA SimReady packs you install locally. Omniverse Replicator scripts handle swaps, clutter, lighting, and articulation state randomization without us shipping the source assets.
+                </p>
+                <ul className="grid gap-3 text-sm text-zinc-700 sm:grid-cols-2">
+                  {["No asset redistribution—packs stay on your Nucleus/local disk", "Semantics + USDPhysics defaults aligned to SimReady best practices", "Variant generator tuned for RL-friendly randomization", "Reusable integration snippets for Isaac Lab / Isaac Sim"].map(
+                    (item) => (
+                      <li
+                        key={item}
+                        className="flex items-start gap-2 rounded-xl bg-emerald-50/80 p-3 ring-1 ring-emerald-100"
+                      >
+                        <span className="mt-1 h-2 w-2 rounded-full bg-emerald-500" />
+                        <span>{item}</span>
+                      </li>
+                    ),
+                  )}
+                </ul>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <a
+                    href="/contact?request=recipe"
+                    className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                  >
+                    Request a scene recipe
+                  </a>
+                  <span className="text-xs uppercase tracking-[0.2em] text-emerald-600">
+                    BYO SimReady packs
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid gap-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-6 sm:grid-cols-2">
+                {recipeDeliverables.map((item) => (
+                  <div
+                    key={item.title}
+                    className="flex h-full flex-col gap-2 rounded-xl border border-emerald-100 bg-white p-4 shadow-sm"
+                  >
+                    <div className="flex items-center gap-2 text-emerald-700">
+                      {item.icon}
+                      <span className="text-sm font-bold uppercase tracking-wider">{item.title}</span>
+                    </div>
+                    <p className="text-sm text-zinc-600 leading-relaxed">{item.desc}</p>
+                  </div>
+                ))}
+                <div className="col-span-full rounded-xl border border-emerald-100 bg-white p-5">
+                  <p className="text-xs font-bold uppercase tracking-[0.25em] text-emerald-700">Variant knobs</p>
+                  <p className="mt-2 text-sm text-zinc-700">
+                    Replicator randomizes object swaps, clutter placement, HDRI/time-of-day, material variants, and pose noise. We keep USD writes optional for RL loops.
+                  </p>
+                </div>
               </div>
             </div>
           </section>

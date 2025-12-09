@@ -20,6 +20,10 @@ export default async function contactHandler(req: Request, res: Response) {
     sceneQuantity,
     sceneDeliveryDate,
     isaacVersion,
+    recipePacks,
+    recipeAssetRoots,
+    recipeBrief,
+    recipeVariants,
     useCases,
     robotPlatform,
     requiredSemantics,
@@ -72,9 +76,15 @@ export default async function contactHandler(req: Request, res: Response) {
   ];
 
   if (requestType) {
-    summaryLines.push(
-      `Request type: ${requestType === "scene" ? "Specific scene" : "Dataset program"}`,
-    );
+    const requestLabel =
+      requestType === "scene"
+        ? "Specific scene"
+        : requestType === "dataset"
+          ? "Dataset program"
+          : requestType === "recipe"
+            ? "Scene recipe"
+            : "Reference photo rebuild";
+    summaryLines.push(`Request type: ${requestLabel}`);
   }
 
   if (requestType === "dataset") {
@@ -97,6 +107,21 @@ export default async function contactHandler(req: Request, res: Response) {
     }
     if (isaacVersion) {
       summaryLines.push(`Isaac version: ${isaacVersion}`);
+    }
+  }
+
+  if (requestType === "recipe") {
+    if (recipePacks) {
+      summaryLines.push(`SimReady packs: ${recipePacks}`);
+    }
+    if (recipeAssetRoots) {
+      summaryLines.push(`Asset roots: ${recipeAssetRoots}`);
+    }
+    if (recipeBrief) {
+      summaryLines.push(`Layout + semantics: ${recipeBrief}`);
+    }
+    if (recipeVariants) {
+      summaryLines.push(`Variant generator: ${recipeVariants}`);
     }
   }
 
