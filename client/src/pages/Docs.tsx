@@ -212,6 +212,56 @@ export default function Docs() {
               </p>
             </header>
 
+            {/* Per-scene deliverables */}
+            <section className="space-y-4">
+              <h2 className="text-2xl font-bold text-zinc-900">
+                What ships with every scene
+              </h2>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+                  <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold text-zinc-900">
+                    <Layers className="h-5 w-5 text-indigo-600" />
+                    Shaping templates
+                  </h3>
+                  <ul className="space-y-3 text-sm text-zinc-600">
+                    <li className="flex gap-2">
+                      <div className="mt-2 h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                      <span>Default reward, observation, and action-controller templates tailored to the scene (kitchen, warehouse, or workcell).</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <div className="mt-2 h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                      <span>Standard termination and reset schemes that drop directly into the Park et al. style APIs.</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <div className="mt-2 h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                      <span>Auto-shaping suggestions generated with LLM + heuristics so labs start from a tuned baseline instead of a blank file.</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+                  <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold text-zinc-900">
+                    <Box className="h-5 w-5 text-indigo-600" />
+                    Bundled variants
+                  </h3>
+                  <ul className="space-y-3 text-sm text-zinc-600">
+                    <li className="flex gap-2">
+                      <div className="mt-2 h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                      <span>Unshaped version of each scene for raw, minimal baselines.</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <div className="mt-2 h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                      <span>One or more shaped baselines (human-designed or AI-assisted) that match the benchmark call for paired unshaped + shaped environments.</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <div className="mt-2 h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                      <span>Environment-shaping playground: generated-from-photo scenes ready for testing shaping algorithms on realistic layouts.</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+
             {/* Tech Specs Grid */}
             <section className="space-y-6">
               <h2 className="text-2xl font-bold text-zinc-900">
