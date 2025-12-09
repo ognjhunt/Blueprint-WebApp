@@ -181,21 +181,25 @@
 import { CTAButtons } from "@/components/site/CTAButtons";
 import { WaitlistForm } from "@/components/site/WaitlistForm";
 import {
-  Box,
-  Layers,
-  CheckCircle2,
-  Scan,
-  Hammer,
-  LineChart,
+  AlertTriangle,
   ArrowRight,
-  FileCode,
-  Video,
-  FileJson,
-  Sparkles,
-  Factory,
   Beaker,
+  Box,
   Camera,
+  CheckCircle2,
+  ClipboardList,
+  Clock3,
+  Cpu,
+  Factory,
+  FileCode,
+  FileJson,
+  Hammer,
+  Layers,
+  LineChart,
+  Scan,
+  Sparkles,
   Terminal,
+  Video,
 } from "lucide-react";
 
 // --- Configuration ---
@@ -259,6 +263,110 @@ const recipeDeliverables = [
     icon: <Terminal className="h-5 w-5 text-indigo-600" />,
     title: "Variant generator",
     desc: "Omniverse Replicator scripts for swaps, clutter, lighting, material variants, and articulation state noise.",
+  },
+];
+
+const simreadyUseCases = [
+  {
+    title: "Policy training (RL / imitation / sim2real)",
+    icon: <Cpu className="h-5 w-5 text-indigo-600" />,
+    desc: "Lots of randomized rollouts across \"train\" scene seeds plus held-out layouts to measure generalization.",
+  },
+  {
+    title: "Evaluation & QA",
+    icon: <CheckCircle2 className="h-5 w-5 text-indigo-600" />,
+    desc: "Stricter seeds and asset combinations that stay untouched for regression testing and policy comparison.",
+  },
+  {
+    title: "Perception synthetic data",
+    icon: <Camera className="h-5 w-5 text-indigo-600" />,
+    desc: "Replicator renders RGB plus segmentation, boxes, depth, and normals for computer vision training.",
+  },
+  {
+    title: "Digital twins & facility studies",
+    icon: <Factory className="h-5 w-5 text-indigo-600" />,
+    desc: "Industrial layouts and validation runs that aren’t always ML-focused but rely on the same USD + physics baselines.",
+  },
+];
+
+const hardParts = [
+  {
+    title: "Scene assembly & references",
+    icon: <Layers className="h-5 w-5 text-emerald-600" />,
+    desc: "Pull assets from Nucleus or local paths, place them, and keep prim paths and references stable—dependency and repathing issues are common.",
+  },
+  {
+    title: "Physics correctness",
+    icon: <Box className="h-5 w-5 text-emerald-600" />,
+    desc: "Prims need colliders, rigid body schema, and tuned materials. SimReady ships baseline metadata, but teams still decide runtime interactions.",
+  },
+  {
+    title: "Semantics & labeling",
+    icon: <FileJson className="h-5 w-5 text-emerald-600" />,
+    desc: "Consistent segmentation, instance IDs, and task-level tags (like handles) must stay aligned across scenes.",
+  },
+  {
+    title: "Task logic for policies",
+    icon: <Terminal className="h-5 w-5 text-emerald-600" />,
+    desc: "Action application, rewards/observations, resets/termination, and multi-env cloning in Isaac Lab are often more work than 3D placement.",
+  },
+  {
+    title: "Randomization & SDG",
+    icon: <Video className="h-5 w-5 text-emerald-600" />,
+    desc: "Replicator scripts randomize perception datasets. RL flows lean on PhysX-side writes when USD edits are disabled for speed.",
+  },
+  {
+    title: "Packaging & reproducibility",
+    icon: <AlertTriangle className="h-5 w-5 text-emerald-600" />,
+    desc: "Collecting or flattening scenes can break materials and paths, so teams build validation and packaging tooling to stay sane.",
+  },
+];
+
+const labWorkflow = [
+  {
+    title: "Start from a template scene",
+    detail: "Warehouse, kitchen, or workcell shell with assets referenced via Nucleus or local usd_path configs in Isaac Lab.",
+  },
+  {
+    title: "Run physics QA",
+    detail: "Confirm colliders, rigid bodies, stable stacking, and perf budgets before scaling multi-env runs.",
+  },
+  {
+    title: "Add semantics",
+    detail: "Segment labels, instance IDs, and task-relevant tags such as handles or grasp affordances.",
+  },
+  {
+    title: "Integrate the training harness",
+    detail: "Define sim settings, cloning, actions, rewards/obs, and reset/termination logic in Isaac Lab.",
+  },
+  {
+    title: "Randomize",
+    detail: "Replicator for perception SDG; RL-specific randomizers that keep USD writes optional for speed.",
+  },
+  {
+    title: "Split train/eval and package",
+    detail: "Hold out layouts or seeds, then collect/share scenes—where path/material issues often appear.",
+  },
+];
+
+const effortBands = [
+  {
+    label: "Demo scene",
+    time: "~0.5–2 days",
+    cost: "1–3 engineer-days",
+    desc: "Looks right and runs with minimal QA; slowed down by paths, scaling, colliders, and lighting.",
+  },
+  {
+    label: "Training-grade RL scene",
+    time: "~1–3 weeks",
+    cost: "$10k–$100k engineering time",
+    desc: "New task + environment combo with rewards/obs/reset code, physics stability, and randomization plumbing at scale.",
+  },
+  {
+    label: "Perception SDG pipeline",
+    time: "~2–10 days",
+    cost: "Engineering + compute/storage/QA",
+    desc: "Robust generators with annotation needs, randomization rules, and dataset validation loops.",
   },
 ];
 
@@ -367,6 +475,159 @@ export default function Solutions() {
         </header>
 
         <div className="space-y-24">
+          {/* --- Section: SimReady Use Cases --- */}
+          <section className="relative overflow-hidden rounded-[2.5rem] border border-indigo-100 bg-white p-8 shadow-sm sm:p-12 lg:p-16">
+            <div className="absolute -left-16 -bottom-16 h-64 w-64 rounded-full bg-indigo-100/60 blur-3xl" />
+
+            <div className="relative z-10 space-y-8">
+              <div className="inline-flex items-center gap-2 rounded-md bg-indigo-50 px-2 py-1 text-xs font-bold uppercase tracking-wider text-indigo-700">
+                <ClipboardList className="h-3 w-3" /> Use cases
+              </div>
+              <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
+                <div className="space-y-4">
+                  <h2 className="text-3xl font-bold text-zinc-900 sm:text-4xl">Where labs plug SimReady packs.</h2>
+                  <p className="text-zinc-600 leading-relaxed">
+                    SimReady scenes power policy training, perception data engines, and industrial digital twins. The
+                    common thread: teams need consistent semantics, USDPhysics metadata, and stable variants to measure
+                    generalization.
+                  </p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {simreadyUseCases.map((item) => (
+                      <div
+                        key={item.title}
+                        className="flex h-full flex-col gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 shadow-sm"
+                      >
+                        <div className="flex items-center gap-2 text-indigo-700">
+                          {item.icon}
+                          <span className="text-sm font-bold uppercase tracking-wider">{item.title}</span>
+                        </div>
+                        <p className="text-sm text-zinc-700 leading-relaxed">{item.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-6">
+                  <div className="flex items-center gap-3">
+                    <Sparkles className="h-5 w-5 text-indigo-600" />
+                    <h3 className="text-lg font-bold text-zinc-900">Why it matters</h3>
+                  </div>
+                  <p className="text-sm text-zinc-700 leading-relaxed">
+                    NVIDIA’s own SimReady docs frame packs as the bridge between robot/autonomy training and industrial
+                    digital twins, emphasizing the extra metadata beyond visuals. Position papers in RL call "environment
+                    shaping" the main bottleneck—exactly the gap we close.
+                  </p>
+                  <div className="rounded-xl bg-white p-4 text-xs text-zinc-600 ring-1 ring-indigo-100">
+                    <p className="font-semibold text-zinc-900">Important nuance</p>
+                    <p className="mt-1 leading-relaxed">
+                      The current SimReady spec focuses on static props; anything with doors, drawers, or hinges often still
+                      needs additional rigging and schema work. Our articulation and QA passes cover that edge.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* --- Section: Why it’s still hard --- */}
+          <section className="relative overflow-hidden rounded-[2.5rem] border border-emerald-100 bg-white p-8 shadow-sm sm:p-12 lg:p-16">
+            <div className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-emerald-100/60 blur-3xl" />
+
+            <div className="relative z-10 space-y-6">
+              <div className="inline-flex items-center gap-2 rounded-md bg-emerald-50 px-2 py-1 text-xs font-bold uppercase tracking-wider text-emerald-700">
+                <AlertTriangle className="h-3 w-3" /> Why it’s still hard
+              </div>
+              <h2 className="text-3xl font-bold text-zinc-900 sm:text-4xl">Having assets doesn’t finish the scene.</h2>
+              <p className="max-w-3xl text-zinc-600 leading-relaxed">
+                Asset hunting ends once you own SimReady packs. The heavy lift is shaping an environment that behaves: USD
+                composition, physics correctness, semantics, task logic, robust randomization, and packaging without broken
+                paths.
+              </p>
+              <div className="grid gap-4 md:grid-cols-2">
+                {hardParts.map((item) => (
+                  <div
+                    key={item.title}
+                    className="flex h-full flex-col gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 shadow-sm"
+                  >
+                    <div className="flex items-center gap-2 text-emerald-700">
+                      {item.icon}
+                      <span className="text-sm font-bold uppercase tracking-wider">{item.title}</span>
+                    </div>
+                    <p className="text-sm text-zinc-700 leading-relaxed">{item.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* --- Section: Workflow --- */}
+          <section className="relative overflow-hidden rounded-[2.5rem] border border-zinc-200 bg-white p-8 shadow-sm sm:p-12 lg:p-16">
+            <div className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-zinc-100/60 blur-3xl" />
+
+            <div className="relative z-10 space-y-6">
+              <div className="inline-flex items-center gap-2 rounded-md bg-zinc-100 px-2 py-1 text-xs font-bold uppercase tracking-wider text-zinc-700">
+                <ClipboardList className="h-3 w-3" /> Typical workflow
+              </div>
+              <h2 className="text-3xl font-bold text-zinc-900 sm:text-4xl">What serious labs do today.</h2>
+              <p className="max-w-3xl text-zinc-600 leading-relaxed">
+                A modern pipeline blends USD assembly, Isaac Lab task code, Replicator randomization, and reproducible
+                packaging. We build the scene, semantics, and QA so your team can focus on policies and metrics.
+              </p>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                {labWorkflow.map((step, index) => (
+                  <div
+                    key={step.title}
+                    className="group relative flex h-full items-start gap-4 rounded-2xl border border-zinc-200 bg-zinc-50/60 p-4"
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-indigo-600 shadow-sm ring-1 ring-zinc-200 group-hover:scale-105 transition-transform">
+                      <span className="font-mono text-sm font-bold">0{index + 1}</span>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-900">{step.title}</h3>
+                      <p className="mt-2 text-sm text-zinc-700 leading-relaxed">{step.detail}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* --- Section: Timeline & Cost --- */}
+          <section className="relative overflow-hidden rounded-[2.5rem] border border-indigo-100 bg-white p-8 shadow-sm sm:p-12 lg:p-16">
+            <div className="absolute -right-16 bottom-0 h-64 w-64 rounded-full bg-indigo-100/60 blur-3xl" />
+
+            <div className="relative z-10 space-y-6">
+              <div className="inline-flex items-center gap-2 rounded-md bg-indigo-50 px-2 py-1 text-xs font-bold uppercase tracking-wider text-indigo-700">
+                <Clock3 className="h-3 w-3" /> Timeline & cost
+              </div>
+              <h2 className="text-3xl font-bold text-zinc-900 sm:text-4xl">How long it really takes.</h2>
+              <p className="max-w-3xl text-zinc-600 leading-relaxed">
+                Having assets helps, but environment shaping, task logic, and reproducible packaging still dominate the
+                schedule. Here’s what typical engineering effort looks like once assets are in hand.
+              </p>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                {effortBands.map((item) => (
+                  <div
+                    key={item.label}
+                    className="flex h-full flex-col gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 shadow-sm"
+                  >
+                    <div className="flex items-center gap-2 text-indigo-700">
+                      <Clock3 className="h-4 w-4" />
+                      <span className="text-sm font-bold uppercase tracking-wider">{item.label}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-zinc-700">
+                      <span className="rounded-full bg-white px-2 py-1 font-semibold text-zinc-900 ring-1 ring-indigo-100">{item.time}</span>
+                      <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-100">{item.cost}</span>
+                    </div>
+                    <p className="text-sm text-zinc-700 leading-relaxed">{item.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
           {/* --- Section 1: Procedural (Light Theme) --- */}
           <section className="relative rounded-[2.5rem] border border-zinc-200 bg-zinc-50/50 p-8 sm:p-12 lg:p-16 overflow-hidden">
             <div className="absolute top-0 right-0 -mt-20 -mr-20 h-96 w-96 rounded-full bg-indigo-100/50 blur-3xl" />
