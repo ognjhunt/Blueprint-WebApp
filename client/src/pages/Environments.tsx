@@ -284,8 +284,9 @@ export default function Environments() {
               <p className="mt-6 max-w-2xl text-lg text-zinc-600">
                 Daily drops of synthetic scenes authored for Isaac-ready
                 training. Each dataset includes randomizer scripts, USD
-                packages, and validation notes so you can train without touching
-                the pipeline.
+                packages, task logic (actions, observations, rewards, resets,
+                parallel env defaults), and validation notes so you can train
+                without touching the pipeline.
               </p>
             </div>
           </div>

@@ -465,6 +465,7 @@ const offeringCards = [
     bullets: [
       "Filter by policy, object coverage, and facility archetype",
       "Frames + scripting so labs can train without touching pipelines",
+      "Task logic included: actions, observations, rewards, resets, and parallel env configs",
       "Pricing starts around $50/scene depending on scale",
     ],
     ctaLabel: "Browse drops",
@@ -479,6 +480,7 @@ const offeringCards = [
     bullets: [
       "Room shells, prim hierarchy, semantics, and physics defaults",
       "Manifest for SimReady packs + asset fallbacks you install locally",
+      "Task logic scaffolds (actions, observations, rewards, resets) tuned for vectorized RL",
       "Variant generator for swaps, clutter, lighting, and articulation states",
     ],
     ctaLabel: "Request a recipe",
@@ -493,6 +495,7 @@ const offeringCards = [
     bullets: [
       "Submit a kitchen, aisle, lab, or other covered archetype",
       "We author USD/URDF handoff with QA against your use cases",
+      "Task logic delivered alongside geometry so your policy can train immediately",
       "Exclusive access by default; opt into open catalog if you prefer",
     ],
     ctaLabel: "Upload a photo",
