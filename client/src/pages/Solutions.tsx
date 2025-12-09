@@ -488,6 +488,12 @@ export default function Solutions() {
                   >
                     Request a scene recipe
                   </a>
+                  <a
+                    href="/recipes"
+                    className="inline-flex items-center justify-center rounded-full border border-emerald-200 bg-white px-5 py-3 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-50"
+                  >
+                    Browse sample recipes
+                  </a>
                   <span className="text-xs uppercase tracking-[0.2em] text-emerald-600">
                     BYO SimReady packs
                   </span>

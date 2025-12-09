@@ -20,6 +20,8 @@ export default async function contactHandler(req: Request, res: Response) {
     sceneQuantity,
     sceneDeliveryDate,
     isaacVersion,
+    recipeSlug,
+    recipeTitle,
     recipePacks,
     recipeAssetRoots,
     recipeBrief,
@@ -111,6 +113,12 @@ export default async function contactHandler(req: Request, res: Response) {
   }
 
   if (requestType === "recipe") {
+    if (recipeSlug) {
+      summaryLines.push(`Recipe slug: ${recipeSlug}`);
+    }
+    if (recipeTitle) {
+      summaryLines.push(`Recipe title: ${recipeTitle}`);
+    }
     if (recipePacks) {
       summaryLines.push(`SimReady packs: ${recipePacks}`);
     }
