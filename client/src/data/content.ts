@@ -101,6 +101,21 @@ export type MarketplaceItem =
   | (SyntheticDataset & { itemType: 'dataset' })
   | (MarketplaceScene & { itemType: 'scene' });
 
+export interface SceneRecipe {
+  slug: string;
+  title: string;
+  description: string;
+  locationType: string;
+  policySlugs: string[];
+  requiredPacks: string[];
+  usdLayers: string[];
+  variantCoverage: string[];
+  deliverables: string[];
+  heroImage: string;
+  tags: string[];
+  priceRange: string;
+}
+
 export interface CaseStudy {
   title: string;
   slug: string;
@@ -710,6 +725,200 @@ export const marketplaceScenes: MarketplaceScene[] = [
     deliverables: ["USD"],
     interactions: ["Sliding doors", "Pull-out drawers"],
     inStock: true,
+  },
+];
+
+export const sceneRecipes: SceneRecipe[] = [
+  {
+    slug: "grocery-endcap-reset",
+    title: "Grocery Endcap Reset",
+    description:
+      "Planogrammed endcap with refrigeration, shelf facings, and clutter hooks for restock and facing policies.",
+    locationType: "Grocery Aisles",
+    policySlugs: ["dexterous-pick-place", "mixed-sku-logistics"],
+    requiredPacks: [
+      "SimReady Furniture & Misc",
+      "Containers & Totes",
+      "Retail Fixtures",
+    ],
+    usdLayers: [
+      "Room shell + refrigeration bay",
+      "Prim hierarchy with shelf transforms",
+      "USDPhysics defaults & materials",
+    ],
+    variantCoverage: [
+      "SKU swaps + facing randomization",
+      "Clutter permutations on support surfaces",
+      "HDRI + time-of-day lighting set",
+    ],
+    deliverables: [
+      "Lightweight .usda layout",
+      "Dependency manifest (packs + fallbacks)",
+      "Omniverse Replicator script",
+    ],
+    heroImage:
+      "https://images.unsplash.com/photo-1523475472560-d2df97ec485c?auto=format&fit=crop&w=1600&q=80",
+    tags: ["Retail", "Articulated doors", "Clutter"],
+    priceRange: "$120–$300 per base layout",
+  },
+  {
+    slug: "warehouse-tote-pick-cell",
+    title: "Warehouse Tote Pick Cell",
+    description:
+      "Racked tote lane with AMR clearances, staging pallets, and barcode signage tuned for pick-place curricula.",
+    locationType: "Warehouse Lanes",
+    policySlugs: ["mixed-sku-logistics"],
+    requiredPacks: [
+      "Warehouse Structures",
+      "Containers & Totes",
+      "Pallets & Forks",
+    ],
+    usdLayers: [
+      "Aisle shell + racking heights",
+      "Prim hierarchy for totes + pallets",
+      "Physics materials for skid/contact surfaces",
+    ],
+    variantCoverage: [
+      "Tote + carton swaps with scale normalization",
+      "Spawn density + aisle clutter controls",
+      "HDRI + area light profiles",
+    ],
+    deliverables: [
+      ".usda lane scaffold",
+      "Manifest with local/Nucleus roots",
+      "Replicator randomizer with RL-friendly writes",
+    ],
+    heroImage:
+      "https://images.unsplash.com/photo-1599059813005-11265ba4b95f?auto=format&fit=crop&w=1600&q=80",
+    tags: ["Logistics", "Clearances", "Replicator"],
+    priceRange: "$150–$350 per base layout",
+  },
+  {
+    slug: "service-kitchen-pass",
+    title: "Service Kitchen Pass",
+    description:
+      "Prep line with pass-through window, drawers, and articulated appliances for manipulation and access policies.",
+    locationType: "Kitchens",
+    policySlugs: ["dexterous-pick-place", "articulated-access-validation"],
+    requiredPacks: [
+      "SimReady Furniture & Misc",
+      "Appliances & Fixtures",
+      "Containers & Totes",
+    ],
+    usdLayers: [
+      "Room shell + counter heights",
+      "Prim hierarchy for drawers/doors",
+      "Semantic labels for appliances + props",
+    ],
+    variantCoverage: [
+      "Utensil + smallware swaps",
+      "Lighting temperature + intensity",
+      "Pose noise + articulation open/close states",
+    ],
+    deliverables: [
+      ".usda layout layer",
+      "Pack manifest with fallbacks",
+      "Replicator script for swaps + clutter",
+    ],
+    heroImage:
+      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1600&q=80",
+    tags: ["Articulated", "Prep line", "Lighting"],
+    priceRange: "$140–$325 per base layout",
+  },
+  {
+    slug: "lab-bench-prep",
+    title: "Lab Bench Prep Suite",
+    description:
+      "Wet lab bench with sample racks, glovebox enclosure, and pass-through for precision handling policies.",
+    locationType: "Labs",
+    policySlugs: ["precision-insertion-assembly", "panel-interaction-suite"],
+    requiredPacks: [
+      "Lab Equipment",
+      "SimReady Furniture & Misc",
+      "Containers & Totes",
+    ],
+    usdLayers: [
+      "Bench shell + enclosure transforms",
+      "Semantic prim graph for racks + valves",
+      "USDPhysics colliders on instruments",
+    ],
+    variantCoverage: [
+      "Rack + instrument swaps",
+      "Material swaps for benches + flooring",
+      "Light temperature + intensity sweeps",
+    ],
+    deliverables: [
+      ".usda interface layer",
+      "Dependency/asset manifest",
+      "Replicator randomizer with physics-only option",
+    ],
+    heroImage:
+      "https://images.unsplash.com/photo-1582719478250-c6a3d60d1f6e?auto=format&fit=crop&w=1600&q=80",
+    tags: ["Cleanroom", "Precision", "Semantics"],
+    priceRange: "$180–$400 per base layout",
+  },
+  {
+    slug: "panel-service-closet",
+    title: "Panel Service Closet",
+    description:
+      "Utility closet with wall-mounted panels, valves, and service clearances for inspection and controls policies.",
+    locationType: "Utility Rooms",
+    policySlugs: ["panel-interaction-suite"],
+    requiredPacks: [
+      "Utility Panels & Switchgear",
+      "SimReady Furniture & Misc",
+    ],
+    usdLayers: [
+      "Closet shell + panel mounts",
+      "Prim hierarchy for breakers/valves",
+      "Semantic labeling for components",
+    ],
+    variantCoverage: [
+      "Switchgear + breaker swaps",
+      "Dust/wear material variants",
+      "Spotlight + area light rigs",
+    ],
+    deliverables: [
+      ".usda layout",
+      "Pack manifest",
+      "Replicator controls randomizer",
+    ],
+    heroImage:
+      "https://images.unsplash.com/photo-1582719478248-1ef1a8c0e1dd?auto=format&fit=crop&w=1600&q=80",
+    tags: ["Controls", "Inspection", "Lighting"],
+    priceRange: "$120–$280 per base layout",
+  },
+  {
+    slug: "laundry-folding-alcove",
+    title: "Laundry Folding Alcove",
+    description:
+      "Home laundry nook with washer/dryer stack, hampers, and folding surface tuned for cloth handling policies.",
+    locationType: "Home Laundry",
+    policySlugs: ["laundry-folding-assist", "dexterous-pick-place"],
+    requiredPacks: [
+      "Home Appliances",
+      "SimReady Furniture & Misc",
+      "Soft Goods & Props",
+    ],
+    usdLayers: [
+      "Alcove shell + appliance placement",
+      "Prim graph for hampers + shelving",
+      "Physics defaults for cloth + rigid props",
+    ],
+    variantCoverage: [
+      "Garment + hamper swaps",
+      "Fold-surface clutter controls",
+      "HDRI + temperature shifts",
+    ],
+    deliverables: [
+      "Lightweight .usda layer",
+      "Asset manifest",
+      "Replicator script with articulation toggles",
+    ],
+    heroImage:
+      "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1600&q=80",
+    tags: ["Home", "Cloth", "Articulation"],
+    priceRange: "$110–$260 per base layout",
   },
 ];
 

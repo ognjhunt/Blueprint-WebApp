@@ -482,7 +482,7 @@ const offeringCards = [
       "Variant generator for swaps, clutter, lighting, and articulation states",
     ],
     ctaLabel: "Request a recipe",
-    ctaHref: "/contact?request=recipe",
+    ctaHref: "/recipes",
     icon: <Terminal className="h-8 w-8 text-zinc-900" />,
   },
   {

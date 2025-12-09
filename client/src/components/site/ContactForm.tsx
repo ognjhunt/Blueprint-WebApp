@@ -952,10 +952,11 @@
 //     </form>
 //   );
 // }
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader } from "@googlemaps/js-api-loader";
 import { GoogleGenAI } from "@google/genai";
 import { countries } from "@/data/countries";
+import { sceneRecipes } from "@/data/content";
 import { getGoogleMapsApiKey } from "@/lib/client-env";
 import {
   MapPin,
@@ -1135,6 +1136,16 @@ const defaultRequestType: RequestType = SHOW_REAL_WORLD_CAPTURE
   ? "scene"
   : "dataset";
 
+const getInitialRecipeSlug = (): string | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const requestedRecipe = params.get("recipe");
+  return requestedRecipe ?? null;
+};
+
 const getInitialRequestType = (): RequestType => {
   if (typeof window === "undefined") {
     return defaultRequestType;
@@ -1168,6 +1179,17 @@ export function ContactForm() {
   const [message, setMessage] = useState("");
   const [requestType, setRequestType] = useState<RequestType>(
     getInitialRequestType,
+  );
+  const [requestedRecipeSlug] = useState<string | null>(
+    getInitialRecipeSlug,
+  );
+  const requestedRecipeTitle = useMemo(
+    () =>
+      requestedRecipeSlug
+        ? sceneRecipes.find((recipe) => recipe.slug === requestedRecipeSlug)?.
+            title
+        : null,
+    [requestedRecipeSlug],
   );
 
   // Form Data
@@ -1509,6 +1531,13 @@ export function ContactForm() {
       payload["snapshotQuote"] = deriveQuote(analysisResult);
     }
 
+    if (requestType === "recipe" && requestedRecipeSlug) {
+      payload["recipeSlug"] = requestedRecipeSlug;
+      if (requestedRecipeTitle) {
+        payload["recipeTitle"] = requestedRecipeTitle;
+      }
+    }
+
     setStatus("loading");
     setMessage("");
 
@@ -1685,6 +1714,12 @@ export function ContactForm() {
                   </p>
                 </div>
               </div>
+              {requestedRecipeSlug ? (
+                <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+                  <Layers className="h-4 w-4" />
+                  Prefilled recipe: {requestedRecipeTitle ?? requestedRecipeSlug}
+                </div>
+              ) : null}
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
