@@ -999,6 +999,14 @@ const requestOptions = [
     recommended: false,
   },
   {
+    value: "recipe" as const,
+    label: "Scene Recipes",
+    icon: <Layers className="h-6 w-6" />,
+    description:
+      "USD layer + manifest + Replicator randomizer that assembles NVIDIA SimReady packs you install locally.",
+    recommended: false,
+  },
+  {
     value: "snapshot" as const,
     label: "Reference Photo Rebuild",
     icon: <Camera className="h-6 w-6" />,
@@ -1121,7 +1129,7 @@ const deriveQuote = (analysis: SnapshotAnalysis | null) => {
   return clampQuote(analysis.suggestedQuote ?? inferred);
 };
 
-type RequestType = "dataset" | "scene" | "snapshot";
+type RequestType = "dataset" | "scene" | "snapshot" | "recipe";
 
 const defaultRequestType: RequestType = SHOW_REAL_WORLD_CAPTURE
   ? "scene"
@@ -1134,7 +1142,12 @@ const getInitialRequestType = (): RequestType => {
 
   const params = new URLSearchParams(window.location.search);
   const requested = params.get("request");
-  const allowedRequests: RequestType[] = ["dataset", "scene", "snapshot"];
+  const allowedRequests: RequestType[] = [
+    "dataset",
+    "scene",
+    "snapshot",
+    "recipe",
+  ];
 
   if (requested && allowedRequests.includes(requested as RequestType)) {
     if (!SHOW_REAL_WORLD_CAPTURE && requested === "scene") {
@@ -1656,6 +1669,96 @@ export function ContactForm() {
               />
             </div>
           </section>
+        ) : requestType === "recipe" ? (
+          <section className="mb-12 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex flex-col gap-3 border-b border-zinc-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                  <Layers className="h-4 w-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-[0.35em] text-emerald-700">
+                    Scene Recipe Brief
+                  </h4>
+                  <p className="text-sm text-zinc-600">
+                    Tell us which SimReady packs you have and the layout + semantics you need. We ship a USD layer, manifest, and Replicator variants.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                  SimReady packs on hand
+                </label>
+                <input
+                  name="recipePacks"
+                  placeholder="e.g. Furniture & Misc, Containers, Warehouse"
+                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-emerald-500 focus:ring-emerald-500/20"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                  Asset root paths
+                </label>
+                <input
+                  name="recipeAssetRoots"
+                  placeholder="Local/Nucleus mount paths we should reference"
+                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-emerald-500 focus:ring-emerald-500/20"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                  Layout + semantics to cover
+                </label>
+                <textarea
+                  name="recipeBrief"
+                  rows={3}
+                  placeholder="Describe the room shell, prim hierarchy expectations, labels, and physics requirements."
+                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-emerald-500 focus:ring-emerald-500/20"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                  Variant generator needs
+                </label>
+                <textarea
+                  name="recipeVariants"
+                  rows={3}
+                  placeholder="Object swaps, clutter placement, HDRI/time-of-day, material variants, articulation states, etc."
+                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-emerald-500 focus:ring-emerald-500/20"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">
+                Delivery expectation
+              </span>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-zinc-700">
+                  <p className="font-semibold text-zinc-900">We ship:</p>
+                  <ul className="mt-2 space-y-1 list-disc pl-4">
+                    <li>USD layer (.usda recommended)</li>
+                    <li>Manifest (JSON/YAML)</li>
+                    <li>Replicator randomizer</li>
+                  </ul>
+                </div>
+                <div className="rounded-xl border border-emerald-100 bg-white p-4 text-sm text-zinc-700">
+                  <p className="font-semibold text-zinc-900">You provide:</p>
+                  <ul className="mt-2 space-y-1 list-disc pl-4">
+                    <li>SimReady packs + asset roots</li>
+                    <li>Integration target (Isaac Lab/Sim)</li>
+                    <li>Any QA constraints</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </section>
         ) : requestType === "snapshot" ? (
           <section className="mb-12 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col gap-3 border-b border-zinc-100 pb-4">
@@ -2069,7 +2172,7 @@ export function ContactForm() {
             </div>
           </div>
 
-          {requestType === "dataset" && (
+          {(requestType === "dataset" || requestType === "recipe") && (
             <div className="space-y-3">
               <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
                 Environment Types

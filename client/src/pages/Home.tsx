@@ -472,6 +472,20 @@ const offeringCards = [
     icon: <LayoutGrid className="h-8 w-8 text-zinc-900" />,
   },
   {
+    title: "Scene Recipes",
+    badge: "Layouts + Variants",
+    description:
+      "Lightweight USD layers, manifests, and Replicator scripts that assemble NVIDIA SimReady packs without shipping assets.",
+    bullets: [
+      "Room shells, prim hierarchy, semantics, and physics defaults",
+      "Manifest for SimReady packs + asset fallbacks you install locally",
+      "Variant generator for swaps, clutter, lighting, and articulation states",
+    ],
+    ctaLabel: "Request a recipe",
+    ctaHref: "/contact?request=recipe",
+    icon: <Terminal className="h-8 w-8 text-zinc-900" />,
+  },
+  {
     title: "Reference Photo Reconstruction",
     badge: "Exclusive",
     description:
