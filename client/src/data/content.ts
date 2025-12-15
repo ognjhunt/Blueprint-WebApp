@@ -341,7 +341,7 @@ export const syntheticDatasets: SyntheticDataset[] = [
     description:
       "110 grocery and convenience aisles with planogrammed shelving, refrigeration bays, and pallet drops for mixed-SKU restock policies.",
     heroImage:
-      "https://images.unsplash.com/photo-1586202692873-0227667ccf6b?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1600&q=80",
     locationType: "Grocery / Retail",
     policySlugs: ["dexterous-pick-place", "mixed-sku-logistics"],
     objectTags: ["shelves", "pallets", "totes", "coolers"],
@@ -386,7 +386,7 @@ export const syntheticDatasets: SyntheticDataset[] = [
     description:
       "65 precision lab benches with gloveboxes, articulated enclosures, and sample handoff tooling for panel + insertion curricula.",
     heroImage:
-      "https://images.unsplash.com/photo-1582719478250-02c3c15b6640?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=1600&q=80",
     locationType: "Labs",
     policySlugs: [
       "panel-interaction-suite",
@@ -496,7 +496,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     slug: "precision-lab-glovebox",
     title: "Precision Lab Glovebox",
     description: "Sealed glovebox enclosure with articulated glove ports, pass-through chambers, and sample handling fixtures.",
-    thumbnail: "https://images.unsplash.com/photo-1582719478250-c6a3d60d1f6e?auto=format&fit=crop&w=800&q=80",
+    thumbnail: "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=800&q=80",
     locationType: "Labs",
     policySlugs: ["precision-insertion-assembly", "panel-interaction-suite"],
     objectTags: ["sample racks", "valves", "drawers"],
@@ -591,7 +591,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     slug: "sample-prep-workbench",
     title: "Sample Prep Workbench",
     description: "Laboratory workbench with articulated equipment mounts, sample racks, and precision measurement tools.",
-    thumbnail: "https://images.unsplash.com/photo-1582719366127-dac0e1b08b0a?auto=format&fit=crop&w=800&q=80",
+    thumbnail: "https://images.unsplash.com/photo-1567427017947-545c5f8d16ad?auto=format&fit=crop&w=800&q=80",
     locationType: "Labs",
     policySlugs: ["precision-insertion-assembly"],
     objectTags: ["sample racks", "drawers"],

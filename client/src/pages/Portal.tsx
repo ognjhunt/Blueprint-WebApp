@@ -840,7 +840,7 @@ const SCENE_REQUESTS: SceneRequest[] = [
     deadline: "2024-12-21T12:00:00.000Z",
     priority: "urgent",
     thumbnail:
-      "https://images.unsplash.com/photo-1587502537734-0f3c9a3ac1d4?auto=format&fit=crop&w=960&q=80",
+      "https://images.unsplash.com/photo-1631549916768-4119b2e5f926?auto=format&fit=crop&w=960&q=80",
     fileFormat: "Blender / USDZ",
   },
 ];
