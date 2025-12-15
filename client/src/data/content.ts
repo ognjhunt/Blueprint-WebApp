@@ -141,7 +141,7 @@ export const environmentCategories: EnvironmentCategory[] = [
   {
     title: "Kitchens",
     slug: "kitchens",
-    heroImage: "https://images.unsplash.com/photo-1504753793650-d4a2b783c15e?auto=format&fit=crop&w=1200&q=80",
+    heroImage: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=1200&q=80",
     summary:
       "Commercial prep lines, dish pits, and quick-serve stations with articulated appliances ready for pick-and-place training.",
     tags: ["Indoor", "Industrial"],
@@ -159,7 +159,7 @@ export const environmentCategories: EnvironmentCategory[] = [
   {
     title: "Warehouse Lanes",
     slug: "warehouse-lanes",
-    heroImage: "https://images.unsplash.com/photo-1517502884422-41eaead166d4?auto=format&fit=crop&w=1200&q=80",
+    heroImage: "https://images.unsplash.com/photo-OnbSOhz0oig?auto=format&fit=crop&w=1200&q=80",
     summary:
       "Racked inventory corridors with pallets, totes, and AMR-clearances tuned for perception and manipulation.",
     tags: ["Industrial"],
@@ -312,7 +312,7 @@ export const syntheticDatasets: SyntheticDataset[] = [
     description:
       "150-scene bundle covering prep tables, dish pits, and service pass-throughs with drawer, door, and appliance articulation baked in.",
     heroImage:
-      "https://images.unsplash.com/photo-1504753793650-d4a2b783c15e?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=1600&q=80",
     locationType: "Kitchens",
     policySlugs: [
       "dexterous-pick-place",
@@ -361,7 +361,7 @@ export const syntheticDatasets: SyntheticDataset[] = [
     description:
       "200-lane dataset covering cross-dock staging, tote picking, and pallet buffers tuned for AMR and arm-on-rail deployments.",
     heroImage:
-      "https://images.unsplash.com/photo-1517502884422-41eaead166d4?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-OnbSOhz0oig?auto=format&fit=crop&w=1600&q=80",
     locationType: "Warehouses",
     policySlugs: ["mixed-sku-logistics", "dexterous-pick-place"],
     objectTags: ["pallets", "totes", "cartons", "racking"],
@@ -1027,7 +1027,7 @@ export const scenes: Scene[] = [
     thumb: "https://images.unsplash.com/photo-1481833761820-0509d3217039?auto=format&fit=crop&w=600&q=80",
     gallery: [
       "https://images.unsplash.com/photo-1481833761820-0509d3217039?auto=format&fit=crop&w=1200&q=80",
-      "https://images.unsplash.com/photo-1504753793650-d4a2b783c15e?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=1200&q=80",
       "https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=1200&q=80",
     ],
     categories: ["kitchens"],
@@ -1210,7 +1210,7 @@ export const scenes: Scene[] = [
     gallery: [
       "https://images.unsplash.com/photo-1527430253228-e93688616381?auto=format&fit=crop&w=1200&q=80",
       "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80",
-      "https://images.unsplash.com/photo-1517502884422-41eaead166d4?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-OnbSOhz0oig?auto=format&fit=crop&w=1200&q=80",
     ],
     categories: ["warehouse-lanes"],
     tags: ["Industrial"],
@@ -1256,7 +1256,7 @@ export const scenes: Scene[] = [
     gallery: [
       "https://images.unsplash.com/photo-1549032305-5697c0fc0312?auto=format&fit=crop&w=1200&q=80",
       "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80",
-      "https://images.unsplash.com/photo-1517502884422-41eaead166d4?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-OnbSOhz0oig?auto=format&fit=crop&w=1200&q=80",
     ],
     categories: ["warehouse-lanes", "loading-docks"],
     tags: ["Industrial", "Outdoor"],
@@ -1300,7 +1300,7 @@ export const scenes: Scene[] = [
     thumb: "https://images.unsplash.com/photo-1517423440428-a5a00ad493e8?auto=format&fit=crop&w=600&q=80",
     gallery: [
       "https://images.unsplash.com/photo-1517423440428-a5a00ad493e8?auto=format&fit=crop&w=1200&q=80",
-      "https://images.unsplash.com/photo-1517502884422-41eaead166d4?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-OnbSOhz0oig?auto=format&fit=crop&w=1200&q=80",
       "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80",
     ],
     categories: ["warehouse-lanes"],
@@ -1571,8 +1571,8 @@ export const scenes: Scene[] = [
     thumb: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=600&q=80",
     gallery: [
       "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80",
-      "https://images.unsplash.com/photo-1504753793650-d4a2b783c15e?auto=format&fit=crop&w=1200&q=80",
-      "https://images.unsplash.com/photo-1481833761820-0509d3217039?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1200&q=80",
     ],
     categories: ["office-pods"],
     tags: ["Indoor"],
@@ -1768,7 +1768,7 @@ export const caseStudies: CaseStudy[] = [
     slug: "warehouse-aisle-with-totes",
     summary:
       "AMR bin-pick tests using Blueprint's tote lanes with calibrated pallet heights and navigation envelopes.",
-    hero: "https://images.unsplash.com/photo-1517502884422-41eaead166d4?auto=format&fit=crop&w=1200&q=80",
+    hero: "https://images.unsplash.com/photo-OnbSOhz0oig?auto=format&fit=crop&w=1200&q=80",
     body:
       "A robotics integrator used our warehouse lane pack to evaluate pallet-to-tote flows. We tuned colliders for suction grippers, delivered annotation-ready packages, and validated in the Simulation QA suite before deployment.",
     outcomes: [
