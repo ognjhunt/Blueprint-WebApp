@@ -66,6 +66,7 @@ export interface SyntheticDataset {
   pricePerScene: number;
   sceneCount: number;
   frameCount: number;
+  variantCount?: number;
   releaseDate: string;
   tags: string[];
   randomizerScripts: string[];
@@ -87,6 +88,7 @@ export interface MarketplaceScene {
   objectTags: string[];
   price: number; // Individual scene price
   frameCount?: number;
+  variantCount?: number;
   releaseDate: string;
   tags: string[];
   deliverables: string[];
