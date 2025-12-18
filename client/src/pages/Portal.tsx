@@ -973,10 +973,14 @@ export default function Portal() {
             </div>
 
             {/* Login / Gate Placeholder */}
-            <div className="flex items-center gap-3 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-2 text-sm text-zinc-500">
+            <a
+              href="/login?redirect=/portal"
+              className="flex items-center gap-3 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-2 text-sm text-zinc-500 transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+            >
               <Lock className="h-4 w-4" />
               <span>Guest View — Sign in to claim tasks</span>
-            </div>
+              <ArrowRight className="h-4 w-4" />
+            </a>
           </div>
 
           {/* Dashboard Stats Strip */}
