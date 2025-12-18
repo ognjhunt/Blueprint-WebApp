@@ -1,0 +1,219 @@
+.guidedtour-dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  
+  .guidedtour-dialog-content {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 0.5rem;
+    max-width: 600px;
+    width: 100%;
+    position: relative;
+  }
+  
+  .guidedtour-dialog-close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    font-size: 1.5rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+  
+  .guidedtour-dialog-header {
+    margin-bottom: 1rem;
+  }
+  
+  .guidedtour-dialog-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+  
+  .guidedtour-dialog-description {
+    color: #666;
+  }
+  
+  .guidedtour-button {
+    padding: 0.5rem 1rem;
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  
+  .guidedtour-button:hover {
+    background-color: #2563eb;
+  }
+  
+  .guidedtour-button:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+  }
+  
+  .guidedtour-progress {
+    height: 0.5rem;
+    background-color: #e5e7eb;
+    border-radius: 9999px;
+    margin-bottom: 1rem;
+  }
+  
+  .guidedtour-progress-bar {
+    height: 100%;
+    background-color: #3b82f6;
+    border-radius: 9999px;
+    transition: width 0.3s ease-in-out;
+  }
+  
+  .guidedtour-card {
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  }
+  
+  .guidedtour-card-content {
+    padding: 1rem;
+  }
+  
+  .guidedtour-welcome {
+    text-align: center;
+  }
+  
+  .guidedtour-welcome-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+  }
+  
+  .guidedtour-space-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+  
+  .guidedtour-space-card {
+    cursor: pointer;
+    transition: box-shadow 0.3s ease;
+  }
+  
+  .guidedtour-space-card:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+  
+  .guidedtour-space-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .guidedtour-space-type {
+    font-weight: 600;
+  }
+  
+  .guidedtour-layout {
+    border: 2px dashed #d1d5db;
+    padding: 1rem;
+    height: 16rem;
+    position: relative;
+  }
+  
+  .guidedtour-layout-element {
+    position: absolute;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+  }
+  
+  .guidedtour-layout-entrance {
+    top: 0.5rem;
+    left: 0.5rem;
+    background-color: #dbeafe;
+  }
+  
+  .guidedtour-layout-checkout {
+    bottom: 0.5rem;
+    right: 0.5rem;
+    background-color: #d1fae5;
+  }
+  
+  .guidedtour-layout-placeholder {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #9ca3af;
+  }
+  
+  .guidedtour-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .guidedtour-action {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .guidedtour-action-condition,
+  .guidedtour-action-response {
+    flex: 1;
+  }
+  
+  .guidedtour-action-arrow {
+    margin: 0 1rem;
+  }
+  
+  .guidedtour-add-action {
+    margin-top: 1rem;
+    width: 100%;
+  }
+  
+  .guidedtour-analytics {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .guidedtour-chart-placeholder {
+    height: 10rem;
+    background-color: #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9ca3af;
+  }
+  
+  .guidedtour-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+  
+  .guidedtour-metric-title {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+  
+  .guidedtour-metric-value {
+    font-size: 1.5rem;
+  }
+  
+  .guidedtour-step-content {
+    margin-bottom: 1rem;
+  }
+  
+  .guidedtour-navigation {
+    display: flex;
+    justify-content: space-between;
+  }
