@@ -678,6 +678,7 @@
 //   );
 // }
 import { useMemo, useState } from "react";
+import { Link } from "wouter";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   CalendarDays,
@@ -973,9 +974,18 @@ export default function Portal() {
             </div>
 
             {/* Login / Gate Placeholder */}
-            <div className="flex items-center gap-3 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-2 text-sm text-zinc-500">
+            <div className="flex items-center gap-3 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-2 text-sm text-zinc-600">
               <Lock className="h-4 w-4" />
-              <span>Guest View — Sign in to claim tasks</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-zinc-700">Guest View</span>
+                <span aria-hidden className="text-zinc-400">•</span>
+                <Link
+                  href="/login"
+                  className="font-semibold text-indigo-600 transition hover:text-indigo-700"
+                >
+                  Sign in to claim tasks
+                </Link>
+              </div>
             </div>
           </div>
 
