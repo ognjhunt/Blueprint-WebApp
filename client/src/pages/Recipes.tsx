@@ -231,10 +231,10 @@ export default function Recipes() {
                     </div>
                     <div className="rounded-xl border border-zinc-200 bg-white p-4">
                       <p className="text-xs font-bold uppercase tracking-[0.3em] text-zinc-500">
-                        Variant knobs
+                        Domain randomization
                       </p>
                       <ul className="mt-2 space-y-1 text-sm text-zinc-700">
-                        {recipe.variantCoverage.map((item) => (
+                        {recipe.domainRandomization.map((item) => (
                           <li key={item} className="flex items-start gap-2">
                             <span className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-600" />
                             <span>{item}</span>
