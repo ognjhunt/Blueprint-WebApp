@@ -64,10 +64,20 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
 
     if (!currentUser) {
       if (!authLoading) {
+        const pendingRedirectPath = (() => {
+          if (typeof window === "undefined") {
+            return `/environments/${detailSlug}?checkout=pending`;
+          }
+
+          const currentUrl = new URL(window.location.href);
+          currentUrl.searchParams.set("checkout", "pending");
+          return `${currentUrl.pathname}${currentUrl.search}`;
+        })();
+
         try {
           sessionStorage.setItem(
             "redirectAfterAuth",
-            `/environments/${detailSlug}?checkout=pending`,
+            pendingRedirectPath,
           );
         } catch (storageError) {
           console.error(
