@@ -512,7 +512,7 @@ const offeringCards = [
       "Plug-and-play handoff for Isaac 4.x/5.x, URDF, or custom formats",
       "Site-specific randomizers + QA so you ship with confidence",
     ],
-    ctaLabel: "Book a capture",
+    ctaLabel: "Request demo",
     ctaHref: "/contact",
     icon: <Scan className="h-8 w-8 text-zinc-900" />,
   },
@@ -594,7 +594,7 @@ export default function Home() {
                 primaryHref="/environments"
                 primaryLabel="Browse Marketplace"
                 secondaryHref="/contact"
-                secondaryLabel="Book Capture"
+                secondaryLabel="Request Demo"
               />
 
               <div className="pt-4 opacity-80 grayscale transition-all duration-500 hover:opacity-100 hover:grayscale-0">
