@@ -4,6 +4,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Shield, Package, Sparkles, TrendingUp, ShoppingCart } from "lucide-react";
 import type { SyntheticDataset, MarketplaceScene } from "@/data/content";
 import { useLocation } from "wouter";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 interface MarketplaceCardProps {
   item: SyntheticDataset | MarketplaceScene;
@@ -13,6 +14,7 @@ interface MarketplaceCardProps {
 export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [, navigate] = useLocation();
+  const requireAuth = useRequireAuth();
   const isDataset = type === "dataset";
   const dataset = isDataset ? (item as SyntheticDataset) : null;
   const scene = !isDataset ? (item as MarketplaceScene) : null;
@@ -41,6 +43,11 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
     async (event?: MouseEvent<HTMLButtonElement>) => {
       event?.stopPropagation();
       if (isRedirecting) return;
+
+      // Require authentication before checkout
+      if (!requireAuth({ pendingAction: "marketplace-checkout" })) {
+        return; // User redirected to login
+      }
 
       const checkoutItem = isDataset
         ? {
@@ -120,7 +127,7 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
         setIsRedirecting(false);
       }
     },
-    [dataset, isDataset, isRedirecting, scene, slug],
+    [dataset, isDataset, isRedirecting, requireAuth, scene, slug],
   );
 
   const handleCardClick = () => {

@@ -977,6 +977,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { SUPPORT } from "../pilotCopy";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 // --- Configuration ---
 
@@ -1172,6 +1173,9 @@ const getInitialRequestType = (): RequestType => {
 };
 
 export function ContactForm() {
+  // --- Auth ---
+  const requireAuth = useRequireAuth();
+
   // --- State ---
   const [status, setStatus] = useState<
     "idle" | "loading" | "success" | "error"
@@ -1483,6 +1487,12 @@ export function ContactForm() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    // Require authentication before submitting requests
+    if (!requireAuth({ pendingAction: "contact-form-submit" })) {
+      return; // User redirected to login
+    }
+
     const form = event.currentTarget;
 
     const data = new FormData(form);
