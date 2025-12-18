@@ -24,5 +24,14 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ["react", "react-dom"],
+          vendor: ["lucide-react", "@radix-ui/react-dialog", "@radix-ui/react-select"],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
   },
 });

@@ -1140,16 +1140,14 @@ function hydrateFormFields(
 
     if (elements instanceof RadioNodeList) {
       Array.from(elements).forEach((element) => {
-        if (
-          element instanceof HTMLInputElement ||
-          element instanceof HTMLSelectElement ||
-          element instanceof HTMLTextAreaElement
-        ) {
+        if (element instanceof HTMLInputElement) {
           if (element.type === "checkbox" || element.type === "radio") {
             element.checked = valuesArray.includes(element.value);
           } else {
             element.value = valuesArray[valuesArray.length - 1] ?? "";
           }
+        } else if (element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement) {
+          element.value = valuesArray[valuesArray.length - 1] ?? "";
         }
       });
       return;
@@ -1160,8 +1158,12 @@ function hydrateFormFields(
       | HTMLSelectElement
       | HTMLTextAreaElement;
 
-    if (element.type === "checkbox" || element.type === "radio") {
-      element.checked = valuesArray.includes(element.value);
+    if (element instanceof HTMLInputElement) {
+      if (element.type === "checkbox" || element.type === "radio") {
+        element.checked = valuesArray.includes(element.value);
+      } else {
+        element.value = valuesArray[valuesArray.length - 1] ?? "";
+      }
     } else {
       element.value = valuesArray[valuesArray.length - 1] ?? "";
     }
