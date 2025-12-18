@@ -23,7 +23,7 @@ const router = express.Router();
 const DEFAULT_MODEL =
   process.env.GEMINI_STUDIO_MODEL ||
   process.env.GEMINI_FLASH_MODEL ||
-  "gemini-2.5-flash";
+  "gemini-3-flash-preview";
 const FALLBACK_MODEL =
   process.env.GEMINI_STUDIO_FALLBACK_MODEL ||
   process.env.GEMINI_FLASH_FALLBACK_MODEL;

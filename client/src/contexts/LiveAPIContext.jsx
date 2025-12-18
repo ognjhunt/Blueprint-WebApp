@@ -52,7 +52,7 @@ class MultimodalLiveClient extends EventEmitter {
 
         const setupMessage = {
           setup: {
-            model: "models/gemini-2.0-flash-exp",
+            model: "models/gemini-3-flash-preview",
             stream: true,
             generationConfig: {
               responseModalities: ["TEXT", "SPEECH"],
