@@ -10,11 +10,11 @@ echo "================================================="
 echo ""
 
 # Check for API key
-if [ -z "$ANTHROPIC_API_KEY" ]; then
-    echo "❌ Error: ANTHROPIC_API_KEY environment variable not set"
+if [ -z "$GOOGLE_API_KEY" ]; then
+    echo "❌ Error: GOOGLE_API_KEY environment variable not set"
     echo ""
-    echo "Get your API key from: https://console.anthropic.com/"
-    echo "Then run: export ANTHROPIC_API_KEY='your-key-here'"
+    echo "Get your FREE API key from: https://aistudio.google.com/app/apikey"
+    echo "Then run: export GOOGLE_API_KEY='your-key-here'"
     exit 1
 fi
 

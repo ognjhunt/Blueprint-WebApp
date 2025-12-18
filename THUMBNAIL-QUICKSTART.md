@@ -3,15 +3,15 @@
 ## TL;DR - One Command Solution
 
 ```bash
-# Set your API key
-export ANTHROPIC_API_KEY="your-key-here"
+# Set your FREE API key
+export GOOGLE_API_KEY="your-key-here"
 
 # Run the automated workflow
 ./scripts/thumbnail-workflow.sh ~/Downloads
 ```
 
 This will:
-1. ✅ Use AI vision to match each image to the correct card
+1. ✅ Use Gemini 3 Flash AI vision to match each image to the correct card (super fast & free!)
 2. ✅ Copy images to the public folder
 3. ✅ Update content.ts with the new URLs
 
@@ -20,7 +20,7 @@ This will:
 ## What You Need
 
 1. **Your 36 thumbnail images** (in Downloads or any folder)
-2. **Anthropic API key** (get free credits at https://console.anthropic.com/)
+2. **Google API key** (completely FREE at https://aistudio.google.com/app/apikey)
 3. **5 minutes**
 
 ---
@@ -30,20 +30,20 @@ This will:
 ### 1. Install Dependencies (First Time Only)
 
 ```bash
-npm install @anthropic-ai/sdk tsx
+npm install @google/generative-ai tsx
 ```
 
-### 2. Get Your API Key
+### 2. Get Your FREE API Key
 
-- Go to https://console.anthropic.com/
-- Sign up (you get free credits)
-- Create an API key
-- Copy it
+- Go to https://aistudio.google.com/app/apikey
+- Sign in with your Google account
+- Click "Create API key"
+- Copy it (it's completely free - no credit card needed!)
 
 ### 3. Set the API Key
 
 ```bash
-export ANTHROPIC_API_KEY="your-key-here"
+export GOOGLE_API_KEY="your-key-here"
 ```
 
 ### 4. Run the Workflow
@@ -60,7 +60,7 @@ export ANTHROPIC_API_KEY="your-key-here"
 
 The script will:
 - Scan your images
-- Use Claude Vision API to analyze each one
+- Use Gemini 3 Flash Vision to analyze each one (super fast & free!)
 - Match it to the correct card (shows you reasoning)
 - Ask you to review the matches
 - Copy images to `client/public/thumbnails/`
@@ -120,7 +120,7 @@ npx tsx scripts/update-content-images.ts https://your-cdn-url.com/thumbnails/
 → Review those matches in `image-matches.json` - you can manually override them
 
 **Rate limiting**
-→ The script includes 1s delays between API calls. If you hit limits, wait a minute and re-run
+→ The script includes 500ms delays between API calls. Gemini is fast and has generous free limits!
 
 ---
 
