@@ -1,9 +1,10 @@
 import type { MouseEvent } from "react";
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Shield, Package, Sparkles, TrendingUp, ShoppingCart } from "lucide-react";
 import type { SyntheticDataset, MarketplaceScene } from "@/data/content";
 import { useLocation } from "wouter";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface MarketplaceCardProps {
   item: SyntheticDataset | MarketplaceScene;
@@ -13,6 +14,7 @@ interface MarketplaceCardProps {
 export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [, navigate] = useLocation();
+  const { currentUser, loading: authLoading } = useAuth();
   const isDataset = type === "dataset";
   const dataset = isDataset ? (item as SyntheticDataset) : null;
   const scene = !isDataset ? (item as MarketplaceScene) : null;
@@ -41,6 +43,24 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
     async (event?: MouseEvent<HTMLButtonElement>) => {
       event?.stopPropagation();
       if (isRedirecting) return;
+
+      if (!currentUser) {
+        if (!authLoading) {
+          try {
+            sessionStorage.setItem(
+              "redirectAfterAuth",
+              `/environments/${slug}?checkout=pending`,
+            );
+          } catch (storageError) {
+            console.error(
+              "Unable to set redirectAfterAuth in sessionStorage:",
+              storageError,
+            );
+          }
+          navigate("/login");
+        }
+        return;
+      }
 
       const checkoutItem = isDataset
         ? {
@@ -120,7 +140,7 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
         setIsRedirecting(false);
       }
     },
-    [dataset, isDataset, isRedirecting, scene, slug],
+    [authLoading, currentUser, dataset, isDataset, isRedirecting, navigate, scene, slug],
   );
 
   const handleCardClick = () => {
