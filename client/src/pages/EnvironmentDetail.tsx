@@ -10,7 +10,6 @@ import {
 import { InteractionBadges } from "@/components/site/InteractionBadges";
 import { SpecList } from "@/components/site/SpecList";
 import { SceneCard } from "@/components/site/SceneCard";
-import { useRequireAuth } from "@/hooks/useRequireAuth";
 import {
   ArrowLeft,
   Box,
@@ -32,7 +31,6 @@ interface EnvironmentDetailProps {
 
 export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
   const [isRedirecting, setIsRedirecting] = useState(false);
-  const requireAuth = useRequireAuth();
 
   const marketplaceDataset = syntheticDatasets.find(
     (item) => item.slug === params.slug,
@@ -58,11 +56,6 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
 
   const handleCheckout = useCallback(async () => {
     if (!marketplaceItem || isRedirecting) return;
-
-    // Require authentication before checkout
-    if (!requireAuth({ pendingAction: "marketplace-checkout" })) {
-      return; // User redirected to login
-    }
 
     const checkoutItem = isDataset
       ? {
@@ -141,7 +134,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     } finally {
       setIsRedirecting(false);
     }
-  }, [detailSlug, isDataset, isRedirecting, marketplaceDataset, marketplaceItem, marketplaceScene, requireAuth]);
+  }, [detailSlug, isDataset, isRedirecting, marketplaceDataset, marketplaceItem, marketplaceScene]);
 
   if (marketplaceItem) {
     const heroImage = isDataset
