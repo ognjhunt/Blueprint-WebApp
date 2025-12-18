@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   scenes,
@@ -7,6 +7,8 @@ import {
   type SyntheticDataset,
   type MarketplaceScene,
 } from "@/data/content";
+import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "wouter";
 import { InteractionBadges } from "@/components/site/InteractionBadges";
 import { SpecList } from "@/components/site/SpecList";
 import { SceneCard } from "@/components/site/SceneCard";
@@ -31,6 +33,9 @@ interface EnvironmentDetailProps {
 
 export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const { currentUser, loading: authLoading } = useAuth();
+  const [, navigate] = useLocation();
+  const hasResumedCheckoutRef = useRef(false);
 
   const marketplaceDataset = syntheticDatasets.find(
     (item) => item.slug === params.slug,
@@ -56,6 +61,24 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
 
   const handleCheckout = useCallback(async () => {
     if (!marketplaceItem || isRedirecting) return;
+
+    if (!currentUser) {
+      if (!authLoading) {
+        try {
+          sessionStorage.setItem(
+            "redirectAfterAuth",
+            `/environments/${detailSlug}?checkout=pending`,
+          );
+        } catch (storageError) {
+          console.error(
+            "Unable to set redirectAfterAuth in sessionStorage:",
+            storageError,
+          );
+        }
+        navigate("/login");
+      }
+      return;
+    }
 
     const checkoutItem = isDataset
       ? {
@@ -134,7 +157,18 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     } finally {
       setIsRedirecting(false);
     }
-  }, [detailSlug, isDataset, isRedirecting, marketplaceDataset, marketplaceItem, marketplaceScene]);
+  }, [authLoading, currentUser, detailSlug, isDataset, isRedirecting, marketplaceDataset, marketplaceItem, marketplaceScene, navigate]);
+
+  useEffect(() => {
+    if (hasResumedCheckoutRef.current) return;
+    if (!currentUser || authLoading || isRedirecting) return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get("checkout") === "pending") {
+      hasResumedCheckoutRef.current = true;
+      handleCheckout();
+    }
+  }, [authLoading, currentUser, handleCheckout, isRedirecting]);
 
   if (marketplaceItem) {
     const heroImage = isDataset
