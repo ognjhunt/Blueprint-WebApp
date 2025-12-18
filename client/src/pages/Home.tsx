@@ -474,14 +474,14 @@ const offeringCards = [
   },
   {
     title: "Scene Recipes",
-    badge: "Layouts + Variants",
+    badge: "Layouts + Frames",
     description:
       "Lightweight USD layers, manifests, and Replicator scripts that assemble NVIDIA SimReady packs without shipping assets.",
     bullets: [
       "Room shells, prim hierarchy, semantics, and physics defaults",
       "Manifest for SimReady packs + asset fallbacks you install locally",
       "Task logic scaffolds (actions, observations, rewards, resets) tuned for vectorized RL",
-      "Variant generator for swaps, clutter, lighting, and articulation states",
+      "Frame generator for swaps, clutter, lighting, and articulation states (500–2,000 frames/scene)",
     ],
     ctaLabel: "Request a recipe",
     ctaHref: "/recipes",

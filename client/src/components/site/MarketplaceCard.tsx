@@ -239,20 +239,20 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
               </div>
               <div>
                 <div className="text-[10px] uppercase tracking-wider text-zinc-500">
-                  Variants
+                  Frames
                 </div>
                 <div className="font-mono text-sm font-semibold text-zinc-900">
-                  {dataset!.variantCount}
+                  {dataset!.frameCount?.toLocaleString()}
                 </div>
               </div>
             </>
           ) : (
             <div>
               <div className="text-[10px] uppercase tracking-wider text-zinc-500">
-                Variants
+                Frames
               </div>
               <div className="font-mono text-sm font-semibold text-zinc-900">
-                {scene!.variantCount || 1}
+                {(scene!.frameCount || 1000).toLocaleString()}
               </div>
             </div>
           )}

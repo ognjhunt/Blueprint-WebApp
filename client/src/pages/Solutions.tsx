@@ -261,8 +261,8 @@ const recipeDeliverables = [
   },
   {
     icon: <Terminal className="h-5 w-5 text-indigo-600" />,
-    title: "Variant generator",
-    desc: "Omniverse Replicator scripts for swaps, clutter, lighting, material variants, and articulation state noise.",
+    title: "Frame generator",
+    desc: "Omniverse Replicator scripts for swaps, clutter, lighting, material randomization, and articulation state noise—typically 500–2,000 frames per scene.",
   },
 ];
 
@@ -488,7 +488,7 @@ export default function Solutions() {
                   <h2 className="text-3xl font-bold text-zinc-900 sm:text-4xl">Where labs plug SimReady packs.</h2>
                   <p className="text-zinc-600 leading-relaxed">
                     SimReady scenes power policy training, perception data engines, and industrial digital twins. The
-                    common thread: teams need consistent semantics, USDPhysics metadata, and stable variants to measure
+                    common thread: teams need consistent semantics, USDPhysics metadata, and stable frame generation to measure
                     generalization.
                   </p>
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -724,13 +724,13 @@ export default function Solutions() {
                   <Terminal className="h-3 w-3" /> Scene Recipes
                 </div>
                 <h2 className="text-3xl font-bold text-zinc-900 sm:text-4xl">
-                  Layouts, manifests, and variants—BYO SimReady assets.
+                  Layouts, manifests, and frame generators—BYO SimReady assets.
                 </h2>
                 <p className="text-zinc-600 leading-relaxed">
                   We deliver a lightweight USD layer plus a manifest that references NVIDIA SimReady packs you install locally. Omniverse Replicator scripts handle swaps, clutter, lighting, and articulation state randomization without us shipping the source assets.
                 </p>
                 <ul className="grid gap-3 text-sm text-zinc-700 sm:grid-cols-2">
-                  {["No asset redistribution—packs stay on your Nucleus/local disk", "Semantics + USDPhysics defaults aligned to SimReady best practices", "Variant generator tuned for RL-friendly randomization", "Reusable integration snippets for Isaac Lab / Isaac Sim"].map(
+                  {["No asset redistribution—packs stay on your Nucleus/local disk", "Semantics + USDPhysics defaults aligned to SimReady best practices", "Frame generator tuned for RL-friendly randomization (500–2,000 frames/scene)", "Reusable integration snippets for Isaac Lab / Isaac Sim"].map(
                     (item) => (
                       <li
                         key={item}
@@ -775,9 +775,9 @@ export default function Solutions() {
                   </div>
                 ))}
                 <div className="col-span-full rounded-xl border border-emerald-100 bg-white p-5">
-                  <p className="text-xs font-bold uppercase tracking-[0.25em] text-emerald-700">Variant knobs</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.25em] text-emerald-700">Frame randomization</p>
                   <p className="mt-2 text-sm text-zinc-700">
-                    Replicator randomizes object swaps, clutter placement, HDRI/time-of-day, material variants, and pose noise. We keep USD writes optional for RL loops.
+                    Replicator randomizes object swaps, clutter placement, HDRI/time-of-day, materials, and pose noise across hundreds of frames. We keep USD writes optional for RL loops.
                   </p>
                 </div>
               </div>

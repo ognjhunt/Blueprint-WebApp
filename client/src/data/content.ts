@@ -66,7 +66,6 @@ export interface SyntheticDataset {
   pricePerScene: number;
   sceneCount: number;
   frameCount: number;
-  variantCount?: number;
   releaseDate: string;
   tags: string[];
   randomizerScripts: string[];
@@ -88,7 +87,6 @@ export interface MarketplaceScene {
   objectTags: string[];
   price: number; // Individual scene price
   frameCount?: number;
-  variantCount?: number;
   releaseDate: string;
   tags: string[];
   deliverables: string[];
@@ -111,7 +109,7 @@ export interface SceneRecipe {
   policySlugs: string[];
   requiredPacks: string[];
   usdLayers: string[];
-  variantCoverage: string[];
+  domainRandomization: string[];
   deliverables: string[];
   heroImage: string;
   tags: string[];
@@ -323,7 +321,7 @@ export const syntheticDatasets: SyntheticDataset[] = [
     pricePerScene: 65,
     standardPricePerScene: 185,
     sceneCount: 150,
-    frameCount: 8,
+    frameCount: 1500,
     releaseDate: "2024-12-12",
     tags: ["Articulated", "Plug & Play", "USD"],
     randomizerScripts: [
@@ -348,7 +346,7 @@ export const syntheticDatasets: SyntheticDataset[] = [
     pricePerScene: 58,
     standardPricePerScene: 175,
     sceneCount: 110,
-    frameCount: 6,
+    frameCount: 1200,
     releaseDate: "2024-12-05",
     tags: ["Retail", "High SKU", "Randomized"],
     randomizerScripts: ["SKU swaps", "Cart clutter", "Lighting color temp"],
@@ -368,7 +366,7 @@ export const syntheticDatasets: SyntheticDataset[] = [
     pricePerScene: 72,
     standardPricePerScene: 195,
     sceneCount: 200,
-    frameCount: 10,
+    frameCount: 2000,
     releaseDate: "2024-11-28",
     tags: ["Industrial", "Heavy lift", "Conveyor-ready"],
     randomizerScripts: [
@@ -396,7 +394,7 @@ export const syntheticDatasets: SyntheticDataset[] = [
     pricePerScene: 84,
     standardPricePerScene: 220,
     sceneCount: 65,
-    frameCount: 5,
+    frameCount: 1000,
     releaseDate: "2024-11-22",
     tags: ["Cleanroom", "Controls", "QA"],
     randomizerScripts: ["Gauge offsets", "Cabinet wiring", "Consumable clutter"],
@@ -415,7 +413,7 @@ export const syntheticDatasets: SyntheticDataset[] = [
     pricePerScene: 52,
     standardPricePerScene: 150,
     sceneCount: 90,
-    frameCount: 4,
+    frameCount: 800,
     releaseDate: "2024-11-18",
     tags: ["Inspection", "Low light", "Compact"],
     randomizerScripts: ["Status LEDs", "Valve state", "Dust + grime"],
@@ -434,7 +432,7 @@ export const syntheticDatasets: SyntheticDataset[] = [
     pricePerScene: 50,
     standardPricePerScene: 165,
     sceneCount: 50,
-    frameCount: 3,
+    frameCount: 600,
     releaseDate: "2024-11-12",
     tags: ["Assistive", "Household", "Soft goods"],
     randomizerScripts: ["Fabric types", "Lighting temp", "Clutter"],
@@ -453,7 +451,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     policySlugs: ["dexterous-pick-place", "articulated-access-validation"],
     objectTags: ["dishwashers", "shelves", "utensils"],
     price: 185,
-    frameCount: 3,
+    frameCount: 750,
     releaseDate: "2024-12-01",
     tags: ["Articulated", "High-detail", "USD"],
     deliverables: ["USD / Isaac 4.x", "Replicator semantics"],
@@ -470,7 +468,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     policySlugs: ["dexterous-pick-place", "mixed-sku-logistics"],
     objectTags: ["coolers", "shelves", "totes"],
     price: 195,
-    frameCount: 2,
+    frameCount: 600,
     releaseDate: "2024-11-29",
     tags: ["Retail", "Cold storage", "Randomized"],
     deliverables: ["USD", "Synthetic sensor captures"],
@@ -501,7 +499,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     policySlugs: ["precision-insertion-assembly", "panel-interaction-suite"],
     objectTags: ["sample racks", "valves", "drawers"],
     price: 220,
-    frameCount: 2,
+    frameCount: 500,
     releaseDate: "2024-11-20",
     tags: ["Cleanroom", "Precision", "Controls"],
     deliverables: ["USD", "STEP", "Semantic layers"],
@@ -533,7 +531,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     policySlugs: ["laundry-folding-assist"],
     objectTags: ["washers", "dryers", "hampers"],
     price: 165,
-    frameCount: 2,
+    frameCount: 500,
     releaseDate: "2024-11-15",
     tags: ["Assistive", "Household"],
     deliverables: ["USD", "URDF"],
@@ -549,7 +547,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     policySlugs: ["dexterous-pick-place", "articulated-access-validation"],
     objectTags: ["drawers", "utensils", "appliances"],
     price: 170,
-    frameCount: 4,
+    frameCount: 1000,
     releaseDate: "2024-12-08",
     tags: ["Articulated", "USD"],
     deliverables: ["USD / Isaac 4.x", "Isaac 5.x"],
@@ -596,7 +594,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     policySlugs: ["precision-insertion-assembly"],
     objectTags: ["sample racks", "drawers"],
     price: 210,
-    frameCount: 3,
+    frameCount: 750,
     releaseDate: "2024-11-19",
     tags: ["Precision", "Assembly"],
     deliverables: ["USD", "STEP"],
@@ -642,7 +640,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     policySlugs: ["dexterous-pick-place"],
     objectTags: ["shelves", "appliances"],
     price: 175,
-    frameCount: 2,
+    frameCount: 500,
     releaseDate: "2024-12-02",
     tags: ["Food service", "Articulated"],
     deliverables: ["USD / Isaac 4.x"],
@@ -658,7 +656,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     policySlugs: ["dexterous-pick-place", "precision-insertion-assembly"],
     objectTags: ["drawers", "shelves"],
     price: 225,
-    frameCount: 1,
+    frameCount: 500,
     releaseDate: "2024-11-30",
     tags: ["Healthcare", "Precision", "Secure"],
     deliverables: ["USD", "Semantic layers"],
@@ -690,7 +688,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     policySlugs: ["articulated-access-validation", "panel-interaction-suite"],
     objectTags: ["doors", "switches"],
     price: 200,
-    frameCount: 2,
+    frameCount: 500,
     releaseDate: "2024-11-21",
     tags: ["Cleanroom", "Safety"],
     deliverables: ["USD", "Event scripts"],
@@ -721,7 +719,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     policySlugs: ["laundry-folding-assist", "articulated-access-validation"],
     objectTags: ["drawers", "hampers"],
     price: 180,
-    frameCount: 3,
+    frameCount: 750,
     releaseDate: "2024-11-13",
     tags: ["Assistive", "Organization"],
     deliverables: ["USD"],
@@ -748,10 +746,10 @@ export const sceneRecipes: SceneRecipe[] = [
       "Prim hierarchy with shelf transforms",
       "USDPhysics defaults & materials",
     ],
-    variantCoverage: [
+    domainRandomization: [
       "SKU swaps + facing randomization",
       "Clutter permutations on support surfaces",
-      "HDRI + time-of-day lighting set",
+      "HDRI + time-of-day lighting (500–2,000 frames/scene)",
     ],
     deliverables: [
       "Lightweight .usda layout",
@@ -780,10 +778,10 @@ export const sceneRecipes: SceneRecipe[] = [
       "Prim hierarchy for totes + pallets",
       "Physics materials for skid/contact surfaces",
     ],
-    variantCoverage: [
+    domainRandomization: [
       "Tote + carton swaps with scale normalization",
       "Spawn density + aisle clutter controls",
-      "HDRI + area light profiles",
+      "HDRI + area light profiles (500–2,000 frames/scene)",
     ],
     deliverables: [
       ".usda lane scaffold",
@@ -812,10 +810,10 @@ export const sceneRecipes: SceneRecipe[] = [
       "Prim hierarchy for drawers/doors",
       "Semantic labels for appliances + props",
     ],
-    variantCoverage: [
+    domainRandomization: [
       "Utensil + smallware swaps",
       "Lighting temperature + intensity",
-      "Pose noise + articulation open/close states",
+      "Pose noise + articulation states (500–2,000 frames/scene)",
     ],
     deliverables: [
       ".usda layout layer",
@@ -844,10 +842,10 @@ export const sceneRecipes: SceneRecipe[] = [
       "Semantic prim graph for racks + valves",
       "USDPhysics colliders on instruments",
     ],
-    variantCoverage: [
+    domainRandomization: [
       "Rack + instrument swaps",
-      "Material swaps for benches + flooring",
-      "Light temperature + intensity sweeps",
+      "Material randomization for benches + flooring",
+      "Light temperature + intensity sweeps (500–2,000 frames/scene)",
     ],
     deliverables: [
       ".usda interface layer",
@@ -875,10 +873,10 @@ export const sceneRecipes: SceneRecipe[] = [
       "Prim hierarchy for breakers/valves",
       "Semantic labeling for components",
     ],
-    variantCoverage: [
+    domainRandomization: [
       "Switchgear + breaker swaps",
-      "Dust/wear material variants",
-      "Spotlight + area light rigs",
+      "Dust/wear material randomization",
+      "Spotlight + area light rigs (500–2,000 frames/scene)",
     ],
     deliverables: [
       ".usda layout",
@@ -907,10 +905,10 @@ export const sceneRecipes: SceneRecipe[] = [
       "Prim graph for hampers + shelving",
       "Physics defaults for cloth + rigid props",
     ],
-    variantCoverage: [
+    domainRandomization: [
       "Garment + hamper swaps",
       "Fold-surface clutter controls",
-      "HDRI + temperature shifts",
+      "HDRI + temperature shifts (500–2,000 frames/scene)",
     ],
     deliverables: [
       "Lightweight .usda layer",
