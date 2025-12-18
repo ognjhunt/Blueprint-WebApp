@@ -144,19 +144,43 @@ async function main() {
 
   const genAI = new GoogleGenerativeAI(apiKey);
 
+  // Parse command line arguments
+  const args = process.argv.slice(2);
+  const todayOnly = args.includes('--today');
+  const nonFlagArgs = args.filter(arg => !arg.startsWith('--'));
+
   // Get images directory from command line argument
-  const imagesDir = process.argv[2] || path.join(process.env.HOME!, 'Downloads');
+  const imagesDir = nonFlagArgs[0] || path.join(process.env.HOME!, 'Downloads');
 
   if (!fs.existsSync(imagesDir)) {
     console.error(`Error: Directory ${imagesDir} does not exist`);
     process.exit(1);
   }
 
-  console.log(`\n🔍 Scanning for images in: ${imagesDir}\n`);
+  console.log(`\n🔍 Scanning for images in: ${imagesDir}`);
+  if (todayOnly) {
+    console.log('📅 Filtering to images created TODAY only\n');
+  } else {
+    console.log('');
+  }
 
-  const files = fs.readdirSync(imagesDir)
+  // Get today's date at midnight for comparison
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let files = fs.readdirSync(imagesDir)
     .filter(f => f.toLowerCase().endsWith('.png') || f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg'))
     .map(f => path.join(imagesDir, f));
+
+  // Filter to today's files if --today flag is set
+  if (todayOnly) {
+    files = files.filter(filePath => {
+      const stats = fs.statSync(filePath);
+      const fileDate = new Date(stats.mtime);
+      fileDate.setHours(0, 0, 0, 0);
+      return fileDate.getTime() === today.getTime();
+    });
+  }
 
   if (files.length === 0) {
     console.error('No image files found');
