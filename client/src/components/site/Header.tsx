@@ -51,7 +51,13 @@ export function Header() {
             </a>
           ))}
         </nav>
-        <div className="hidden md:flex">
+        <div className="hidden items-center gap-4 md:flex">
+          <a
+            href="/login"
+            className="text-sm font-medium text-slate-600 transition hover:text-slate-900"
+          >
+            Sign in
+          </a>
           <a
             href="/contact"
             className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
@@ -85,6 +91,13 @@ export function Header() {
                 {link.label}
               </a>
             ))}
+            <a
+              href="/login"
+              className="py-1 font-medium text-slate-900"
+              onClick={() => setOpen(false)}
+            >
+              Sign in
+            </a>
             <a
               href="/contact"
               className="mt-2 rounded-full bg-slate-900 px-4 py-2 text-center text-white"

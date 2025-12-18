@@ -18,6 +18,7 @@ const CaseStudies = lazy(() => import("./pages/CaseStudies"));
 const Careers = lazy(() => import("./pages/Careers"));
 const Contact = lazy(() => import("./pages/Contact"));
 const Portal = lazy(() => import("./pages/Portal"));
+const Login = lazy(() => import("./pages/Login"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -46,6 +47,7 @@ function Router() {
         <Route path="/careers" component={withLayout(Careers)} />
         <Route path="/contact" component={withLayout(Contact)} />
         <Route path="/portal" component={withLayout(Portal)} />
+        <Route path="/login" component={withLayout(Login)} />
         <Route path="/privacy" component={withLayout(Privacy)} />
         <Route path="/terms" component={withLayout(Terms)} />
         <Route component={withLayout(NotFound)} />
