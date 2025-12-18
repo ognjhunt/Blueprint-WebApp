@@ -958,6 +958,7 @@ import { GoogleGenAI } from "@google/genai";
 import { countries } from "@/data/countries";
 import { sceneRecipes } from "@/data/content";
 import { getGoogleMapsApiKey } from "@/lib/client-env";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   MapPin,
   Scan,
@@ -976,6 +977,7 @@ import {
   Loader2,
   MessageCircle,
 } from "lucide-react";
+import { useLocation } from "wouter";
 import { SUPPORT } from "../pilotCopy";
 
 // --- Configuration ---
@@ -1089,6 +1091,83 @@ function findEnvironmentMatch(types?: readonly string[]) {
   return undefined;
 }
 
+type SerializedFormValues = Record<string, string | string[]>;
+
+type ContactFormDraft = {
+  formValues: SerializedFormValues;
+  requestType: RequestType;
+  datasetTier: string;
+  siteAddress: string;
+  sitePlaceId: string;
+  selectedUseCases: string[];
+  selectedEnvironments: string[];
+  exclusivity: string;
+  snapshotExclusive: boolean;
+  snapshotEnvironment: string;
+};
+
+function serializeFormValues(form: HTMLFormElement): SerializedFormValues {
+  const formValues: SerializedFormValues = {};
+  const data = new FormData(form);
+
+  data.forEach((value, key) => {
+    if (value instanceof File) return;
+    const existing = formValues[key];
+    const stringValue = String(value);
+
+    if (existing !== undefined) {
+      const normalized = Array.isArray(existing) ? existing : [existing];
+      normalized.push(stringValue);
+      formValues[key] = normalized;
+    } else {
+      formValues[key] = stringValue;
+    }
+  });
+
+  return formValues;
+}
+
+function hydrateFormFields(
+  form: HTMLFormElement,
+  values: SerializedFormValues,
+) {
+  Object.entries(values).forEach(([key, value]) => {
+    const elements = form.elements.namedItem(key);
+
+    if (!elements) return;
+
+    const valuesArray = Array.isArray(value) ? value : [value];
+
+    if (elements instanceof RadioNodeList) {
+      Array.from(elements).forEach((element) => {
+        if (
+          element instanceof HTMLInputElement ||
+          element instanceof HTMLSelectElement ||
+          element instanceof HTMLTextAreaElement
+        ) {
+          if (element.type === "checkbox" || element.type === "radio") {
+            element.checked = valuesArray.includes(element.value);
+          } else {
+            element.value = valuesArray[valuesArray.length - 1] ?? "";
+          }
+        }
+      });
+      return;
+    }
+
+    const element = elements as
+      | HTMLInputElement
+      | HTMLSelectElement
+      | HTMLTextAreaElement;
+
+    if (element.type === "checkbox" || element.type === "radio") {
+      element.checked = valuesArray.includes(element.value);
+    } else {
+      element.value = valuesArray[valuesArray.length - 1] ?? "";
+    }
+  });
+}
+
 const exclusivityOptions = [
   { value: "none", label: "Shared catalog (Standard)" },
   { value: "preferred", label: "Prefer exclusivity" },
@@ -1172,11 +1251,17 @@ const getInitialRequestType = (): RequestType => {
 };
 
 export function ContactForm() {
+  const { currentUser } = useAuth();
+  const [currentPath, navigate] = useLocation();
   // --- State ---
   const [status, setStatus] = useState<
     "idle" | "loading" | "success" | "error"
   >("idle");
   const [message, setMessage] = useState("");
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [pendingDraft, setPendingDraft] = useState<ContactFormDraft | null>(
+    null,
+  );
   const [requestType, setRequestType] = useState<RequestType>(
     getInitialRequestType,
   );
@@ -1222,10 +1307,43 @@ export function ContactForm() {
   const [analysisMessage, setAnalysisMessage] = useState<string>("");
 
   // Refs
+  const formRef = useRef<HTMLFormElement | null>(null);
   const addressInputRef = useRef<HTMLInputElement | null>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const snapshotEnvironmentManualRef = useRef<boolean>(false);
   const [placesUnavailable, setPlacesUnavailable] = useState<boolean>(false);
+
+  const saveDraftForAuth = (form: HTMLFormElement) => {
+    try {
+      const formValues = serializeFormValues(form);
+
+      const draft: ContactFormDraft = {
+        formValues,
+        requestType,
+        datasetTier,
+        siteAddress,
+        sitePlaceId,
+        selectedUseCases,
+        selectedEnvironments,
+        exclusivity,
+        snapshotExclusive,
+        snapshotEnvironment,
+      };
+
+      sessionStorage.setItem("contactFormDraft", JSON.stringify(draft));
+
+      const safePath =
+        currentPath || (typeof window !== "undefined" ? window.location.pathname : "/");
+
+      const redirectTarget = safePath.includes("?")
+        ? `${safePath}&request=pending`
+        : `${safePath}?request=pending`;
+
+      sessionStorage.setItem("redirectAfterAuth", redirectTarget);
+    } catch (error) {
+      console.error("Unable to persist contact form draft", error);
+    }
+  };
 
   // --- Effects ---
 
@@ -1249,6 +1367,50 @@ export function ContactForm() {
       setAnalysisMessage("");
     }
   }, [requestType]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const draftRaw = sessionStorage.getItem("contactFormDraft");
+
+    if (!draftRaw) return;
+
+    try {
+      const draft = JSON.parse(draftRaw) as ContactFormDraft;
+      setPendingDraft(draft);
+      setRequestType(draft.requestType ?? defaultRequestType);
+      setDatasetTier(draft.datasetTier ?? datasetTiers[0].value);
+      setSelectedUseCases(draft.selectedUseCases ?? []);
+      setSelectedEnvironments(draft.selectedEnvironments ?? []);
+      setExclusivity(draft.exclusivity ?? exclusivityOptions[0].value);
+      setSiteAddress(draft.siteAddress ?? "");
+      setSitePlaceId(draft.sitePlaceId ?? "");
+      setSnapshotExclusive(draft.snapshotExclusive ?? true);
+      setSnapshotEnvironment(draft.snapshotEnvironment ?? "");
+    } catch (error) {
+      console.error("Failed to restore contact form draft", error);
+    } finally {
+      sessionStorage.removeItem("contactFormDraft");
+      sessionStorage.removeItem("redirectAfterAuth");
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!pendingDraft || !formRef.current) return;
+
+    const frame = requestAnimationFrame(() => {
+      if (!formRef.current) return;
+      hydrateFormFields(formRef.current, pendingDraft.formValues ?? {});
+      const firstField = formRef.current.querySelector<
+        HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+      >("input, textarea, select");
+
+      firstField?.focus();
+      setPendingDraft(null);
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [pendingDraft, requestType]);
 
   // Google Maps Logic
   useEffect(() => {
@@ -1477,14 +1639,34 @@ export function ContactForm() {
         "Gemini analysis failed. Try again or contact support.",
       );
       setStatus("error");
-      setMessage("We couldn’t complete the Gemini review. Please retry.");
+      setMessage("We couldn't complete the Gemini review. Please retry.");
     }
+  };
+
+  const handleAuthRedirect = () => {
+    const safePath =
+      currentPath || (typeof window !== "undefined" ? window.location.pathname : "/");
+
+    const redirectTarget = safePath.includes("?")
+      ? `${safePath}&request=pending`
+      : `${safePath}?request=pending`;
+
+    sessionStorage.setItem("redirectAfterAuth", redirectTarget);
+    navigate("/login");
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const form = event.currentTarget;
+
+    if (!currentUser) {
+      saveDraftForAuth(form);
+      setShowAuthPrompt(true);
+      setStatus("idle");
+      setMessage("Please sign in to send your request.");
+      return;
+    }
 
     const data = new FormData(form);
 
@@ -1573,76 +1755,117 @@ export function ContactForm() {
     }
   };
 
+  const authModal = showAuthPrompt ? (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-10">
+      <div className="max-w-lg rounded-2xl bg-white p-6 shadow-xl sm:p-8">
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
+              <User className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-zinc-900">Sign in required</p>
+              <p className="text-sm text-zinc-600">
+                We saved your entries so you can pick up where you left off after signing in.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              className="w-full rounded-full border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 sm:w-auto"
+              onClick={() => setShowAuthPrompt(false)}
+            >
+              Keep editing
+            </button>
+            <button
+              type="button"
+              className="w-full rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 sm:w-auto"
+              onClick={handleAuthRedirect}
+            >
+              Sign in to continue
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   // --- Render: Success State ---
   if (status === "success") {
     return (
-      <div className="flex flex-col items-center justify-center rounded-3xl border border-zinc-200 bg-white p-12 text-center shadow-lg">
-        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-          <CheckCircle2 className="h-8 w-8" />
+      <>
+        {authModal}
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-zinc-200 bg-white p-12 text-center shadow-lg">
+          <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+            <CheckCircle2 className="h-8 w-8" />
+          </div>
+          <h2 className="text-2xl font-bold text-zinc-900">Request Received</h2>
+          <p className="mt-4 max-w-md text-zinc-600">
+            A Blueprint engineer will review your specs and reach out shortly.
+            Expect a confirmation email within 5 minutes.
+          </p>
+          <button
+            onClick={() => setStatus("idle")}
+            className="mt-8 rounded-full border border-zinc-200 bg-white px-8 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-50"
+          >
+            Submit another request
+          </button>
         </div>
-        <h2 className="text-2xl font-bold text-zinc-900">Request Received</h2>
-        <p className="mt-4 max-w-md text-zinc-600">
-          A Blueprint engineer will review your specs and reach out shortly.
-          Expect a confirmation email within 5 minutes.
-        </p>
-        <button
-          onClick={() => setStatus("idle")}
-          className="mt-8 rounded-full border border-zinc-200 bg-white px-8 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-50"
-        >
-          Submit another request
-        </button>
-      </div>
+      </>
     );
   }
 
   // --- Render: Form ---
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      {/* 1. Path Selection */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {visibleRequestOptions.map((option) => (
-          <div
-            key={option.value}
-            onClick={() => setRequestType(option.value)}
-            className={`group relative flex cursor-pointer flex-col gap-4 rounded-2xl border p-6 transition-all duration-300 ${
-              requestType === option.value
-                ? "border-indigo-600 bg-indigo-50/50 shadow-md ring-1 ring-indigo-600"
-                : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm"
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div
-                className={`rounded-lg p-2.5 transition-colors ${
-                  requestType === option.value
-                    ? "bg-indigo-600 text-white"
-                    : "bg-zinc-100 text-zinc-500 group-hover:text-zinc-900"
-                }`}
-              >
-                {option.icon}
+    <>
+      {authModal}
+      <form ref={formRef} onSubmit={handleSubmit} className="space-y-8">
+        {/* 1. Path Selection */}
+        <div className="grid gap-4 md:grid-cols-2">
+          {visibleRequestOptions.map((option) => (
+            <div
+              key={option.value}
+              onClick={() => setRequestType(option.value)}
+              className={`group relative flex cursor-pointer flex-col gap-4 rounded-2xl border p-6 transition-all duration-300 ${
+                requestType === option.value
+                  ? "border-indigo-600 bg-indigo-50/50 shadow-md ring-1 ring-indigo-600"
+                  : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div
+                  className={`rounded-lg p-2.5 transition-colors ${
+                    requestType === option.value
+                      ? "bg-indigo-600 text-white"
+                      : "bg-zinc-100 text-zinc-500 group-hover:text-zinc-900"
+                  }`}
+                >
+                  {option.icon}
+                </div>
+                {requestType === option.value && (
+                  <div className="h-2 w-2 rounded-full bg-indigo-600 animate-pulse" />
+                )}
               </div>
-              {requestType === option.value && (
-                <div className="h-2 w-2 rounded-full bg-indigo-600 animate-pulse" />
-              )}
+              <div>
+                <h3
+                  className={`font-bold ${requestType === option.value ? "text-indigo-900" : "text-zinc-900"}`}
+                >
+                  {option.label}
+                </h3>
+                <p className="mt-2 text-sm text-zinc-600 leading-relaxed">
+                  {option.description}
+                </p>
+              </div>
             </div>
-            <div>
-              <h3
-                className={`font-bold ${requestType === option.value ? "text-indigo-900" : "text-zinc-900"}`}
-              >
-                {option.label}
-              </h3>
-              <p className="mt-2 text-sm text-zinc-600 leading-relaxed">
-                {option.description}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      {/* Container for the rest of the form */}
-      <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-10">
-        {/* 2. Specific Path Fields */}
-        {requestType === "dataset" ? (
-          <section className="mb-12 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        {/* Container for the rest of the form */}
+        <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-10">
+          {/* 2. Specific Path Fields */}
+          {requestType === "dataset" ? (
+            <section className="mb-12 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="border-b border-zinc-100 pb-4">
               <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-indigo-600">
                 <Sparkles className="h-3.5 w-3.5" /> Wishlist Specs
@@ -2420,6 +2643,7 @@ export function ContactForm() {
           )}
         </div>
       </div>
-    </form>
+      </form>
+    </>
   );
 }
