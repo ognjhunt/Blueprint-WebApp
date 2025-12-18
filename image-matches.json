@@ -1,0 +1,261 @@
+[
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 11_31_24 AM.png",
+    "cardId": "laundry-folding-alcove",
+    "cardTitle": "Laundry Folding Alcove",
+    "confidence": "high",
+    "reasoning": "The image depicts a comprehensive laundry room setup, featuring a side-by-side washer and dryer, a dedicated folding table with stacks of folded towels, and multiple hampers. This layout matches the 'Laundry Folding Alcove' description, which emphasizes a home laundry nook with hampers and a folding surface optimized for cloth handling policies."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 11_33_40 AM.png",
+    "cardId": "commercial-dishroom-station",
+    "cardTitle": "Commercial Dishroom Station",
+    "confidence": "high",
+    "reasoning": "The image clearly depicts a commercial dishwashing environment featuring an industrial dishwasher, sinks with a spray nozzle, and multiple racks for dishes and glassware, which perfectly matches the description for the Commercial Dishroom Station."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 11_37_35 AM.png",
+    "cardId": "grocery-refrigeration-bay",
+    "cardTitle": "Grocery Refrigeration Bay",
+    "confidence": "high",
+    "reasoning": "The image clearly shows a walk-in refrigeration unit with large articulated stainless steel doors, stocked shelving units with grocery items, and a digital temperature display (showing '34'), which matches the description for the Grocery Refrigeration Bay perfectly."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 11_39_03 AM.png",
+    "cardId": "warehouse-pallet-buffer",
+    "cardTitle": "Warehouse Pallet Buffer Zone",
+    "confidence": "high",
+    "reasoning": "The image clearly shows a warehouse staging area with pallets of varying heights, some of which are shrink-wrapped. It features yellow floor markings for designated staging positions and a forklift in the background, perfectly matching the description of a 'Warehouse Pallet Buffer Zone'."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 11_41_24 AM.png",
+    "cardId": "lab-bench-prep",
+    "cardTitle": "Lab Bench Prep Suite",
+    "confidence": "high",
+    "reasoning": "The image features a sophisticated laboratory setup centered on a large glovebox enclosure. It includes multiple articulated glove ports, a large pass-through airlock on the right, and internal sample handling areas, all of which are key features described in the Lab Bench Prep Suite. This card belongs to a series of specialized training environment 'suites' (31-36) that cover various industry sectors."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 11_43_18 AM.png",
+    "cardId": "service-corridor-panel",
+    "cardTitle": "Service Corridor Control Panel",
+    "confidence": "high",
+    "reasoning": "The image shows a wall-mounted electrical panel in a service corridor environment. The panel is open, revealing a detailed array of breakers, switches, and status LEDs, which aligns perfectly with the description of the 'service-corridor-panel' card."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 11_45_01 AM.png",
+    "cardId": "laundry-folding-alcove",
+    "cardTitle": "Laundry Folding Alcove",
+    "confidence": "high",
+    "reasoning": "The image depicts a residential laundry nook featuring a stacked washer and dryer unit, multiple laundry hampers, and a countertop surface for folding, which aligns perfectly with the description for the Laundry Folding Alcove."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 11_46_34 AM.png",
+    "cardId": "laundry-folding-alcove",
+    "cardTitle": "Laundry Folding Alcove",
+    "confidence": "high",
+    "reasoning": "The image clearly shows a residential laundry nook or alcove. It features a stacked washer-dryer unit with open (articulated) doors, multiple laundry hampers/baskets, and a countertop surface for folding, which aligns perfectly with the description of the Laundry Folding Alcove."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 11_48_44 AM.png",
+    "cardId": "prep-table-articulated",
+    "cardTitle": "Prep Table with Articulated Storage",
+    "confidence": "high",
+    "reasoning": "The image clearly shows a professional commercial prep station with articulated under-counter drawers open, revealing various food items. It also features cutting boards on the surface and a wall-mounted utensil rack, matching the description for this card perfectly."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 11_51_16 AM.png",
+    "cardId": "retail-checkout-counter",
+    "cardTitle": "Retail Checkout Counter",
+    "confidence": "high",
+    "reasoning": "The image displays a point-of-sale station in a retail/grocery setting, featuring a touchscreen, barcode scanner, open cash drawer, payment terminal, and a bagging area, which perfectly matches the description for card ID 14."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 11_52_42 AM.png",
+    "cardId": "cross-dock-staging-zone",
+    "cardTitle": "Cross-Dock Staging Zone",
+    "confidence": "high",
+    "reasoning": "The image clearly depicts a loading dock staging area with numbered bay doors, floor-marked pallet positions, and wrapped goods, which matches the description for the Cross-Dock Staging Zone perfectly."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 11_53_25 AM.png",
+    "cardId": "sample-prep-workbench",
+    "cardTitle": "Sample Prep Workbench",
+    "confidence": "high",
+    "reasoning": "The image features a laboratory workbench with clear visual elements described in the card: articulated equipment mounts (the two black lamp-like arms), multiple sample racks (test tubes and well plates), and various precision tools/measurement devices on a stainless steel surface."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 11_54_15 AM.png",
+    "cardId": "mechanical-room-valve-bank",
+    "cardTitle": "Mechanical Room Valve Bank",
+    "confidence": "high",
+    "reasoning": "The image clearly shows an industrial valve cluster with multiple color-coded handwheels, pressure gauges, and large-scale piping, which aligns perfectly with the description for the Mechanical Room Valve Bank."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 11_54_53 AM.png",
+    "cardId": "folding-station-deluxe",
+    "cardTitle": "Folding Station Deluxe",
+    "confidence": "high",
+    "reasoning": "The image clearly depicts a dedicated laundry folding environment featuring a large central folding table, a hanging rod with shirts, and extensive shelf and bin organization for linens and laundry supplies, matching all key elements of the Folding Station Deluxe description."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 11_55_39 AM.png",
+    "cardId": "quick-serve-pass-window",
+    "cardTitle": "Quick-Serve Pass Window",
+    "confidence": "high",
+    "reasoning": "The image explicitly shows a kitchen service window area with warming shelves for food, digital order displays mounted above, and a condiment/utensil station, all of which are key features described in the Quick-Serve Pass Window card."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 11_56_21 AM.png",
+    "cardId": "pharmacy-dispensing-unit",
+    "cardTitle": "Pharmacy Dispensing Unit",
+    "confidence": "high",
+    "reasoning": "The image features all the specific elements described in the 'Pharmacy Dispensing Unit' card: a secure medication cabinet with numerous drawers, a label printer sitting on the stainless steel workbench, and a blue counting tray containing pills."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 11_57_13 AM.png",
+    "cardId": "tote-picking-aisle",
+    "cardTitle": "Tote Picking Aisle",
+    "confidence": "high",
+    "reasoning": "The image clearly depicts a narrow warehouse aisle lined with shelving units containing numerous plastic totes. It features barcode scanner/terminal hardware mounted on the racks and a small autonomous mobile robot (AMR) in the center of the aisle, which matches the description for card ID 21 perfectly."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 11_58_06 AM.png",
+    "cardId": "cleanroom-airlockstation",
+    "cardTitle": "Cleanroom Airlock Station",
+    "confidence": "high",
+    "reasoning": "The image explicitly shows a dual-door entry system (likely air showers) for a cleanroom, complete with garment hooks for lab suits, shoe covers on a bench, and electronic control panels, matching all the key features described in the Cleanroom Airlock Station card."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 11_58_54 AM.png",
+    "cardId": "hvac-control-hub",
+    "cardTitle": "HVAC Control Hub",
+    "confidence": "high",
+    "reasoning": "The image depicts a sophisticated building automation environment. It features a large wall-mounted control panel with a central monitor displaying what appears to be an HVAC airflow or fluid schematic. Surrounding the monitor are numerous smaller control units, thermostats, and sensors. The background contains large industrial ductwork and piping, which aligns perfectly with the description of an HVAC control hub for climate control and building automation."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 11_59_45 AM.png",
+    "cardId": "bedroom-closet-organizer",
+    "cardTitle": "Bedroom Closet Organizer",
+    "confidence": "high",
+    "reasoning": "The image perfectly matches the description of a walk-in closet organizer, featuring hanging rods with clothing, a central drawer unit, and dedicated shoe racks on the right side."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 12_00_33 PM.png",
+    "cardId": "SCN-001",
+    "cardTitle": "Tribeca Loft Kitchen",
+    "confidence": "high",
+    "reasoning": "The image features a modern loft-style kitchen (brick walls, track lighting) with open upper cabinets showing modeled interiors and produce props on the countertop, exactly as described in the SCN-001 card."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 12_01_15 PM.png",
+    "cardId": "grocery-endcap-reset",
+    "cardTitle": "Grocery Endcap Reset",
+    "confidence": "high",
+    "reasoning": "The image features a prominent grocery store endcap unit that includes a refrigerated lower section, standard shelving for snacks, and a pegboard area with hooks for smaller items. This directly matches the description for the grocery-endcap-reset card."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 12_01_48 PM.png",
+    "cardId": "warehouse-tote-pick-cell",
+    "cardTitle": "Warehouse Tote Pick Cell",
+    "confidence": "high",
+    "reasoning": "The image features a warehouse environment with a racked tote lane, yellow floor markings for AMR (Autonomous Mobile Robot) clearances, a QR code on the floor for navigation/signage, and staging pallets. The metal table with a monitor and scanner represents the 'pick cell' station."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 12_02_23 PM.png",
+    "cardId": "service-kitchen-pass",
+    "cardTitle": "Service Kitchen Pass",
+    "confidence": "high",
+    "reasoning": "The image perfectly matches the description for the 'Service Kitchen Pass' (ID 33). It features a professional prep line in the foreground with under-counter drawers and storage bins, a service pass-through window where plated meals are placed, and various articulated kitchen appliances like ovens and warmers in the background."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 12_06_03 PM.png",
+    "cardId": "lab-bench-prep",
+    "cardTitle": "Lab Bench Prep Suite",
+    "confidence": "high",
+    "reasoning": "The image clearly shows a complete laboratory setup featuring a wet lab bench in the foreground with various sample racks (test tubes) and a prominent glovebox enclosure in the background, matching the description for the Lab Bench Prep Suite."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 12_09_04 PM.png",
+    "cardId": "utility-panel-tour",
+    "cardTitle": "Utility Panel Tour",
+    "confidence": "high",
+    "reasoning": "The image depicts a mechanical room or utility closet containing wall-mounted electrical panels (one open showing breakers), a variety of valves with colored handles, and complex piping. This aligns perfectly with the description of 'utility-panel-tour', which mentions mechanical rooms, valves, breakers, and switches for inspection and interaction testing."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 12_09_40 PM.png",
+    "cardId": "laundry-folding-alcove",
+    "cardTitle": "Laundry Folding Alcove",
+    "confidence": "high",
+    "reasoning": "The image clearly depicts a home laundry nook (alcove) featuring a stacked washer and dryer, large laundry hampers, and a dedicated wooden folding surface with organized shelving, which aligns perfectly with the description of card 36."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 12_11_24 PM.png",
+    "cardId": "SCN-003",
+    "cardTitle": "Boulder Gear Shop",
+    "confidence": "high",
+    "reasoning": "The image clearly depicts an outdoor gear retail store featuring hanging jackets and a POS counter with a tablet, which perfectly matches the description for the 'Boulder Gear Shop' scene."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 12_11_37 PM.png",
+    "cardId": "SCN-002",
+    "cardTitle": "SoMa Robotics Lab",
+    "confidence": "high",
+    "reasoning": "The image perfectly matches the description for SCN-002: it shows a robotics lab environment with dual-arm workcells, prominent tool shadow boards (pegboards), and robots working on complex wiring bundles."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 12_12_05 PM.png",
+    "cardId": "SCN-004",
+    "cardTitle": "Austin Smart Kitchen",
+    "confidence": "high",
+    "reasoning": "The image depicts a modern kitchen with a prominent island, built-in ovens, and a large smart refrigerator with its drawers and doors open to show interior contents. This matches the description for SCN-004, which specifies building geometry for 'ovens + smart fridge drawers', an 'ingredient library', and 'countertops and island'."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 12_12_11 PM.png",
+    "cardId": "SCN-005",
+    "cardTitle": "Micro-Fulfillment Hub",
+    "confidence": "high",
+    "reasoning": "The image showcases a comprehensive warehouse fulfillment environment featuring prominent roller conveyor belts, tall pallet racking for bulk storage, and various logistics items like cardboard boxes and blue totes. This aligns perfectly with the SCN-005 description which specifically mentions rigging conveyor belts and modular pallet variants for a Micro-Fulfillment Hub."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/ChatGPT Image Dec 18, 2025, 12_14_13 PM.png",
+    "cardId": "SCN-006",
+    "cardTitle": "Med Prep Suite",
+    "confidence": "high",
+    "reasoning": "The image clearly shows a medical preparation suite with large glass-door medication cabinets containing organized trays, colored bins with dosage kits on a prep counter, and clinical signage on the walls, all of which are specifically mentioned in the SCN-006 description."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/Gemini_Generated_Image_26d2hn26d2hn26d2.png",
+    "cardId": "utility-panel-tour",
+    "cardTitle": "Utility Panel Tour",
+    "confidence": "high",
+    "reasoning": "The image depicts a large mechanical room or utility area featuring electrical panels with numerous breakers and switches, as well as industrial piping with color-coded valves. This perfectly matches the description for card ID 5, which covers mechanical rooms and utility closets with valves, breakers, and switches."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/Gemini_Generated_Image_30cirp30cirp30ci.png",
+    "cardId": "SCN-005",
+    "cardTitle": "Micro-Fulfillment Hub",
+    "confidence": "high",
+    "reasoning": "The image depicts a large-scale warehouse or micro-fulfillment center featuring conveyor belts with totes, modular pallet stacks, and high-density racking, which aligns perfectly with the description for SCN-005 (Micro-Fulfillment Hub)."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/Gemini_Generated_Image_81gi7281gi7281gi.png",
+    "cardId": "lab-bench-prep",
+    "cardTitle": "Lab Bench Prep Suite",
+    "confidence": "high",
+    "reasoning": "The image displays a comprehensive laboratory environment featuring multiple workbenches equipped with sample racks, a prominent glovebox enclosure with articulated glove ports, and various precision lab instruments. This aligns perfectly with the 'Lab Bench Prep Suite' description."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/Gemini_Generated_Image_dhxf5ldhxf5ldhxf.png",
+    "cardId": "retail-restock-loop",
+    "cardTitle": "Retail Restock Loop",
+    "confidence": "high",
+    "reasoning": "The image clearly shows a grocery store environment with multiple aisles of planogrammed shelving, glass-door refrigeration bays in the background, and a pallet drop with a pallet jack in the foreground, which perfectly matches the description for the Retail Restock Loop."
+  },
+  {
+    "imagePath": "/Users/nijelhunt_1/Downloads/Gemini_Generated_Image_v763asv763asv763.png",
+    "cardId": "prep-line-essentials",
+    "cardTitle": "Prep-Line Essentials",
+    "confidence": "high",
+    "reasoning": "The image shows a comprehensive commercial kitchen environment including a prep table with articulated drawers (foreground), a dishwashing station or 'dish pit' with racks and spray nozzles (center), and a service pass-through area (right). This perfectly aligns with the 'prep-line-essentials' bundle description which covers prep tables, dish pits, and service pass-throughs."
+  }
+]

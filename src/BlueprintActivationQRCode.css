@@ -1,0 +1,118 @@
+/* Blueprint Activation QR Code Styles */
+
+.blueprint-container {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+  
+  .blueprint-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+  }
+  
+  .blueprint-subtitle {
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+  
+  .blueprint-card {
+    background-color: #ffffff;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .blueprint-card-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  
+  .blueprint-card-content {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  
+  .blueprint-qr-container {
+    display: flex;
+    justify-content: center;
+  }
+  
+  .blueprint-qr-wrapper {
+    position: relative;
+  }
+  
+  .blueprint-qr-svg {
+    width: 16rem;
+    height: 16rem;
+  }
+  
+  .blueprint-qr-label {
+    position: absolute;
+    bottom: 0.25rem;
+    right: 0.25rem;
+    background-color: #ffffff;
+    padding: 0 0.25rem;
+    font-size: 0.75rem;
+    font-weight: bold;
+  }
+  
+  .blueprint-button {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    text-align: center;
+    border-radius: 0.25rem;
+    transition: background-color 0.2s, color 0.2s;
+    cursor: pointer;
+  }
+  
+  .blueprint-button-full {
+    width: 100%;
+  }
+  
+  .blueprint-button:not(.outline) {
+    background-color: #3b82f6;
+    color: #ffffff;
+  }
+  
+  .blueprint-button:not(.outline):hover {
+    background-color: #2563eb;
+  }
+  
+  .blueprint-button.outline {
+    background-color: transparent;
+    color: #3b82f6;
+    border: 1px solid #3b82f6;
+  }
+  
+  .blueprint-button.outline:hover {
+    background-color: #ebf5ff;
+  }
+  
+  .blueprint-button-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .blueprint-alert {
+    padding: 1rem;
+    border-radius: 0.25rem;
+    background-color: #e2e8f0;
+  }
+  
+  .blueprint-alert.warning {
+    background-color: #fef3c7;
+  }
+  
+  .blueprint-alert-title {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  
+  .blueprint-alert-description {
+    font-size: 0.875rem;
+  }

@@ -1,0 +1,107 @@
+.blueprint-container {
+    max-width: 42rem;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+  
+  .blueprint-title {
+    font-size: 1.875rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    text-align: center;
+  }
+  
+  .blueprint-progress-container {
+    height: 0.5rem;
+    background-color: #e5e7eb;
+    border-radius: 9999px;
+    margin-bottom: 1.5rem;
+  }
+  
+  .blueprint-progress-bar {
+    height: 100%;
+    background-color: #3b82f6;
+    border-radius: 9999px;
+    transition: width 0.3s ease-in-out;
+  }
+  
+  .blueprint-card {
+    background-color: #ffffff;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    margin-bottom: 1.5rem;
+  }
+  
+  .blueprint-card-content {
+    padding: 1.5rem;
+  }
+  
+  .blueprint-question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
+  
+  .blueprint-radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .blueprint-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .blueprint-radio-item {
+    appearance: none;
+    width: 1rem;
+    height: 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 50%;
+    outline: none;
+    cursor: pointer;
+  }
+  
+  .blueprint-radio-item:checked {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+  }
+  
+  .blueprint-label {
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  
+  .blueprint-button-container {
+    display: flex;
+    justify-content: space-between;
+  }
+  
+  .blueprint-button {
+    background-color: #3b82f6;
+    color: #ffffff;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+  }
+  
+  .blueprint-button:hover {
+    background-color: #2563eb;
+  }
+  
+  .blueprint-button:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+  }
+  
+  .blueprint-question-counter {
+    text-align: center;
+    margin-top: 1rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+  }

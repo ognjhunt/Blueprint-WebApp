@@ -1,0 +1,161 @@
+.landingpage-container {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+  }
+  
+  .landingpage-title {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    color: #3b82f6;
+  }
+  
+  .landingpage-intro {
+    margin-bottom: 3rem;
+    text-align: center;
+  }
+  
+  .landingpage-intro-text {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  
+  .landingpage-intro-subtext {
+    font-size: 1.125rem;
+    color: #4b5563;
+  }
+  
+  .landingpage-vision-mission {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 3rem;
+  }
+  
+  .landingpage-card {
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+  
+  .landingpage-card-content {
+    padding: 1.5rem;
+  }
+  
+  .landingpage-vision-card {
+    background: linear-gradient(to bottom right, #ebf5ff, #e0e7ff);
+  }
+  
+  .landingpage-mission-card {
+    background: linear-gradient(to bottom right, #faf5ff, #fce7f3);
+  }
+  
+  .landingpage-section-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
+  
+  .landingpage-centered {
+    text-align: center;
+  }
+  
+  .landingpage-steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+  }
+  
+  .landingpage-step-card {
+    text-align: center;
+    background-color: #ffffff;
+  }
+  
+  .landingpage-step-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .landingpage-step-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  
+  .landingpage-features {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+  }
+  
+  .landingpage-feature-card {
+    background-color: #ffffff;
+    display: flex;
+    align-items: center;
+  }
+  
+  .landingpage-feature-icon {
+    width: 2rem;
+    height: 2rem;
+    background-color: #3b82f6;
+    border-radius: 50%;
+    margin-right: 1rem;
+  }
+  
+  .landingpage-feature-text {
+    font-size: 1.125rem;
+  }
+  
+  .landingpage-cta {
+    background-color: #f3f4f6;
+    border-radius: 0.5rem;
+    padding: 2rem;
+    margin-bottom: 3rem;
+    text-align: center;
+  }
+  
+  .landingpage-cta-title {
+    font-size: 1.875rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
+  
+  .landingpage-cta-text {
+    margin-bottom: 1.5rem;
+    font-size: 1.125rem;
+  }
+  
+  .landingpage-button {
+    background-color: #3b82f6;
+    color: #ffffff;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.375rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .landingpage-button:hover {
+    background-color: #2563eb;
+  }
+  
+  .landingpage-button-lg {
+    font-size: 1.125rem;
+    padding: 1rem 2rem;
+  }
+  
+  .landingpage-footer {
+    text-align: center;
+    color: #4b5563;
+  }
+  
+  @media (max-width: 768px) {
+    .landingpage-vision-mission,
+    .landingpage-steps,
+    .landingpage-features {
+      grid-template-columns: 1fr;
+    }
+  }
