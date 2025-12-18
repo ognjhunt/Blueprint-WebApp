@@ -1,12 +1,12 @@
 #!/usr/bin/env tsx
 /**
  * Automated Thumbnail Matching Script
- * Uses AI vision to match downloaded images to card descriptions
+ * Uses Gemini 3 Flash AI vision to match downloaded images to card descriptions
  */
 
 import fs from 'fs';
 import path from 'path';
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Card data from content.ts
 const CARDS = [
@@ -64,9 +64,9 @@ interface Match {
 }
 
 async function analyzeImage(
-  client: Anthropic,
+  model: any,
   imagePath: string,
-  imageBase64: string
+  imageBuffer: Buffer
 ): Promise<Match | null> {
   const cardsList = CARDS.map(
     (card, idx) => `${idx + 1}. ID: "${card.id}" | Title: "${card.title}" | Description: "${card.description}"`
@@ -92,31 +92,21 @@ Respond in this EXACT JSON format:
 }`;
 
   try {
-    const message = await client.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 1024,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: 'image/png',
-                data: imageBase64,
-              },
-            },
-            {
-              type: 'text',
-              text: prompt,
-            },
-          ],
-        },
-      ],
-    });
+    // Convert buffer to base64 for Gemini
+    const imageBase64 = imageBuffer.toString('base64');
 
-    const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          mimeType: 'image/png',
+          data: imageBase64,
+        },
+      },
+      { text: prompt },
+    ]);
+
+    const response = await result.response;
+    const responseText = response.text();
 
     // Extract JSON from response
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -125,20 +115,20 @@ Respond in this EXACT JSON format:
       return null;
     }
 
-    const result = JSON.parse(jsonMatch[0]);
-    const card = CARDS.find(c => c.id === result.cardId);
+    const matchResult = JSON.parse(jsonMatch[0]);
+    const card = CARDS.find(c => c.id === matchResult.cardId);
 
     if (!card) {
-      console.error(`Card ID ${result.cardId} not found`);
+      console.error(`Card ID ${matchResult.cardId} not found`);
       return null;
     }
 
     return {
       imagePath,
-      cardId: result.cardId,
+      cardId: matchResult.cardId,
       cardTitle: card.title,
-      confidence: result.confidence,
-      reasoning: result.reasoning,
+      confidence: matchResult.confidence,
+      reasoning: matchResult.reasoning,
     };
   } catch (error) {
     console.error(`Error analyzing ${imagePath}:`, error);
@@ -147,13 +137,15 @@ Respond in this EXACT JSON format:
 }
 
 async function main() {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) {
-    console.error('Error: ANTHROPIC_API_KEY environment variable not set');
+    console.error('Error: GOOGLE_API_KEY environment variable not set');
+    console.error('Get your API key from: https://aistudio.google.com/app/apikey');
     process.exit(1);
   }
 
-  const client = new Anthropic({ apiKey });
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
   // Get images directory from command line argument
   const imagesDir = process.argv[2] || path.join(process.env.HOME!, 'Downloads');
@@ -164,6 +156,7 @@ async function main() {
   }
 
   console.log(`\n🔍 Scanning for images in: ${imagesDir}\n`);
+  console.log(`Using Gemini 3 Flash (gemini-2.0-flash-exp)\n`);
 
   const files = fs.readdirSync(imagesDir)
     .filter(f => f.toLowerCase().endsWith('.png') || f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg'))
@@ -183,9 +176,8 @@ async function main() {
     console.log(`[${i + 1}/${files.length}] Analyzing: ${path.basename(file)}`);
 
     const imageBuffer = fs.readFileSync(file);
-    const imageBase64 = imageBuffer.toString('base64');
 
-    const match = await analyzeImage(client, file, imageBase64);
+    const match = await analyzeImage(model, file, imageBuffer);
 
     if (match) {
       matches.push(match);
@@ -195,9 +187,9 @@ async function main() {
       console.log(`  ✗ Could not match\n`);
     }
 
-    // Rate limiting - wait 1 second between requests
+    // Rate limiting - wait 500ms between requests (Gemini is faster)
     if (i < files.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
   }
 

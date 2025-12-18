@@ -5,15 +5,15 @@ This guide walks you through automatically matching your generated thumbnails to
 ## Step 1: Install Dependencies
 
 ```bash
-npm install @anthropic-ai/sdk tsx
+npm install @google/generative-ai tsx
 ```
 
-## Step 2: Set Up Your API Key
+## Step 2: Set Up Your FREE API Key
 
-Get your Anthropic API key from https://console.anthropic.com/ and set it:
+Get your Google API key (completely free!) from https://aistudio.google.com/app/apikey and set it:
 
 ```bash
-export ANTHROPIC_API_KEY="your-api-key-here"
+export GOOGLE_API_KEY="your-api-key-here"
 ```
 
 ## Step 3: Run the Matching Script
@@ -28,7 +28,7 @@ npx tsx scripts/match-thumbnails.ts /path/to/your/images
 
 This will:
 - Scan all PNG/JPG images in the directory
-- Use Claude's vision API to analyze each image
+- Use Gemini 3 Flash vision to analyze each image (super fast & free!)
 - Match it to the correct card based on visual content
 - Generate `image-matches.json` with the results
 
