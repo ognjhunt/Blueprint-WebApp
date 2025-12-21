@@ -88,6 +88,7 @@
 //     </div>
 //   );
 // }
+import { useState, useEffect } from "react";
 import {
   Axis3d,
   Box,
@@ -98,6 +99,16 @@ import {
   Check,
   BookOpen,
 } from "lucide-react";
+
+// Section definitions for navigation
+const sections = [
+  { id: "overview", label: "Overview" },
+  { id: "coordinates", label: "Coordinates" },
+  { id: "articulation", label: "Articulation" },
+  { id: "physics", label: "Physics" },
+  { id: "semantics", label: "Semantics" },
+  { id: "import-guide", label: "Import Guide" },
+];
 
 // --- Visual Helper ---
 function DotPattern() {
@@ -151,6 +162,43 @@ function SpecCard({
 }
 
 export default function Docs() {
+  const [activeSection, setActiveSection] = useState("overview");
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const sectionElements = sections.map(({ id }) => ({
+        id,
+        element: document.getElementById(id),
+      }));
+
+      // Find the section currently in view
+      for (const { id, element } of sectionElements) {
+        if (element) {
+          const rect = element.getBoundingClientRect();
+          // Section is considered active if its top is within the top 40% of viewport
+          if (rect.top <= window.innerHeight * 0.4 && rect.bottom > 0) {
+            setActiveSection(id);
+          }
+        }
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll(); // Initial check
+
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    e.preventDefault();
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+      // Update URL hash without jumping
+      window.history.pushState(null, "", `#${id}`);
+    }
+  };
+
   return (
     <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
       <DotPattern />
@@ -165,20 +213,14 @@ export default function Docs() {
                 Documentation
               </div>
               <nav className="space-y-1 border-l border-zinc-200 pl-4">
-                {[
-                  "Overview",
-                  "Coordinates",
-                  "Articulation",
-                  "Physics",
-                  "Semantics",
-                  "Import Guide",
-                ].map((item, i) => (
+                {sections.map(({ id, label }) => (
                   <a
-                    key={item}
-                    href={`#${item.toLowerCase()}`}
-                    className={`block border-l-2 py-2 pl-4 text-sm transition-colors -ml-[17px] ${i === 0 ? "border-indigo-600 font-medium text-indigo-600" : "border-transparent text-zinc-500 hover:text-zinc-900"}`}
+                    key={id}
+                    href={`#${id}`}
+                    onClick={(e) => scrollToSection(e, id)}
+                    className={`block border-l-2 py-2 pl-4 text-sm transition-colors -ml-[17px] ${activeSection === id ? "border-indigo-600 font-medium text-indigo-600" : "border-transparent text-zinc-500 hover:text-zinc-900"}`}
                   >
-                    {item}
+                    {label}
                   </a>
                 ))}
               </nav>
@@ -196,8 +238,8 @@ export default function Docs() {
 
           {/* --- Main Content --- */}
           <main className="space-y-16">
-            {/* Header */}
-            <header className="space-y-6 border-b border-zinc-100 pb-10">
+            {/* Header / Overview */}
+            <header id="overview" className="space-y-6 border-b border-zinc-100 pb-10 scroll-mt-8">
               <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-bold uppercase tracking-wider text-zinc-500">
                 Version 2.1
               </div>
@@ -269,110 +311,118 @@ export default function Docs() {
               </h2>
               <div className="grid gap-6 md:grid-cols-2">
                 {/* Coordinates */}
-                <SpecCard
-                  icon={<Axis3d className="h-5 w-5" />}
-                  title="Coordinate System"
-                >
-                  <div className="grid grid-cols-2 gap-2 rounded-lg bg-zinc-50 p-3 text-xs">
-                    <div className="text-zinc-500">Linear Units</div>
-                    <div className="font-mono font-bold text-zinc-900">
-                      Meters
+                <div id="coordinates" className="scroll-mt-8">
+                  <SpecCard
+                    icon={<Axis3d className="h-5 w-5" />}
+                    title="Coordinate System"
+                  >
+                    <div className="grid grid-cols-2 gap-2 rounded-lg bg-zinc-50 p-3 text-xs">
+                      <div className="text-zinc-500">Linear Units</div>
+                      <div className="font-mono font-bold text-zinc-900">
+                        Meters
+                      </div>
+                      <div className="text-zinc-500">Angular Units</div>
+                      <div className="font-mono font-bold text-zinc-900">
+                        Degrees
+                      </div>
+                      <div className="text-zinc-500">Up Axis</div>
+                      <div className="font-mono font-bold text-indigo-600">
+                        +Z Axis
+                      </div>
+                      <div className="text-zinc-500">Forward</div>
+                      <div className="font-mono font-bold text-indigo-600">
+                        +X Axis
+                      </div>
                     </div>
-                    <div className="text-zinc-500">Angular Units</div>
-                    <div className="font-mono font-bold text-zinc-900">
-                      Degrees
-                    </div>
-                    <div className="text-zinc-500">Up Axis</div>
-                    <div className="font-mono font-bold text-indigo-600">
-                      +Z Axis
-                    </div>
-                    <div className="text-zinc-500">Forward</div>
-                    <div className="font-mono font-bold text-indigo-600">
-                      +X Axis
-                    </div>
-                  </div>
-                  <p>
-                    Scene origin is always normalized to floor center (0,0,0)
-                    unless annotated.
-                  </p>
-                </SpecCard>
+                    <p>
+                      Scene origin is always normalized to floor center (0,0,0)
+                      unless annotated.
+                    </p>
+                  </SpecCard>
+                </div>
 
                 {/* Articulation */}
-                <SpecCard
-                  icon={<Settings2 className="h-5 w-5" />}
-                  title="Joints & Pivots"
-                >
-                  <ul className="space-y-2">
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 text-emerald-500 shrink-0" />
-                      <span>
-                        Revolute joints in degrees; Prismatic in meters.
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 text-emerald-500 shrink-0" />
-                      <span>Real-world limits validated in Isaac Sim.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 text-emerald-500 shrink-0" />
-                      <span>
-                        Optional soft-close damping & friction presets.
-                      </span>
-                    </li>
-                  </ul>
-                </SpecCard>
+                <div id="articulation" className="scroll-mt-8">
+                  <SpecCard
+                    icon={<Settings2 className="h-5 w-5" />}
+                    title="Joints & Pivots"
+                  >
+                    <ul className="space-y-2">
+                      <li className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-4 w-4 text-emerald-500 shrink-0" />
+                        <span>
+                          Revolute joints in degrees; Prismatic in meters.
+                        </span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-4 w-4 text-emerald-500 shrink-0" />
+                        <span>Real-world limits validated in Isaac Sim.</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-4 w-4 text-emerald-500 shrink-0" />
+                        <span>
+                          Optional soft-close damping & friction presets.
+                        </span>
+                      </li>
+                    </ul>
+                  </SpecCard>
+                </div>
 
                 {/* Physics */}
-                <SpecCard
-                  icon={<Box className="h-5 w-5" />}
-                  title="Colliders & Physics"
-                >
-                  <ul className="space-y-2">
-                    <li className="flex items-start gap-2">
-                      <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-indigo-500 shrink-0" />
-                      <span>Hybrid convex decomposition + SDF volumes.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-indigo-500 shrink-0" />
-                      <span>
-                        Calibrated friction coefficients (PBR materials).
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-indigo-500 shrink-0" />
-                      <span>
-                        AMR clearance envelopes included as invisible prims.
-                      </span>
-                    </li>
-                  </ul>
-                </SpecCard>
+                <div id="physics" className="scroll-mt-8">
+                  <SpecCard
+                    icon={<Box className="h-5 w-5" />}
+                    title="Colliders & Physics"
+                  >
+                    <ul className="space-y-2">
+                      <li className="flex items-start gap-2">
+                        <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-indigo-500 shrink-0" />
+                        <span>Hybrid convex decomposition + SDF volumes.</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-indigo-500 shrink-0" />
+                        <span>
+                          Calibrated friction coefficients (PBR materials).
+                        </span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-indigo-500 shrink-0" />
+                        <span>
+                          AMR clearance envelopes included as invisible prims.
+                        </span>
+                      </li>
+                    </ul>
+                  </SpecCard>
+                </div>
 
                 {/* Semantics */}
-                <SpecCard
-                  icon={<FileJson className="h-5 w-5" />}
-                  title="Semantics & Data"
-                >
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {["Class", "Instance", "SKU", "Material"].map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-md bg-zinc-100 border border-zinc-200 px-2 py-1 text-xs font-medium text-zinc-600"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                  <p>
-                    Scenes include optional CSV/JSON metadata for planograms,
-                    signage, and device IDs. Compatible with Replicator for
-                    synthetic data generation.
-                  </p>
-                </SpecCard>
+                <div id="semantics" className="scroll-mt-8">
+                  <SpecCard
+                    icon={<FileJson className="h-5 w-5" />}
+                    title="Semantics & Data"
+                  >
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {["Class", "Instance", "SKU", "Material"].map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-md bg-zinc-100 border border-zinc-200 px-2 py-1 text-xs font-medium text-zinc-600"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                    <p>
+                      Scenes include optional CSV/JSON metadata for planograms,
+                      signage, and device IDs. Compatible with Replicator for
+                      synthetic data generation.
+                    </p>
+                  </SpecCard>
+                </div>
               </div>
             </section>
 
             {/* Import Guide (Terminal Style) */}
-            <section className="space-y-6">
+            <section id="import-guide" className="space-y-6 scroll-mt-8">
               <h2 className="text-2xl font-bold text-zinc-900">
                 Integration Flow
               </h2>
