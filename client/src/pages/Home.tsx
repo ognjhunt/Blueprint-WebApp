@@ -423,29 +423,29 @@ import {
 const whySimReady = [
   {
     icon: <Box className="h-6 w-6 text-indigo-600" />,
-    title: "Contact-accurate geometry",
+    title: "Precision geometry for sim-to-real",
     description:
-      "Watertight topology with sub-millimeter tolerances so perception and policy transfer hold up in the real world.",
+      "Physics-accurate topology with sub-millimeter tolerances engineered for reliable sim2real transfer and policy generalization.",
   },
   {
     icon: <Settings2 className="h-6 w-6 text-indigo-600" />,
-    title: "Correct pivots & joints",
+    title: "Articulation with physics metadata",
     description:
-      "Every articulated component ships with validated axes, limits, and authored USD skeletons ready for manipulation.",
+      "Every joint ships with validated axes, limits, friction constraints, mass, and inertia properties ready for manipulation tasks.",
   },
   {
     icon: <Cpu className="h-6 w-6 text-indigo-600" />,
-    title: "Simulation-ready handoff",
+    title: "Domain randomization ready",
     description:
-      "Physics materials, collision proxies, and semantic schemas tuned for Isaac Sim and leading robotics simulators.",
+      "Deterministic domain randomization, PBR materials, and semantic schemas tuned for Isaac Sim, MuJoCo, and leading simulators.",
   },
 ];
 
 const labBullets = [
-  "Articulated containers (doors, drawers, racks)",
-  "Pick-place props with clean colliders",
-  "Simulation packages validated in our QA stack",
-  "Annotation-ready semantics on request",
+  "Articulated containers with joint friction & constraints",
+  "Physics-accurate props with validated colliders",
+  "Sim2real-validated packages for policy transfer",
+  "Semantic annotations for perception training",
 ];
 
 const artistBullets = [
@@ -461,12 +461,12 @@ const offeringCards = [
     title: "Synthetic SimReady Scenes",
     badge: "Marketplace",
     description:
-      "Daily synthetic dataset drops with plug-and-play USD, randomizer scripts, and policy validation notes.",
+      "Physics-accurate dataset drops with deterministic domain randomization, plug-and-play USD, and sim2real validation notes.",
     bullets: [
       "Filter by policy, object coverage, and facility archetype",
-      "Frames + scripting so labs can train without touching pipelines",
+      "Domain randomization scripts for visual & physics variation",
       "Task logic included: actions, observations, rewards, resets, and parallel env configs",
-      "Pricing starts around $50/scene depending on scale",
+      "Built for field robotics, industrial automation & humanoid training",
     ],
     ctaLabel: "Browse drops",
     ctaHref: "/environments",
@@ -476,11 +476,11 @@ const offeringCards = [
     title: "Scene Recipes",
     badge: "Layouts + Frames",
     description:
-      "Lightweight USD layers, manifests, and Replicator scripts that assemble NVIDIA SimReady packs without shipping assets.",
+      "Lightweight USD layers with physics metadata, PBR materials, and Replicator scripts for domain randomization.",
     bullets: [
-      "Room shells, prim hierarchy, semantics, and physics defaults",
+      "Precision geometry with mass, inertia & friction properties",
       "Manifest for SimReady packs + asset fallbacks you install locally",
-      "Task logic scaffolds (actions, observations, rewards, resets) tuned for vectorized RL",
+      "Task logic scaffolds tuned for vectorized RL and sim2real transfer",
       "Frame generator for swaps, clutter, lighting, and articulation states (500–2,000 frames/scene)",
     ],
     ctaLabel: "Request a recipe",
@@ -491,11 +491,11 @@ const offeringCards = [
     title: "Reference Photo Reconstruction",
     badge: "Exclusive",
     description:
-      "Upload a single wide photo of a supported archetype and we’ll rebuild that exact layout into a SimReady scene.",
+      "Upload a single wide photo and we'll rebuild that exact layout with physics-accurate geometry and visual fidelity.",
     bullets: [
-      "Submit a kitchen, aisle, lab, or other covered archetype",
-      "We author USD/URDF handoff with QA against your use cases",
-      "Task logic delivered alongside geometry so your policy can train immediately",
+      "Supports kitchens, aisles, labs, warehouses & industrial spaces",
+      "Full physics metadata: colliders, mass, inertia, joint constraints",
+      "Task logic delivered alongside geometry for immediate policy training",
       "Exclusive access by default; opt into open catalog if you prefer",
     ],
     ctaLabel: "Upload a photo",
@@ -506,11 +506,11 @@ const offeringCards = [
     title: "Real-world Capture",
     badge: "Service",
     description:
-      "We scan your exact facility, rebuild it in USD, and return a validated scene tuned to your deployment stack.",
+      "We scan your exact facility and return a physics-accurate digital twin with sim2real-validated geometry.",
     bullets: [
-      "On-site capture crews for kitchens, warehouses, labs, and more",
+      "On-site capture crews for industrial automation & field robotics sites",
       "Plug-and-play handoff for Isaac 4.x/5.x, URDF, or custom formats",
-      "Site-specific randomizers + QA so you ship with confidence",
+      "Site-specific domain randomization + QA for reliable policy transfer",
     ],
     ctaLabel: "Request a SimReady scene",
     ctaHref: "/contact",
@@ -553,10 +553,10 @@ function DotPattern() {
 }
 
 const heroDescriptionWithCapture =
-  "High-fidelity scenes, physics-clean assets, delivered fast. Pick from our synthetic marketplace or send us to your actual site for a digital twin tuned to your deployment stack.";
+  "Physics-accurate environments with domain randomization, precision geometry, and sim2real-validated assets. Pick from our synthetic marketplace or send us to your actual site for a digital twin tuned to your deployment stack.";
 
 const heroDescriptionWithoutCapture =
-  "High-fidelity scenes, physics-clean assets, delivered fast. Pick from our synthetic marketplace or upload a reference photo for an exclusive reconstruction.";
+  "Physics-accurate environments with domain randomization, precision geometry, and sim2real-validated assets. Pick from our synthetic marketplace or upload a reference photo for an exclusive reconstruction.";
 
 const facilitySupportCopy = SHOW_REAL_WORLD_CAPTURE
   ? "Need exact facility matching? Add on our capture service or upload one reference photo for an exclusive reconstruction. We rebuild your facility with plugs for Isaac and your QA stack."
@@ -705,8 +705,8 @@ export default function Home() {
               Why SimReady?
             </h2>
             <p className="mt-4 text-lg text-zinc-600">
-              We solve the "Gap to Reality" by engineering assets specifically
-              for robotic perception and interaction, not just for rendering.
+              We solve the sim-to-real gap by engineering physics-accurate assets
+              for robotic perception and manipulation—not just visual fidelity.
             </p>
           </div>
 
@@ -880,19 +880,19 @@ export default function Home() {
               {
                 step: "01",
                 title: "Generate",
-                desc: "Clean topology, UVs, and materials from scans to create watertight, PBR-ready geometry.",
+                desc: "Precision geometry with clean UVs, PBR materials, and watertight topology for physics accuracy.",
                 icon: <Layers className="h-5 w-5" />,
               },
               {
                 step: "02",
                 title: "Prep",
-                desc: "Artist finishing adds precise pivots, separated links, and optional joint rigs.",
+                desc: "Artist finishing adds joint friction, mass, inertia properties, and constraint definitions.",
                 icon: <Settings2 className="h-5 w-5" />,
               },
               {
                 step: "03",
                 title: "Sim Author",
-                desc: "Packaging with physics materials, articulation limits, and validation for Isaac/Mujoco.",
+                desc: "Domain randomization configs, physics validation, and sim2real QA for Isaac/MuJoCo.",
                 icon: <Cpu className="h-5 w-5" />,
               },
             ].map((item, i) => (

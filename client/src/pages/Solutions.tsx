@@ -210,19 +210,19 @@ const proceduralSteps = [
   {
     title: "Author",
     description:
-      "Procedural seed meshes and kitbashed assets routed through Blueprint finishing for watertight, UV’d geometry.",
+      "Precision geometry with PBR materials and watertight topology optimized for physics solvers.",
     icon: <Layers className="h-6 w-6 text-indigo-600" />,
   },
   {
     title: "Articulate",
     description:
-      "We add pivots, joints, and clean colliders so your team can focus on policy authoring instead of asset repair.",
+      "Full physics metadata: mass, inertia, joint friction, constraints, and validated colliders for manipulation.",
     icon: <Hammer className="h-6 w-6 text-indigo-600" />,
   },
   {
     title: "Validate",
     description:
-      "Every release includes simulation QA runs, semantic labels on request, and annotation-ready metadata.",
+      "Sim2real QA, deterministic domain randomization scripts, and semantic annotations for perception training.",
     icon: <CheckCircle2 className="h-6 w-6 text-indigo-600" />,
   },
 ];
@@ -231,19 +231,19 @@ const onsiteSteps = [
   {
     title: "Scan",
     description:
-      "Lidar + photogrammetry capture of your in-house testbed or customer site—aligned for robotics-safe coverage.",
+      "Lidar + photogrammetry capture with survey-grade accuracy for field robotics and industrial automation sites.",
     icon: <Scan className="h-6 w-6 text-emerald-400" />,
   },
   {
     title: "Rebuild",
     description:
-      "Engineers convert captures into SimReady scenes with joints, colliders, and the exact layout you will deploy into.",
+      "Physics-accurate reconstruction with mass, inertia, friction properties, and sim2real-validated geometry.",
     icon: <Box className="h-6 w-6 text-emerald-400" />,
   },
   {
     title: "Prove",
     description:
-      "Run policies in your simulator to forecast KPIs, adapt behaviors, and prove ROI before hardware deployment.",
+      "Domain randomization + policy validation to prove sim-to-real transfer before hardware deployment.",
     icon: <LineChart className="h-6 w-6 text-emerald-400" />,
   },
 ];
@@ -268,24 +268,24 @@ const recipeDeliverables = [
 
 const simreadyUseCases = [
   {
-    title: "Policy training (RL / imitation / sim2real)",
+    title: "Sim2Real Policy Training",
     icon: <Cpu className="h-5 w-5 text-indigo-600" />,
-    desc: "Lots of randomized rollouts across \"train\" scene seeds plus held-out layouts to measure generalization.",
+    desc: "Domain randomization across train seeds with held-out layouts for measuring sim-to-real transfer and policy generalization.",
   },
   {
-    title: "Evaluation & QA",
+    title: "Physics-Accurate Evaluation",
     icon: <CheckCircle2 className="h-5 w-5 text-indigo-600" />,
-    desc: "Stricter seeds and asset combinations that stay untouched for regression testing and policy comparison.",
+    desc: "Strict seeds with validated mass, inertia, and friction for regression testing and policy comparison.",
   },
   {
-    title: "Perception synthetic data",
+    title: "Perception Synthetic Data",
     icon: <Camera className="h-5 w-5 text-indigo-600" />,
-    desc: "Replicator renders RGB plus segmentation, boxes, depth, and normals for computer vision training.",
+    desc: "Replicator renders RGB plus segmentation, boxes, depth, and normals with deterministic domain randomization.",
   },
   {
-    title: "Digital twins & facility studies",
+    title: "Industrial Automation & Field Robotics",
     icon: <Factory className="h-5 w-5 text-indigo-600" />,
-    desc: "Industrial layouts and validation runs that aren’t always ML-focused but rely on the same USD + physics baselines.",
+    desc: "Digital twins for manufacturing, warehouse, agriculture, and outdoor deployments with physics-accurate layouts.",
   },
 ];
 
@@ -421,11 +421,10 @@ export default function Solutions() {
                 </span>
               </h1>
               <p className="max-w-2xl text-lg leading-relaxed text-zinc-600">
-                Whether you need procedural synthetic data grounded in
-                real-world analogs, an exclusive one-photo reconstruction of a
-                known archetype, or a digital twin of a facility you operate,
-                we deliver environments engineered for physics, not just
-                rendering.
+                Whether you need procedural synthetic data with domain randomization,
+                an exclusive physics-accurate reconstruction, or a sim2real-validated
+                digital twin—we deliver environments engineered for manipulation,
+                perception, and policy transfer.
               </p>
             </div>
             <CTAButtons
