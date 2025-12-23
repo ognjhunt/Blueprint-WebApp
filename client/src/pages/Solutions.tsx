@@ -500,8 +500,8 @@ function DataPipelineSection() {
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-3 pt-6 border-t border-zinc-800">
           <div className="text-center">
-            <p className="text-3xl font-bold text-indigo-400">&lt;$0.10</p>
-            <p className="text-sm text-zinc-400">processing cost per scene</p>
+            <p className="text-3xl font-bold text-indigo-400">15</p>
+            <p className="text-sm text-zinc-400">manipulation policies included</p>
           </div>
           <div className="text-center">
             <p className="text-3xl font-bold text-indigo-400">30-60 min</p>
