@@ -188,18 +188,24 @@ import {
   Camera,
   CheckCircle2,
   ClipboardList,
+  Clock,
   Clock3,
   Cpu,
+  Download,
   Factory,
   FileCode,
   FileJson,
+  Folder,
   Hammer,
+  Image,
   Layers,
   LineChart,
+  Network,
   Scan,
   Sparkles,
   Terminal,
   Video,
+  Wrench,
 } from "lucide-react";
 
 // --- Configuration ---
@@ -370,6 +376,191 @@ const effortBands = [
   },
 ];
 
+// --- Data Pipeline Configuration ---
+
+const pipelineInputs = [
+  {
+    icon: <Image className="h-5 w-5" />,
+    title: "Images or Video",
+    subtitle: "objects or scenes",
+  },
+  {
+    icon: <Box className="h-5 w-5" />,
+    title: "3D Models",
+    subtitle: "CAD or generated",
+  },
+  {
+    icon: <Network className="h-5 w-5" />,
+    title: "Point Clouds",
+    subtitle: "scans or geospatial",
+  },
+];
+
+const pipelineProcessing = [
+  "3D Scene Reconstruction",
+  "Articulation & Joints",
+  "Physics Properties",
+  "Domain Randomization",
+];
+
+const pipelineOutputFormats = [
+  { name: "Isaac Sim", color: "bg-lime-400" },
+  { name: "MuJoCo", color: "bg-lime-400" },
+  { name: "Gazebo", color: "bg-lime-400" },
+  { name: "PyBullet", color: "bg-lime-400" },
+  { name: "Unreal Engine", color: "bg-lime-400" },
+];
+
+const pipelineAccess = [
+  { icon: <Folder className="h-4 w-4" />, label: "Web download" },
+  { icon: <Terminal className="h-4 w-4" />, label: "Python API" },
+];
+
+// --- Data Pipeline Component ---
+
+function DataPipelineSection() {
+  return (
+    <section className="relative overflow-hidden rounded-[2.5rem] bg-zinc-900 p-8 text-zinc-300 sm:p-12 lg:p-16 shadow-2xl">
+      {/* Background Pattern */}
+      <div className="absolute top-0 left-0 h-full w-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5" />
+      <div className="absolute bottom-0 right-0 -mb-32 -mr-32 h-96 w-96 rounded-full bg-lime-900/20 blur-3xl" />
+      <div className="absolute top-0 left-0 -mt-32 -ml-32 h-96 w-96 rounded-full bg-zinc-800/50 blur-3xl" />
+
+      <div className="relative z-10 space-y-10">
+        {/* Header */}
+        <div className="text-center space-y-4">
+          <h2 className="text-4xl font-bold text-white sm:text-5xl">
+            Our Data Pipeline
+          </h2>
+          <p className="max-w-3xl mx-auto text-zinc-400 leading-relaxed">
+            Available on-demand as a web app or an API, our pipeline can generate data at scale and is customizable to your specific data requirements
+          </p>
+        </div>
+
+        {/* Pipeline Flow */}
+        <div className="grid gap-6 lg:grid-cols-[1fr_auto_1fr_auto_1fr] items-start">
+          {/* Upload Files Column */}
+          <div className="space-y-4">
+            <h3 className="text-center text-xl font-bold text-white">Upload Files</h3>
+            <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-5 space-y-3">
+              {pipelineInputs.map((input, index) => (
+                <div key={input.title}>
+                  <div className="flex items-center gap-3 rounded-xl bg-zinc-700/50 p-4 ring-1 ring-zinc-600/50">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-800 text-lime-400 ring-1 ring-lime-400/30">
+                      {input.icon}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-white">{input.title}</p>
+                      <p className="text-xs text-zinc-400">{input.subtitle}</p>
+                    </div>
+                  </div>
+                  {index < pipelineInputs.length - 1 && (
+                    <p className="text-center text-zinc-500 text-sm py-2">or</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Arrow 1 */}
+          <div className="hidden lg:flex items-center justify-center h-full pt-16">
+            <ArrowRight className="h-8 w-8 text-zinc-600" />
+          </div>
+
+          {/* Automatic Processing Column */}
+          <div className="space-y-4">
+            <h3 className="text-center text-xl font-bold text-white">Automatic Processing</h3>
+            <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-5 space-y-4">
+              <div className="flex items-center justify-center gap-2 text-zinc-400">
+                <Clock className="h-5 w-5 text-lime-400" />
+                <span className="text-sm font-medium">minutes to hours</span>
+              </div>
+              <div className="space-y-2">
+                {pipelineProcessing.map((step) => (
+                  <div
+                    key={step}
+                    className="rounded-xl bg-zinc-700/50 px-4 py-3 text-center text-sm font-medium text-zinc-200 ring-1 ring-zinc-600/50"
+                  >
+                    {step}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Arrow 2 */}
+          <div className="hidden lg:flex items-center justify-center h-full pt-16">
+            <ArrowRight className="h-8 w-8 text-zinc-600" />
+          </div>
+
+          {/* Receive Output Column */}
+          <div className="space-y-4">
+            <h3 className="text-center text-xl font-bold text-white">Receive Output</h3>
+            <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-5 space-y-4">
+              <div className="text-center">
+                <p className="text-sm font-bold text-white">3D Objects + Scenes</p>
+                <p className="text-xs text-zinc-400">sim-ready file formats</p>
+              </div>
+
+              {/* Simulator Formats Grid */}
+              <div className="grid grid-cols-2 gap-2">
+                {pipelineOutputFormats.slice(0, 4).map((format) => (
+                  <div
+                    key={format.name}
+                    className="flex items-center gap-2 rounded-xl bg-zinc-700/50 px-3 py-2 ring-1 ring-zinc-600/50"
+                  >
+                    <div className={`h-2 w-2 rounded-full ${format.color}`} />
+                    <span className="text-xs font-medium text-zinc-200">{format.name}</span>
+                  </div>
+                ))}
+              </div>
+              {/* Unreal Engine (centered) */}
+              <div className="flex justify-center">
+                <div className="flex items-center gap-2 rounded-xl bg-zinc-700/50 px-4 py-2 ring-1 ring-zinc-600/50">
+                  <div className="h-2 w-2 rounded-full bg-lime-400" />
+                  <span className="text-xs font-medium text-zinc-200">Unreal Engine</span>
+                </div>
+              </div>
+
+              {/* Access Methods */}
+              <div className="pt-2 border-t border-zinc-700/50">
+                <p className="text-center text-xs text-zinc-500 mb-3">access via</p>
+                <div className="space-y-2">
+                  {pipelineAccess.map((method) => (
+                    <div
+                      key={method.label}
+                      className="flex items-center justify-center gap-2 rounded-xl bg-zinc-700/50 px-4 py-2 ring-1 ring-zinc-600/50"
+                    >
+                      <span className="text-lime-400">{method.icon}</span>
+                      <span className="text-xs font-medium text-zinc-200">{method.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats / Quick Info */}
+        <div className="grid gap-4 sm:grid-cols-3 pt-6 border-t border-zinc-800">
+          <div className="text-center">
+            <p className="text-3xl font-bold text-lime-400">~$0.10</p>
+            <p className="text-sm text-zinc-400">per scene (processing)</p>
+          </div>
+          <div className="text-center">
+            <p className="text-3xl font-bold text-lime-400">30-60 min</p>
+            <p className="text-sm text-zinc-400">end-to-end processing</p>
+          </div>
+          <div className="text-center">
+            <p className="text-3xl font-bold text-lime-400">1000+</p>
+            <p className="text-sm text-zinc-400">scenes per day capacity</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // --- Visual Helpers ---
 
 function DotPattern() {
@@ -474,6 +665,9 @@ export default function Solutions() {
         </header>
 
         <div className="space-y-24">
+          {/* --- Section: Data Pipeline --- */}
+          <DataPipelineSection />
+
           {/* --- Section: SimReady Use Cases --- */}
           <section className="relative overflow-hidden rounded-[2.5rem] border border-indigo-100 bg-white p-8 shadow-sm sm:p-12 lg:p-16">
             <div className="absolute -left-16 -bottom-16 h-64 w-64 rounded-full bg-indigo-100/60 blur-3xl" />
