@@ -195,17 +195,13 @@ import {
   Factory,
   FileCode,
   FileJson,
-  Folder,
   Hammer,
-  Image,
   Layers,
   LineChart,
-  Network,
   Scan,
   Sparkles,
   Terminal,
   Video,
-  Wrench,
 } from "lucide-react";
 
 // --- Configuration ---
@@ -376,46 +372,6 @@ const effortBands = [
   },
 ];
 
-// --- Data Pipeline Configuration ---
-
-const pipelineInputs = [
-  {
-    icon: <Image className="h-5 w-5" />,
-    title: "Images or Video",
-    subtitle: "objects or scenes",
-  },
-  {
-    icon: <Box className="h-5 w-5" />,
-    title: "3D Models",
-    subtitle: "CAD or generated",
-  },
-  {
-    icon: <Network className="h-5 w-5" />,
-    title: "Point Clouds",
-    subtitle: "scans or geospatial",
-  },
-];
-
-const pipelineProcessing = [
-  "3D Scene Reconstruction",
-  "Articulation & Joints",
-  "Physics Properties",
-  "Domain Randomization",
-];
-
-const pipelineOutputFormats = [
-  { name: "Isaac Sim", color: "bg-lime-400" },
-  { name: "MuJoCo", color: "bg-lime-400" },
-  { name: "Gazebo", color: "bg-lime-400" },
-  { name: "PyBullet", color: "bg-lime-400" },
-  { name: "Unreal Engine", color: "bg-lime-400" },
-];
-
-const pipelineAccess = [
-  { icon: <Folder className="h-4 w-4" />, label: "Web download" },
-  { icon: <Terminal className="h-4 w-4" />, label: "Python API" },
-];
-
 // --- Data Pipeline Component ---
 
 function DataPipelineSection() {
@@ -423,137 +379,137 @@ function DataPipelineSection() {
     <section className="relative overflow-hidden rounded-[2.5rem] bg-zinc-900 p-8 text-zinc-300 sm:p-12 lg:p-16 shadow-2xl">
       {/* Background Pattern */}
       <div className="absolute top-0 left-0 h-full w-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5" />
-      <div className="absolute bottom-0 right-0 -mb-32 -mr-32 h-96 w-96 rounded-full bg-lime-900/20 blur-3xl" />
+      <div className="absolute bottom-0 right-0 -mb-32 -mr-32 h-96 w-96 rounded-full bg-indigo-900/20 blur-3xl" />
       <div className="absolute top-0 left-0 -mt-32 -ml-32 h-96 w-96 rounded-full bg-zinc-800/50 blur-3xl" />
 
       <div className="relative z-10 space-y-10">
         {/* Header */}
         <div className="text-center space-y-4">
           <h2 className="text-4xl font-bold text-white sm:text-5xl">
-            Our Data Pipeline
+            Image to SimReady Scene
           </h2>
           <p className="max-w-3xl mx-auto text-zinc-400 leading-relaxed">
-            Available on-demand as a web app or an API, our pipeline can generate data at scale and is customizable to your specific data requirements
+            Upload a reference photo and receive a fully articulated, physics-accurate 3D scene ready for Isaac Sim—complete with domain randomization scripts and RL training configs.
           </p>
         </div>
 
         {/* Pipeline Flow */}
         <div className="grid gap-6 lg:grid-cols-[1fr_auto_1fr_auto_1fr] items-start">
-          {/* Upload Files Column */}
+          {/* Input Column */}
           <div className="space-y-4">
-            <h3 className="text-center text-xl font-bold text-white">Upload Files</h3>
+            <h3 className="text-center text-xl font-bold text-white">Upload</h3>
+            <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-5 space-y-4">
+              <div className="flex items-center gap-3 rounded-xl bg-zinc-700/50 p-4 ring-1 ring-indigo-500/30">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-zinc-800 text-indigo-400 ring-1 ring-indigo-400/30">
+                  <Camera className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">Reference Photo</p>
+                  <p className="text-xs text-zinc-400">single wide-angle image</p>
+                </div>
+              </div>
+              <div className="rounded-xl bg-zinc-800/80 p-3 text-xs text-zinc-500">
+                <p className="font-medium text-zinc-400 mb-1">Supported scenes:</p>
+                <p>Kitchens, warehouses, retail, labs, workcells, residential</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Arrow 1 */}
+          <div className="hidden lg:flex items-center justify-center h-full pt-12">
+            <ArrowRight className="h-8 w-8 text-zinc-600" />
+          </div>
+
+          {/* Processing Column */}
+          <div className="space-y-4">
+            <h3 className="text-center text-xl font-bold text-white">Automatic Processing</h3>
             <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-5 space-y-3">
-              {pipelineInputs.map((input, index) => (
-                <div key={input.title}>
-                  <div className="flex items-center gap-3 rounded-xl bg-zinc-700/50 p-4 ring-1 ring-zinc-600/50">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-800 text-lime-400 ring-1 ring-lime-400/30">
-                      {input.icon}
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-white">{input.title}</p>
-                      <p className="text-xs text-zinc-400">{input.subtitle}</p>
-                    </div>
-                  </div>
-                  {index < pipelineInputs.length - 1 && (
-                    <p className="text-center text-zinc-500 text-sm py-2">or</p>
-                  )}
+              <div className="flex items-center justify-center gap-2 text-zinc-400 pb-2">
+                <Clock className="h-4 w-4 text-indigo-400" />
+                <span className="text-xs font-medium">30–60 minutes</span>
+              </div>
+              {[
+                { step: "Scene Reconstruction", desc: "3D geometry from photo" },
+                { step: "Articulation", desc: "joints, pivots, constraints" },
+                { step: "Physics Properties", desc: "mass, friction, colliders" },
+                { step: "USD Assembly", desc: "scene.usda composition" },
+                { step: "Domain Randomization", desc: "Replicator scripts" },
+                { step: "RL Config Generation", desc: "Isaac Lab env configs" },
+              ].map((item) => (
+                <div
+                  key={item.step}
+                  className="rounded-xl bg-zinc-700/50 px-4 py-2.5 ring-1 ring-zinc-600/50"
+                >
+                  <p className="text-sm font-medium text-zinc-200">{item.step}</p>
+                  <p className="text-xs text-zinc-500">{item.desc}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Arrow 1 */}
-          <div className="hidden lg:flex items-center justify-center h-full pt-16">
-            <ArrowRight className="h-8 w-8 text-zinc-600" />
-          </div>
-
-          {/* Automatic Processing Column */}
-          <div className="space-y-4">
-            <h3 className="text-center text-xl font-bold text-white">Automatic Processing</h3>
-            <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-5 space-y-4">
-              <div className="flex items-center justify-center gap-2 text-zinc-400">
-                <Clock className="h-5 w-5 text-lime-400" />
-                <span className="text-sm font-medium">minutes to hours</span>
-              </div>
-              <div className="space-y-2">
-                {pipelineProcessing.map((step) => (
-                  <div
-                    key={step}
-                    className="rounded-xl bg-zinc-700/50 px-4 py-3 text-center text-sm font-medium text-zinc-200 ring-1 ring-zinc-600/50"
-                  >
-                    {step}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
           {/* Arrow 2 */}
-          <div className="hidden lg:flex items-center justify-center h-full pt-16">
+          <div className="hidden lg:flex items-center justify-center h-full pt-12">
             <ArrowRight className="h-8 w-8 text-zinc-600" />
           </div>
 
-          {/* Receive Output Column */}
+          {/* Output Column */}
           <div className="space-y-4">
-            <h3 className="text-center text-xl font-bold text-white">Receive Output</h3>
+            <h3 className="text-center text-xl font-bold text-white">Deliverables</h3>
             <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-5 space-y-4">
-              <div className="text-center">
-                <p className="text-sm font-bold text-white">3D Objects + Scenes</p>
-                <p className="text-xs text-zinc-400">sim-ready file formats</p>
+              {/* Main Output */}
+              <div className="rounded-xl bg-indigo-900/30 p-4 ring-1 ring-indigo-500/30">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="h-3 w-3 rounded-full bg-indigo-400" />
+                  <p className="text-sm font-bold text-white">Isaac Sim Scene</p>
+                </div>
+                <p className="text-xs text-zinc-400">USD scene package with all assets, physics, and semantics</p>
               </div>
 
-              {/* Simulator Formats Grid */}
-              <div className="grid grid-cols-2 gap-2">
-                {pipelineOutputFormats.slice(0, 4).map((format) => (
+              {/* Included Bundles */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Included</p>
+                {[
+                  { icon: <Layers className="h-4 w-4" />, label: "Articulated assets", desc: "per-object USD" },
+                  { icon: <Video className="h-4 w-4" />, label: "Replicator bundle", desc: "domain randomization" },
+                  { icon: <Terminal className="h-4 w-4" />, label: "Isaac Lab config", desc: "env_cfg.py + train.yaml" },
+                ].map((item) => (
                   <div
-                    key={format.name}
-                    className="flex items-center gap-2 rounded-xl bg-zinc-700/50 px-3 py-2 ring-1 ring-zinc-600/50"
+                    key={item.label}
+                    className="flex items-center gap-3 rounded-xl bg-zinc-700/50 px-3 py-2 ring-1 ring-zinc-600/50"
                   >
-                    <div className={`h-2 w-2 rounded-full ${format.color}`} />
-                    <span className="text-xs font-medium text-zinc-200">{format.name}</span>
+                    <span className="text-indigo-400">{item.icon}</span>
+                    <div>
+                      <p className="text-xs font-medium text-zinc-200">{item.label}</p>
+                      <p className="text-xs text-zinc-500">{item.desc}</p>
+                    </div>
                   </div>
                 ))}
               </div>
-              {/* Unreal Engine (centered) */}
-              <div className="flex justify-center">
-                <div className="flex items-center gap-2 rounded-xl bg-zinc-700/50 px-4 py-2 ring-1 ring-zinc-600/50">
-                  <div className="h-2 w-2 rounded-full bg-lime-400" />
-                  <span className="text-xs font-medium text-zinc-200">Unreal Engine</span>
-                </div>
-              </div>
 
-              {/* Access Methods */}
+              {/* Access */}
               <div className="pt-2 border-t border-zinc-700/50">
-                <p className="text-center text-xs text-zinc-500 mb-3">access via</p>
-                <div className="space-y-2">
-                  {pipelineAccess.map((method) => (
-                    <div
-                      key={method.label}
-                      className="flex items-center justify-center gap-2 rounded-xl bg-zinc-700/50 px-4 py-2 ring-1 ring-zinc-600/50"
-                    >
-                      <span className="text-lime-400">{method.icon}</span>
-                      <span className="text-xs font-medium text-zinc-200">{method.label}</span>
-                    </div>
-                  ))}
+                <div className="flex items-center justify-center gap-2 rounded-xl bg-zinc-700/50 px-4 py-2 ring-1 ring-zinc-600/50">
+                  <Download className="h-4 w-4 text-indigo-400" />
+                  <span className="text-xs font-medium text-zinc-200">Download from marketplace</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Stats / Quick Info */}
+        {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-3 pt-6 border-t border-zinc-800">
           <div className="text-center">
-            <p className="text-3xl font-bold text-lime-400">~$0.10</p>
-            <p className="text-sm text-zinc-400">per scene (processing)</p>
+            <p className="text-3xl font-bold text-indigo-400">&lt;$0.10</p>
+            <p className="text-sm text-zinc-400">processing cost per scene</p>
           </div>
           <div className="text-center">
-            <p className="text-3xl font-bold text-lime-400">30-60 min</p>
-            <p className="text-sm text-zinc-400">end-to-end processing</p>
+            <p className="text-3xl font-bold text-indigo-400">30-60 min</p>
+            <p className="text-sm text-zinc-400">end-to-end pipeline</p>
           </div>
           <div className="text-center">
-            <p className="text-3xl font-bold text-lime-400">1000+</p>
-            <p className="text-sm text-zinc-400">scenes per day capacity</p>
+            <p className="text-3xl font-bold text-indigo-400">1000+</p>
+            <p className="text-sm text-zinc-400">scenes/day at scale</p>
           </div>
         </div>
       </div>
