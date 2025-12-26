@@ -13,6 +13,7 @@ const Environments = lazy(() => import("./pages/Environments"));
 // const Recipes = lazy(() => import("./pages/Recipes")); // Hidden: recipes temporarily removed from offerings
 const EnvironmentDetail = lazy(() => import("./pages/EnvironmentDetail"));
 const Solutions = lazy(() => import("./pages/Solutions"));
+const Capture = lazy(() => import("./pages/Capture"));
 const Docs = lazy(() => import("./pages/Docs"));
 const CaseStudies = lazy(() => import("./pages/CaseStudies"));
 const Careers = lazy(() => import("./pages/Careers"));
@@ -42,6 +43,7 @@ function Router() {
           component={withLayout(EnvironmentDetail)}
         />
         <Route path="/solutions" component={withLayout(Solutions)} />
+        <Route path="/capture" component={withLayout(Capture)} />
         <Route path="/docs" component={withLayout(Docs)} />
         <Route path="/case-studies" component={withLayout(CaseStudies)} />
         <Route path="/careers" component={withLayout(Careers)} />
