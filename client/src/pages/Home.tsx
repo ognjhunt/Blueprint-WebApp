@@ -518,9 +518,14 @@ const offeringCards = [
   },
 ];
 
-const visibleOfferingCards = SHOW_REAL_WORLD_CAPTURE
-  ? offeringCards
-  : offeringCards.filter((card) => card.title !== "Real-world Capture");
+// Hidden: Scene Recipes temporarily removed from offerings (will be added back later)
+const SHOW_SCENE_RECIPES = false;
+
+const visibleOfferingCards = offeringCards.filter((card) => {
+  if (!SHOW_REAL_WORLD_CAPTURE && card.title === "Real-world Capture") return false;
+  if (!SHOW_SCENE_RECIPES && card.title === "Scene Recipes") return false;
+  return true;
+});
 
 // --- Helper Components ---
 

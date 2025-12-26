@@ -207,6 +207,7 @@ import {
 // --- Configuration ---
 
 const SHOW_REAL_WORLD_CAPTURE = false;
+const SHOW_SCENE_RECIPES = false; // Hidden: recipes temporarily removed from offerings (will be added back later)
 
 const proceduralSteps = [
   {
@@ -865,6 +866,7 @@ export default function Solutions() {
           </section>
 
           {/* --- Section: Scene Recipes --- */}
+          {SHOW_SCENE_RECIPES && (
           <section className="relative overflow-hidden rounded-[2.5rem] border border-emerald-100 bg-white p-8 shadow-sm sm:p-12 lg:p-16">
             <div className="absolute -right-16 -bottom-16 h-64 w-64 rounded-full bg-emerald-100/60 blur-3xl" />
             <div className="relative z-10 grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
@@ -932,6 +934,7 @@ export default function Solutions() {
               </div>
             </div>
           </section>
+          )}
 
           {/* --- Section: Reference Photo Reconstruction --- */}
           <section className="relative overflow-hidden rounded-[2.5rem] border border-indigo-100 bg-white p-8 shadow-sm sm:p-12 lg:p-16">
