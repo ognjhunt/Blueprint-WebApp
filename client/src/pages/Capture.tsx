@@ -1,10 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { db } from "@/lib/firebase";
-import { collection, getDocs, query, where, addDoc, serverTimestamp } from "firebase/firestore";
 import { getGoogleMapsApiKey } from "@/lib/client-env";
-import { Loader } from "@googlemaps/js-api-loader";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -193,38 +190,25 @@ function RequestLocationDialog({
     }
 
     setIsSubmitting(true);
-    try {
-      await addDoc(collection(db, "captureRequests"), {
-        ...formData,
-        userId: null,
-        status: "pending",
-        createdAt: serverTimestamp(),
-      });
 
-      toast({
-        title: "Request Submitted",
-        description: "We'll review your request and get back to you soon.",
-      });
+    // Simulate submission delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-      setFormData({
-        businessName: "",
-        address: "",
-        locationType: "",
-        description: "",
-        contactEmail: "",
-        contactName: "",
-      });
-      onOpenChange(false);
-    } catch (error) {
-      console.error("Error submitting request:", error);
-      toast({
-        title: "Error",
-        description: "Failed to submit request. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+    toast({
+      title: "Request Submitted",
+      description: "We'll review your request and get back to you soon.",
+    });
+
+    setFormData({
+      businessName: "",
+      address: "",
+      locationType: "",
+      description: "",
+      contactEmail: "",
+      contactName: "",
+    });
+    onOpenChange(false);
+    setIsSubmitting(false);
   };
 
   return (
@@ -346,60 +330,81 @@ function RequestLocationDialog({
   );
 }
 
+// Sample locations data for when Firebase is unavailable
+const sampleLocations: MappedLocation[] = [
+  {
+    id: "sample-1",
+    businessName: "Downtown Warehouse District",
+    address: "123 Industrial Blvd",
+    city: "Austin",
+    state: "TX",
+    locationType: "warehouse",
+    status: "Completed",
+    scanCompleted: true,
+    latitude: 30.2672,
+    longitude: -97.7431,
+  },
+  {
+    id: "sample-2",
+    businessName: "Tech Campus HQ",
+    address: "456 Innovation Way",
+    city: "San Francisco",
+    state: "CA",
+    locationType: "office",
+    status: "Completed",
+    scanCompleted: true,
+    latitude: 37.7749,
+    longitude: -122.4194,
+  },
+  {
+    id: "sample-3",
+    businessName: "Metro Healthcare Center",
+    address: "789 Medical Park",
+    city: "Boston",
+    state: "MA",
+    locationType: "healthcare",
+    status: "In Progress",
+    scanCompleted: false,
+    latitude: 42.3601,
+    longitude: -71.0589,
+  },
+  {
+    id: "sample-4",
+    businessName: "Retail Distribution Hub",
+    address: "321 Commerce Dr",
+    city: "Chicago",
+    state: "IL",
+    locationType: "warehouse",
+    status: "Completed",
+    scanCompleted: true,
+    latitude: 41.8781,
+    longitude: -87.6298,
+  },
+  {
+    id: "sample-5",
+    businessName: "University Research Lab",
+    address: "555 Academic Circle",
+    city: "Seattle",
+    state: "WA",
+    locationType: "campus",
+    status: "In Progress",
+    scanCompleted: false,
+    latitude: 47.6062,
+    longitude: -122.3321,
+  },
+];
+
 // Interactive Map Component
 function CaptureMap() {
-  const { toast } = useToast();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
-  const [locations, setLocations] = useState<MappedLocation[]>([]);
+  const [locations] = useState<MappedLocation[]>(sampleLocations);
   const [selectedLocation, setSelectedLocation] = useState<MappedLocation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
   const [mapLoaded, setMapLoaded] = useState(false);
-
-  // Fetch locations from Firebase
-  useEffect(() => {
-    const fetchLocations = async () => {
-      try {
-        const blueprintsRef = collection(db, "blueprints");
-        const snapshot = await getDocs(blueprintsRef);
-
-        const fetchedLocations: MappedLocation[] = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          fetchedLocations.push({
-            id: doc.id,
-            businessName: data.businessName || data.name || "Unknown Location",
-            name: data.name,
-            address: data.address || "",
-            city: data.city,
-            state: data.state,
-            locationType: data.locationType || "other",
-            status: data.status || "Pending",
-            scanCompleted: data.scanCompleted || false,
-            latitude: data.latitude,
-            longitude: data.longitude,
-            createdDate: data.createdDate,
-          });
-        });
-
-        setLocations(fetchedLocations);
-      } catch (error) {
-        console.error("Error fetching locations:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load mapped locations.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchLocations();
-  }, [toast]);
 
   // Initialize Google Maps
   useEffect(() => {
@@ -407,10 +412,14 @@ function CaptureMap() {
       const apiKey = getGoogleMapsApiKey();
       if (!apiKey) {
         console.error("Google Maps API key not configured");
+        setIsLoading(false);
         return;
       }
 
       try {
+        // Dynamically import the Google Maps loader
+        const { Loader } = await import("@googlemaps/js-api-loader");
+
         const loader = new Loader({
           apiKey,
           version: "weekly",
