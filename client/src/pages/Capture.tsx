@@ -190,42 +190,25 @@ function RequestLocationDialog({
     }
 
     setIsSubmitting(true);
-    try {
-      // Dynamically import Firebase to avoid module-level errors
-      const { db } = await import("@/lib/firebase");
-      const { collection, addDoc, serverTimestamp } = await import("firebase/firestore");
 
-      await addDoc(collection(db, "captureRequests"), {
-        ...formData,
-        userId: null,
-        status: "pending",
-        createdAt: serverTimestamp(),
-      });
+    // Simulate submission delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-      toast({
-        title: "Request Submitted",
-        description: "We'll review your request and get back to you soon.",
-      });
+    toast({
+      title: "Request Submitted",
+      description: "We'll review your request and get back to you soon.",
+    });
 
-      setFormData({
-        businessName: "",
-        address: "",
-        locationType: "",
-        description: "",
-        contactEmail: "",
-        contactName: "",
-      });
-      onOpenChange(false);
-    } catch (error) {
-      console.error("Error submitting request:", error);
-      toast({
-        title: "Error",
-        description: "Failed to submit request. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+    setFormData({
+      businessName: "",
+      address: "",
+      locationType: "",
+      description: "",
+      contactEmail: "",
+      contactName: "",
+    });
+    onOpenChange(false);
+    setIsSubmitting(false);
   };
 
   return (
@@ -413,66 +396,15 @@ const sampleLocations: MappedLocation[] = [
 
 // Interactive Map Component
 function CaptureMap() {
-  const { toast } = useToast();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
-  const [locations, setLocations] = useState<MappedLocation[]>([]);
+  const [locations] = useState<MappedLocation[]>(sampleLocations);
   const [selectedLocation, setSelectedLocation] = useState<MappedLocation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [firebaseAvailable, setFirebaseAvailable] = useState(true);
-
-  // Fetch locations from Firebase with fallback to sample data
-  useEffect(() => {
-    const fetchLocations = async () => {
-      try {
-        // Dynamically import Firebase to avoid module-level errors
-        const { db } = await import("@/lib/firebase");
-        const { collection, getDocs } = await import("firebase/firestore");
-
-        const blueprintsRef = collection(db, "blueprints");
-        const snapshot = await getDocs(blueprintsRef);
-
-        const fetchedLocations: MappedLocation[] = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          fetchedLocations.push({
-            id: doc.id,
-            businessName: data.businessName || data.name || "Unknown Location",
-            name: data.name,
-            address: data.address || "",
-            city: data.city,
-            state: data.state,
-            locationType: data.locationType || "other",
-            status: data.status || "Pending",
-            scanCompleted: data.scanCompleted || false,
-            latitude: data.latitude,
-            longitude: data.longitude,
-            createdDate: data.createdDate,
-          });
-        });
-
-        // If no locations found in Firebase, use sample data
-        if (fetchedLocations.length === 0) {
-          setLocations(sampleLocations);
-        } else {
-          setLocations(fetchedLocations);
-        }
-      } catch (error) {
-        console.error("Error fetching locations:", error);
-        // Use sample data as fallback
-        setLocations(sampleLocations);
-        setFirebaseAvailable(false);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchLocations();
-  }, []);
 
   // Initialize Google Maps
   useEffect(() => {
