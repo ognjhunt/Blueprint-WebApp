@@ -10,7 +10,7 @@ import { LoadingScreen } from "./components/site/LoadingScreen";
 
 const Home = lazy(() => import("./pages/Home"));
 const Environments = lazy(() => import("./pages/Environments"));
-const Recipes = lazy(() => import("./pages/Recipes"));
+// const Recipes = lazy(() => import("./pages/Recipes")); // Hidden: recipes temporarily removed from offerings
 const EnvironmentDetail = lazy(() => import("./pages/EnvironmentDetail"));
 const Solutions = lazy(() => import("./pages/Solutions"));
 const Docs = lazy(() => import("./pages/Docs"));
@@ -36,7 +36,7 @@ function Router() {
       <Switch>
         <Route path="/" component={withLayout(Home)} />
         <Route path="/environments" component={withLayout(Environments)} />
-        <Route path="/recipes" component={withLayout(Recipes)} />
+        {/* <Route path="/recipes" component={withLayout(Recipes)} /> */}{/* Hidden: recipes temporarily removed from offerings */}
         <Route
           path="/environments/:slug"
           component={withLayout(EnvironmentDetail)}
