@@ -6,7 +6,6 @@ import { collection, getDocs, query, where, addDoc, serverTimestamp } from "fire
 import { getGoogleMapsApiKey } from "@/lib/client-env";
 import { Loader } from "@googlemaps/js-api-loader";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -171,7 +170,6 @@ function RequestLocationDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const { toast } = useToast();
-  const { currentUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<LocationRequest>({
     businessName: "",
@@ -198,7 +196,7 @@ function RequestLocationDialog({
     try {
       await addDoc(collection(db, "captureRequests"), {
         ...formData,
-        userId: currentUser?.uid || null,
+        userId: null,
         status: "pending",
         createdAt: serverTimestamp(),
       });
