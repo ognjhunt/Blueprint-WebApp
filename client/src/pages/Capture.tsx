@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -38,6 +39,9 @@ import {
   Navigation,
   ChevronRight,
   Sparkles,
+  Upload,
+  FileText,
+  AlertCircle,
 } from "lucide-react";
 
 // Types
@@ -63,6 +67,9 @@ interface LocationRequest {
   description: string;
   contactEmail: string;
   contactName: string;
+  isOwner: boolean;
+  hasPermission: boolean;
+  permissionProofFile: File | null;
 }
 
 // Location types
@@ -146,6 +153,41 @@ function DotPattern() {
   );
 }
 
+// Helper to map Google place types to our location types
+function mapPlaceTypeToLocationType(types: string[]): string {
+  const typeMapping: Record<string, string> = {
+    restaurant: "restaurant",
+    food: "restaurant",
+    cafe: "restaurant",
+    bar: "restaurant",
+    store: "retail",
+    shopping_mall: "retail",
+    supermarket: "retail",
+    clothing_store: "retail",
+    warehouse: "warehouse",
+    storage: "warehouse",
+    hospital: "healthcare",
+    doctor: "healthcare",
+    pharmacy: "healthcare",
+    health: "healthcare",
+    lodging: "hotel",
+    hotel: "hotel",
+    university: "campus",
+    school: "campus",
+    secondary_school: "campus",
+    primary_school: "campus",
+    office: "office",
+    corporate_office: "office",
+  };
+
+  for (const type of types) {
+    if (typeMapping[type]) {
+      return typeMapping[type];
+    }
+  }
+  return "";
+}
+
 // Request Location Dialog Component
 function RequestLocationDialog({
   open,
@@ -156,6 +198,7 @@ function RequestLocationDialog({
 }) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mapsLoaded, setMapsLoaded] = useState(false);
   const [formData, setFormData] = useState<LocationRequest>({
     businessName: "",
     address: "",
@@ -163,7 +206,148 @@ function RequestLocationDialog({
     description: "",
     contactEmail: "",
     contactName: "",
+    isOwner: false,
+    hasPermission: false,
+    permissionProofFile: null,
   });
+
+  // Refs for autocomplete inputs
+  const businessNameInputRef = useRef<HTMLInputElement>(null);
+  const addressInputRef = useRef<HTMLInputElement>(null);
+  const businessAutocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const addressAutocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load Google Maps API when dialog opens
+  useEffect(() => {
+    if (!open) return;
+
+    const loadMaps = async () => {
+      const apiKey = getGoogleMapsApiKey();
+      if (!apiKey) {
+        console.error("Google Maps API key not configured");
+        return;
+      }
+
+      // Check if already loaded
+      if (window.google?.maps?.places) {
+        setMapsLoaded(true);
+        return;
+      }
+
+      try {
+        const { Loader } = await import("@googlemaps/js-api-loader");
+        const loader = new Loader({
+          apiKey,
+          version: "weekly",
+          libraries: ["places"],
+        });
+        await loader.load();
+        setMapsLoaded(true);
+      } catch (error) {
+        console.error("Error loading Google Maps:", error);
+      }
+    };
+
+    loadMaps();
+  }, [open]);
+
+  // Initialize autocomplete for business name
+  useEffect(() => {
+    if (!mapsLoaded || !businessNameInputRef.current || businessAutocompleteRef.current) return;
+
+    try {
+      const autocomplete = new google.maps.places.Autocomplete(businessNameInputRef.current, {
+        types: ["establishment"],
+        fields: ["name", "formatted_address", "address_components", "types", "geometry"],
+      });
+
+      autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        if (place) {
+          const updates: Partial<LocationRequest> = {};
+
+          if (place.name) {
+            updates.businessName = place.name;
+          }
+          if (place.formatted_address) {
+            updates.address = place.formatted_address;
+          }
+          if (place.types) {
+            const mappedType = mapPlaceTypeToLocationType(place.types);
+            if (mappedType) {
+              updates.locationType = mappedType;
+            }
+          }
+
+          setFormData(prev => ({ ...prev, ...updates }));
+        }
+      });
+
+      businessAutocompleteRef.current = autocomplete;
+    } catch (error) {
+      console.error("Error initializing business autocomplete:", error);
+    }
+  }, [mapsLoaded]);
+
+  // Initialize autocomplete for address
+  useEffect(() => {
+    if (!mapsLoaded || !addressInputRef.current || addressAutocompleteRef.current) return;
+
+    try {
+      const autocomplete = new google.maps.places.Autocomplete(addressInputRef.current, {
+        types: ["geocode", "establishment"],
+        fields: ["name", "formatted_address", "address_components", "types", "geometry"],
+      });
+
+      autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        if (place) {
+          const updates: Partial<LocationRequest> = {};
+
+          if (place.formatted_address) {
+            updates.address = place.formatted_address;
+          }
+          // If it's an establishment and we don't have a business name yet, use it
+          if (place.name && place.types?.includes("establishment") && !formData.businessName) {
+            updates.businessName = place.name;
+          }
+          if (place.types && !formData.locationType) {
+            const mappedType = mapPlaceTypeToLocationType(place.types);
+            if (mappedType) {
+              updates.locationType = mappedType;
+            }
+          }
+
+          setFormData(prev => ({ ...prev, ...updates }));
+        }
+      });
+
+      addressAutocompleteRef.current = autocomplete;
+    } catch (error) {
+      console.error("Error initializing address autocomplete:", error);
+    }
+  }, [mapsLoaded, formData.businessName, formData.locationType]);
+
+  // Cleanup autocomplete refs when dialog closes
+  useEffect(() => {
+    if (!open) {
+      businessAutocompleteRef.current = null;
+      addressAutocompleteRef.current = null;
+    }
+  }, [open]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setFormData(prev => ({ ...prev, permissionProofFile: file }));
+  };
+
+  const removeFile = () => {
+    setFormData(prev => ({ ...prev, permissionProofFile: null }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,6 +356,16 @@ function RequestLocationDialog({
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate permission requirements
+    if (!formData.isOwner && !formData.hasPermission) {
+      toast({
+        title: "Permission Required",
+        description: "Please confirm you either own this location or have permission to capture it.",
         variant: "destructive",
       });
       return;
@@ -194,6 +388,9 @@ function RequestLocationDialog({
       description: "",
       contactEmail: "",
       contactName: "",
+      isOwner: false,
+      hasPermission: false,
+      permissionProofFile: null,
     });
     onOpenChange(false);
     setIsSubmitting(false);
@@ -201,7 +398,7 @@ function RequestLocationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPin className="h-5 w-5 text-indigo-600" />
@@ -239,23 +436,27 @@ function RequestLocationDialog({
           <div className="space-y-1.5">
             <Label htmlFor="businessName">Location/Business Name *</Label>
             <Input
+              ref={businessNameInputRef}
               id="businessName"
               value={formData.businessName}
               onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-              placeholder="e.g., Acme Warehouse, Main Street Cafe"
+              placeholder="Start typing to search businesses..."
               required
             />
+            <p className="text-xs text-zinc-500">Type to search for businesses with autocomplete</p>
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="address">Address *</Label>
             <Input
+              ref={addressInputRef}
               id="address"
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              placeholder="123 Main St, City, State, ZIP"
+              placeholder="Start typing to search addresses..."
               required
             />
+            <p className="text-xs text-zinc-500">Type to search with autocomplete</p>
           </div>
 
           <div className="space-y-1.5">
@@ -275,6 +476,118 @@ function RequestLocationDialog({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Location Ownership/Permission Section */}
+          <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 space-y-4">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-zinc-500 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-zinc-600">
+                Please confirm your relationship to this location
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {/* Owner checkbox */}
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="isOwner"
+                  checked={formData.isOwner}
+                  onCheckedChange={(checked) =>
+                    setFormData({
+                      ...formData,
+                      isOwner: checked === true,
+                      // If they are the owner, they don't need separate permission
+                      hasPermission: checked === true ? false : formData.hasPermission,
+                      permissionProofFile: checked === true ? null : formData.permissionProofFile
+                    })
+                  }
+                  className="mt-0.5"
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="isOwner" className="text-sm font-medium cursor-pointer">
+                    I own or operate this location
+                  </Label>
+                  <p className="text-xs text-zinc-500">
+                    You are the owner, manager, or authorized representative of this location
+                  </p>
+                </div>
+              </div>
+
+              {/* Permission checkbox - only show if not owner */}
+              {!formData.isOwner && (
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="hasPermission"
+                    checked={formData.hasPermission}
+                    onCheckedChange={(checked) =>
+                      setFormData({
+                        ...formData,
+                        hasPermission: checked === true,
+                        permissionProofFile: checked === true ? formData.permissionProofFile : null
+                      })
+                    }
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="hasPermission" className="text-sm font-medium cursor-pointer">
+                      I have permission to capture/record this location
+                    </Label>
+                    <p className="text-xs text-zinc-500">
+                      You have written authorization from the property owner or manager
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* File upload for permission proof - only show if has permission but not owner */}
+              {!formData.isOwner && formData.hasPermission && (
+                <div className="ml-6 mt-2 space-y-2">
+                  <Label className="text-sm text-zinc-700">
+                    Upload proof of permission (optional but recommended)
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      id="permissionProof"
+                    />
+                    {!formData.permissionProofFile ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="text-xs"
+                      >
+                        <Upload className="h-3 w-3 mr-1.5" />
+                        Upload Document
+                      </Button>
+                    ) : (
+                      <div className="flex items-center gap-2 bg-white rounded-md border border-zinc-200 px-3 py-1.5">
+                        <FileText className="h-4 w-4 text-indigo-600" />
+                        <span className="text-sm text-zinc-700 max-w-[150px] truncate">
+                          {formData.permissionProofFile.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={removeFile}
+                          className="text-zinc-400 hover:text-zinc-600"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-zinc-500">
+                    Accepted formats: PDF, DOC, DOCX, JPG, PNG (max 10MB)
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="space-y-1.5">
