@@ -7,7 +7,6 @@ import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { SiteLayout } from "./components/site/SiteLayout";
 import { LoadingScreen } from "./components/site/LoadingScreen";
-import { AuthProvider } from "./contexts/AuthContext";
 
 const Home = lazy(() => import("./pages/Home"));
 const Environments = lazy(() => import("./pages/Environments"));
@@ -62,10 +61,8 @@ function Router() {
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Router />
-        <Toaster />
-      </AuthProvider>
+      <Router />
+      <Toaster />
     </QueryClientProvider>
   </StrictMode>,
 );
