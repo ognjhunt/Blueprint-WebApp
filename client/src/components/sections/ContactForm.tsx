@@ -213,6 +213,19 @@ export default function ContactForm() {
         createdAt: serverTimestamp(),
       });
 
+      await addDoc(collection(db, "contactRequests"), {
+        name: formData.name,
+        email: formData.email,
+        company: formData.company,
+        city: formData.city,
+        state: formData.state,
+        message: formData.message,
+        companyWebsite,
+        token,
+        offWaitlistUrl,
+        createdAt: serverTimestamp(),
+      });
+
       // Send notification via backend API (secure)
       fetch("/api/contact-webhook", {
         method: "POST",
