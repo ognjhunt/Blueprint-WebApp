@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { getGoogleMapsApiKey } from "@/lib/client-env";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -123,6 +123,92 @@ const whyItMatters = [
     description: "Every capture adds to the world's largest collection of simulation-ready spaces.",
   },
 ];
+
+function PlaceholderMap({
+  locations,
+  selectedLocation,
+  onSelectLocation,
+}: {
+  locations: MappedLocation[];
+  selectedLocation: MappedLocation | null;
+  onSelectLocation: (location: MappedLocation) => void;
+}) {
+  const locationsWithCoords = locations.filter(
+    (loc) => typeof loc.latitude === "number" && typeof loc.longitude === "number",
+  );
+
+  const latitudes = locationsWithCoords.map((loc) => loc.latitude ?? 0);
+  const longitudes = locationsWithCoords.map((loc) => loc.longitude ?? 0);
+  const minLat = Math.min(...latitudes, 24);
+  const maxLat = Math.max(...latitudes, 49);
+  const minLng = Math.min(...longitudes, -124);
+  const maxLng = Math.max(...longitudes, -66);
+  const latRange = maxLat - minLat || 1;
+  const lngRange = maxLng - minLng || 1;
+
+  const fallbackPositions = [
+    { x: 18, y: 32 },
+    { x: 42, y: 22 },
+    { x: 64, y: 28 },
+    { x: 30, y: 60 },
+    { x: 55, y: 66 },
+    { x: 78, y: 48 },
+  ];
+
+  const positionedLocations = locations.map((loc, index) => {
+    if (typeof loc.latitude === "number" && typeof loc.longitude === "number") {
+      const x = ((loc.longitude - minLng) / lngRange) * 70 + 15;
+      const y = 85 - ((loc.latitude - minLat) / latRange) * 60;
+      return { ...loc, x, y };
+    }
+
+    const fallback = fallbackPositions[index % fallbackPositions.length];
+    return { ...loc, ...fallback };
+  });
+
+  return (
+    <div className="relative h-[500px] w-full bg-gradient-to-br from-white via-zinc-50 to-zinc-100">
+      <div className="absolute inset-6 rounded-2xl border border-dashed border-zinc-200 bg-white/70" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,#e4e4e7_1px,transparent_0)] [background-size:32px_32px] opacity-60" />
+      <div className="relative h-full w-full">
+        {positionedLocations.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-zinc-500">
+            No matching locations. Adjust your search or filters.
+          </div>
+        )}
+        {positionedLocations.map((loc) => {
+          const isSelected = selectedLocation?.id === loc.id;
+          const baseColor = loc.scanCompleted ? "bg-emerald-500" : "bg-indigo-500";
+          const ringColor = loc.scanCompleted ? "ring-emerald-100" : "ring-indigo-100";
+
+          return (
+            <button
+              key={loc.id}
+              onClick={() => onSelectLocation(loc)}
+              style={{ left: `${loc.x}%`, top: `${loc.y}%` }}
+              className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full px-3 py-2 shadow-sm transition-all duration-200 hover:-translate-y-3 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                isSelected ? "ring-2 ring-offset-2 ring-indigo-500" : ""
+              }`}
+            >
+              <span
+                className={`flex items-center gap-2 rounded-full border border-white/80 px-3 py-2 text-xs font-medium text-white backdrop-blur-sm ${baseColor} ${
+                  isSelected ? "scale-105" : ""
+                }`}
+              >
+                <span
+                  className={`h-2.5 w-2.5 rounded-full ring-2 ring-offset-2 ring-offset-white ${baseColor} ${ringColor}`}
+                />
+                <span className="truncate max-w-[140px] text-left">
+                  {loc.businessName}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 // Visual helper
 function DotPattern() {
@@ -709,12 +795,27 @@ function CaptureMap() {
   const [filterType, setFilterType] = useState<string>("all");
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
+  const mapsApiKey = useMemo(() => getGoogleMapsApiKey(), []);
+
+  const filteredLocations = useMemo(() => {
+    return locations.filter((loc) => {
+      const matchesSearch =
+        searchQuery === "" ||
+        loc.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        loc.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (loc.city && loc.city.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (loc.state && loc.state.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      const matchesType = filterType === "all" || loc.locationType === filterType;
+
+      return matchesSearch && matchesType;
+    });
+  }, [locations, searchQuery, filterType]);
 
   // Initialize Google Maps
   useEffect(() => {
     const initMap = async () => {
-      const apiKey = getGoogleMapsApiKey();
-      if (!apiKey) {
+      if (!mapsApiKey) {
         console.error("Google Maps API key not configured");
         setMapError("Map unavailable - API key not configured");
         setIsLoading(false);
@@ -726,7 +827,7 @@ function CaptureMap() {
         const { Loader } = await import("@googlemaps/js-api-loader");
 
         const loader = new Loader({
-          apiKey,
+          apiKey: mapsApiKey,
           version: "weekly",
           libraries: ["places", "geocoding"],
         });
@@ -766,7 +867,7 @@ function CaptureMap() {
     };
 
     initMap();
-  }, []);
+  }, [mapsApiKey]);
 
   // Initialize Google Places Autocomplete
   useEffect(() => {
@@ -798,7 +899,7 @@ function CaptureMap() {
 
   // Geocode and add markers
   useEffect(() => {
-    if (!mapLoaded || !mapInstanceRef.current || locations.length === 0) return;
+    if (!mapLoaded || !mapInstanceRef.current) return;
 
     const geocoder = new google.maps.Geocoder();
     const map = mapInstanceRef.current;
@@ -807,20 +908,9 @@ function CaptureMap() {
     markersRef.current.forEach((marker) => marker.setMap(null));
     markersRef.current = [];
 
+    if (filteredLocations.length === 0) return;
+
     // Filter locations
-    const filteredLocations = locations.filter((loc) => {
-      const matchesSearch =
-        searchQuery === "" ||
-        loc.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        loc.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (loc.city && loc.city.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (loc.state && loc.state.toLowerCase().includes(searchQuery.toLowerCase()));
-
-      const matchesType = filterType === "all" || loc.locationType === filterType;
-
-      return matchesSearch && matchesType;
-    });
-
     // Add markers for each location
     filteredLocations.forEach((location) => {
       if (location.latitude && location.longitude) {
@@ -860,11 +950,12 @@ function CaptureMap() {
 
       markersRef.current.push(marker);
     }
-  }, [mapLoaded, locations, searchQuery, filterType]);
+  }, [mapLoaded, filteredLocations]);
 
   // Get counts
   const completedCount = locations.filter((l) => l.scanCompleted).length;
   const pendingCount = locations.filter((l) => !l.scanCompleted).length;
+  const shouldShowPlaceholder = !mapsApiKey || !!mapError;
 
   return (
     <div className="space-y-6">
@@ -927,21 +1018,21 @@ function CaptureMap() {
 
       {/* Map Container */}
       <div className="relative rounded-2xl border border-zinc-200 overflow-hidden bg-zinc-100">
-        {isLoading && (
+        {isLoading && !shouldShowPlaceholder && (
           <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
             <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
           </div>
         )}
 
-        {mapError && !isLoading && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-50 z-10">
-            <MapPin className="h-12 w-12 text-zinc-300 mb-4" />
-            <p className="text-zinc-500 text-sm">{mapError}</p>
-            <p className="text-zinc-400 text-xs mt-1">Locations are listed below</p>
-          </div>
+        {shouldShowPlaceholder ? (
+          <PlaceholderMap
+            locations={filteredLocations}
+            selectedLocation={selectedLocation}
+            onSelectLocation={setSelectedLocation}
+          />
+        ) : (
+          <div ref={mapRef} className="h-[500px] w-full" />
         )}
-
-        <div ref={mapRef} className="h-[500px] w-full" />
 
         {/* Legend */}
         <div className="absolute bottom-4 left-4 rounded-xl bg-white/95 backdrop-blur-sm p-3 shadow-lg border border-zinc-200">
