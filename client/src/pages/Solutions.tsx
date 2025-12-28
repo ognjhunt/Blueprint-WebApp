@@ -394,6 +394,15 @@ function DataPipelineSection() {
           </p>
         </div>
 
+        <div className="overflow-hidden rounded-2xl border border-indigo-900/40 bg-zinc-900/70 shadow-xl ring-1 ring-indigo-500/30">
+          <img
+            src="/images/Gemini_Solutions.png"
+            alt="Image to SimReady pipeline illustration"
+            className="w-full object-cover"
+            loading="lazy"
+          />
+        </div>
+
         {/* Pipeline Flow */}
         <div className="grid gap-6 lg:grid-cols-[1fr_auto_1fr_auto_1fr] items-start">
           {/* Input Column */}

@@ -100,6 +100,15 @@ export default function Contact() {
           </p>
         </header>
 
+        <div className="mb-12 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+          <img
+            src="/images/Gemini_Contact.png"
+            alt="Upload a photo to receive a SimReady scene"
+            className="w-full object-cover"
+            loading="lazy"
+          />
+        </div>
+
         {/* Main Form Component */}
         <ContactForm />
 

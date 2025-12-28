@@ -252,6 +252,14 @@ export default function Docs() {
                 semantic coverage. Use this guide to integrate Blueprint scenes
                 into your simulator.
               </p>
+              <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+                <img
+                  src="/images/Gemini_Docs.png"
+                  alt="SimReady standard specification visual"
+                  className="w-full object-cover"
+                  loading="lazy"
+                />
+              </div>
             </header>
 
             {/* Per-scene deliverables */}

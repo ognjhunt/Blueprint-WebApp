@@ -618,6 +618,14 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-6">
+                  <div className="overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50">
+                    <img
+                      src="/images/Gemini_Hero.png"
+                      alt="SimReady scene anatomy hero"
+                      className="h-56 w-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
                   <div className="flex items-center justify-between border-b border-zinc-100 pb-4">
                     <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
                       <Terminal className="h-4 w-4" />
@@ -639,14 +647,14 @@ export default function Home() {
                       with procedural scale so you get the layouts, objects, and
                       articulation policies you actually deploy.
                     </p>
-                    <div className="rounded-lg bg-zinc-50 p-4 text-xs text-zinc-500 border border-zinc-100">
-                    <span className="block font-mono text-indigo-600 mb-1">
-                      $ system_check --site-specific
-                    </span>
-                    {facilitySupportCopy}
+                    <div className="rounded-lg border border-zinc-100 bg-zinc-50 p-4 text-xs text-zinc-500">
+                      <span className="mb-1 block font-mono text-indigo-600">
+                        $ system_check --site-specific
+                      </span>
+                      {facilitySupportCopy}
+                    </div>
                   </div>
                 </div>
-              </div>
               </div>
             </div>
           </div>
