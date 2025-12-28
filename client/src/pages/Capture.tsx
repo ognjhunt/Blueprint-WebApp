@@ -1211,6 +1211,15 @@ export default function Capture() {
           </div>
         </header>
 
+        <div className="mb-20 overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-lg">
+          <img
+            src="/images/Gemini_Capture1.png"
+            alt="On-demand spatial capture network hero"
+            className="w-full object-cover"
+            loading="lazy"
+          />
+        </div>
+
         {/* How It Works Section */}
         <section className="mb-20">
           <div className="text-center mb-12">

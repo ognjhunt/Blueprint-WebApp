@@ -291,6 +291,15 @@ export default function Environments() {
             </div>
           </div>
 
+          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white/70 shadow-sm">
+            <img
+              src="/images/Gemini_EnvironentsBanner.png"
+              alt="SimReady marketplace archetypes mosaic"
+              className="w-full object-cover"
+              loading="lazy"
+            />
+          </div>
+
           {/* Stats Bar */}
           <div className="flex flex-wrap items-center gap-6 rounded-xl border border-zinc-200 bg-white/50 px-6 py-4 text-sm text-zinc-600 backdrop-blur-sm">
             <div className="flex items-center gap-2">
