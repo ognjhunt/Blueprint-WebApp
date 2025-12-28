@@ -1172,28 +1172,28 @@ export default function Capture() {
                   <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 text-zinc-300">
                     <Users className="h-8 w-8" />
                   </div>
-                  <h3 className="font-semibold">More Buyers</h3>
+                  <h3 className="font-semibold text-white">More Buyers</h3>
                   <p className="text-sm text-zinc-400">Robotics teams need location-specific data</p>
                 </div>
                 <div className="space-y-3">
                   <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 text-zinc-300">
                     <Building2 className="h-8 w-8" />
                   </div>
-                  <h3 className="font-semibold">More Jobs</h3>
+                  <h3 className="font-semibold text-white">More Jobs</h3>
                   <p className="text-sm text-zinc-400">Capture requests drive demand</p>
                 </div>
                 <div className="space-y-3">
                   <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 text-zinc-300">
                     <Glasses className="h-8 w-8" />
                   </div>
-                  <h3 className="font-semibold">More Wearers</h3>
+                  <h3 className="font-semibold text-white">More Wearers</h3>
                   <p className="text-sm text-zinc-400">Earn by scanning in your area</p>
                 </div>
                 <div className="space-y-3">
                   <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 text-zinc-300">
                     <Globe className="h-8 w-8" />
                   </div>
-                  <h3 className="font-semibold">Better Coverage</h3>
+                  <h3 className="font-semibold text-white">Better Coverage</h3>
                   <p className="text-sm text-zinc-400">Faster turnaround, more locations</p>
                 </div>
               </div>
