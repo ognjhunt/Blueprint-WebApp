@@ -1506,11 +1506,18 @@ export function ContactForm() {
       }
     }
 
-    const payload: Record<string, unknown> = Object.fromEntries(data.entries());
+    const payload: Record<string, unknown> = {};
+    data.forEach((value, key) => {
+      if (value instanceof File) {
+        return;
+      }
+      payload[key] = value;
+    });
 
     // Append React State
     Object.assign(payload, {
       requestType,
+      requestSource: "marketplace-wishlist",
       datasetTier,
       siteAddress,
       sitePlaceId,
@@ -1543,9 +1550,18 @@ export function ContactForm() {
     setMessage("");
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      // const res = await fetch("/api/contact", { ... });
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errorResponse = await res.json().catch(() => null);
+        const errorMessage =
+          errorResponse?.error ?? "We couldn't send your request. Please retry.";
+        throw new Error(errorMessage);
+      }
 
       setStatus("success");
       form.reset();
@@ -1568,8 +1584,13 @@ export function ContactForm() {
       setAnalysisResult(null);
       setAnalysisMessage("");
     } catch (error) {
+      console.error("Contact submission failed", error);
       setStatus("error");
-      setMessage("Transmission failed. Please try again.");
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Transmission failed. Please try again.",
+      );
     }
   };
 
