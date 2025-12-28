@@ -2,6 +2,24 @@
 
 There is an issue with the default build script in `package.json` that contains an invalid esbuild flag `--no-check`. This flag is causing deployment failures. We've provided several solutions to fix this issue.
 
+## Firebase configuration (frontend + server)
+
+Set the Firebase web config and Admin credentials in your deployment secrets before building:
+
+- Copy the values from `.env.example` into your hosting/CI secrets using the exact Vite keys expected by `client/src/lib/firebase.ts`:
+  - `VITE_FIREBASE_API_KEY`
+  - `VITE_FIREBASE_AUTH_DOMAIN`
+  - `VITE_FIREBASE_PROJECT_ID`
+  - `VITE_FIREBASE_STORAGE_BUCKET`
+  - `VITE_FIREBASE_MESSAGING_SENDER_ID`
+  - `VITE_FIREBASE_APP_ID`
+  - Optional: `VITE_FIREBASE_DATABASE_URL`, `VITE_FIREBASE_MEASUREMENT_ID`
+- Provide Admin credentials for server routes that use `client/src/lib/firebaseAdmin.ts`:
+  - `FIREBASE_SERVICE_ACCOUNT_JSON` (stringified JSON) **or**
+  - `GOOGLE_APPLICATION_CREDENTIALS` (absolute path to the service account JSON in the runtime environment).
+
+These variables must be available in the build/runtime environment (Replit secrets, hosting console, or CI) so both the Vite build and Express routes can initialize Firebase.
+
 ## Method 1: Pre-Deployment Script (Recommended)
 
 This method fixes the package.json file before deployment:

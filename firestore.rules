@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isStringField(field) {
+      return field is string;
+    }
+
+    function hasValidContactRequestPayload() {
+      return isStringField(request.resource.data.name)
+        && isStringField(request.resource.data.email)
+        && isStringField(request.resource.data.company)
+        && isStringField(request.resource.data.city)
+        && isStringField(request.resource.data.state)
+        && isStringField(request.resource.data.message)
+        && isStringField(request.resource.data.companyWebsite)
+        && isStringField(request.resource.data.token)
+        && isStringField(request.resource.data.offWaitlistUrl)
+        && request.resource.data.createdAt is timestamp;
+    }
+
+    function hasValidWaitlistTokenCreatePayload() {
+      return isStringField(request.resource.data.token)
+        && isStringField(request.resource.data.email)
+        && isStringField(request.resource.data.company)
+        && isStringField(request.resource.data.status)
+        && request.resource.data.createdAt is timestamp;
+    }
+
+    match /contactRequests/{id} {
+      allow create: if hasValidContactRequestPayload();
+      allow read: if isAuthenticated();
+      allow update, delete: if false;
+    }
+
+    match /waitlistTokens/{id} {
+      allow create: if hasValidWaitlistTokenCreatePayload();
+      allow get, list: if true;
+      allow update, delete: if isAuthenticated();
+    }
+
+    match /users/{userId} {
+      allow create, read, update: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
