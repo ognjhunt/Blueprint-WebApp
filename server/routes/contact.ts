@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { sendEmail } from "../utils/email";
 
 export default async function contactHandler(req: Request, res: Response) {
@@ -199,6 +200,47 @@ export default async function contactHandler(req: Request, res: Response) {
   const to = process.env.CONTACT_TO ?? "ops@tryblueprint.io";
   const subject = `Blueprint request from ${company}`;
   const summary = summaryLines.join("\n");
+
+  const requestSource =
+    typeof req.body?.requestSource === "string"
+      ? req.body.requestSource
+      : "marketplace-wishlist";
+
+  const logEntry = {
+    requestSource,
+    requesterName,
+    email,
+    company,
+    jobTitle,
+    country,
+    requestType: req.body?.requestType ?? requestType ?? null,
+    receivedAtIso: new Date().toISOString(),
+    submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+    summaryLines,
+    summary,
+    payload: req.body ?? {},
+    headers: {
+      userAgent: req.get("user-agent") ?? null,
+      referer: req.get("referer") ?? req.get("referrer") ?? null,
+      ip: req.ip ?? null,
+    },
+  };
+
+  try {
+    if (!db) {
+      console.warn(
+        "Firebase Admin SDK not initialized. Skipping contact submission logging.",
+      );
+    } else {
+      await db
+        .collection("ops")
+        .doc("marketplaceWishlist")
+        .collection("requests")
+        .add(logEntry);
+    }
+  } catch (error: any) {
+    console.error("Failed to log contact submission to Firestore:", error);
+  }
 
   const { sent } = await sendEmail({ to, subject, text: summary, replyTo: email });
 
