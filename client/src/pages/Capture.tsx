@@ -1161,7 +1161,7 @@ export default function Capture() {
 
             <div className="relative z-10">
               <div className="text-center mb-12">
-                <h2 className="text-3xl font-bold sm:text-4xl">The Network Effect</h2>
+                <h2 className="text-3xl font-bold sm:text-4xl text-white">The Network Effect</h2>
                 <p className="mt-4 max-w-2xl mx-auto text-zinc-400">
                   Every capture strengthens the flywheel.
                 </p>
