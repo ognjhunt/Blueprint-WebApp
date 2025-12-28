@@ -1018,8 +1018,8 @@ const requestOptions = [
 ];
 
 const visibleRequestOptions = SHOW_REAL_WORLD_CAPTURE
-  ? requestOptions
-  : requestOptions.filter((option) => option.value !== "scene");
+  ? requestOptions.filter((option) => option.value !== "recipe")
+  : requestOptions.filter((option) => option.value !== "scene" && option.value !== "recipe");
 
 const datasetTiers = [
   {
