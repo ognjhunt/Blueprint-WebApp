@@ -201,10 +201,14 @@ export default function ContactForm() {
         );
       }
 
+      console.log("[ContactForm] Starting form submission...");
+      console.log("[ContactForm] Firebase db initialized:", !!db);
+
       const token = uuidv4();
       const baseUrl = "https://blueprint-vision-fork-nijelhunt.replit.app";
       const offWaitlistUrl = `${baseUrl}/off-waitlist-signup?token=${token}`;
 
+      console.log("[ContactForm] Writing to waitlistTokens...");
       await addDoc(collection(db, "waitlistTokens"), {
         token,
         email: formData.email,
@@ -212,7 +216,9 @@ export default function ContactForm() {
         status: "unused",
         createdAt: serverTimestamp(),
       });
+      console.log("[ContactForm] waitlistTokens written successfully");
 
+      console.log("[ContactForm] Writing to contactRequests...");
       await addDoc(collection(db, "contactRequests"), {
         name: formData.name,
         email: formData.email,
@@ -225,8 +231,10 @@ export default function ContactForm() {
         offWaitlistUrl,
         createdAt: serverTimestamp(),
       });
+      console.log("[ContactForm] contactRequests written successfully");
 
       // Create a new scene document with all contact info
+      console.log("[ContactForm] Writing to scenes...");
       const sceneId = `scene-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
       await addDoc(collection(db, "scenes"), {
         id: sceneId,
@@ -254,6 +262,8 @@ export default function ContactForm() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+      console.log("[ContactForm] scenes written successfully");
+      console.log("[ContactForm] All Firestore writes completed!");
 
       // Send notification via backend API (secure)
       fetch("/api/contact-webhook", {
