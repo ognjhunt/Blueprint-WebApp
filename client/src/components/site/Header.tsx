@@ -32,14 +32,6 @@ export function Header() {
           Blueprint
         </a>
         <nav className="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">
-          <a
-            href="/"
-            className={`transition hover:text-slate-900 ${
-              location === "/" ? "text-slate-900" : ""
-            }`}
-          >
-            Home
-          </a>
           {navLinks.map((link) => (
             <a
               key={link.href}
@@ -73,9 +65,6 @@ export function Header() {
       {open ? (
         <div className="border-t border-slate-200 bg-white md:hidden">
           <nav className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4 text-sm font-medium text-slate-700">
-            <a href="/" className="py-1" onClick={() => setOpen(false)}>
-              Home
-            </a>
             {navLinks.map((link) => (
               <a
                 key={link.href}
