@@ -44,8 +44,17 @@ export default async function contactHandler(req: Request, res: Response) {
     emailOptIn,
   } = req.body ?? {};
 
-  if (!name || !email || !company || !jobTitle || !country) {
-    return res.status(400).json({ error: "Missing required fields" });
+  // Validate required fields and provide specific error messages
+  const missingFields: string[] = [];
+  if (!name) missingFields.push("Full Name");
+  if (!email) missingFields.push("Work Email");
+  if (!company) missingFields.push("Company");
+  if (!country) missingFields.push("Country");
+
+  if (missingFields.length > 0) {
+    return res.status(400).json({
+      error: `Missing required fields: ${missingFields.join(", ")}`,
+    });
   }
 
   const useCaseList = Array.isArray(useCases)
