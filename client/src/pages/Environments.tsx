@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Helmet } from "react-helmet";
 import {
   environmentPolicies,
   syntheticDatasets,
@@ -117,6 +118,7 @@ export default function Environments() {
   >([]);
   const [sortOption, setSortOption] = useState<string>("newest");
   const [searchQuery, setSearchQuery] = useState("");
+  const [bannerLoaded, setBannerLoaded] = useState(false);
 
   // --- Logic ---
 
@@ -263,10 +265,68 @@ export default function Environments() {
     );
   };
 
+  // --- Structured Data for SEO ---
+  const structuredData = useMemo(() => {
+    const products = allMarketplaceItems.slice(0, 10).map((item) => ({
+      "@type": "Product",
+      name: item.data.title,
+      description: item.data.description,
+      offers: {
+        "@type": "Offer",
+        price: item.type === "dataset"
+          ? (item.data as SyntheticDataset).pricePerScene * (item.data as SyntheticDataset).sceneCount
+          : (item.data as MarketplaceScene).price,
+        priceCurrency: "USD",
+        availability: "https://schema.org/InStock",
+      },
+    }));
+
+    return {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: "Blueprint Environments Marketplace",
+      description: "SimReady synthetic datasets and scenes for robotics training. Isaac-ready USD packages with randomizers and task logic.",
+      url: "https://tryblueprint.io/environments",
+      mainEntity: {
+        "@type": "ItemList",
+        numberOfItems: allMarketplaceItems.length,
+        itemListElement: products,
+      },
+    };
+  }, [allMarketplaceItems]);
+
   // --- Render ---
   return (
-    <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
-      <DotPattern />
+    <>
+      <Helmet>
+        <title>Environments Marketplace | Blueprint - SimReady Datasets for Robotics</title>
+        <meta
+          name="description"
+          content="Browse SimReady synthetic datasets and individual scenes for robotics training. Isaac-ready USD packages with randomizers, task logic, and validation notes."
+        />
+        <meta name="robots" content="index, follow" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://tryblueprint.io/environments" />
+        <meta property="og:title" content="Environments Marketplace | Blueprint" />
+        <meta
+          property="og:description"
+          content="Browse SimReady synthetic datasets and individual scenes for robotics training. Daily drops with Isaac-ready USD packages."
+        />
+        <meta property="og:image" content="https://tryblueprint.io/images/Gemini_EnvironentsBanner.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Environments Marketplace | Blueprint" />
+        <meta
+          name="twitter:description"
+          content="SimReady synthetic datasets for robotics. Isaac-ready USD packages with randomizers and task logic."
+        />
+        <meta name="twitter:image" content="https://tryblueprint.io/images/Gemini_EnvironentsBanner.png" />
+        <link rel="canonical" href="https://tryblueprint.io/environments" />
+        <script type="application/ld+json">
+          {JSON.stringify(structuredData)}
+        </script>
+      </Helmet>
+      <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
+        <DotPattern />
 
       <div className="mx-auto max-w-7xl space-y-12 px-4 pb-24 pt-16 sm:px-6 lg:px-8">
         {/* --- Header Section --- */}
@@ -291,12 +351,19 @@ export default function Environments() {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white/70 shadow-sm">
+          <div className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white/70 shadow-sm">
+            {/* Skeleton loader for banner */}
+            {!bannerLoaded && (
+              <div className="aspect-[3/1] w-full animate-pulse bg-gradient-to-r from-zinc-200 via-zinc-100 to-zinc-200 bg-[length:200%_100%]" />
+            )}
             <img
               src="/images/Gemini_EnvironentsBanner.png"
               alt="SimReady marketplace archetypes mosaic"
-              className="w-full object-cover"
+              className={`w-full object-cover transition-opacity duration-300 ${
+                bannerLoaded ? "opacity-100" : "opacity-0 absolute inset-0"
+              }`}
               loading="lazy"
+              onLoad={() => setBannerLoaded(true)}
             />
           </div>
 
@@ -581,6 +648,7 @@ export default function Environments() {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
