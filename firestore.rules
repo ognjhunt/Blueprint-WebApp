@@ -30,6 +30,16 @@ service cloud.firestore {
         && request.resource.data.createdAt is timestamp;
     }
 
+    function hasValidSceneCreatePayload() {
+      return isStringField(request.resource.data.id)
+        && isStringField(request.resource.data.name)
+        && isStringField(request.resource.data.title)
+        && isStringField(request.resource.data.status)
+        && isStringField(request.resource.data.source)
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
     match /contactRequests/{id} {
       allow create: if hasValidContactRequestPayload();
       allow read: if isAuthenticated();
@@ -39,6 +49,12 @@ service cloud.firestore {
     match /waitlistTokens/{id} {
       allow create: if hasValidWaitlistTokenCreatePayload();
       allow get, list: if true;
+      allow update, delete: if isAuthenticated();
+    }
+
+    match /scenes/{id} {
+      allow create: if hasValidSceneCreatePayload();
+      allow read: if isAuthenticated();
       allow update, delete: if isAuthenticated();
     }
 
