@@ -358,8 +358,7 @@ export const syntheticDatasets: SyntheticDataset[] = [
     title: "Warehouse Flow Kit",
     description:
       "200-lane dataset covering cross-dock staging, tote picking, and pallet buffers tuned for AMR and arm-on-rail deployments.",
-    heroImage:
-      "https://images.unsplash.com/photo-OnbSOhz0oig?auto=format&fit=crop&w=1600&q=80",
+    heroImage: "/thumbnails/warehouse-pallet-buffer.png",
     locationType: "Warehouses",
     policySlugs: ["mixed-sku-logistics", "dexterous-pick-place"],
     objectTags: ["pallets", "totes", "cartons", "racking"],
@@ -383,8 +382,7 @@ export const syntheticDatasets: SyntheticDataset[] = [
     title: "Lab Procedures Pack",
     description:
       "65 precision lab benches with gloveboxes, articulated enclosures, and sample handoff tooling for panel + insertion curricula.",
-    heroImage:
-      "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=1600&q=80",
+    heroImage: "/thumbnails/lab-bench-prep.png",
     locationType: "Labs",
     policySlugs: [
       "panel-interaction-suite",
@@ -424,8 +422,7 @@ export const syntheticDatasets: SyntheticDataset[] = [
     title: "Laundry Assist Starter",
     description:
       "50 assistive home laundry alcoves with washers, dryers, and hampers for folding and transfer training.",
-    heroImage:
-      "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1600&q=80",
+    heroImage: "/thumbnails/laundry-folding-alcove.png",
     locationType: "Home / Assistive",
     policySlugs: ["laundry-folding-assist"],
     objectTags: ["washers", "dryers", "hampers", "folding tables"],
@@ -446,7 +443,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     slug: "commercial-dishroom-station",
     title: "Commercial Dishroom Station",
     description: "High-traffic dishwashing station with articulated rack loaders, spray nozzles, and drying shelves for manipulation training.",
-    thumbnail: "/thumbnails/prep-line-essentials.png",
+    thumbnail: "/thumbnails/commercial-dishroom-station.png",
     locationType: "Kitchens",
     policySlugs: ["dexterous-pick-place", "articulated-access-validation"],
     objectTags: ["dishwashers", "shelves", "utensils"],
@@ -494,7 +491,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     slug: "precision-lab-glovebox",
     title: "Precision Lab Glovebox",
     description: "Sealed glovebox enclosure with articulated glove ports, pass-through chambers, and sample handling fixtures.",
-    thumbnail: "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=800&q=80",
+    thumbnail: "/thumbnails/sample-prep-workbench.png",
     locationType: "Labs",
     policySlugs: ["precision-insertion-assembly", "panel-interaction-suite"],
     objectTags: ["sample racks", "valves", "drawers"],
@@ -526,7 +523,7 @@ export const marketplaceScenes: MarketplaceScene[] = [
     slug: "home-washer-dryer-stack",
     title: "Home Washer-Dryer Stack",
     description: "Residential laundry pair with articulated doors, control dials, and detergent dispensers for assistive robotics.",
-    thumbnail: "https://images.unsplash.com/photo-1610557892470-55d9e80c0bce?auto=format&fit=crop&w=800&q=80",
+    thumbnail: "/thumbnails/folding-station-deluxe.png",
     locationType: "Home / Assistive",
     policySlugs: ["laundry-folding-assist"],
     objectTags: ["washers", "dryers", "hampers"],

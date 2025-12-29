@@ -12,6 +12,7 @@ interface MarketplaceCardProps {
 
 export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
   const [, navigate] = useLocation();
   const isDataset = type === "dataset";
   const dataset = isDataset ? (item as SyntheticDataset) : null;
@@ -134,11 +135,18 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
     >
       {/* Image */}
       <div className="relative aspect-[4/3] overflow-hidden bg-zinc-100">
+        {/* Skeleton loader */}
+        {!imageLoaded && (
+          <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-zinc-200 via-zinc-100 to-zinc-200 bg-[length:200%_100%]" />
+        )}
         <img
           src={thumbnail}
           alt={title}
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+          className={`h-full w-full object-cover transition-all duration-500 group-hover:scale-110 ${
+            imageLoaded ? "opacity-100" : "opacity-0"
+          }`}
           loading="lazy"
+          onLoad={() => setImageLoaded(true)}
         />
 
         {/* Overlay badges */}

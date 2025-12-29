@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { Helmet } from "react-helmet";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   scenes,
@@ -157,14 +158,59 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
         ((marketplaceDataset as SyntheticDataset).sceneCount || 1)
       : null;
 
+    const productStructuredData = {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      name: marketplaceItem.title,
+      description: marketplaceItem.description,
+      image: heroImage.startsWith("/") ? `https://tryblueprint.io${heroImage}` : heroImage,
+      offers: {
+        "@type": "Offer",
+        price: isDataset
+          ? (marketplaceDataset as SyntheticDataset).pricePerScene * (marketplaceDataset as SyntheticDataset).sceneCount
+          : (marketplaceScene as MarketplaceScene).price,
+        priceCurrency: "USD",
+        availability: "https://schema.org/InStock",
+      },
+      category: marketplaceItem.locationType,
+      brand: {
+        "@type": "Brand",
+        name: "Blueprint",
+      },
+    };
+
     return (
-      <div className="mx-auto max-w-6xl space-y-12 px-4 pb-24 pt-16 sm:px-6">
-        <a
-          href="/environments"
-          className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to marketplace
-        </a>
+      <>
+        <Helmet>
+          <title>{marketplaceItem.title} | Blueprint Environments</title>
+          <meta
+            name="description"
+            content={marketplaceItem.description}
+          />
+          <meta name="robots" content="index, follow" />
+          <meta property="og:type" content="product" />
+          <meta property="og:url" content={`https://tryblueprint.io/environments/${detailSlug}`} />
+          <meta property="og:title" content={`${marketplaceItem.title} | Blueprint`} />
+          <meta property="og:description" content={marketplaceItem.description} />
+          <meta
+            property="og:image"
+            content={heroImage.startsWith("/") ? `https://tryblueprint.io${heroImage}` : heroImage}
+          />
+          <meta name="twitter:card" content="summary_large_image" />
+          <meta name="twitter:title" content={`${marketplaceItem.title} | Blueprint`} />
+          <meta name="twitter:description" content={marketplaceItem.description} />
+          <link rel="canonical" href={`https://tryblueprint.io/environments/${detailSlug}`} />
+          <script type="application/ld+json">
+            {JSON.stringify(productStructuredData)}
+          </script>
+        </Helmet>
+        <div className="mx-auto max-w-6xl space-y-12 px-4 pb-24 pt-16 sm:px-6">
+          <a
+            href="/environments"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to marketplace
+          </a>
 
         <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-6">
@@ -417,7 +463,8 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
             </div>
           </div>
         </section>
-      </div>
+        </div>
+      </>
     );
   }
 
@@ -455,9 +502,26 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     { label: "Colliders", value: scene.colliders },
   ];
 
+  const sceneImage = scene.thumb.startsWith("/") ? `https://tryblueprint.io${scene.thumb}` : scene.thumb;
+
   return (
-    <div className="mx-auto max-w-6xl space-y-12 px-4 pb-24 pt-16 sm:px-6">
-      <header className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr]">
+    <>
+      <Helmet>
+        <title>{scene.title} | Blueprint Environments</title>
+        <meta name="description" content={scene.seo} />
+        <meta name="robots" content="index, follow" />
+        <meta property="og:type" content="product" />
+        <meta property="og:url" content={`https://tryblueprint.io/environments/${scene.slug}`} />
+        <meta property="og:title" content={`${scene.title} | Blueprint`} />
+        <meta property="og:description" content={scene.seo} />
+        <meta property="og:image" content={sceneImage} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={`${scene.title} | Blueprint`} />
+        <meta name="twitter:description" content={scene.seo} />
+        <link rel="canonical" href={`https://tryblueprint.io/environments/${scene.slug}`} />
+      </Helmet>
+      <div className="mx-auto max-w-6xl space-y-12 px-4 pb-24 pt-16 sm:px-6">
+        <header className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-6">
           <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
             {scene.tags.join(" • ")}
@@ -552,6 +616,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
           </div>
         </section>
       ) : null}
-    </div>
+      </div>
+    </>
   );
 }
