@@ -20,47 +20,18 @@ import {
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-const firebaseEnvKeys = [
-  "VITE_FIREBASE_API_KEY",
-  "VITE_FIREBASE_AUTH_DOMAIN",
-  "VITE_FIREBASE_PROJECT_ID",
-  "VITE_FIREBASE_STORAGE_BUCKET",
-  "VITE_FIREBASE_MESSAGING_SENDER_ID",
-  "VITE_FIREBASE_APP_ID",
-] as const;
-
-function getRequiredEnv(key: (typeof firebaseEnvKeys)[number]): string {
-  const value = (import.meta.env as Record<string, string | undefined>)[key];
-  if (!value) {
-    throw new Error(
-      `Missing required Firebase environment variable: ${key}. ` +
-      `Please ensure all Firebase environment variables are properly configured in your deployment secrets.`
-    );
-  }
-  return value;
-}
-
-// Build Firebase configuration with required variables
+// Firebase configuration - hardcoded for Render deployment
+// TODO: Move to environment variables when possible
 const firebaseConfig: FirebaseOptions = {
-  apiKey: getRequiredEnv("VITE_FIREBASE_API_KEY"),
-  authDomain: getRequiredEnv("VITE_FIREBASE_AUTH_DOMAIN"),
-  projectId: getRequiredEnv("VITE_FIREBASE_PROJECT_ID"),
-  storageBucket: getRequiredEnv("VITE_FIREBASE_STORAGE_BUCKET"),
-  messagingSenderId: getRequiredEnv("VITE_FIREBASE_MESSAGING_SENDER_ID"),
-  appId: getRequiredEnv("VITE_FIREBASE_APP_ID"),
+  apiKey: "AIzaSyAbIZbjqsG9daPQYfpFTfCUHWszqHAfgjI",
+  authDomain: "blueprint-8c1ca.firebaseapp.com",
+  projectId: "blueprint-8c1ca",
+  storageBucket: "blueprint-8c1ca.appspot.com",
+  messagingSenderId: "744608654760",
+  appId: "1:744608654760:web:5b697e80345ac2b0f4a99d",
+  databaseURL: "https://blueprint-8c1ca-default-rtdb.firebaseio.com",
+  measurementId: "G-7LHTQSRF9L",
 };
-
-// Add optional configuration if available
-const optionalFirebaseConfig: Record<string, string | undefined> = {
-  databaseURL: (import.meta.env as Record<string, string | undefined>).VITE_FIREBASE_DATABASE_URL,
-  measurementId: (import.meta.env as Record<string, string | undefined>).VITE_FIREBASE_MEASUREMENT_ID,
-};
-
-for (const [key, value] of Object.entries(optionalFirebaseConfig)) {
-  if (value) {
-    (firebaseConfig as Record<string, string>)[key] = value;
-  }
-}
 
 // Initialize Firebase - this will throw if configuration is invalid
 const app = initializeApp(firebaseConfig);
