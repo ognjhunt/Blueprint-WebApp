@@ -1488,6 +1488,37 @@ export function ContactForm() {
 
     const data = new FormData(form);
 
+    // Client-side validation for required fields
+    const missingFields: string[] = [];
+
+    if (!data.get("name")?.toString().trim()) missingFields.push("Full Name");
+    if (!data.get("email")?.toString().trim()) missingFields.push("Work Email");
+    if (!data.get("company")?.toString().trim()) missingFields.push("Company");
+    if (!data.get("country")?.toString().trim()) missingFields.push("Country");
+    if (!data.get("robotPlatform")?.toString().trim())
+      missingFields.push("Robot Platform");
+    if (!data.get("deadline")?.toString().trim())
+      missingFields.push("Timeline / Deadline");
+
+    if (missingFields.length > 0) {
+      setStatus("error");
+      setMessage(`Missing required fields: ${missingFields.join(", ")}`);
+      return;
+    }
+
+    // Validate deadline is not in the past (for date type inputs)
+    const deadlineValue = data.get("deadline")?.toString();
+    if (requestType === "dataset" && deadlineValue) {
+      const selectedDate = new Date(deadlineValue);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (selectedDate < today) {
+        setStatus("error");
+        setMessage("Timeline / Deadline cannot be in the past.");
+        return;
+      }
+    }
+
     if (selectedUseCases.length === 0) {
       setStatus("error");
       setMessage("Please select at least one use case.");
@@ -2279,6 +2310,11 @@ export function ContactForm() {
                 required
                 name="deadline"
                 type={requestType === "dataset" ? "date" : "text"}
+                min={
+                  requestType === "dataset"
+                    ? new Date().toISOString().split("T")[0]
+                    : undefined
+                }
                 placeholder="e.g. Q3 Deployment"
                 className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500/20"
               />
