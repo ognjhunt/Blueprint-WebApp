@@ -226,6 +226,35 @@ export default function ContactForm() {
         createdAt: serverTimestamp(),
       });
 
+      // Create a new scene document with all contact info
+      const sceneId = `scene-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      await addDoc(collection(db, "scenes"), {
+        id: sceneId,
+        name: formData.company,
+        title: formData.company,
+        description: formData.message || `Scene for ${formData.company}`,
+        status: "pending",
+        source: "contact_form",
+        contact: {
+          name: formData.name,
+          email: formData.email,
+          company: formData.company,
+          city: formData.city,
+          state: formData.state,
+          message: formData.message,
+          companyWebsite,
+        },
+        location: {
+          city: formData.city,
+          state: formData.state,
+          address: companyAddress,
+        },
+        token,
+        offWaitlistUrl,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
       // Send notification via backend API (secure)
       fetch("/api/contact-webhook", {
         method: "POST",
