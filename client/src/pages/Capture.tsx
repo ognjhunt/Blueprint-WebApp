@@ -42,7 +42,13 @@ import {
   Upload,
   FileText,
   AlertCircle,
+  LocateFixed,
 } from "lucide-react";
+
+// Leaflet imports
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 // Types
 interface MappedLocation {
@@ -123,92 +129,6 @@ const whyItMatters = [
     description: "Every capture adds to the world's largest collection of simulation-ready spaces.",
   },
 ];
-
-function PlaceholderMap({
-  locations,
-  selectedLocation,
-  onSelectLocation,
-}: {
-  locations: MappedLocation[];
-  selectedLocation: MappedLocation | null;
-  onSelectLocation: (location: MappedLocation) => void;
-}) {
-  const locationsWithCoords = locations.filter(
-    (loc) => typeof loc.latitude === "number" && typeof loc.longitude === "number",
-  );
-
-  const latitudes = locationsWithCoords.map((loc) => loc.latitude ?? 0);
-  const longitudes = locationsWithCoords.map((loc) => loc.longitude ?? 0);
-  const minLat = Math.min(...latitudes, 24);
-  const maxLat = Math.max(...latitudes, 49);
-  const minLng = Math.min(...longitudes, -124);
-  const maxLng = Math.max(...longitudes, -66);
-  const latRange = maxLat - minLat || 1;
-  const lngRange = maxLng - minLng || 1;
-
-  const fallbackPositions = [
-    { x: 18, y: 32 },
-    { x: 42, y: 22 },
-    { x: 64, y: 28 },
-    { x: 30, y: 60 },
-    { x: 55, y: 66 },
-    { x: 78, y: 48 },
-  ];
-
-  const positionedLocations = locations.map((loc, index) => {
-    if (typeof loc.latitude === "number" && typeof loc.longitude === "number") {
-      const x = ((loc.longitude - minLng) / lngRange) * 70 + 15;
-      const y = 85 - ((loc.latitude - minLat) / latRange) * 60;
-      return { ...loc, x, y };
-    }
-
-    const fallback = fallbackPositions[index % fallbackPositions.length];
-    return { ...loc, ...fallback };
-  });
-
-  return (
-    <div className="relative h-[500px] w-full bg-gradient-to-br from-white via-zinc-50 to-zinc-100">
-      <div className="absolute inset-6 rounded-2xl border border-dashed border-zinc-200 bg-white/70" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,#e4e4e7_1px,transparent_0)] [background-size:32px_32px] opacity-60" />
-      <div className="relative h-full w-full">
-        {positionedLocations.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-sm text-zinc-500">
-            No matching locations. Adjust your search or filters.
-          </div>
-        )}
-        {positionedLocations.map((loc) => {
-          const isSelected = selectedLocation?.id === loc.id;
-          const baseColor = loc.scanCompleted ? "bg-emerald-500" : "bg-indigo-500";
-          const ringColor = loc.scanCompleted ? "ring-emerald-100" : "ring-indigo-100";
-
-          return (
-            <button
-              key={loc.id}
-              onClick={() => onSelectLocation(loc)}
-              style={{ left: `${loc.x}%`, top: `${loc.y}%` }}
-              className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full px-3 py-2 shadow-sm transition-all duration-200 hover:-translate-y-3 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-                isSelected ? "ring-2 ring-offset-2 ring-indigo-500" : ""
-              }`}
-            >
-              <span
-                className={`flex items-center gap-2 rounded-full border border-white/80 px-3 py-2 text-xs font-medium text-white backdrop-blur-sm ${baseColor} ${
-                  isSelected ? "scale-105" : ""
-                }`}
-              >
-                <span
-                  className={`h-2.5 w-2.5 rounded-full ring-2 ring-offset-2 ring-offset-white ${baseColor} ${ringColor}`}
-                />
-                <span className="truncate max-w-[140px] text-left">
-                  {loc.businessName}
-                </span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 // Visual helper
 function DotPattern() {
@@ -781,21 +701,82 @@ const sampleLocations: MappedLocation[] = [
   },
 ];
 
-// Interactive Map Component
+// Custom marker icons for Leaflet
+const createCustomIcon = (color: string, isSelected: boolean = false) => {
+  const size = isSelected ? 14 : 10;
+  return L.divIcon({
+    className: "custom-marker",
+    html: `<div style="
+      width: ${size}px;
+      height: ${size}px;
+      background-color: ${color};
+      border: 2px solid white;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      ${isSelected ? "transform: scale(1.2);" : ""}
+    "></div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+};
+
+const completedIcon = createCustomIcon("#10b981");
+const inProgressIcon = createCustomIcon("#6366f1");
+const userLocationIcon = L.divIcon({
+  className: "user-location-marker",
+  html: `<div style="
+    width: 16px;
+    height: 16px;
+    background-color: #3b82f6;
+    border: 3px solid white;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px #3b82f6, 0 2px 8px rgba(59,130,246,0.5);
+    animation: pulse 2s infinite;
+  "></div>
+  <style>
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 2px #3b82f6, 0 0 0 4px rgba(59,130,246,0.3); }
+      50% { box-shadow: 0 0 0 2px #3b82f6, 0 0 0 12px rgba(59,130,246,0); }
+      100% { box-shadow: 0 0 0 2px #3b82f6, 0 0 0 4px rgba(59,130,246,0.3); }
+    }
+  </style>`,
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+});
+
+// Map control component to handle location centering
+function MapController({
+  center,
+  zoom,
+  selectedLocation
+}: {
+  center: [number, number];
+  zoom: number;
+  selectedLocation: MappedLocation | null;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (selectedLocation?.latitude && selectedLocation?.longitude) {
+      map.flyTo([selectedLocation.latitude, selectedLocation.longitude], 12, { duration: 0.5 });
+    }
+  }, [selectedLocation, map]);
+
+  return null;
+}
+
+// Interactive Map Component using Leaflet
 function CaptureMap() {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<google.maps.Map | null>(null);
-  const markersRef = useRef<google.maps.Marker[]>([]);
-  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const [locations] = useState<MappedLocation[]>(sampleLocations);
   const [selectedLocation, setSelectedLocation] = useState<MappedLocation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
-  const [mapLoaded, setMapLoaded] = useState(false);
-  const [mapError, setMapError] = useState<string | null>(null);
-  const mapsApiKey = useMemo(() => getGoogleMapsApiKey(), []);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([39.8283, -98.5795]); // US center
+  const [mapZoom, setMapZoom] = useState(4);
+  const [isLocating, setIsLocating] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const filteredLocations = useMemo(() => {
     return locations.filter((loc) => {
@@ -812,150 +793,56 @@ function CaptureMap() {
     });
   }, [locations, searchQuery, filterType]);
 
-  // Initialize Google Maps
+  // Get user's location on mount
   useEffect(() => {
-    const initMap = async () => {
-      if (!mapsApiKey) {
-        console.error("Google Maps API key not configured");
-        setMapError("Map unavailable - API key not configured");
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        // Dynamically import the Google Maps loader
-        const { Loader } = await import("@googlemaps/js-api-loader");
-
-        const loader = new Loader({
-          apiKey: mapsApiKey,
-          version: "weekly",
-          libraries: ["places", "geocoding"],
-        });
-
-        await loader.load();
-
-        if (mapRef.current && !mapInstanceRef.current) {
-          const map = new google.maps.Map(mapRef.current, {
-            center: { lat: 39.8283, lng: -98.5795 }, // Center of US
-            zoom: 4,
-            styles: [
-              {
-                featureType: "poi",
-                elementType: "labels",
-                stylers: [{ visibility: "off" }],
-              },
-              {
-                featureType: "transit",
-                elementType: "labels",
-                stylers: [{ visibility: "off" }],
-              },
-            ],
-            mapTypeControl: false,
-            streetViewControl: false,
-            fullscreenControl: true,
-          });
-
-          mapInstanceRef.current = map;
-          setMapLoaded(true);
+    if ("geolocation" in navigator) {
+      setIsLocating(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation([latitude, longitude]);
+          setMapCenter([latitude, longitude]);
+          setMapZoom(10);
           setIsLoading(false);
-        }
-      } catch (error) {
-        console.error("Error loading Google Maps:", error);
-        setMapError("Failed to load map");
-        setIsLoading(false);
-      }
-    };
-
-    initMap();
-  }, [mapsApiKey]);
-
-  // Initialize Google Places Autocomplete
-  useEffect(() => {
-    if (!mapLoaded || !searchInputRef.current || autocompleteRef.current) return;
-
-    try {
-      const autocomplete = new google.maps.places.Autocomplete(searchInputRef.current, {
-        types: ["geocode", "establishment"],
-        fields: ["geometry", "formatted_address", "name"],
-      });
-
-      autocomplete.addListener("place_changed", () => {
-        const place = autocomplete.getPlace();
-        if (place.geometry?.location && mapInstanceRef.current) {
-          const map = mapInstanceRef.current;
-          map.panTo(place.geometry.location);
-          map.setZoom(14);
-
-          // Update search query with selected place
-          setSearchQuery(place.formatted_address || place.name || "");
-        }
-      });
-
-      autocompleteRef.current = autocomplete;
-    } catch (error) {
-      console.error("Error initializing autocomplete:", error);
-    }
-  }, [mapLoaded]);
-
-  // Geocode and add markers
-  useEffect(() => {
-    if (!mapLoaded || !mapInstanceRef.current) return;
-
-    const geocoder = new google.maps.Geocoder();
-    const map = mapInstanceRef.current;
-
-    // Clear existing markers
-    markersRef.current.forEach((marker) => marker.setMap(null));
-    markersRef.current = [];
-
-    if (filteredLocations.length === 0) return;
-
-    // Filter locations
-    // Add markers for each location
-    filteredLocations.forEach((location) => {
-      if (location.latitude && location.longitude) {
-        // Use existing coordinates
-        addMarker(location, { lat: location.latitude, lng: location.longitude });
-      } else if (location.address) {
-        // Geocode the address
-        geocoder.geocode({ address: location.address }, (results, status) => {
-          if (status === "OK" && results && results[0]) {
-            const position = results[0].geometry.location;
-            addMarker(location, { lat: position.lat(), lng: position.lng() });
-          }
-        });
-      }
-    });
-
-    function addMarker(location: MappedLocation, position: { lat: number; lng: number }) {
-      const marker = new google.maps.Marker({
-        position,
-        map,
-        title: location.businessName,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          fillColor: location.scanCompleted ? "#10b981" : "#6366f1",
-          fillOpacity: 1,
-          strokeColor: "#ffffff",
-          strokeWeight: 2,
-          scale: 10,
+          setIsLocating(false);
         },
-      });
-
-      marker.addListener("click", () => {
-        setSelectedLocation(location);
-        map.panTo(position);
-        map.setZoom(12);
-      });
-
-      markersRef.current.push(marker);
+        (error) => {
+          console.log("Geolocation error:", error.message);
+          // Fall back to US center
+          setIsLoading(false);
+          setIsLocating(false);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+      );
+    } else {
+      setIsLoading(false);
     }
-  }, [mapLoaded, filteredLocations]);
+  }, []);
+
+  // Function to re-center on user's location
+  const locateUser = useCallback(() => {
+    if ("geolocation" in navigator) {
+      setIsLocating(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation([latitude, longitude]);
+          setMapCenter([latitude, longitude]);
+          setMapZoom(12);
+          setIsLocating(false);
+        },
+        (error) => {
+          console.log("Geolocation error:", error.message);
+          setIsLocating(false);
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+  }, []);
 
   // Get counts
   const completedCount = locations.filter((l) => l.scanCompleted).length;
   const pendingCount = locations.filter((l) => !l.scanCompleted).length;
-  const shouldShowPlaceholder = !mapsApiKey || !!mapError;
 
   return (
     <div className="space-y-6">
@@ -983,18 +870,13 @@ function CaptureMap() {
             ref={searchInputRef}
             type="text"
             placeholder="Search location..."
-            defaultValue={searchQuery}
+            value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 pl-10 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           />
           {searchQuery && (
             <button
-              onClick={() => {
-                setSearchQuery("");
-                if (searchInputRef.current) {
-                  searchInputRef.current.value = "";
-                }
-              }}
+              onClick={() => setSearchQuery("")}
               className="absolute right-3 top-1/2 -translate-y-1/2 z-10"
             >
               <X className="h-4 w-4 text-zinc-400 hover:text-zinc-600" />
@@ -1018,26 +900,102 @@ function CaptureMap() {
 
       {/* Map Container */}
       <div className="relative rounded-2xl border border-zinc-200 overflow-hidden bg-zinc-100">
-        {isLoading && !shouldShowPlaceholder && (
-          <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
-            <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-[1000]">
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+              <p className="text-sm text-zinc-600">Getting your location...</p>
+            </div>
           </div>
         )}
 
-        {shouldShowPlaceholder ? (
-          <PlaceholderMap
-            locations={filteredLocations}
-            selectedLocation={selectedLocation}
-            onSelectLocation={setSelectedLocation}
+        <MapContainer
+          center={mapCenter}
+          zoom={mapZoom}
+          className="h-[500px] w-full"
+          style={{ zIndex: 1 }}
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-        ) : (
-          <div ref={mapRef} className="h-[500px] w-full" />
-        )}
+          <MapController center={mapCenter} zoom={mapZoom} selectedLocation={selectedLocation} />
+
+          {/* User location marker */}
+          {userLocation && (
+            <Marker position={userLocation} icon={userLocationIcon}>
+              <Popup>
+                <div className="text-center">
+                  <p className="font-semibold text-zinc-900">Your Location</p>
+                </div>
+              </Popup>
+            </Marker>
+          )}
+
+          {/* Location markers */}
+          {filteredLocations.map((location) => {
+            if (!location.latitude || !location.longitude) return null;
+            const isSelected = selectedLocation?.id === location.id;
+            return (
+              <Marker
+                key={location.id}
+                position={[location.latitude, location.longitude]}
+                icon={location.scanCompleted
+                  ? (isSelected ? createCustomIcon("#10b981", true) : completedIcon)
+                  : (isSelected ? createCustomIcon("#6366f1", true) : inProgressIcon)
+                }
+                eventHandlers={{
+                  click: () => setSelectedLocation(location),
+                }}
+              >
+                <Popup>
+                  <div className="min-w-[200px]">
+                    <h4 className="font-semibold text-zinc-900">{location.businessName}</h4>
+                    <p className="text-sm text-zinc-500 mt-1">{location.address}</p>
+                    {location.city && location.state && (
+                      <p className="text-sm text-zinc-500">
+                        {location.city}, {location.state}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-2 mt-2">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+                          location.scanCompleted
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {location.scanCompleted ? "Completed" : "In Progress"}
+                      </span>
+                      <span className="text-xs text-zinc-400 capitalize">
+                        {location.locationType}
+                      </span>
+                    </div>
+                  </div>
+                </Popup>
+              </Marker>
+            );
+          })}
+        </MapContainer>
+
+        {/* Locate Me Button */}
+        <button
+          onClick={locateUser}
+          disabled={isLocating}
+          className="absolute top-4 right-4 z-[1000] rounded-lg bg-white/95 backdrop-blur-sm p-2.5 shadow-lg border border-zinc-200 hover:bg-zinc-50 transition-colors disabled:opacity-50"
+          title="Center on my location"
+        >
+          {isLocating ? (
+            <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
+          ) : (
+            <LocateFixed className="h-5 w-5 text-zinc-700" />
+          )}
+        </button>
 
         {/* Legend */}
-        <div className="absolute bottom-4 left-4 rounded-xl bg-white/95 backdrop-blur-sm p-3 shadow-lg border border-zinc-200">
+        <div className="absolute bottom-4 left-4 z-[1000] rounded-xl bg-white/95 backdrop-blur-sm p-3 shadow-lg border border-zinc-200">
           <p className="text-xs font-semibold text-zinc-700 mb-2">Map Legend</p>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <div className="h-3 w-3 rounded-full bg-emerald-500" />
               <span className="text-xs text-zinc-600">Completed</span>
@@ -1046,12 +1004,18 @@ function CaptureMap() {
               <div className="h-3 w-3 rounded-full bg-indigo-500" />
               <span className="text-xs text-zinc-600">In Progress</span>
             </div>
+            {userLocation && (
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded-full bg-blue-500 ring-2 ring-blue-200" />
+                <span className="text-xs text-zinc-600">Your Location</span>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Selected Location Info */}
         {selectedLocation && (
-          <div className="absolute top-4 right-4 max-w-xs rounded-xl bg-white/95 backdrop-blur-sm p-4 shadow-lg border border-zinc-200">
+          <div className="absolute top-4 left-4 z-[1000] max-w-xs rounded-xl bg-white/95 backdrop-blur-sm p-4 shadow-lg border border-zinc-200">
             <button
               onClick={() => setSelectedLocation(null)}
               className="absolute top-2 right-2"
@@ -1093,16 +1057,18 @@ function CaptureMap() {
       </div>
 
       {/* Location List (Mobile-friendly) */}
-      {locations.length > 0 && (
+      {filteredLocations.length > 0 && (
         <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden">
           <div className="px-4 py-3 border-b border-zinc-100 bg-zinc-50">
             <h3 className="font-semibold text-zinc-900">Recent Captures</h3>
           </div>
           <div className="divide-y divide-zinc-100 max-h-64 overflow-y-auto">
-            {locations.slice(0, 10).map((location) => (
+            {filteredLocations.slice(0, 10).map((location) => (
               <div
                 key={location.id}
-                className="px-4 py-3 flex items-center justify-between hover:bg-zinc-50 cursor-pointer transition-colors"
+                className={`px-4 py-3 flex items-center justify-between hover:bg-zinc-50 cursor-pointer transition-colors ${
+                  selectedLocation?.id === location.id ? "bg-indigo-50" : ""
+                }`}
                 onClick={() => setSelectedLocation(location)}
               >
                 <div className="flex items-center gap-3">
