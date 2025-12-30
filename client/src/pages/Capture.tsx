@@ -1357,21 +1357,103 @@ export default function Capture() {
                   {/* QR Code */}
                   <div className="flex flex-col items-center">
                     <div className="rounded-xl border-2 border-zinc-200 bg-white p-3 shadow-sm">
-                      {/* Placeholder QR Code */}
-                      <div className="w-24 h-24 bg-zinc-100 rounded-lg flex items-center justify-center relative overflow-hidden">
-                        <div className="absolute inset-2 grid grid-cols-5 gap-0.5">
-                          {[...Array(25)].map((_, i) => (
-                            <div
-                              key={i}
-                              className={`rounded-sm ${
-                                [0, 1, 2, 4, 5, 6, 10, 12, 14, 18, 20, 22, 23, 24].includes(i)
-                                  ? "bg-zinc-800"
-                                  : "bg-white"
-                              }`}
-                            />
-                          ))}
-                        </div>
-                      </div>
+                      <svg width="96" height="96" viewBox="0 0 29 29" className="rounded-lg">
+                        <rect width="29" height="29" fill="white"/>
+                        {/* Position detection patterns */}
+                        <rect x="0" y="0" width="7" height="7" fill="#18181b"/>
+                        <rect x="1" y="1" width="5" height="5" fill="white"/>
+                        <rect x="2" y="2" width="3" height="3" fill="#18181b"/>
+                        <rect x="22" y="0" width="7" height="7" fill="#18181b"/>
+                        <rect x="23" y="1" width="5" height="5" fill="white"/>
+                        <rect x="24" y="2" width="3" height="3" fill="#18181b"/>
+                        <rect x="0" y="22" width="7" height="7" fill="#18181b"/>
+                        <rect x="1" y="23" width="5" height="5" fill="white"/>
+                        <rect x="2" y="24" width="3" height="3" fill="#18181b"/>
+                        {/* Timing patterns */}
+                        <rect x="8" y="6" width="1" height="1" fill="#18181b"/>
+                        <rect x="10" y="6" width="1" height="1" fill="#18181b"/>
+                        <rect x="12" y="6" width="1" height="1" fill="#18181b"/>
+                        <rect x="6" y="8" width="1" height="1" fill="#18181b"/>
+                        <rect x="6" y="10" width="1" height="1" fill="#18181b"/>
+                        <rect x="6" y="12" width="1" height="1" fill="#18181b"/>
+                        {/* Alignment pattern */}
+                        <rect x="20" y="20" width="5" height="5" fill="#18181b"/>
+                        <rect x="21" y="21" width="3" height="3" fill="white"/>
+                        <rect x="22" y="22" width="1" height="1" fill="#18181b"/>
+                        {/* Data modules */}
+                        <rect x="8" y="0" width="1" height="1" fill="#18181b"/>
+                        <rect x="10" y="0" width="1" height="1" fill="#18181b"/>
+                        <rect x="12" y="1" width="1" height="1" fill="#18181b"/>
+                        <rect x="9" y="2" width="1" height="1" fill="#18181b"/>
+                        <rect x="11" y="2" width="1" height="1" fill="#18181b"/>
+                        <rect x="8" y="3" width="1" height="1" fill="#18181b"/>
+                        <rect x="10" y="3" width="1" height="1" fill="#18181b"/>
+                        <rect x="12" y="3" width="1" height="1" fill="#18181b"/>
+                        <rect x="9" y="4" width="1" height="1" fill="#18181b"/>
+                        <rect x="11" y="4" width="1" height="1" fill="#18181b"/>
+                        <rect x="8" y="8" width="1" height="1" fill="#18181b"/>
+                        <rect x="10" y="8" width="1" height="1" fill="#18181b"/>
+                        <rect x="12" y="8" width="1" height="1" fill="#18181b"/>
+                        <rect x="14" y="8" width="1" height="1" fill="#18181b"/>
+                        <rect x="9" y="9" width="1" height="1" fill="#18181b"/>
+                        <rect x="11" y="9" width="1" height="1" fill="#18181b"/>
+                        <rect x="13" y="9" width="1" height="1" fill="#18181b"/>
+                        <rect x="15" y="9" width="1" height="1" fill="#18181b"/>
+                        <rect x="8" y="10" width="1" height="1" fill="#18181b"/>
+                        <rect x="10" y="10" width="1" height="1" fill="#18181b"/>
+                        <rect x="14" y="10" width="1" height="1" fill="#18181b"/>
+                        <rect x="9" y="11" width="1" height="1" fill="#18181b"/>
+                        <rect x="12" y="11" width="1" height="1" fill="#18181b"/>
+                        <rect x="15" y="11" width="1" height="1" fill="#18181b"/>
+                        <rect x="8" y="12" width="1" height="1" fill="#18181b"/>
+                        <rect x="11" y="12" width="1" height="1" fill="#18181b"/>
+                        <rect x="13" y="12" width="1" height="1" fill="#18181b"/>
+                        <rect x="0" y="8" width="1" height="1" fill="#18181b"/>
+                        <rect x="2" y="8" width="1" height="1" fill="#18181b"/>
+                        <rect x="4" y="8" width="1" height="1" fill="#18181b"/>
+                        <rect x="1" y="9" width="1" height="1" fill="#18181b"/>
+                        <rect x="3" y="9" width="1" height="1" fill="#18181b"/>
+                        <rect x="0" y="10" width="1" height="1" fill="#18181b"/>
+                        <rect x="2" y="10" width="1" height="1" fill="#18181b"/>
+                        <rect x="4" y="10" width="1" height="1" fill="#18181b"/>
+                        <rect x="1" y="11" width="1" height="1" fill="#18181b"/>
+                        <rect x="3" y="11" width="1" height="1" fill="#18181b"/>
+                        <rect x="0" y="12" width="1" height="1" fill="#18181b"/>
+                        <rect x="2" y="12" width="1" height="1" fill="#18181b"/>
+                        <rect x="4" y="12" width="1" height="1" fill="#18181b"/>
+                        <rect x="16" y="8" width="1" height="1" fill="#18181b"/>
+                        <rect x="18" y="8" width="1" height="1" fill="#18181b"/>
+                        <rect x="17" y="9" width="1" height="1" fill="#18181b"/>
+                        <rect x="19" y="9" width="1" height="1" fill="#18181b"/>
+                        <rect x="16" y="10" width="1" height="1" fill="#18181b"/>
+                        <rect x="18" y="10" width="1" height="1" fill="#18181b"/>
+                        <rect x="17" y="11" width="1" height="1" fill="#18181b"/>
+                        <rect x="16" y="12" width="1" height="1" fill="#18181b"/>
+                        <rect x="18" y="12" width="1" height="1" fill="#18181b"/>
+                        <rect x="8" y="14" width="1" height="1" fill="#18181b"/>
+                        <rect x="10" y="14" width="1" height="1" fill="#18181b"/>
+                        <rect x="12" y="14" width="1" height="1" fill="#18181b"/>
+                        <rect x="14" y="14" width="1" height="1" fill="#18181b"/>
+                        <rect x="16" y="14" width="1" height="1" fill="#18181b"/>
+                        <rect x="18" y="14" width="1" height="1" fill="#18181b"/>
+                        <rect x="9" y="15" width="1" height="1" fill="#18181b"/>
+                        <rect x="11" y="15" width="1" height="1" fill="#18181b"/>
+                        <rect x="13" y="15" width="1" height="1" fill="#18181b"/>
+                        <rect x="15" y="15" width="1" height="1" fill="#18181b"/>
+                        <rect x="17" y="15" width="1" height="1" fill="#18181b"/>
+                        <rect x="8" y="16" width="1" height="1" fill="#18181b"/>
+                        <rect x="10" y="16" width="1" height="1" fill="#18181b"/>
+                        <rect x="14" y="16" width="1" height="1" fill="#18181b"/>
+                        <rect x="9" y="17" width="1" height="1" fill="#18181b"/>
+                        <rect x="12" y="17" width="1" height="1" fill="#18181b"/>
+                        <rect x="15" y="17" width="1" height="1" fill="#18181b"/>
+                        <rect x="17" y="17" width="1" height="1" fill="#18181b"/>
+                        <rect x="8" y="18" width="1" height="1" fill="#18181b"/>
+                        <rect x="11" y="18" width="1" height="1" fill="#18181b"/>
+                        <rect x="14" y="18" width="1" height="1" fill="#18181b"/>
+                        <rect x="16" y="18" width="1" height="1" fill="#18181b"/>
+                        <rect x="18" y="18" width="1" height="1" fill="#18181b"/>
+                      </svg>
                     </div>
                     <p className="text-xs text-zinc-500 mt-2">Scan to download</p>
                   </div>
@@ -1407,12 +1489,12 @@ export default function Capture() {
                   <div className="relative">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm text-zinc-600">Rideshare Apps</span>
-                      <span className="text-sm text-zinc-600">$19/hr</span>
+                      <span className="text-sm text-zinc-600">$23.28/hr</span>
                     </div>
                     <div className="h-8 bg-zinc-100 rounded-lg overflow-hidden">
                       <div
                         className="h-full bg-zinc-300 rounded-lg"
-                        style={{ width: "47.5%" }}
+                        style={{ width: "58.2%" }}
                       />
                     </div>
                   </div>
@@ -1421,12 +1503,12 @@ export default function Capture() {
                   <div className="relative">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm text-zinc-600">Food Delivery</span>
-                      <span className="text-sm text-zinc-600">$17/hr</span>
+                      <span className="text-sm text-zinc-600">$20.79/hr</span>
                     </div>
                     <div className="h-8 bg-zinc-100 rounded-lg overflow-hidden">
                       <div
                         className="h-full bg-zinc-300 rounded-lg"
-                        style={{ width: "42.5%" }}
+                        style={{ width: "52%" }}
                       />
                     </div>
                   </div>
@@ -1435,26 +1517,12 @@ export default function Capture() {
                   <div className="relative">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm text-zinc-600">Grocery Delivery</span>
-                      <span className="text-sm text-zinc-600">$15/hr</span>
+                      <span className="text-sm text-zinc-600">$19.67/hr</span>
                     </div>
                     <div className="h-8 bg-zinc-100 rounded-lg overflow-hidden">
                       <div
                         className="h-full bg-zinc-300 rounded-lg"
-                        style={{ width: "37.5%" }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Task Apps */}
-                  <div className="relative">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm text-zinc-600">Task & Errand Apps</span>
-                      <span className="text-sm text-zinc-600">$22/hr</span>
-                    </div>
-                    <div className="h-8 bg-zinc-100 rounded-lg overflow-hidden">
-                      <div
-                        className="h-full bg-zinc-300 rounded-lg"
-                        style={{ width: "55%" }}
+                        style={{ width: "49.2%" }}
                       />
                     </div>
                   </div>
