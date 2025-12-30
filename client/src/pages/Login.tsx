@@ -230,12 +230,12 @@ export default function Login() {
 
             {mode === "signin" && (
               <div className="text-right">
-                <button
-                  type="button"
+                <a
+                  href="/forgot-password"
                   className="text-sm text-indigo-600 hover:text-indigo-500"
                 >
                   Forgot password?
-                </button>
+                </a>
               </div>
             )}
 
