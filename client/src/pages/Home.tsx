@@ -404,6 +404,7 @@ import { CTAButtons } from "@/components/site/CTAButtons";
 import { LogoWall } from "@/components/site/LogoWall";
 import { TileGrid } from "@/components/site/TileGrid";
 import { WaitlistForm } from "@/components/site/WaitlistForm";
+import ComingSoon from "@/components/sections/ComingSoon";
 import { environmentCategories, syntheticDatasets } from "@/data/content";
 import {
   Box,
@@ -991,6 +992,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* --- Coming Soon / Future Offerings --- */}
+      <ComingSoon />
 
       {/* --- CTA / Waitlist (Inverted Dark Section) --- */}
       <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
