@@ -33,11 +33,11 @@ export default function RetailOS() {
 
               <p>
                 Blueprint is building the operating system for physical
-                spaces—our motto is{" "}
+                spaces. Our motto is{" "}
                 <strong>"know the place to serve the person."</strong> retailOS
                 brings that vision to stores and showrooms. It blends AR and AI
                 to understand every aisle, bay and product so
-                <em> people</em>—both associates and shoppers—get exactly what
+                <em> people</em>, both associates and shoppers, get exactly what
                 they need faster and more confidently.
               </p>
 
@@ -55,7 +55,7 @@ export default function RetailOS() {
               <ul>
                 <li>
                   <strong>Guided tasks:</strong> AR paths for BOPIS pick/pack,
-                  restock, and facing—hands-free confirmations to cut walking
+                  restock, and facing. Hands-free confirmations cut walking
                   and errors.
                 </li>
                 <li>
@@ -82,7 +82,7 @@ export default function RetailOS() {
                 </li>
                 <li>
                   <strong>Try-before-you-buy:</strong> 3D/AR try-ons and
-                  “see-in-your-space” for size, fit, and finish—reducing
+                  "see-in-your-space" for size, fit, and finish, reducing
                   uncertainty and returns.
                 </li>
                 <li>
@@ -92,7 +92,7 @@ export default function RetailOS() {
                 </li>
                 <li>
                   <strong>Delight &amp; dwell:</strong> Lightweight, purposeful
-                  interactions—no app install required—keep shoppers engaged
+                  interactions (no app install required) keep shoppers engaged
                   without slowing the trip.
                 </li>
               </ul>
@@ -121,7 +121,7 @@ export default function RetailOS() {
                 <li>
                   <strong>Dwell &amp; engagement:</strong> AR experiences often
                   sustain <strong>~75s average dwell</strong> in campaigns, and
-                  minute-plus sessions are common in retail case studies—far
+                  minute-plus sessions are common in retail case studies, far
                   above typical ad interactions.{" "}
                   <sup>
                     <a href="#src-3">[3]</a>
@@ -200,7 +200,7 @@ export default function RetailOS() {
 
               <p>
                 retailOS turns location into a first-class interface for both
-                sides of the counter—elevating service, speeding work, and
+                sides of the counter, elevating service, speeding work, and
                 making stores more personal and more profitable.
               </p>
 

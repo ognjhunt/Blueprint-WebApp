@@ -87,7 +87,7 @@ export default function RoboticsOS() {
 
               <h2>Living digital twins that stay accurate</h2>
               <p>
-                Blueprint’s digital twins are not dusty scans—they are living
+                Blueprint's digital twins are not dusty scans. They are living
                 systems co-authored by staff and robots. Every shelf, piece of
                 equipment, sensor, and policy is structured, versioned, and tied
                 to permissions. Updates flow bidirectionally so data stays fresh
@@ -196,7 +196,7 @@ export default function RoboticsOS() {
                   <strong>Billing model:</strong>{" "}
                   <span className="whitespace-nowrap">$0.20 per API call</span>,
                   billed to the <strong>location operator</strong> for every
-                  roboticsOS request (sessions, navigation, lookups)—whether the
+                  roboticsOS request (sessions, navigation, lookups), whether the
                   robot belongs to the site’s crew or is a visiting consumer
                   robot.
                 </p>
@@ -209,8 +209,8 @@ export default function RoboticsOS() {
               <p>
                 Most teams fold usage into the{" "}
                 <strong>location operator’s Blueprint license</strong> or
-                pre-purchased credits, so any approved robot—owned by the brand,
-                a contractor, or a robot OEM—can plug in without friction. OEMs
+                pre-purchased credits, so any approved robot (owned by the brand,
+                a contractor, or a robot OEM) can plug in without friction. OEMs
                 can also buy <strong>usage-based passes</strong> on behalf of
                 their customers.{" "}
                 <em>Consumer end-users never pay Blueprint at the site:</em> the

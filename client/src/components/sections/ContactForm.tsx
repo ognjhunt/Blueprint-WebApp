@@ -376,7 +376,7 @@ export default function ContactForm() {
                   Be Among the First to Deploy AI Glasses Experiences
                 </h3>
                 <p className="mb-6 text-sm md:text-base text-slate-300">
-                  Blueprint readies your space for the AI wearables wave—across
+                  Blueprint readies your space for the AI wearables wave, across
                   retail, hospitality, workplaces, and venues. Join the free
                   pilot to feel how on-site AI guidance works.
                 </p>

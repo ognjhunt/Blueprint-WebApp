@@ -359,7 +359,7 @@ export default function Go() {
         };
         setCoordinates(coords);
         setPhase("locating");
-        setStatusMessage("Found you—connecting to the nearest Blueprint…");
+        setStatusMessage("Found you. Connecting to the nearest Blueprint...");
         void loadVenues(coords);
       },
       (error) => {

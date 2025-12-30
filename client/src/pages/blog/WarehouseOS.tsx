@@ -30,7 +30,7 @@ export default function WarehouseOS() {
               </h1>
               <p>
                 Blueprint is building the operating system for physical
-                spaces—our motto is
+                spaces. Our motto is
                 <strong>"know the place to serve the person."</strong>{" "}
                 warehouseOS brings that vision to distribution centers and
                 fulfillment sites, blending AR and AI to understand every aisle,

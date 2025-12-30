@@ -951,7 +951,7 @@ export default function OffWaitlistSignUpFlow() {
           Welcome off the waitlist
         </h2>
         <p className="text-slate-300 mt-2">
-          Durham/Triangle pilot — set up your account to book mapping & demo.
+          Durham/Triangle pilot: set up your account to book mapping & demo.
           This takes ~2 minutes.
         </p>
       </div>
@@ -1724,7 +1724,7 @@ export default function OffWaitlistSignUpFlow() {
             Plan & Payment (Optional)
           </h2>
           <p className="text-slate-300 mt-2">
-            Secure your onboarding with a one-time payment or skip for now—your
+            Secure your onboarding with a one-time payment or skip for now. Your
             monthly plan only begins once Blueprint is live on-site.
           </p>
         </div>
@@ -1781,7 +1781,7 @@ export default function OffWaitlistSignUpFlow() {
                   <span className="text-sm text-slate-300">per month</span>
                 </div>
                 <p className="text-sm text-slate-300 mt-2">
-                  Starts {billingDisplay} — 24 hours after your onboarding
+                  Starts {billingDisplay}, 24 hours after your onboarding
                   wraps.
                 </p>
               </div>
@@ -1794,8 +1794,8 @@ export default function OffWaitlistSignUpFlow() {
               </div>
               <div className="flex items-start gap-2 text-slate-200 text-sm">
                 <Clock3 className="w-4 h-4 text-cyan-200 mt-0.5" />
-                Extra hours billed at ${EXTRA_HOURLY_RATE.toFixed(2)} / hr —
-                matches your Blueprint rate.
+                Extra hours billed at ${EXTRA_HOURLY_RATE.toFixed(2)} / hr.
+                Matches your Blueprint rate.
               </div>
             </div>
           </div>
@@ -1815,7 +1815,7 @@ export default function OffWaitlistSignUpFlow() {
 
         {paymentStatus === "canceled" && (
           <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-            Checkout was canceled. You can try again below or skip for now—your
+            Checkout was canceled. You can try again below or skip for now. Your
             spot is still saved.
           </div>
         )}
@@ -1884,12 +1884,12 @@ export default function OffWaitlistSignUpFlow() {
         )}
         {paymentStatus === "skipped" && (
           <div className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
-            You can take care of the $499.99 onboarding invoice later—your
+            You can take care of the $499.99 onboarding invoice later. Your
             account access is fully unlocked in the meantime.
           </div>
         )}
         <p className="text-xs text-slate-400">
-          Thanks for choosing Blueprint — we can’t wait to bring your space to
+          Thanks for choosing Blueprint. We can't wait to bring your space to
           life.
         </p>
         <Button
@@ -1951,7 +1951,7 @@ export default function OffWaitlistSignUpFlow() {
               <div>
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 text-emerald-200 mb-3">
                   <MapPin className="w-4 h-4" />
-                  Durham & Triangle — Pilot Access
+                  Durham & Triangle: Pilot Access
                 </div>
                 <h1 className="text-3xl md:text-4xl font-black leading-tight text-white">
                   Join the Blueprint Pilot
@@ -2026,7 +2026,7 @@ export default function OffWaitlistSignUpFlow() {
                         </li>
                         <li className="flex items-start gap-2">
                           <CheckCircle2 className="w-4 h-4 text-emerald-300 mt-0.5" />
-                          <span>No app downloads—instant access via QR</span>
+                          <span>No app downloads, instant access via QR</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <CheckCircle2 className="w-4 h-4 text-emerald-300 mt-0.5" />

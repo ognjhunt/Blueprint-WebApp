@@ -24,7 +24,7 @@ const steps = [
   {
     icon: <Building className="w-10 h-10" />,
     title: "Create Your Digital Space",
-    description: "Start fresh or claim an existing location Blueprint. Simply enter your business details and location—no technical skills required.",
+    description: "Start fresh or claim an existing location Blueprint. Simply enter your business details and location. No technical skills required.",
     highlight: "30 seconds",
     details: ["Business information", "Location mapping", "Industry templates"]
   },
@@ -110,7 +110,7 @@ function HeroSection() {
             </h1>
 
             <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-              Blueprint lets businesses create stunning AI glasses experiences that customers can access instantly through their phones—no app downloads required.
+              Blueprint lets businesses create stunning AI glasses experiences that customers can access instantly through their phones. No app downloads required.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 mb-8">

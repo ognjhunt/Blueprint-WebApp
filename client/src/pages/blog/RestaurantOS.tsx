@@ -37,12 +37,12 @@ export default function RestaurantOS() {
 
               <p>
                 Blueprint is building the operating system for physical
-                spaces—our motto is{" "}
-                <strong>“know the place to serve the person.”</strong>{" "}
+                spaces. Our motto is{" "}
+                <strong>"know the place to serve the person."</strong>{" "}
                 restaurantOS brings that vision to bistros, cafés and dining
                 rooms. It blends AR and AI to understand the table, the menu and
                 the flow of service so <em>guests</em> feel informed, delighted
-                and taken care of—without adding strain to the floor.
+                and taken care of, without adding strain to the floor.
               </p>
 
               <h2>Guest Experience Suite</h2>
@@ -67,7 +67,7 @@ export default function RestaurantOS() {
                 <li>
                   <strong>Chef’s notes &amp; story bites:</strong> Lightweight
                   “hologram” moments convey provenance, technique, wine pairings
-                  and brand lore at the exact point of decision—no app install.
+                  and brand lore at the exact point of decision. No app install.
                 </li>
                 <li>
                   <strong>Dietary &amp; allergen guardrails:</strong> Toggle
@@ -81,7 +81,7 @@ export default function RestaurantOS() {
                 <li>
                   <strong>Smart recommendations:</strong> AI suggests pairings,
                   limited-run specials and table-share items based on party
-                  size, time of day and inventory—guests stay in control.
+                  size, time of day and inventory. Guests stay in control.
                 </li>
                 <li>
                   <strong>Wayfinding &amp; amenity cues:</strong> Discreet AR
@@ -105,7 +105,7 @@ export default function RestaurantOS() {
                   <strong>Higher purchase intent:</strong> Field and lab studies
                   show AR food presentation increases mental simulation and{" "}
                   <em>raises desire and purchase likelihood</em> versus
-                  photos—an effect demonstrated in real restaurants.{" "}
+                  photos, an effect demonstrated in real restaurants.{" "}
                   <sup>
                     <a href="#src-1">[1]</a>
                   </sup>
@@ -123,7 +123,7 @@ export default function RestaurantOS() {
                 <li>
                   <strong>Service efficiency:</strong> Digital ordering and
                   contactless flows can improve order accuracy and service time,
-                  especially during peaks—used selectively to complement
+                  especially during peaks, used selectively to complement
                   hospitality.{" "}
                   <sup>
                     <a href="#src-3">[3]</a>
@@ -248,7 +248,7 @@ export default function RestaurantOS() {
               </ol>
 
               <p>
-                restaurantOS treats place as the interface—helping guests choose
+                restaurantOS treats place as the interface, helping guests choose
                 confidently, learn the story behind the food, and enjoy a
                 smoother service flow from hello to check.
               </p>

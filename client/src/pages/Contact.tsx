@@ -39,10 +39,10 @@ const headingLead = SHOW_REAL_WORLD_CAPTURE
 const headingEmphasis = "steer the roadmap.";
 
 const descriptionWithCapture =
-  "Book a real-world SimReady capture, upload a single wide photo of a supported archetype for an exclusive reconstruction (default—you can opt into open catalog), or steer the synthetic marketplace roadmap. Tell us which policy, object, or location types you need most—the signal helps decide our next drops.";
+  "Book a real-world SimReady capture, upload a single wide photo of a supported archetype for an exclusive reconstruction (default; you can opt into open catalog), or steer the synthetic marketplace roadmap. Tell us which policy, object, or location types you need most. The signal helps decide our next drops.";
 
 const descriptionWithoutCapture =
-  "Upload a single wide photo of a supported archetype for an exclusive reconstruction (default—you can opt into open catalog), or steer the synthetic marketplace roadmap. Tell us which policy, object, or location types you need most—the signal helps decide our next drops.";
+  "Upload a single wide photo of a supported archetype for an exclusive reconstruction (default; you can opt into open catalog), or steer the synthetic marketplace roadmap. Tell us which policy, object, or location types you need most. The signal helps decide our next drops.";
 
 // --- Visual Helper ---
 function DotPattern() {

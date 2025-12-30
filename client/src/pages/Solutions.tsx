@@ -265,7 +265,7 @@ const recipeDeliverables = [
   {
     icon: <Terminal className="h-5 w-5 text-indigo-600" />,
     title: "Frame generator",
-    desc: "Omniverse Replicator scripts for swaps, clutter, lighting, material randomization, and articulation state noise—typically 500–2,000 frames per scene.",
+    desc: "Omniverse Replicator scripts for swaps, clutter, lighting, material randomization, and articulation state noise. Typically 500–2,000 frames per scene.",
   },
 ];
 
@@ -296,7 +296,7 @@ const hardParts = [
   {
     title: "Scene assembly & references",
     icon: <Layers className="h-5 w-5 text-emerald-600" />,
-    desc: "Pull assets from Nucleus or local paths, place them, and keep prim paths and references stable—dependency and repathing issues are common.",
+    desc: "Pull assets from Nucleus or local paths, place them, and keep prim paths and references stable. Dependency and repathing issues are common.",
   },
   {
     title: "Physics correctness",
@@ -348,7 +348,7 @@ const labWorkflow = [
   },
   {
     title: "Split train/eval and package",
-    detail: "Hold out layouts or seeds, then collect/share scenes—where path/material issues often appear.",
+    detail: "Hold out layouts or seeds, then collect/share scenes. This is where path/material issues often appear.",
   },
 ];
 
@@ -390,7 +390,7 @@ function DataPipelineSection() {
             Image to SimReady Scene
           </h2>
           <p className="max-w-3xl mx-auto text-zinc-400 leading-relaxed">
-            Upload a reference photo and receive a fully articulated, physics-accurate 3D scene ready for Isaac Sim—complete with domain randomization scripts and RL training configs.
+            Upload a reference photo and receive a fully articulated, physics-accurate 3D scene ready for Isaac Sim, complete with domain randomization scripts and RL training configs.
           </p>
         </div>
 
@@ -580,7 +580,7 @@ export default function Solutions() {
               <p className="max-w-2xl text-lg leading-relaxed text-zinc-600">
                 Whether you need procedural synthetic data with domain randomization,
                 an exclusive physics-accurate reconstruction, or a sim2real-validated
-                digital twin—we deliver environments engineered for manipulation,
+                digital twin, we deliver environments engineered for manipulation,
                 perception, and policy transfer.
               </p>
             </div>
@@ -674,7 +674,7 @@ export default function Solutions() {
                   <p className="text-sm text-zinc-700 leading-relaxed">
                     NVIDIA’s own SimReady docs frame packs as the bridge between robot/autonomy training and industrial
                     digital twins, emphasizing the extra metadata beyond visuals. Position papers in RL call "environment
-                    shaping" the main bottleneck—exactly the gap we close.
+                    shaping" the main bottleneck, exactly the gap we close.
                   </p>
                   <div className="rounded-xl bg-white p-4 text-xs text-zinc-600 ring-1 ring-indigo-100">
                     <p className="font-semibold text-zinc-900">Important nuance</p>
@@ -884,13 +884,13 @@ export default function Solutions() {
                   <Terminal className="h-3 w-3" /> Scene Recipes
                 </div>
                 <h2 className="text-3xl font-bold text-zinc-900 sm:text-4xl">
-                  Layouts, manifests, and frame generators—BYO SimReady assets.
+                  Layouts, manifests, and frame generators. BYO SimReady assets.
                 </h2>
                 <p className="text-zinc-600 leading-relaxed">
                   We deliver a lightweight USD layer plus a manifest that references NVIDIA SimReady packs you install locally. Omniverse Replicator scripts handle swaps, clutter, lighting, and articulation state randomization without us shipping the source assets.
                 </p>
                 <ul className="grid gap-3 text-sm text-zinc-700 sm:grid-cols-2">
-                  {["No asset redistribution—packs stay on your Nucleus/local disk", "Semantics + USDPhysics defaults aligned to SimReady best practices", "Frame generator tuned for RL-friendly randomization (500–2,000 frames/scene)", "Reusable integration snippets for Isaac Lab / Isaac Sim"].map(
+                  {["No asset redistribution: packs stay on your Nucleus/local disk", "Semantics + USDPhysics defaults aligned to SimReady best practices", "Frame generator tuned for RL-friendly randomization (500–2,000 frames/scene)", "Reusable integration snippets for Isaac Lab / Isaac Sim"].map(
                     (item) => (
                       <li
                         key={item}
@@ -964,7 +964,7 @@ export default function Solutions() {
                 </p>
 
                 <ul className="grid gap-3 text-sm text-zinc-700 sm:grid-cols-2">
-                  {["Budget averages around $1k per environment", "Exclusive access by default—opt into open catalog if you want", "Includes authored colliders, pivots, and materials", "Submit use cases so we validate against your policies"].map(
+                  {["Budget averages around $1k per environment", "Exclusive access by default (opt into open catalog if you want)", "Includes authored colliders, pivots, and materials", "Submit use cases so we validate against your policies"].map(
                     (item) => (
                       <li
                         key={item}

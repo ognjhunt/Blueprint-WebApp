@@ -31,7 +31,7 @@
 
 // const artistBullets = [
 //   "Join a network shipping scenes to leading labs",
-//   "Focus on fidelity—we’ll handle the pipeline",
+//   "Focus on fidelity: we'll handle the pipeline",
 //   "Paid per scene, bonuses for articulation coverage",
 // ];
 
@@ -389,7 +389,7 @@
 //               </h3>
 //               <p className="mt-3 max-w-xl text-sm text-slate-600">
 //                 Share the address you care about and we’ll coordinate a capture
-//                 window. Expect delivery in days—not months—with USD, URDF, and
+//                 window. Expect delivery in days (not months) with USD, URDF, and
 //                 QA reports ready for your simulator.
 //               </p>
 //             </div>
@@ -451,7 +451,7 @@ const labBullets = [
 
 const artistBullets = [
   "Join a network shipping scenes to leading labs",
-  "Focus on fidelity—we’ll handle the pipeline",
+  "Focus on fidelity: we'll handle the pipeline",
   "Project-based pay with bonuses for articulation coverage",
 ];
 
@@ -720,7 +720,7 @@ export default function Home() {
             </h2>
             <p className="mt-4 text-lg text-zinc-600">
               We solve the sim-to-real gap by engineering physics-accurate assets
-              for robotic perception and manipulation—not just visual fidelity.
+              for robotic perception and manipulation, not just visual fidelity.
             </p>
           </div>
 
@@ -885,7 +885,7 @@ export default function Home() {
             </h2>
             <p className="text-zinc-600">
               Our pipeline creates digital twins that aren't just visual
-              copies—they are functional simulation environments.
+              copies. They are functional simulation environments.
             </p>
           </div>
 
@@ -1019,7 +1019,7 @@ export default function Home() {
               </h3>
               <p className="mt-4 text-lg text-zinc-400">
                 Share the address you care about and we’ll coordinate a capture
-                window. Expect delivery in days—not months—with USD, URDF, and
+                window. Expect delivery in days (not months) with USD, URDF, and
                 QA reports.
               </p>
             </div>

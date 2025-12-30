@@ -21,7 +21,7 @@ export default function Features() {
       icon: BoltIcon,
       title: "No App Required",
       description:
-        "Guests launch the AI glasses flow with a QR code—no custom app build or installs needed.",
+        "Guests launch the AI glasses flow with a QR code. No custom app build or installs needed.",
       color: "from-emerald-400 to-teal-500",
     },
     {

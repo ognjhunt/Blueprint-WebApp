@@ -5,7 +5,7 @@ const comingSoonFeatures = [
     icon: <Video className="h-6 w-6" />,
     title: "First-Person Manipulation Videos",
     description:
-      "Photorealistic egocentric footage of hands interacting with objects in your scenes—grasping, opening, sliding, placing.",
+      "Photorealistic egocentric footage of hands interacting with objects in your scenes: grasping, opening, sliding, placing.",
   },
   {
     icon: <Database className="h-6 w-6" />,
@@ -42,7 +42,7 @@ export default function ComingSoon() {
                 Future Offerings
               </h2>
               <p className="max-w-2xl text-lg text-zinc-600">
-                Extending our SimReady catalog with egocentric video datasets—generated
+                Extending our SimReady catalog with egocentric video datasets, generated
                 from every scene using dynamic world models.
               </p>
             </div>
@@ -74,7 +74,7 @@ export default function ComingSoon() {
                 <p className="text-zinc-600 leading-relaxed">
                   We're using Dynamic World Models to generate first-person manipulation
                   video from each SimReady scene in our catalog. Buy the scene for Isaac Sim
-                  training and evaluation—or add egocentric video datasets for pretraining
+                  training and evaluation, or add egocentric video datasets for pretraining
                   your vision-language-action models.
                 </p>
                 <div className="rounded-xl border border-zinc-200 bg-white p-4">

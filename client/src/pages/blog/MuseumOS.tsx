@@ -33,7 +33,7 @@ export default function MuseumOS() {
 
               <p>
                 Blueprint is building the operating system for physical
-                spaces—our motto is{" "}
+                spaces. Our motto is{" "}
                 <strong>“know the place to serve the person.”</strong> museumOS
                 brings that vision to museums and cultural sites, turning
                 galleries and grounds into living, adaptive layers. It blends AR
@@ -60,12 +60,12 @@ export default function MuseumOS() {
                 <li>
                   <strong>Instant labels &amp; accessibility:</strong> One tap
                   to publish translations, captions, large-type labels, and
-                  audio descriptions—anchored right where they’re needed.
+                  audio descriptions, anchored right where they're needed.
                 </li>
                 <li>
                   <strong>Impact analytics:</strong> Exhibit- and object-level
                   engagement reports (views, dwell, completion) and sentiment
-                  from on-device prompts—no emails required.
+                  from on-device prompts (no emails required).
                 </li>
                 <li>
                   <strong>Rapid content swaps:</strong> Safe “what-if” modes to
@@ -84,8 +84,8 @@ export default function MuseumOS() {
                 </li>
                 <li>
                   <strong>Time-Shift storytelling:</strong> See reconstructions
-                  “appear” in place—missing frescoes, ancient colors, or
-                  original facades—then scrub between eras to understand change.
+                  "appear" in place (missing frescoes, ancient colors, or
+                  original facades), then scrub between eras to understand change.
                 </li>
                 <li>
                   <strong>Follow-your-curiosity paths:</strong> Adaptive routes
@@ -100,7 +100,7 @@ export default function MuseumOS() {
                 <li>
                   <strong>Moments that matter:</strong> Contextual membership,
                   program sign-ups, and shop tie-ins appear at natural decision
-                  points—never interrupting the visit.
+                  points, never interrupting the visit.
                 </li>
               </ul>
 
@@ -235,7 +235,7 @@ export default function MuseumOS() {
               </ol>
 
               <p>
-                museumOS turns place into a first-class interface—helping teams
+                museumOS turns place into a first-class interface, helping teams
                 iterate with data and giving visitors stories they’ll remember.
               </p>
 

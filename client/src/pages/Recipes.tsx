@@ -63,7 +63,7 @@ export default function Recipes() {
               Lightweight USD "recipes" that assemble SimReady packs.
             </h1>
             <p className="text-lg leading-relaxed text-zinc-600">
-              Browse base layouts that ship as <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-sm font-semibold text-zinc-800">.usda</code> layers, dependency manifests, and Omniverse Replicator randomizers. Labs install NVIDIA SimReady packs locally—we only deliver the recipe, semantics, and QA harness.
+              Browse base layouts that ship as <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-sm font-semibold text-zinc-800">.usda</code> layers, dependency manifests, and Omniverse Replicator randomizers. Labs install NVIDIA SimReady packs locally. We only deliver the recipe, semantics, and QA harness.
             </p>
             <p className="text-base leading-relaxed text-zinc-700">
               Task logic ships with every recipe: action/observation wiring, reward terms, termination + reset rules, and default parallel env counts so you get a trainable MDP alongside the geometry.

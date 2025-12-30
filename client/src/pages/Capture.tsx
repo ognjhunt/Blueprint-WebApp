@@ -118,7 +118,7 @@ const howItWorksSteps = [
 const whyItMatters = [
   {
     title: "Location-Specific Training",
-    description: "Train robots on the exact environment they'll deploy in—not generic datasets.",
+    description: "Train robots on the exact environment they'll deploy in, not generic datasets.",
   },
   {
     title: "Scalable Collection",
@@ -1299,7 +1299,7 @@ export default function Capture() {
             Need a specific location captured?
           </h2>
           <p className="text-lg text-zinc-600 max-w-2xl mx-auto mb-8">
-            Whether it's a warehouse, retail floor, hospital, or campus—tell us what you need and
+            Whether it's a warehouse, retail floor, hospital, or campus, tell us what you need and
             we'll match you with a capture provider in your area.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
