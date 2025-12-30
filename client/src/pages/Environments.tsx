@@ -118,7 +118,6 @@ export default function Environments() {
   >([]);
   const [sortOption, setSortOption] = useState<string>("newest");
   const [searchQuery, setSearchQuery] = useState("");
-  const [bannerLoaded, setBannerLoaded] = useState(false);
 
   // --- Logic ---
 
@@ -349,22 +348,6 @@ export default function Environments() {
                 without touching the pipeline.
               </p>
             </div>
-          </div>
-
-          <div className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white/70 shadow-sm">
-            {/* Skeleton loader for banner */}
-            {!bannerLoaded && (
-              <div className="aspect-[3/1] w-full animate-pulse bg-gradient-to-r from-zinc-200 via-zinc-100 to-zinc-200 bg-[length:200%_100%]" />
-            )}
-            <img
-              src="/images/Gemini_EnvironentsBanner.png"
-              alt="SimReady marketplace archetypes mosaic"
-              className={`w-full object-cover transition-opacity duration-300 ${
-                bannerLoaded ? "opacity-100" : "opacity-0 absolute inset-0"
-              }`}
-              loading="lazy"
-              onLoad={() => setBannerLoaded(true)}
-            />
           </div>
 
           {/* Stats Bar */}
