@@ -43,6 +43,11 @@ import {
   FileText,
   AlertCircle,
   LocateFixed,
+  DollarSign,
+  Smartphone,
+  Clock,
+  TrendingUp,
+  Wallet,
 } from "lucide-react";
 
 // Leaflet imports
@@ -105,7 +110,7 @@ const howItWorksSteps = [
   {
     icon: <Navigation className="h-6 w-6" />,
     title: "On-Demand Matching",
-    description: "We match nearby wearers with capture requests, like a GrubHub for spatial data.",
+    description: "We match nearby wearers with capture requests through our on-demand marketplace.",
   },
   {
     icon: <Globe className="h-6 w-6" />,
@@ -1193,7 +1198,7 @@ export default function Capture() {
               <Network className="h-3 w-3" /> How It Works
             </div>
             <h2 className="text-3xl font-bold text-zinc-900 sm:text-4xl">
-              GrubHub for spatial data.
+              The on-demand marketplace for spatial data.
             </h2>
             <p className="mt-4 max-w-2xl mx-auto text-zinc-600">
               We connect wearers with capture requests, creating a scalable pipeline for building the
@@ -1261,6 +1266,204 @@ export default function Capture() {
                   </div>
                   <h3 className="font-semibold text-white">Better Coverage</h3>
                   <p className="text-sm text-zinc-400">Faster turnaround, more locations</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Earner Section */}
+        <section className="mb-20">
+          <div className="rounded-3xl border border-zinc-200 bg-gradient-to-br from-indigo-50 to-white p-8 sm:p-12 lg:p-16 overflow-hidden relative">
+            <div className="absolute top-0 right-0 -mt-20 -mr-20 h-80 w-80 rounded-full bg-indigo-100/50 blur-3xl" />
+
+            <div className="relative z-10 grid gap-12 lg:grid-cols-2 lg:items-center">
+              {/* Left Column - Copy */}
+              <div className="space-y-8">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-100 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-700 mb-4">
+                    <Wallet className="h-3 w-3" />
+                    Earn With Blueprint
+                  </div>
+                  <h2 className="text-3xl font-bold text-zinc-900 sm:text-4xl mb-4">
+                    Get paid to explore your city.
+                  </h2>
+                  <p className="text-lg text-zinc-600 leading-relaxed">
+                    Join our network of mappers and scanners. Walk through locations with your smart glasses
+                    or phone, capture spatial data, and earn money while you explore. No experience needed.
+                  </p>
+                </div>
+
+                {/* Key Benefits */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 flex-shrink-0">
+                      <Clock className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-zinc-900">Flexible Hours</h3>
+                      <p className="text-sm text-zinc-600">Scan whenever you want, wherever you are</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 flex-shrink-0">
+                      <TrendingUp className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-zinc-900">High Earnings</h3>
+                      <p className="text-sm text-zinc-600">Average $40/hr of active scanning time</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 flex-shrink-0">
+                      <Smartphone className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-zinc-900">Easy to Start</h3>
+                      <p className="text-sm text-zinc-600">Download the app and start earning today</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 flex-shrink-0">
+                      <DollarSign className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-zinc-900">Weekly Payouts</h3>
+                      <p className="text-sm text-zinc-600">Get paid directly to your bank account</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CTA Buttons and QR Code */}
+                <div className="flex flex-col sm:flex-row items-start gap-6">
+                  <div className="space-y-3">
+                    <a
+                      href="https://apps.apple.com/app/blueprint-capture/id0000000000"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button
+                        size="lg"
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 w-full sm:w-auto"
+                      >
+                        <Smartphone className="mr-2 h-4 w-4" />
+                        Download for iOS
+                      </Button>
+                    </a>
+                    <p className="text-xs text-zinc-500 text-center sm:text-left">
+                      Available on the App Store
+                    </p>
+                  </div>
+                  {/* QR Code */}
+                  <div className="flex flex-col items-center">
+                    <div className="rounded-xl border-2 border-zinc-200 bg-white p-3 shadow-sm">
+                      {/* Placeholder QR Code */}
+                      <div className="w-24 h-24 bg-zinc-100 rounded-lg flex items-center justify-center relative overflow-hidden">
+                        <div className="absolute inset-2 grid grid-cols-5 gap-0.5">
+                          {[...Array(25)].map((_, i) => (
+                            <div
+                              key={i}
+                              className={`rounded-sm ${
+                                [0, 1, 2, 4, 5, 6, 10, 12, 14, 18, 20, 22, 23, 24].includes(i)
+                                  ? "bg-zinc-800"
+                                  : "bg-white"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-zinc-500 mt-2">Scan to download</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column - Earnings Comparison */}
+              <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-lg">
+                <div className="flex items-center gap-2 mb-6">
+                  <DollarSign className="h-5 w-5 text-indigo-600" />
+                  <h3 className="font-bold text-zinc-900">Average Hourly Earnings</h3>
+                </div>
+
+                {/* Earnings Chart */}
+                <div className="space-y-4">
+                  {/* Blueprint - Highlighted */}
+                  <div className="relative">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-bold text-indigo-700">Blueprint Capture</span>
+                      <span className="text-sm font-bold text-indigo-700">$40/hr</span>
+                    </div>
+                    <div className="h-10 bg-zinc-100 rounded-lg overflow-hidden relative">
+                      <div
+                        className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-lg flex items-center justify-end pr-3 transition-all duration-1000"
+                        style={{ width: "100%" }}
+                      >
+                        <span className="text-xs font-bold text-white">Top Earner</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Rideshare */}
+                  <div className="relative">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm text-zinc-600">Rideshare Apps</span>
+                      <span className="text-sm text-zinc-600">$19/hr</span>
+                    </div>
+                    <div className="h-8 bg-zinc-100 rounded-lg overflow-hidden">
+                      <div
+                        className="h-full bg-zinc-300 rounded-lg"
+                        style={{ width: "47.5%" }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Food Delivery */}
+                  <div className="relative">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm text-zinc-600">Food Delivery</span>
+                      <span className="text-sm text-zinc-600">$17/hr</span>
+                    </div>
+                    <div className="h-8 bg-zinc-100 rounded-lg overflow-hidden">
+                      <div
+                        className="h-full bg-zinc-300 rounded-lg"
+                        style={{ width: "42.5%" }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Grocery Delivery */}
+                  <div className="relative">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm text-zinc-600">Grocery Delivery</span>
+                      <span className="text-sm text-zinc-600">$15/hr</span>
+                    </div>
+                    <div className="h-8 bg-zinc-100 rounded-lg overflow-hidden">
+                      <div
+                        className="h-full bg-zinc-300 rounded-lg"
+                        style={{ width: "37.5%" }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Task Apps */}
+                  <div className="relative">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm text-zinc-600">Task & Errand Apps</span>
+                      <span className="text-sm text-zinc-600">$22/hr</span>
+                    </div>
+                    <div className="h-8 bg-zinc-100 rounded-lg overflow-hidden">
+                      <div
+                        className="h-full bg-zinc-300 rounded-lg"
+                        style={{ width: "55%" }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-zinc-100">
+                  <p className="text-xs text-zinc-500 text-center">
+                    *Based on average active scanning time. Actual earnings may vary by location and availability.
+                  </p>
                 </div>
               </div>
             </div>
