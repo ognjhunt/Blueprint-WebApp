@@ -33,12 +33,12 @@ export default function WorkplaceOS() {
 
               <p>
                 Blueprint is building the operating system for physical
-                spaces—our motto is{" "}
+                spaces. Our motto is{" "}
                 <strong>"know the place to serve the person."</strong>{" "}
                 workplaceOS brings that vision to offices, labs, and frontline
                 hubs. It blends AR and AI so <em>people</em> see the right data
-                in the right place—KPIs on a production cell, SLA health at a
-                help desk, context from docs right on the machine—turning every
+                in the right place: KPIs on a production cell, SLA health at a
+                help desk, and context from docs right on the machine. This turns every
                 workspace into a live, spatial dashboard.{" "}
                 <sup>
                   <a href="#src-1">[1]</a>
@@ -58,7 +58,7 @@ export default function WorkplaceOS() {
               <ul>
                 <li>
                   <strong>Walk-around dashboards:</strong> Live KPIs anchored to
-                  zones—capacity, cycle time, queue depth, SLA risk—fed by your
+                  zones (capacity, cycle time, queue depth, SLA risk) fed by your
                   existing tools (BI, IoT, ITSM).
                 </li>
                 <li>
@@ -73,8 +73,8 @@ export default function WorkplaceOS() {
                   routes appear where they matter.
                 </li>
                 <li>
-                  <strong>Scenario previews:</strong> Try “what-ifs” in AR—new
-                  seating plan, line balance, or shift mix—then commit with one
+                  <strong>Scenario previews:</strong> Try "what-ifs" in AR: new
+                  seating plan, line balance, or shift mix. Then commit with one
                   tap.
                 </li>
               </ul>
@@ -84,14 +84,14 @@ export default function WorkplaceOS() {
                 <li>
                   <strong>Guided work:</strong> Step-by-step AR instructions and
                   checklists attached to the exact station, tool, or
-                  rack—hands-free confirmations reduce rework.{" "}
+                  rack. Hands-free confirmations reduce rework.{" "}
                   <sup>
                     <a href="#src-5">[5]</a>
                   </sup>
                 </li>
                 <li>
                   <strong>Instant answers:</strong> Ask natural
-                  questions—“Torque spec for pump A?” “Latest SOP?”—and get
+                  questions ("Torque spec for pump A?" "Latest SOP?") and get
                   verified answers from connected sources (Confluence, Drive,
                   SharePoint, Jira, GitHub).
                 </li>
@@ -112,7 +112,7 @@ export default function WorkplaceOS() {
                 </li>
                 <li>
                   <strong>Cross-system actions:</strong> Open a ticket, update a
-                  task, start a runbook, or log a defect—without breaking flow.
+                  task, start a runbook, or log a defect without breaking flow.
                 </li>
               </ul>
 
@@ -158,7 +158,7 @@ export default function WorkplaceOS() {
                   <strong>Immersive learning (VR baseline):</strong> Learners
                   were <strong>4× faster</strong> to train and up to{" "}
                   <strong>~275% more confident</strong> than classroom in PwC’s
-                  study—evidence that spatial learning lifts speed and
+                  study, evidence that spatial learning lifts speed and
                   retention.{" "}
                   <sup>
                     <a href="#src-6">[6]</a>
@@ -232,7 +232,7 @@ export default function WorkplaceOS() {
               </ol>
 
               <p>
-                workplaceOS uses <em>place as the interface</em>—so leaders can
+                workplaceOS uses <em>place as the interface</em>, so leaders can
                 steer with live context and teams can do their best work with
                 the right guidance, right where the work happens.
               </p>

@@ -291,7 +291,7 @@ export default function WearableAIDemos() {
                 We curate the best examples from the new wearable device access
                 toolkits so your team can see what is possible for retail
                 floors, cultural venues, and guest-driven destinations. No
-                vendor lock-in—use any smart glasses launching this year.
+                vendor lock-in. Use any smart glasses launching this year.
               </p>
             </div>
             <div className="space-y-3 text-sm text-slate-300">

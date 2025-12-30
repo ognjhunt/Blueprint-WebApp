@@ -22,7 +22,7 @@ const benefits = [
   {
     title: "Effortless Integration",
     description:
-      "Implement Blueprint seamlessly—no custom development required.",
+      "Implement Blueprint seamlessly. No custom development required.",
     icon: TrendingUpIcon,
   },
 ];

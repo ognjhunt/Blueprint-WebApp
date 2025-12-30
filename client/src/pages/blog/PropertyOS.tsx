@@ -33,7 +33,7 @@ export default function PropertyOS() {
 
               <p>
                 Blueprint is building the operating system for physical
-                spaces—our motto is{" "}
+                spaces. Our motto is{" "}
                 <strong>“know the place to serve the person.”</strong>{" "}
                 propertyOS brings that vision to real estate. For{" "}
                 <em>listings</em>, it delivers immersive, on-site AR staging and
@@ -58,12 +58,12 @@ export default function PropertyOS() {
                 <li>
                   <strong>AR staging overlays:</strong> Instantly furnish vacant
                   or dated rooms with lifelike layouts, finishes, and
-                  lighting—toggled live during showings or captured in 3D tours.
+                  lighting, toggled live during showings or captured in 3D tours.
                 </li>
                 <li>
                   <strong>Design “switchers”:</strong> One tap to preview styles
                   (modern, cozy, minimalist), flooring/paint swaps, or
-                  kitchen/bath variations—without moving a single couch.
+                  kitchen/bath variations, without moving a single couch.
                 </li>
                 <li>
                   <strong>Guided tours + hotspots:</strong> Visitors follow
@@ -92,7 +92,7 @@ export default function PropertyOS() {
                 <li>
                   <strong>Household access, like Wi-Fi:</strong> Anyone you
                   invite (roommates, family, guests) can “join” your home’s AR
-                  layer on any supported device—no need for a specific host to
+                  layer on any supported device. No need for a specific host to
                   be present.
                 </li>
                 <li>
@@ -102,7 +102,7 @@ export default function PropertyOS() {
                 </li>
                 <li>
                   <strong>Cross-platform by design:</strong> Works across
-                  headsets, glasses, and phones—so visitors always get the
+                  headsets, glasses, and phones, so visitors always get the
                   experience you set up.
                 </li>
                 <li>
@@ -162,7 +162,7 @@ export default function PropertyOS() {
                 <li>
                   <strong>Reality check:</strong> Some analysts note ROI varies
                   by market; staging costs can rise, and not every uplift is
-                  guaranteed—transparent expectations and quality execution
+                  guaranteed. Transparent expectations and quality execution
                   still matter.{" "}
                   <sup>
                     <a href="#src-7">[7]</a>
@@ -242,7 +242,7 @@ export default function PropertyOS() {
               </ol>
 
               <p>
-                propertyOS uses place as the interface—elevating the listing,
+                propertyOS uses place as the interface, elevating the listing,
                 accelerating decisions, and giving residents a canvas to make
                 their homes truly theirs.
               </p>

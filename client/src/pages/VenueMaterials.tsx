@@ -127,7 +127,7 @@ export default function VenueMaterials() {
       name: 'Floor Decals (12" × 12", 2-pack)',
       price: "$24",
       blurb:
-        "Slip-resistant decals for queue zones — ‘Stand here & scan’. Removable adhesive.",
+        "Slip-resistant decals for queue zones: 'Stand here & scan'. Removable adhesive.",
       bestFor: "Queues & lobbies",
       icon: <ScanLine className="w-4 h-4" />,
     },
@@ -178,7 +178,7 @@ export default function VenueMaterials() {
     {
       title: "We generate your dynamic QR",
       blurb:
-        "Each code is unique per placement, so you can track scans and update destinations later — no reprints.",
+        "Each code is unique per placement, so you can track scans and update destinations later. No reprints.",
       icon: <QrCode className="w-5 h-5 text-cyan-300" />,
     },
     {
@@ -199,7 +199,7 @@ export default function VenueMaterials() {
     () => [
       {
         q: "Is the Starter Kit really free?",
-        a: "Yes — your first kit per activated location is included. Re-orders or additional kits are billed at the prices below.",
+        a: "Yes, your first kit per activated location is included. Re-orders or additional kits are billed at the prices below.",
       },
       {
         q: "How do the QR codes work?",
@@ -219,7 +219,7 @@ export default function VenueMaterials() {
       },
       {
         q: "Can we customize the art?",
-        a: "Yes — co-branding and translated variants are available. Talk to us for templates and print specs.",
+        a: "Yes, co-branding and translated variants are available. Talk to us for templates and print specs.",
       },
     ],
     [],
@@ -255,7 +255,7 @@ export default function VenueMaterials() {
               </span>
             </h1>
             <p className="mt-3 text-slate-300 max-w-2xl mx-auto">
-              Everything you need to launch and promote your Blueprint on-site —
+              Everything you need to launch and promote your Blueprint on-site:
               QR codes that just work, clear signage, and a simple install flow.
               Your first Starter Kit is{" "}
               <span className="text-emerald-300 font-semibold">free</span>.
@@ -304,7 +304,7 @@ export default function VenueMaterials() {
                   Starter Kit
                 </CardTitle>
                 <CardDescription className="text-slate-300">
-                  Ships free on your first location — or delivered and installed
+                  Ships free on your first location, or delivered and installed
                   by your mapper.
                 </CardDescription>
               </div>
@@ -436,7 +436,7 @@ export default function VenueMaterials() {
                   </h3>
                 </div>
                 <p className="text-sm text-slate-300">
-                  Guests and staff scan once and land in your Blueprint — no app
+                  Guests and staff scan once and land in your Blueprint. No app
                   download required. Dynamic links route to the best experience
                   for each device.
                 </p>
@@ -450,7 +450,7 @@ export default function VenueMaterials() {
                 </div>
                 <p className="text-sm text-slate-300">
                   Each QR is unique. See which doors, counters, or exhibits
-                  drive the most entries — and optimize where you place signage.
+                  drive the most entries, and optimize where you place signage.
                 </p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-6">
@@ -494,7 +494,7 @@ export default function VenueMaterials() {
               </h3>
               <p className="mt-3 text-slate-300 max-w-2xl mx-auto">
                 Claim your free Starter Kit at signup, or re-order materials
-                anytime. We’ll ship it or bring it with your mapper — whatever
+                anytime. We'll ship it or bring it with your mapper, whatever
                 gets you live fastest.
               </p>
               <div className="mt-6 flex flex-wrap items-center justify-center gap-3">

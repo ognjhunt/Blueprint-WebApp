@@ -26,7 +26,7 @@ export default function Blog() {
     {
       title: "workplaceOS – our seventh phase",
       description:
-        "AI glasses + AI for offices and frontline hubs—live KPIs for managers, guided work and instant answers for teams.",
+        "AI glasses + AI for offices and frontline hubs: live KPIs for managers, guided work and instant answers for teams.",
       href: "/blog/workplace-os",
     },
     {
@@ -38,7 +38,7 @@ export default function Blog() {
     {
       title: "hospitalityOS – our fifth vertical",
       description:
-        "Wayfinding, amenity cues, and in-room overlays for guests—plus staff tools that lift satisfaction and service efficiency.",
+        "Wayfinding, amenity cues, and in-room overlays for guests, plus staff tools that lift satisfaction and service efficiency.",
       href: "/blog/hospitality-os",
     },
     {

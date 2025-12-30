@@ -11,7 +11,7 @@ export default function CaseStudies() {
           SimReady scenes powering robotic wins.
         </h1>
         <p className="max-w-3xl text-sm text-slate-600">
-          Explore how Blueprint scenes accelerate robotics R&D—from manipulation policies to AMR workflows. Each example below shipped with simulation validation and articulation coverage tuned to the customer’s tasks.
+          Explore how Blueprint scenes accelerate robotics R&D, from manipulation policies to AMR workflows. Each example below shipped with simulation validation and articulation coverage tuned to the customer's tasks.
         </p>
       </header>
 

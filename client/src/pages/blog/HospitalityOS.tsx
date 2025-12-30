@@ -35,11 +35,11 @@ export default function HospitalityOS() {
 
               <p>
                 Blueprint is building the operating system for physical
-                spaces—our motto is{" "}
-                <strong>“know the place to serve the person.”</strong>{" "}
+                spaces. Our motto is{" "}
+                <strong>"know the place to serve the person."</strong>{" "}
                 hospitalityOS brings that vision to hotels, resorts, and
                 short-stays. It blends AR and AI with your property systems so
-                <em> people</em>—both staff and guests—get what they need
+                <em> people</em>, both staff and guests, get what they need
                 faster, with less friction and more delight.
               </p>
 
@@ -61,7 +61,7 @@ export default function HospitalityOS() {
                 </li>
                 <li>
                   <strong>Maintenance in place:</strong> Overlay work orders on
-                  the exact unit—HVAC, elevators, pool systems—with part IDs,
+                  the exact unit (HVAC, elevators, pool systems) with part IDs,
                   history, and safety checks.
                 </li>
                 <li>
@@ -91,7 +91,7 @@ export default function HospitalityOS() {
                 <li>
                   <strong>AI concierge:</strong> A multilingual, on-site guide
                   answers questions about amenities, neighborhood tips, transit,
-                  and policies—and can place requests on your behalf.
+                  and policies, and can place requests on your behalf.
                 </li>
                 <li>
                   <strong>Moments that matter:</strong> Contextual upsells (spa,
@@ -132,7 +132,7 @@ export default function HospitalityOS() {
                   <strong>Immersive content boosts engagement:</strong>{" "}
                   AR/VR-style experiences in hospitality/tourism are linked to
                   higher learning, satisfaction, and revisit intention in
-                  peer-reviewed studies—useful for tours, brand storytelling,
+                  peer-reviewed studies, useful for tours, brand storytelling,
                   and venue orientation.{" "}
                   <sup>
                     <a href="#src-4">[4]</a>
@@ -210,7 +210,7 @@ export default function HospitalityOS() {
               </ol>
 
               <p>
-                hospitalityOS turns place into the interface—helping teams work
+                hospitalityOS turns place into the interface, helping teams work
                 smarter while guests feel more informed, more in control, and
                 more at home.
               </p>

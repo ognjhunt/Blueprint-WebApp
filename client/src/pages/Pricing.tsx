@@ -235,7 +235,7 @@ const takeaways = [
 
 const scenarioData: { name: string; subtitle: string; bullets: string[] }[] = [
   {
-    name: "Scenario A — Small pilot",
+    name: "Scenario A: Small pilot",
     subtitle: "3 stores, 1,000 sessions/store/month, 50 MB initial asset load.",
     bullets: [
       "VPS: 3,000 calls/mo → $0 (under 10k free).",
@@ -247,7 +247,7 @@ const scenarioData: { name: string; subtitle: string; bullets: string[] }[] = [
     ],
   },
   {
-    name: "Scenario B — Heavier usage",
+    name: "Scenario B: Heavier usage",
     subtitle: "10 stores, 10,000 sessions/store/month; 40 MB cached load.",
     bullets: [
       "VPS: 100k calls/mo → first 10k free; 90k × $10/1k ≈ $900/mo (if all sessions call VPS once).",
@@ -298,7 +298,7 @@ const planTiers: PlanTier[] = [
     features: [
       "Free onboarding + instant App Clip entry",
       "“Ask-Where?” voice concierge (aisle/bay + quick follow-ups)",
-      "SOP checklists & tours — audio-first with tap/voice advance",
+      "SOP checklists & tours: audio-first with tap/voice advance",
       "Context nudges by zone (rate-limited to avoid spam)",
       "Session logging with baseline analytics",
     ],
@@ -408,7 +408,7 @@ function PriceHero() {
       </motion.h1>
 
       <p className="mt-4 max-w-3xl mx-auto text-lg text-slate-300">
-        Launch with guided scans, then pick the MAU tier that matches your foot traffic—no surprise platform fees.
+        Launch with guided scans, then pick the MAU tier that matches your foot traffic. No surprise platform fees.
       </p>
     </section>
   );
@@ -575,7 +575,7 @@ function KitFulfillmentCallout() {
             How kit fulfillment works
           </CardTitle>
           <CardDescription className="text-slate-300">
-            All plans include a FREE Starter Kit (4 QR codes). If you need more, choose 8 or 16 QR codes at onboarding for a one-time fee—the monthly subscription price stays the same.
+            All plans include a FREE Starter Kit (4 QR codes). If you need more, choose 8 or 16 QR codes at onboarding for a one-time fee. The monthly subscription price stays the same.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
@@ -584,7 +584,7 @@ function KitFulfillmentCallout() {
               <Box className="mt-0.5 h-5 w-5 text-emerald-300" />
               <div className="text-sm text-slate-200">
                 <span className="font-semibold text-white">Shipped during onboarding.</span>{" "}
-                Your QR kit ships immediately after signup. If you choose an upgrade (8 or 16 QR codes), the one-time charge is applied at shipping—your monthly subscription price remains unchanged.
+                Your QR kit ships immediately after signup. If you choose an upgrade (8 or 16 QR codes), the one-time charge is applied at shipping. Your monthly subscription price remains unchanged.
               </div>
             </li>
             <li className="flex items-start gap-3">
@@ -598,7 +598,7 @@ function KitFulfillmentCallout() {
               <Gift className="mt-0.5 h-5 w-5 text-emerald-300" />
               <div className="text-sm text-slate-200">
                 <span className="font-semibold text-white">QR kit options.</span>{" "}
-                Every plan includes a FREE Starter Kit (4 QR codes). Optionally upgrade to 8 QR codes (+$15 one-time) or 16 QR codes (+$45 one-time)—charged at shipping, not monthly.
+                Every plan includes a FREE Starter Kit (4 QR codes). Optionally upgrade to 8 QR codes (+$15 one-time) or 16 QR codes (+$45 one-time), charged at shipping, not monthly.
               </div>
             </li>
           </ul>
@@ -2689,7 +2689,7 @@ export default function PricingPage() {
 
 // const scenarioData: { name: string; subtitle: string; bullets: string[] }[] = [
 //   {
-//     name: "Scenario A — Small pilot",
+//     name: "Scenario A: Small pilot",
 //     subtitle: "3 stores, 1,000 sessions/store/month, 50 MB initial asset load.",
 //     bullets: [
 //       "VPS: 3,000 calls/mo → $0 (under 10k free).",
@@ -2701,7 +2701,7 @@ export default function PricingPage() {
 //     ],
 //   },
 //   {
-//     name: "Scenario B — Heavier usage",
+//     name: "Scenario B: Heavier usage",
 //     subtitle: "10 stores, 10,000 sessions/store/month; 40 MB cached load.",
 //     bullets: [
 //       "VPS: 100k calls/mo → first 10k free; 90k × $10/1k ≈ $900/mo (if all sessions call VPS once).",

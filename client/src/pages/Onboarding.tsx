@@ -1428,7 +1428,7 @@ export default function Onboarding() {
               </>
             ) : (
               <>
-                You can skip mapping now—ideal if you're piloting in a single
+                You can skip mapping now. This is ideal if you're piloting in a single
                 room. Turn it on anytime from the dashboard.
               </>
             )}
