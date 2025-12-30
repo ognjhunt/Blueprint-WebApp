@@ -1,23 +1,23 @@
-import { Video, Eye, Hand, Sparkles, Clock, ArrowRight } from "lucide-react";
+import { Video, Eye, Hand, Sparkles, Clock, ArrowRight, Database, Layers } from "lucide-react";
 
 const comingSoonFeatures = [
   {
     icon: <Video className="h-6 w-6" />,
-    title: "Egocentric Video Generation",
+    title: "First-Person Manipulation Videos",
     description:
-      "Generate first-person manipulation videos directly from your SimReady scenes. Watch virtual hands interact with objects in photorealistic detail.",
+      "Photorealistic egocentric footage of hands interacting with objects in your scenes—grasping, opening, sliding, placing.",
   },
   {
-    icon: <Hand className="h-6 w-6" />,
-    title: "Dexterous Action Synthesis",
+    icon: <Database className="h-6 w-6" />,
+    title: "Policy-Specific Datasets",
     description:
-      "Model how human hands grasp, open, slide, and manipulate objects. Perfect for training embodied AI and validating manipulation policies.",
+      "Each scene ships with video data covering multiple manipulation policies: drawer pulls, cabinet opens, pick-and-place sequences, and more.",
   },
   {
     icon: <Eye className="h-6 w-6" />,
-    title: "Interactive Digital Twins",
+    title: "Pretrain Embodied Models",
     description:
-      "Transform static 3D reconstructions into dynamic environments. See how scenes respond to manipulation before deploying real robots.",
+      "Use egocentric video for vision-language-action pretraining before fine-tuning on your simulation environments.",
   },
 ];
 
@@ -42,8 +42,8 @@ export default function ComingSoon() {
                 Future Offerings
               </h2>
               <p className="max-w-2xl text-lg text-zinc-600">
-                Extending our SimReady pipeline with video diffusion-based world models
-                for embodied simulation and egocentric action synthesis.
+                Extending our SimReady catalog with egocentric video datasets—generated
+                from every scene using dynamic world models.
               </p>
             </div>
             <div className="hidden md:block">
@@ -61,24 +61,43 @@ export default function ComingSoon() {
         <div className="p-8 sm:p-12">
           {/* DWM Feature Highlight */}
           <div className="mb-12 rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/50 via-white to-violet-50/50 p-8">
-            <div className="grid gap-8 lg:grid-cols-[1fr_1.2fr] lg:items-center">
+            <div className="grid gap-8 lg:grid-cols-[1fr_1fr] lg:items-center">
               <div className="space-y-6">
                 <div className="space-y-2">
                   <p className="text-xs font-bold uppercase tracking-widest text-indigo-600">
-                    Powered by Dynamic World Models
+                    Egocentric Video Data
                   </p>
                   <h3 className="text-2xl font-bold text-zinc-900">
-                    Egocentric Video from Every Scene
+                    More Value from Every Scene
                   </h3>
                 </div>
                 <p className="text-zinc-600 leading-relaxed">
-                  Using advances in scene-action-conditioned video diffusion, we're building
-                  the capability to generate first-person interaction videos from any SimReady
-                  scene in your library. Upload a scene, specify a manipulation trajectory,
-                  and receive photorealistic egocentric video of hands interacting with objects.
+                  We're using Dynamic World Models to generate first-person manipulation
+                  video from each SimReady scene in our catalog. Buy the scene for Isaac Sim
+                  training and evaluation—or add egocentric video datasets for pretraining
+                  your vision-language-action models.
                 </p>
+                <div className="rounded-xl border border-zinc-200 bg-white p-4">
+                  <p className="text-sm font-semibold text-zinc-900 mb-3">Two ways to use each scene:</p>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-600">1</div>
+                      <div>
+                        <p className="text-sm font-medium text-zinc-900">SimReady USD for simulation</p>
+                        <p className="text-xs text-zinc-500">Physics-accurate scenes for RL training & policy evaluation</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-600">2</div>
+                      <div>
+                        <p className="text-sm font-medium text-zinc-900">Egocentric video for pretraining</p>
+                        <p className="text-xs text-zinc-500">First-person manipulation clips across multiple policies</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 <div className="flex flex-wrap gap-2">
-                  {["Video Diffusion", "Hand Tracking", "Scene Dynamics", "Sim2Real"].map((tag) => (
+                  {["Pretraining Data", "Multi-Policy Coverage", "Scene-Matched Pairs"].map((tag) => (
                     <span
                       key={tag}
                       className="rounded-full border border-indigo-200 bg-white px-3 py-1 text-xs font-medium text-indigo-700"
@@ -90,43 +109,46 @@ export default function ComingSoon() {
               </div>
 
               <div className="relative">
-                <div className="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-900 p-1 shadow-lg">
-                  <div className="rounded-lg bg-gradient-to-br from-zinc-800 to-zinc-900 p-6">
-                    <div className="mb-4 flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-full bg-red-500" />
-                      <span className="h-3 w-3 rounded-full bg-yellow-500" />
-                      <span className="h-3 w-3 rounded-full bg-green-500" />
-                      <span className="ml-4 text-xs text-zinc-500 font-mono">dwm_pipeline.py</span>
+                <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg">
+                  {/* Visual representation of the data product */}
+                  <div className="border-b border-zinc-100 bg-zinc-50 px-4 py-3">
+                    <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                      Example: Kitchen Scene Bundle
+                    </p>
+                  </div>
+                  <div className="p-5 space-y-4">
+                    {/* Scene asset */}
+                    <div className="flex items-center gap-4 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-100">
+                        <Layers className="h-6 w-6 text-indigo-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-zinc-900">kitchen_residential_004.usd</p>
+                        <p className="text-xs text-zinc-500">SimReady scene • Isaac Sim compatible</p>
+                      </div>
                     </div>
-                    <pre className="text-xs text-zinc-300 overflow-x-auto font-mono">
-                      <code>{`# Generate egocentric video from scene
-from blueprint import DWMPipeline
 
-pipeline = DWMPipeline()
-
-# Load your SimReady scene
-scene = pipeline.load_scene("kitchen_001.usd")
-
-# Define hand trajectory for interaction
-trajectory = pipeline.plan_grasp(
-    target="cabinet_door_handle",
-    action="pull_open"
-)
-
-# Generate egocentric video
-video = pipeline.generate(
-    scene=scene,
-    hand_trajectory=trajectory,
-    frames=120,
-    fps=30
-)
-
-video.export("interaction_demo.mp4")`}</code>
-                    </pre>
+                    {/* Video datasets */}
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider">+ Egocentric Video Packs</p>
+                      {[
+                        { policy: "Cabinet door opens", clips: "240 clips" },
+                        { policy: "Drawer pull sequences", clips: "180 clips" },
+                        { policy: "Pick-and-place items", clips: "320 clips" },
+                      ].map((item) => (
+                        <div key={item.policy} className="flex items-center gap-3 rounded-lg border border-violet-100 bg-violet-50/50 p-2.5">
+                          <Video className="h-4 w-4 text-violet-600" />
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-zinc-800">{item.policy}</p>
+                          </div>
+                          <span className="text-xs text-violet-600 font-medium">{item.clips}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 <div className="absolute -bottom-3 -right-3 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 shadow-sm">
-                  Preview API
+                  Bundle & Save
                 </div>
               </div>
             </div>
@@ -160,18 +182,18 @@ video.export("interaction_demo.mp4")`}</code>
               </div>
               <div>
                 <p className="text-sm font-semibold text-zinc-900">
-                  Built on Dexterous World Models Research
+                  Powered by Dynamic World Models
                 </p>
                 <p className="text-xs text-zinc-500 mt-1">
-                  Leveraging video diffusion breakthroughs for embodied simulation and egocentric action synthesis.
+                  Scene-action-conditioned video diffusion for photorealistic egocentric generation.
                 </p>
               </div>
             </div>
             <a
-              href="/contact?interest=dwm-preview"
+              href="/contact?interest=egocentric-video"
               className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
             >
-              Join waitlist
+              Get early access
               <ArrowRight className="h-4 w-4" />
             </a>
           </div>
