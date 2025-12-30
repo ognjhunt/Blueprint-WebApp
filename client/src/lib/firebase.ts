@@ -34,12 +34,51 @@ const firebaseConfig: FirebaseOptions = {
 };
 
 // Initialize Firebase - this will throw if configuration is invalid
-const app = initializeApp(firebaseConfig);
+let app;
+try {
+  app = initializeApp(firebaseConfig);
+  console.log("[Firebase] App initialized successfully for project:", firebaseConfig.projectId);
+} catch (error) {
+  console.error("[Firebase] Failed to initialize app:", error);
+  throw error;
+}
 
 // Export non-null Firebase services
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+// Log Firebase service initialization
+console.log("[Firebase] Services initialized - Auth:", !!auth, "Firestore:", !!db, "Storage:", !!storage);
+
+// Debug function to test Firestore connectivity
+export const testFirestoreConnection = async (): Promise<boolean> => {
+  console.log("[Firebase] Testing Firestore connection...");
+  try {
+    const testRef = doc(db, "_connection_test", "test");
+    await setDoc(testRef, { timestamp: serverTimestamp(), test: true });
+    console.log("[Firebase] Firestore write test PASSED");
+
+    const testDoc = await getDoc(testRef);
+    console.log("[Firebase] Firestore read test PASSED, doc exists:", testDoc.exists());
+
+    return true;
+  } catch (error) {
+    console.error("[Firebase] Firestore connection test FAILED:", error);
+    console.error("[Firebase] Error details:", {
+      name: (error as any)?.name,
+      code: (error as any)?.code,
+      message: (error as any)?.message,
+    });
+    return false;
+  }
+};
+
+// Run connection test on load (for debugging - remove in production)
+testFirestoreConnection().then(success => {
+  console.log("[Firebase] Initial connection test result:", success ? "SUCCESS" : "FAILED");
+});
+
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
   prompt: "select_account",
@@ -110,14 +149,20 @@ export const createUserDocument = async (
   additionalData?: { name?: string },
 ): Promise<void> => {
   if (!user) {
-    console.error("No user provided to createUserDocument");
+    console.error("[Firebase] No user provided to createUserDocument");
     throw new Error("No user provided to createUserDocument");
   }
 
+  console.log("[Firebase] createUserDocument called for user:", user.uid);
+  console.log("[Firebase] Firestore db instance:", db ? "exists" : "null");
 
   try {
     const userRef = doc(db, "users", user.uid);
+    console.log("[Firebase] Created doc reference for users/" + user.uid);
+
+    console.log("[Firebase] Attempting to get existing document...");
     const snapshot = await getDoc(userRef);
+    console.log("[Firebase] getDoc completed, exists:", snapshot.exists());
 
     if (!snapshot.exists()) {
       const { email } = user;
@@ -180,15 +225,24 @@ export const createUserDocument = async (
         deviceTypes: [],
       };
 
+      console.log("[Firebase] Attempting setDoc for new user...");
       await setDoc(userRef, newUserData);
+      console.log("[Firebase] setDoc completed successfully for new user");
     } else {
+      console.log("[Firebase] User exists, attempting updateDoc...");
       await updateDoc(userRef, {
         lastLoginAt: serverTimestamp(),
         numSessions: increment(1),
       });
+      console.log("[Firebase] updateDoc completed successfully");
     }
   } catch (error) {
-    console.error("Error in createUserDocument:", error);
+    console.error("[Firebase] Error in createUserDocument:", error);
+    console.error("[Firebase] Error details:", {
+      name: (error as any)?.name,
+      code: (error as any)?.code,
+      message: (error as any)?.message,
+    });
     throw new Error(
       `Failed to create/update user document: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
@@ -196,14 +250,22 @@ export const createUserDocument = async (
 };
 
 export const getUserData = async (uid: string): Promise<UserData | null> => {
+  console.log("[Firebase] getUserData called for uid:", uid);
   try {
+    console.log("[Firebase] Attempting to fetch user document...");
     const userDoc = await getDoc(doc(db, "users", uid));
+    console.log("[Firebase] getUserData fetch completed, exists:", userDoc.exists());
     if (userDoc.exists()) {
       return userDoc.data() as UserData;
     }
     return null;
   } catch (error) {
-    console.error("Error fetching user data:", error);
+    console.error("[Firebase] Error fetching user data:", error);
+    console.error("[Firebase] Error details:", {
+      name: (error as any)?.name,
+      code: (error as any)?.code,
+      message: (error as any)?.message,
+    });
     throw error;
   }
 };
