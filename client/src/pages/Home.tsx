@@ -482,7 +482,7 @@ const offeringCards = [
       "Precision geometry with mass, inertia & friction properties",
       "Manifest for SimReady packs + asset fallbacks you install locally",
       "Task logic scaffolds tuned for vectorized RL and sim2real transfer",
-      "Frame generator for swaps, clutter, lighting, and articulation states (500–2,000 frames/scene)",
+      "Variation generator for swaps, clutter, lighting, and articulation states (500–2,000 variations/scene)",
     ],
     ctaLabel: "Request a recipe",
     ctaHref: "/recipes",
@@ -815,26 +815,26 @@ export default function Home() {
                 <div className="grid grid-cols-3 gap-2 rounded-lg border border-zinc-100 bg-zinc-50 p-3">
                   <div className="text-center">
                     <dt className="text-[10px] uppercase tracking-wider text-zinc-400">
-                      Cost
+                      Bundle
                     </dt>
                     <dd className="font-mono text-sm font-semibold text-zinc-900">
-                      ${dataset.pricePerScene}
+                      ${dataset.bundlePrice?.toLocaleString()}
                     </dd>
                   </div>
                   <div className="text-center border-l border-zinc-200">
                     <dt className="text-[10px] uppercase tracking-wider text-zinc-400">
-                      Scenes
+                      Variations
                     </dt>
                     <dd className="font-mono text-sm font-semibold text-zinc-900">
-                      {dataset.sceneCount}
+                      {dataset.variationCount?.toLocaleString()}
                     </dd>
                   </div>
                   <div className="text-center border-l border-zinc-200">
                     <dt className="text-[10px] uppercase tracking-wider text-zinc-400">
-                      Frames
+                      Episodes
                     </dt>
                     <dd className="font-mono text-sm font-semibold text-zinc-900">
-                      {dataset.frameCount}
+                      {dataset.episodeCount?.toLocaleString()}
                     </dd>
                   </div>
                 </div>
@@ -863,7 +863,7 @@ export default function Home() {
               Environment families
             </h2>
             <p className="mt-2 max-w-xl text-zinc-600">
-              Archetypes to anchor your wishlist. We keep releasing frames
+              Archetypes to anchor your wishlist. We keep releasing variations
               that span aisle widths, heights, and policy complexity.
             </p>
           </div>
