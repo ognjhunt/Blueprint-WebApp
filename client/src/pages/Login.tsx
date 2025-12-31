@@ -1,16 +1,93 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { SEO } from "@/components/SEO";
-import { ArrowRight, Eye, EyeOff, Lock, Loader2, Mail, User } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Lock, Loader2, Mail, User, Check, X, AlertCircle } from "lucide-react";
 
 type AuthMode = "signin" | "signup";
+
+interface ValidationErrors {
+  email?: string;
+  password?: string;
+  confirmPassword?: string;
+  name?: string;
+}
+
+interface PasswordStrength {
+  score: number;
+  label: string;
+  color: string;
+  requirements: {
+    minLength: boolean;
+    hasUppercase: boolean;
+    hasLowercase: boolean;
+    hasNumber: boolean;
+    hasSpecial: boolean;
+  };
+}
+
+function validateEmail(email: string): string | undefined {
+  if (!email) {
+    return "Email is required";
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return "Please enter a valid email address";
+  }
+  return undefined;
+}
+
+function getPasswordStrength(password: string): PasswordStrength {
+  const requirements = {
+    minLength: password.length >= 8,
+    hasUppercase: /[A-Z]/.test(password),
+    hasLowercase: /[a-z]/.test(password),
+    hasNumber: /[0-9]/.test(password),
+    hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+  };
+
+  const score = Object.values(requirements).filter(Boolean).length;
+
+  let label: string;
+  let color: string;
+
+  if (score <= 1) {
+    label = "Very weak";
+    color = "bg-red-500";
+  } else if (score === 2) {
+    label = "Weak";
+    color = "bg-orange-500";
+  } else if (score === 3) {
+    label = "Fair";
+    color = "bg-yellow-500";
+  } else if (score === 4) {
+    label = "Good";
+    color = "bg-lime-500";
+  } else {
+    label = "Strong";
+    color = "bg-emerald-500";
+  }
+
+  return { score, label, color, requirements };
+}
+
+function validatePassword(password: string, isSignup: boolean): string | undefined {
+  if (!password) {
+    return "Password is required";
+  }
+  if (isSignup && password.length < 8) {
+    return "Password must be at least 8 characters";
+  }
+  return undefined;
+}
 
 export default function Login() {
   const [mode, setMode] = useState<AuthMode>("signin");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<ValidationErrors>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -18,19 +95,110 @@ export default function Login() {
     confirmPassword: "",
   });
 
+  const passwordStrength = useMemo(
+    () => getPasswordStrength(formData.password),
+    [formData.password]
+  );
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+
+    // Clear error when user starts typing
+    if (errors[name as keyof ValidationErrors]) {
+      setErrors((prev) => ({ ...prev, [name]: undefined }));
+    }
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const { name } = e.target;
+    setTouched((prev) => ({ ...prev, [name]: true }));
+
+    // Validate on blur
+    validateField(name);
+  };
+
+  const validateField = (fieldName: string) => {
+    const newErrors: ValidationErrors = { ...errors };
+
+    switch (fieldName) {
+      case "email":
+        newErrors.email = validateEmail(formData.email);
+        break;
+      case "password":
+        newErrors.password = validatePassword(formData.password, mode === "signup");
+        break;
+      case "confirmPassword":
+        if (mode === "signup" && formData.confirmPassword !== formData.password) {
+          newErrors.confirmPassword = "Passwords do not match";
+        } else {
+          newErrors.confirmPassword = undefined;
+        }
+        break;
+      case "name":
+        if (mode === "signup" && !formData.name.trim()) {
+          newErrors.name = "Name is required";
+        } else {
+          newErrors.name = undefined;
+        }
+        break;
+    }
+
+    setErrors(newErrors);
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: ValidationErrors = {};
+
+    // Email validation
+    newErrors.email = validateEmail(formData.email);
+
+    // Password validation
+    newErrors.password = validatePassword(formData.password, mode === "signup");
+
+    // Signup-specific validations
+    if (mode === "signup") {
+      if (!formData.name.trim()) {
+        newErrors.name = "Name is required";
+      }
+
+      if (!formData.confirmPassword) {
+        newErrors.confirmPassword = "Please confirm your password";
+      } else if (formData.confirmPassword !== formData.password) {
+        newErrors.confirmPassword = "Passwords do not match";
+      }
+
+      // Check password strength for signup
+      if (passwordStrength.score < 3) {
+        newErrors.password = "Password is too weak. Please use a stronger password.";
+      }
+    }
+
+    setErrors(newErrors);
+    setTouched({ email: true, password: true, confirmPassword: true, name: true });
+
+    return !Object.values(newErrors).some(Boolean);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
     setIsLoading(true);
     // TODO: Connect to AuthContext for actual authentication
     console.log("Form submitted:", { mode, ...formData });
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1000));
     setIsLoading(false);
+  };
+
+  const handleModeChange = (newMode: AuthMode) => {
+    setMode(newMode);
+    setErrors({});
+    setTouched({});
   };
 
   return (
@@ -109,7 +277,7 @@ export default function Login() {
                 <button
                   key={currentMode}
                   type="button"
-                  onClick={() => setMode(currentMode)}
+                  onClick={() => handleModeChange(currentMode)}
                   className={`flex-1 rounded-md px-3 py-2 transition ${
                     isActive
                       ? "bg-white text-slate-900 shadow-sm"
@@ -140,10 +308,21 @@ export default function Login() {
                     type="text"
                     value={formData.name}
                     onChange={handleInputChange}
+                    onBlur={handleBlur}
                     placeholder="Your name"
-                    className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    className={`w-full rounded-xl border bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 ${
+                      errors.name && touched.name
+                        ? "border-red-300 focus:border-red-500 focus:ring-red-500"
+                        : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
+                    }`}
                   />
                 </div>
+                {errors.name && touched.name && (
+                  <p className="mt-1.5 flex items-center gap-1 text-xs text-red-600">
+                    <AlertCircle className="h-3 w-3" />
+                    {errors.name}
+                  </p>
+                )}
               </div>
             )}
 
@@ -162,10 +341,21 @@ export default function Login() {
                   type="email"
                   value={formData.email}
                   onChange={handleInputChange}
+                  onBlur={handleBlur}
                   placeholder="you@example.com"
-                  className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className={`w-full rounded-xl border bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 ${
+                    errors.email && touched.email
+                      ? "border-red-300 focus:border-red-500 focus:ring-red-500"
+                      : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
+                  }`}
                 />
               </div>
+              {errors.email && touched.email && (
+                <p className="mt-1.5 flex items-center gap-1 text-xs text-red-600">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.email}
+                </p>
+              )}
             </div>
 
             <div>
@@ -183,8 +373,13 @@ export default function Login() {
                   type={showPassword ? "text" : "password"}
                   value={formData.password}
                   onChange={handleInputChange}
+                  onBlur={handleBlur}
                   placeholder="••••••••"
-                  className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className={`w-full rounded-xl border bg-white py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 ${
+                    errors.password && touched.password
+                      ? "border-red-300 focus:border-red-500 focus:ring-red-500"
+                      : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
+                  }`}
                 />
                 <button
                   type="button"
@@ -199,6 +394,54 @@ export default function Login() {
                   )}
                 </button>
               </div>
+              {errors.password && touched.password && (
+                <p className="mt-1.5 flex items-center gap-1 text-xs text-red-600">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.password}
+                </p>
+              )}
+
+              {/* Password Strength Indicator (only for signup) */}
+              {mode === "signup" && formData.password && (
+                <div className="mt-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-300 ${passwordStrength.color}`}
+                        style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
+                      />
+                    </div>
+                    <span className={`text-xs font-medium ${
+                      passwordStrength.score <= 2 ? "text-red-600" :
+                      passwordStrength.score === 3 ? "text-yellow-600" : "text-emerald-600"
+                    }`}>
+                      {passwordStrength.label}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 text-xs">
+                    <div className={`flex items-center gap-1 ${passwordStrength.requirements.minLength ? "text-emerald-600" : "text-slate-400"}`}>
+                      {passwordStrength.requirements.minLength ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                      8+ characters
+                    </div>
+                    <div className={`flex items-center gap-1 ${passwordStrength.requirements.hasUppercase ? "text-emerald-600" : "text-slate-400"}`}>
+                      {passwordStrength.requirements.hasUppercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                      Uppercase letter
+                    </div>
+                    <div className={`flex items-center gap-1 ${passwordStrength.requirements.hasLowercase ? "text-emerald-600" : "text-slate-400"}`}>
+                      {passwordStrength.requirements.hasLowercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                      Lowercase letter
+                    </div>
+                    <div className={`flex items-center gap-1 ${passwordStrength.requirements.hasNumber ? "text-emerald-600" : "text-slate-400"}`}>
+                      {passwordStrength.requirements.hasNumber ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                      Number
+                    </div>
+                    <div className={`flex items-center gap-1 ${passwordStrength.requirements.hasSpecial ? "text-emerald-600" : "text-slate-400"}`}>
+                      {passwordStrength.requirements.hasSpecial ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                      Special character
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {mode === "signup" && (
@@ -217,8 +460,13 @@ export default function Login() {
                     type={showConfirmPassword ? "text" : "password"}
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
+                    onBlur={handleBlur}
                     placeholder="••••••••"
-                    className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    className={`w-full rounded-xl border bg-white py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 ${
+                      errors.confirmPassword && touched.confirmPassword
+                        ? "border-red-300 focus:border-red-500 focus:ring-red-500"
+                        : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
+                    }`}
                   />
                   <button
                     type="button"
@@ -237,6 +485,18 @@ export default function Login() {
                     )}
                   </button>
                 </div>
+                {errors.confirmPassword && touched.confirmPassword && (
+                  <p className="mt-1.5 flex items-center gap-1 text-xs text-red-600">
+                    <AlertCircle className="h-3 w-3" />
+                    {errors.confirmPassword}
+                  </p>
+                )}
+                {!errors.confirmPassword && formData.confirmPassword && formData.confirmPassword === formData.password && (
+                  <p className="mt-1.5 flex items-center gap-1 text-xs text-emerald-600">
+                    <Check className="h-3 w-3" />
+                    Passwords match
+                  </p>
+                )}
               </div>
             )}
 
@@ -276,8 +536,10 @@ export default function Login() {
 
           {/* Footer */}
           <p className="mt-6 text-center text-xs text-slate-500">
-            By continuing, you agree to Blueprint's Terms of Service and Privacy
-            Policy.
+            By continuing, you agree to Blueprint's{" "}
+            <a href="/terms" className="text-indigo-600 hover:underline">Terms of Service</a>
+            {" "}and{" "}
+            <a href="/privacy" className="text-indigo-600 hover:underline">Privacy Policy</a>.
           </p>
         </div>
 
@@ -288,7 +550,7 @@ export default function Login() {
               Don't have an account?{" "}
               <button
                 type="button"
-                onClick={() => setMode("signup")}
+                onClick={() => handleModeChange("signup")}
                 className="font-semibold text-indigo-600 hover:text-indigo-500"
               >
                 Sign up
@@ -299,7 +561,7 @@ export default function Login() {
               Already have an account?{" "}
               <button
                 type="button"
-                onClick={() => setMode("signin")}
+                onClick={() => handleModeChange("signin")}
                 className="font-semibold text-indigo-600 hover:text-indigo-500"
               >
                 Sign in
