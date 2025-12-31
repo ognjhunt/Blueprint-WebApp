@@ -652,7 +652,7 @@ export default function SettingsPage() {
                         variant="secondary"
                         size="sm"
                         className="w-full bg-white/10 hover:bg-white/20 text-white border-0"
-                        onClick={() => (window.location.href = "/pricing")}
+                        onClick={() => (window.location.href = "/contact")}
                       >
                         {userData.planType === "plus"
                           ? "Manage Plan"

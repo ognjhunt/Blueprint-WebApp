@@ -70,7 +70,7 @@ export default function Nav({
 
   const navLinks = [
     // { href: "/pilot-program", label: "Pilot Program", badge: "New" },
-    { href: "/pricing", label: "Pricing" },
+    { href: "/learn", label: "New to Simulation?", badge: "Learn" },
     // Show these only if authenticated and not hidden
     ...(currentUser && !hideAuthenticatedFeatures
       ? [{ href: "/scanner-portal", label: "Scanner Portal" }]

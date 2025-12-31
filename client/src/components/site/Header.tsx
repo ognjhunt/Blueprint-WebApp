@@ -6,7 +6,7 @@ const navLinks = [
   { href: "/environments", label: "Environments" },
   // { href: "/recipes", label: "Scene Recipes" }, // Hidden: recipes temporarily removed from offerings
   { href: "/solutions", label: "Solutions" },
-  { href: "/capture", label: "Capture" },
+  { href: "/learn", label: "New to Simulation?" },
   { href: "/docs", label: "Docs" },
   { href: "/portal", label: "Portal" },
  // { href: "/case-studies", label: "Case Studies" },

@@ -671,7 +671,7 @@ export default function ManagePlan() {
                         {userPlan === "free" ? (
                           <Button
                             className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-md"
-                            onClick={() => router.push("/pricing")} // Use router.push for Next.js App Router
+                            onClick={() => router.push("/contact")} // Use router.push for Next.js App Router
                             // Or onClick={() => window.location.href = '/pricing'} for simple redirect
                           >
                             Upgrade to Plus
@@ -689,7 +689,7 @@ export default function ManagePlan() {
                             </Button>
                             <Button
                               className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-md"
-                              onClick={() => router.push("/pricing")} // Use router.push for Next.js App Router
+                              onClick={() => router.push("/contact")} // Use router.push for Next.js App Router
                               // Or onClick={() => window.location.href = '/pricing'} for simple redirect
                             >
                               Modify Plan{" "}
