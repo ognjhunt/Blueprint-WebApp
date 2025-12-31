@@ -89,6 +89,7 @@
 //   );
 // }
 import { useState, useEffect } from "react";
+import { SEO } from "@/components/SEO";
 import {
   Axis3d,
   Box,
@@ -200,18 +201,24 @@ export default function Docs() {
   };
 
   return (
-    <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
-      <DotPattern />
+    <>
+      <SEO
+        title="Documentation | SimReady Specification"
+        description="Technical specification for Blueprint SimReady scenes. Learn about coordinate systems, physics materials, joint articulation, semantic labeling, and integration guides."
+        canonical="/docs"
+      />
+      <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
+        <DotPattern />
 
-      <div className="mx-auto max-w-7xl px-4 pb-24 pt-16 sm:px-6 lg:px-8">
-        <div className="grid gap-12 lg:grid-cols-[240px_1fr]">
-          {/* --- Sidebar Navigation (Desktop) --- */}
-          <aside className="hidden lg:block">
-            <div className="sticky top-8 space-y-8">
-              <div className="flex items-center gap-2 text-sm font-bold text-zinc-900">
-                <BookOpen className="h-4 w-4" />
-                Documentation
-              </div>
+        <div className="mx-auto max-w-7xl px-4 pb-24 pt-16 sm:px-6 lg:px-8">
+          <div className="grid gap-12 lg:grid-cols-[240px_1fr]">
+            {/* --- Sidebar Navigation (Desktop) --- */}
+            <aside className="hidden lg:block">
+              <div className="sticky top-8 space-y-8">
+                <div className="flex items-center gap-2 text-sm font-bold text-zinc-900">
+                  <BookOpen className="h-4 w-4" />
+                  Documentation
+                </div>
               <nav className="space-y-1 border-l border-zinc-200 pl-4">
                 {sections.map(({ id, label }) => (
                   <a
@@ -554,5 +561,6 @@ export default function Docs() {
         </div>
       </div>
     </div>
+    </>
   );
 }

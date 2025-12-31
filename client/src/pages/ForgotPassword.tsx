@@ -1,27 +1,39 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, Mail, CheckCircle } from "lucide-react";
+import { SEO } from "@/components/SEO";
+import { ArrowLeft, ArrowRight, Mail, CheckCircle, Loader2 } from "lucide-react";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // No functionality yet - just UI
+    setIsLoading(true);
+    // TODO: Connect to Firebase password reset
     console.log("Password reset requested for:", email);
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    setIsLoading(false);
     setIsSubmitted(true);
   };
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
-      <div className="mx-auto max-w-md px-4 py-16 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-10 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-500">
-            Blueprint
-          </p>
+    <>
+      <SEO
+        title="Reset Password"
+        description="Reset your Blueprint account password. Enter your email to receive a password reset link."
+        canonical="/forgot-password"
+      />
+      <div className="min-h-screen bg-white text-slate-900">
+        <div className="mx-auto max-w-md px-4 py-16 sm:px-6 lg:px-8">
+          {/* Header */}
+          <div className="mb-10 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-500">
+              Blueprint
+            </p>
           <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
             {isSubmitted ? "Check your email" : "Reset your password"}
           </h1>
@@ -82,10 +94,20 @@ export default function ForgotPassword() {
 
               <button
                 type="submit"
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-white transition hover:bg-indigo-500"
+                disabled={isLoading}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-white transition hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span className="text-sm font-semibold">Send reset link</span>
-                <ArrowRight className="h-4 w-4" />
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm font-semibold">Sending...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-sm font-semibold">Send reset link</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
               </button>
             </form>
           )}
@@ -103,5 +125,6 @@ export default function ForgotPassword() {
         </div>
       </div>
     </div>
+    </>
   );
 }

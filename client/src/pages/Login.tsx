@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, Eye, EyeOff, Lock, Mail, User } from "lucide-react";
+import { SEO } from "@/components/SEO";
+import { ArrowRight, Eye, EyeOff, Lock, Loader2, Mail, User } from "lucide-react";
 
 type AuthMode = "signin" | "signup";
 
@@ -9,6 +10,7 @@ export default function Login() {
   const [mode, setMode] = useState<AuthMode>("signin");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -21,20 +23,30 @@ export default function Login() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // No functionality yet - just UI
+    setIsLoading(true);
+    // TODO: Connect to AuthContext for actual authentication
     console.log("Form submitted:", { mode, ...formData });
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    setIsLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
-      <div className="mx-auto max-w-md px-4 py-16 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-10 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-500">
-            Blueprint
-          </p>
+    <>
+      <SEO
+        title={mode === "signin" ? "Sign In" : "Create Account"}
+        description="Sign in or create an account to access Blueprint's SimReady environments, manage your projects, and track scene orders."
+        canonical="/login"
+      />
+      <div className="min-h-screen bg-white text-slate-900">
+        <div className="mx-auto max-w-md px-4 py-16 sm:px-6 lg:px-8">
+          {/* Header */}
+          <div className="mb-10 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-500">
+              Blueprint
+            </p>
           <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
             {mode === "signin" ? "Welcome back" : "Create your account"}
           </h1>
@@ -241,12 +253,24 @@ export default function Login() {
 
             <button
               type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-white transition hover:bg-indigo-500"
+              disabled={isLoading}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-white transition hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span className="text-sm font-semibold">
-                {mode === "signin" ? "Sign in" : "Create account"}
-              </span>
-              <ArrowRight className="h-4 w-4" />
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm font-semibold">
+                    {mode === "signin" ? "Signing in..." : "Creating account..."}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="text-sm font-semibold">
+                    {mode === "signin" ? "Sign in" : "Create account"}
+                  </span>
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
             </button>
           </form>
 
@@ -285,5 +309,6 @@ export default function Login() {
         </p>
       </div>
     </div>
+    </>
   );
 }

@@ -24,6 +24,7 @@
 //   );
 // }
 import { ContactForm } from "@/components/site/ContactForm";
+import { SEO } from "@/components/SEO";
 import { MessageSquare } from "lucide-react";
 
 const SHOW_REAL_WORLD_CAPTURE = false;
@@ -75,8 +76,14 @@ function DotPattern() {
 
 export default function Contact() {
   return (
-    <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
-      <DotPattern />
+    <>
+      <SEO
+        title="Contact Us"
+        description="Request a SimReady scene, upload a reference photo for reconstruction, or share your marketplace wishlist. Get physics-accurate 3D environments for robotics training."
+        canonical="/contact"
+      />
+      <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
+        <DotPattern />
 
       <div className="mx-auto max-w-5xl px-4 pb-24 pt-16 sm:px-6 lg:px-8">
         {/* Header */}
@@ -124,5 +131,6 @@ export default function Contact() {
         </div>
       </div>
     </div>
+    </>
   );
 }

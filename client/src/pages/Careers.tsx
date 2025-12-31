@@ -42,6 +42,7 @@
 import { useState } from "react";
 import { jobs } from "@/data/content";
 import { ApplyForm } from "@/components/site/ApplyForm";
+import { SEO } from "@/components/SEO";
 import {
   Briefcase,
   MapPin,
@@ -98,16 +99,22 @@ export default function Careers() {
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
 
   return (
-    <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
-      <DotPattern />
+    <>
+      <SEO
+        title="Careers"
+        description="Join Blueprint's artist and technical director network. We're looking for specialists who love building simulation-ready assets and crafting premium training environments."
+        canonical="/careers"
+      />
+      <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
+        <DotPattern />
 
-      <div className="mx-auto max-w-5xl px-4 pb-24 pt-16 sm:px-6 lg:px-8">
-        {/* --- Header --- */}
-        <header className="mb-20 space-y-6 text-center md:text-left">
-          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-indigo-600 backdrop-blur-sm">
-            <Users className="h-3 w-3" />
-            Join the Network
-          </div>
+        <div className="mx-auto max-w-5xl px-4 pb-24 pt-16 sm:px-6 lg:px-8">
+          {/* --- Header --- */}
+          <header className="mb-20 space-y-6 text-center md:text-left">
+            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-indigo-600 backdrop-blur-sm">
+              <Users className="h-3 w-3" />
+              Join the Network
+            </div>
 
           <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl md:max-w-2xl">
             Build the worlds <br />
@@ -248,5 +255,6 @@ export default function Careers() {
         </div>
       </div>
     </div>
+    </>
   );
 }

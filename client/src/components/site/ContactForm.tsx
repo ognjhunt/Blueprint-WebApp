@@ -2462,7 +2462,10 @@ export function ContactForm() {
               className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-8 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {status === "loading" ? (
-                <>Sending Request...</>
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Sending Request...
+                </>
               ) : (
                 <>
                   Submit Request <ArrowRight className="h-4 w-4" />

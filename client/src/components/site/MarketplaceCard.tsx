@@ -1,7 +1,7 @@
 import type { MouseEvent } from "react";
 import { useState, useCallback } from "react";
 import { loadStripe } from "@stripe/stripe-js";
-import { Shield, Package, Sparkles, TrendingUp, ShoppingCart } from "lucide-react";
+import { Shield, Package, Sparkles, TrendingUp, ShoppingCart, Loader2 } from "lucide-react";
 import type { SyntheticDataset, MarketplaceScene } from "@/data/content";
 import { useLocation } from "wouter";
 
@@ -304,14 +304,17 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
           onClick={handleCheckout}
           disabled={isRedirecting}
         >
-          <ShoppingCart className="h-4 w-4" />
-          {isDataset
-            ? isRedirecting
-              ? "Redirecting..."
-              : "Buy Bundle"
-            : isRedirecting
-            ? "Redirecting..."
-            : "Buy Now"}
+          {isRedirecting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Redirecting...
+            </>
+          ) : (
+            <>
+              <ShoppingCart className="h-4 w-4" />
+              {isDataset ? "Buy Bundle" : "Buy Now"}
+            </>
+          )}
         </button>
       </div>
     </article>
