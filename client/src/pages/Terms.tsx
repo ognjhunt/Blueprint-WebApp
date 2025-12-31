@@ -1,10 +1,18 @@
+import { SEO } from "@/components/SEO";
+
 export default function Terms() {
   return (
-    <div className="mx-auto max-w-4xl space-y-8 px-4 pb-24 pt-16 sm:px-6">
-      <header className="space-y-4">
-        <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-          Legal
-        </p>
+    <>
+      <SEO
+        title="Terms of Service"
+        description="Blueprint's terms of service governing access to environment data, on-site capture, and supporting software services."
+        canonical="/terms"
+      />
+      <div className="mx-auto max-w-4xl space-y-8 px-4 pb-24 pt-16 sm:px-6">
+        <header className="space-y-4">
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+            Legal
+          </p>
         <h1 className="text-4xl font-semibold text-slate-900">Terms of Service</h1>
         <p className="text-sm text-slate-600">
           Updated December 2024. These terms govern your access to and use of Blueprint’s services, including environment access, on-site capture, and supporting software.
@@ -47,5 +55,6 @@ export default function Terms() {
         <p>Questions about these terms? Email legal@tryblueprint.io.</p>
       </section>
     </div>
+    </>
   );
 }

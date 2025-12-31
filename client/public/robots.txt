@@ -1,0 +1,13 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://tryblueprint.io/sitemap.xml
+
+# Disallow admin and private routes
+Disallow: /dashboard
+Disallow: /onboarding
+Disallow: /profile
+Disallow: /settings
+Disallow: /api/

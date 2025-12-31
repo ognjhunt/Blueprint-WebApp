@@ -1,10 +1,18 @@
+import { SEO } from "@/components/SEO";
+
 export default function Privacy() {
   return (
-    <div className="mx-auto max-w-4xl space-y-8 px-4 pb-24 pt-16 sm:px-6">
-      <header className="space-y-4">
-        <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-          Legal
-        </p>
+    <>
+      <SEO
+        title="Privacy Policy"
+        description="Blueprint's privacy policy. Learn how we collect, use, and protect your information across tryblueprint.io and related services."
+        canonical="/privacy"
+      />
+      <div className="mx-auto max-w-4xl space-y-8 px-4 pb-24 pt-16 sm:px-6">
+        <header className="space-y-4">
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+            Legal
+          </p>
         <h1 className="text-4xl font-semibold text-slate-900">Privacy Policy</h1>
         <p className="text-sm text-slate-600">
           Updated December 2024. Blueprint, Inc. (“Blueprint”) respects your privacy. This policy explains how we collect, use, and protect information across tryblueprint.io and related services.
@@ -38,5 +46,6 @@ export default function Privacy() {
         <p>Questions? Email privacy@tryblueprint.io or write to Blueprint, 220 E. Parrish St, Durham, NC.</p>
       </section>
     </div>
+    </>
   );
 }

@@ -405,6 +405,7 @@ import { LogoWall } from "@/components/site/LogoWall";
 import { TileGrid } from "@/components/site/TileGrid";
 import { WaitlistForm } from "@/components/site/WaitlistForm";
 import ComingSoon from "@/components/sections/ComingSoon";
+import { SEO } from "@/components/SEO";
 import { environmentCategories, syntheticDatasets } from "@/data/content";
 import {
   Box,
@@ -572,8 +573,15 @@ export default function Home() {
   const datasetPreview = syntheticDatasets.slice(0, 3);
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
-      <DotPattern />
+    <>
+      <SEO
+        title="Blueprint | SimReady Scenes for Robotic Training"
+        description="Physics-accurate environments with domain randomization, precision geometry, and sim2real-validated assets. SimReady USD packages for Isaac Sim, MuJoCo, and leading robotics simulators."
+        canonical="/"
+        image="https://tryblueprint.io/images/og-home.png"
+      />
+      <div className="relative min-h-screen overflow-hidden bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
+        <DotPattern />
 
       {/* --- Hero Section --- */}
       <div className="relative pb-24 pt-16 sm:pt-24 lg:pb-32">
@@ -1031,5 +1039,6 @@ export default function Home() {
         </div>
       </section>
     </div>
+    </>
   );
 }

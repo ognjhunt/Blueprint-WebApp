@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
 
 export function WaitlistForm() {
   const [email, setEmail] = useState("");
@@ -64,10 +65,17 @@ export function WaitlistForm() {
         </label>
         <button
           type="submit"
-          className="inline-flex items-center justify-center rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-60"
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-60"
           disabled={status === "loading"}
         >
-          {status === "loading" ? "Submitting…" : "Join waitlist"}
+          {status === "loading" ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Submitting...
+            </>
+          ) : (
+            "Join waitlist"
+          )}
         </button>
       </form>
       {message ? (

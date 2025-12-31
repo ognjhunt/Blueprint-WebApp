@@ -680,6 +680,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { format, formatDistanceToNow } from "date-fns";
+import { SEO } from "@/components/SEO";
 import {
   CalendarDays,
   Clock,
@@ -956,16 +957,22 @@ export default function Portal() {
   );
 
   return (
-    <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
-      <DotPattern />
+    <>
+      <SEO
+        title="Artist Portal | SimReady Work Queue"
+        description="Browse and claim SimReady scene finishing briefs. Get paid to create physics-accurate 3D environments for robotics training."
+        canonical="/portal"
+      />
+      <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
+        <DotPattern />
 
-      <div className="mx-auto max-w-7xl px-4 pb-24 pt-16 sm:px-6 lg:px-8">
-        {/* --- Header & Stats Dashboard --- */}
-        <header className="mb-12 space-y-8">
-          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
-                <LayoutGrid className="h-3 w-3" />
+        <div className="mx-auto max-w-7xl px-4 pb-24 pt-16 sm:px-6 lg:px-8">
+          {/* --- Header & Stats Dashboard --- */}
+          <header className="mb-12 space-y-8">
+            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
+                  <LayoutGrid className="h-3 w-3" />
                 Artist Portal
               </div>
               <h1 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
@@ -1258,5 +1265,6 @@ export default function Portal() {
         )}
       </div>
     </div>
+    </>
   );
 }
