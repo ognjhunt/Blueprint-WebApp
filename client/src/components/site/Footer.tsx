@@ -3,7 +3,6 @@ const footerLinks = [
   { label: "Solutions", href: "/solutions" },
   { label: "Docs", href: "/docs" },
 //  { label: "Case Studies", href: "/case-studies" },
-  { label: "Pricing", href: "/solutions#pricing" },
   { label: "Careers", href: "/careers" },
   { label: "Contact", href: "/contact" },
   { label: "Privacy", href: "/privacy" },
