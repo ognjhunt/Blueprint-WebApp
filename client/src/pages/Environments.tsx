@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
+import { useLocation, useSearch } from "wouter";
 import {
   environmentPolicies,
   syntheticDatasets,
@@ -8,6 +9,7 @@ import {
   type MarketplaceScene,
 } from "@/data/content";
 import { MarketplaceCard } from "@/components/site/MarketplaceCard";
+import { analyticsEvents } from "@/components/Analytics";
 import {
   Search,
   Filter,
@@ -17,6 +19,11 @@ import {
   Database,
   Calendar,
   Layers,
+  CheckCircle,
+  XCircle,
+  X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 // --- Types ---
@@ -107,8 +114,80 @@ function DotPattern() {
   );
 }
 
+// --- Checkout Notification Component ---
+function CheckoutNotification({
+  type,
+  onClose,
+}: {
+  type: "success" | "cancel";
+  onClose: () => void;
+}) {
+  const isSuccess = type === "success";
+
+  return (
+    <div
+      className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-md w-full mx-4 rounded-xl border shadow-lg backdrop-blur-sm ${
+        isSuccess
+          ? "bg-emerald-50/95 border-emerald-200"
+          : "bg-amber-50/95 border-amber-200"
+      }`}
+    >
+      <div className="p-4">
+        <div className="flex items-start gap-3">
+          <div
+            className={`flex-shrink-0 rounded-full p-1 ${
+              isSuccess ? "bg-emerald-100" : "bg-amber-100"
+            }`}
+          >
+            {isSuccess ? (
+              <CheckCircle className="h-5 w-5 text-emerald-600" />
+            ) : (
+              <XCircle className="h-5 w-5 text-amber-600" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3
+              className={`text-sm font-semibold ${
+                isSuccess ? "text-emerald-900" : "text-amber-900"
+              }`}
+            >
+              {isSuccess ? "Purchase Successful!" : "Checkout Cancelled"}
+            </h3>
+            <p
+              className={`mt-1 text-sm ${
+                isSuccess ? "text-emerald-700" : "text-amber-700"
+              }`}
+            >
+              {isSuccess
+                ? "Thank you for your purchase! You will receive a confirmation email with download instructions shortly."
+                : "Your checkout was cancelled. No charges were made. Feel free to browse and try again when you're ready."}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className={`flex-shrink-0 rounded-lg p-1 transition-colors ${
+              isSuccess
+                ? "hover:bg-emerald-100 text-emerald-500"
+                : "hover:bg-amber-100 text-amber-500"
+            }`}
+            aria-label="Dismiss notification"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const ITEMS_PER_PAGE = 12;
+
 export default function Environments() {
   // --- State ---
+  const [, setLocation] = useLocation();
+  const searchString = useSearch();
+  const [checkoutStatus, setCheckoutStatus] = useState<"success" | "cancel" | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [itemTypeFilter, setItemTypeFilter] =
     useState<MarketplaceItemType>("all");
   const [locationFilter, setLocationFilter] = useState<string | null>(null);
@@ -118,6 +197,149 @@ export default function Environments() {
   >([]);
   const [sortOption, setSortOption] = useState<string>("newest");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // --- Initialize filters from URL ---
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+
+    const type = params.get("type");
+    if (type === "datasets" || type === "scenes") {
+      setItemTypeFilter(type);
+    }
+
+    const location = params.get("location");
+    if (location) {
+      setLocationFilter(location);
+    }
+
+    const policy = params.get("policy");
+    if (policy) {
+      setPolicyFilter(policy);
+    }
+
+    const sort = params.get("sort");
+    if (sort && ["newest", "price-asc", "price-desc", "scene-desc"].includes(sort)) {
+      setSortOption(sort);
+    }
+
+    const q = params.get("q");
+    if (q) {
+      setSearchQuery(q);
+    }
+
+    const page = params.get("page");
+    if (page) {
+      const pageNum = parseInt(page, 10);
+      if (!isNaN(pageNum) && pageNum > 0) {
+        setCurrentPage(pageNum);
+      }
+    }
+  }, []); // Only run once on mount
+
+  // --- Sync filters to URL ---
+  const updateUrlWithFilters = (updates: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchString);
+
+    // Preserve checkout status if present
+    const checkout = params.get("checkout");
+
+    // Clear existing filter params
+    params.delete("type");
+    params.delete("location");
+    params.delete("policy");
+    params.delete("sort");
+    params.delete("q");
+    params.delete("page");
+
+    // Restore checkout if needed
+    if (checkout) {
+      params.set("checkout", checkout);
+    }
+
+    // Apply current state
+    if (itemTypeFilter !== "all") params.set("type", itemTypeFilter);
+    if (locationFilter) params.set("location", locationFilter);
+    if (policyFilter) params.set("policy", policyFilter);
+    if (sortOption !== "newest") params.set("sort", sortOption);
+    if (searchQuery) params.set("q", searchQuery);
+    if (currentPage > 1) params.set("page", String(currentPage));
+
+    // Apply updates
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === null) {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+    }
+
+    const newSearch = params.toString();
+    setLocation(`/environments${newSearch ? `?${newSearch}` : ""}`, { replace: true });
+  };
+
+  // Filter change handlers with URL sync
+  const handleTypeFilterChange = (type: MarketplaceItemType) => {
+    setItemTypeFilter(type);
+    setCurrentPage(1);
+    updateUrlWithFilters({ type: type === "all" ? null : type, page: null });
+  };
+
+  const handleLocationFilterChange = (location: string | null) => {
+    setLocationFilter(location);
+    setCurrentPage(1);
+    updateUrlWithFilters({ location, page: null });
+  };
+
+  const handlePolicyFilterChange = (policy: string | null) => {
+    setPolicyFilter(policy);
+    setCurrentPage(1);
+    updateUrlWithFilters({ policy, page: null });
+  };
+
+  const handleSortChange = (sort: string) => {
+    setSortOption(sort);
+    updateUrlWithFilters({ sort: sort === "newest" ? null : sort });
+  };
+
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    setCurrentPage(1);
+    // Debounce URL update for search
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    updateUrlWithFilters({ page: page === 1 ? null : String(page) });
+    // Scroll to top of results
+    window.scrollTo({ top: 400, behavior: "smooth" });
+  };
+
+  // --- Handle Checkout Redirect ---
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    const checkout = params.get("checkout");
+
+    if (checkout === "success" || checkout === "cancel") {
+      setCheckoutStatus(checkout);
+
+      // Track analytics
+      if (checkout === "success") {
+        analyticsEvents.completeCheckout("marketplace", 0);
+      }
+
+      // Clear the query param from URL without page reload
+      params.delete("checkout");
+      const newSearch = params.toString();
+      setLocation(`/environments${newSearch ? `?${newSearch}` : ""}`, { replace: true });
+
+      // Auto-dismiss after 10 seconds for success, 8 for cancel
+      const timeout = setTimeout(() => {
+        setCheckoutStatus(null);
+      }, checkout === "success" ? 10000 : 8000);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [searchString, setLocation]);
 
   // --- Logic ---
 
@@ -256,6 +478,20 @@ export default function Environments() {
     );
   }, [filteredItems, featuredItems]);
 
+  // --- Pagination ---
+  const totalPages = Math.ceil(regularItems.length / ITEMS_PER_PAGE);
+  const paginatedItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return regularItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [regularItems, currentPage]);
+
+  // Reset to page 1 if current page is out of bounds
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [totalPages, currentPage]);
+
   const handleObjectToggle = (objectTag: string) => {
     setObjectFiltersSelection((prev) =>
       prev.includes(objectTag)
@@ -297,6 +533,14 @@ export default function Environments() {
   // --- Render ---
   return (
     <>
+      {/* Checkout Notification */}
+      {checkoutStatus && (
+        <CheckoutNotification
+          type={checkoutStatus}
+          onClose={() => setCheckoutStatus(null)}
+        />
+      )}
+
       <Helmet>
         <title>Environments Marketplace | Blueprint - SimReady Datasets for Robotics</title>
         <meta
@@ -551,19 +795,43 @@ export default function Environments() {
 
         {/* --- Results --- */}
         <div className="space-y-12">
-          {/* Results count */}
+          {/* Results count and pagination info */}
           <div className="flex items-center justify-between text-sm text-zinc-500">
             <p>
-              Showing{" "}
-              <span className="font-medium text-zinc-900">
-                {filteredItems.length}
-              </span>{" "}
+              {regularItems.length > ITEMS_PER_PAGE ? (
+                <>
+                  Showing{" "}
+                  <span className="font-medium text-zinc-900">
+                    {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, regularItems.length)}
+                  </span>
+                  {" - "}
+                  <span className="font-medium text-zinc-900">
+                    {Math.min(currentPage * ITEMS_PER_PAGE, regularItems.length)}
+                  </span>
+                  {" of "}
+                  <span className="font-medium text-zinc-900">
+                    {regularItems.length}
+                  </span>{" "}
+                </>
+              ) : (
+                <>
+                  Showing{" "}
+                  <span className="font-medium text-zinc-900">
+                    {filteredItems.length}
+                  </span>{" "}
+                </>
+              )}
               {itemTypeFilter === "all"
                 ? "items"
                 : itemTypeFilter === "datasets"
                 ? "dataset bundles"
                 : "individual scenes"}
             </p>
+            {totalPages > 1 && (
+              <p className="text-zinc-400">
+                Page {currentPage} of {totalPages}
+              </p>
+            )}
           </div>
 
           {filteredItems.length === 0 ? (
@@ -618,7 +886,7 @@ export default function Environments() {
                   </h2>
                 )}
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {regularItems.map((item) => (
+                  {paginatedItems.map((item) => (
                     <MarketplaceCard
                       key={item.data.slug}
                       item={item.data}
@@ -626,6 +894,80 @@ export default function Environments() {
                     />
                   ))}
                 </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <nav
+                    className="flex items-center justify-center gap-2 pt-8"
+                    aria-label="Pagination"
+                  >
+                    {/* Previous Button */}
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className={`flex items-center gap-1 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                        currentPage === 1
+                          ? "cursor-not-allowed border-zinc-200 bg-zinc-50 text-zinc-300"
+                          : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300"
+                      }`}
+                      aria-label="Previous page"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </button>
+
+                    {/* Page Numbers */}
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .filter((page) => {
+                          // Show first, last, current, and pages around current
+                          if (page === 1 || page === totalPages) return true;
+                          if (Math.abs(page - currentPage) <= 1) return true;
+                          return false;
+                        })
+                        .map((page, index, arr) => {
+                          // Add ellipsis between gaps
+                          const prevPage = arr[index - 1];
+                          const showEllipsis = prevPage && page - prevPage > 1;
+
+                          return (
+                            <span key={page} className="flex items-center">
+                              {showEllipsis && (
+                                <span className="px-2 text-zinc-400">...</span>
+                              )}
+                              <button
+                                onClick={() => handlePageChange(page)}
+                                className={`min-w-[40px] rounded-lg px-3 py-2 text-sm font-medium transition ${
+                                  currentPage === page
+                                    ? "bg-zinc-900 text-white"
+                                    : "text-zinc-600 hover:bg-zinc-100"
+                                }`}
+                                aria-label={`Page ${page}`}
+                                aria-current={currentPage === page ? "page" : undefined}
+                              >
+                                {page}
+                              </button>
+                            </span>
+                          );
+                        })}
+                    </div>
+
+                    {/* Next Button */}
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className={`flex items-center gap-1 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                        currentPage === totalPages
+                          ? "cursor-not-allowed border-zinc-200 bg-zinc-50 text-zinc-300"
+                          : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300"
+                      }`}
+                      aria-label="Next page"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </nav>
+                )}
               </section>
             </>
           )}

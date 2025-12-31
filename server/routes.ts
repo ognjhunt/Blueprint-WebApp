@@ -16,11 +16,18 @@ import stripeAccountRouter from "./routes/stripe";
 import contactHandler from "./routes/contact";
 import waitlistHandler from "./routes/waitlist";
 import applyHandler from "./routes/apply";
+import healthRouter from "./routes/health";
+import errorsRouter from "./routes/errors";
 
 export function registerRoutes(app: Express) {
   app.use(appleAssociationRouter);
+
+  // Health check routes (no /api prefix for standard probe paths)
+  app.use(healthRouter);
+
   // API routes for Express
   app.use("/api/webhooks", webhooksRouter);
+  app.use("/api/errors", errorsRouter);
   app.post("/api/create-checkout-session", createCheckoutSessionHandler);
   app.get("/api/googlePlaces", googlePlacesHandler);
   app.all("/api/generate-image", generateImageHandler);
