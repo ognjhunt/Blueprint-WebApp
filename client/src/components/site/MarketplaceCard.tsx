@@ -1,7 +1,7 @@
 import type { MouseEvent } from "react";
 import { useState, useCallback } from "react";
 import { loadStripe } from "@stripe/stripe-js";
-import { Shield, Package, Sparkles, TrendingUp, ShoppingCart, Loader2 } from "lucide-react";
+import { Shield, Package, Sparkles, TrendingUp, ShoppingCart, Loader2, Play, Layers } from "lucide-react";
 import type { SyntheticDataset, MarketplaceScene } from "@/data/content";
 import { useLocation } from "wouter";
 
@@ -178,10 +178,14 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
         )}
 
         {/* Type badge */}
-        <div className="absolute bottom-3 left-3">
+        <div className="absolute bottom-3 left-3 flex gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-black/60 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
             <Package className="h-3 w-3" />
             {isDataset ? "Dataset Bundle" : "Single Scene"}
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/80 px-2 py-1 text-[10px] font-bold text-white backdrop-blur-sm">
+            <Play className="h-2.5 w-2.5" />
+            + Episodes
           </span>
         </div>
       </div>
@@ -209,60 +213,79 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
             <>
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl font-bold text-zinc-900">
-                  ${mainPrice}
+                  ${dataset!.bundlePrice?.toLocaleString()}
                 </span>
-                <span className="text-sm text-zinc-500">/scene</span>
-                {dataset!.standardPricePerScene && (
-                  <span className="text-sm text-zinc-400 line-through">
-                    ${dataset!.standardPricePerScene}
-                  </span>
-                )}
+                <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                  Scene + Episodes
+                </span>
               </div>
               <div className="text-xs text-zinc-500">
-                Total bundle: ${totalBundlePrice.toLocaleString()} ({dataset!.sceneCount} scenes)
+                {dataset!.sceneCount} scenes • {dataset!.variationCount?.toLocaleString()} variations • {dataset!.episodeCount?.toLocaleString()} episodes
               </div>
             </>
           ) : (
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-zinc-900">
-                ${mainPrice}
-              </span>
-            </div>
+            <>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-zinc-900">
+                  ${scene!.bundlePrice || scene!.price}
+                </span>
+                <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                  Scene + Episodes
+                </span>
+              </div>
+              <div className="text-xs text-zinc-500">
+                {(scene!.variationCount || 500).toLocaleString()} variations • {(scene!.episodeCount || 5000).toLocaleString()} AI-generated episodes
+              </div>
+            </>
           )}
         </div>
 
         {/* Stats Grid */}
         <div
-          className={`mb-4 grid ${isDataset ? "grid-cols-2" : "grid-cols-1"} gap-2 rounded-lg border border-zinc-100 bg-zinc-50 p-3`}
+          className={`mb-4 grid ${isDataset ? "grid-cols-2" : "grid-cols-2"} gap-2 rounded-lg border border-zinc-100 bg-zinc-50 p-3`}
         >
           {isDataset ? (
             <>
               <div>
-                <div className="text-[10px] uppercase tracking-wider text-zinc-500">
-                  Scenes
+                <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-zinc-500">
+                  <Layers className="h-3 w-3" />
+                  Variations
                 </div>
                 <div className="font-mono text-sm font-semibold text-zinc-900">
-                  {dataset!.sceneCount}
+                  {dataset!.variationCount?.toLocaleString()}
                 </div>
               </div>
               <div>
-                <div className="text-[10px] uppercase tracking-wider text-zinc-500">
-                  Frames
+                <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-zinc-500">
+                  <Play className="h-3 w-3" />
+                  Episodes
                 </div>
                 <div className="font-mono text-sm font-semibold text-zinc-900">
-                  {dataset!.frameCount?.toLocaleString()}
+                  {dataset!.episodeCount?.toLocaleString()}
                 </div>
               </div>
             </>
           ) : (
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-zinc-500">
-                Frames
+            <>
+              <div>
+                <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-zinc-500">
+                  <Layers className="h-3 w-3" />
+                  Variations
+                </div>
+                <div className="font-mono text-sm font-semibold text-zinc-900">
+                  {(scene!.variationCount || 500).toLocaleString()}
+                </div>
               </div>
-              <div className="font-mono text-sm font-semibold text-zinc-900">
-                {(scene!.frameCount || 1000).toLocaleString()}
+              <div>
+                <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-zinc-500">
+                  <Play className="h-3 w-3" />
+                  Episodes
+                </div>
+                <div className="font-mono text-sm font-semibold text-zinc-900">
+                  {(scene!.episodeCount || 5000).toLocaleString()}
+                </div>
               </div>
-            </div>
+            </>
           )}
         </div>
 

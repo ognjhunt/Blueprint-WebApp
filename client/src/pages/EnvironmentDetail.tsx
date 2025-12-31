@@ -22,6 +22,9 @@ import {
   Sparkles,
   Tag,
   TrendingUp,
+  Play,
+  Cpu,
+  Check,
 } from "lucide-react";
 
 interface EnvironmentDetailProps {
@@ -30,8 +33,11 @@ interface EnvironmentDetailProps {
   };
 }
 
+type PurchaseOption = 'bundle' | 'scene' | 'episodes';
+
 export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<PurchaseOption>('bundle');
 
   // Scroll to top when navigating to this page
   useEffect(() => {
@@ -63,20 +69,45 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
   const handleCheckout = useCallback(async () => {
     if (!marketplaceItem || isRedirecting) return;
 
+    // Get pricing based on selected option
+    const getPriceForOption = () => {
+      if (isDataset) {
+        const ds = marketplaceDataset!;
+        switch (selectedOption) {
+          case 'bundle': return ds.bundlePrice;
+          case 'scene': return ds.sceneOnlyPrice;
+          case 'episodes': return ds.episodesOnlyPrice;
+        }
+      } else {
+        const sc = marketplaceScene!;
+        switch (selectedOption) {
+          case 'bundle': return sc.bundlePrice || sc.price;
+          case 'scene': return sc.sceneOnlyPrice || Math.round(sc.price * 0.45);
+          case 'episodes': return sc.episodesOnlyPrice || Math.round(sc.price * 0.65);
+        }
+      }
+    };
+
+    const optionLabels: Record<PurchaseOption, string> = {
+      bundle: 'Scene + Episodes Bundle',
+      scene: 'Scene Only',
+      episodes: 'Episodes Only',
+    };
+
     const checkoutItem = isDataset
       ? {
-          sku: marketplaceDataset!.slug,
-          title: marketplaceDataset!.title,
+          sku: `${marketplaceDataset!.slug}-${selectedOption}`,
+          title: `${marketplaceDataset!.title} (${optionLabels[selectedOption]})`,
           description: marketplaceDataset!.description,
-          price: marketplaceDataset!.pricePerScene,
-          quantity: marketplaceDataset!.sceneCount || 1,
+          price: getPriceForOption(),
+          quantity: 1,
           itemType: "dataset" as const,
         }
       : {
-          sku: marketplaceScene!.slug,
-          title: marketplaceScene!.title,
+          sku: `${marketplaceScene!.slug}-${selectedOption}`,
+          title: `${marketplaceScene!.title} (${optionLabels[selectedOption]})`,
           description: marketplaceScene!.description,
-          price: marketplaceScene!.price,
+          price: getPriceForOption(),
           quantity: 1,
           itemType: "scene" as const,
         };
@@ -140,28 +171,39 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     } finally {
       setIsRedirecting(false);
     }
-  }, [detailSlug, isDataset, isRedirecting, marketplaceDataset, marketplaceItem, marketplaceScene]);
+  }, [detailSlug, isDataset, isRedirecting, marketplaceDataset, marketplaceItem, marketplaceScene, selectedOption]);
 
   if (marketplaceItem) {
     const heroImage = isDataset
       ? (marketplaceDataset as SyntheticDataset).heroImage
       : (marketplaceScene as MarketplaceScene).thumbnail;
-    const frameCount = isDataset
-      ? (marketplaceDataset as SyntheticDataset).frameCount
-      : (marketplaceScene as MarketplaceScene).frameCount;
+    const variationCount = isDataset
+      ? (marketplaceDataset as SyntheticDataset).variationCount
+      : (marketplaceScene as MarketplaceScene).variationCount || 500;
+    const episodeCount = isDataset
+      ? (marketplaceDataset as SyntheticDataset).episodeCount
+      : (marketplaceScene as MarketplaceScene).episodeCount || 5000;
     const deliverables = marketplaceItem.deliverables || [];
     const randomizers = (marketplaceDataset as SyntheticDataset | undefined)
       ?.randomizerScripts;
     const interactions = (marketplaceScene as MarketplaceScene | undefined)
       ?.interactions;
-    const quantityLabel = isDataset
-      ? `${(marketplaceDataset as SyntheticDataset).sceneCount} scenes`
-      : `${(frameCount ?? 1)} frames`;
-    const priceLabel = isDataset ? "/scene" : "";
-    const bundleTotal = isDataset
-      ? ((marketplaceDataset as SyntheticDataset).pricePerScene || 0) *
-        ((marketplaceDataset as SyntheticDataset).sceneCount || 1)
-      : null;
+
+    // Pricing data
+    const bundlePrice = isDataset
+      ? (marketplaceDataset as SyntheticDataset).bundlePrice
+      : (marketplaceScene as MarketplaceScene).bundlePrice || (marketplaceScene as MarketplaceScene).price;
+    const sceneOnlyPrice = isDataset
+      ? (marketplaceDataset as SyntheticDataset).sceneOnlyPrice
+      : (marketplaceScene as MarketplaceScene).sceneOnlyPrice || Math.round(((marketplaceScene as MarketplaceScene).price) * 0.45);
+    const episodesOnlyPrice = isDataset
+      ? (marketplaceDataset as SyntheticDataset).episodesOnlyPrice
+      : (marketplaceScene as MarketplaceScene).episodesOnlyPrice || Math.round(((marketplaceScene as MarketplaceScene).price) * 0.65);
+
+    // Calculate savings for bundle
+    const separateTotal = sceneOnlyPrice + episodesOnlyPrice;
+    const bundleSavings = separateTotal - bundlePrice;
+    const bundleSavingsPercent = Math.round((bundleSavings / separateTotal) * 100);
 
     const productStructuredData = {
       "@context": "https://schema.org",
@@ -259,7 +301,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
               />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-4">
               <div className="rounded-2xl border border-zinc-200 bg-white p-4">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
                   <Calendar className="h-4 w-4" /> Release
@@ -270,14 +312,21 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-white p-4">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
-                  <Layers className="h-4 w-4" /> Coverage
+                  <Layers className="h-4 w-4" /> Variations
                 </div>
                 <div className="mt-2 text-sm font-medium text-zinc-900">
-                  {quantityLabel}
+                  {variationCount?.toLocaleString()} layouts
                 </div>
-                {frameCount ? (
-                  <div className="text-xs text-zinc-500">{frameCount} frames</div>
-                ) : null}
+                <div className="text-xs text-zinc-500">Domain randomization</div>
+              </div>
+              <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                  <Play className="h-4 w-4" /> Episodes
+                </div>
+                <div className="mt-2 text-sm font-medium text-zinc-900">
+                  {episodeCount?.toLocaleString()} trajectories
+                </div>
+                <div className="text-xs text-zinc-500">AI-generated (Gemini)</div>
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-white p-4">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
@@ -292,69 +341,154 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
 
           <aside className="space-y-4">
             <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-zinc-500">Pricing</p>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-zinc-900">
-                      ${isDataset
-                        ? (marketplaceDataset as SyntheticDataset).pricePerScene
-                        : (marketplaceScene as MarketplaceScene).price}
-                    </span>
-                    {priceLabel ? (
-                      <span className="text-sm text-zinc-500">{priceLabel}</span>
-                    ) : null}
-                    {isDataset && (marketplaceDataset as SyntheticDataset).standardPricePerScene ? (
-                      <span className="text-xs text-zinc-400 line-through">
-                        ${(marketplaceDataset as SyntheticDataset).standardPricePerScene}
-                      </span>
-                    ) : null}
-                  </div>
-                {isDataset ? (
-                  <p className="mt-1 text-xs text-zinc-500">
-                    {`${quantityLabel} • bundle total $${
-                      bundleTotal ? bundleTotal.toLocaleString() : "0"
-                    }`}
-                  </p>
-                ) : (
-                  <p className="mt-1 text-xs text-emerald-600">
-                    {(marketplaceScene as MarketplaceScene).inStock
-                      ? "Available for immediate access"
-                      : "Join the waitlist"}
-                  </p>
-                  )}
-                </div>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-semibold text-zinc-900">Choose Your Package</p>
                 <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">
                   {(marketplaceItem.policySlugs || []).slice(0, 1).join(" ") || "SimReady"}
                 </span>
               </div>
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">Object coverage</p>
-                  <p className="mt-1 text-sm font-semibold text-zinc-900">
-                    {marketplaceItem.objectTags.slice(0, 3).join(", ") || "On request"}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">Policies</p>
-                  <p className="mt-1 text-sm font-semibold text-zinc-900">
-                    {marketplaceItem.policySlugs.slice(0, 2).join(", ") || "Custom"}
-                  </p>
+              {/* Purchase Options */}
+              <div className="space-y-3">
+                {/* Bundle Option - Best Value */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedOption('bundle')}
+                  className={`w-full rounded-xl border-2 p-4 text-left transition-all ${
+                    selectedOption === 'bundle'
+                      ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/20'
+                      : 'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <div className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${
+                          selectedOption === 'bundle' ? 'border-indigo-500 bg-indigo-500' : 'border-zinc-300'
+                        }`}>
+                          {selectedOption === 'bundle' && <Check className="h-3 w-3 text-white" />}
+                        </div>
+                        <span className="font-semibold text-zinc-900">Scene + Episodes Bundle</span>
+                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                          SAVE {bundleSavingsPercent}%
+                        </span>
+                      </div>
+                      <p className="mt-1 ml-7 text-xs text-zinc-500">
+                        Complete training package: {variationCount?.toLocaleString()} variations + {episodeCount?.toLocaleString()} AI-generated episodes
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xl font-bold text-zinc-900">${bundlePrice?.toLocaleString()}</span>
+                      <p className="text-xs text-zinc-400 line-through">${separateTotal.toLocaleString()}</p>
+                    </div>
+                  </div>
+                </button>
+
+                {/* Scene Only Option */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedOption('scene')}
+                  className={`w-full rounded-xl border-2 p-4 text-left transition-all ${
+                    selectedOption === 'scene'
+                      ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/20'
+                      : 'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <div className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${
+                          selectedOption === 'scene' ? 'border-indigo-500 bg-indigo-500' : 'border-zinc-300'
+                        }`}>
+                          {selectedOption === 'scene' && <Check className="h-3 w-3 text-white" />}
+                        </div>
+                        <Layers className="h-4 w-4 text-zinc-400" />
+                        <span className="font-semibold text-zinc-900">Scene Only</span>
+                      </div>
+                      <p className="mt-1 ml-7 text-xs text-zinc-500">
+                        {variationCount?.toLocaleString()} variations • Generate your own episodes
+                      </p>
+                    </div>
+                    <span className="text-xl font-bold text-zinc-900">${sceneOnlyPrice?.toLocaleString()}</span>
+                  </div>
+                </button>
+
+                {/* Episodes Only Option */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedOption('episodes')}
+                  className={`w-full rounded-xl border-2 p-4 text-left transition-all ${
+                    selectedOption === 'episodes'
+                      ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/20'
+                      : 'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <div className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${
+                          selectedOption === 'episodes' ? 'border-indigo-500 bg-indigo-500' : 'border-zinc-300'
+                        }`}>
+                          {selectedOption === 'episodes' && <Check className="h-3 w-3 text-white" />}
+                        </div>
+                        <Play className="h-4 w-4 text-zinc-400" />
+                        <span className="font-semibold text-zinc-900">Episodes Only</span>
+                      </div>
+                      <p className="mt-1 ml-7 text-xs text-zinc-500">
+                        {episodeCount?.toLocaleString()} AI-generated trajectories • Requires scene ownership
+                      </p>
+                    </div>
+                    <span className="text-xl font-bold text-zinc-900">${episodesOnlyPrice?.toLocaleString()}</span>
+                  </div>
+                </button>
+              </div>
+
+              {/* What's Included */}
+              <div className="mt-4 rounded-xl bg-zinc-50 p-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-2">
+                  {selectedOption === 'bundle' ? 'Bundle includes' : selectedOption === 'scene' ? 'Scene includes' : 'Episodes include'}
+                </p>
+                <div className="space-y-1.5">
+                  {(selectedOption === 'bundle' || selectedOption === 'scene') && (
+                    <>
+                      <div className="flex items-center gap-2 text-xs text-zinc-600">
+                        <Check className="h-3 w-3 text-emerald-500" />
+                        <span>{variationCount?.toLocaleString()} scene variations (domain randomization)</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-zinc-600">
+                        <Check className="h-3 w-3 text-emerald-500" />
+                        <span>USD format with physics metadata</span>
+                      </div>
+                    </>
+                  )}
+                  {(selectedOption === 'bundle' || selectedOption === 'episodes') && (
+                    <>
+                      <div className="flex items-center gap-2 text-xs text-zinc-600">
+                        <Check className="h-3 w-3 text-emerald-500" />
+                        <span>{episodeCount?.toLocaleString()} AI-generated episodes (Gemini)</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-zinc-600">
+                        <Check className="h-3 w-3 text-emerald-500" />
+                        <span>LeRobot-compatible trajectory format</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
               <button
-                className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-indigo-600 disabled:opacity-60"
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-indigo-600 disabled:opacity-60"
                 onClick={handleCheckout}
                 disabled={isRedirecting}
               >
                 <ShoppingCart className="h-4 w-4" />
                 {isRedirecting
                   ? "Redirecting..."
-                  : isDataset
-                  ? "Buy bundle"
-                  : "Buy this scene"}
+                  : `Buy ${selectedOption === 'bundle' ? 'Bundle' : selectedOption === 'scene' ? 'Scene' : 'Episodes'} — $${
+                      selectedOption === 'bundle' ? bundlePrice?.toLocaleString() :
+                      selectedOption === 'scene' ? sceneOnlyPrice?.toLocaleString() :
+                      episodesOnlyPrice?.toLocaleString()
+                    }`}
               </button>
             </div>
 
