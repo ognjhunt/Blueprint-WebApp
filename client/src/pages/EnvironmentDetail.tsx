@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet";
 import { loadStripe } from "@stripe/stripe-js";
 import {
@@ -32,6 +32,11 @@ interface EnvironmentDetailProps {
 
 export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
   const [isRedirecting, setIsRedirecting] = useState(false);
+
+  // Scroll to top when navigating to this page
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   const marketplaceDataset = syntheticDatasets.find(
     (item) => item.slug === params.slug,
