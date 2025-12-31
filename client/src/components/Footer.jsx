@@ -45,8 +45,8 @@ export default function Footer() {
               </h3>
             </div>
             <p className="text-slate-400 max-w-xl">
-              Transforming physical spaces with AI glasses that deliver
-              instant guidance, answers, and service. No custom app required.
+              Physics-accurate SimReady environments for robotic training.
+              Domain randomization, precision geometry, and sim2real-validated assets.
             </p>
             <div className="flex items-center gap-4 mt-5 text-slate-400">
               <a

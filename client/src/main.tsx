@@ -15,7 +15,8 @@ const Environments = lazy(() => import("./pages/Environments"));
 // const Recipes = lazy(() => import("./pages/Recipes")); // Hidden: recipes temporarily removed from offerings
 const EnvironmentDetail = lazy(() => import("./pages/EnvironmentDetail"));
 const Solutions = lazy(() => import("./pages/Solutions"));
-const Capture = lazy(() => import("./pages/Capture"));
+const Learn = lazy(() => import("./pages/Learn"));
+// const Capture = lazy(() => import("./pages/Capture")); // Capture service coming Q2 2026
 const Docs = lazy(() => import("./pages/Docs"));
 const CaseStudies = lazy(() => import("./pages/CaseStudies"));
 const Careers = lazy(() => import("./pages/Careers"));
@@ -46,7 +47,7 @@ function Router() {
           component={withLayout(EnvironmentDetail)}
         />
         <Route path="/solutions" component={withLayout(Solutions)} />
-        <Route path="/capture" component={withLayout(Capture)} />
+        <Route path="/learn" component={withLayout(Learn)} />
         <Route path="/docs" component={withLayout(Docs)} />
         <Route path="/case-studies" component={withLayout(CaseStudies)} />
         <Route path="/careers" component={withLayout(Careers)} />

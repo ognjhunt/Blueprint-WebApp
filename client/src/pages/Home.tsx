@@ -403,7 +403,6 @@
 import { CTAButtons } from "@/components/site/CTAButtons";
 import { LogoWall } from "@/components/site/LogoWall";
 import { TileGrid } from "@/components/site/TileGrid";
-import { WaitlistForm } from "@/components/site/WaitlistForm";
 import ComingSoon from "@/components/sections/ComingSoon";
 import { SEO } from "@/components/SEO";
 import { environmentCategories, syntheticDatasets } from "@/data/content";
@@ -1004,7 +1003,7 @@ export default function Home() {
       {/* --- Coming Soon / Future Offerings --- */}
       <ComingSoon />
 
-      {/* --- CTA / Waitlist (Inverted Dark Section) --- */}
+      {/* --- Capture Coming Soon (Inverted Dark Section) --- */}
       <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
         <div className="relative overflow-hidden rounded-3xl bg-zinc-950 px-6 py-16 shadow-2xl sm:px-12 sm:py-20">
           {/* Background decoration */}
@@ -1013,27 +1012,39 @@ export default function Home() {
 
           <div className="relative z-10 flex flex-col gap-10 md:flex-row md:items-center md:justify-between">
             <div className="max-w-xl">
-              <div className="flex items-center gap-2 text-emerald-400">
+              <div className="flex items-center gap-2 text-amber-400">
                 <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500"></span>
                 </span>
                 <p className="text-xs font-bold uppercase tracking-widest">
-                  Capture Waitlist Active
+                  Coming Q2 2026
                 </p>
               </div>
               <h3 className="mt-4 text-3xl font-bold text-white sm:text-4xl">
-                Turn any facility into a SimReady digital twin.
+                Real-World Capture Service
               </h3>
               <p className="mt-4 text-lg text-zinc-400">
-                Share the address you care about and we’ll coordinate a capture
-                window. Expect delivery in days (not months) with USD, URDF, and
-                QA reports.
+                We'll scan your exact facility and return a physics-accurate digital twin
+                with sim2real-validated geometry, delivered with USD, URDF, and QA reports.
+              </p>
+              <p className="mt-4 text-sm text-zinc-500">
+                In the meantime, explore our synthetic marketplace or submit a photo for reconstruction.
               </p>
             </div>
 
-            <div className="w-full md:w-auto">
-              <WaitlistForm />
+            <div className="flex flex-col gap-4 w-full md:w-auto">
+              <a
+                href="/environments"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition-colors hover:bg-zinc-200"
+              >
+                Browse Marketplace
+              </a>
+              <a
+                href="/contact?request=snapshot"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-700 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
+              >
+                Upload a Photo
+              </a>
             </div>
           </div>
         </div>
