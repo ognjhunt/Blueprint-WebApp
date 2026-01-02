@@ -1,10 +1,9 @@
 const footerLinks = [
-  { label: "Environments", href: "/environments" },
   { label: "Solutions", href: "/solutions" },
+  { label: "Pricing", href: "/pricing" },
+  { label: "New to Simulation?", href: "/learn" },
   { label: "Docs", href: "/docs" },
-//  { label: "Case Studies", href: "/case-studies" },
-  { label: "Careers", href: "/careers" },
-  { label: "Contact", href: "/contact" },
+  { label: "Portal", href: "/portal" },
   { label: "Privacy", href: "/privacy" },
   { label: "Terms", href: "/terms" },
 ];
