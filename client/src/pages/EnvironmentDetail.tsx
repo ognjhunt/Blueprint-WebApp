@@ -5,6 +5,7 @@ import {
   scenes,
   syntheticDatasets,
   marketplaceScenes,
+  premiumCapabilities,
   type SyntheticDataset,
   type MarketplaceScene,
 } from "@/data/content";
@@ -14,18 +15,40 @@ import { SceneCard } from "@/components/site/SceneCard";
 import {
   ArrowLeft,
   Box,
+  Brain,
   Calendar,
+  CheckCircle2,
+  ChevronRight,
+  Hand,
   Layers,
+  MessageSquare,
+  Move,
   Package,
   Shield,
   ShoppingCart,
   Sparkles,
   Tag,
+  Target,
   TrendingUp,
   Play,
   Cpu,
   Check,
+  Users,
+  Zap,
 } from "lucide-react";
+
+// Icon mapping for premium capabilities
+const capabilityIconMap: Record<string, React.ReactNode> = {
+  brain: <Brain className="h-5 w-5" />,
+  "message-square": <MessageSquare className="h-5 w-5" />,
+  "check-circle": <CheckCircle2 className="h-5 w-5" />,
+  target: <Target className="h-5 w-5" />,
+  hand: <Hand className="h-5 w-5" />,
+  users: <Users className="h-5 w-5" />,
+  layers: <Layers className="h-5 w-5" />,
+  cpu: <Cpu className="h-5 w-5" />,
+  move: <Move className="h-5 w-5" />,
+};
 
 interface EnvironmentDetailProps {
   params: {
@@ -600,6 +623,101 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                 </div>
               ) : null}
             </div>
+          </div>
+        </section>
+
+        {/* Premium Add-ons Section */}
+        <section className="space-y-8">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-amber-500" />
+              <h2 className="text-2xl font-semibold text-zinc-900">Premium Add-ons</h2>
+            </div>
+            <p className="text-zinc-600">
+              Enhance your training data with these optional capabilities. Contact us to add any of these to your order.
+            </p>
+          </div>
+
+          {/* High-Impact Add-ons */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+                High-Impact
+              </span>
+              <span className="text-sm text-zinc-500">Immediate value upgrades</span>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              {premiumCapabilities
+                .filter((c) => c.tier === "immediate")
+                .map((capability) => (
+                  <div
+                    key={capability.slug}
+                    className="rounded-2xl border border-zinc-200 bg-white p-5 space-y-3"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600">
+                          {capabilityIconMap[capability.icon] || <Sparkles className="h-5 w-5" />}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-zinc-900">{capability.title}</h3>
+                          <p className="text-sm font-medium text-emerald-600">{capability.priceRange}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-sm text-zinc-600">{capability.description}</p>
+                    <ul className="space-y-1.5">
+                      {capability.benefits.slice(0, 3).map((benefit) => (
+                        <li key={benefit} className="flex items-start gap-2 text-xs text-zinc-600">
+                          <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                          {benefit}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          {/* Strategic Capabilities */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">
+                Strategic
+              </span>
+              <span className="text-sm text-zinc-500">Advanced training features</span>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+              {premiumCapabilities
+                .filter((c) => c.tier === "strategic")
+                .map((capability) => (
+                  <div
+                    key={capability.slug}
+                    className="rounded-xl border border-zinc-200 bg-white p-4 space-y-2"
+                  >
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600">
+                      {capabilityIconMap[capability.icon] || <Sparkles className="h-4 w-4" />}
+                    </div>
+                    <h3 className="font-semibold text-zinc-900 text-sm">{capability.shortTitle}</h3>
+                    <p className="text-xs font-medium text-emerald-600">{capability.priceRange}</p>
+                    <p className="text-xs text-zinc-500 line-clamp-3">{capability.description}</p>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          {/* CTA */}
+          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-6 text-center">
+            <p className="text-sm text-zinc-600 mb-3">
+              Interested in adding premium capabilities to this scene?
+            </p>
+            <a
+              href={`/contact?scene=${detailSlug}&interest=premium-addons`}
+              className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
+            >
+              Contact Us About Add-ons
+              <ChevronRight className="h-4 w-4" />
+            </a>
           </div>
         </section>
         </div>
