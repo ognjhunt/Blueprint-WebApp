@@ -1971,12 +1971,21 @@ export interface PremiumCapability {
   shortTitle: string;
   description: string;
   detailedDescription: string;
-  priceRange: string;
+  /** Fixed price for this add-on */
+  price: number;
+  /** Display string for price (e.g., "+$1,500") */
+  priceDisplay: string;
   tier: "immediate" | "strategic" | "enterprise";
   icon: string;
   benefits: string[];
   technicalDetails: string[];
   useCases: string[];
+  /** If true, this add-on requires scene purchase (not episodes-only) */
+  requiresScene?: boolean;
+  /** If true, this add-on requires episodes purchase (not scene-only) */
+  requiresEpisodes?: boolean;
+  /** Slugs of add-ons that cannot be selected together with this one */
+  incompatibleWith?: string[];
 }
 
 export interface BundleTierConfig {
@@ -2003,17 +2012,17 @@ export const premiumCapabilities: PremiumCapability[] = [
     title: "VLA Fine-Tuning Packages",
     shortTitle: "VLA Training",
     description:
-      "Turnkey fine-tuning configs for OpenVLA, Pi0, SmolVLA, and GR00T N1.5. Start training vision-language-action models immediately.",
+      "Turnkey fine-tuning configs for OpenVLA, Pi0, SmolVLA, and GR00T N1.5.",
     detailedDescription:
       "Pre-configured training pipelines with hyperparameters, evaluation scripts, and model checkpoints. Saves 2-4 weeks of ML engineering time per model.",
-    priceRange: "+$3,000–$8,000 per scene",
+    price: 4500,
+    priceDisplay: "+$4,500",
     tier: "immediate",
     icon: "brain",
     benefits: [
       "Ready-to-run training configs for 4 VLA architectures",
       "Pre-tuned hyperparameters validated on Blueprint data",
       "Evaluation scripts with sim2real metrics",
-      "2-4 weeks engineering time saved per model",
     ],
     technicalDetails: [
       "OpenVLA 7B with LoRA fine-tuning configs",
@@ -2026,23 +2035,24 @@ export const premiumCapabilities: PremiumCapability[] = [
       "Labs evaluating VLA architectures",
       "Companies building language-conditioned robots",
     ],
+    requiresEpisodes: true,
   },
   {
     slug: "language-annotations",
     title: "Language-Conditioned Data",
     shortTitle: "Language Data",
     description:
-      "Natural language instructions for every episode. Required for VLA model training with 10+ variations per task.",
+      "Natural language instructions for every episode with 10+ variations per task.",
     detailedDescription:
       "LLM-generated language annotations in multiple styles (imperative, descriptive, casual). Enables vision-language-action model training without manual annotation.",
-    priceRange: "+$1,500 per scene",
+    price: 1500,
+    priceDisplay: "+$1,500",
     tier: "immediate",
     icon: "message-square",
     benefits: [
       "10+ language variations per task",
       "Multiple annotation styles for robustness",
       "Automatic integration with LeRobot export",
-      "Required for VLA fine-tuning",
     ],
     technicalDetails: [
       "Template-based generation for common tasks",
@@ -2055,23 +2065,24 @@ export const premiumCapabilities: PremiumCapability[] = [
       "Language-conditioned imitation learning",
       "Multi-task policy training",
     ],
+    requiresEpisodes: true,
   },
   {
     slug: "sim2real-validation",
-    title: "Sim2Real Validation Service",
+    title: "Sim2Real Validation",
     shortTitle: "Sim2Real QA",
     description:
-      "Automated sim-to-real transfer validation with partner lab testing. Achieve 85%+ real-world success rates.",
+      "Automated sim-to-real transfer validation with partner lab testing.",
     detailedDescription:
       "Complete validation framework with automated reporting, partner lab integration, and quality guarantees. Based on NVIDIA research showing 5%→87% improvement with proper domain randomization.",
-    priceRange: "$5,000–$25,000 per study",
+    price: 8500,
+    priceDisplay: "+$8,500",
     tier: "immediate",
     icon: "check-circle",
     benefits: [
       "Automated transfer gap analysis",
       "Partner lab integration for real-world testing",
       "Quality guarantees (50%/70%/85% success tiers)",
-      "Detailed failure mode reporting",
     ],
     technicalDetails: [
       "Domain randomization validation",
@@ -2084,23 +2095,25 @@ export const premiumCapabilities: PremiumCapability[] = [
       "Research paper benchmarking",
       "Customer proof-of-concept demonstrations",
     ],
+    requiresScene: true,
+    requiresEpisodes: true,
   },
   {
     slug: "contact-rich-tasks",
-    title: "Contact-Rich Task Premium",
+    title: "Contact-Rich Tasks",
     shortTitle: "Precision Assembly",
     description:
-      "Specialized episodes for peg-in-hole, snap-fit, screw driving, and precision insertion. 3x base pricing for premium physics.",
+      "Specialized episodes for peg-in-hole, snap-fit, and precision insertion.",
     detailedDescription:
       "High-precision contact physics with force/torque feedback, compliance control, and sub-millimeter tolerances. Based on NVIDIA's faster-than-realtime assembly training research.",
-    priceRange: "3x base price ($7,500–$15,000)",
+    price: 9000,
+    priceDisplay: "+$9,000",
     tier: "immediate",
     icon: "target",
     benefits: [
       "Sub-millimeter tolerance physics",
       "Force/torque profile generation",
       "Compliance control trajectories",
-      "Industrial assembly task coverage",
     ],
     technicalDetails: [
       "Peg-in-hole insertion (0.1-2mm clearance)",
@@ -2113,25 +2126,26 @@ export const premiumCapabilities: PremiumCapability[] = [
       "Automotive manufacturing",
       "Precision laboratory tasks",
     ],
+    requiresEpisodes: true,
   },
 
   // === TIER 2: STRATEGIC ADDITIONS ===
   {
     slug: "tactile-sensor",
-    title: "Tactile Sensor Simulation",
+    title: "Tactile Sensor Data",
     shortTitle: "Tactile Data",
     description:
-      "Simulated tactile sensor data for GelSight, GelSlim, DIGIT, and magnetic sensors. Research shows 81% success with tactile vs 50% vision-only.",
+      "Simulated tactile sensor data for GelSight, GelSlim, and DIGIT sensors.",
     detailedDescription:
       "Complete tactile simulation layer with depth maps, force distributions, and marker displacement tracking. Enables training of tactile-visual policies.",
-    priceRange: "+$2,500–$4,000 per scene",
+    price: 3000,
+    priceDisplay: "+$3,000",
     tier: "strategic",
     icon: "hand",
     benefits: [
       "GelSight/GelSlim marker simulation",
       "DIGIT optical tactile sensor model",
       "Contact force distribution maps",
-      "81%+ success rate improvement",
     ],
     technicalDetails: [
       "160x120 tactile image generation",
@@ -2144,23 +2158,24 @@ export const premiumCapabilities: PremiumCapability[] = [
       "Delicate object handling",
       "Assembly verification",
     ],
+    requiresEpisodes: true,
   },
   {
     slug: "multi-robot-fleet",
-    title: "Multi-Robot Fleet Coordination",
+    title: "Multi-Robot Coordination",
     shortTitle: "Fleet Coordination",
     description:
-      "Handoff scenarios, collaborative assembly, and fleet logistics for warehouse and manufacturing deployments.",
+      "Handoff scenarios and collaborative assembly for multi-robot deployments.",
     detailedDescription:
       "Multi-agent coordination episodes with synchronized timing, collision avoidance, and task handoff protocols.",
-    priceRange: "+$6,000–$12,000 per scene",
+    price: 8000,
+    priceDisplay: "+$8,000",
     tier: "strategic",
     icon: "users",
     benefits: [
       "Robot-to-robot handoff episodes",
       "Collaborative assembly sequences",
       "Fleet navigation coordination",
-      "Collision avoidance validation",
     ],
     technicalDetails: [
       "2-8 robot coordination",
@@ -2173,23 +2188,25 @@ export const premiumCapabilities: PremiumCapability[] = [
       "Manufacturing cells",
       "Hospital logistics",
     ],
+    requiresScene: true,
+    requiresEpisodes: true,
   },
   {
     slug: "deformable-objects",
-    title: "Deformable Object Manipulation",
+    title: "Deformable Objects",
     shortTitle: "Deformables",
     description:
-      "Cloth folding, cable routing, and soft object manipulation with FEM-based physics simulation.",
+      "Cloth folding, cable routing, and soft object manipulation.",
     detailedDescription:
       "Finite element method simulation for deformable materials including fabrics, cables, ropes, and soft packaging.",
-    priceRange: "+$5,000–$8,000 per scene",
+    price: 6000,
+    priceDisplay: "+$6,000",
     tier: "strategic",
     icon: "layers",
     benefits: [
       "Cloth folding trajectories",
       "Cable routing and insertion",
       "Soft packaging manipulation",
-      "FEM-based physics accuracy",
     ],
     technicalDetails: [
       "Cloth simulation with self-collision",
@@ -2202,23 +2219,25 @@ export const premiumCapabilities: PremiumCapability[] = [
       "Cable assembly",
       "Food packaging",
     ],
+    requiresScene: true,
+    requiresEpisodes: true,
   },
   {
     slug: "custom-robot",
-    title: "Custom Robot Embodiment",
+    title: "Custom Robot Integration",
     shortTitle: "Custom Robot",
     description:
-      "URDF/USD onboarding for your exact robot hardware. Retarget all episodes to your embodiment.",
+      "URDF/USD onboarding for your exact robot hardware.",
     detailedDescription:
       "Complete robot integration pipeline: URDF→USD conversion, kinematics validation, and episode retargeting for your specific hardware.",
-    priceRange: "$15,000 setup + $2,000/scene",
+    price: 5000,
+    priceDisplay: "+$5,000",
     tier: "strategic",
     icon: "cpu",
     benefits: [
       "URDF→USD automated conversion",
       "Kinematics validation suite",
       "Episode retargeting pipeline",
-      "Hardware-specific tuning",
     ],
     technicalDetails: [
       "Joint limit validation",
@@ -2231,23 +2250,24 @@ export const premiumCapabilities: PremiumCapability[] = [
       "Modified COTS robots",
       "Research prototype robots",
     ],
+    requiresScene: true,
   },
   {
     slug: "bimanual",
     title: "Bimanual Manipulation",
     shortTitle: "Bimanual",
     description:
-      "Coordinated dual-arm episodes for humanoid robots. Hold-and-manipulate, coordinated lift, and handoff tasks.",
+      "Coordinated dual-arm episodes for humanoid and dual-arm robots.",
     detailedDescription:
       "Synchronized bimanual manipulation with coordination primitives for emerging humanoid platforms.",
-    priceRange: "+$6,000–$10,000 per scene",
+    price: 7500,
+    priceDisplay: "+$7,500",
     tier: "strategic",
     icon: "move",
     benefits: [
       "Coordinated lift sequences",
       "Hold-and-manipulate patterns",
       "Bimanual handoff episodes",
-      "Humanoid platform support",
     ],
     technicalDetails: [
       "Dual-arm trajectory synchronization",
@@ -2260,6 +2280,8 @@ export const premiumCapabilities: PremiumCapability[] = [
       "Dual-arm industrial cells",
       "Research bimanual platforms",
     ],
+    requiresScene: true,
+    requiresEpisodes: true,
   },
 ];
 
