@@ -8,6 +8,7 @@ import {
   premiumCapabilities,
   type SyntheticDataset,
   type MarketplaceScene,
+  type PremiumCapability,
 } from "@/data/content";
 import { InteractionBadges } from "@/components/site/InteractionBadges";
 import { SpecList } from "@/components/site/SpecList";
@@ -19,11 +20,13 @@ import {
   Calendar,
   CheckCircle2,
   ChevronRight,
+  ChevronDown,
   Hand,
   Layers,
   MessageSquare,
   Move,
   Package,
+  Plus,
   Shield,
   ShoppingCart,
   Sparkles,
@@ -35,6 +38,7 @@ import {
   Check,
   Users,
   Zap,
+  Info,
 } from "lucide-react";
 
 // Icon mapping for premium capabilities
@@ -61,11 +65,47 @@ type PurchaseOption = 'bundle' | 'scene' | 'episodes';
 export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [selectedOption, setSelectedOption] = useState<PurchaseOption>('bundle');
+  const [selectedAddons, setSelectedAddons] = useState<Set<string>>(new Set());
+  const [showAddons, setShowAddons] = useState(true);
 
   // Scroll to top when navigating to this page
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  // Helper to check if an add-on is compatible with the selected purchase option
+  const isAddonCompatible = useCallback((addon: PremiumCapability): boolean => {
+    if (selectedOption === 'scene' && addon.requiresEpisodes) return false;
+    if (selectedOption === 'episodes' && addon.requiresScene) return false;
+    return true;
+  }, [selectedOption]);
+
+  // Toggle add-on selection
+  const toggleAddon = useCallback((slug: string) => {
+    setSelectedAddons(prev => {
+      const next = new Set(prev);
+      if (next.has(slug)) {
+        next.delete(slug);
+      } else {
+        next.add(slug);
+      }
+      return next;
+    });
+  }, []);
+
+  // Clear incompatible add-ons when purchase option changes
+  useEffect(() => {
+    setSelectedAddons(prev => {
+      const next = new Set<string>();
+      prev.forEach(slug => {
+        const addon = premiumCapabilities.find(c => c.slug === slug);
+        if (addon && isAddonCompatible(addon)) {
+          next.add(slug);
+        }
+      });
+      return next;
+    });
+  }, [selectedOption, isAddonCompatible]);
 
   const marketplaceDataset = syntheticDatasets.find(
     (item) => item.slug === params.slug,
@@ -89,27 +129,39 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     }).format(new Date(marketplaceItem.releaseDate));
   }, [marketplaceItem]);
 
+  // Calculate total add-ons price
+  const addonsTotal = useMemo(() => {
+    return Array.from(selectedAddons).reduce((sum, slug) => {
+      const addon = premiumCapabilities.find(c => c.slug === slug);
+      return sum + (addon?.price || 0);
+    }, 0);
+  }, [selectedAddons]);
+
+  // Get base price based on selected option
+  const getBasePrice = useCallback(() => {
+    if (!marketplaceItem) return 0;
+    if (isDataset) {
+      const ds = marketplaceDataset!;
+      switch (selectedOption) {
+        case 'bundle': return ds.bundlePrice;
+        case 'scene': return ds.sceneOnlyPrice;
+        case 'episodes': return ds.episodesOnlyPrice;
+      }
+    } else {
+      const sc = marketplaceScene!;
+      switch (selectedOption) {
+        case 'bundle': return sc.bundlePrice || sc.price;
+        case 'scene': return sc.sceneOnlyPrice || Math.round(sc.price * 0.45);
+        case 'episodes': return sc.episodesOnlyPrice || Math.round(sc.price * 0.65);
+      }
+    }
+  }, [isDataset, marketplaceDataset, marketplaceItem, marketplaceScene, selectedOption]);
+
+  const basePrice = getBasePrice();
+  const totalPrice = basePrice + addonsTotal;
+
   const handleCheckout = useCallback(async () => {
     if (!marketplaceItem || isRedirecting) return;
-
-    // Get pricing based on selected option
-    const getPriceForOption = () => {
-      if (isDataset) {
-        const ds = marketplaceDataset!;
-        switch (selectedOption) {
-          case 'bundle': return ds.bundlePrice;
-          case 'scene': return ds.sceneOnlyPrice;
-          case 'episodes': return ds.episodesOnlyPrice;
-        }
-      } else {
-        const sc = marketplaceScene!;
-        switch (selectedOption) {
-          case 'bundle': return sc.bundlePrice || sc.price;
-          case 'scene': return sc.sceneOnlyPrice || Math.round(sc.price * 0.45);
-          case 'episodes': return sc.episodesOnlyPrice || Math.round(sc.price * 0.65);
-        }
-      }
-    };
 
     const optionLabels: Record<PurchaseOption, string> = {
       bundle: 'Scene + Episodes Bundle',
@@ -117,22 +169,32 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
       episodes: 'Episodes Only',
     };
 
+    // Build add-on descriptions for the checkout
+    const selectedAddonsList = Array.from(selectedAddons)
+      .map(slug => premiumCapabilities.find(c => c.slug === slug))
+      .filter((a): a is PremiumCapability => a !== undefined);
+
+    const addonNames = selectedAddonsList.map(a => a.shortTitle).join(', ');
+    const titleSuffix = selectedAddonsList.length > 0 ? ` + ${selectedAddonsList.length} add-on${selectedAddonsList.length > 1 ? 's' : ''}` : '';
+
     const checkoutItem = isDataset
       ? {
-          sku: `${marketplaceDataset!.slug}-${selectedOption}`,
-          title: `${marketplaceDataset!.title} (${optionLabels[selectedOption]})`,
-          description: marketplaceDataset!.description,
-          price: getPriceForOption(),
+          sku: `${marketplaceDataset!.slug}-${selectedOption}${selectedAddons.size > 0 ? '-addons' : ''}`,
+          title: `${marketplaceDataset!.title} (${optionLabels[selectedOption]})${titleSuffix}`,
+          description: addonNames ? `${marketplaceDataset!.description} | Add-ons: ${addonNames}` : marketplaceDataset!.description,
+          price: totalPrice,
           quantity: 1,
           itemType: "dataset" as const,
+          addons: Array.from(selectedAddons),
         }
       : {
-          sku: `${marketplaceScene!.slug}-${selectedOption}`,
-          title: `${marketplaceScene!.title} (${optionLabels[selectedOption]})`,
-          description: marketplaceScene!.description,
-          price: getPriceForOption(),
+          sku: `${marketplaceScene!.slug}-${selectedOption}${selectedAddons.size > 0 ? '-addons' : ''}`,
+          title: `${marketplaceScene!.title} (${optionLabels[selectedOption]})${titleSuffix}`,
+          description: addonNames ? `${marketplaceScene!.description} | Add-ons: ${addonNames}` : marketplaceScene!.description,
+          price: totalPrice,
           quantity: 1,
           itemType: "scene" as const,
+          addons: Array.from(selectedAddons),
         };
 
     setIsRedirecting(true);
@@ -194,7 +256,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     } finally {
       setIsRedirecting(false);
     }
-  }, [detailSlug, isDataset, isRedirecting, marketplaceDataset, marketplaceItem, marketplaceScene, selectedOption]);
+  }, [detailSlug, isDataset, isRedirecting, marketplaceDataset, marketplaceItem, marketplaceScene, selectedOption, selectedAddons, totalPrice]);
 
   if (marketplaceItem) {
     const heroImage = isDataset
@@ -372,38 +434,30 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
               </div>
 
               {/* Purchase Options */}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {/* Bundle Option - Best Value */}
                 <button
                   type="button"
                   onClick={() => setSelectedOption('bundle')}
-                  className={`w-full rounded-xl border-2 p-4 text-left transition-all ${
+                  className={`w-full rounded-xl border-2 p-3 text-left transition-all ${
                     selectedOption === 'bundle'
                       ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/20'
                       : 'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
                   }`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <div className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${
-                          selectedOption === 'bundle' ? 'border-indigo-500 bg-indigo-500' : 'border-zinc-300'
-                        }`}>
-                          {selectedOption === 'bundle' && <Check className="h-3 w-3 text-white" />}
-                        </div>
-                        <span className="font-semibold text-zinc-900">Scene + Episodes Bundle</span>
-                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                          SAVE {bundleSavingsPercent}%
-                        </span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                        selectedOption === 'bundle' ? 'border-indigo-500 bg-indigo-500' : 'border-zinc-300'
+                      }`}>
+                        {selectedOption === 'bundle' && <Check className="h-2.5 w-2.5 text-white" />}
                       </div>
-                      <p className="mt-1 ml-7 text-xs text-zinc-500">
-                        Complete training package: {variationCount?.toLocaleString()} variations + {episodeCount?.toLocaleString()} AI-generated episodes
-                      </p>
+                      <span className="font-medium text-zinc-900 text-sm">Scene + Episodes</span>
+                      <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                        SAVE {bundleSavingsPercent}%
+                      </span>
                     </div>
-                    <div className="text-right">
-                      <span className="text-xl font-bold text-zinc-900">${bundlePrice?.toLocaleString()}</span>
-                      <p className="text-xs text-zinc-400 line-through">${separateTotal.toLocaleString()}</p>
-                    </div>
+                    <span className="font-bold text-zinc-900">${bundlePrice?.toLocaleString()}</span>
                   </div>
                 </button>
 
@@ -411,28 +465,22 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                 <button
                   type="button"
                   onClick={() => setSelectedOption('scene')}
-                  className={`w-full rounded-xl border-2 p-4 text-left transition-all ${
+                  className={`w-full rounded-xl border-2 p-3 text-left transition-all ${
                     selectedOption === 'scene'
                       ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/20'
                       : 'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
                   }`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <div className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${
-                          selectedOption === 'scene' ? 'border-indigo-500 bg-indigo-500' : 'border-zinc-300'
-                        }`}>
-                          {selectedOption === 'scene' && <Check className="h-3 w-3 text-white" />}
-                        </div>
-                        <Layers className="h-4 w-4 text-zinc-400" />
-                        <span className="font-semibold text-zinc-900">Scene Only</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                        selectedOption === 'scene' ? 'border-indigo-500 bg-indigo-500' : 'border-zinc-300'
+                      }`}>
+                        {selectedOption === 'scene' && <Check className="h-2.5 w-2.5 text-white" />}
                       </div>
-                      <p className="mt-1 ml-7 text-xs text-zinc-500">
-                        {variationCount?.toLocaleString()} variations • Generate your own episodes
-                      </p>
+                      <span className="font-medium text-zinc-900 text-sm">Scene Only</span>
                     </div>
-                    <span className="text-xl font-bold text-zinc-900">${sceneOnlyPrice?.toLocaleString()}</span>
+                    <span className="font-bold text-zinc-900">${sceneOnlyPrice?.toLocaleString()}</span>
                   </div>
                 </button>
 
@@ -440,63 +488,125 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                 <button
                   type="button"
                   onClick={() => setSelectedOption('episodes')}
-                  className={`w-full rounded-xl border-2 p-4 text-left transition-all ${
+                  className={`w-full rounded-xl border-2 p-3 text-left transition-all ${
                     selectedOption === 'episodes'
                       ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/20'
                       : 'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
                   }`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <div className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${
-                          selectedOption === 'episodes' ? 'border-indigo-500 bg-indigo-500' : 'border-zinc-300'
-                        }`}>
-                          {selectedOption === 'episodes' && <Check className="h-3 w-3 text-white" />}
-                        </div>
-                        <Play className="h-4 w-4 text-zinc-400" />
-                        <span className="font-semibold text-zinc-900">Episodes Only</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                        selectedOption === 'episodes' ? 'border-indigo-500 bg-indigo-500' : 'border-zinc-300'
+                      }`}>
+                        {selectedOption === 'episodes' && <Check className="h-2.5 w-2.5 text-white" />}
                       </div>
-                      <p className="mt-1 ml-7 text-xs text-zinc-500">
-                        {episodeCount?.toLocaleString()} AI-generated trajectories • Requires scene ownership
-                      </p>
+                      <span className="font-medium text-zinc-900 text-sm">Episodes Only</span>
                     </div>
-                    <span className="text-xl font-bold text-zinc-900">${episodesOnlyPrice?.toLocaleString()}</span>
+                    <span className="font-bold text-zinc-900">${episodesOnlyPrice?.toLocaleString()}</span>
                   </div>
                 </button>
               </div>
 
-              {/* What's Included */}
-              <div className="mt-4 rounded-xl bg-zinc-50 p-3">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                  {selectedOption === 'bundle' ? 'Bundle includes' : selectedOption === 'scene' ? 'Scene includes' : 'Episodes include'}
-                </p>
-                <div className="space-y-1.5">
-                  {(selectedOption === 'bundle' || selectedOption === 'scene') && (
-                    <>
-                      <div className="flex items-center gap-2 text-xs text-zinc-600">
-                        <Check className="h-3 w-3 text-emerald-500" />
-                        <span>{variationCount?.toLocaleString()} scene variations (domain randomization)</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-zinc-600">
-                        <Check className="h-3 w-3 text-emerald-500" />
-                        <span>USD format with physics metadata</span>
-                      </div>
-                    </>
-                  )}
-                  {(selectedOption === 'bundle' || selectedOption === 'episodes') && (
-                    <>
-                      <div className="flex items-center gap-2 text-xs text-zinc-600">
-                        <Check className="h-3 w-3 text-emerald-500" />
-                        <span>{episodeCount?.toLocaleString()} AI-generated episodes (Gemini)</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-zinc-600">
-                        <Check className="h-3 w-3 text-emerald-500" />
-                        <span>LeRobot-compatible trajectory format</span>
-                      </div>
-                    </>
-                  )}
+              {/* Premium Add-ons Section */}
+              <div className="mt-4 border-t border-zinc-100 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowAddons(!showAddons)}
+                  className="flex w-full items-center justify-between text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-amber-500" />
+                    <span className="text-sm font-semibold text-zinc-900">Add-ons</span>
+                    {selectedAddons.size > 0 && (
+                      <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
+                        {selectedAddons.size} selected
+                      </span>
+                    )}
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-zinc-400 transition-transform ${showAddons ? 'rotate-180' : ''}`} />
+                </button>
+
+                {showAddons && (
+                  <div className="mt-3 space-y-2">
+                    {premiumCapabilities.map((addon) => {
+                      const isCompatible = isAddonCompatible(addon);
+                      const isSelected = selectedAddons.has(addon.slug);
+
+                      return (
+                        <button
+                          key={addon.slug}
+                          type="button"
+                          onClick={() => isCompatible && toggleAddon(addon.slug)}
+                          disabled={!isCompatible}
+                          className={`w-full rounded-lg border p-2.5 text-left transition-all ${
+                            !isCompatible
+                              ? 'cursor-not-allowed border-zinc-100 bg-zinc-50 opacity-50'
+                              : isSelected
+                              ? 'border-amber-400 bg-amber-50'
+                              : 'border-zinc-200 hover:border-amber-300 hover:bg-amber-50/50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <div className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                                isSelected ? 'border-amber-500 bg-amber-500' : 'border-zinc-300'
+                              }`}>
+                                {isSelected && <Check className="h-2.5 w-2.5 text-white" />}
+                              </div>
+                              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-zinc-100 text-zinc-500">
+                                {capabilityIconMap[addon.icon] ? (
+                                  <div className="scale-75">{capabilityIconMap[addon.icon]}</div>
+                                ) : (
+                                  <Sparkles className="h-3 w-3" />
+                                )}
+                              </div>
+                              <span className="text-xs font-medium text-zinc-800 truncate">{addon.shortTitle}</span>
+                            </div>
+                            <span className="text-xs font-bold text-emerald-600 shrink-0">{addon.priceDisplay}</span>
+                          </div>
+                          {!isCompatible && (
+                            <p className="mt-1 ml-6 flex items-center gap-1 text-[10px] text-zinc-400">
+                              <Info className="h-3 w-3" />
+                              {addon.requiresScene && selectedOption === 'episodes' && 'Requires scene purchase'}
+                              {addon.requiresEpisodes && selectedOption === 'scene' && 'Requires episodes purchase'}
+                            </p>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Order Summary */}
+              <div className="mt-4 border-t border-zinc-100 pt-4 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-zinc-600">
+                    {selectedOption === 'bundle' ? 'Scene + Episodes' : selectedOption === 'scene' ? 'Scene Only' : 'Episodes Only'}
+                  </span>
+                  <span className="font-medium text-zinc-900">${basePrice?.toLocaleString()}</span>
                 </div>
+                {selectedAddons.size > 0 && (
+                  <>
+                    {Array.from(selectedAddons).map(slug => {
+                      const addon = premiumCapabilities.find(c => c.slug === slug);
+                      if (!addon) return null;
+                      return (
+                        <div key={slug} className="flex items-center justify-between text-sm">
+                          <span className="text-zinc-600">{addon.shortTitle}</span>
+                          <span className="font-medium text-zinc-900">+${addon.price.toLocaleString()}</span>
+                        </div>
+                      );
+                    })}
+                    <div className="border-t border-zinc-100 pt-2 mt-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-zinc-900">Total</span>
+                        <span className="text-xl font-bold text-zinc-900">${totalPrice?.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               <button
@@ -507,32 +617,75 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                 <ShoppingCart className="h-4 w-4" />
                 {isRedirecting
                   ? "Redirecting..."
-                  : `Buy ${selectedOption === 'bundle' ? 'Bundle' : selectedOption === 'scene' ? 'Scene' : 'Episodes'} — $${
-                      selectedOption === 'bundle' ? bundlePrice?.toLocaleString() :
-                      selectedOption === 'scene' ? sceneOnlyPrice?.toLocaleString() :
-                      episodesOnlyPrice?.toLocaleString()
-                    }`}
+                  : `Buy Now — $${totalPrice?.toLocaleString()}`}
               </button>
             </div>
 
-            <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm space-y-4">
+            {/* What's Included Card */}
+            <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm space-y-3">
+              <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                {selectedOption === 'bundle' ? 'Bundle includes' : selectedOption === 'scene' ? 'Scene includes' : 'Episodes include'}
+              </p>
+              <div className="space-y-1.5">
+                {(selectedOption === 'bundle' || selectedOption === 'scene') && (
+                  <>
+                    <div className="flex items-center gap-2 text-xs text-zinc-600">
+                      <Check className="h-3 w-3 text-emerald-500" />
+                      <span>{variationCount?.toLocaleString()} scene variations</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-zinc-600">
+                      <Check className="h-3 w-3 text-emerald-500" />
+                      <span>USD format with physics metadata</span>
+                    </div>
+                  </>
+                )}
+                {(selectedOption === 'bundle' || selectedOption === 'episodes') && (
+                  <>
+                    <div className="flex items-center gap-2 text-xs text-zinc-600">
+                      <Check className="h-3 w-3 text-emerald-500" />
+                      <span>{episodeCount?.toLocaleString()} AI-generated episodes</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-zinc-600">
+                      <Check className="h-3 w-3 text-emerald-500" />
+                      <span>LeRobot-compatible format</span>
+                    </div>
+                  </>
+                )}
+                {selectedAddons.size > 0 && (
+                  <div className="border-t border-zinc-100 pt-2 mt-2 space-y-1.5">
+                    {Array.from(selectedAddons).map(slug => {
+                      const addon = premiumCapabilities.find(c => c.slug === slug);
+                      if (!addon) return null;
+                      return (
+                        <div key={slug} className="flex items-start gap-2 text-xs text-zinc-600">
+                          <Check className="h-3 w-3 text-amber-500 mt-0.5" />
+                          <span>{addon.title}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm space-y-3">
               <div className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
                 <Shield className="h-4 w-4" /> SimReady checklist
               </div>
-              <ul className="space-y-2 text-sm text-zinc-600">
+              <ul className="space-y-1.5 text-xs text-zinc-600">
                 <li>• Validated articulation for doors, drawers, and mechanical limits.</li>
                 <li>• Semantic labels aligned with policies: {marketplaceItem.policySlugs.join(", ") || "customizable"}.</li>
                 <li>
-                  • Delivered formats: {deliverables.join(", ") || "USD / on request"}. Randomizers tuned for domain gaps.
+                  • Delivered formats: {deliverables.join(", ") || "USD / on request"}.
                 </li>
               </ul>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {marketplaceItem.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700"
+                    className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-700"
                   >
-                    <Tag className="h-3 w-3" /> {tag}
+                    <Tag className="h-2.5 w-2.5" /> {tag}
                   </span>
                 ))}
               </div>
@@ -626,100 +779,6 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
           </div>
         </section>
 
-        {/* Premium Add-ons Section */}
-        <section className="space-y-8">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Zap className="h-5 w-5 text-amber-500" />
-              <h2 className="text-2xl font-semibold text-zinc-900">Premium Add-ons</h2>
-            </div>
-            <p className="text-zinc-600">
-              Enhance your training data with these optional capabilities. Contact us to add any of these to your order.
-            </p>
-          </div>
-
-          {/* High-Impact Add-ons */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-                High-Impact
-              </span>
-              <span className="text-sm text-zinc-500">Immediate value upgrades</span>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              {premiumCapabilities
-                .filter((c) => c.tier === "immediate")
-                .map((capability) => (
-                  <div
-                    key={capability.slug}
-                    className="rounded-2xl border border-zinc-200 bg-white p-5 space-y-3"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600">
-                          {capabilityIconMap[capability.icon] || <Sparkles className="h-5 w-5" />}
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-zinc-900">{capability.title}</h3>
-                          <p className="text-sm font-medium text-emerald-600">{capability.priceRange}</p>
-                        </div>
-                      </div>
-                    </div>
-                    <p className="text-sm text-zinc-600">{capability.description}</p>
-                    <ul className="space-y-1.5">
-                      {capability.benefits.slice(0, 3).map((benefit) => (
-                        <li key={benefit} className="flex items-start gap-2 text-xs text-zinc-600">
-                          <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                          {benefit}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-            </div>
-          </div>
-
-          {/* Strategic Capabilities */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">
-                Strategic
-              </span>
-              <span className="text-sm text-zinc-500">Advanced training features</span>
-            </div>
-            <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
-              {premiumCapabilities
-                .filter((c) => c.tier === "strategic")
-                .map((capability) => (
-                  <div
-                    key={capability.slug}
-                    className="rounded-xl border border-zinc-200 bg-white p-4 space-y-2"
-                  >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600">
-                      {capabilityIconMap[capability.icon] || <Sparkles className="h-4 w-4" />}
-                    </div>
-                    <h3 className="font-semibold text-zinc-900 text-sm">{capability.shortTitle}</h3>
-                    <p className="text-xs font-medium text-emerald-600">{capability.priceRange}</p>
-                    <p className="text-xs text-zinc-500 line-clamp-3">{capability.description}</p>
-                  </div>
-                ))}
-            </div>
-          </div>
-
-          {/* CTA */}
-          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-6 text-center">
-            <p className="text-sm text-zinc-600 mb-3">
-              Interested in adding premium capabilities to this scene?
-            </p>
-            <a
-              href={`/contact?scene=${detailSlug}&interest=premium-addons`}
-              className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
-            >
-              Contact Us About Add-ons
-              <ChevronRight className="h-4 w-4" />
-            </a>
-          </div>
-        </section>
         </div>
       </>
     );
