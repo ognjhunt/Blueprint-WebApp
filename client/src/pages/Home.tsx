@@ -1000,6 +1000,130 @@ export default function Home() {
         </div>
       </section>
 
+      {/* --- Premium Capabilities & Bundle Tiers --- */}
+      <section className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-4 py-1 text-xs font-bold uppercase tracking-wider text-indigo-600">
+            <Sparkles className="h-3 w-3" />
+            Premium Capabilities
+          </div>
+          <h2 className="mt-6 text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
+            From scenes to trained policies
+          </h2>
+          <p className="mt-4 max-w-2xl mx-auto text-zinc-600">
+            Every bundle includes LeRobot episodes and Isaac Lab configs.
+            Upgrade for VLA fine-tuning, sim2real validation, and advanced manipulation.
+          </p>
+        </div>
+
+        {/* Key Capability Cards */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-16">
+          {/* VLA Training */}
+          <div className="group rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:border-indigo-200">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100 transition-colors">
+              <Cpu className="h-6 w-6" />
+            </div>
+            <h3 className="font-bold text-zinc-900">VLA Fine-Tuning</h3>
+            <p className="mt-2 text-sm text-zinc-600">
+              Turnkey configs for OpenVLA, Pi0, SmolVLA, and GR00T. Save 2-4 weeks per model.
+            </p>
+            <p className="mt-3 text-sm font-semibold text-indigo-600">+$3k–$8k/scene</p>
+          </div>
+
+          {/* Language Annotations */}
+          <div className="group rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:border-indigo-200">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100 transition-colors">
+              <Terminal className="h-6 w-6" />
+            </div>
+            <h3 className="font-bold text-zinc-900">Language Annotations</h3>
+            <p className="mt-2 text-sm text-zinc-600">
+              10+ natural language variations per task. Required for VLA model training.
+            </p>
+            <p className="mt-3 text-sm font-semibold text-emerald-600">+$1.5k/scene</p>
+          </div>
+
+          {/* Sim2Real Validation */}
+          <div className="group rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:border-indigo-200">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50 text-amber-600 group-hover:bg-amber-100 transition-colors">
+              <CheckCircle2 className="h-6 w-6" />
+            </div>
+            <h3 className="font-bold text-zinc-900">Sim2Real Validation</h3>
+            <p className="mt-2 text-sm text-zinc-600">
+              Automated transfer gap analysis with 85%+ real-world success guarantees.
+            </p>
+            <p className="mt-3 text-sm font-semibold text-amber-600">$5k–$25k/study</p>
+          </div>
+
+          {/* Contact-Rich Tasks */}
+          <div className="group rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:border-indigo-200">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-rose-50 text-rose-600 group-hover:bg-rose-100 transition-colors">
+              <Layers className="h-6 w-6" />
+            </div>
+            <h3 className="font-bold text-zinc-900">Precision Assembly</h3>
+            <p className="mt-2 text-sm text-zinc-600">
+              Peg-in-hole, snap-fit, and insertion tasks with sub-mm tolerance physics.
+            </p>
+            <p className="mt-3 text-sm font-semibold text-rose-600">3x base price</p>
+          </div>
+        </div>
+
+        {/* Bundle Tiers CTA */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 to-indigo-800 p-8 sm:p-12">
+          <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+          <div className="absolute -left-20 -bottom-20 h-64 w-64 rounded-full bg-indigo-400/20 blur-3xl" />
+
+          <div className="relative z-10 grid gap-8 lg:grid-cols-2 lg:items-center">
+            <div>
+              <h3 className="text-2xl font-bold text-white sm:text-3xl">
+                Choose your training data bundle
+              </h3>
+              <p className="mt-4 text-indigo-100">
+                From single-scene experiments to foundation model scale. Every bundle includes
+                physics-accurate USD, domain randomization, and AI-generated episodes.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-4">
+                <a
+                  href="/pricing"
+                  className="inline-flex items-center justify-center rounded-xl bg-white px-6 py-3 text-sm font-semibold text-indigo-600 shadow-lg transition-colors hover:bg-indigo-50"
+                >
+                  View All Bundles
+                  <Box className="ml-2 h-4 w-4" />
+                </a>
+                <a
+                  href="/contact?tier=enterprise"
+                  className="inline-flex items-center justify-center rounded-xl border border-white/30 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/20"
+                >
+                  Talk to Sales
+                </a>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl bg-white/10 p-5 backdrop-blur-sm">
+                <p className="text-3xl font-bold text-white">$5,499</p>
+                <p className="mt-1 font-semibold text-indigo-200">Standard</p>
+                <p className="mt-2 text-sm text-indigo-100">2,500 episodes + USD scene</p>
+              </div>
+              <div className="rounded-xl bg-white/20 p-5 backdrop-blur-sm ring-2 ring-white/30">
+                <p className="text-3xl font-bold text-white">$12,499</p>
+                <p className="mt-1 font-semibold text-indigo-200">Pro</p>
+                <p className="mt-2 text-sm text-indigo-100">5,000 episodes + VLA configs</p>
+              </div>
+              <div className="rounded-xl bg-white/10 p-5 backdrop-blur-sm">
+                <p className="text-3xl font-bold text-white">$25,000</p>
+                <p className="mt-1 font-semibold text-indigo-200">Enterprise</p>
+                <p className="mt-2 text-sm text-indigo-100">10,000 episodes + sim2real</p>
+              </div>
+              <div className="rounded-xl bg-white/10 p-5 backdrop-blur-sm">
+                <p className="text-3xl font-bold text-white">$500K+</p>
+                <p className="mt-1 font-semibold text-indigo-200">Foundation</p>
+                <p className="mt-2 text-sm text-indigo-100">Unlimited + streaming API</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* --- Coming Soon / Future Offerings --- */}
       <ComingSoon />
 
