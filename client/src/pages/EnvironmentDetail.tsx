@@ -206,8 +206,8 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
         },
         body: JSON.stringify({
           sessionType: "marketplace",
-          successPath: `/environments/${detailSlug}?checkout=success`,
-          cancelPath: `/environments/${detailSlug}?checkout=cancel`,
+          successPath: `/marketplace/${detailSlug}?checkout=success`,
+          cancelPath: `/marketplace/${detailSlug}?checkout=cancel`,
           marketplaceItem: checkoutItem,
         }),
       });
@@ -321,7 +321,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
           />
           <meta name="robots" content="index, follow" />
           <meta property="og:type" content="product" />
-          <meta property="og:url" content={`https://tryblueprint.io/environments/${detailSlug}`} />
+          <meta property="og:url" content={`https://tryblueprint.io/marketplace/${detailSlug}`} />
           <meta property="og:title" content={`${marketplaceItem.title} | Blueprint`} />
           <meta property="og:description" content={marketplaceItem.description} />
           <meta
@@ -331,14 +331,14 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
           <meta name="twitter:card" content="summary_large_image" />
           <meta name="twitter:title" content={`${marketplaceItem.title} | Blueprint`} />
           <meta name="twitter:description" content={marketplaceItem.description} />
-          <link rel="canonical" href={`https://tryblueprint.io/environments/${detailSlug}`} />
+          <link rel="canonical" href={`https://tryblueprint.io/marketplace/${detailSlug}`} />
           <script type="application/ld+json">
             {JSON.stringify(productStructuredData)}
           </script>
         </Helmet>
         <div className="mx-auto max-w-6xl space-y-12 px-4 pb-24 pt-16 sm:px-6">
           <a
-            href="/environments"
+            href="/marketplace"
             className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
           >
             <ArrowLeft className="h-4 w-4" /> Back to Marketplace
@@ -796,7 +796,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
           The environment you are looking for isn't in our network yet. Browse other scenes or contact us to request a custom build.
         </p>
         <a
-          href="/environments"
+          href="/marketplace"
           className="mt-6 inline-flex rounded-full border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-900"
         >
           Back to Marketplace
@@ -827,14 +827,14 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
         <meta name="description" content={scene.seo} />
         <meta name="robots" content="index, follow" />
         <meta property="og:type" content="product" />
-        <meta property="og:url" content={`https://tryblueprint.io/environments/${scene.slug}`} />
+        <meta property="og:url" content={`https://tryblueprint.io/marketplace/${scene.slug}`} />
         <meta property="og:title" content={`${scene.title} | Blueprint`} />
         <meta property="og:description" content={scene.seo} />
         <meta property="og:image" content={sceneImage} />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={`${scene.title} | Blueprint`} />
         <meta name="twitter:description" content={scene.seo} />
-        <link rel="canonical" href={`https://tryblueprint.io/environments/${scene.slug}`} />
+        <link rel="canonical" href={`https://tryblueprint.io/marketplace/${scene.slug}`} />
       </Helmet>
       <div className="mx-auto max-w-6xl space-y-12 px-4 pb-24 pt-16 sm:px-6">
         <header className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr]">

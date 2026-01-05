@@ -161,9 +161,9 @@ export default async function handler(req: Request, res: Response) {
         success_url: resolveUrl(
           originBase,
           body.successPath,
-          "/environments?checkout=success",
+          "/marketplace?checkout=success",
         ),
-        cancel_url: resolveUrl(originBase, body.cancelPath, "/environments?checkout=cancel"),
+        cancel_url: resolveUrl(originBase, body.cancelPath, "/marketplace?checkout=cancel"),
       });
 
       return res.json({ sessionId: session.id, sessionUrl: session.url });

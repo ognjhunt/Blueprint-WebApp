@@ -41,10 +41,10 @@ function Router() {
     <Suspense fallback={<LoadingScreen />}>
       <Switch>
         <Route path="/" component={withLayout(Home)} />
-        <Route path="/environments" component={withLayout(Environments)} />
+        <Route path="/marketplace" component={withLayout(Environments)} />
         {/* <Route path="/recipes" component={withLayout(Recipes)} /> */}{/* Hidden: recipes temporarily removed from offerings */}
         <Route
-          path="/environments/:slug"
+          path="/marketplace/:slug"
           component={withLayout(EnvironmentDetail)}
         />
         <Route path="/solutions" component={withLayout(Solutions)} />

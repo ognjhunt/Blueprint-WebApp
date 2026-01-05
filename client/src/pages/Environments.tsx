@@ -274,7 +274,7 @@ export default function Environments() {
     }
 
     const newSearch = params.toString();
-    setLocation(`/environments${newSearch ? `?${newSearch}` : ""}`, { replace: true });
+    setLocation(`/marketplace${newSearch ? `?${newSearch}` : ""}`, { replace: true });
   };
 
   // Filter change handlers with URL sync
@@ -330,7 +330,7 @@ export default function Environments() {
       // Clear the query param from URL without page reload
       params.delete("checkout");
       const newSearch = params.toString();
-      setLocation(`/environments${newSearch ? `?${newSearch}` : ""}`, { replace: true });
+      setLocation(`/marketplace${newSearch ? `?${newSearch}` : ""}`, { replace: true });
 
       // Auto-dismiss after 10 seconds for success, 8 for cancel
       const timeout = setTimeout(() => {
@@ -521,7 +521,7 @@ export default function Environments() {
       "@type": "CollectionPage",
       name: "Blueprint Marketplace",
       description: "SimReady synthetic datasets and scenes for robotics training. Isaac-ready USD packages with randomizers and task logic.",
-      url: "https://tryblueprint.io/environments",
+      url: "https://tryblueprint.io/marketplace",
       mainEntity: {
         "@type": "ItemList",
         numberOfItems: allMarketplaceItems.length,
@@ -549,7 +549,7 @@ export default function Environments() {
         />
         <meta name="robots" content="index, follow" />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://tryblueprint.io/environments" />
+        <meta property="og:url" content="https://tryblueprint.io/marketplace" />
         <meta property="og:title" content="Marketplace | Blueprint" />
         <meta
           property="og:description"
@@ -563,7 +563,7 @@ export default function Environments() {
           content="SimReady synthetic datasets for robotics. Isaac-ready USD packages with randomizers and task logic."
         />
         <meta name="twitter:image" content="https://tryblueprint.io/images/Gemini_EnvironentsBanner.png" />
-        <link rel="canonical" href="https://tryblueprint.io/environments" />
+        <link rel="canonical" href="https://tryblueprint.io/marketplace" />
         <script type="application/ld+json">
           {JSON.stringify(structuredData)}
         </script>

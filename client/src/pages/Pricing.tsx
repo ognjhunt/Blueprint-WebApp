@@ -122,7 +122,7 @@ export default function Pricing() {
                 Each listing includes pricing, variations, and episode counts.
               </p>
               <a
-                href="/environments"
+                href="/marketplace"
                 className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-900 hover:text-zinc-700"
               >
                 Browse Marketplace
@@ -173,7 +173,7 @@ export default function Pricing() {
                       <ChevronRight className="ml-1 h-4 w-4" />
                     </a>
                     <a
-                      href="/environments"
+                      href="/marketplace"
                       className="inline-flex items-center justify-center rounded-xl border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
                     >
                       Browse Scenes
@@ -291,7 +291,7 @@ export default function Pricing() {
                   Talk to Sales
                 </a>
                 <a
-                  href="/environments"
+                  href="/marketplace"
                   className="inline-flex items-center justify-center rounded-xl border border-zinc-200 bg-white px-8 py-3 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
                 >
                   Browse Marketplace

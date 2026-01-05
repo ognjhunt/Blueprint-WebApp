@@ -46,7 +46,7 @@
 //       "Pricing starts around $50/scene depending on scale",
 //     ],
 //     ctaLabel: "Browse drops",
-//     ctaHref: "/environments",
+//     ctaHref: "/marketplace",
 //   },
 //   {
 //     title: "Real-world SimReady capture",
@@ -86,7 +86,7 @@
 //             </p>
 //           </div>
 //           <CTAButtons
-//             primaryHref="/environments"
+//             primaryHref="/marketplace"
 //             primaryLabel="Browse Synthetic Marketplace"
 //             secondaryHref="/contact"
 //             secondaryLabel="Book a Real-World Capture"
@@ -183,7 +183,7 @@
 //             </p>
 //           </div>
 //           <a
-//             href="/environments"
+//             href="/marketplace"
 //             className="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
 //           >
 //             Explore marketplace
@@ -252,7 +252,7 @@
 //                 </div>
 //                 <div className="mt-auto">
 //                   <a
-//                     href={`/environments?dataset=${dataset.slug}`}
+//                     href={`/marketplace?dataset=${dataset.slug}`}
 //                     className="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
 //                   >
 //                     See details
@@ -277,7 +277,7 @@
 //             </p>
 //           </div>
 //           <a
-//             href="/environments"
+//             href="/marketplace"
 //             className="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
 //           >
 //             View full taxonomy
@@ -286,7 +286,7 @@
 //         <TileGrid
 //           items={environmentCategories.map((category) => ({
 //             label: category.title,
-//             href: `/environments?category=${category.slug}`,
+//             href: `/marketplace?category=${category.slug}`,
 //             description: category.summary,
 //           }))}
 //         />
@@ -470,7 +470,7 @@ const offeringCards = [
       "Built for field robotics, industrial automation & humanoid training",
     ],
     ctaLabel: "Browse drops",
-    ctaHref: "/environments",
+    ctaHref: "/marketplace",
     icon: <LayoutGrid className="h-8 w-8 text-zinc-900" />,
   },
   {
@@ -604,7 +604,7 @@ export default function Home() {
               </div>
 
               <CTAButtons
-                primaryHref="/environments"
+                primaryHref="/marketplace"
                 primaryLabel="Browse Marketplace"
                 secondaryHref="/contact"
                 secondaryLabel="Submit a request"
@@ -764,7 +764,7 @@ export default function Home() {
             </p>
           </div>
           <a
-            href="/environments"
+            href="/marketplace"
             className="group flex items-center gap-1 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
           >
             Explore full marketplace
@@ -874,7 +874,7 @@ export default function Home() {
           <TileGrid
             items={environmentCategories.map((category) => ({
               label: category.title,
-              href: `/environments?category=${category.slug}`,
+              href: `/marketplace?category=${category.slug}`,
               description: category.summary,
             }))}
           />
@@ -1158,7 +1158,7 @@ export default function Home() {
 
             <div className="flex flex-col gap-4 w-full md:w-auto">
               <a
-                href="/environments"
+                href="/marketplace"
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition-colors hover:bg-zinc-200"
               >
                 Browse Marketplace

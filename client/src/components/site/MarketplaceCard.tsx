@@ -70,8 +70,8 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
           },
           body: JSON.stringify({
             sessionType: "marketplace",
-            successPath: `/environments/${slug}?checkout=success`,
-            cancelPath: `/environments/${slug}?checkout=cancel`,
+            successPath: `/marketplace/${slug}?checkout=success`,
+            cancelPath: `/marketplace/${slug}?checkout=cancel`,
             marketplaceItem: checkoutItem,
           }),
         });
@@ -125,7 +125,7 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
   );
 
   const handleCardClick = () => {
-    navigate(`/environments/${slug}`);
+    navigate(`/marketplace/${slug}`);
   };
 
   return (

@@ -58,7 +58,7 @@
 //             your roadmap.
 //           </p>
 //           <CTAButtons
-//             primaryHref="/environments"
+//             primaryHref="/marketplace"
 //             primaryLabel="Browse scenes"
 //             secondaryHref="/contact"
 //             secondaryLabel="Talk to us"
@@ -585,7 +585,7 @@ export default function Solutions() {
               </p>
             </div>
             <CTAButtons
-              primaryHref="/environments"
+              primaryHref="/marketplace"
               primaryLabel="Browse Marketplace"
               secondaryHref="/contact"
               secondaryLabel="Discuss Custom Needs"
