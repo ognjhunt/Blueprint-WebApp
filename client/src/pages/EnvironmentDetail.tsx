@@ -314,7 +314,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     return (
       <>
         <Helmet>
-          <title>{marketplaceItem.title} | Blueprint Environments</title>
+          <title>{marketplaceItem.title} | Blueprint Marketplace</title>
           <meta
             name="description"
             content={marketplaceItem.description}
@@ -341,7 +341,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
             href="/environments"
             className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
           >
-            <ArrowLeft className="h-4 w-4" /> Back to marketplace
+            <ArrowLeft className="h-4 w-4" /> Back to Marketplace
           </a>
 
         <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
@@ -793,13 +793,13 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
           Scene not found
         </h1>
         <p className="mt-4 text-sm text-slate-600">
-          The environment you are looking for isn’t in our network yet. Browse other scenes or contact us to request a custom build.
+          The environment you are looking for isn't in our network yet. Browse other scenes or contact us to request a custom build.
         </p>
         <a
           href="/environments"
           className="mt-6 inline-flex rounded-full border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-900"
         >
-          Back to environments
+          Back to Marketplace
         </a>
       </div>
     );
@@ -823,7 +823,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
   return (
     <>
       <Helmet>
-        <title>{scene.title} | Blueprint Environments</title>
+        <title>{scene.title} | Blueprint Marketplace</title>
         <meta name="description" content={scene.seo} />
         <meta name="robots" content="index, follow" />
         <meta property="og:type" content="product" />

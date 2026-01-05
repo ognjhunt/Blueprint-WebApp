@@ -519,7 +519,7 @@ export default function Environments() {
     return {
       "@context": "https://schema.org",
       "@type": "CollectionPage",
-      name: "Blueprint Environments Marketplace",
+      name: "Blueprint Marketplace",
       description: "SimReady synthetic datasets and scenes for robotics training. Isaac-ready USD packages with randomizers and task logic.",
       url: "https://tryblueprint.io/environments",
       mainEntity: {
@@ -542,7 +542,7 @@ export default function Environments() {
       )}
 
       <Helmet>
-        <title>Environments Marketplace | Blueprint - SimReady Datasets for Robotics</title>
+        <title>Marketplace | Blueprint - SimReady Datasets for Robotics</title>
         <meta
           name="description"
           content="Browse SimReady synthetic datasets and individual scenes for robotics training. Isaac-ready USD packages with randomizers, task logic, and validation notes."
@@ -550,14 +550,14 @@ export default function Environments() {
         <meta name="robots" content="index, follow" />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://tryblueprint.io/environments" />
-        <meta property="og:title" content="Environments Marketplace | Blueprint" />
+        <meta property="og:title" content="Marketplace | Blueprint" />
         <meta
           property="og:description"
           content="Browse SimReady synthetic datasets and individual scenes for robotics training. Daily drops with Isaac-ready USD packages."
         />
         <meta property="og:image" content="https://tryblueprint.io/images/Gemini_EnvironentsBanner.png" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Environments Marketplace | Blueprint" />
+        <meta name="twitter:title" content="Marketplace | Blueprint" />
         <meta
           name="twitter:description"
           content="SimReady synthetic datasets for robotics. Isaac-ready USD packages with randomizers and task logic."
