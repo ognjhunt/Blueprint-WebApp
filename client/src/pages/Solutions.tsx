@@ -193,6 +193,7 @@ import {
   Clock3,
   Cpu,
   Database,
+  DollarSign,
   Download,
   Factory,
   FileCode,
@@ -201,10 +202,14 @@ import {
   Hammer,
   Layers,
   LineChart,
+  Package,
+  Play,
   Scan,
+  Share2,
   Sparkles,
   Target,
   Terminal,
+  TestTube,
   Video,
   Zap,
 } from "lucide-react";
@@ -635,6 +640,248 @@ function ArenaIntegrationSection() {
   );
 }
 
+// --- Arena Services Data ---
+
+const arenaServices = [
+  {
+    title: "Smart Simulation Scenes",
+    tagline: "3D environments where every object knows what it can do",
+    icon: <Layers className="h-6 w-6" />,
+    color: "indigo",
+    price: "$1K–3K per scene",
+    plainEnglish: "We build 3D worlds for your robot to practice in. But unlike regular 3D models, every object in our scenes is \"smart\" — doors know they can open, drawers know they slide, buttons know they can be pressed. This is called \"affordance tagging\" and it's the new industry standard.",
+    whyPayMore: "Your robot policies work immediately with NVIDIA's evaluation tools. No manual labeling needed.",
+    includes: [
+      "Physics-accurate 3D environment",
+      "All objects tagged with what they can do",
+      "Ready for Isaac Lab-Arena benchmarks",
+      "Domain randomization scripts included",
+    ],
+  },
+  {
+    title: "Policy Benchmarking Service",
+    tagline: "Send us your robot AI, we'll tell you how well it works",
+    icon: <TestTube className="h-6 w-6" />,
+    color: "emerald",
+    price: "$200–500 per run or $3K–5K/month",
+    plainEnglish: "Think of this like a report card for your robot's brain. You send us your trained policy (the AI that controls your robot), we run it through hundreds of test scenarios, and give you a detailed breakdown of how it performed.",
+    whyPayMore: "Before this, companies had to buy expensive hardware or build their own testing systems. We offer testing-as-a-service.",
+    includes: [
+      "Run your policy through 100+ test scenarios",
+      "Detailed success/failure breakdown",
+      "Performance metrics (speed, accuracy, collisions)",
+      "Comparison against baseline policies",
+    ],
+    example: "\"Your robot opened doors successfully 73% of the time, picked up cups 89% of the time, and navigated obstacles with only 2 collisions per 100 attempts.\"",
+  },
+  {
+    title: "Custom Evaluation Suites",
+    tagline: "A custom \"test course\" built for your specific use case",
+    icon: <Target className="h-6 w-6" />,
+    color: "amber",
+    price: "$5K–20K per suite",
+    plainEnglish: "We build a custom testing environment designed specifically for what your robot needs to do. It's like building a driving test course, but for robots — complete with all the scenarios they'll face in the real world.",
+    whyPayMore: "Generic tests don't catch problems specific to your use case. A custom suite tests exactly what matters for your deployment.",
+    includes: [
+      "50+ custom test scenes for your use case",
+      "Task-specific success criteria",
+      "Automated scoring and reporting",
+      "Unlimited test runs",
+    ],
+    example: "Warehouse company: \"Test if the robot can pick items from shelves at various heights, navigate around moving obstacles, and place items in bins without dropping them.\"",
+  },
+  {
+    title: "LeRobot Hub Publishing",
+    tagline: "Share your training environments with the robotics community",
+    icon: <Share2 className="h-6 w-6" />,
+    color: "violet",
+    price: "$500–1K per environment",
+    plainEnglish: "Hugging Face runs a registry called LeRobot Hub where researchers share robot training environments. We help you package and publish your environments there so others can use them (and cite your work).",
+    whyPayMore: "Academic labs get citations and visibility. Companies get community contributions back. Everyone benefits from shared standards.",
+    includes: [
+      "Environment packaging for Hub format",
+      "Metadata and documentation setup",
+      "Registration and publishing",
+      "Leaderboard integration",
+    ],
+  },
+  {
+    title: "Photo-to-Evaluation Pipeline",
+    tagline: "The complete package: from photos to trained, tested robot policies",
+    icon: <Package className="h-6 w-6" />,
+    color: "rose",
+    price: "Custom pricing (typically $15K–50K)",
+    plainEnglish: "Give us pictures of your warehouse, kitchen, or factory. We'll build a digital twin, add all the \"smart\" object tags, create evaluation tasks, benchmark your policies, and deliver trained policies with performance reports. It's the full service.",
+    whyPayMore: "You get a complete solution instead of piecing together multiple vendors. One partner, one pipeline, tested results.",
+    includes: [
+      "Photo-based 3D reconstruction",
+      "Full affordance tagging",
+      "Custom evaluation suite",
+      "Policy benchmarking runs",
+      "Performance reports and recommendations",
+      "Optional: Policy fine-tuning",
+    ],
+    example: "\"Give us photos of your facility, we'll give you a simulation where you can train and test robot brains safely and cheaply — before risking real hardware.\"",
+  },
+];
+
+// --- Arena Services Section ---
+
+function ArenaServicesSection() {
+  return (
+    <section className="relative overflow-hidden rounded-[2.5rem] border border-zinc-200 bg-white p-8 shadow-sm sm:p-12 lg:p-16">
+      <div className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-indigo-100/40 blur-3xl" />
+      <div className="absolute -left-24 -bottom-24 h-80 w-80 rounded-full bg-emerald-100/40 blur-3xl" />
+
+      <div className="relative z-10 space-y-12">
+        {/* Header */}
+        <div className="text-center space-y-4">
+          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-indigo-600">
+            <DollarSign className="h-3 w-3" />
+            New Services Available
+          </div>
+          <h2 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
+            What we can build for you.
+          </h2>
+          <p className="max-w-3xl mx-auto text-zinc-600 leading-relaxed">
+            With our Arena integration, Blueprint now offers end-to-end robotics evaluation services.
+            Here's what that means for your team — in plain English.
+          </p>
+        </div>
+
+        {/* Services Grid */}
+        <div className="space-y-8">
+          {arenaServices.map((service, index) => (
+            <div
+              key={service.title}
+              className={`rounded-2xl border p-6 sm:p-8 transition-all hover:shadow-lg ${
+                service.color === "indigo" ? "border-indigo-100 hover:border-indigo-200 bg-gradient-to-br from-indigo-50/50 to-white" :
+                service.color === "emerald" ? "border-emerald-100 hover:border-emerald-200 bg-gradient-to-br from-emerald-50/50 to-white" :
+                service.color === "amber" ? "border-amber-100 hover:border-amber-200 bg-gradient-to-br from-amber-50/50 to-white" :
+                service.color === "violet" ? "border-violet-100 hover:border-violet-200 bg-gradient-to-br from-violet-50/50 to-white" :
+                "border-rose-100 hover:border-rose-200 bg-gradient-to-br from-rose-50/50 to-white"
+              }`}
+            >
+              <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+                {/* Left: Title and Description */}
+                <div className="space-y-4">
+                  <div className="flex items-start gap-4">
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${
+                      service.color === "indigo" ? "bg-indigo-100 text-indigo-600" :
+                      service.color === "emerald" ? "bg-emerald-100 text-emerald-600" :
+                      service.color === "amber" ? "bg-amber-100 text-amber-600" :
+                      service.color === "violet" ? "bg-violet-100 text-violet-600" :
+                      "bg-rose-100 text-rose-600"
+                    }`}>
+                      {service.icon}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <h3 className="text-xl font-bold text-zinc-900">{service.title}</h3>
+                        <span className={`rounded-full px-3 py-1 text-xs font-bold ${
+                          service.color === "indigo" ? "bg-indigo-100 text-indigo-700" :
+                          service.color === "emerald" ? "bg-emerald-100 text-emerald-700" :
+                          service.color === "amber" ? "bg-amber-100 text-amber-700" :
+                          service.color === "violet" ? "bg-violet-100 text-violet-700" :
+                          "bg-rose-100 text-rose-700"
+                        }`}>
+                          {service.price}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-zinc-500 italic">{service.tagline}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-1">In plain English</p>
+                      <p className="text-sm text-zinc-700 leading-relaxed">{service.plainEnglish}</p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-1">Why it's valuable</p>
+                      <p className="text-sm text-zinc-600 leading-relaxed">{service.whyPayMore}</p>
+                    </div>
+
+                    {service.example && (
+                      <div className={`rounded-lg p-3 text-sm italic ${
+                        service.color === "indigo" ? "bg-indigo-50 text-indigo-700" :
+                        service.color === "emerald" ? "bg-emerald-50 text-emerald-700" :
+                        service.color === "amber" ? "bg-amber-50 text-amber-700" :
+                        service.color === "violet" ? "bg-violet-50 text-violet-700" :
+                        "bg-rose-50 text-rose-700"
+                      }`}>
+                        <span className="font-semibold not-italic">Example: </span>
+                        {service.example}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right: What's Included */}
+                <div className={`rounded-xl p-5 ${
+                  service.color === "indigo" ? "bg-indigo-50/70 ring-1 ring-indigo-100" :
+                  service.color === "emerald" ? "bg-emerald-50/70 ring-1 ring-emerald-100" :
+                  service.color === "amber" ? "bg-amber-50/70 ring-1 ring-amber-100" :
+                  service.color === "violet" ? "bg-violet-50/70 ring-1 ring-violet-100" :
+                  "bg-rose-50/70 ring-1 ring-rose-100"
+                }`}>
+                  <p className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-3">What's included</p>
+                  <ul className="space-y-2">
+                    {service.includes.map((item) => (
+                      <li key={item} className="flex items-start gap-2 text-sm text-zinc-700">
+                        <CheckCircle2 className={`mt-0.5 h-4 w-4 shrink-0 ${
+                          service.color === "indigo" ? "text-indigo-500" :
+                          service.color === "emerald" ? "text-emerald-500" :
+                          service.color === "amber" ? "text-amber-500" :
+                          service.color === "violet" ? "text-violet-500" :
+                          "text-rose-500"
+                        }`} />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Bottom Line Summary */}
+        <div className="rounded-2xl bg-zinc-900 p-6 sm:p-8 text-white">
+          <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div className="space-y-3">
+              <h3 className="text-xl font-bold">The bottom line</h3>
+              <div className="space-y-2 text-zinc-300">
+                <p><span className="text-zinc-400">Before Arena integration:</span> We sold digital dollhouses for robots.</p>
+                <p><span className="text-zinc-400">After Arena integration:</span> We sell digital dollhouses <span className="text-emerald-400 font-semibold">+ the testing equipment + the report cards + community publishing</span>.</p>
+              </div>
+              <p className="text-sm text-zinc-400">
+                We've gone from "scene vendor" to "complete robotics evaluation platform" — exactly what labs need as they move from research to real-world deployment.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
+              <a
+                href="/contact?service=evaluation"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-zinc-900 shadow-lg transition hover:bg-zinc-100"
+              >
+                Request a Quote
+                <ArrowRight className="h-4 w-4" />
+              </a>
+              <a
+                href="/arena"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/20"
+              >
+                Technical Details
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // --- Visual Helpers ---
 
 function DotPattern() {
@@ -744,6 +991,9 @@ export default function Solutions() {
 
           {/* --- Section: Arena Integration (NEW) --- */}
           <ArenaIntegrationSection />
+
+          {/* --- Section: Arena Services (What We Can Sell) --- */}
+          <ArenaServicesSection />
 
           {/* --- Section: SimReady Use Cases --- */}
           <section className="relative overflow-hidden rounded-[2.5rem] border border-indigo-100 bg-white p-8 shadow-sm sm:p-12 lg:p-16">
