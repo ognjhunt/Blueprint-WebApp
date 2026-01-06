@@ -407,9 +407,12 @@ import ComingSoon from "@/components/sections/ComingSoon";
 import { SEO } from "@/components/SEO";
 import { environmentCategories, syntheticDatasets } from "@/data/content";
 import {
+  ArrowRight,
+  BarChart3,
   Box,
   CheckCircle2,
   Cpu,
+  Fingerprint,
   Layers,
   LayoutGrid,
   Scan,
@@ -417,6 +420,7 @@ import {
   Sparkles,
   Terminal,
   Camera,
+  Zap,
 } from "lucide-react";
 
 // --- Data & Config ---
@@ -1118,6 +1122,123 @@ export default function Home() {
                 <p className="text-3xl font-bold text-white">$500K+</p>
                 <p className="mt-1 font-semibold text-indigo-200">Foundation</p>
                 <p className="mt-2 text-sm text-indigo-100">Unlimited + streaming API</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* --- Arena Integration Announcement --- */}
+      <section className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-emerald-600 to-emerald-800 p-8 shadow-2xl sm:p-12 lg:p-16">
+          <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+          <div className="absolute -left-20 -bottom-20 h-64 w-64 rounded-full bg-emerald-400/20 blur-3xl" />
+
+          {/* NEW Badge */}
+          <div className="absolute top-6 right-6 sm:top-8 sm:right-8">
+            <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white backdrop-blur-sm ring-1 ring-white/30">
+              <Zap className="h-3 w-3" />
+              New
+            </span>
+          </div>
+
+          <div className="relative z-10 grid gap-12 lg:grid-cols-2 lg:items-center">
+            <div className="space-y-6">
+              <div className="inline-flex items-center gap-2 rounded-md bg-white/20 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white backdrop-blur-sm">
+                <BarChart3 className="h-3 w-3" />
+                Isaac Lab-Arena Integration
+              </div>
+              <h2 className="text-3xl font-bold text-white sm:text-4xl">
+                Policy evaluation at scale.
+              </h2>
+              <p className="text-emerald-100 leading-relaxed">
+                Blueprint scenes now export directly to NVIDIA Isaac Lab-Arena format. Standardized
+                affordances, GPU-parallel evaluation, and automatic LeRobot Hub registration for
+                community benchmarks.
+              </p>
+              <ul className="space-y-3 text-sm text-emerald-100">
+                {[
+                  "17 affordance types (Openable, Graspable, Turnable, etc.)",
+                  "GPU-parallel evaluation at 1000x scale",
+                  "Auto-registration with LeRobot Hub",
+                  "250+ task templates included",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-3">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-300 shrink-0" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex flex-wrap gap-4 pt-2">
+                <a
+                  href="/arena"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-emerald-700 shadow-lg transition hover:bg-emerald-50"
+                >
+                  Learn About Arena
+                  <ArrowRight className="h-4 w-4" />
+                </a>
+                <a
+                  href="/environments"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
+                >
+                  Browse Arena-Ready Scenes
+                </a>
+              </div>
+            </div>
+
+            {/* Arena Visual */}
+            <div className="rounded-2xl bg-white/10 p-6 backdrop-blur-sm ring-1 ring-white/20">
+              <div className="space-y-4">
+                {/* Mini Pipeline */}
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { label: "Scene", icon: <Layers className="h-4 w-4" /> },
+                    { label: "Affordances", icon: <Fingerprint className="h-4 w-4" /> },
+                    { label: "Tasks", icon: <Terminal className="h-4 w-4" /> },
+                    { label: "Eval", icon: <BarChart3 className="h-4 w-4" /> },
+                  ].map((step, i) => (
+                    <div key={step.label} className="relative text-center">
+                      <div className="rounded-lg bg-white/20 p-3 backdrop-blur-sm">
+                        <div className="flex justify-center text-white mb-1">{step.icon}</div>
+                        <p className="text-xs font-medium text-white/90">{step.label}</p>
+                      </div>
+                      {i < 3 && (
+                        <ArrowRight className="absolute -right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Stats */}
+                <div className="grid grid-cols-3 gap-4 rounded-xl bg-white/10 p-4">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-white">17</p>
+                    <p className="text-xs text-emerald-200">Affordances</p>
+                  </div>
+                  <div className="text-center border-x border-white/20">
+                    <p className="text-2xl font-bold text-white">1000x</p>
+                    <p className="text-xs text-emerald-200">Parallel</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-white">250+</p>
+                    <p className="text-xs text-emerald-200">Tasks</p>
+                  </div>
+                </div>
+
+                {/* Affordance Tags Preview */}
+                <div className="flex flex-wrap gap-2">
+                  {["Openable", "Graspable", "Turnable", "Pressable", "Insertable"].map((aff) => (
+                    <span
+                      key={aff}
+                      className="rounded-full bg-white/20 px-3 py-1 text-xs font-medium text-white"
+                    >
+                      {aff}
+                    </span>
+                  ))}
+                  <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-white/60">
+                    +12 more
+                  </span>
+                </div>
               </div>
             </div>
           </div>
