@@ -183,6 +183,7 @@ import { WaitlistForm } from "@/components/site/WaitlistForm";
 import {
   AlertTriangle,
   ArrowRight,
+  BarChart3,
   Beaker,
   Box,
   Camera,
@@ -191,17 +192,21 @@ import {
   Clock,
   Clock3,
   Cpu,
+  Database,
   Download,
   Factory,
   FileCode,
   FileJson,
+  Fingerprint,
   Hammer,
   Layers,
   LineChart,
   Scan,
   Sparkles,
+  Target,
   Terminal,
   Video,
+  Zap,
 } from "lucide-react";
 
 // --- Configuration ---
@@ -527,6 +532,109 @@ function DataPipelineSection() {
   );
 }
 
+// --- Arena Integration Section ---
+
+function ArenaIntegrationSection() {
+  return (
+    <section className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-emerald-600 to-emerald-800 p-8 text-white sm:p-12 lg:p-16 shadow-2xl">
+      <div className="absolute top-0 left-0 h-full w-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5" />
+      <div className="absolute bottom-0 right-0 -mb-32 -mr-32 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
+      <div className="absolute top-0 left-0 -mt-32 -ml-32 h-96 w-96 rounded-full bg-emerald-400/20 blur-3xl" />
+
+      {/* NEW Badge */}
+      <div className="absolute top-6 right-6 sm:top-8 sm:right-8">
+        <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white backdrop-blur-sm ring-1 ring-white/30">
+          <Zap className="h-3 w-3" />
+          New
+        </span>
+      </div>
+
+      <div className="relative z-10 space-y-10">
+        {/* Header */}
+        <div className="text-center space-y-4">
+          <div className="inline-flex items-center gap-2 rounded-md bg-white/20 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white backdrop-blur-sm">
+            <BarChart3 className="h-3 w-3" />
+            Isaac Lab-Arena Integration
+          </div>
+          <h2 className="text-4xl font-bold text-white sm:text-5xl">
+            Policy Evaluation at Scale
+          </h2>
+          <p className="max-w-3xl mx-auto text-emerald-100 leading-relaxed">
+            Every Blueprint scene now exports directly to NVIDIA Isaac Lab-Arena format. Standardized
+            affordances enable automatic task generation and GPU-parallel policy benchmarking.
+          </p>
+        </div>
+
+        {/* Arena Pipeline Visual */}
+        <div className="grid gap-6 lg:grid-cols-4">
+          {[
+            { step: "01", title: "Scene", desc: "Physics-accurate USD from Blueprint", icon: <Layers className="h-6 w-6" /> },
+            { step: "02", title: "Affordances", desc: "Auto-detect: Openable, Graspable, etc.", icon: <Fingerprint className="h-6 w-6" /> },
+            { step: "03", title: "Tasks", desc: "Generate Arena task definitions", icon: <Target className="h-6 w-6" /> },
+            { step: "04", title: "Evaluate", desc: "GPU-parallel policy benchmarks", icon: <BarChart3 className="h-6 w-6" /> },
+          ].map((item, i) => (
+            <div key={item.step} className="relative">
+              <div className="rounded-2xl bg-white/10 p-6 backdrop-blur-sm ring-1 ring-white/20 h-full">
+                <div className="mb-4 flex items-center justify-between">
+                  <span className="font-mono text-xs font-bold text-emerald-300">{item.step}</span>
+                  <div className="text-white/60">{item.icon}</div>
+                </div>
+                <h3 className="text-lg font-bold text-white">{item.title}</h3>
+                <p className="mt-2 text-sm text-emerald-100">{item.desc}</p>
+              </div>
+              {i < 3 && (
+                <div className="absolute -right-3 top-1/2 -translate-y-1/2 hidden lg:block">
+                  <ArrowRight className="h-6 w-6 text-white/40" />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Benefits Grid */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { icon: <Target className="h-5 w-5" />, title: "Standardized Benchmarks", desc: "Compare policies apples-to-apples" },
+            { icon: <Zap className="h-5 w-5" />, title: "1000x Parallel Scale", desc: "GPU-accelerated evaluation" },
+            { icon: <Database className="h-5 w-5" />, title: "LeRobot Hub", desc: "Auto-register for community sharing" },
+            { icon: <Fingerprint className="h-5 w-5" />, title: "17 Affordances", desc: "Openable, Graspable, Turnable, etc." },
+          ].map((benefit) => (
+            <div
+              key={benefit.title}
+              className="flex items-start gap-3 rounded-xl bg-white/10 p-4 backdrop-blur-sm ring-1 ring-white/10"
+            >
+              <div className="text-emerald-300">{benefit.icon}</div>
+              <div>
+                <p className="text-sm font-bold text-white">{benefit.title}</p>
+                <p className="text-xs text-emerald-200">{benefit.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* CTA */}
+        <div className="text-center pt-4">
+          <div className="flex flex-wrap justify-center gap-4">
+            <a
+              href="/arena"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-emerald-700 shadow-lg transition hover:bg-emerald-50"
+            >
+              Learn About Arena Integration
+              <ArrowRight className="h-4 w-4" />
+            </a>
+            <a
+              href="/environments"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
+            >
+              Browse Arena-Ready Scenes
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // --- Visual Helpers ---
 
 function DotPattern() {
@@ -633,6 +741,9 @@ export default function Solutions() {
         <div className="space-y-24">
           {/* --- Section: Data Pipeline --- */}
           <DataPipelineSection />
+
+          {/* --- Section: Arena Integration (NEW) --- */}
+          <ArenaIntegrationSection />
 
           {/* --- Section: SimReady Use Cases --- */}
           <section className="relative overflow-hidden rounded-[2.5rem] border border-indigo-100 bg-white p-8 shadow-sm sm:p-12 lg:p-16">

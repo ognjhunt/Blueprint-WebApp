@@ -19,6 +19,7 @@ const Pricing = lazy(() => import("./pages/Pricing"));
 const Learn = lazy(() => import("./pages/Learn"));
 // const Capture = lazy(() => import("./pages/Capture")); // Capture service coming Q2 2026
 const Docs = lazy(() => import("./pages/Docs"));
+const Arena = lazy(() => import("./pages/Arena"));
 const CaseStudies = lazy(() => import("./pages/CaseStudies"));
 const Careers = lazy(() => import("./pages/Careers"));
 const Contact = lazy(() => import("./pages/Contact"));
@@ -51,6 +52,7 @@ function Router() {
         <Route path="/pricing" component={withLayout(Pricing)} />
         <Route path="/learn" component={withLayout(Learn)} />
         <Route path="/docs" component={withLayout(Docs)} />
+        <Route path="/arena" component={withLayout(Arena)} />
         <Route path="/case-studies" component={withLayout(CaseStudies)} />
         <Route path="/careers" component={withLayout(Careers)} />
         <Route path="/contact" component={withLayout(Contact)} />
