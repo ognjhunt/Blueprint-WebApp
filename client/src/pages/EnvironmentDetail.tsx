@@ -15,12 +15,14 @@ import { SpecList } from "@/components/site/SpecList";
 import { SceneCard } from "@/components/site/SceneCard";
 import {
   ArrowLeft,
+  BarChart3,
   Box,
   Brain,
   Calendar,
   CheckCircle2,
   ChevronRight,
   ChevronDown,
+  Globe,
   Hand,
   Layers,
   MessageSquare,
@@ -52,6 +54,8 @@ const capabilityIconMap: Record<string, React.ReactNode> = {
   layers: <Layers className="h-5 w-5" />,
   cpu: <Cpu className="h-5 w-5" />,
   move: <Move className="h-5 w-5" />,
+  "bar-chart": <BarChart3 className="h-5 w-5" />,
+  globe: <Globe className="h-5 w-5" />,
 };
 
 interface EnvironmentDetailProps {
