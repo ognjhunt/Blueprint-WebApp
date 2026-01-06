@@ -134,13 +134,13 @@ function DotPattern() {
 
 // --- Main Component ---
 
-export default function Arena() {
+export default function Evals() {
   return (
     <>
       <SEO
-        title="Arena Integration | Policy Evaluation at Scale"
+        title="Evals | Policy Evaluation at Scale"
         description="Isaac Lab-Arena integration for standardized robot policy evaluation. Affordance-based task generation, GPU-parallel benchmarking, and LeRobot Hub registration."
-        canonical="/arena"
+        canonical="/evals"
       />
       <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
         <DotPattern />
