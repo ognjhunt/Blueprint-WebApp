@@ -1171,10 +1171,10 @@ export default function Home() {
               </ul>
               <div className="flex flex-wrap gap-4 pt-2">
                 <a
-                  href="/arena"
+                  href="/evals"
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-emerald-700 shadow-lg transition hover:bg-emerald-50"
                 >
-                  Learn About Arena
+                  Learn About Evals
                   <ArrowRight className="h-4 w-4" />
                 </a>
                 <a

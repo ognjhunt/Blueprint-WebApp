@@ -621,10 +621,10 @@ function ArenaIntegrationSection() {
         <div className="text-center pt-4">
           <div className="flex flex-wrap justify-center gap-4">
             <a
-              href="/arena"
+              href="/evals"
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-emerald-700 shadow-lg transition hover:bg-emerald-50"
             >
-              Learn About Arena Integration
+              Learn About Evals
               <ArrowRight className="h-4 w-4" />
             </a>
             <a
@@ -869,7 +869,7 @@ function ArenaServicesSection() {
                 <ArrowRight className="h-4 w-4" />
               </a>
               <a
-                href="/arena"
+                href="/evals"
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/20"
               >
                 Technical Details

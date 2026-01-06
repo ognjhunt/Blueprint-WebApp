@@ -2283,6 +2283,68 @@ export const premiumCapabilities: PremiumCapability[] = [
     requiresScene: true,
     requiresEpisodes: true,
   },
+
+  // === TIER 3: EVALUATION SERVICES ===
+  {
+    slug: "policy-benchmarking",
+    title: "Policy Benchmarking",
+    shortTitle: "Benchmarking",
+    description:
+      "GPU-parallel policy evaluation with detailed performance reports.",
+    detailedDescription:
+      "Send your trained policies to Blueprint for standardized benchmarking on this scene. Receive detailed reports with success rates, completion times, collision counts, and generalization metrics across 1000+ parallel evaluations.",
+    price: 350,
+    priceDisplay: "+$350",
+    tier: "immediate",
+    icon: "bar-chart",
+    benefits: [
+      "1000+ parallel evaluation episodes",
+      "Standardized metrics (success rate, completion time, collisions)",
+      "Comparison against baseline policies",
+    ],
+    technicalDetails: [
+      "Isaac Lab-Arena GPU-parallel execution",
+      "Affordance-based task auto-generation",
+      "JSON/PDF report with visualizations",
+      "LeRobot Hub metrics integration",
+    ],
+    useCases: [
+      "Pre-deployment policy validation",
+      "Research paper benchmarking",
+      "Policy comparison across architectures",
+    ],
+    requiresScene: true,
+  },
+  {
+    slug: "lerobot-hub-publishing",
+    title: "LeRobot Hub Publishing",
+    shortTitle: "Hub Publishing",
+    description:
+      "Package and publish your environment to Hugging Face LeRobot Hub.",
+    detailedDescription:
+      "We handle the full packaging and publishing pipeline: Arena-format conversion, metadata generation, dataset cards, and Hugging Face Hub registration. Your environment becomes discoverable by the global robotics community.",
+    price: 750,
+    priceDisplay: "+$750",
+    tier: "immediate",
+    icon: "globe",
+    benefits: [
+      "Full Hub-ready packaging",
+      "Dataset card with usage examples",
+      "Community discoverability and citations",
+    ],
+    technicalDetails: [
+      "Arena Scene class generation",
+      "Asset registry and Hub config",
+      "Automated dataset card with benchmarks",
+      "Version control and update pipeline",
+    ],
+    useCases: [
+      "Research labs sharing environments",
+      "Companies building public benchmarks",
+      "Open-source robotics contributions",
+    ],
+    requiresScene: true,
+  },
 ];
 
 // Bundle tier configurations
