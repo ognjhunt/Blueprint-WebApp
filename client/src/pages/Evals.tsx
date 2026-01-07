@@ -56,7 +56,7 @@ const pipelineSteps = [
   {
     step: "04",
     title: "Policy Evaluation",
-    desc: "Run benchmarks at scale with GPU-parallel evaluation. Compare policies across standardized tasks.",
+    desc: "Run benchmarks at scale with GPU-parallel evaluation and VLM-based scoring. Genie Sim 3.0 automatically grades task completion with evidence-based justification.",
     icon: <BarChart3 className="h-6 w-6" />,
   },
 ];
@@ -139,7 +139,7 @@ export default function Evals() {
     <>
       <SEO
         title="Evals | Policy Evaluation at Scale"
-        description="Isaac Lab-Arena integration for standardized robot policy evaluation. Affordance-based task generation, GPU-parallel benchmarking, and LeRobot Hub registration."
+        description="Genie Sim 3.0 powered evaluation with VLM scoring, Isaac Lab-Arena integration, and GPU-parallel benchmarking. 100,000+ scenarios with automated task generation."
         canonical="/evals"
       />
       <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
@@ -158,9 +158,9 @@ export default function Evals() {
                   Policy evaluation at scale.
                 </h1>
                 <p className="max-w-2xl text-lg leading-relaxed text-zinc-600">
-                  Blueprint scenes now export directly to NVIDIA Isaac Lab-Arena format.
-                  Standardized affordances, GPU-parallel evaluation, and automatic
-                  LeRobot Hub registration for community benchmarks.
+                  Blueprint scenes export to NVIDIA Isaac Lab-Arena format with Genie Sim 3.0
+                  powering automated data generation. LLM-generated tasks, cuRobo trajectory
+                  planning, and VLM-based evaluation at 100,000+ scenarios scale.
                 </p>
               </div>
 
@@ -378,32 +378,35 @@ export default function Evals() {
 
               {/* Detection Methods */}
               <div className="mt-8 rounded-2xl border border-zinc-200 bg-zinc-50 p-6">
+                <div className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-500">
+                  Powered by Genie Sim 3.0
+                </div>
                 <div className="grid gap-6 lg:grid-cols-3">
                   <div>
                     <div className="flex items-center gap-2 text-sm font-bold text-zinc-900">
                       <Cpu className="h-4 w-4 text-indigo-600" />
-                      LLM Detection
+                      LLM Task Generation
                     </div>
                     <p className="mt-2 text-sm text-zinc-600">
-                      Gemini analyzes object metadata and infers affordances with confidence scores.
+                      Genie Sim 3.0 uses LLMs to auto-generate task instructions and evaluation configs from scene content.
                     </p>
                   </div>
                   <div>
                     <div className="flex items-center gap-2 text-sm font-bold text-zinc-900">
                       <Settings2 className="h-4 w-4 text-emerald-600" />
-                      Heuristic Rules
+                      cuRobo Trajectories
                     </div>
                     <p className="mt-2 text-sm text-zinc-600">
-                      Fast fallback based on sim_role, joint types, and object categories.
+                      GPU-accelerated motion planning with automatic waypoint filtering and failure recovery.
                     </p>
                   </div>
                   <div>
                     <div className="flex items-center gap-2 text-sm font-bold text-zinc-900">
                       <FileJson className="h-4 w-4 text-amber-600" />
-                      Manual Override
+                      VLM Scoring
                     </div>
                     <p className="mt-2 text-sm text-zinc-600">
-                      Specify affordances directly in scene manifest for precise control.
+                      Vision-language models evaluate task completion from rollouts with evidence-based justification.
                     </p>
                   </div>
                 </div>

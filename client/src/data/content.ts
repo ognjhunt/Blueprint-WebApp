@@ -2044,7 +2044,7 @@ export const premiumCapabilities: PremiumCapability[] = [
     description:
       "Natural language instructions for every episode with 10+ variations per task.",
     detailedDescription:
-      "LLM-generated language annotations in multiple styles (imperative, descriptive, casual). Enables vision-language-action model training without manual annotation.",
+      "Genie Sim 3.0 LLM-generated language annotations in multiple styles (imperative, descriptive, casual). Enables vision-language-action model training without manual annotation.",
     price: 1500,
     priceDisplay: "+$1,500",
     tier: "immediate",
@@ -2354,21 +2354,22 @@ export const bundleTiers: BundleTierConfig[] = [
     name: "Standard",
     price: "$5,499",
     description:
-      "Complete scene with simulation-ready USD, domain randomization, and LeRobot episodes. Perfect for single-task training.",
+      "Complete scene with simulation-ready USD, domain randomization, and Genie Sim 3.0-generated episodes. LLM task generation and VLM evaluation included.",
     episodeCount: "2,500",
     variationCount: "500-1,000",
     highlights: [
       "Physics-accurate USD scene",
-      "Domain randomization scripts",
-      "2,500 LeRobot episodes",
-      "Isaac Lab configs included",
+      "Genie Sim 3.0 data generation",
+      "2,500 VLM-evaluated episodes",
+      "cuRobo trajectory planning",
     ],
     features: [
       "SimReady USD package",
       "Articulation + collision setup",
-      "Domain randomization (lighting, textures, poses)",
-      "2,500 manipulation episodes",
-      "LeRobot v2.0 format export",
+      "Genie Sim 3.0 LLM task generation",
+      "cuRobo GPU-accelerated trajectories",
+      "VLM-evaluated episodes (2,500)",
+      "LeRobot v0.3.3 format export",
       "Isaac Lab environment configs",
       "30-day support",
     ],
