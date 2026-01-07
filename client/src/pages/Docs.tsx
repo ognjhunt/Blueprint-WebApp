@@ -109,6 +109,7 @@ const sections = [
   { id: "physics", label: "Physics" },
   { id: "semantics", label: "Semantics" },
   { id: "import-guide", label: "Import Guide" },
+  { id: "data-generation", label: "Data Generation" },
 ];
 
 // --- Visual Helper ---
@@ -204,7 +205,7 @@ export default function Docs() {
     <>
       <SEO
         title="Documentation | SimReady Specification"
-        description="Technical specification for Blueprint SimReady scenes. Learn about coordinate systems, physics materials, joint articulation, semantic labeling, and integration guides."
+        description="Technical specification for Blueprint SimReady scenes. Genie Sim 3.0 data generation, coordinate systems, physics materials, joint articulation, semantic labeling, and integration guides."
         canonical="/docs"
       />
       <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
@@ -428,8 +429,8 @@ export default function Docs() {
                     </div>
                     <p>
                       Scenes include optional CSV/JSON metadata for planograms,
-                      signage, and device IDs. Compatible with Replicator for
-                      synthetic data generation.
+                      signage, and device IDs. Genie Sim 3.0 uses these semantics
+                      for LLM-driven task generation and VLM-based evaluation.
                     </p>
                   </SpecCard>
                 </div>
@@ -485,6 +486,60 @@ export default function Docs() {
                       <span className="text-emerald-400">$</span>
                       <span>agent.spawn --pose=start_point_A</span>
                     </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Genie Sim 3.0 Data Generation */}
+            <section id="data-generation" className="space-y-6 scroll-mt-8">
+              <h2 className="text-2xl font-bold text-zinc-900">
+                Genie Sim 3.0 Data Generation
+              </h2>
+              <p className="text-zinc-600 max-w-3xl">
+                Blueprint uses AGIBOT's Genie Sim 3.0 as the default data generation backend.
+                This provides automated, scalable episode generation without manual task authoring.
+              </p>
+              <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/50 to-white">
+                <div className="p-6 border-b border-emerald-100">
+                  <div className="flex items-center gap-2 text-sm font-bold text-emerald-800">
+                    <Layers className="h-4 w-4" />
+                    Data Pipeline
+                  </div>
+                </div>
+                <div className="grid gap-4 p-6 md:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-emerald-100">
+                    <div className="text-xs font-bold uppercase tracking-wider text-emerald-600 mb-2">01</div>
+                    <div className="font-bold text-zinc-900">LLM Task Generation</div>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      Auto-generates task instructions and evaluation configs from scene content.
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-emerald-100">
+                    <div className="text-xs font-bold uppercase tracking-wider text-emerald-600 mb-2">02</div>
+                    <div className="font-bold text-zinc-900">cuRobo Trajectories</div>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      GPU-accelerated motion planning with waypoint filtering and failure recovery.
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-emerald-100">
+                    <div className="text-xs font-bold uppercase tracking-wider text-emerald-600 mb-2">03</div>
+                    <div className="font-bold text-zinc-900">Automated Collection</div>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      Logs joint states, visual observations, and object poses into LeRobot format.
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-emerald-100">
+                    <div className="text-xs font-bold uppercase tracking-wider text-emerald-600 mb-2">04</div>
+                    <div className="font-bold text-zinc-900">VLM Evaluation</div>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      Vision-language models score task completion with evidence-based justification.
+                    </p>
+                  </div>
+                </div>
+                <div className="px-6 pb-6">
+                  <div className="rounded-lg bg-emerald-50 p-4 text-sm text-emerald-800">
+                    <strong>Output:</strong> LeRobot v0.3.3 episodes with multi-sensor streams (RGB-D, stereo vision, whole-body kinematics) across 200+ task templates.
                   </div>
                 </div>
               </div>

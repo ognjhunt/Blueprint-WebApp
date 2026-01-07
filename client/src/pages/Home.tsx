@@ -1015,8 +1015,9 @@ export default function Home() {
             From scenes to trained policies
           </h2>
           <p className="mt-4 max-w-2xl mx-auto text-zinc-600">
-            Every bundle includes LeRobot episodes and Isaac Lab configs.
-            Upgrade for VLA fine-tuning, sim2real validation, and advanced manipulation.
+            Powered by Genie Sim 3.0 for automated data generation. Every bundle includes
+            LLM-generated tasks, GPU-accelerated trajectories, and VLM-evaluated episodes
+            in LeRobot format. Upgrade for VLA fine-tuning and sim2real validation.
           </p>
         </div>
 
@@ -1083,7 +1084,8 @@ export default function Home() {
               </h3>
               <p className="mt-4 text-indigo-100">
                 From single-scene experiments to foundation model scale. Every bundle includes
-                physics-accurate USD, domain randomization, and AI-generated episodes.
+                physics-accurate USD, domain randomization, and Genie Sim 3.0-generated episodes
+                with automated task generation and cuRobo trajectory planning.
               </p>
               <div className="mt-6 flex flex-wrap gap-4">
                 <a
