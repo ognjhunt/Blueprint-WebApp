@@ -10,10 +10,10 @@ const budgetRanges = [
 ] as const;
 
 const offerings = [
-  { value: "scene-marketplace", label: "Scene Marketplace - SimReady scenes including add-ons/upsells" },
-  { value: "genie-data", label: "Data from Genie Sim 3.0 (Episodes)" },
-  { value: "genie-evals", label: "Evals from Genie Sim 3.0 Output" },
-  { value: "blueprint-capture", label: "Blueprint Capture for Real-World Locations (Coming Soon)" },
+  { value: "benchmark-packs", label: "Benchmark Packs - Evaluation suites with scenes, tasks & harnesses" },
+  { value: "scene-library", label: "Scene Library - Individual SimReady USD scenes" },
+  { value: "dataset-packs", label: "Dataset Packs - Pre-generated episodes for offline training" },
+  { value: "custom-capture", label: "Custom Capture - Real-world facility reconstruction" },
 ] as const;
 
 export function ContactForm() {
@@ -129,9 +129,9 @@ export function ContactForm() {
 
   // Form state
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
+    <form onSubmit={handleSubmit} className="space-y-6">
       {/* Contact Information Grid */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* First Name */}
         <div>
           <input
@@ -139,7 +139,7 @@ export function ContactForm() {
             name="firstName"
             placeholder="First name*"
             required
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3.5 text-sm text-white placeholder:text-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
 
@@ -150,7 +150,7 @@ export function ContactForm() {
             name="lastName"
             placeholder="Last name*"
             required
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3.5 text-sm text-white placeholder:text-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
 
@@ -161,7 +161,7 @@ export function ContactForm() {
             name="company"
             placeholder="Company name*"
             required
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3.5 text-sm text-white placeholder:text-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
 
@@ -171,7 +171,7 @@ export function ContactForm() {
             type="text"
             name="jobTitle"
             placeholder="Job title*"
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3.5 text-sm text-white placeholder:text-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
       </div>
@@ -183,51 +183,55 @@ export function ContactForm() {
           name="email"
           placeholder="Work email*"
           required
-          className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3.5 text-sm text-white placeholder:text-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+          className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
       </div>
 
       {/* Project Budget */}
-      <div className="space-y-4">
-        <label className="block text-sm font-semibold text-white">
+      <div className="space-y-3">
+        <label className="block text-sm font-semibold text-zinc-900">
           Project Budget*
         </label>
-        <div className="space-y-3">
+        <div className="flex flex-wrap gap-2">
           {budgetRanges.map((range) => (
-            <label
+            <button
               key={range}
-              className="flex cursor-pointer items-center gap-3 transition hover:text-zinc-300"
+              type="button"
+              onClick={() => setSelectedBudget(range)}
+              className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                selectedBudget === range
+                  ? "border-indigo-600 bg-indigo-600 text-white"
+                  : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
+              }`}
             >
-              <input
-                type="checkbox"
-                checked={selectedBudget === range}
-                onChange={() => setSelectedBudget(range)}
-                className="h-4 w-4 rounded border-zinc-700 bg-zinc-900 text-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0"
-              />
-              <span className="text-sm text-zinc-300">{range}</span>
-            </label>
+              {range}
+            </button>
           ))}
         </div>
       </div>
 
       {/* What can we help with */}
-      <div className="space-y-4">
-        <label className="block text-sm font-semibold text-white">
+      <div className="space-y-3">
+        <label className="block text-sm font-semibold text-zinc-900">
           What can we help with? Select all that apply*
         </label>
-        <div className="space-y-3">
+        <div className="space-y-2">
           {offerings.map((offering) => (
             <label
               key={offering.value}
-              className="flex cursor-pointer items-start gap-3 transition hover:text-zinc-300"
+              className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition ${
+                selectedOfferings.includes(offering.value)
+                  ? "border-indigo-200 bg-indigo-50"
+                  : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50"
+              }`}
             >
               <input
                 type="checkbox"
                 checked={selectedOfferings.includes(offering.value)}
                 onChange={() => handleOfferingToggle(offering.value)}
-                className="mt-0.5 h-4 w-4 rounded border-zinc-700 bg-zinc-900 text-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0"
+                className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0"
               />
-              <span className="text-sm text-zinc-300">{offering.label}</span>
+              <span className="text-sm text-zinc-700">{offering.label}</span>
             </label>
           ))}
         </div>
@@ -237,15 +241,15 @@ export function ContactForm() {
       <div>
         <textarea
           name="message"
-          rows={5}
+          rows={4}
           placeholder="Share additional details on your needs, we support a wide range of Embodied AI use cases beyond the options above."
-          className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3.5 text-sm text-white placeholder:text-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+          className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
       </div>
 
       {/* Error Message */}
       {status === "error" && message && (
-        <div className="rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
           {message}
         </div>
       )}
@@ -255,7 +259,7 @@ export function ContactForm() {
         <button
           type="submit"
           disabled={status === "loading"}
-          className="flex items-center gap-2 rounded-lg bg-zinc-700 px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-zinc-600 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {status === "loading" ? (
             <>
@@ -264,7 +268,7 @@ export function ContactForm() {
             </>
           ) : (
             <>
-              Submit
+              Submit Request
               <span aria-hidden="true">→</span>
             </>
           )}
