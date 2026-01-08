@@ -8,6 +8,9 @@ import {
   MessageSquare,
   Sparkles,
   Zap,
+  TrendingUp,
+  Clock,
+  ArrowRight,
 } from "lucide-react";
 
 function DotPattern() {
@@ -106,8 +109,9 @@ export default function Pricing() {
             </h1>
 
             <p className="mx-auto max-w-2xl text-lg text-zinc-600">
-              Platform license for teams training foundation models at scale.
-              Unlimited scenes, streaming access, and custom data pipelines.
+              Simulation data that complements your real-world capture. Research shows
+              teams that mix sim + real data see up to 38% better performance than
+              real-only approaches.
             </p>
           </header>
 
@@ -269,6 +273,76 @@ export default function Pricing() {
                   <p className="text-2xl font-bold text-emerald-400">85%+</p>
                   <p className="mt-1 text-xs text-zinc-400">Premium</p>
                 </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Complement Section */}
+          <section className="mb-16 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-8">
+            <div className="grid gap-8 lg:grid-cols-2 lg:items-center">
+              <div className="space-y-4">
+                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-700">
+                  <TrendingUp className="h-3 w-3" />
+                  Research-Backed
+                </div>
+                <h2 className="text-2xl font-bold text-zinc-900">
+                  Already collecting real-world data?
+                </h2>
+                <p className="text-zinc-600">
+                  Simulation doesn't replace your real-world capture—it amplifies it.
+                  Research shows teams that combine simulation with even small amounts
+                  of real data see significantly better real-world performance.
+                </p>
+                <ul className="space-y-2 text-sm text-zinc-600">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 mt-0.5 text-emerald-500 shrink-0" />
+                    <span><strong>38% average boost</strong> vs real-only training</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 mt-0.5 text-emerald-500 shrink-0" />
+                    <span><strong>27x faster</strong> data generation than teleop</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 mt-0.5 text-emerald-500 shrink-0" />
+                    <span><strong>10,000+ variations</strong> impossible to stage in real life</span>
+                  </li>
+                </ul>
+                <a
+                  href="/why-simulation"
+                  className="inline-flex items-center text-sm font-semibold text-emerald-700 hover:text-emerald-800"
+                >
+                  Learn how simulation complements real data
+                  <ArrowRight className="ml-1 h-4 w-4" />
+                </a>
+              </div>
+
+              <div className="rounded-xl bg-white p-6 shadow-md border border-emerald-100">
+                <p className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-4">
+                  Typical Training Mix
+                </p>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-3 flex-1 rounded-full bg-zinc-100 overflow-hidden">
+                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: "99%" }} />
+                    </div>
+                    <span className="text-sm font-semibold text-emerald-600 w-12">99%</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-zinc-500">
+                    <span>Simulation (scale + diversity)</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="h-3 flex-1 rounded-full bg-zinc-100 overflow-hidden">
+                      <div className="h-full bg-indigo-500 rounded-full" style={{ width: "1%" }} />
+                    </div>
+                    <span className="text-sm font-semibold text-indigo-600 w-12">1%</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-zinc-500">
+                    <span>Real-world (reality anchoring)</span>
+                  </div>
+                </div>
+                <p className="mt-4 text-xs text-zinc-400 text-center">
+                  Research shows ~99% sim / ~1% real often achieves optimal performance
+                </p>
               </div>
             </div>
           </section>

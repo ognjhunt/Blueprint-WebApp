@@ -45,8 +45,9 @@ export default function Footer() {
               </h3>
             </div>
             <p className="text-slate-400 max-w-xl">
-              Physics-accurate SimReady environments for robotic training.
-              Domain randomization, precision geometry, and sim2real-validated assets.
+              Simulation data that complements your real-world capture. Physics-accurate
+              environments with domain randomization and sim2real validation—designed to
+              boost your models by up to 38%.
             </p>
             <div className="flex items-center gap-4 mt-5 text-slate-400">
               <a
@@ -118,6 +119,24 @@ export default function Footer() {
             <ul className="space-y-3">
               <li>
                 <a
+                  href="/why-simulation"
+                  className="text-slate-400 hover:text-white transition flex items-center"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2" />{" "}
+                  Why Simulation?
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/learn"
+                  className="text-slate-400 hover:text-white transition flex items-center"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2" />{" "}
+                  Getting Started
+                </a>
+              </li>
+              <li>
+                <a
                   href="/privacy"
                   className="text-slate-400 hover:text-white transition flex items-center"
                 >
@@ -132,15 +151,6 @@ export default function Footer() {
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2" />{" "}
                   Terms of Service
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/faq"
-                  className="text-slate-400 hover:text-white transition flex items-center"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2" />{" "}
-                  FAQ
                 </a>
               </li>
             </ul>

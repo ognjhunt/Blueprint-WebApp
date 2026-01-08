@@ -14,6 +14,9 @@ import {
   FileCode,
   Sparkles,
   CheckCircle2,
+  TrendingUp,
+  Database,
+  Clock,
 } from "lucide-react";
 
 // --- Glossary Terms ---
@@ -186,8 +189,8 @@ export default function Learn() {
   return (
     <>
       <SEO
-        title="New to Simulation? | Blueprint"
-        description="Learn the fundamentals of robotics simulation: SimReady assets, sim2real transfer, domain randomization, USD, URDF, and more. A comprehensive guide for teams new to simulated robotic training."
+        title="Getting Started with Simulation | Blueprint"
+        description="Learn the fundamentals of robotics simulation: how simulation complements real-world data, SimReady assets, sim2real transfer, domain randomization, and more. A comprehensive guide for teams new to simulated robotic training."
         canonical="/learn"
       />
       <div className="relative min-h-screen bg-white font-sans text-zinc-900">
@@ -200,13 +203,96 @@ export default function Learn() {
                 Educational Resource
               </div>
               <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl lg:text-6xl">
-                New to Robotics Simulation?
+                Getting Started with Simulation
               </h1>
               <p className="mt-6 text-lg leading-relaxed text-zinc-600">
                 Whether you're a robotics lab exploring sim2real training or an
                 engineer evaluating synthetic data pipelines, this guide covers
                 the essential concepts you need to understand.
               </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Simulation as Complement Section */}
+        <section className="py-16 bg-gradient-to-r from-emerald-50 to-indigo-50">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 mb-4">
+                  <TrendingUp className="h-3 w-3" />
+                  Key Insight
+                </div>
+                <h2 className="text-3xl font-bold tracking-tight text-zinc-900">
+                  Simulation Complements Real-World Data
+                </h2>
+                <p className="mt-4 text-lg text-zinc-600 leading-relaxed">
+                  The most successful robotics teams don't choose between simulation and
+                  real-world data—they use both. Simulation provides the scale and diversity
+                  your models need, while real data anchors them to reality.
+                </p>
+                <ul className="mt-6 space-y-3">
+                  {[
+                    { icon: <TrendingUp className="h-4 w-4" />, text: "38% average performance boost when combining sim + real data" },
+                    { icon: <Clock className="h-4 w-4" />, text: "27x faster data generation than human teleop" },
+                    { icon: <Database className="h-4 w-4" />, text: "10,000x more edge case coverage than real capture alone" },
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-start gap-3 text-zinc-700">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                        {item.icon}
+                      </span>
+                      {item.text}
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-8">
+                  <a
+                    href="/why-simulation"
+                    className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+                  >
+                    Learn Why Simulation Matters
+                    <ArrowRight className="h-4 w-4" />
+                  </a>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-lg">
+                <p className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-6">
+                  The Complement Model
+                </p>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4 rounded-xl bg-emerald-50 p-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                      <Database className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-zinc-900">Simulation Data</p>
+                      <p className="text-sm text-zinc-600">Scale, diversity, edge cases</p>
+                    </div>
+                    <p className="ml-auto text-2xl font-bold text-emerald-600">99%</p>
+                  </div>
+                  <div className="flex items-center justify-center text-zinc-300">
+                    <span className="text-2xl">+</span>
+                  </div>
+                  <div className="flex items-center gap-4 rounded-xl bg-indigo-50 p-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
+                      <Target className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-zinc-900">Real-World Data</p>
+                      <p className="text-sm text-zinc-600">Reality anchoring, validation</p>
+                    </div>
+                    <p className="ml-auto text-2xl font-bold text-indigo-600">1%</p>
+                  </div>
+                  <div className="flex items-center justify-center text-zinc-300">
+                    <span className="text-2xl">=</span>
+                  </div>
+                  <div className="rounded-xl bg-gradient-to-r from-emerald-600 to-indigo-600 p-4 text-white text-center">
+                    <p className="text-lg font-bold">Better Real-World Performance</p>
+                    <p className="text-sm opacity-90">Research-backed optimal mix</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>

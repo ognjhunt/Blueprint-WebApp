@@ -11,6 +11,7 @@ import { CookieConsent } from "./components/CookieConsent";
 import { Analytics } from "./components/Analytics";
 
 const Home = lazy(() => import("./pages/Home"));
+const WhySimulation = lazy(() => import("./pages/WhySimulation"));
 const Environments = lazy(() => import("./pages/Environments"));
 // const Recipes = lazy(() => import("./pages/Recipes")); // Hidden: recipes temporarily removed from offerings
 const EnvironmentDetail = lazy(() => import("./pages/EnvironmentDetail"));
@@ -42,6 +43,7 @@ function Router() {
     <Suspense fallback={<LoadingScreen />}>
       <Switch>
         <Route path="/" component={withLayout(Home)} />
+        <Route path="/why-simulation" component={withLayout(WhySimulation)} />
         <Route path="/environments" component={withLayout(Environments)} />
         {/* <Route path="/recipes" component={withLayout(Recipes)} /> */}{/* Hidden: recipes temporarily removed from offerings */}
         <Route
