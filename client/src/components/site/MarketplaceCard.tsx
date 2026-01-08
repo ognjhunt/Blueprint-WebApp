@@ -181,7 +181,7 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
         <div className="absolute bottom-3 left-3 flex gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-black/60 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
             <Package className="h-3 w-3" />
-            {isDataset ? "Dataset Bundle" : "Single Scene"}
+            {isDataset ? "Benchmark Pack" : "Scene Library"}
           </span>
           <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/80 px-2 py-1 text-[10px] font-bold text-white backdrop-blur-sm">
             <Play className="h-2.5 w-2.5" />

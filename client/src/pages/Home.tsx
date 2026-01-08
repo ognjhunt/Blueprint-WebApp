@@ -412,6 +412,7 @@ import {
   Box,
   CheckCircle2,
   Cpu,
+  Database,
   Fingerprint,
   Layers,
   LayoutGrid,
@@ -463,38 +464,53 @@ const SHOW_REAL_WORLD_CAPTURE = false;
 
 const offeringCards = [
   {
-    title: "Synthetic SimReady Scenes",
-    badge: "Marketplace",
+    title: "Benchmark Packs",
+    badge: "Evaluation",
     description:
-      "Physics-accurate dataset drops with deterministic domain randomization, plug-and-play USD, and sim2real validation notes.",
+      "Runnable benchmark suites with SimReady scenes, tasks, and an eval harness. Plug in your policy and get a standardized report.",
     bullets: [
-      "Filter by policy, object coverage, and facility archetype",
-      "Domain randomization scripts for visual & physics variation",
-      "Task logic included: actions, observations, rewards, resets, and parallel env configs",
-      "Built for field robotics, industrial automation & humanoid training",
+      "Scenes + tasks + evaluation harness in one package",
+      "Fixed seeds, deterministic resets, and reproducible protocols",
+      "JSON reports: success rate, time-to-success, collisions, path efficiency",
+      "Isaac Lab-Arena format with GPU-parallel evaluation",
     ],
-    ctaLabel: "Browse drops",
-    ctaHref: "/environments",
+    ctaLabel: "Browse benchmarks",
+    ctaHref: "/environments?type=datasets",
+    icon: <BarChart3 className="h-8 w-8 text-zinc-900" />,
+  },
+  {
+    title: "Scene Library",
+    badge: "Assets",
+    description:
+      "Individual SimReady USD scenes for training, evaluation, or custom benchmark assembly. Physics-accurate with full metadata.",
+    bullets: [
+      "Physics-stable geometry with sub-mm tolerances",
+      "Full articulation: joints, friction, mass, inertia properties",
+      "Domain randomization scripts included",
+      "Compatible with Isaac Sim, MuJoCo, and leading simulators",
+    ],
+    ctaLabel: "Browse scenes",
+    ctaHref: "/environments?type=scenes",
     icon: <LayoutGrid className="h-8 w-8 text-zinc-900" />,
   },
   {
-    title: "Scene Recipes",
-    badge: "Layouts + Frames",
+    title: "Dataset Packs",
+    badge: "Training Data",
     description:
-      "Lightweight USD layers with physics metadata, PBR materials, and Replicator scripts for domain randomization.",
+      "Pre-generated episode trajectories for offline training. Observations, actions, states, and labels in LeRobot format.",
     bullets: [
-      "Precision geometry with mass, inertia & friction properties",
-      "Manifest for SimReady packs + asset fallbacks you install locally",
-      "Task logic scaffolds tuned for vectorized RL and sim2real transfer",
-      "Variation generator for swaps, clutter, lighting, and articulation states (500–2,000 variations/scene)",
+      "Thousands of expert trajectories per scene/task",
+      "Multi-sensor: RGB-D, proprioception, end-effector poses",
+      "Train/val/test splits with example data loaders",
+      "Ideal for imitation learning and offline RL",
     ],
-    ctaLabel: "Request a recipe",
-    ctaHref: "/recipes",
-    icon: <Terminal className="h-8 w-8 text-zinc-900" />,
+    ctaLabel: "Browse datasets",
+    ctaHref: "/environments?type=datasets",
+    icon: <Database className="h-8 w-8 text-zinc-900" />,
   },
   {
     title: "Reference Photo Reconstruction",
-    badge: "Exclusive",
+    badge: "Custom",
     description:
       "Upload a single wide photo and we'll rebuild that exact layout with physics-accurate geometry and visual fidelity.",
     bullets: [
@@ -521,14 +537,31 @@ const offeringCards = [
     ctaHref: "/contact",
     icon: <Scan className="h-8 w-8 text-zinc-900" />,
   },
+  {
+    title: "Scene Recipes",
+    badge: "Layouts + Frames",
+    description:
+      "Lightweight USD layers with physics metadata, PBR materials, and Replicator scripts for domain randomization.",
+    bullets: [
+      "Precision geometry with mass, inertia & friction properties",
+      "Manifest for SimReady packs + asset fallbacks you install locally",
+      "Task logic scaffolds tuned for vectorized RL and sim2real transfer",
+      "Variation generator for swaps, clutter, lighting, and articulation states (500–2,000 variations/scene)",
+    ],
+    ctaLabel: "Request a recipe",
+    ctaHref: "/recipes",
+    icon: <Terminal className="h-8 w-8 text-zinc-900" />,
+  },
 ];
 
-// Hidden: Scene Recipes temporarily removed from offerings (will be added back later)
+// Hidden offerings (will be added back later when ready)
 const SHOW_SCENE_RECIPES = false;
+const SHOW_DATASET_PACKS = true; // Dataset Packs shown - part of main offering
 
 const visibleOfferingCards = offeringCards.filter((card) => {
   if (!SHOW_REAL_WORLD_CAPTURE && card.title === "Real-world Capture") return false;
   if (!SHOW_SCENE_RECIPES && card.title === "Scene Recipes") return false;
+  if (!SHOW_DATASET_PACKS && card.title === "Dataset Packs") return false;
   return true;
 });
 
@@ -1012,10 +1045,10 @@ export default function Home() {
             Premium Capabilities
           </div>
           <h2 className="mt-6 text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
-            From scenes to trained policies
+            From scenes to benchmarked policies
           </h2>
           <p className="mt-4 max-w-2xl mx-auto text-zinc-600">
-            Powered by Genie Sim 3.0 for automated data generation. Every bundle includes
+            Powered by Genie Sim 3.0 for automated data generation and evaluation. Every bundle includes
             LLM-generated tasks, GPU-accelerated trajectories, and VLM-evaluated episodes
             in LeRobot format. Upgrade for VLA fine-tuning and sim2real validation.
           </p>
@@ -1080,12 +1113,12 @@ export default function Home() {
           <div className="relative z-10 grid gap-8 lg:grid-cols-2 lg:items-center">
             <div>
               <h3 className="text-2xl font-bold text-white sm:text-3xl">
-                Choose your training data bundle
+                Choose your benchmark bundle
               </h3>
               <p className="mt-4 text-indigo-100">
-                From single-scene experiments to foundation model scale. Every bundle includes
-                physics-accurate USD, domain randomization, and Genie Sim 3.0-generated episodes
-                with automated task generation and cuRobo trajectory planning.
+                From single-scene benchmarks to foundation model evaluation at scale. Every bundle includes
+                physics-accurate USD, evaluation harness, and Genie Sim 3.0-generated episodes
+                with automated task generation and standardized metrics.
               </p>
               <div className="mt-6 flex flex-wrap gap-4">
                 <a
@@ -1176,14 +1209,14 @@ export default function Home() {
                   href="/evals"
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-emerald-700 shadow-lg transition hover:bg-emerald-50"
                 >
-                  Learn About Evals
+                  Learn About Benchmarks
                   <ArrowRight className="h-4 w-4" />
                 </a>
                 <a
                   href="/environments"
                   className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
                 >
-                  Browse Arena-Ready Scenes
+                  Browse Benchmark Packs
                 </a>
               </div>
             </div>
@@ -1249,134 +1282,6 @@ export default function Home() {
 
       {/* --- Coming Soon / Future Offerings --- */}
       <ComingSoon />
-
-      {/* --- Coming Q2 2026 Services Section --- */}
-      <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
-        <div className="relative overflow-hidden rounded-3xl bg-zinc-950 px-6 py-16 shadow-2xl sm:px-12 sm:py-20">
-          {/* Background decoration */}
-          <div className="absolute top-0 right-0 -mt-12 -mr-12 h-64 w-64 rounded-full bg-violet-900/30 blur-3xl" />
-          <div className="absolute bottom-0 left-0 -mb-12 -ml-12 h-64 w-64 rounded-full bg-emerald-900/20 blur-3xl" />
-
-          <div className="relative z-10 space-y-12">
-            {/* Header */}
-            <div className="text-center">
-              <div className="inline-flex items-center gap-2 text-amber-400">
-                <span className="relative flex h-2 w-2">
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500"></span>
-                </span>
-                <p className="text-xs font-bold uppercase tracking-widest">
-                  Coming Q2 2026
-                </p>
-              </div>
-              <h3 className="mt-4 text-3xl font-bold text-white sm:text-4xl">
-                New Services on the Horizon
-              </h3>
-              <p className="mt-4 max-w-2xl mx-auto text-zinc-400">
-                We're expanding the Blueprint platform with two powerful new capabilities.
-              </p>
-            </div>
-
-            {/* Service Cards */}
-            <div className="grid gap-6 md:grid-cols-2">
-              {/* RL Training Card */}
-              <div className="rounded-2xl bg-white/5 p-6 ring-1 ring-white/10">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="rounded-lg bg-violet-500/20 p-2">
-                    <Cpu className="h-6 w-6 text-violet-400" />
-                  </div>
-                  <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-xs font-bold text-violet-400">
-                    New
-                  </span>
-                </div>
-                <h4 className="text-xl font-bold text-white">RL Training-as-a-Service</h4>
-                <p className="mt-2 text-sm text-zinc-400">
-                  Train robot policies at scale with GPU-parallel reinforcement learning. You bring the scene,
-                  we run thousands of simulations in parallel, and deliver trained policy checkpoints with
-                  benchmark reports.
-                </p>
-                <ul className="mt-4 space-y-2 text-xs text-zinc-500">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                    4096+ parallel environments
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                    Production-ready policy delivery
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                    Standardized benchmark evaluation
-                  </li>
-                </ul>
-                <a
-                  href="/rl-training"
-                  className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-violet-400 hover:text-violet-300"
-                >
-                  Learn more <ArrowRight className="h-3 w-3" />
-                </a>
-              </div>
-
-              {/* Capture Card */}
-              <div className="rounded-2xl bg-white/5 p-6 ring-1 ring-white/10">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="rounded-lg bg-emerald-500/20 p-2">
-                    <Scan className="h-6 w-6 text-emerald-400" />
-                  </div>
-                  <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-400">
-                    New
-                  </span>
-                </div>
-                <h4 className="text-xl font-bold text-white">Real-World Capture Service</h4>
-                <p className="mt-2 text-sm text-zinc-400">
-                  We scan your exact facility and return a physics-accurate digital twin with sim2real-validated
-                  geometry, delivered with USD, URDF, and comprehensive QA reports.
-                </p>
-                <ul className="mt-4 space-y-2 text-xs text-zinc-500">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                    On-site professional capture
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                    Physics-accurate reconstruction
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                    Isaac Sim & URDF compatible
-                  </li>
-                </ul>
-                <a
-                  href="/contact?service=capture"
-                  className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-emerald-400 hover:text-emerald-300"
-                >
-                  Join waitlist <ArrowRight className="h-3 w-3" />
-                </a>
-              </div>
-            </div>
-
-            {/* CTA */}
-            <div className="text-center">
-              <p className="text-sm text-zinc-500 mb-4">
-                In the meantime, explore our synthetic marketplace or submit a photo for reconstruction.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <a
-                  href="/environments"
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition-colors hover:bg-zinc-200"
-                >
-                  Browse Marketplace
-                </a>
-                <a
-                  href="/contact?request=snapshot"
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-700 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
-                >
-                  Upload a Photo
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
     </>
   );

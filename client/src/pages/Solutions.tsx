@@ -624,14 +624,14 @@ function ArenaIntegrationSection() {
               href="/evals"
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-emerald-700 shadow-lg transition hover:bg-emerald-50"
             >
-              Learn About Evals
+              Learn About Benchmarks
               <ArrowRight className="h-4 w-4" />
             </a>
             <a
-              href="/environments"
+              href="/environments?type=datasets"
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
             >
-              Browse Arena-Ready Scenes
+              Browse Benchmark Packs
             </a>
           </div>
         </div>

@@ -75,7 +75,7 @@ export function CheckoutModal({ isOpen, onClose, item }: CheckoutModalProps) {
             <div>
               <h3 className="font-semibold text-zinc-900">{item.title}</h3>
               <p className="text-xs text-zinc-500 capitalize">
-                {item.type === "dataset" ? `Dataset Bundle • ${item.sceneCount || 1} scenes` : "Single Scene"}
+                {item.type === "dataset" ? `Benchmark Pack • ${item.sceneCount || 1} scenes` : "Scene Library"}
               </p>
             </div>
             <span className="text-lg font-bold text-zinc-900">
