@@ -138,8 +138,8 @@ export default function Evals() {
   return (
     <>
       <SEO
-        title="Evals | Policy Evaluation at Scale"
-        description="Genie Sim 3.0 powered evaluation with VLM scoring, Isaac Lab-Arena integration, and GPU-parallel benchmarking. 100,000+ scenarios with automated task generation."
+        title="Benchmarks | Policy Evaluation at Scale"
+        description="Standardized benchmark suites for robotics policy evaluation. Genie Sim 3.0 powered with VLM scoring, Isaac Lab-Arena integration, and GPU-parallel benchmarking."
         canonical="/evals"
       />
       <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
@@ -152,31 +152,32 @@ export default function Evals() {
               <div className="space-y-6">
                 <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-emerald-700 backdrop-blur-sm">
                   <Sparkles className="h-3 w-3" />
-                  Isaac Lab-Arena Integration
+                  Standardized Benchmarks
                 </div>
                 <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
-                  Policy evaluation at scale.
+                  Benchmark your policies at scale.
                 </h1>
                 <p className="max-w-2xl text-lg leading-relaxed text-zinc-600">
-                  Blueprint scenes export to NVIDIA Isaac Lab-Arena format with Genie Sim 3.0
-                  powering automated data generation. LLM-generated tasks, cuRobo trajectory
-                  planning, and VLM-based evaluation at 100,000+ scenarios scale.
+                  Runnable benchmark suites with scenes, tasks, and evaluation harnesses.
+                  Fixed seeds, deterministic resets, and standardized metrics. Plug in your
+                  policy, get a comparable score immediately. Powered by Genie Sim 3.0 with
+                  VLM-based evaluation at 100,000+ scenarios scale.
                 </p>
               </div>
 
               <div className="flex flex-col gap-4 sm:flex-row">
                 <a
-                  href="/environments"
+                  href="/environments?type=datasets"
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-zinc-700"
                 >
-                  Browse Arena-Ready Scenes
+                  Browse Benchmark Packs
                   <ArrowRight className="h-4 w-4" />
                 </a>
                 <a
-                  href="/contact?request=evaluation"
+                  href="/contact?request=benchmark"
                   className="inline-flex items-center justify-center gap-2 rounded-full border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-700 shadow-sm transition hover:bg-zinc-50"
                 >
-                  Request Evaluation Setup
+                  Request Custom Benchmark
                 </a>
               </div>
 
@@ -641,16 +642,16 @@ export default function Evals() {
                   Ready to benchmark your policies?
                 </h2>
                 <p className="mt-4 max-w-2xl mx-auto text-indigo-100">
-                  Every Blueprint scene now ships Arena-ready with affordance tags, task definitions,
-                  and evaluation infrastructure. Start benchmarking today.
+                  Every Blueprint benchmark pack ships with scenes, tasks, evaluation harnesses,
+                  and standardized metrics. Start measuring policy performance today.
                 </p>
 
                 <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-center">
                   <a
-                    href="/environments"
+                    href="/environments?type=datasets"
                     className="inline-flex items-center justify-center rounded-xl bg-white px-8 py-4 text-sm font-semibold text-indigo-600 shadow-lg transition hover:bg-indigo-50"
                   >
-                    Browse Arena-Ready Scenes
+                    Browse Benchmark Packs
                     <LayoutGrid className="ml-2 h-4 w-4" />
                   </a>
                   <a

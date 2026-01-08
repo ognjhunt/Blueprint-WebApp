@@ -353,7 +353,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1 rounded-full bg-zinc-900 px-3 py-1 text-xs font-semibold text-white">
                 <Package className="h-3 w-3" />
-                {isDataset ? "Dataset Bundle" : "Single Scene"}
+                {isDataset ? "Benchmark Pack" : "Scene Library"}
               </span>
               {marketplaceItem.isNew && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">

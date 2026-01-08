@@ -45,8 +45,8 @@ const sortOptions = [
 
 const itemTypeOptions: Array<{ label: string; value: MarketplaceItemType }> = [
   { label: "All Items", value: "all" },
-  { label: "Dataset Bundles", value: "datasets" },
-  { label: "Single Scenes", value: "scenes" },
+  { label: "Benchmark Packs", value: "datasets" },
+  { label: "Scene Library", value: "scenes" },
 ];
 
 // Combine location types from both datasets and scenes
@@ -542,10 +542,10 @@ export default function Environments() {
       )}
 
       <Helmet>
-        <title>Marketplace | Blueprint - SimReady Datasets for Robotics</title>
+        <title>Marketplace | Blueprint - Benchmark Packs & Scene Library</title>
         <meta
           name="description"
-          content="Browse SimReady synthetic datasets and individual scenes for robotics training. Isaac-ready USD packages with randomizers, task logic, and validation notes."
+          content="Browse benchmark packs with evaluation harnesses and SimReady scenes for robotics policy evaluation. Isaac-ready USD packages with tasks, metrics, and standardized protocols."
         />
         <meta name="robots" content="index, follow" />
         <meta property="og:type" content="website" />
@@ -553,14 +553,14 @@ export default function Environments() {
         <meta property="og:title" content="Marketplace | Blueprint" />
         <meta
           property="og:description"
-          content="Browse SimReady synthetic datasets and individual scenes for robotics training. Daily drops with Isaac-ready USD packages."
+          content="Browse benchmark packs and SimReady scenes for robotics policy evaluation. Standardized benchmarks with evaluation harnesses."
         />
         <meta property="og:image" content="https://tryblueprint.io/images/Gemini_EnvironentsBanner.png" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Marketplace | Blueprint" />
         <meta
           name="twitter:description"
-          content="SimReady synthetic datasets for robotics. Isaac-ready USD packages with randomizers and task logic."
+          content="Benchmark packs and SimReady scenes for robotics. Isaac-ready USD packages with evaluation harnesses."
         />
         <meta name="twitter:image" content="https://tryblueprint.io/images/Gemini_EnvironentsBanner.png" />
         <link rel="canonical" href="https://tryblueprint.io/environments" />
@@ -577,19 +577,18 @@ export default function Environments() {
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600 backdrop-blur-sm">
               <Database className="h-3 w-3" />
-              Synthetic Marketplace
+              Marketplace
             </div>
 
             <div className="max-w-4xl">
               <h1 className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl">
-                Plug-and-play SimReady datasets.
+                Benchmark Packs & Scene Library
               </h1>
               <p className="mt-6 max-w-2xl text-lg text-zinc-600">
-                Daily drops of synthetic scenes authored for Isaac-ready
-                training. Each dataset includes randomizer scripts, USD
-                packages, task logic (actions, observations, rewards, resets,
-                parallel env defaults), and validation notes so you can train
-                without touching the pipeline.
+                Runnable benchmark suites with SimReady scenes, tasks, and evaluation harnesses.
+                Each pack includes USD scenes, task definitions, fixed seeds, and standardized
+                metrics so you can measure policy performance immediately. Browse individual
+                scenes for custom benchmark assembly.
               </p>
             </div>
           </div>
@@ -604,7 +603,7 @@ export default function Environments() {
               <span className="font-medium text-zinc-900">
                 {syntheticDatasets.length}
               </span>
-              active families
+              benchmark packs
             </div>
             <div className="h-4 w-px bg-zinc-300" />
             <div className="flex items-center gap-2">
@@ -620,7 +619,7 @@ export default function Environments() {
               <span className="font-medium text-zinc-900">
                 {marketplaceScenes.length}
               </span>
-              individual scenes
+              in scene library
             </div>
             {newestRelease && (
               <>
@@ -824,8 +823,8 @@ export default function Environments() {
               {itemTypeFilter === "all"
                 ? "items"
                 : itemTypeFilter === "datasets"
-                ? "dataset bundles"
-                : "individual scenes"}
+                ? "benchmark packs"
+                : "scenes"}
             </p>
             {totalPages > 1 && (
               <p className="text-zinc-400">
@@ -860,7 +859,7 @@ export default function Environments() {
                 <section className="space-y-6">
                   <div className="flex items-center gap-3">
                     <h2 className="text-2xl font-bold text-zinc-900">
-                      ⭐ Featured Dataset Bundles
+                      Featured Benchmark Packs
                     </h2>
                     <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-700">
                       Best Value
