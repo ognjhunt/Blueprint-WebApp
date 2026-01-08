@@ -1250,16 +1250,17 @@ export default function Home() {
       {/* --- Coming Soon / Future Offerings --- */}
       <ComingSoon />
 
-      {/* --- Capture Coming Soon (Inverted Dark Section) --- */}
+      {/* --- Coming Q2 2026 Services Section --- */}
       <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
         <div className="relative overflow-hidden rounded-3xl bg-zinc-950 px-6 py-16 shadow-2xl sm:px-12 sm:py-20">
           {/* Background decoration */}
-          <div className="absolute top-0 right-0 -mt-12 -mr-12 h-64 w-64 rounded-full bg-indigo-900/30 blur-3xl" />
+          <div className="absolute top-0 right-0 -mt-12 -mr-12 h-64 w-64 rounded-full bg-violet-900/30 blur-3xl" />
           <div className="absolute bottom-0 left-0 -mb-12 -ml-12 h-64 w-64 rounded-full bg-emerald-900/20 blur-3xl" />
 
-          <div className="relative z-10 flex flex-col gap-10 md:flex-row md:items-center md:justify-between">
-            <div className="max-w-xl">
-              <div className="flex items-center gap-2 text-amber-400">
+          <div className="relative z-10 space-y-12">
+            {/* Header */}
+            <div className="text-center">
+              <div className="inline-flex items-center gap-2 text-amber-400">
                 <span className="relative flex h-2 w-2">
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500"></span>
                 </span>
@@ -1268,30 +1269,110 @@ export default function Home() {
                 </p>
               </div>
               <h3 className="mt-4 text-3xl font-bold text-white sm:text-4xl">
-                Real-World Capture Service
+                New Services on the Horizon
               </h3>
-              <p className="mt-4 text-lg text-zinc-400">
-                We'll scan your exact facility and return a physics-accurate digital twin
-                with sim2real-validated geometry, delivered with USD, URDF, and QA reports.
-              </p>
-              <p className="mt-4 text-sm text-zinc-500">
-                In the meantime, explore our synthetic marketplace or submit a photo for reconstruction.
+              <p className="mt-4 max-w-2xl mx-auto text-zinc-400">
+                We're expanding the Blueprint platform with two powerful new capabilities.
               </p>
             </div>
 
-            <div className="flex flex-col gap-4 w-full md:w-auto">
-              <a
-                href="/environments"
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition-colors hover:bg-zinc-200"
-              >
-                Browse Marketplace
-              </a>
-              <a
-                href="/contact?request=snapshot"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-700 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
-              >
-                Upload a Photo
-              </a>
+            {/* Service Cards */}
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* RL Training Card */}
+              <div className="rounded-2xl bg-white/5 p-6 ring-1 ring-white/10">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="rounded-lg bg-violet-500/20 p-2">
+                    <Cpu className="h-6 w-6 text-violet-400" />
+                  </div>
+                  <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-xs font-bold text-violet-400">
+                    New
+                  </span>
+                </div>
+                <h4 className="text-xl font-bold text-white">RL Training-as-a-Service</h4>
+                <p className="mt-2 text-sm text-zinc-400">
+                  Train robot policies at scale with GPU-parallel reinforcement learning. You bring the scene,
+                  we run thousands of simulations in parallel, and deliver trained policy checkpoints with
+                  benchmark reports.
+                </p>
+                <ul className="mt-4 space-y-2 text-xs text-zinc-500">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                    4096+ parallel environments
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                    Production-ready policy delivery
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                    Standardized benchmark evaluation
+                  </li>
+                </ul>
+                <a
+                  href="/rl-training"
+                  className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-violet-400 hover:text-violet-300"
+                >
+                  Learn more <ArrowRight className="h-3 w-3" />
+                </a>
+              </div>
+
+              {/* Capture Card */}
+              <div className="rounded-2xl bg-white/5 p-6 ring-1 ring-white/10">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="rounded-lg bg-emerald-500/20 p-2">
+                    <Scan className="h-6 w-6 text-emerald-400" />
+                  </div>
+                  <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-400">
+                    New
+                  </span>
+                </div>
+                <h4 className="text-xl font-bold text-white">Real-World Capture Service</h4>
+                <p className="mt-2 text-sm text-zinc-400">
+                  We scan your exact facility and return a physics-accurate digital twin with sim2real-validated
+                  geometry, delivered with USD, URDF, and comprehensive QA reports.
+                </p>
+                <ul className="mt-4 space-y-2 text-xs text-zinc-500">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                    On-site professional capture
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                    Physics-accurate reconstruction
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                    Isaac Sim & URDF compatible
+                  </li>
+                </ul>
+                <a
+                  href="/contact?service=capture"
+                  className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-emerald-400 hover:text-emerald-300"
+                >
+                  Join waitlist <ArrowRight className="h-3 w-3" />
+                </a>
+              </div>
+            </div>
+
+            {/* CTA */}
+            <div className="text-center">
+              <p className="text-sm text-zinc-500 mb-4">
+                In the meantime, explore our synthetic marketplace or submit a photo for reconstruction.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <a
+                  href="/environments"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition-colors hover:bg-zinc-200"
+                >
+                  Browse Marketplace
+                </a>
+                <a
+                  href="/contact?request=snapshot"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-700 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
+                >
+                  Upload a Photo
+                </a>
+              </div>
             </div>
           </div>
         </div>
