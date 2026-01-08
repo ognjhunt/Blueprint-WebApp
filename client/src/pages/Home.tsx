@@ -420,7 +420,6 @@ import {
   Settings2,
   Sparkles,
   Terminal,
-  Camera,
   Zap,
 } from "lucide-react";
 
@@ -505,23 +504,8 @@ const offeringCards = [
       "Ideal for imitation learning and offline RL",
     ],
     ctaLabel: "Browse datasets",
-    ctaHref: "/environments?type=datasets",
+    ctaHref: "/environments?type=training",
     icon: <Database className="h-8 w-8 text-zinc-900" />,
-  },
-  {
-    title: "Reference Photo Reconstruction",
-    badge: "Custom",
-    description:
-      "Upload a single wide photo and we'll rebuild that exact layout with physics-accurate geometry and visual fidelity.",
-    bullets: [
-      "Supports kitchens, aisles, labs, warehouses & industrial spaces",
-      "Full physics metadata: colliders, mass, inertia, joint constraints",
-      "Task logic delivered alongside geometry for immediate policy training",
-      "Exclusive access by default; opt into open catalog if you prefer",
-    ],
-    ctaLabel: "Upload a photo",
-    ctaHref: "/contact?request=snapshot",
-    icon: <Camera className="h-8 w-8 text-zinc-900" />,
   },
   {
     title: "Real-world Capture",

@@ -5,8 +5,10 @@ import {
   environmentPolicies,
   syntheticDatasets,
   marketplaceScenes,
+  trainingDatasets,
   type SyntheticDataset,
   type MarketplaceScene,
+  type TrainingDataset,
 } from "@/data/content";
 import { MarketplaceCard } from "@/components/site/MarketplaceCard";
 import { analyticsEvents } from "@/components/Analytics";
@@ -28,11 +30,12 @@ import {
 
 // --- Types ---
 
-type MarketplaceItemType = "all" | "datasets" | "scenes";
+type MarketplaceItemType = "all" | "datasets" | "scenes" | "training";
 
 type MarketplaceItem =
   | { type: "dataset"; data: SyntheticDataset }
-  | { type: "scene"; data: MarketplaceScene };
+  | { type: "scene"; data: MarketplaceScene }
+  | { type: "training"; data: TrainingDataset };
 
 // --- Configuration ---
 
@@ -47,13 +50,15 @@ const itemTypeOptions: Array<{ label: string; value: MarketplaceItemType }> = [
   { label: "All Items", value: "all" },
   { label: "Benchmark Packs", value: "datasets" },
   { label: "Scene Library", value: "scenes" },
+  { label: "Dataset Packs", value: "training" },
 ];
 
-// Combine location types from both datasets and scenes
+// Combine location types from all item types
 const locationOptions = Array.from(
   new Set([
     ...syntheticDatasets.map((d) => d.locationType),
     ...marketplaceScenes.map((s) => s.locationType),
+    ...trainingDatasets.map((t) => t.locationType),
   ])
 ).sort();
 
@@ -61,6 +66,7 @@ const objectOptions = Array.from(
   new Set([
     ...syntheticDatasets.flatMap((d) => d.objectTags),
     ...marketplaceScenes.flatMap((s) => s.objectTags),
+    ...trainingDatasets.flatMap((t) => t.objectTags),
   ])
 ).sort();
 
@@ -70,7 +76,7 @@ const policyFilters = environmentPolicies.map((policy) => ({
 }));
 
 // Calculate stats
-const newestRelease = [...syntheticDatasets, ...marketplaceScenes].reduce<
+const newestRelease = [...syntheticDatasets, ...marketplaceScenes, ...trainingDatasets].reduce<
   string | null
 >((latest, item) => {
   if (!latest) return item.releaseDate;
@@ -83,6 +89,11 @@ const totalScenes = syntheticDatasets.reduce(
   (sum, dataset) => sum + dataset.sceneCount,
   0
 ) + marketplaceScenes.length;
+
+const totalEpisodes = trainingDatasets.reduce(
+  (sum, dataset) => sum + dataset.episodeCount,
+  0
+);
 
 // --- Visual Helpers ---
 
@@ -203,7 +214,7 @@ export default function Environments() {
     const params = new URLSearchParams(searchString);
 
     const type = params.get("type");
-    if (type === "datasets" || type === "scenes") {
+    if (type === "datasets" || type === "scenes" || type === "training") {
       setItemTypeFilter(type);
     }
 
@@ -343,7 +354,7 @@ export default function Environments() {
 
   // --- Logic ---
 
-  // Combine datasets and scenes into unified marketplace items
+  // Combine datasets, scenes, and training datasets into unified marketplace items
   const allMarketplaceItems = useMemo<MarketplaceItem[]>(() => {
     const items: MarketplaceItem[] = [];
 
@@ -353,6 +364,10 @@ export default function Environments() {
 
     marketplaceScenes.forEach((scene) => {
       items.push({ type: "scene", data: scene });
+    });
+
+    trainingDatasets.forEach((training) => {
+      items.push({ type: "training", data: training });
     });
 
     return items;
@@ -366,6 +381,8 @@ export default function Environments() {
       result = result.filter((item) => item.type === "dataset");
     } else if (itemTypeFilter === "scenes") {
       result = result.filter((item) => item.type === "scene");
+    } else if (itemTypeFilter === "training") {
+      result = result.filter((item) => item.type === "training");
     }
 
     // Filter by location
@@ -415,27 +432,29 @@ export default function Environments() {
       case "price-asc":
         result.sort((a, b) => {
           const priceA =
-            a.type === "dataset" ? a.data.pricePerScene : a.data.price;
+            a.type === "dataset" ? (a.data as SyntheticDataset).pricePerScene : a.data.price;
           const priceB =
-            b.type === "dataset" ? b.data.pricePerScene : b.data.price;
+            b.type === "dataset" ? (b.data as SyntheticDataset).pricePerScene : b.data.price;
           return priceA - priceB;
         });
         break;
       case "price-desc":
         result.sort((a, b) => {
           const priceA =
-            a.type === "dataset" ? a.data.pricePerScene : a.data.price;
+            a.type === "dataset" ? (a.data as SyntheticDataset).pricePerScene : a.data.price;
           const priceB =
-            b.type === "dataset" ? b.data.pricePerScene : b.data.price;
+            b.type === "dataset" ? (b.data as SyntheticDataset).pricePerScene : b.data.price;
           return priceB - priceA;
         });
         break;
       case "scene-desc":
         result.sort((a, b) => {
           const countA =
-            a.type === "dataset" ? a.data.sceneCount : 1;
+            a.type === "dataset" ? (a.data as SyntheticDataset).sceneCount :
+            a.type === "training" ? (a.data as TrainingDataset).episodeCount / 1000 : 1;
           const countB =
-            b.type === "dataset" ? b.data.sceneCount : 1;
+            b.type === "dataset" ? (b.data as SyntheticDataset).sceneCount :
+            b.type === "training" ? (b.data as TrainingDataset).episodeCount / 1000 : 1;
           return countB - countA;
         });
         break;
@@ -620,6 +639,14 @@ export default function Environments() {
                 {marketplaceScenes.length}
               </span>
               in scene library
+            </div>
+            <div className="h-4 w-px bg-zinc-300" />
+            <div className="flex items-center gap-2">
+              <Database className="h-4 w-4 text-zinc-400" />
+              <span className="font-medium text-zinc-900">
+                {(totalEpisodes / 1000).toFixed(0)}K
+              </span>
+              episodes
             </div>
             {newestRelease && (
               <>
@@ -824,6 +851,8 @@ export default function Environments() {
                 ? "items"
                 : itemTypeFilter === "datasets"
                 ? "benchmark packs"
+                : itemTypeFilter === "training"
+                ? "dataset packs"
                 : "scenes"}
             </p>
             {totalPages > 1 && (

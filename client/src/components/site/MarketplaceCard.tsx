@@ -1,13 +1,13 @@
 import type { MouseEvent } from "react";
 import { useState, useCallback } from "react";
 import { loadStripe } from "@stripe/stripe-js";
-import { Shield, Package, Sparkles, TrendingUp, ShoppingCart, Loader2, Play, Layers } from "lucide-react";
-import type { SyntheticDataset, MarketplaceScene } from "@/data/content";
+import { Shield, Package, Sparkles, TrendingUp, ShoppingCart, Loader2, Play, Layers, Database } from "lucide-react";
+import type { SyntheticDataset, MarketplaceScene, TrainingDataset } from "@/data/content";
 import { useLocation } from "wouter";
 
 interface MarketplaceCardProps {
-  item: SyntheticDataset | MarketplaceScene;
-  type: "dataset" | "scene";
+  item: SyntheticDataset | MarketplaceScene | TrainingDataset;
+  type: "dataset" | "scene" | "training";
 }
 
 export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
@@ -15,9 +15,12 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [, navigate] = useLocation();
   const isDataset = type === "dataset";
+  const isTraining = type === "training";
+  const isScene = type === "scene";
   const dataset = isDataset ? (item as SyntheticDataset) : null;
-  const scene = !isDataset ? (item as MarketplaceScene) : null;
-  const slug = isDataset ? dataset!.slug : scene!.slug;
+  const scene = isScene ? (item as MarketplaceScene) : null;
+  const training = isTraining ? (item as TrainingDataset) : null;
+  const slug = item.slug;
 
   // Calculate savings for datasets
   const savingsPercent = dataset?.standardPricePerScene
@@ -32,10 +35,10 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
     ? dataset.pricePerScene * dataset.sceneCount
     : 0;
 
-  const mainPrice = isDataset ? dataset!.pricePerScene : scene!.price;
+  const mainPrice = isDataset ? dataset!.pricePerScene : isTraining ? training!.price : scene!.price;
   const title = item.title;
   const description = item.description;
-  const thumbnail = isDataset ? dataset!.heroImage : scene!.thumbnail;
+  const thumbnail = isDataset ? dataset!.heroImage : isTraining ? training!.heroImage : scene!.thumbnail;
   const tags = item.tags;
 
   const handleCheckout = useCallback(
@@ -51,6 +54,15 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
             price: dataset!.pricePerScene,
             quantity: dataset!.sceneCount || 1,
             itemType: "dataset" as const,
+          }
+        : isTraining
+        ? {
+            sku: training!.slug,
+            title: training!.title,
+            description: training!.description,
+            price: training!.price,
+            quantity: 1,
+            itemType: "training" as const,
           }
         : {
             sku: scene!.slug,
@@ -121,7 +133,7 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
         setIsRedirecting(false);
       }
     },
-    [dataset, isDataset, isRedirecting, scene, slug],
+    [dataset, isDataset, isTraining, isRedirecting, scene, training, slug],
   );
 
   const handleCardClick = () => {
@@ -180,13 +192,25 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
         {/* Type badge */}
         <div className="absolute bottom-3 left-3 flex gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-black/60 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-            <Package className="h-3 w-3" />
-            {isDataset ? "Benchmark Pack" : "Scene Library"}
+            {isTraining ? (
+              <Database className="h-3 w-3" />
+            ) : (
+              <Package className="h-3 w-3" />
+            )}
+            {isDataset ? "Benchmark Pack" : isTraining ? "Dataset Pack" : "Scene Library"}
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/80 px-2 py-1 text-[10px] font-bold text-white backdrop-blur-sm">
-            <Play className="h-2.5 w-2.5" />
-            + Episodes
-          </span>
+          {!isTraining && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/80 px-2 py-1 text-[10px] font-bold text-white backdrop-blur-sm">
+              <Play className="h-2.5 w-2.5" />
+              + Episodes
+            </span>
+          )}
+          {isTraining && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-indigo-400/30 bg-indigo-500/80 px-2 py-1 text-[10px] font-bold text-white backdrop-blur-sm">
+              <Play className="h-2.5 w-2.5" />
+              LeRobot
+            </span>
+          )}
         </div>
       </div>
 
@@ -223,6 +247,20 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
                 {dataset!.sceneCount} scenes • {dataset!.variationCount?.toLocaleString()} variations • {dataset!.episodeCount?.toLocaleString()} episodes
               </div>
             </>
+          ) : isTraining ? (
+            <>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-zinc-900">
+                  ${training!.price.toLocaleString()}
+                </span>
+                <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
+                  {training!.dataFormat} Format
+                </span>
+              </div>
+              <div className="text-xs text-zinc-500">
+                {training!.episodeCount.toLocaleString()} episodes • {training!.trajectoryLength} per trajectory
+              </div>
+            </>
           ) : (
             <>
               <div className="flex items-baseline gap-2">
@@ -242,7 +280,7 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
 
         {/* Stats Grid */}
         <div
-          className={`mb-4 grid ${isDataset ? "grid-cols-2" : "grid-cols-2"} gap-2 rounded-lg border border-zinc-100 bg-zinc-50 p-3`}
+          className={`mb-4 grid grid-cols-2 gap-2 rounded-lg border border-zinc-100 bg-zinc-50 p-3`}
         >
           {isDataset ? (
             <>
@@ -262,6 +300,27 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
                 </div>
                 <div className="font-mono text-sm font-semibold text-zinc-900">
                   {dataset!.episodeCount?.toLocaleString()}
+                </div>
+              </div>
+            </>
+          ) : isTraining ? (
+            <>
+              <div>
+                <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-zinc-500">
+                  <Play className="h-3 w-3" />
+                  Episodes
+                </div>
+                <div className="font-mono text-sm font-semibold text-zinc-900">
+                  {training!.episodeCount.toLocaleString()}
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-zinc-500">
+                  <Database className="h-3 w-3" />
+                  Modalities
+                </div>
+                <div className="font-mono text-sm font-semibold text-zinc-900">
+                  {training!.sensorModalities.length}
                 </div>
               </div>
             </>
@@ -335,7 +394,7 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
           ) : (
             <>
               <ShoppingCart className="h-4 w-4" />
-              {isDataset ? "Buy Bundle" : "Buy Now"}
+              {isDataset ? "Buy Bundle" : isTraining ? "Buy Dataset" : "Buy Now"}
             </>
           )}
         </button>

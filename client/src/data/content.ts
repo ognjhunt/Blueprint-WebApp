@@ -115,6 +115,32 @@ export type MarketplaceItem =
   | (SyntheticDataset & { itemType: 'dataset' })
   | (MarketplaceScene & { itemType: 'scene' });
 
+// Training dataset packs - pre-generated episode trajectories for offline training
+export interface TrainingDataset {
+  slug: string;
+  title: string;
+  description: string;
+  heroImage: string;
+  locationType: string;
+  policySlugs: string[];
+  objectTags: string[];
+  // Episode counts
+  episodeCount: number;
+  trajectoryLength: string; // e.g., "50-200 steps"
+  // Data format details
+  sensorModalities: string[];
+  dataFormat: string; // e.g., "LeRobot", "HDF5", etc.
+  // Pricing
+  price: number;
+  releaseDate: string;
+  tags: string[];
+  deliverables: string[];
+  isNew?: boolean;
+  isFeatured?: boolean;
+  // Compatibility
+  compatibleWith: string[]; // VLA models this works with
+}
+
 export interface SceneRecipe {
   slug: string;
   title: string;
@@ -864,6 +890,169 @@ export const marketplaceScenes: MarketplaceScene[] = [
     deliverables: ["USD"],
     interactions: ["Sliding doors", "Pull-out drawers"],
     inStock: true,
+  },
+];
+
+// Training datasets - Pre-generated episode trajectories for offline training
+export const trainingDatasets: TrainingDataset[] = [
+  {
+    slug: "kitchen-manipulation-episodes",
+    title: "Kitchen Manipulation Episodes",
+    description:
+      "50,000 expert trajectories covering drawer opening, utensil grasping, and appliance interaction in commercial kitchen environments. Multi-sensor data in LeRobot format.",
+    heroImage: "/thumbnails/prep-line-essentials.png",
+    locationType: "Kitchens",
+    policySlugs: ["dexterous-pick-place", "articulated-access-validation"],
+    objectTags: ["drawers", "utensils", "appliances"],
+    episodeCount: 50000,
+    trajectoryLength: "80-250 steps",
+    sensorModalities: ["RGB-D", "Proprioception", "End-effector pose", "Force/torque"],
+    dataFormat: "LeRobot",
+    price: 8500,
+    releaseDate: "2025-01-05",
+    tags: ["Manipulation", "Articulated", "Multi-sensor"],
+    deliverables: ["LeRobot dataset", "Train/val/test splits", "PyTorch dataloader", "VLA fine-tuning configs"],
+    isNew: true,
+    isFeatured: true,
+    compatibleWith: ["OpenVLA", "Pi0", "SmolVLA", "GR00T"],
+  },
+  {
+    slug: "retail-restocking-episodes",
+    title: "Retail Restocking Episodes",
+    description:
+      "35,000 trajectories for shelf restocking, product facing, and inventory management tasks. Includes occlusion-heavy scenarios and varied SKU types.",
+    heroImage: "/thumbnails/retail-restock-loop.png",
+    locationType: "Grocery / Retail",
+    policySlugs: ["dexterous-pick-place", "mixed-sku-logistics"],
+    objectTags: ["shelves", "totes", "pallets"],
+    episodeCount: 35000,
+    trajectoryLength: "60-180 steps",
+    sensorModalities: ["RGB-D", "Proprioception", "End-effector pose"],
+    dataFormat: "LeRobot",
+    price: 6500,
+    releaseDate: "2024-12-28",
+    tags: ["Logistics", "High-SKU", "Occlusion"],
+    deliverables: ["LeRobot dataset", "Train/val/test splits", "PyTorch dataloader"],
+    isFeatured: true,
+    compatibleWith: ["OpenVLA", "Pi0", "SmolVLA"],
+  },
+  {
+    slug: "warehouse-palletizing-episodes",
+    title: "Warehouse Palletizing Episodes",
+    description:
+      "40,000 expert demonstrations for pallet building, tote picking, and cross-dock staging. Optimized for heavy-payload manipulation training.",
+    heroImage: "/thumbnails/warehouse-pallet-buffer.png",
+    locationType: "Warehouses",
+    policySlugs: ["mixed-sku-logistics", "dexterous-pick-place"],
+    objectTags: ["pallets", "totes", "cartons", "racking"],
+    episodeCount: 40000,
+    trajectoryLength: "100-300 steps",
+    sensorModalities: ["RGB-D", "Proprioception", "End-effector pose", "Payload sensors"],
+    dataFormat: "LeRobot",
+    price: 7500,
+    releaseDate: "2024-12-20",
+    tags: ["Industrial", "Heavy-lift", "Logistics"],
+    deliverables: ["LeRobot dataset", "Train/val/test splits", "PyTorch dataloader", "Isaac Sim replay"],
+    isFeatured: true,
+    compatibleWith: ["OpenVLA", "GR00T"],
+  },
+  {
+    slug: "precision-assembly-episodes",
+    title: "Precision Assembly Episodes",
+    description:
+      "25,000 trajectories for peg-in-hole insertion, connector mating, and precision placement tasks. Sub-millimeter accuracy demonstrations.",
+    heroImage: "/thumbnails/lab-bench-prep.png",
+    locationType: "Labs",
+    policySlugs: ["precision-insertion-assembly", "panel-interaction-suite"],
+    objectTags: ["valves", "switches", "sample racks"],
+    episodeCount: 25000,
+    trajectoryLength: "40-120 steps",
+    sensorModalities: ["RGB-D", "Proprioception", "End-effector pose", "Force/torque", "Tactile"],
+    dataFormat: "LeRobot",
+    price: 9500,
+    releaseDate: "2024-12-15",
+    tags: ["Precision", "Assembly", "Contact-rich"],
+    deliverables: ["LeRobot dataset", "Train/val/test splits", "PyTorch dataloader", "Force profiles"],
+    isNew: true,
+    compatibleWith: ["OpenVLA", "Pi0"],
+  },
+  {
+    slug: "panel-interaction-episodes",
+    title: "Panel Interaction Episodes",
+    description:
+      "20,000 demonstrations for switch toggling, dial turning, and button pressing on industrial control panels. Includes status verification.",
+    heroImage: "/thumbnails/utility-panel-tour.png",
+    locationType: "Utility Rooms",
+    policySlugs: ["panel-interaction-suite"],
+    objectTags: ["breakers", "knobs", "switches", "valves"],
+    episodeCount: 20000,
+    trajectoryLength: "30-80 steps",
+    sensorModalities: ["RGB-D", "Proprioception", "End-effector pose"],
+    dataFormat: "LeRobot",
+    price: 5500,
+    releaseDate: "2024-12-10",
+    tags: ["Controls", "Inspection", "Fine-motor"],
+    deliverables: ["LeRobot dataset", "Train/val/test splits", "PyTorch dataloader"],
+    compatibleWith: ["OpenVLA", "SmolVLA"],
+  },
+  {
+    slug: "laundry-folding-episodes",
+    title: "Laundry Folding Episodes",
+    description:
+      "30,000 trajectories covering garment pickup, spreading, folding, and stacking. Deformable object manipulation with cloth physics.",
+    heroImage: "/thumbnails/laundry-folding-alcove.png",
+    locationType: "Home / Assistive",
+    policySlugs: ["laundry-folding-assist"],
+    objectTags: ["washers", "dryers", "hampers", "folding tables"],
+    episodeCount: 30000,
+    trajectoryLength: "100-400 steps",
+    sensorModalities: ["RGB-D", "Proprioception", "End-effector pose", "Cloth state"],
+    dataFormat: "LeRobot",
+    price: 7000,
+    releaseDate: "2024-12-05",
+    tags: ["Assistive", "Deformable", "Long-horizon"],
+    deliverables: ["LeRobot dataset", "Train/val/test splits", "PyTorch dataloader", "Cloth state annotations"],
+    compatibleWith: ["OpenVLA", "Pi0", "SmolVLA"],
+  },
+  {
+    slug: "mobile-manipulation-navigation",
+    title: "Mobile Manipulation Navigation",
+    description:
+      "45,000 episodes combining navigation and manipulation for mobile manipulator platforms. Scene-scale tasks with obstacle avoidance.",
+    heroImage: "/thumbnails/warehouse-flow-kit.png",
+    locationType: "Warehouses",
+    policySlugs: ["mixed-sku-logistics", "dexterous-pick-place"],
+    objectTags: ["pallets", "racking", "totes"],
+    episodeCount: 45000,
+    trajectoryLength: "200-600 steps",
+    sensorModalities: ["RGB-D", "Proprioception", "Odometry", "LiDAR", "End-effector pose"],
+    dataFormat: "LeRobot",
+    price: 11000,
+    releaseDate: "2025-01-02",
+    tags: ["Mobile", "Navigation", "Long-horizon"],
+    deliverables: ["LeRobot dataset", "Train/val/test splits", "PyTorch dataloader", "Nav waypoints"],
+    isNew: true,
+    isFeatured: true,
+    compatibleWith: ["GR00T", "OpenVLA"],
+  },
+  {
+    slug: "bimanual-coordination-episodes",
+    title: "Bimanual Coordination Episodes",
+    description:
+      "15,000 dual-arm trajectories for coordinated manipulation tasks. Includes handoffs, cooperative lifting, and synchronized movements.",
+    heroImage: "/thumbnails/prep-line-essentials.png",
+    locationType: "Kitchens",
+    policySlugs: ["dexterous-pick-place", "precision-insertion-assembly"],
+    objectTags: ["utensils", "appliances", "drawers"],
+    episodeCount: 15000,
+    trajectoryLength: "80-200 steps",
+    sensorModalities: ["RGB-D (2x)", "Proprioception (2x)", "End-effector pose (2x)", "Force/torque (2x)"],
+    dataFormat: "LeRobot",
+    price: 12500,
+    releaseDate: "2024-12-22",
+    tags: ["Bimanual", "Coordination", "Advanced"],
+    deliverables: ["LeRobot dataset", "Train/val/test splits", "PyTorch dataloader", "Sync annotations"],
+    compatibleWith: ["ALOHA", "Pi0", "GR00T"],
   },
 ];
 
