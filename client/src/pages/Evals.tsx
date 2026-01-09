@@ -1,4 +1,5 @@
 import { SEO } from "@/components/SEO";
+import { syntheticDatasets } from "@/data/content";
 import {
   ArrowRight,
   BarChart3,
@@ -13,6 +14,7 @@ import {
   Layers,
   LayoutGrid,
   Play,
+  Send,
   Settings2,
   Sparkles,
   Target,
@@ -167,17 +169,18 @@ export default function Evals() {
 
               <div className="flex flex-col gap-4 sm:flex-row">
                 <a
-                  href="/marketplace?type=datasets"
+                  href="#benchmark-suites"
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-zinc-700"
                 >
-                  Browse Benchmark Packs
+                  View Benchmark Suites
                   <ArrowRight className="h-4 w-4" />
                 </a>
                 <a
                   href="/contact?request=benchmark"
                   className="inline-flex items-center justify-center gap-2 rounded-full border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-700 shadow-sm transition hover:bg-zinc-50"
                 >
-                  Request Custom Benchmark
+                  Request Evaluation
+                  <Send className="h-4 w-4" />
                 </a>
               </div>
 
@@ -632,34 +635,101 @@ export default function Evals() {
               </div>
             </section>
 
+            {/* --- Available Benchmark Suites Section --- */}
+            <section id="benchmark-suites" className="space-y-8 scroll-mt-8">
+              <div className="text-center">
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50/50 px-4 py-1 text-xs font-bold uppercase tracking-wider text-emerald-600">
+                  <BarChart3 className="h-3 w-3" />
+                  Available Suites
+                </div>
+                <h2 className="mt-4 text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
+                  Benchmark Suites
+                </h2>
+                <p className="mt-4 max-w-2xl mx-auto text-zinc-600">
+                  Submit your policy for evaluation against any of these standardized benchmark suites.
+                  Get comparable results with detailed metrics and failure analysis.
+                </p>
+              </div>
+
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {syntheticDatasets.map((benchmark) => (
+                  <a
+                    key={benchmark.slug}
+                    href={`/benchmarks/${benchmark.slug}`}
+                    className="group rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:border-emerald-200"
+                  >
+                    <div className="aspect-video overflow-hidden rounded-xl mb-4">
+                      <img
+                        src={benchmark.heroImage}
+                        alt={benchmark.title}
+                        className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                          {benchmark.locationType}
+                        </span>
+                        {benchmark.isNew && (
+                          <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                            New
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="font-semibold text-zinc-900 group-hover:text-emerald-700 transition-colors">
+                        {benchmark.title}
+                      </h3>
+                      <p className="text-sm text-zinc-500 line-clamp-2">
+                        {benchmark.description}
+                      </p>
+                      <div className="flex items-center gap-4 pt-2 text-xs text-zinc-500">
+                        <span>{benchmark.sceneCount} scenes</span>
+                        <span>{benchmark.variationCount?.toLocaleString()} variations</span>
+                      </div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+
+              <div className="text-center">
+                <a
+                  href="/contact?request=benchmark"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700"
+                >
+                  Need a custom benchmark suite?
+                  <ArrowRight className="h-4 w-4" />
+                </a>
+              </div>
+            </section>
+
             {/* --- CTA Section --- */}
-            <section className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-indigo-600 to-indigo-800 p-8 sm:p-12 lg:p-16 shadow-2xl">
+            <section className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-emerald-600 to-emerald-800 p-8 sm:p-12 lg:p-16 shadow-2xl">
               <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-              <div className="absolute -left-20 -bottom-20 h-64 w-64 rounded-full bg-indigo-400/20 blur-3xl" />
+              <div className="absolute -left-20 -bottom-20 h-64 w-64 rounded-full bg-emerald-400/20 blur-3xl" />
 
               <div className="relative z-10 text-center">
                 <h2 className="text-3xl font-bold text-white sm:text-4xl">
-                  Ready to benchmark your policies?
+                  Ready to evaluate your policy?
                 </h2>
-                <p className="mt-4 max-w-2xl mx-auto text-indigo-100">
-                  Every Blueprint benchmark pack ships with scenes, tasks, evaluation harnesses,
-                  and standardized metrics. Start measuring policy performance today.
+                <p className="mt-4 max-w-2xl mx-auto text-emerald-100">
+                  Submit your robot policy for standardized evaluation. Get detailed metrics,
+                  comparison against baselines, and actionable insights for improvement.
                 </p>
 
                 <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-center">
                   <a
-                    href="/marketplace?type=datasets"
-                    className="inline-flex items-center justify-center rounded-xl bg-white px-8 py-4 text-sm font-semibold text-indigo-600 shadow-lg transition hover:bg-indigo-50"
+                    href="/contact?request=benchmark"
+                    className="inline-flex items-center justify-center rounded-xl bg-white px-8 py-4 text-sm font-semibold text-emerald-700 shadow-lg transition hover:bg-emerald-50"
                   >
-                    Browse Benchmark Packs
-                    <LayoutGrid className="ml-2 h-4 w-4" />
+                    Request Evaluation
+                    <Send className="ml-2 h-4 w-4" />
                   </a>
                   <a
-                    href="/docs"
+                    href="/marketplace"
                     className="inline-flex items-center justify-center rounded-xl border border-white/30 bg-white/10 px-8 py-4 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
                   >
-                    Read Documentation
-                    <Terminal className="ml-2 h-4 w-4" />
+                    Buy Scenes for DIY Evals
+                    <LayoutGrid className="ml-2 h-4 w-4" />
                   </a>
                 </div>
 

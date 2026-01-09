@@ -3,10 +3,8 @@ import { Helmet } from "react-helmet";
 import { useLocation, useSearch } from "wouter";
 import {
   environmentPolicies,
-  syntheticDatasets,
   marketplaceScenes,
   trainingDatasets,
-  type SyntheticDataset,
   type MarketplaceScene,
   type TrainingDataset,
 } from "@/data/content";
@@ -30,10 +28,9 @@ import {
 
 // --- Types ---
 
-type MarketplaceItemType = "all" | "datasets" | "scenes" | "training";
+type MarketplaceItemType = "all" | "scenes" | "training";
 
 type MarketplaceItem =
-  | { type: "dataset"; data: SyntheticDataset }
   | { type: "scene"; data: MarketplaceScene }
   | { type: "training"; data: TrainingDataset };
 
@@ -48,7 +45,6 @@ const sortOptions = [
 
 const itemTypeOptions: Array<{ label: string; value: MarketplaceItemType }> = [
   { label: "All Items", value: "all" },
-  { label: "Benchmark Packs", value: "datasets" },
   { label: "Scene Library", value: "scenes" },
   { label: "Dataset Packs", value: "training" },
 ];
@@ -56,7 +52,6 @@ const itemTypeOptions: Array<{ label: string; value: MarketplaceItemType }> = [
 // Combine location types from all item types
 const locationOptions = Array.from(
   new Set([
-    ...syntheticDatasets.map((d) => d.locationType),
     ...marketplaceScenes.map((s) => s.locationType),
     ...trainingDatasets.map((t) => t.locationType),
   ])
@@ -64,7 +59,6 @@ const locationOptions = Array.from(
 
 const objectOptions = Array.from(
   new Set([
-    ...syntheticDatasets.flatMap((d) => d.objectTags),
     ...marketplaceScenes.flatMap((s) => s.objectTags),
     ...trainingDatasets.flatMap((t) => t.objectTags),
   ])
@@ -76,7 +70,7 @@ const policyFilters = environmentPolicies.map((policy) => ({
 }));
 
 // Calculate stats
-const newestRelease = [...syntheticDatasets, ...marketplaceScenes, ...trainingDatasets].reduce<
+const newestRelease = [...marketplaceScenes, ...trainingDatasets].reduce<
   string | null
 >((latest, item) => {
   if (!latest) return item.releaseDate;
@@ -85,10 +79,7 @@ const newestRelease = [...syntheticDatasets, ...marketplaceScenes, ...trainingDa
     : latest;
 }, null);
 
-const totalScenes = syntheticDatasets.reduce(
-  (sum, dataset) => sum + dataset.sceneCount,
-  0
-) + marketplaceScenes.length;
+const totalScenes = marketplaceScenes.length;
 
 const totalEpisodes = trainingDatasets.reduce(
   (sum, dataset) => sum + dataset.episodeCount,
@@ -214,7 +205,12 @@ export default function Environments() {
     const params = new URLSearchParams(searchString);
 
     const type = params.get("type");
-    if (type === "datasets" || type === "scenes" || type === "training") {
+    // Redirect old benchmark packs URL to benchmarks page
+    if (type === "datasets") {
+      window.location.href = "/benchmarks";
+      return;
+    }
+    if (type === "scenes" || type === "training") {
       setItemTypeFilter(type);
     }
 
@@ -354,13 +350,9 @@ export default function Environments() {
 
   // --- Logic ---
 
-  // Combine datasets, scenes, and training datasets into unified marketplace items
+  // Combine scenes and training datasets into unified marketplace items
   const allMarketplaceItems = useMemo<MarketplaceItem[]>(() => {
     const items: MarketplaceItem[] = [];
-
-    syntheticDatasets.forEach((dataset) => {
-      items.push({ type: "dataset", data: dataset });
-    });
 
     marketplaceScenes.forEach((scene) => {
       items.push({ type: "scene", data: scene });
@@ -377,9 +369,7 @@ export default function Environments() {
     let result = allMarketplaceItems.slice();
 
     // Filter by item type
-    if (itemTypeFilter === "datasets") {
-      result = result.filter((item) => item.type === "dataset");
-    } else if (itemTypeFilter === "scenes") {
+    if (itemTypeFilter === "scenes") {
       result = result.filter((item) => item.type === "scene");
     } else if (itemTypeFilter === "training") {
       result = result.filter((item) => item.type === "training");
@@ -431,29 +421,23 @@ export default function Environments() {
     switch (sortOption) {
       case "price-asc":
         result.sort((a, b) => {
-          const priceA =
-            a.type === "dataset" ? (a.data as SyntheticDataset).pricePerScene : a.data.price;
-          const priceB =
-            b.type === "dataset" ? (b.data as SyntheticDataset).pricePerScene : b.data.price;
+          const priceA = a.data.price;
+          const priceB = b.data.price;
           return priceA - priceB;
         });
         break;
       case "price-desc":
         result.sort((a, b) => {
-          const priceA =
-            a.type === "dataset" ? (a.data as SyntheticDataset).pricePerScene : a.data.price;
-          const priceB =
-            b.type === "dataset" ? (b.data as SyntheticDataset).pricePerScene : b.data.price;
+          const priceA = a.data.price;
+          const priceB = b.data.price;
           return priceB - priceA;
         });
         break;
       case "scene-desc":
         result.sort((a, b) => {
           const countA =
-            a.type === "dataset" ? (a.data as SyntheticDataset).sceneCount :
             a.type === "training" ? (a.data as TrainingDataset).episodeCount / 1000 : 1;
           const countB =
-            b.type === "dataset" ? (b.data as SyntheticDataset).sceneCount :
             b.type === "training" ? (b.data as TrainingDataset).episodeCount / 1000 : 1;
           return countB - countA;
         });
@@ -482,7 +466,7 @@ export default function Environments() {
   // Featured items (show at top)
   const featuredItems = useMemo(() => {
     return filteredItems
-      .filter((item) => item.data.isFeatured && item.type === "dataset")
+      .filter((item) => item.data.isFeatured)
       .slice(0, 3);
   }, [filteredItems]);
 
@@ -527,9 +511,7 @@ export default function Environments() {
       description: item.data.description,
       offers: {
         "@type": "Offer",
-        price: item.type === "dataset"
-          ? (item.data as SyntheticDataset).pricePerScene * (item.data as SyntheticDataset).sceneCount
-          : (item.data as MarketplaceScene).price,
+        price: item.data.price,
         priceCurrency: "USD",
         availability: "https://schema.org/InStock",
       },
@@ -539,7 +521,7 @@ export default function Environments() {
       "@context": "https://schema.org",
       "@type": "CollectionPage",
       name: "Blueprint Marketplace",
-      description: "SimReady synthetic datasets and scenes for robotics training. Isaac-ready USD packages with randomizers and task logic.",
+      description: "SimReady scenes and training datasets for robotics. Isaac-ready USD packages with randomizers and task logic.",
       url: "https://tryblueprint.io/marketplace",
       mainEntity: {
         "@type": "ItemList",
@@ -561,10 +543,10 @@ export default function Environments() {
       )}
 
       <Helmet>
-        <title>Marketplace | Blueprint - Benchmark Packs & Scene Library</title>
+        <title>Marketplace | Blueprint - Scene Library & Dataset Packs</title>
         <meta
           name="description"
-          content="Browse benchmark packs with evaluation harnesses and SimReady scenes for robotics policy evaluation. Isaac-ready USD packages with tasks, metrics, and standardized protocols."
+          content="Browse SimReady scenes and training datasets for robotics. Isaac-ready USD packages with physics, articulation, and task logic for policy training."
         />
         <meta name="robots" content="index, follow" />
         <meta property="og:type" content="website" />
@@ -572,14 +554,14 @@ export default function Environments() {
         <meta property="og:title" content="Marketplace | Blueprint" />
         <meta
           property="og:description"
-          content="Browse benchmark packs and SimReady scenes for robotics policy evaluation. Standardized benchmarks with evaluation harnesses."
+          content="SimReady scenes and training datasets for robotics. Isaac-ready USD packages with physics and articulation."
         />
         <meta property="og:image" content="https://tryblueprint.io/images/Gemini_EnvironentsBanner.png" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Marketplace | Blueprint" />
         <meta
           name="twitter:description"
-          content="Benchmark packs and SimReady scenes for robotics. Isaac-ready USD packages with evaluation harnesses."
+          content="SimReady scenes and datasets for robotics. Isaac-ready USD packages for policy training."
         />
         <meta name="twitter:image" content="https://tryblueprint.io/images/Gemini_EnvironentsBanner.png" />
         <link rel="canonical" href="https://tryblueprint.io/marketplace" />
@@ -601,13 +583,13 @@ export default function Environments() {
 
             <div className="max-w-4xl">
               <h1 className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl">
-                Benchmark Packs & Scene Library
+                Scene Library & Dataset Packs
               </h1>
               <p className="mt-6 max-w-2xl text-lg text-zinc-600">
-                Runnable benchmark suites with SimReady scenes, tasks, and evaluation harnesses.
-                Each pack includes USD scenes, task definitions, fixed seeds, and standardized
-                metrics so you can measure policy performance immediately. Browse individual
-                scenes for custom benchmark assembly.
+                SimReady scenes and training datasets for robotics policy development.
+                Each item includes physics-accurate USD scenes with articulation, collision
+                meshes, and domain randomization. Browse scenes for custom training pipelines
+                or grab dataset packs with pre-generated trajectories.
               </p>
             </div>
           </div>
@@ -620,29 +602,21 @@ export default function Environments() {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </div>
               <span className="font-medium text-zinc-900">
-                {syntheticDatasets.length}
-              </span>
-              benchmark packs
-            </div>
-            <div className="h-4 w-px bg-zinc-300" />
-            <div className="flex items-center gap-2">
-              <Box className="h-4 w-4 text-zinc-400" />
-              <span className="font-medium text-zinc-900">
-                {totalScenes.toLocaleString()}
-              </span>
-              total scenes
-            </div>
-            <div className="h-4 w-px bg-zinc-300" />
-            <div className="flex items-center gap-2">
-              <Layers className="h-4 w-4 text-zinc-400" />
-              <span className="font-medium text-zinc-900">
                 {marketplaceScenes.length}
               </span>
-              in scene library
+              scenes
             </div>
             <div className="h-4 w-px bg-zinc-300" />
             <div className="flex items-center gap-2">
               <Database className="h-4 w-4 text-zinc-400" />
+              <span className="font-medium text-zinc-900">
+                {trainingDatasets.length}
+              </span>
+              dataset packs
+            </div>
+            <div className="h-4 w-px bg-zinc-300" />
+            <div className="flex items-center gap-2">
+              <Layers className="h-4 w-4 text-zinc-400" />
               <span className="font-medium text-zinc-900">
                 {(totalEpisodes / 1000).toFixed(0)}K
               </span>
@@ -849,8 +823,6 @@ export default function Environments() {
               )}
               {itemTypeFilter === "all"
                 ? "items"
-                : itemTypeFilter === "datasets"
-                ? "benchmark packs"
                 : itemTypeFilter === "training"
                 ? "dataset packs"
                 : "scenes"}
@@ -888,7 +860,7 @@ export default function Environments() {
                 <section className="space-y-6">
                   <div className="flex items-center gap-3">
                     <h2 className="text-2xl font-bold text-zinc-900">
-                      Featured Benchmark Packs
+                      Featured Items
                     </h2>
                     <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-700">
                       Best Value

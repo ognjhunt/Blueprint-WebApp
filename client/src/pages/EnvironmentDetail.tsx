@@ -7,7 +7,6 @@ import {
   marketplaceScenes,
   trainingDatasets,
   premiumCapabilities,
-  type SyntheticDataset,
   type MarketplaceScene,
   type TrainingDataset,
   type PremiumCapability,
@@ -114,9 +113,11 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     });
   }, [selectedOption, isAddonCompatible]);
 
-  const marketplaceDataset = syntheticDatasets.find(
+  // Check if this is a benchmark suite - redirect to /benchmarks/:slug
+  const benchmarkSuite = syntheticDatasets.find(
     (item) => item.slug === params.slug,
   );
+
   const marketplaceScene = marketplaceScenes.find(
     (item) => item.slug === params.slug,
   );
@@ -124,12 +125,17 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     (item) => item.slug === params.slug,
   );
 
-  const marketplaceItem: (SyntheticDataset | MarketplaceScene) | undefined =
-    marketplaceDataset || marketplaceScene;
+  const marketplaceItem: MarketplaceScene | undefined = marketplaceScene;
 
-  const isDataset = Boolean(marketplaceDataset);
   const isTraining = Boolean(trainingDataset);
   const detailSlug = marketplaceItem?.slug || trainingDataset?.slug;
+
+  // Redirect benchmark suites to the benchmarks page
+  useEffect(() => {
+    if (benchmarkSuite) {
+      window.location.href = `/benchmarks/${benchmarkSuite.slug}`;
+    }
+  }, [benchmarkSuite]);
 
   const formattedReleaseDate = useMemo(() => {
     if (!marketplaceItem) return null;
@@ -151,22 +157,13 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
   // Get base price based on selected option
   const getBasePrice = useCallback(() => {
     if (!marketplaceItem) return 0;
-    if (isDataset) {
-      const ds = marketplaceDataset!;
-      switch (selectedOption) {
-        case 'bundle': return ds.bundlePrice;
-        case 'scene': return ds.sceneOnlyPrice;
-        case 'episodes': return ds.episodesOnlyPrice;
-      }
-    } else {
-      const sc = marketplaceScene!;
-      switch (selectedOption) {
-        case 'bundle': return sc.bundlePrice || sc.price;
-        case 'scene': return sc.sceneOnlyPrice || Math.round(sc.price * 0.45);
-        case 'episodes': return sc.episodesOnlyPrice || Math.round(sc.price * 0.65);
-      }
+    const sc = marketplaceScene!;
+    switch (selectedOption) {
+      case 'bundle': return sc.bundlePrice || sc.price;
+      case 'scene': return sc.sceneOnlyPrice || Math.round(sc.price * 0.45);
+      case 'episodes': return sc.episodesOnlyPrice || Math.round(sc.price * 0.65);
     }
-  }, [isDataset, marketplaceDataset, marketplaceItem, marketplaceScene, selectedOption]);
+  }, [marketplaceItem, marketplaceScene, selectedOption]);
 
   const basePrice = getBasePrice();
   const totalPrice = basePrice + addonsTotal;
@@ -188,25 +185,15 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     const addonNames = selectedAddonsList.map(a => a.shortTitle).join(', ');
     const titleSuffix = selectedAddonsList.length > 0 ? ` + ${selectedAddonsList.length} add-on${selectedAddonsList.length > 1 ? 's' : ''}` : '';
 
-    const checkoutItem = isDataset
-      ? {
-          sku: `${marketplaceDataset!.slug}-${selectedOption}${selectedAddons.size > 0 ? '-addons' : ''}`,
-          title: `${marketplaceDataset!.title} (${optionLabels[selectedOption]})${titleSuffix}`,
-          description: addonNames ? `${marketplaceDataset!.description} | Add-ons: ${addonNames}` : marketplaceDataset!.description,
-          price: totalPrice,
-          quantity: 1,
-          itemType: "dataset" as const,
-          addons: Array.from(selectedAddons),
-        }
-      : {
-          sku: `${marketplaceScene!.slug}-${selectedOption}${selectedAddons.size > 0 ? '-addons' : ''}`,
-          title: `${marketplaceScene!.title} (${optionLabels[selectedOption]})${titleSuffix}`,
-          description: addonNames ? `${marketplaceScene!.description} | Add-ons: ${addonNames}` : marketplaceScene!.description,
-          price: totalPrice,
-          quantity: 1,
-          itemType: "scene" as const,
-          addons: Array.from(selectedAddons),
-        };
+    const checkoutItem = {
+      sku: `${marketplaceScene!.slug}-${selectedOption}${selectedAddons.size > 0 ? '-addons' : ''}`,
+      title: `${marketplaceScene!.title} (${optionLabels[selectedOption]})${titleSuffix}`,
+      description: addonNames ? `${marketplaceScene!.description} | Add-ons: ${addonNames}` : marketplaceScene!.description,
+      price: totalPrice,
+      quantity: 1,
+      itemType: "scene" as const,
+      addons: Array.from(selectedAddons),
+    };
 
     setIsRedirecting(true);
     try {
@@ -267,34 +254,19 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     } finally {
       setIsRedirecting(false);
     }
-  }, [detailSlug, isDataset, isRedirecting, marketplaceDataset, marketplaceItem, marketplaceScene, selectedOption, selectedAddons, totalPrice]);
+  }, [detailSlug, isRedirecting, marketplaceItem, marketplaceScene, selectedOption, selectedAddons, totalPrice]);
 
   if (marketplaceItem) {
-    const heroImage = isDataset
-      ? (marketplaceDataset as SyntheticDataset).heroImage
-      : (marketplaceScene as MarketplaceScene).thumbnail;
-    const variationCount = isDataset
-      ? (marketplaceDataset as SyntheticDataset).variationCount
-      : (marketplaceScene as MarketplaceScene).variationCount || 500;
-    const episodeCount = isDataset
-      ? (marketplaceDataset as SyntheticDataset).episodeCount
-      : (marketplaceScene as MarketplaceScene).episodeCount || 5000;
+    const heroImage = marketplaceScene!.thumbnail;
+    const variationCount = marketplaceScene!.variationCount || 500;
+    const episodeCount = marketplaceScene!.episodeCount || 5000;
     const deliverables = marketplaceItem.deliverables || [];
-    const randomizers = (marketplaceDataset as SyntheticDataset | undefined)
-      ?.randomizerScripts;
-    const interactions = (marketplaceScene as MarketplaceScene | undefined)
-      ?.interactions;
+    const interactions = marketplaceScene?.interactions;
 
     // Pricing data
-    const bundlePrice = isDataset
-      ? (marketplaceDataset as SyntheticDataset).bundlePrice
-      : (marketplaceScene as MarketplaceScene).bundlePrice || (marketplaceScene as MarketplaceScene).price;
-    const sceneOnlyPrice = isDataset
-      ? (marketplaceDataset as SyntheticDataset).sceneOnlyPrice
-      : (marketplaceScene as MarketplaceScene).sceneOnlyPrice || Math.round(((marketplaceScene as MarketplaceScene).price) * 0.45);
-    const episodesOnlyPrice = isDataset
-      ? (marketplaceDataset as SyntheticDataset).episodesOnlyPrice
-      : (marketplaceScene as MarketplaceScene).episodesOnlyPrice || Math.round(((marketplaceScene as MarketplaceScene).price) * 0.65);
+    const bundlePrice = marketplaceScene!.bundlePrice || marketplaceScene!.price;
+    const sceneOnlyPrice = marketplaceScene!.sceneOnlyPrice || Math.round(marketplaceScene!.price * 0.45);
+    const episodesOnlyPrice = marketplaceScene!.episodesOnlyPrice || Math.round(marketplaceScene!.price * 0.65);
 
     // Calculate savings for bundle
     const separateTotal = sceneOnlyPrice + episodesOnlyPrice;
@@ -309,9 +281,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
       image: heroImage.startsWith("/") ? `https://tryblueprint.io${heroImage}` : heroImage,
       offers: {
         "@type": "Offer",
-        price: isDataset
-          ? (marketplaceDataset as SyntheticDataset).pricePerScene * (marketplaceDataset as SyntheticDataset).sceneCount
-          : (marketplaceScene as MarketplaceScene).price,
+        price: marketplaceScene!.price,
         priceCurrency: "USD",
         availability: "https://schema.org/InStock",
       },
@@ -360,16 +330,11 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1 rounded-full bg-zinc-900 px-3 py-1 text-xs font-semibold text-white">
                 <Package className="h-3 w-3" />
-                {isDataset ? "Benchmark Pack" : "Scene Library"}
+                Scene Library
               </span>
               {marketplaceItem.isNew && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">
                   <Sparkles className="h-3 w-3" /> New drop
-                </span>
-              )}
-              {isDataset && (marketplaceDataset as SyntheticDataset).isTrending && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
-                  <TrendingUp className="h-3 w-3" /> Trending
                 </span>
               )}
               {marketplaceItem.isFeatured && (
@@ -721,21 +686,6 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
               ) : null}
             </div>
 
-            {randomizers && randomizers.length ? (
-              <div className="space-y-2">
-                <h3 className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">Randomizers</h3>
-                <div className="flex flex-wrap gap-2">
-                  {randomizers.map((item) => (
-                    <span
-                      key={item}
-                      className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-semibold text-zinc-700"
-                    >
-                      {item}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ) : null}
           </div>
 
           <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm space-y-4">
