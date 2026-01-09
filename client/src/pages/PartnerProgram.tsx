@@ -1,33 +1,36 @@
 import { ContactForm } from "@/components/site/ContactForm";
 import { SEO } from "@/components/SEO";
-import { Check, ChevronRight } from "lucide-react";
+import { Check } from "lucide-react";
 
 export default function PartnerProgram() {
   return (
     <>
       <SEO
-        title="Partners - Blueprint"
-        description="Join our early partner program and get free access to our entire robotics data platform while we validate it together."
+        title="Founding Partner Program - Blueprint"
+        description="Join Blueprint's Founding Partner Program. Get early access to our robotics data platform, shape the roadmap, and lock in exclusive pricing."
         canonical="/partners"
       />
       <div className="min-h-screen bg-white">
         <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
           {/* Hero */}
           <div className="mb-20 space-y-6">
+            <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
+              Founding Partner Program
+            </p>
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Partner with us — free platform, help us validate
+              Be the first to use our robotics data platform
             </h1>
             <p className="text-lg text-slate-600">
-              We've built a robotics data platform. It works great in testing, but we need real labs using it on real projects to make sure it actually helps. Partner with us during validation, get everything free, and help us prove it works.
+              We're selecting a small group of robotics teams to get early access to Blueprint. You'll shape our roadmap, get hands-on support from our team, and lock in founding partner pricing permanently.
             </p>
           </div>
 
           {/* What You Get */}
           <div className="mb-20 space-y-8">
             <div>
-              <h2 className="mb-4 text-2xl font-bold text-slate-900">What you get (free)</h2>
+              <h2 className="mb-4 text-2xl font-bold text-slate-900">What's included</h2>
               <p className="mb-6 text-slate-600">
-                Our entire platform, including everything below. Worth $235,000-$605,000 normally. Free during validation phase.
+                Full platform access for the duration of the program. No usage limits.
               </p>
             </div>
 
@@ -82,38 +85,38 @@ export default function PartnerProgram() {
             </div>
           </div>
 
-          {/* Why You Should Apply */}
+          {/* Why Join */}
           <div className="mb-20 space-y-8">
             <div>
-              <h2 className="mb-4 text-2xl font-bold text-slate-900">Why you should apply</h2>
+              <h2 className="mb-4 text-2xl font-bold text-slate-900">Why join as a Founding Partner</h2>
             </div>
 
             <div className="space-y-6">
               <div>
-                <h3 className="mb-2 font-semibold text-slate-900">Get $235k-$605k of tooling for free</h3>
+                <h3 className="mb-2 font-semibold text-slate-900">Direct roadmap influence</h3>
                 <p className="text-slate-600">
-                  No payment. No contract. Keep all the data we generate.
+                  Your feedback shapes what we build. Founding partners get a direct line to our team and priority on feature requests.
                 </p>
               </div>
 
               <div>
-                <h3 className="mb-2 font-semibold text-slate-900">Shape the product</h3>
+                <h3 className="mb-2 font-semibold text-slate-900">Hands-on support</h3>
                 <p className="text-slate-600">
-                  Your feedback directly influences our roadmap. We'll build features based on what actually helps you.
+                  We'll work directly with your team to integrate Blueprint into your workflow and optimize for your use case.
                 </p>
               </div>
 
               <div>
-                <h3 className="mb-2 font-semibold text-slate-900">Forever pricing</h3>
+                <h3 className="mb-2 font-semibold text-slate-900">Founding Partner pricing — forever</h3>
                 <p className="text-slate-600">
-                  After validation, early partners get discounted pricing for life. We take care of people who helped us get started.
+                  Lock in early-access rates permanently. When we raise prices for new customers, yours stays the same.
                 </p>
               </div>
 
               <div>
-                <h3 className="mb-2 font-semibold text-slate-900">Zero risk</h3>
+                <h3 className="mb-2 font-semibold text-slate-900">Keep everything you create</h3>
                 <p className="text-slate-600">
-                  Not working out? Walk away anytime. You keep everything. You literally cannot lose.
+                  All training data, environments, and exports are yours. No lock-in.
                 </p>
               </div>
             </div>
@@ -122,39 +125,31 @@ export default function PartnerProgram() {
           {/* Who We're Looking For */}
           <div className="mb-20 space-y-8">
             <div>
-              <h2 className="mb-4 text-2xl font-bold text-slate-900">Who should apply</h2>
+              <h2 className="mb-4 text-2xl font-bold text-slate-900">Who we're looking for</h2>
             </div>
 
             <div className="space-y-4">
               <div className="flex items-start gap-3">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-slate-900" />
                 <div>
-                  <p className="font-semibold text-slate-900">Labs or companies with real robots</p>
-                  <p className="text-sm text-slate-600">Robot arms, mobile robots, humanoids — if you have hardware, we want to work with you</p>
+                  <p className="font-semibold text-slate-900">Teams with real robot hardware</p>
+                  <p className="text-sm text-slate-600">Robot arms, mobile robots, humanoids — we prioritize partners who can validate sim-to-real transfer</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-slate-900" />
                 <div>
-                  <p className="font-semibold text-slate-900">Teams needing training data</p>
-                  <p className="text-sm text-slate-600">Training AI for robots, need more scenarios, want to test sim→real transfer</p>
+                  <p className="font-semibold text-slate-900">Active ML/AI training pipelines</p>
+                  <p className="text-sm text-slate-600">You're already training models for robot manipulation, navigation, or perception</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-slate-900" />
                 <div>
-                  <p className="font-semibold text-slate-900">People willing to share feedback</p>
-                  <p className="text-sm text-slate-600">Tell us what works and what doesn't. ~30 minutes every 2 weeks</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-slate-900" />
-                <div>
-                  <p className="font-semibold text-slate-900">Anyone interested in robotics data</p>
-                  <p className="text-sm text-slate-600">Even if you don't fit perfectly above — apply anyway. Worst case is free access to our platform</p>
+                  <p className="font-semibold text-slate-900">Willing to commit ~2 hours/month</p>
+                  <p className="text-sm text-slate-600">Bi-weekly check-ins to share feedback on what's working and what we should build next</p>
                 </div>
               </div>
             </div>
@@ -171,7 +166,7 @@ export default function PartnerProgram() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-slate-900">Apply</h3>
-                  <p className="text-sm text-slate-600">Fill out the form below</p>
+                  <p className="text-sm text-slate-600">Fill out the form below — takes 2 minutes</p>
                 </div>
               </div>
 
@@ -180,8 +175,8 @@ export default function PartnerProgram() {
                   2
                 </div>
                 <div>
-                  <h3 className="font-semibold text-slate-900">Talk</h3>
-                  <p className="text-sm text-slate-600">We'll schedule a 30-minute call to understand your project</p>
+                  <h3 className="font-semibold text-slate-900">Intro call</h3>
+                  <p className="text-sm text-slate-600">30-minute call to understand your use case and see if there's a fit</p>
                 </div>
               </div>
 
@@ -190,8 +185,8 @@ export default function PartnerProgram() {
                   3
                 </div>
                 <div>
-                  <h3 className="font-semibold text-slate-900">Get Access</h3>
-                  <p className="text-sm text-slate-600">We'll set up everything and you get full platform access (free)</p>
+                  <h3 className="font-semibold text-slate-900">Onboarding</h3>
+                  <p className="text-sm text-slate-600">We set up your account and walk your team through the platform</p>
                 </div>
               </div>
 
@@ -200,8 +195,8 @@ export default function PartnerProgram() {
                   4
                 </div>
                 <div>
-                  <h3 className="font-semibold text-slate-900">Use & Validate</h3>
-                  <p className="text-sm text-slate-600">Use our platform on your real projects, share feedback, help us prove it works</p>
+                  <h3 className="font-semibold text-slate-900">Build together</h3>
+                  <p className="text-sm text-slate-600">Use the platform, share feedback, and help us make it better</p>
                 </div>
               </div>
             </div>
@@ -210,8 +205,8 @@ export default function PartnerProgram() {
           {/* Application Section */}
           <div className="mb-20 space-y-8">
             <div>
-              <h2 className="mb-2 text-2xl font-bold text-slate-900">Apply to partner</h2>
-              <p className="text-slate-600">Ready? Fill out the form and we'll reach out within 24 hours.</p>
+              <h2 className="mb-2 text-2xl font-bold text-slate-900">Apply now</h2>
+              <p className="text-slate-600">Tell us about your team and project. We'll respond within 48 hours.</p>
             </div>
             <div className="rounded-lg border border-slate-200 bg-white p-8">
               <ContactForm />
@@ -221,9 +216,9 @@ export default function PartnerProgram() {
           {/* Info Section */}
           <div className="space-y-6 border-t border-slate-200 pt-12">
             <div>
-              <h3 className="mb-2 font-semibold text-slate-900">Limited spots</h3>
+              <h3 className="mb-2 font-semibold text-slate-900">Limited availability</h3>
               <p className="text-sm text-slate-600">
-                We're looking for 5-10 validation partners to work closely with during Q1 2026. Priority given to labs with real hardware.
+                We're accepting 5-10 partners for this cohort to ensure we can give each team dedicated support.
               </p>
             </div>
 
