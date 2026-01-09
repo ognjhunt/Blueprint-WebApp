@@ -989,49 +989,123 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
             <aside className="space-y-4">
               <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
-                  <p className="text-sm font-semibold text-zinc-900">Dataset Pack</p>
+                  <p className="text-sm font-semibold text-zinc-900">Choose Your Tier</p>
                   <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">
                     {trainingDataset.dataFormat}
                   </span>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-zinc-900">
-                      ${trainingDataset.price.toLocaleString()}
-                    </span>
-                  </div>
-
-                  <div className="space-y-2 text-sm text-zinc-600">
-                    <div className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-emerald-500" />
-                      <span>{trainingDataset.episodeCount.toLocaleString()} expert trajectories</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-emerald-500" />
-                      <span>{trainingDataset.sensorModalities.length} sensor modalities</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-emerald-500" />
-                      <span>Train/val/test splits included</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-emerald-500" />
-                      <span>PyTorch dataloader included</span>
-                    </div>
-                  </div>
-
+                {/* Pricing Tiers */}
+                <div className="space-y-2 mb-4">
+                  {/* Basic Tier */}
                   <button
-                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-indigo-700 disabled:opacity-60"
-                    onClick={handleTrainingCheckout}
-                    disabled={isRedirecting}
+                    type="button"
+                    onClick={() => {/* Handle basic tier selection */}}
+                    className="w-full rounded-xl border-2 border-zinc-200 p-4 text-left hover:border-indigo-300 hover:bg-indigo-50 transition-all"
                   >
-                    <ShoppingCart className="h-4 w-4" />
-                    {isRedirecting
-                      ? "Redirecting..."
-                      : `Buy Dataset — $${trainingDataset.price.toLocaleString()}`}
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <h3 className="font-semibold text-zinc-900">Core Data</h3>
+                        <p className="text-xs text-zinc-500">Essential trajectories</p>
+                      </div>
+                      <span className="text-xl font-bold text-zinc-900">
+                        ${trainingDataset.basicPrice ? trainingDataset.basicPrice.toLocaleString() : Math.round(trainingDataset.price * 0.4).toLocaleString()}
+                      </span>
+                    </div>
+                    <ul className="space-y-1 text-xs text-zinc-600">
+                      <li className="flex items-center gap-2">
+                        <Check className="h-3 w-3 text-emerald-500" />
+                        <span>25,000 trajectories</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="h-3 w-3 text-emerald-500" />
+                        <span>Core sensor data</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="h-3 w-3 text-emerald-500" />
+                        <span>Train/val/test splits</span>
+                      </li>
+                    </ul>
+                  </button>
+
+                  {/* Standard Tier - Recommended */}
+                  <button
+                    type="button"
+                    onClick={() => {/* Handle standard tier selection */}}
+                    className="w-full rounded-xl border-2 border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/20 p-4 text-left transition-all"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-zinc-900">Complete Dataset</h3>
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                            RECOMMENDED
+                          </span>
+                        </div>
+                        <p className="text-xs text-zinc-500">Full dataset + all analytics</p>
+                      </div>
+                      <span className="text-2xl font-bold text-indigo-600">
+                        ${trainingDataset.standardPrice ? trainingDataset.standardPrice.toLocaleString() : trainingDataset.price.toLocaleString()}
+                      </span>
+                    </div>
+                    <ul className="space-y-1 text-xs text-zinc-600">
+                      <li className="flex items-center gap-2">
+                        <Check className="h-3 w-3 text-emerald-500" />
+                        <span>{trainingDataset.episodeCount.toLocaleString()} expert trajectories</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="h-3 w-3 text-emerald-500" />
+                        <span>All {trainingDataset.sensorModalities.length} sensor modalities</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="h-3 w-3 text-emerald-500" />
+                        <span>Premium analytics included</span>
+                      </li>
+                    </ul>
+                  </button>
+
+                  {/* Premium Tier */}
+                  <button
+                    type="button"
+                    onClick={() => {/* Handle premium tier selection */}}
+                    className="w-full rounded-xl border-2 border-zinc-200 p-4 text-left hover:border-amber-300 hover:bg-amber-50 transition-all"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <h3 className="font-semibold text-zinc-900">Premium Bundle</h3>
+                        <p className="text-xs text-zinc-500">Full dataset + extended support</p>
+                      </div>
+                      <span className="text-xl font-bold text-zinc-900">
+                        ${trainingDataset.premiumPrice ? trainingDataset.premiumPrice.toLocaleString() : Math.round(trainingDataset.price * 1.5).toLocaleString()}
+                      </span>
+                    </div>
+                    <ul className="space-y-1 text-xs text-zinc-600">
+                      <li className="flex items-center gap-2">
+                        <Check className="h-3 w-3 text-emerald-500" />
+                        <span>Everything in Complete Dataset</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="h-3 w-3 text-emerald-500" />
+                        <span>Custom analysis + fine-tuning</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="h-3 w-3 text-emerald-500" />
+                        <span>Priority email support (6 months)</span>
+                      </li>
+                    </ul>
                   </button>
                 </div>
+
+                <button
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-zinc-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-indigo-600 disabled:opacity-60"
+                  onClick={handleTrainingCheckout}
+                  disabled={isRedirecting}
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                  {isRedirecting
+                    ? "Redirecting..."
+                    : `Select & Continue`}
+                </button>
               </div>
 
               <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm space-y-3">

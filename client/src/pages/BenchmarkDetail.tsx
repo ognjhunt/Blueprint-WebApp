@@ -229,60 +229,115 @@ export default function BenchmarkDetail({ params }: BenchmarkDetailProps) {
             </div>
           </div>
 
-          {/* Submit Policy Card */}
+          {/* Pricing Tiers Card */}
           <aside className="space-y-4">
-            <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-6 shadow-sm">
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <div className="rounded-lg bg-emerald-100 p-2">
-                    <Send className="h-5 w-5 text-emerald-600" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-zinc-900">Submit Your Policy</p>
-                    <p className="text-xs text-zinc-500">Get standardized evaluation results</p>
-                  </div>
-                </div>
+            <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-semibold text-zinc-900">Choose Your Package</p>
+                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                  3 Options
+                </span>
+              </div>
 
-                <p className="text-sm text-zinc-600">
-                  Submit your robot policy for evaluation against this benchmark suite.
-                  We'll run it through all {benchmark.variationCount?.toLocaleString()} variations
-                  and provide detailed metrics.
-                </p>
-
-                <div className="space-y-2 rounded-xl bg-white p-4 ring-1 ring-emerald-100">
-                  <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">What you'll get</p>
-                  <ul className="space-y-2 text-sm text-zinc-600">
+              {/* Pricing Options */}
+              <div className="space-y-2 mb-4">
+                {/* Basic: Scene Only */}
+                <button
+                  type="button"
+                  className="w-full rounded-xl border-2 border-zinc-200 p-3 text-left hover:border-emerald-300 hover:bg-emerald-50 transition-all"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <span className="font-semibold text-zinc-900 text-sm">Benchmark Suite</span>
+                      <p className="text-xs text-zinc-500">Scenes + variations only</p>
+                    </div>
+                    <span className="font-bold text-zinc-900">${Math.round((benchmark.sceneCount || 1) * 1500).toLocaleString()}</span>
+                  </div>
+                  <ul className="space-y-1 text-xs text-zinc-600">
                     <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                      Success rate across all task categories
+                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                      <span>{benchmark.sceneCount} scenes</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                      Detailed per-task breakdown
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                      Comparison against baseline policies
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                      Failure case analysis with videos
+                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                      <span>{benchmark.variationCount?.toLocaleString()} domain variations</span>
                     </li>
                   </ul>
-                </div>
+                </button>
 
-                <a
-                  href={contactUrl}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-700"
+                {/* Standard: Full Evaluation */}
+                <button
+                  type="button"
+                  className="w-full rounded-xl border-2 border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500/20 p-3 text-left transition-all"
                 >
-                  <Send className="h-4 w-4" />
-                  Request Evaluation
-                </a>
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-zinc-900 text-sm">Complete Evaluation</span>
+                        <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                          POPULAR
+                        </span>
+                      </div>
+                      <p className="text-xs text-zinc-500">Suite + policy evaluation runs</p>
+                    </div>
+                    <span className="font-bold text-emerald-600 text-lg">${Math.round(((benchmark.sceneCount || 1) * 1500) + (benchmark.episodeCount ? Math.floor(benchmark.episodeCount / 1000) * 2000 : 4000)).toLocaleString()}</span>
+                  </div>
+                  <ul className="space-y-1 text-xs text-zinc-600">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                      <span>Everything in Benchmark Suite</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                      <span>{benchmark.episodeCount?.toLocaleString()} evaluation runs</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                      <span>Standardized metrics & leaderboard</span>
+                    </li>
+                  </ul>
+                </button>
 
-                <p className="text-center text-xs text-zinc-500">
-                  We'll reach out to discuss your policy and evaluation requirements
-                </p>
+                {/* Premium: Extended Analysis */}
+                <button
+                  type="button"
+                  className="w-full rounded-xl border-2 border-zinc-200 p-3 text-left hover:border-amber-300 hover:bg-amber-50 transition-all"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <span className="font-semibold text-zinc-900 text-sm">Premium Analysis</span>
+                      <p className="text-xs text-zinc-500">Suite + eval + failure analysis</p>
+                    </div>
+                    <span className="font-bold text-zinc-900">${Math.round(((benchmark.sceneCount || 1) * 1500) + (benchmark.episodeCount ? Math.floor(benchmark.episodeCount / 1000) * 2000 : 4000) + 5000).toLocaleString()}</span>
+                  </div>
+                  <ul className="space-y-1 text-xs text-zinc-600">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                      <span>Everything in Complete Evaluation</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                      <span>Detailed failure case analysis</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                      <span>Video recordings + recommendations</span>
+                    </li>
+                  </ul>
+                </button>
               </div>
+
+              <a
+                href={contactUrl}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-700"
+              >
+                <Send className="h-4 w-4" />
+                Request Your Package
+              </a>
+
+              <p className="text-center text-xs text-zinc-500 mt-3">
+                We'll discuss your evaluation requirements and custom options
+              </p>
             </div>
 
             {/* Evaluation Methods */}

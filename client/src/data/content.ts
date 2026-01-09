@@ -130,8 +130,11 @@ export interface TrainingDataset {
   // Data format details
   sensorModalities: string[];
   dataFormat: string; // e.g., "LeRobot", "HDF5", etc.
-  // Pricing
-  price: number;
+  // Pricing - 3-tier system
+  price: number; // Base/standard price (kept for backward compatibility)
+  basicPrice?: number; // Tier 1: Core data + basic analytics
+  standardPrice?: number; // Tier 2: Full dataset + all default analytics
+  premiumPrice?: number; // Tier 3: Full dataset + all analytics + extended support
   releaseDate: string;
   tags: string[];
   deliverables: string[];
@@ -909,6 +912,9 @@ export const trainingDatasets: TrainingDataset[] = [
     sensorModalities: ["RGB-D", "Proprioception", "End-effector pose", "Force/torque"],
     dataFormat: "LeRobot",
     price: 8500,
+    basicPrice: 3400,
+    standardPrice: 8500,
+    premiumPrice: 12750,
     releaseDate: "2025-01-05",
     tags: ["Manipulation", "Articulated", "Multi-sensor"],
     deliverables: ["LeRobot dataset", "Train/val/test splits", "PyTorch dataloader", "VLA fine-tuning configs"],
@@ -930,6 +936,9 @@ export const trainingDatasets: TrainingDataset[] = [
     sensorModalities: ["RGB-D", "Proprioception", "End-effector pose"],
     dataFormat: "LeRobot",
     price: 6500,
+    basicPrice: 2600,
+    standardPrice: 6500,
+    premiumPrice: 9750,
     releaseDate: "2024-12-28",
     tags: ["Logistics", "High-SKU", "Occlusion"],
     deliverables: ["LeRobot dataset", "Train/val/test splits", "PyTorch dataloader"],
@@ -950,6 +959,9 @@ export const trainingDatasets: TrainingDataset[] = [
     sensorModalities: ["RGB-D", "Proprioception", "End-effector pose", "Payload sensors"],
     dataFormat: "LeRobot",
     price: 7500,
+    basicPrice: 3000,
+    standardPrice: 7500,
+    premiumPrice: 11250,
     releaseDate: "2024-12-20",
     tags: ["Industrial", "Heavy-lift", "Logistics"],
     deliverables: ["LeRobot dataset", "Train/val/test splits", "PyTorch dataloader", "Isaac Sim replay"],
