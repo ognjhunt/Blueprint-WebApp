@@ -18,7 +18,7 @@ export function Footer() {
             Blueprint
           </a>
           <p className="text-sm text-slate-500">
-            Procedural and real-world SimReady environments delivered on robotics timelines.
+            Complete robotics data platform with SimReady scenes, policy evaluation, and $320k+ in premium analytics—all included by default.
           </p>
         </div>
         <nav className="grid flex-1 grid-cols-2 gap-3 text-sm text-slate-600 sm:grid-cols-3">

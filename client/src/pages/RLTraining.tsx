@@ -496,8 +496,9 @@ export default function RLTraining() {
                   What You Receive
                 </h2>
                 <p className="mt-4 max-w-2xl mx-auto text-zinc-600">
-                  Every RL training job delivers a complete package — not just a model file,
-                  but everything you need to understand and deploy your trained policy.
+                  Every RL training job delivers a complete analysis package — trained policy,
+                  detailed training history, benchmark reports, and premium analytics showing
+                  how well your policy will perform in the real world.
                 </p>
               </div>
 
@@ -527,22 +528,52 @@ export default function RLTraining() {
               </div>
 
               {/* Deliverables Detail */}
-              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-6">
-                <div className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-500">
-                  Example Deliverable Files
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-6 space-y-6">
+                <div>
+                  <div className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-500">
+                    Core Deliverable Files
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    {[
+                      { file: "policy.pt", desc: "Trained PyTorch model" },
+                      { file: "training_curves.json", desc: "Reward & metrics history" },
+                      { file: "benchmark_report.json", desc: "Evaluation results" },
+                      { file: "policy_config.json", desc: "Architecture & metadata" },
+                    ].map((item) => (
+                      <div key={item.file} className="rounded-xl bg-white p-4 ring-1 ring-zinc-200">
+                        <p className="font-mono text-sm font-bold text-violet-600">{item.file}</p>
+                        <p className="mt-1 text-xs text-zinc-500">{item.desc}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  {[
-                    { file: "policy.pt", desc: "Trained PyTorch model" },
-                    { file: "training_curves.json", desc: "Reward & metrics history" },
-                    { file: "benchmark_report.json", desc: "Evaluation results" },
-                    { file: "policy_config.json", desc: "Architecture & metadata" },
-                  ].map((item) => (
-                    <div key={item.file} className="rounded-xl bg-white p-4 ring-1 ring-zinc-200">
-                      <p className="font-mono text-sm font-bold text-violet-600">{item.file}</p>
-                      <p className="mt-1 text-xs text-zinc-500">{item.desc}</p>
-                    </div>
-                  ))}
+
+                <div className="border-t border-zinc-200 pt-6">
+                  <div className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-500">
+                    Premium Analytics Included
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {[
+                      { title: "Per-Step Telemetry", desc: "Rewards, collisions, grasps, forces tracked at every step" },
+                      { title: "Failure Analysis", desc: "Automatic breakdown of timeout vs collision failures" },
+                      { title: "Grasp Quality", desc: "Force profiles, contact tracking, slip detection" },
+                      { title: "Sim2Real Confidence", desc: "Transfer likelihood score (0-100%) for real-world deployment" },
+                      { title: "Trajectory Optimality", desc: "Path efficiency, jerk analysis, energy metrics" },
+                      { title: "Generalization Metrics", desc: "Per-object success rates, learning curves, data efficiency" },
+                    ].map((item) => (
+                      <div key={item.title} className="rounded-xl bg-white p-4 ring-1 ring-emerald-100">
+                        <p className="font-semibold text-zinc-900">{item.title}</p>
+                        <p className="mt-1 text-xs text-zinc-600">{item.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-t border-zinc-200 pt-6 bg-white rounded-xl p-4 ring-1 ring-violet-100">
+                  <p className="text-xs font-bold uppercase tracking-wider text-violet-700 mb-2">Total Value</p>
+                  <p className="text-sm text-zinc-700">
+                    Every training job includes <strong>$50k-$100k+ in premium analytics</strong> showing exactly how your policy learned and whether it will succeed in the real world. No additional cost.
+                  </p>
                 </div>
               </div>
             </section>

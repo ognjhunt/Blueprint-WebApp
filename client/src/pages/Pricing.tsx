@@ -76,8 +76,16 @@ const foundationFeatures = [
 
 const foundationHighlights = [
   "All VLA fine-tuning configs (OpenVLA, Pi0, SmolVLA, GR00T)",
-  "Sim2Real validation included",
+  "Premium analytics ($320k+ value)",
+  "Sim2Real fidelity matrices & transfer confidence scoring",
+  "Multi-robot embodiment compatibility analysis",
+  "Per-step telemetry (rewards, collisions, grasps, forces)",
+  "Grasp quality analytics with force profiles",
+  "Failure analysis & breakdown",
+  "Trajectory optimality metrics",
+  "Policy leaderboards with statistical significance",
   "Tactile sensor simulation",
+  "Language annotations for VLA training",
   "Contact-rich task episodes",
   "Dedicated Slack channel",
   "Custom robot embodiment support",
@@ -206,14 +214,80 @@ export default function Pricing() {
             </div>
           </section>
 
+          {/* Premium Analytics Breakdown */}
+          <section className="mb-16 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/50 to-white p-8">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-bold text-zinc-900 mb-3">
+                $320k-$585k in Premium Features
+              </h2>
+              <p className="text-zinc-600 max-w-2xl mx-auto">
+                Your Foundation Tier license includes ALL these premium robotics capabilities. They're built into every scene, evaluation, and training job.
+              </p>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {[
+                {
+                  category: "Tier 1: Essential Features ($40k-$75k)",
+                  features: [
+                    "Sim2Real Fidelity Matrix ($20k-$50k) - Physics/visual/sensor/robot fidelity scoring",
+                    "Embodiment Transfer Analysis ($20k-$100k) - Cross-robot compatibility matrices",
+                  ]
+                },
+                {
+                  category: "Tier 2: Optimization ($30k-$65k)",
+                  features: [
+                    "Trajectory Optimality ($10k-$25k) - Path efficiency, jerk, energy analysis",
+                    "Policy Leaderboards ($20k-$40k) - Statistical significance testing",
+                    "Generalization Analyzer ($15k-$35k) - Learning curves, curriculum recommendations",
+                  ]
+                },
+                {
+                  category: "Tier 3: Premium ($25k-$60k)",
+                  features: [
+                    "Tactile Sensor Sim ($15k-$30k) - GelSight/DIGIT simulation",
+                    "Language Annotations ($10k-$25k) - VLA training instructions",
+                  ]
+                },
+                {
+                  category: "Core Analytics ($115k-$260k)",
+                  features: [
+                    "Per-Step Telemetry - Rewards, collisions, grasps, forces at every step",
+                    "Failure Analysis - Timeout/collision breakdown, phase-level tracking",
+                    "Grasp Analytics - Event timeline, force profiles, contact tracking",
+                    "Parallel Eval Metrics - GPU utilization, throughput, statistical variance",
+                  ]
+                },
+              ].map((tier) => (
+                <div key={tier.category} className="rounded-xl border border-emerald-100 bg-white p-5 shadow-sm">
+                  <h3 className="font-bold text-zinc-900 text-sm mb-3">{tier.category}</h3>
+                  <ul className="space-y-2">
+                    {tier.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-2 text-xs text-zinc-700">
+                        <span className="text-emerald-600 font-bold mt-0.5">✓</span>
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-8 rounded-lg bg-white p-4 border border-emerald-100 text-center">
+              <p className="text-sm text-zinc-700">
+                <strong>All included in your Foundation Tier license.</strong> No additional costs for any premium features. You get complete robotics research infrastructure.
+              </p>
+            </div>
+          </section>
+
           {/* Features Grid */}
           <section className="mb-16">
             <div className="text-center mb-10">
               <h2 className="text-2xl font-bold text-zinc-900">
-                Foundation tier capabilities
+                Platform capabilities
               </h2>
               <p className="mt-2 text-zinc-600">
-                Everything you need for foundation model training at scale
+                What's included with your Foundation Tier license
               </p>
             </div>
 

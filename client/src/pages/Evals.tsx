@@ -534,6 +534,76 @@ export default function Evals() {
               </div>
             </section>
 
+            {/* --- Comprehensive Analytics Section --- */}
+            <section className="relative overflow-hidden rounded-[2.5rem] border border-emerald-100 bg-gradient-to-br from-emerald-50/50 to-white p-8 sm:p-12 lg:p-16">
+              <div className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-emerald-100/60 blur-3xl" />
+
+              <div className="relative z-10 space-y-10">
+                <div className="text-center space-y-4">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50/50 px-4 py-1 text-xs font-bold uppercase tracking-wider text-emerald-700">
+                    <BarChart3 className="h-3 w-3" />
+                    Complete Analytics Suite
+                  </div>
+                  <h2 className="text-4xl font-bold text-zinc-900 sm:text-5xl">
+                    Understand every aspect of performance.
+                  </h2>
+                  <p className="max-w-3xl mx-auto text-zinc-600 leading-relaxed">
+                    Beyond pass/fail. Every evaluation captures comprehensive telemetry—per-step rewards, collision analysis, grasp quality, failure breakdown, and sim-to-real transfer indicators.
+                  </p>
+                </div>
+
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {[
+                    {
+                      title: "Per-Step Telemetry",
+                      items: ["Rewards at each step", "Collision forces & bodies", "Grasp events (approach→lift)", "EE forces & torques", "Joint torques"],
+                      icon: "📊"
+                    },
+                    {
+                      title: "Failure Analysis",
+                      items: ["Timeout vs Collision breakdown", "Phase-level failure location", "Collision type distribution", "Average collision forces", "Progress-at-timeout metrics"],
+                      icon: "🔍"
+                    },
+                    {
+                      title: "Grasp Quality",
+                      items: ["Event timeline", "Time-to-grasp metrics", "Force profiles (max/mean/var)", "Contact point tracking", "Slip detection"],
+                      icon: "✋"
+                    },
+                    {
+                      title: "Trajectory Analysis",
+                      items: ["Path efficiency", "Jerk analysis (smoothness)", "Energy metrics", "Velocity profiles", "Outlier detection"],
+                      icon: "🎯"
+                    },
+                    {
+                      title: "Generalization",
+                      items: ["Per-object success rates", "Difficulty stratification", "Learning curve analysis", "Data efficiency", "Curriculum recommendations"],
+                      icon: "📈"
+                    },
+                    {
+                      title: "Transfer Prediction",
+                      items: ["Sim2Real confidence score", "Physics fidelity matrix", "Visual fidelity scoring", "Sensor transfer likelihood", "Real-world success estimate"],
+                      icon: "🚀"
+                    },
+                  ].map((category) => (
+                    <div key={category.title} className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-start gap-3 mb-4">
+                        <span className="text-2xl">{category.icon}</span>
+                        <h3 className="font-bold text-zinc-900 flex-1">{category.title}</h3>
+                      </div>
+                      <ul className="space-y-2">
+                        {category.items.map((item) => (
+                          <li key={item} className="flex items-start gap-2 text-sm text-zinc-700">
+                            <span className="text-emerald-600 mt-1">✓</span>
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+
             {/* --- Evaluation Metrics Section --- */}
             <section className="relative overflow-hidden rounded-[2.5rem] border border-amber-100 bg-gradient-to-br from-amber-50/50 to-white p-8 sm:p-12 lg:p-16">
               <div className="absolute -left-24 -bottom-24 h-80 w-80 rounded-full bg-amber-100/60 blur-3xl" />
@@ -541,14 +611,13 @@ export default function Evals() {
               <div className="relative z-10 grid gap-12 lg:grid-cols-2">
                 <div className="space-y-6">
                   <div className="inline-flex items-center gap-2 rounded-md bg-amber-100 px-2 py-1 text-xs font-bold uppercase tracking-wider text-amber-700">
-                    <BarChart3 className="h-3 w-3" /> Evaluation Metrics
+                    <BarChart3 className="h-3 w-3" /> Quick Metrics Reference
                   </div>
                   <h2 className="text-3xl font-bold text-zinc-900 sm:text-4xl">
-                    Standardized benchmarks.
+                    Standardized comparison metrics.
                   </h2>
                   <p className="text-zinc-600 leading-relaxed">
-                    Arena captures consistent metrics across all policy evaluations, enabling
-                    apples-to-apples comparison between different approaches.
+                    Standard metrics across all policy evaluations enable apples-to-apples comparison. Plus deep-dive telemetry for detailed analysis.
                   </p>
 
                   <div className="grid gap-3 sm:grid-cols-2">

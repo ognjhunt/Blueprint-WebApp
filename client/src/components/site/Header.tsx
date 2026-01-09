@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Menu, X } from "lucide-react";
 
 const navLinks = [
+  { href: "/solutions", label: "Solutions" },
   { href: "/marketplace", label: "Marketplace" },
   { href: "/evals", label: "Benchmarks" },
   { href: "/careers", label: "Careers" },
