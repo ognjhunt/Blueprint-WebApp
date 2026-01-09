@@ -59,15 +59,16 @@ export default function PartnerProgram() {
           <div className="mb-16 text-center">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/80 px-4 py-2 text-sm font-semibold uppercase tracking-wider text-emerald-700 backdrop-blur-sm">
               <Rocket className="h-4 w-4" />
-              Early Access Partner Program
+              Early Partner Program
             </div>
             <h1 className="mb-6 text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
-              Build the future of robotics data with us
+              Everything free. Help us prove it works.
             </h1>
             <p className="mx-auto max-w-3xl text-xl leading-relaxed text-zinc-600">
-              We're an early-stage startup with a vision: making high-quality robotics simulation
-              and synthetic data accessible to every lab. Partner with us during our validation phase
-              and get <span className="font-semibold text-emerald-600">free access</span> to our entire platform.
+              We're an early-stage startup building a robotics data platform. Our pipeline is ready,
+              but we need <span className="font-semibold text-indigo-600">real labs like yours</span> to
+              validate that our data actually helps train better robots. In exchange, you get
+              <span className="font-semibold text-emerald-600"> everything free</span> — no commitments, no risk.
             </p>
           </div>
 
@@ -77,12 +78,12 @@ export default function PartnerProgram() {
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-white">
                 <FlaskConical className="h-6 w-6" />
               </div>
-              <h2 className="text-3xl font-bold text-zinc-900">What we're building</h2>
+              <h2 className="text-3xl font-bold text-zinc-900">What you'll get (completely free)</h2>
             </div>
             <p className="mb-8 text-lg text-zinc-600">
-              We've built a comprehensive robotics data pipeline powered by NVIDIA's Genie Sim 3.0 and Isaac Lab Arena.
-              Our infrastructure is ready, but we need <span className="font-semibold">real-world validation</span> from
-              labs like yours to ensure we deliver the quality we promise.
+              We've built a platform that generates training data for robots. Think of it as a complete data factory —
+              from realistic 3D environments to thousands of robot training examples with analytics that tell you
+              if your data is actually good. We need a few labs to use it and tell us what works and what doesn't.
             </p>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -92,12 +93,12 @@ export default function PartnerProgram() {
                   <Target className="h-5 w-5" />
                 </div>
                 <h3 className="mb-2 text-lg font-semibold text-zinc-900">
-                  Sim2Real Validation Service
+                  3D Training Environments
                 </h3>
-                <p className="mb-2 text-sm text-zinc-500">$5,000-$25,000/study value</p>
+                <p className="mb-2 text-sm text-zinc-500">Worth $5,000-$25,000</p>
                 <p className="text-sm text-zinc-600">
-                  Comprehensive validation trials with real robots, transfer gap analysis,
-                  and quality guarantee certificates (50%/70%/85% success rates).
+                  Realistic 3D scenes (kitchens, offices, warehouses) where your robot can practice tasks.
+                  Hundreds of variations so your AI learns to handle different situations.
                 </p>
               </div>
 
@@ -107,12 +108,12 @@ export default function PartnerProgram() {
                   <Sparkles className="h-5 w-5" />
                 </div>
                 <h3 className="mb-2 text-lg font-semibold text-zinc-900">
-                  Premium Analytics Suite
+                  Training Data Generation
                 </h3>
-                <p className="mb-2 text-sm text-zinc-500">$115,000-$260,000 value</p>
+                <p className="mb-2 text-sm text-zinc-500">Worth $115,000-$260,000</p>
                 <p className="text-sm text-zinc-600">
-                  Per-step telemetry, failure analysis, grasp analytics, trajectory optimality,
-                  and parallel evaluation metrics — all captured by default.
+                  Thousands of robot training examples automatically generated. Includes everything your AI needs:
+                  camera views, robot positions, success/failure data, and quality checks.
                 </p>
               </div>
 
@@ -122,12 +123,12 @@ export default function PartnerProgram() {
                   <TrendingUp className="h-5 w-5" />
                 </div>
                 <h3 className="mb-2 text-lg font-semibold text-zinc-900">
-                  Generalization Analysis
+                  Data Quality Reports
                 </h3>
-                <p className="mb-2 text-sm text-zinc-500">$15,000-$35,000 value</p>
+                <p className="mb-2 text-sm text-zinc-500">Worth $15,000-$35,000</p>
                 <p className="text-sm text-zinc-600">
-                  Dataset coverage analysis, learning curve prediction, curriculum
-                  recommendations, and data efficiency metrics.
+                  Automatic reports that tell you: "Is my training data actually good?"
+                  We analyze coverage, identify gaps, and recommend what data to collect next.
                 </p>
               </div>
 
@@ -137,12 +138,12 @@ export default function PartnerProgram() {
                   <Users className="h-5 w-5" />
                 </div>
                 <h3 className="mb-2 text-lg font-semibold text-zinc-900">
-                  Embodiment Transfer Analysis
+                  Multi-Robot Support
                 </h3>
-                <p className="mb-2 text-sm text-zinc-500">$20,000-$100,000 value</p>
+                <p className="mb-2 text-sm text-zinc-500">Worth $20,000-$100,000</p>
                 <p className="text-sm text-zinc-600">
-                  Cross-robot compatibility matrices, multi-robot training strategies,
-                  and 3-5x data multiplier calculations.
+                  Works with multiple robot types (arms, mobile robots, humanoids).
+                  We analyze if training data from one robot can help train another.
                 </p>
               </div>
 
@@ -152,12 +153,12 @@ export default function PartnerProgram() {
                   <Shield className="h-5 w-5" />
                 </div>
                 <h3 className="mb-2 text-lg font-semibold text-zinc-900">
-                  Sim2Real Fidelity Matrix
+                  Real Robot Testing
                 </h3>
-                <p className="mb-2 text-sm text-zinc-500">$20,000-$50,000 value</p>
+                <p className="mb-2 text-sm text-zinc-500">Worth $20,000-$50,000</p>
                 <p className="text-sm text-zinc-600">
-                  Physics/visual/sensor fidelity scoring, transfer confidence metrics,
-                  and deployment readiness trust matrices.
+                  We help you test if training in simulation actually works on your real robot.
+                  We'll work with you to measure and improve the transfer from sim to real.
                 </p>
               </div>
 
@@ -167,12 +168,12 @@ export default function PartnerProgram() {
                   <Zap className="h-5 w-5" />
                 </div>
                 <h3 className="mb-2 text-lg font-semibold text-zinc-900">
-                  Additional Capabilities
+                  Everything Else
                 </h3>
-                <p className="mb-2 text-sm text-zinc-500">$50,000+ total value</p>
+                <p className="mb-2 text-sm text-zinc-500">Worth $50,000+</p>
                 <p className="text-sm text-zinc-600">
-                  Policy leaderboards, tactile sensor simulation, language annotations,
-                  audio narration, and more — all included free during validation.
+                  Natural language instructions for tasks, audio descriptions, performance benchmarks,
+                  and more. Our entire platform, yours to use.
                 </p>
               </div>
             </div>
@@ -180,11 +181,11 @@ export default function PartnerProgram() {
             {/* Total Value */}
             <div className="mt-8 rounded-2xl border-2 border-emerald-200 bg-emerald-50/50 p-6 text-center">
               <p className="mb-2 text-sm font-bold uppercase tracking-widest text-emerald-700">
-                Total Partner Value
+                Everything Above, Completely Free
               </p>
               <p className="text-4xl font-bold text-emerald-900">$235,000 - $605,000</p>
               <p className="mt-2 text-sm font-medium text-emerald-700">
-                FREE during validation phase • No commitments • Keep all data generated
+                All services included • No payment required • No commitments • Keep all your data
               </p>
             </div>
           </div>
@@ -192,10 +193,10 @@ export default function PartnerProgram() {
           {/* Why Partner With Us */}
           <div className="mb-16">
             <div className="mb-8 text-center">
-              <h2 className="mb-4 text-3xl font-bold text-zinc-900">Why partner with Blueprint?</h2>
+              <h2 className="mb-4 text-3xl font-bold text-zinc-900">Why we need partners</h2>
               <p className="mx-auto max-w-2xl text-lg text-zinc-600">
-                We're not just looking for users — we're looking for partners who'll help us
-                build something transformative for the robotics community.
+                Our platform works great in testing, but we need real labs using it for real projects
+                to make sure it actually delivers value. That's where you come in.
               </p>
             </div>
 
@@ -206,12 +207,12 @@ export default function PartnerProgram() {
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                     <Heart className="h-5 w-5" />
                   </div>
-                  <h3 className="text-xl font-semibold text-zinc-900">Co-create the future</h3>
+                  <h3 className="text-xl font-semibold text-zinc-900">You help shape it</h3>
                 </div>
                 <p className="text-zinc-600">
-                  Your feedback directly shapes our roadmap. We'll work closely alongside your team
-                  to ensure our outputs meet your exact needs. You're not just a customer —
-                  you're a founding partner.
+                  Tell us what works, what doesn't, and what features you actually need.
+                  We'll build exactly what helps you train better robots. Early partners
+                  get to influence the product direction.
                 </p>
               </div>
 
@@ -221,11 +222,12 @@ export default function PartnerProgram() {
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
                     <Star className="h-5 w-5" />
                   </div>
-                  <h3 className="text-xl font-semibold text-zinc-900">Premium benefits forever</h3>
+                  <h3 className="text-xl font-semibold text-zinc-900">Special pricing forever</h3>
                 </div>
                 <p className="text-zinc-600">
-                  As a validation partner, you'll receive lifetime preferential pricing, priority
-                  support, and early access to new features — even after we exit the validation phase.
+                  After the free validation period, early partners get discounted pricing for life,
+                  priority support, and early access to new features. We take care of the people
+                  who helped us get started.
                 </p>
               </div>
 
@@ -235,11 +237,11 @@ export default function PartnerProgram() {
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-600">
                     <Zap className="h-5 w-5" />
                   </div>
-                  <h3 className="text-xl font-semibold text-zinc-900">No risk, all reward</h3>
+                  <h3 className="text-xl font-semibold text-zinc-900">Zero risk</h3>
                 </div>
                 <p className="text-zinc-600">
-                  Zero financial commitment. Keep all data we generate for you. If our services don't
-                  meet your needs, walk away — no strings attached. We only succeed if you succeed.
+                  No payment. No contract. No commitment. Use everything free, keep all the data
+                  we generate, and walk away anytime if it's not helpful. You literally cannot lose.
                 </p>
               </div>
 
@@ -249,12 +251,12 @@ export default function PartnerProgram() {
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 text-violet-600">
                     <Target className="h-5 w-5" />
                   </div>
-                  <h3 className="text-xl font-semibold text-zinc-900">Real-world validation</h3>
+                  <h3 className="text-xl font-semibold text-zinc-900">Prove it works</h3>
                 </div>
                 <p className="text-zinc-600">
-                  We're specifically looking for labs that can help us validate our sim2real transfer claims.
-                  If you have real robots, we'll work with you to prove our simulation data works
-                  in the real world.
+                  We claim our simulated data helps train real robots. We need labs with actual
+                  hardware to test this. If you have robots, we'll work with you to validate
+                  that our data actually transfers to the real world.
                 </p>
               </div>
             </div>
@@ -262,41 +264,41 @@ export default function PartnerProgram() {
 
           {/* What We're Looking For */}
           <div className="mb-16 rounded-3xl border border-zinc-200 bg-gradient-to-br from-zinc-50 to-white p-8 shadow-sm">
-            <h2 className="mb-6 text-3xl font-bold text-zinc-900">What we're looking for</h2>
+            <h2 className="mb-6 text-3xl font-bold text-zinc-900">Who should apply</h2>
             <div className="space-y-4">
               <div className="flex items-start gap-3">
                 <Check className="mt-1 h-5 w-5 shrink-0 text-emerald-600" />
                 <div>
-                  <p className="font-semibold text-zinc-900">Research labs or companies with real robots</p>
+                  <p className="font-semibold text-zinc-900">Labs or companies with robots</p>
                   <p className="text-sm text-zinc-600">
-                    Especially those working on manipulation, mobile manipulation, or humanoid tasks
+                    Whether you're working on robot arms, mobile robots, or humanoids — if you have actual hardware, we want to work with you
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <Check className="mt-1 h-5 w-5 shrink-0 text-emerald-600" />
                 <div>
-                  <p className="font-semibold text-zinc-900">Teams willing to provide feedback</p>
+                  <p className="font-semibold text-zinc-900">Teams that need training data</p>
                   <p className="text-sm text-zinc-600">
-                    Help us understand what's working and what needs improvement through regular check-ins
+                    Training AI models for robots? Need more diverse scenarios? Want to test if simulation helps? This is for you
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <Check className="mt-1 h-5 w-5 shrink-0 text-emerald-600" />
                 <div>
-                  <p className="font-semibold text-zinc-900">Organizations that need high-quality training data</p>
+                  <p className="font-semibold text-zinc-900">People willing to give honest feedback</p>
                   <p className="text-sm text-zinc-600">
-                    VLA training, policy learning, simulation benchmarking, or dataset augmentation
+                    We need to know what works and what doesn't. Regular check-ins (probably 30 minutes every 2 weeks) to share your experience
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <Check className="mt-1 h-5 w-5 shrink-0 text-emerald-600" />
                 <div>
-                  <p className="font-semibold text-zinc-900">Partners interested in long-term collaboration</p>
+                  <p className="font-semibold text-zinc-900">Anyone curious to try it</p>
                   <p className="text-sm text-zinc-600">
-                    We're building relationships, not just collecting testimonials
+                    Even if you don't fit the above perfectly — if you're interested in better robotics data, apply anyway. Worst case: free access to our platform
                   </p>
                 </div>
               </div>
