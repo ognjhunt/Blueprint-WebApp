@@ -1389,17 +1389,17 @@ export default function Portal() {
                     <Sparkles className="h-6 w-6" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-zinc-900">Photo-to-Evaluation Pipeline</h4>
+                    <h4 className="font-bold text-zinc-900">Site-to-Evaluation Pipeline</h4>
                     <p className="text-xs text-zinc-500">$15K – $50K (custom)</p>
                   </div>
                 </div>
                 <p className="mb-4 text-sm text-zinc-600 leading-relaxed">
-                  End-to-end service from photos of your real environment to trained, tested policies. We handle reconstruction, simulation, training, and evaluation.
+                  End-to-end service from your real environment to trained, tested policies. We handle 3D capture, simulation, training, and evaluation.
                 </p>
                 <ul className="mb-6 space-y-2 text-sm text-zinc-600">
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                    NeRF/Gaussian reconstruction
+                    On-site 3D capture + scene authoring
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-500" />

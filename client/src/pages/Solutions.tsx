@@ -91,60 +91,10 @@ export default function Solutions() {
               </a>
             </div>
 
-            {/* Path 2: Photo Reconstruction */}
+            {/* Path 2: Custom Site Scan */}
             <div className="border-l-4 border-slate-900 pl-8 space-y-6">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900">2. Convert photos to a scene (custom)</h2>
-                <p className="mt-2 text-slate-600">
-                  Send us a picture of your kitchen, warehouse, or lab. We automatically convert it into a training environment in 30-60 minutes.
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <h3 className="font-semibold text-slate-900">What happens:</h3>
-                  <ol className="mt-3 space-y-2 text-slate-600">
-                    <li className="flex items-start gap-3">
-                      <span className="font-semibold text-slate-400 shrink-0">1.</span>
-                      <span>You upload a photo of your space</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="font-semibold text-slate-400 shrink-0">2.</span>
-                      <span>Our AI reconstructs it into a 3D scene</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="font-semibold text-slate-400 shrink-0">3.</span>
-                      <span>We add physics properties (weights, friction, etc.)</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="font-semibold text-slate-400 shrink-0">4.</span>
-                      <span>You download the scene + 1000s of training examples</span>
-                    </li>
-                  </ol>
-                </div>
-
-                <div className="rounded-lg bg-slate-50 p-4 border border-slate-200">
-                  <p className="text-sm text-slate-600">
-                    <span className="font-semibold text-slate-900">Time to data:</span> 30-60 minutes
-                  </p>
-                  <p className="mt-2 text-sm text-slate-600">
-                    <span className="font-semibold text-slate-900">Cost:</span> $2,000 - $10,000 per conversion
-                  </p>
-                </div>
-              </div>
-
-              <a
-                href="/contact?service=photo-conversion"
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-200 transition"
-              >
-                Submit a photo
-              </a>
-            </div>
-
-            {/* Path 3: Custom Reconstruction */}
-            <div className="border-l-4 border-slate-900 pl-8 space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900">3. Full site scan (most accurate)</h2>
+                <h2 className="text-2xl font-bold text-slate-900">2. Full site scan (most accurate)</h2>
                 <p className="mt-2 text-slate-600">
                   We send a team to physically scan your facility with laser precision. Best for when you need an exact digital copy for testing before real deployment.
                 </p>
@@ -175,7 +125,7 @@ export default function Solutions() {
 
                 <div className="rounded-lg bg-slate-50 p-4 border border-slate-200">
                   <p className="text-sm text-slate-600">
-                    <span className="font-semibold text-slate-900">Time to data:</span> 2-4 weeks (includes site visit + reconstruction)
+                    <span className="font-semibold text-slate-900">Time to data:</span> 2-4 weeks (includes site visit + scene authoring)
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
                     <span className="font-semibold text-slate-900">Cost:</span> $10,000 - $50,000 depending on facility size
@@ -251,10 +201,6 @@ export default function Solutions() {
                 {
                   when: "You need data fast and don't need it customized",
                   path: "Use pre-made scenes"
-                },
-                {
-                  when: "You have a photo of your space and want it converted",
-                  path: "Photo reconstruction"
                 },
                 {
                   when: "You need laser-accurate 3D scan and real deployment testing",

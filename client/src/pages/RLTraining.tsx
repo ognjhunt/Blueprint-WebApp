@@ -56,7 +56,7 @@ const howItWorks = [
   {
     step: "01",
     title: "You Provide the Scene",
-    desc: "Use any Blueprint scene from our marketplace or your custom reconstruction. Every scene already includes Isaac Lab task configs.",
+    desc: "Use any Blueprint scene from our marketplace or request a custom scene. Every scene already includes Isaac Lab task configs.",
     icon: <Layers className="h-6 w-6" />,
   },
   {
@@ -322,7 +322,7 @@ export default function RLTraining() {
                   {/* Task Info */}
                   <div className="rounded-lg bg-zinc-900 p-4 font-mono text-xs text-zinc-300">
                     <p className="text-zinc-500"># Current training job</p>
-                    <p><span className="text-violet-400">scene:</span> kitchen_v3_reconstruction</p>
+                    <p><span className="text-violet-400">scene:</span> industrial_kitchen_v3</p>
                     <p><span className="text-violet-400">task:</span> dish_loading</p>
                     <p><span className="text-violet-400">robot:</span> franka_panda</p>
                     <p><span className="text-emerald-400">status:</span> training...</p>
