@@ -167,7 +167,7 @@ export default function Evals() {
 
               <div className="flex flex-col gap-4 sm:flex-row">
                 <a
-                  href="/environments?type=datasets"
+                  href="/marketplace?type=datasets"
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-zinc-700"
                 >
                   Browse Benchmark Packs
@@ -648,7 +648,7 @@ export default function Evals() {
 
                 <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-center">
                   <a
-                    href="/environments?type=datasets"
+                    href="/marketplace?type=datasets"
                     className="inline-flex items-center justify-center rounded-xl bg-white px-8 py-4 text-sm font-semibold text-indigo-600 shadow-lg transition hover:bg-indigo-50"
                   >
                     Browse Benchmark Packs

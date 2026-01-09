@@ -183,7 +183,7 @@
 //             </p>
 //           </div>
 //           <a
-//             href="/environments"
+//             href="/marketplace"
 //             className="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
 //           >
 //             Explore marketplace
@@ -277,7 +277,7 @@
 //             </p>
 //           </div>
 //           <a
-//             href="/environments"
+//             href="/marketplace"
 //             className="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
 //           >
 //             View full taxonomy
@@ -785,7 +785,7 @@ export default function Home() {
             </p>
           </div>
           <a
-            href="/environments"
+            href="/marketplace"
             className="group flex items-center gap-1 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
           >
             Explore full marketplace
@@ -1197,7 +1197,7 @@ export default function Home() {
                   <ArrowRight className="h-4 w-4" />
                 </a>
                 <a
-                  href="/environments"
+                  href="/marketplace"
                   className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
                 >
                   Browse Benchmark Packs

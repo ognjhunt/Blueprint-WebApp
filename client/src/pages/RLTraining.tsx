@@ -741,7 +741,7 @@ export default function RLTraining() {
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
-                    href="/environments"
+                    href="/marketplace"
                     className="inline-flex items-center justify-center rounded-xl border border-white/30 bg-white/10 px-8 py-4 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
                   >
                     Explore Scenes Now

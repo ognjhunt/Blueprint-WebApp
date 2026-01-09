@@ -196,7 +196,7 @@ export default function WhySimulation() {
               </p>
               <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
                 <a
-                  href="/environments"
+                  href="/marketplace"
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
                 >
                   <Database className="h-4 w-4" />
@@ -587,7 +587,7 @@ export default function WhySimulation() {
                 </p>
                 <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
                   <a
-                    href="/environments"
+                    href="/marketplace"
                     className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-600"
                   >
                     <Database className="h-4 w-4" />

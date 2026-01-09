@@ -422,7 +422,7 @@ export default function Learn() {
                 </p>
                 <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
                   <a
-                    href="/environments"
+                    href="/marketplace"
                     className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition-colors hover:bg-zinc-200"
                   >
                     <CheckCircle2 className="h-4 w-4" />

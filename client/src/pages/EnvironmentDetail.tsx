@@ -5,9 +5,11 @@ import {
   scenes,
   syntheticDatasets,
   marketplaceScenes,
+  trainingDatasets,
   premiumCapabilities,
   type SyntheticDataset,
   type MarketplaceScene,
+  type TrainingDataset,
   type PremiumCapability,
 } from "@/data/content";
 import { InteractionBadges } from "@/components/site/InteractionBadges";
@@ -22,6 +24,7 @@ import {
   CheckCircle2,
   ChevronRight,
   ChevronDown,
+  Database,
   Globe,
   Hand,
   Layers,
@@ -117,12 +120,16 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
   const marketplaceScene = marketplaceScenes.find(
     (item) => item.slug === params.slug,
   );
+  const trainingDataset = trainingDatasets.find(
+    (item) => item.slug === params.slug,
+  );
 
   const marketplaceItem: (SyntheticDataset | MarketplaceScene) | undefined =
     marketplaceDataset || marketplaceScene;
 
   const isDataset = Boolean(marketplaceDataset);
-  const detailSlug = marketplaceItem?.slug;
+  const isTraining = Boolean(trainingDataset);
+  const detailSlug = marketplaceItem?.slug || trainingDataset?.slug;
 
   const formattedReleaseDate = useMemo(() => {
     if (!marketplaceItem) return null;
@@ -210,8 +217,8 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
         },
         body: JSON.stringify({
           sessionType: "marketplace",
-          successPath: `/environments/${detailSlug}?checkout=success`,
-          cancelPath: `/environments/${detailSlug}?checkout=cancel`,
+          successPath: `/marketplace/${detailSlug}?checkout=success`,
+          cancelPath: `/marketplace/${detailSlug}?checkout=cancel`,
           marketplaceItem: checkoutItem,
         }),
       });
@@ -325,7 +332,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
           />
           <meta name="robots" content="index, follow" />
           <meta property="og:type" content="product" />
-          <meta property="og:url" content={`https://tryblueprint.io/environments/${detailSlug}`} />
+          <meta property="og:url" content={`https://tryblueprint.io/marketplace/${detailSlug}`} />
           <meta property="og:title" content={`${marketplaceItem.title} | Blueprint`} />
           <meta property="og:description" content={marketplaceItem.description} />
           <meta
@@ -335,14 +342,14 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
           <meta name="twitter:card" content="summary_large_image" />
           <meta name="twitter:title" content={`${marketplaceItem.title} | Blueprint`} />
           <meta name="twitter:description" content={marketplaceItem.description} />
-          <link rel="canonical" href={`https://tryblueprint.io/environments/${detailSlug}`} />
+          <link rel="canonical" href={`https://tryblueprint.io/marketplace/${detailSlug}`} />
           <script type="application/ld+json">
             {JSON.stringify(productStructuredData)}
           </script>
         </Helmet>
         <div className="mx-auto max-w-6xl space-y-12 px-4 pb-24 pt-16 sm:px-6">
           <a
-            href="/environments"
+            href="/marketplace"
             className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
           >
             <ArrowLeft className="h-4 w-4" /> Back to Marketplace
@@ -788,6 +795,372 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     );
   }
 
+  // --- Dataset Pack (Training Dataset) Detail View ---
+  if (trainingDataset) {
+    const trainingFormattedDate = new Intl.DateTimeFormat("en", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    }).format(new Date(trainingDataset.releaseDate));
+
+    const trainingProductStructuredData = {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      name: trainingDataset.title,
+      description: trainingDataset.description,
+      image: trainingDataset.heroImage.startsWith("/")
+        ? `https://tryblueprint.io${trainingDataset.heroImage}`
+        : trainingDataset.heroImage,
+      offers: {
+        "@type": "Offer",
+        price: trainingDataset.price,
+        priceCurrency: "USD",
+        availability: "https://schema.org/InStock",
+      },
+      category: trainingDataset.locationType,
+      brand: {
+        "@type": "Brand",
+        name: "Blueprint",
+      },
+    };
+
+    const handleTrainingCheckout = async () => {
+      if (isRedirecting) return;
+
+      const checkoutItem = {
+        sku: trainingDataset.slug,
+        title: trainingDataset.title,
+        description: trainingDataset.description,
+        price: trainingDataset.price,
+        quantity: 1,
+        itemType: "training" as const,
+      };
+
+      setIsRedirecting(true);
+      try {
+        const response = await fetch("/api/create-checkout-session", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            sessionType: "marketplace",
+            successPath: `/marketplace/${trainingDataset.slug}?checkout=success`,
+            cancelPath: `/marketplace/${trainingDataset.slug}?checkout=cancel`,
+            marketplaceItem: checkoutItem,
+          }),
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data?.sessionId) {
+          throw new Error(
+            data?.error || "We couldn't start checkout just yet. Please try again.",
+          );
+        }
+
+        const sessionUrl =
+          typeof data.sessionUrl === "string" && data.sessionUrl.length > 0
+            ? data.sessionUrl
+            : undefined;
+
+        const publishableKey =
+          import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
+          import.meta.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ||
+          "pk_test_51ODuefLAUkK46LtZQ7o2si0POvd89pgNhE8pRcCCqMmmp9z534veOOiz81xMZcjZuEDK2CkdQnE9NhRy4WEoqWJG00ErDRTYlA";
+
+        if (sessionUrl) {
+          window.location.href = sessionUrl;
+          return;
+        }
+
+        const stripe = await loadStripe(publishableKey);
+        if (!stripe) {
+          throw new Error("Stripe failed to initialize");
+        }
+
+        const result = await stripe.redirectToCheckout({
+          sessionId: data.sessionId,
+        });
+
+        if (result.error) {
+          throw result.error;
+        }
+      } catch (error) {
+        console.error("Unable to start Stripe checkout", error);
+        const message =
+          error instanceof Error
+            ? error.message
+            : "We couldn't start checkout just yet. Please try again.";
+        alert(message);
+      } finally {
+        setIsRedirecting(false);
+      }
+    };
+
+    return (
+      <>
+        <Helmet>
+          <title>{trainingDataset.title} | Blueprint Marketplace</title>
+          <meta name="description" content={trainingDataset.description} />
+          <meta name="robots" content="index, follow" />
+          <meta property="og:type" content="product" />
+          <meta property="og:url" content={`https://tryblueprint.io/marketplace/${trainingDataset.slug}`} />
+          <meta property="og:title" content={`${trainingDataset.title} | Blueprint`} />
+          <meta property="og:description" content={trainingDataset.description} />
+          <meta
+            property="og:image"
+            content={trainingDataset.heroImage.startsWith("/") ? `https://tryblueprint.io${trainingDataset.heroImage}` : trainingDataset.heroImage}
+          />
+          <meta name="twitter:card" content="summary_large_image" />
+          <meta name="twitter:title" content={`${trainingDataset.title} | Blueprint`} />
+          <meta name="twitter:description" content={trainingDataset.description} />
+          <link rel="canonical" href={`https://tryblueprint.io/marketplace/${trainingDataset.slug}`} />
+          <script type="application/ld+json">
+            {JSON.stringify(trainingProductStructuredData)}
+          </script>
+        </Helmet>
+        <div className="mx-auto max-w-6xl space-y-12 px-4 pb-24 pt-16 sm:px-6">
+          <a
+            href="/marketplace"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to Marketplace
+          </a>
+
+          <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-900 px-3 py-1 text-xs font-semibold text-white">
+                  <Database className="h-3 w-3" />
+                  Dataset Pack
+                </span>
+                {trainingDataset.isNew && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">
+                    <Sparkles className="h-3 w-3" /> New drop
+                  </span>
+                )}
+                {trainingDataset.isFeatured && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                    ⭐ Featured
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400">
+                  {trainingDataset.locationType}
+                </p>
+                <h1 className="text-4xl font-semibold text-zinc-900">
+                  {trainingDataset.title}
+                </h1>
+                <p className="text-lg text-zinc-600">{trainingDataset.description}</p>
+              </div>
+
+              <div className="overflow-hidden rounded-3xl border border-zinc-200">
+                <img
+                  src={trainingDataset.heroImage}
+                  alt={trainingDataset.title}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-4">
+                <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                    <Calendar className="h-4 w-4" /> Release
+                  </div>
+                  <div className="mt-2 text-sm font-medium text-zinc-900">
+                    {trainingFormattedDate}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                    <Play className="h-4 w-4" /> Episodes
+                  </div>
+                  <div className="mt-2 text-sm font-medium text-zinc-900">
+                    {trainingDataset.episodeCount.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-zinc-500">trajectories</div>
+                </div>
+                <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                    <Layers className="h-4 w-4" /> Length
+                  </div>
+                  <div className="mt-2 text-sm font-medium text-zinc-900">
+                    {trainingDataset.trajectoryLength}
+                  </div>
+                  <div className="text-xs text-zinc-500">per trajectory</div>
+                </div>
+                <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                    <Database className="h-4 w-4" /> Format
+                  </div>
+                  <div className="mt-2 text-sm font-medium text-zinc-900">
+                    {trainingDataset.dataFormat}
+                  </div>
+                  <div className="text-xs text-zinc-500">ready to use</div>
+                </div>
+              </div>
+            </div>
+
+            <aside className="space-y-4">
+              <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-sm font-semibold text-zinc-900">Dataset Pack</p>
+                  <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">
+                    {trainingDataset.dataFormat}
+                  </span>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-zinc-900">
+                      ${trainingDataset.price.toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 text-sm text-zinc-600">
+                    <div className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-emerald-500" />
+                      <span>{trainingDataset.episodeCount.toLocaleString()} expert trajectories</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-emerald-500" />
+                      <span>{trainingDataset.sensorModalities.length} sensor modalities</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-emerald-500" />
+                      <span>Train/val/test splits included</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-emerald-500" />
+                      <span>PyTorch dataloader included</span>
+                    </div>
+                  </div>
+
+                  <button
+                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-indigo-700 disabled:opacity-60"
+                    onClick={handleTrainingCheckout}
+                    disabled={isRedirecting}
+                  >
+                    <ShoppingCart className="h-4 w-4" />
+                    {isRedirecting
+                      ? "Redirecting..."
+                      : `Buy Dataset — $${trainingDataset.price.toLocaleString()}`}
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm space-y-3">
+                <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                  Sensor Modalities
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {trainingDataset.sensorModalities.map((modality) => (
+                    <span
+                      key={modality}
+                      className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700"
+                    >
+                      {modality}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm space-y-3">
+                <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                  Compatible Models
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {trainingDataset.compatibleWith.map((model) => (
+                    <span
+                      key={model}
+                      className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700"
+                    >
+                      {model}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm space-y-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
+                  <Shield className="h-4 w-4" /> What's Included
+                </div>
+                <ul className="space-y-1.5 text-xs text-zinc-600">
+                  {trainingDataset.deliverables.map((item) => (
+                    <li key={item} className="flex items-start gap-2">
+                      <Check className="h-3 w-3 text-emerald-500 mt-0.5" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </aside>
+          </div>
+
+          <section className="grid gap-6 lg:grid-cols-2">
+            <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
+                <Layers className="h-4 w-4" /> Policy Coverage
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {trainingDataset.policySlugs.map((policy) => (
+                  <span
+                    key={policy}
+                    className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700"
+                  >
+                    {policy}
+                  </span>
+                ))}
+              </div>
+
+              <div className="pt-4 border-t border-zinc-100">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 mb-2">
+                  Object Tags
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {trainingDataset.objectTags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-semibold text-zinc-700"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
+                <Box className="h-4 w-4" /> Data Specifications
+              </div>
+              <div className="space-y-3 text-sm text-zinc-600">
+                <div className="flex justify-between items-center py-2 border-b border-zinc-100">
+                  <span className="text-zinc-500">Total Episodes</span>
+                  <span className="font-semibold text-zinc-900">{trainingDataset.episodeCount.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-zinc-100">
+                  <span className="text-zinc-500">Trajectory Length</span>
+                  <span className="font-semibold text-zinc-900">{trainingDataset.trajectoryLength}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-zinc-100">
+                  <span className="text-zinc-500">Data Format</span>
+                  <span className="font-semibold text-zinc-900">{trainingDataset.dataFormat}</span>
+                </div>
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-zinc-500">Sensor Modalities</span>
+                  <span className="font-semibold text-zinc-900">{trainingDataset.sensorModalities.length}</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </>
+    );
+  }
+
   const scene = scenes.find((item) => item.slug === params.slug);
 
   if (!scene) {
@@ -800,7 +1173,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
           The environment you are looking for isn't in our network yet. Browse other scenes or contact us to request a custom build.
         </p>
         <a
-          href="/environments"
+          href="/marketplace"
           className="mt-6 inline-flex rounded-full border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-900"
         >
           Back to Marketplace
@@ -831,14 +1204,14 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
         <meta name="description" content={scene.seo} />
         <meta name="robots" content="index, follow" />
         <meta property="og:type" content="product" />
-        <meta property="og:url" content={`https://tryblueprint.io/environments/${scene.slug}`} />
+        <meta property="og:url" content={`https://tryblueprint.io/marketplace/${scene.slug}`} />
         <meta property="og:title" content={`${scene.title} | Blueprint`} />
         <meta property="og:description" content={scene.seo} />
         <meta property="og:image" content={sceneImage} />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={`${scene.title} | Blueprint`} />
         <meta name="twitter:description" content={scene.seo} />
-        <link rel="canonical" href={`https://tryblueprint.io/environments/${scene.slug}`} />
+        <link rel="canonical" href={`https://tryblueprint.io/marketplace/${scene.slug}`} />
       </Helmet>
       <div className="mx-auto max-w-6xl space-y-12 px-4 pb-24 pt-16 sm:px-6">
         <header className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr]">
