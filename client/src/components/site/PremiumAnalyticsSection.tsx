@@ -7,6 +7,10 @@ import {
   Users,
   Zap,
   ArrowRight,
+  Database,
+  AlertTriangle,
+  Brain,
+  Wrench,
 } from "lucide-react";
 
 interface ImpactMetric {
@@ -88,6 +92,66 @@ const analyticsModules = [
       improvement: "Identify training inefficiencies",
     },
   },
+  {
+    slug: "synthetic-dataset-licensing",
+    title: "Synthetic Dataset Licensing",
+    description: "Generate & monetize labeled training data",
+    icon: <Database className="h-6 w-6 text-zinc-700" />,
+    shortBenefit: "Recurring revenue model",
+    impact: {
+      before: "Manual data collection: $50K+ per dataset",
+      after: "Infinite labeled samples: $2-10K/month",
+      improvement: "10x cheaper at scale, recurring revenue",
+    },
+  },
+  {
+    slug: "robustness-stress-testing",
+    title: "Robustness & Stress Testing",
+    description: "Adversarial scenarios and failure tolerance",
+    icon: <AlertTriangle className="h-6 w-6 text-zinc-700" />,
+    shortBenefit: "60% fewer deployments failures",
+    impact: {
+      before: "Unknown failure modes in real world",
+      after: "50+ stress tests + safety margins",
+      improvement: "Reduce deployment risk by 60%",
+    },
+  },
+  {
+    slug: "policy-interpretability",
+    title: "Policy Interpretability Dashboards",
+    description: "Explain AI decisions with 8 techniques",
+    icon: <Brain className="h-6 w-6 text-zinc-700" />,
+    shortBenefit: "Open the black box",
+    impact: {
+      before: "Unknown why policy makes decisions",
+      after: "Feature importance, activation maps, decision trees",
+      improvement: "Build trust with regulators & customers",
+    },
+  },
+  {
+    slug: "real-to-sim-calibration",
+    title: "Real-to-Sim Calibration Service",
+    description: "Hardware fingerprinting and parameter estimation",
+    icon: <Wrench className="h-6 w-6 text-zinc-700" />,
+    shortBenefit: "Skip 4-6 weeks of manual work",
+    impact: {
+      before: "4-6 weeks manual calibration (40% accuracy)",
+      after: "2-3 days automated measurement (90% accuracy)",
+      improvement: "Save $50K+ in engineering time",
+    },
+  },
+  {
+    slug: "multi-policy-comparison",
+    title: "Multi-Policy Comparison Benchmarks",
+    description: "Scientific policy evaluation with statistical rigor",
+    icon: <BarChart3 className="h-6 w-6 text-zinc-700" />,
+    shortBenefit: "Prove which policy is best",
+    impact: {
+      before: "Guessing which algorithm/hyperparams work",
+      after: "Statistical significance testing + ablation studies",
+      improvement: "Data-driven algorithm selection",
+    },
+  },
 ];
 
 export function PremiumAnalyticsSection() {
@@ -111,9 +175,9 @@ export function PremiumAnalyticsSection() {
         {/* Impact Callouts */}
         <div className="grid gap-6 md:grid-cols-3">
           {[
-            { metric: "10x", label: "Faster debugging with failure analysis" },
-            { metric: "3-5x", label: "More dataset value from cross-robot transfer" },
-            { metric: "$100K+", label: "Savings in avoided failed deployments" },
+            { metric: "11", label: "Premium analytics modules" },
+            { metric: "$80K+", label: "Total value if purchased separately" },
+            { metric: "Recurring", label: "Revenue opportunities (datasets, services)" },
           ].map((item, idx) => (
             <div
               key={idx}
@@ -127,8 +191,8 @@ export function PremiumAnalyticsSection() {
 
         {/* Analytics Modules Grid */}
         <div className="space-y-6">
-          <h3 className="text-2xl font-bold text-zinc-950">Six Analytics Modules</h3>
-          <div className="grid gap-6 lg:grid-cols-2">
+          <h3 className="text-2xl font-bold text-zinc-950">Eleven Premium Analytics Modules</h3>
+          <div className="grid gap-6 lg:grid-cols-2 2xl:grid-cols-3">
             {analyticsModules.map((module) => (
               <div key={module.slug} className="rounded-2xl border border-zinc-200 bg-white p-6">
                 {/* Header */}
@@ -177,10 +241,10 @@ export function PremiumAnalyticsSection() {
         {/* Bottom CTA */}
         <div className="rounded-3xl border border-zinc-200 bg-zinc-50 p-8 text-center">
           <h3 className="text-2xl font-semibold text-zinc-950">
-            Get All 6 Modules with Premium Analytics Bundle
+            Get All 11 Modules with Premium Analytics Bundle
           </h3>
           <p className="mt-3 text-zinc-600">
-            Complete data quality validation suite valued at $80K+ if purchased separately
+            Complete analytics suite from data validation through advanced explainability & optimization. Valued at $80K+ if purchased separately. Add recurring revenue with dataset licensing & services.
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <a

@@ -18,6 +18,7 @@ import waitlistHandler from "./routes/waitlist";
 import applyHandler from "./routes/apply";
 import healthRouter from "./routes/health";
 import errorsRouter from "./routes/errors";
+import advancedAnalyticsRouter from "./routes/advanced-analytics";
 
 export function registerRoutes(app: Express) {
   app.use(appleAssociationRouter);
@@ -43,4 +44,5 @@ export function registerRoutes(app: Express) {
   app.use("/api/ai-studio", aiStudioRouter);
   app.use("/api/qr", qrLinkRouter);
   app.use("/v1/stripe", stripeAccountRouter);
+  app.use("/api/analytics", advancedAnalyticsRouter);
 }

@@ -347,6 +347,120 @@ export default function Pricing() {
             </div>
           </section>
 
+          {/* Analytics Add-Ons Section */}
+          <section className="mb-16">
+            <div className="text-center mb-10">
+              <h2 className="text-2xl font-bold text-zinc-900">
+                Advanced Analytics Add-Ons
+              </h2>
+              <p className="mt-2 text-zinc-600">
+                Enhance your training pipeline with specialized analytics, testing, and optimization
+              </p>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {[
+                {
+                  title: "Synthetic Dataset Licensing",
+                  price: "$2-10K",
+                  period: "/month (recurring)",
+                  description: "Generate and monetize labeled training data",
+                  features: ["100K-∞ samples/month", "Video + trajectories + forces", "Quality filters & stratification", "API access"],
+                  color: "blue",
+                },
+                {
+                  title: "Robustness & Stress Testing",
+                  price: "$15-25K",
+                  period: "/test",
+                  description: "Adversarial scenarios and failure tolerance analysis",
+                  features: ["50+ stress scenarios", "Safety margin extraction", "Deployment risk scores", "Confidence intervals"],
+                  color: "rose",
+                },
+                {
+                  title: "Policy Interpretability",
+                  price: "$7-15K",
+                  period: "/policy",
+                  description: "8 explainability techniques + interactive dashboards",
+                  features: ["SHAP values + activation maps", "Decision tree extraction", "Video walkthroughs", "PDF/HTML reports"],
+                  color: "amber",
+                },
+                {
+                  title: "Real-to-Sim Calibration",
+                  price: "$6-20K",
+                  period: "/robot",
+                  description: "Hardware fingerprinting & parameter estimation",
+                  features: ["Automated test sequences", "90% accuracy vs. 40% manual", "URDF + physics params", "Validation report"],
+                  color: "cyan",
+                },
+                {
+                  title: "Multi-Policy Comparison",
+                  price: "$5-12K",
+                  period: "/study",
+                  description: "Scientific benchmarking with statistical rigor",
+                  features: ["Algorithm comparisons", "Hyperparameter sensitivity", "Ablation studies", "95% confidence intervals"],
+                  color: "emerald",
+                },
+                {
+                  title: "Premium Bundle",
+                  price: "$80K+",
+                  period: "value (custom pricing)",
+                  description: "All 11 analytics modules + recurring licensing",
+                  features: ["All 5 advanced modules", "Original 6 validation modules", "Priority support", "Custom configurations"],
+                  color: "violet",
+                  highlight: true,
+                },
+              ].map((addon) => (
+                <div
+                  key={addon.title}
+                  className={`rounded-2xl border p-6 ${
+                    addon.highlight
+                      ? "border-violet-200 bg-gradient-to-br from-violet-50 to-white ring-2 ring-violet-200"
+                      : "border-zinc-200 bg-white"
+                  }`}
+                >
+                  <div className="mb-4">
+                    <h3 className="font-semibold text-zinc-900">{addon.title}</h3>
+                    <p className="mt-1 text-sm text-zinc-600">{addon.description}</p>
+                  </div>
+
+                  <div className="mb-4 rounded-lg bg-zinc-50 p-3">
+                    <p className={`text-lg font-bold ${
+                      addon.color === "blue" ? "text-blue-600" :
+                      addon.color === "rose" ? "text-rose-600" :
+                      addon.color === "amber" ? "text-amber-600" :
+                      addon.color === "cyan" ? "text-cyan-600" :
+                      addon.color === "emerald" ? "text-emerald-600" :
+                      "text-violet-600"
+                    }`}>
+                      {addon.price}
+                    </p>
+                    <p className="text-xs text-zinc-500">{addon.period}</p>
+                  </div>
+
+                  <ul className="space-y-2">
+                    {addon.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-2 text-xs text-zinc-600">
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-500 shrink-0" />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <a
+                    href={`/contact?analytics=${addon.title.toLowerCase().replace(/\s+/g, "-")}`}
+                    className={`mt-4 block w-full rounded-lg py-2 text-center text-sm font-semibold transition ${
+                      addon.highlight
+                        ? "bg-violet-600 text-white hover:bg-violet-700"
+                        : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+                    }`}
+                  >
+                    Learn More
+                  </a>
+                </div>
+              ))}
+            </div>
+          </section>
+
           {/* CTA */}
           <section className="text-center">
             <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-10">

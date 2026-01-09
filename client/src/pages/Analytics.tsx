@@ -5,8 +5,8 @@ export default function Analytics() {
   return (
     <>
       <SEO
-        title="Premium Analytics | Blueprint - Data Quality Validation for Robotics"
-        description="Six premium analytics modules for robotics labs. Failure mode analysis, sim-to-real fidelity, embodiment transfer, grasp quality, learning curves, trajectory optimization."
+        title="Premium Analytics | Blueprint - Data Quality, Testing & Optimization"
+        description="Eleven premium analytics modules: Data validation (6), dataset licensing, robustness testing, policy explainability, hardware calibration, and policy benchmarking. Complete pipeline from validation to deployment."
         canonical="/analytics"
       />
       <div className="min-h-screen bg-white">
