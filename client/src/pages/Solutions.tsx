@@ -628,7 +628,7 @@ function ArenaIntegrationSection() {
               <ArrowRight className="h-4 w-4" />
             </a>
             <a
-              href="/environments?type=datasets"
+              href="/marketplace?type=datasets"
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
             >
               Browse Benchmark Packs

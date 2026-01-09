@@ -118,7 +118,7 @@ export default function Contact() {
                   </li>
                   <li>
                     <a
-                      href="/environments"
+                      href="/marketplace"
                       className="group flex items-center gap-2 text-zinc-700 transition hover:text-indigo-600"
                     >
                       <span>Scene Marketplace</span>

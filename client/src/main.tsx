@@ -45,8 +45,13 @@ function Router() {
       <Switch>
         <Route path="/" component={withLayout(Home)} />
         <Route path="/why-simulation" component={withLayout(WhySimulation)} />
+        {/* Primary route: /marketplace (canonical), /environments kept for backwards compatibility */}
+        <Route path="/marketplace" component={withLayout(Environments)} />
         <Route path="/environments" component={withLayout(Environments)} />
-        {/* <Route path="/recipes" component={withLayout(Recipes)} /> */}{/* Hidden: recipes temporarily removed from offerings */}
+        <Route
+          path="/marketplace/:slug"
+          component={withLayout(EnvironmentDetail)}
+        />
         <Route
           path="/environments/:slug"
           component={withLayout(EnvironmentDetail)}

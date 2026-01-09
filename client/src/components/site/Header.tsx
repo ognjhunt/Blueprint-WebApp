@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { Menu, X } from "lucide-react";
 
 const navLinks = [
-  { href: "/environments", label: "Marketplace" },
+  { href: "/marketplace", label: "Marketplace" },
   { href: "/evals", label: "Benchmarks" },
   { href: "/careers", label: "Careers" },
   { href: "/contact", label: "Contact" },
@@ -15,8 +15,14 @@ export function Header() {
 
   const isActive = useMemo(
     () =>
-      (href: string) =>
-        location === href || (href !== "/" && location.startsWith(href)),
+      (href: string) => {
+        // Handle /marketplace also matching /environments for backwards compatibility
+        if (href === "/marketplace") {
+          return location === "/marketplace" || location.startsWith("/marketplace/") ||
+                 location === "/environments" || location.startsWith("/environments/");
+        }
+        return location === href || (href !== "/" && location.startsWith(href));
+      },
     [location],
   );
 
