@@ -1,6 +1,7 @@
 const footerLinks = [
   { label: "Solutions", href: "/solutions" },
   { label: "Benchmarks", href: "/evals" },
+  { label: "Contact", href: "/contact" },
   { label: "Pricing", href: "/pricing" },
   { label: "New to Simulation?", href: "/learn" },
   { label: "Docs", href: "/docs" },
