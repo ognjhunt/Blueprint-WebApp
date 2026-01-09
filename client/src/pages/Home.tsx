@@ -403,6 +403,7 @@
 import { CTAButtons } from "@/components/site/CTAButtons";
 import { LogoWall } from "@/components/site/LogoWall";
 import { TileGrid } from "@/components/site/TileGrid";
+import { PremiumAnalyticsSection } from "@/components/site/PremiumAnalyticsSection";
 import ComingSoon from "@/components/sections/ComingSoon";
 import { SEO } from "@/components/SEO";
 import { environmentCategories, syntheticDatasets } from "@/data/content";
@@ -1263,6 +1264,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* --- Premium Analytics Section --- */}
+      <PremiumAnalyticsSection />
 
       {/* --- Coming Soon / Future Offerings --- */}
       <ComingSoon />

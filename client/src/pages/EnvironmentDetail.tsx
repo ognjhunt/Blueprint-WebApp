@@ -484,6 +484,39 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                 </button>
               </div>
 
+              {/* Recommended Analytics Section */}
+              <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 p-4 border border-emerald-200">
+                <div className="flex items-center gap-2 mb-3">
+                  <BarChart3 className="h-4 w-4 text-emerald-700" />
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
+                    Premium Analytics
+                  </p>
+                </div>
+                <p className="text-xs text-emerald-900 mb-3">
+                  Enhance this dataset with data quality validation:
+                </p>
+                <div className="space-y-2">
+                  <a
+                    href="/analytics/failure-mode-analysis"
+                    className="block text-xs font-medium text-emerald-700 hover:text-emerald-900 hover:underline"
+                  >
+                    ✓ Failure Mode Analysis
+                  </a>
+                  <a
+                    href="/analytics/sim2real-fidelity"
+                    className="block text-xs font-medium text-emerald-700 hover:text-emerald-900 hover:underline"
+                  >
+                    ✓ Sim2Real Fidelity Matrix
+                  </a>
+                  <a
+                    href="/analytics"
+                    className="block text-xs font-semibold text-emerald-700 hover:text-emerald-900 hover:underline pt-2 border-t border-emerald-200"
+                  >
+                    View all analytics →
+                  </a>
+                </div>
+              </div>
+
               {/* Premium Add-ons Section */}
               <div className="mt-4 border-t border-zinc-100 pt-4">
                 <button
