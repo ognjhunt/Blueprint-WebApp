@@ -40,7 +40,7 @@ const pipelineSteps = [
   {
     step: "01",
     title: "Scene Generation",
-    desc: "Upload a photo or select from marketplace. Blueprint reconstructs physics-accurate 3D environments.",
+    desc: "Select from marketplace or request a custom scene. Blueprint delivers physics-accurate 3D environments ready for simulation.",
     icon: <Layers className="h-6 w-6" />,
   },
   {

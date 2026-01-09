@@ -13,7 +13,7 @@ const offerings = [
   { value: "benchmark-packs", label: "Benchmark Packs - Evaluation suites with scenes, tasks & harnesses" },
   { value: "scene-library", label: "Scene Library - Individual SimReady USD scenes" },
   { value: "dataset-packs", label: "Dataset Packs - Pre-generated episodes for offline training" },
-  { value: "custom-capture", label: "Custom Capture - Real-world facility reconstruction" },
+  { value: "custom-capture", label: "Custom Scene - On-site facility scan to SimReady environment" },
 ] as const;
 
 export function ContactForm() {

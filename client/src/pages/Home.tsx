@@ -581,14 +581,14 @@ function DotPattern() {
 }
 
 const heroDescriptionWithCapture =
-  "Physics-accurate environments with domain randomization, precision geometry, and sim2real-validated assets. Pick from our synthetic marketplace or send us to your actual site for a digital twin tuned to your deployment stack.";
+  "SimReady scenes, expert trajectories, and standardized benchmarks—plus $320k+ in premium analytics included. Everything you need to train, evaluate, and deploy robotic policies that transfer to the real world.";
 
 const heroDescriptionWithoutCapture =
-  "Physics-accurate environments with domain randomization, precision geometry, and sim2real-validated assets. Pick from our synthetic marketplace or upload a reference photo for an exclusive reconstruction.";
+  "SimReady scenes, expert trajectories, and standardized benchmarks—plus $320k+ in premium analytics included. Everything you need to train, evaluate, and deploy robotic policies that transfer to the real world.";
 
 const facilitySupportCopy = SHOW_REAL_WORLD_CAPTURE
-  ? "Need exact facility matching? Add on our capture service or upload one reference photo for an exclusive reconstruction. We rebuild your facility with plugs for Isaac and your QA stack."
-  : "Need exact facility matching? Upload one reference photo for an exclusive reconstruction. We’ll return a SimReady scene with plugs for Isaac and your QA stack.";
+  ? "Need exact facility matching? Request a custom SimReady scene built from your specifications. We'll deliver a physics-accurate environment with Isaac Lab configs and QA validation."
+  : "Need exact facility matching? Request a custom SimReady scene built from your specifications. We'll deliver a physics-accurate environment with Isaac Lab configs and QA validation.";
 
 export default function Home() {
   const datasetPreview = syntheticDatasets.slice(0, 3);
@@ -596,8 +596,8 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | SimReady Scenes for Robotic Training"
-        description="Physics-accurate environments with domain randomization, precision geometry, and sim2real-validated assets. SimReady USD packages for Isaac Sim, MuJoCo, and leading robotics simulators."
+        title="Blueprint | The Complete Data Platform for Robotic AI"
+        description="SimReady scenes, expert trajectories, standardized benchmarks, and $320k+ in premium analytics. Everything robotics labs need to train, evaluate, and deploy policies that transfer to real robots."
         canonical="/"
         image="https://tryblueprint.io/images/og-home.png"
       />
@@ -616,7 +616,7 @@ export default function Home() {
                   SimReady Environment Network
                 </div>
                 <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl lg:text-7xl">
-                  SimReady worlds for robotic training.
+                  The complete data platform for robotic AI.
                 </h1>
                 <p className="max-w-xl text-lg leading-relaxed text-zinc-600">
                   {SHOW_REAL_WORLD_CAPTURE
