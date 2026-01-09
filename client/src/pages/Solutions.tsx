@@ -480,14 +480,14 @@ function DataPipelineSection() {
               <div className="rounded-xl bg-indigo-900/30 p-4 ring-1 ring-indigo-500/30">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="h-3 w-3 rounded-full bg-indigo-400" />
-                  <p className="text-sm font-bold text-white">Isaac Sim Scene</p>
+                  <p className="text-sm font-bold text-white">Isaac Sim Scene + Analytics</p>
                 </div>
-                <p className="text-xs text-zinc-400">USD scene package with all assets, physics, and semantics</p>
+                <p className="text-xs text-zinc-400">USD scene with premium data capture ($320k+ value)</p>
               </div>
 
               {/* Included Bundles */}
               <div className="space-y-2">
-                <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Included</p>
+                <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Core Files</p>
                 {[
                   { icon: <Layers className="h-4 w-4" />, label: "Articulated assets", desc: "per-object USD" },
                   { icon: <Video className="h-4 w-4" />, label: "Replicator bundle", desc: "domain randomization" },
@@ -504,6 +504,17 @@ function DataPipelineSection() {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Premium Analytics */}
+              <div className="pt-2 border-t border-zinc-700/50 space-y-2">
+                <p className="text-xs font-medium text-emerald-400 uppercase tracking-wider">✓ Premium Analytics (Included)</p>
+                <div className="text-xs text-zinc-300 space-y-1">
+                  <p>• Per-step rewards, collisions, grasp events</p>
+                  <p>• Sim2Real fidelity scores</p>
+                  <p>• Multi-robot compatibility matrix</p>
+                  <p>• Language annotations for VLA</p>
+                </div>
               </div>
 
               {/* Access */}
@@ -988,6 +999,103 @@ export default function Solutions() {
         <div className="space-y-24">
           {/* --- Section: Data Pipeline --- */}
           <DataPipelineSection />
+
+          {/* --- Section: Premium Analytics Included --- */}
+          <section className="relative overflow-hidden rounded-[2.5rem] border border-emerald-100 bg-gradient-to-br from-emerald-50/50 to-white p-8 sm:p-12 lg:p-16">
+            <div className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-emerald-100/60 blur-3xl" />
+
+            <div className="relative z-10 space-y-10">
+              <div className="text-center space-y-4">
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50/50 px-4 py-1 text-xs font-bold uppercase tracking-wider text-emerald-700 backdrop-blur-sm">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Premium Analytics Included
+                </div>
+                <h2 className="text-4xl font-bold text-zinc-900 sm:text-5xl">
+                  Your data comes with intelligence.
+                </h2>
+                <p className="max-w-3xl mx-auto text-zinc-600 leading-relaxed">
+                  Every scene exports with $320k+ worth of premium data analytics—no additional cost. Understand exactly how your robots learn, where they fail, and how well they'll perform in the real world.
+                </p>
+              </div>
+
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* Left: Key Analytics */}
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    {[
+                      {
+                        title: "Per-Step Telemetry",
+                        desc: "Watch every decision. Track rewards, collisions, grasp events, and forces at each step.",
+                        value: "$50k-$75k value"
+                      },
+                      {
+                        title: "Failure Analysis",
+                        desc: "Know why failures happen. Automatic breakdown of timeout vs collision, phase-level tracking.",
+                        value: "$25k-$50k value"
+                      },
+                      {
+                        title: "Grasp Quality Analytics",
+                        desc: "Ensure safe grasping. Event timeline, force profiles, contact tracking for manipulation.",
+                        value: "$25k-$50k value"
+                      },
+                      {
+                        title: "Sim2Real Fidelity",
+                        desc: "Confidence score for deployment. Physics, visual, sensor, and robot model fidelity matrices.",
+                        value: "$50k-$100k value"
+                      },
+                      {
+                        title: "Multi-Robot Transfer",
+                        desc: "Maximize data value. See exactly which robots benefit from your data (3-5x multiplier).",
+                        value: "$50k-$100k value"
+                      },
+                    ].map((item, idx) => (
+                      <div key={item.title} className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1">
+                            <h3 className="font-bold text-zinc-900">{item.title}</h3>
+                            <p className="mt-1 text-sm text-zinc-600">{item.desc}</p>
+                          </div>
+                          <span className="text-xs font-semibold text-emerald-700 whitespace-nowrap">{item.value}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Right: Visual Summary */}
+                <div className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm space-y-6">
+                  <div>
+                    <h3 className="font-bold text-zinc-900 mb-4">What's Automatically Captured</h3>
+                    <div className="space-y-3">
+                      {[
+                        { icon: "✓", label: "Rewards & reward decomposition", color: "emerald" },
+                        { icon: "✓", label: "Collision forces & contact points", color: "emerald" },
+                        { icon: "✓", label: "Grasp event timelines", color: "emerald" },
+                        { icon: "✓", label: "End-effector forces & torques", color: "emerald" },
+                        { icon: "✓", label: "Joint torques", color: "emerald" },
+                        { icon: "✓", label: "Physics fidelity scoring", color: "emerald" },
+                        { icon: "✓", label: "Transfer confidence (0-100%)", color: "emerald" },
+                        { icon: "✓", label: "Language annotations (VLA)", color: "emerald" },
+                        { icon: "✓", label: "Tactile sensor simulation", color: "emerald" },
+                      ].map((item) => (
+                        <div key={item.label} className="flex items-center gap-3">
+                          <span className="text-emerald-600 font-bold">{item.icon}</span>
+                          <span className="text-sm text-zinc-700">{item.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg bg-emerald-50 p-4 border border-emerald-100">
+                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 mb-2">Bottom Line</p>
+                    <p className="text-sm text-zinc-700">
+                      You're not just buying scenes. You're getting complete robotics research infrastructure that tells you whether your policies will work before spending a dollar on real robots.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
 
           {/* --- Section: Arena Integration (NEW) --- */}
           <ArenaIntegrationSection />
