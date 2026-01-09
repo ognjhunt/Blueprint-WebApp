@@ -26,6 +26,7 @@ const RLTraining = lazy(() => import("./pages/RLTraining"));
 const CaseStudies = lazy(() => import("./pages/CaseStudies"));
 const Careers = lazy(() => import("./pages/Careers"));
 const Contact = lazy(() => import("./pages/Contact"));
+const PartnerProgram = lazy(() => import("./pages/PartnerProgram"));
 const Portal = lazy(() => import("./pages/Portal"));
 const Login = lazy(() => import("./pages/Login"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
@@ -71,6 +72,7 @@ function Router() {
         <Route path="/case-studies" component={withLayout(CaseStudies)} />
         <Route path="/careers" component={withLayout(Careers)} />
         <Route path="/contact" component={withLayout(Contact)} />
+        <Route path="/partners" component={withLayout(PartnerProgram)} />
         <Route path="/portal" component={withLayout(Portal)} />
         <Route path="/login" component={withLayout(Login)} />
         <Route path="/forgot-password" component={withLayout(ForgotPassword)} />

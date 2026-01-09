@@ -67,12 +67,14 @@ interface EnvironmentDetailProps {
 }
 
 type PurchaseOption = 'bundle' | 'scene' | 'episodes';
+type DatasetTier = 'basic' | 'standard' | 'premium';
 
 export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [selectedOption, setSelectedOption] = useState<PurchaseOption>('bundle');
   const [selectedAddons, setSelectedAddons] = useState<Set<string>>(new Set());
   const [showAddons, setShowAddons] = useState(true);
+  const [selectedTier, setSelectedTier] = useState<DatasetTier>('standard');
 
   // Scroll to top when navigating to this page
   useEffect(() => {
@@ -810,11 +812,26 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     const handleTrainingCheckout = async () => {
       if (isRedirecting) return;
 
+      // Calculate price based on selected tier
+      let tierPrice = trainingDataset.price;
+      let tierLabel = 'Complete Dataset';
+
+      if (selectedTier === 'basic') {
+        tierPrice = trainingDataset.basicPrice || Math.round(trainingDataset.price * 0.4);
+        tierLabel = 'Core Data';
+      } else if (selectedTier === 'standard') {
+        tierPrice = trainingDataset.standardPrice || trainingDataset.price;
+        tierLabel = 'Complete Dataset';
+      } else if (selectedTier === 'premium') {
+        tierPrice = trainingDataset.premiumPrice || Math.round(trainingDataset.price * 1.5);
+        tierLabel = 'Premium Bundle';
+      }
+
       const checkoutItem = {
-        sku: trainingDataset.slug,
-        title: trainingDataset.title,
+        sku: `${trainingDataset.slug}-${selectedTier}`,
+        title: `${trainingDataset.title} (${tierLabel})`,
         description: trainingDataset.description,
-        price: trainingDataset.price,
+        price: tierPrice,
         quantity: 1,
         itemType: "training" as const,
       };
@@ -1000,8 +1017,12 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                   {/* Basic Tier */}
                   <button
                     type="button"
-                    onClick={() => {/* Handle basic tier selection */}}
-                    className="w-full rounded-xl border-2 border-zinc-200 p-4 text-left hover:border-indigo-300 hover:bg-indigo-50 transition-all"
+                    onClick={() => setSelectedTier('basic')}
+                    className={`w-full rounded-xl border-2 p-4 text-left transition-all ${
+                      selectedTier === 'basic'
+                        ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/20'
+                        : 'border-zinc-200 hover:border-indigo-300 hover:bg-indigo-50'
+                    }`}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div>
@@ -1031,8 +1052,12 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                   {/* Standard Tier - Recommended */}
                   <button
                     type="button"
-                    onClick={() => {/* Handle standard tier selection */}}
-                    className="w-full rounded-xl border-2 border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/20 p-4 text-left transition-all"
+                    onClick={() => setSelectedTier('standard')}
+                    className={`w-full rounded-xl border-2 p-4 text-left transition-all ${
+                      selectedTier === 'standard'
+                        ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/20'
+                        : 'border-zinc-200 hover:border-indigo-300 hover:bg-indigo-50'
+                    }`}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div>
@@ -1067,8 +1092,12 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                   {/* Premium Tier */}
                   <button
                     type="button"
-                    onClick={() => {/* Handle premium tier selection */}}
-                    className="w-full rounded-xl border-2 border-zinc-200 p-4 text-left hover:border-amber-300 hover:bg-amber-50 transition-all"
+                    onClick={() => setSelectedTier('premium')}
+                    className={`w-full rounded-xl border-2 p-4 text-left transition-all ${
+                      selectedTier === 'premium'
+                        ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-500/20'
+                        : 'border-zinc-200 hover:border-amber-300 hover:bg-amber-50'
+                    }`}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div>
@@ -1104,7 +1133,13 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                   <ShoppingCart className="h-4 w-4" />
                   {isRedirecting
                     ? "Redirecting..."
-                    : `Select & Continue`}
+                    : `Buy Now — $${
+                        selectedTier === 'basic'
+                          ? (trainingDataset.basicPrice || Math.round(trainingDataset.price * 0.4)).toLocaleString()
+                          : selectedTier === 'premium'
+                          ? (trainingDataset.premiumPrice || Math.round(trainingDataset.price * 1.5)).toLocaleString()
+                          : (trainingDataset.standardPrice || trainingDataset.price).toLocaleString()
+                      }`}
                 </button>
               </div>
 
