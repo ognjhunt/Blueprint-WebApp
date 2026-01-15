@@ -50,115 +50,8 @@ const parallelResultTimeoutSeconds = Math.max(
   Number(process.env.PARALLEL_RESULT_TIMEOUT_SECONDS ?? 240),
 );
 const parallelWebhookUrl = process.env.PARALLEL_WEBHOOK_URL;
-const parallelWebhookSecret = process.env.PARALLEL_WEBHOOK_SECRET;
-const parallelWebhookEvents = process.env.PARALLEL_WEBHOOK_EVENTS
-  ? process.env.PARALLEL_WEBHOOK_EVENTS.split(",")
-      .map((event) => event.trim())
-      .filter(Boolean)
-  : ["task.updated", "task.completed", "task.failed"];
 
-const perplexityApiKey = process.env.PERPLEXITY_API_KEY;
-const perplexityTimeoutMs = Number(process.env.PERPLEXITY_TIMEOUT_MS ?? 60_000);
-const deepResearchModel =
-  process.env.PERPLEXITY_DEEP_RESEARCH_MODEL || "sonar-reasoning-pro";
-const instructionsModel =
-  process.env.PERPLEXITY_INSTRUCTIONS_MODEL || deepResearchModel;
-const reasoningEffort = (process.env.PERPLEXITY_REASONING_EFFORT ?? "high") as
-  | "low"
-  | "medium"
-  | "high";
-const PERPLEXITY_ENDPOINT = "https://api.perplexity.ai/chat/completions";
-const PERPLEXITY_SYSTEM_MESSAGE =
-  "You are Blueprint's automation copilot. Follow the user's instructions exactly and respond with valid JSON whenever a schema is provided.";
-
-if (!parallelApiKey) {
-  throw new Error("PARALLEL_API_KEY is not configured");
-}
-
-if (!perplexityApiKey) {
-  throw new Error("PERPLEXITY_API_KEY is not configured");
-}
-
-type AiProvider = "perplexity" | "parallel";
-
-type PerplexityMessage = {
-  role: "system" | "user" | "assistant";
-  content: string;
-};
-
-async function callPerplexity({
-  model,
-  prompt,
-  useReasoning = false,
-  maxOutputTokens,
-}: {
-  model: string;
-  prompt: string;
-  useReasoning?: boolean;
-  maxOutputTokens?: number;
-}) {
-  if (!perplexityApiKey) {
-    throw new Error("Perplexity API key is not configured");
-  }
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(
-    () => controller.abort(),
-    Math.max(1_000, perplexityTimeoutMs),
-  );
-
-  try {
-    const messages: PerplexityMessage[] = [
-      { role: "system", content: PERPLEXITY_SYSTEM_MESSAGE },
-      { role: "user", content: prompt },
-    ];
-
-    const body: Record<string, unknown> = {
-      model,
-      messages,
-      temperature: 0.2,
-      return_references: true,
-      stream: false,
-    };
-
-    if (useReasoning) {
-      body.reasoning = { effort: reasoningEffort };
-    }
-
-    if (typeof maxOutputTokens === "number") {
-      body.max_output_tokens = maxOutputTokens;
-    }
-
-    const response = await fetch(PERPLEXITY_ENDPOINT, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${perplexityApiKey}`,
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      throw new Error(
-        `Perplexity request failed: ${response.status} ${response.statusText}${
-          errorText ? ` - ${errorText}` : ""
-        }`,
-      );
-    }
-
-    return (await response.json()) as any;
-  } catch (error: any) {
-    if (error?.name === "AbortError") {
-      throw new Error("Perplexity request timed out");
-    }
-    throw error;
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
+type AiProvider = "parallel";
 
 type ParallelFetchOptions = RequestInit & {
   timeoutMs?: number;
@@ -1065,20 +958,20 @@ export default async function postSignupWorkflowsHandler(
   }
 
   const canUseParallel = Boolean(parallelApiKey);
-  const canUsePerplexity = Boolean(perplexityApiKey);
-  const providerPreferenceRaw = process.env.POST_SIGNUP_AI_PROVIDER;
-  const providerPreference = providerPreferenceRaw
-    ? providerPreferenceRaw.toLowerCase().trim()
-    : undefined;
-  const preferPerplexity =
-    providerPreference !== "parallel" && canUsePerplexity;
-
-  if (!canUsePerplexity && !canUseParallel) {
-    logger.error(
+  if (!canUseParallel) {
+    logger.warn(
       requestMetaBase,
-      "No AI provider configured for post-signup workflows",
+      "Parallel AI provider is not configured; skipping post-signup workflows",
     );
-    return res.status(500).json({ error: "Service temporarily unavailable" });
+    return res.json({
+      success: true,
+      blueprintId: null,
+      knowledgeSourceCount: 0,
+      topQuestionCount: 0,
+      storedInstructions: false,
+      welcomeMessageCount: 0,
+      skipped: true,
+    });
   }
 
   const requestBody = req.body as PostSignupWorkflowRequest;
@@ -1127,33 +1020,17 @@ export default async function postSignupWorkflowsHandler(
 
   async function runStage<T>({
     stage,
-    usePerplexityFirst,
     requestMeta: stageMeta,
-    perplexityCall,
     parallelCall,
   }: {
     stage: string;
-    usePerplexityFirst: boolean;
     requestMeta: Record<string, unknown>;
-    perplexityCall: () => Promise<T>;
     parallelCall: () => Promise<T>;
   }): Promise<{ response: T; provider: AiProvider }> {
     const attempts: Array<{ provider: AiProvider; fn: () => Promise<T> }> = [];
 
-    if (usePerplexityFirst) {
-      if (canUsePerplexity) {
-        attempts.push({ provider: "perplexity", fn: perplexityCall });
-      }
-      if (canUseParallel) {
-        attempts.push({ provider: "parallel", fn: parallelCall });
-      }
-    } else {
-      if (canUseParallel) {
-        attempts.push({ provider: "parallel", fn: parallelCall });
-      }
-      if (canUsePerplexity) {
-        attempts.push({ provider: "perplexity", fn: perplexityCall });
-      }
+    if (canUseParallel) {
+      attempts.push({ provider: "parallel", fn: parallelCall });
     }
 
     if (attempts.length === 0) {
@@ -1174,9 +1051,7 @@ export default async function postSignupWorkflowsHandler(
           provider: attempt.provider,
           err: error,
         });
-        const message = `${
-          attempt.provider === "perplexity" ? "Perplexity" : "Parallel"
-        } ${stage} call failed${
+        const message = `Parallel ${stage} call failed${
           index < attempts.length - 1 ? ", attempting alternate provider" : ""
         }`;
         if (index < attempts.length - 1) {
@@ -1211,15 +1086,7 @@ export default async function postSignupWorkflowsHandler(
     const { response: researchResponse, provider: researchProvider } =
       await runStage({
         stage: "deep research",
-        usePerplexityFirst: preferPerplexity,
         requestMeta: { ...requestMeta, stage: "deepResearch" },
-        perplexityCall: () =>
-          callPerplexity({
-            model: deepResearchModel,
-            prompt: researchPrompt,
-            useReasoning: true,
-            maxOutputTokens: 4_096,
-          }),
         parallelCall: () =>
           callParallelTask({
             prompt: researchPrompt,
@@ -1299,13 +1166,7 @@ export default async function postSignupWorkflowsHandler(
     const { response: instructionsResponse, provider: instructionsProvider } =
       await runStage({
         stage: "system instructions",
-        usePerplexityFirst: preferPerplexity,
         requestMeta: { ...requestMeta, stage: "systemInstructions" },
-        perplexityCall: () =>
-          callPerplexity({
-            model: instructionsModel,
-            prompt: instructionsPrompt,
-          }),
         parallelCall: () =>
           callParallelTask({
             prompt: instructionsPrompt,
@@ -1387,13 +1248,7 @@ export default async function postSignupWorkflowsHandler(
       const { response: welcomeMessagesResponse, provider: welcomeProvider } =
         await runStage({
           stage: "welcome messages",
-          usePerplexityFirst: preferPerplexity,
           requestMeta: { ...requestMeta, stage: "welcomeMessages" },
-          perplexityCall: () =>
-            callPerplexity({
-              model: instructionsModel,
-              prompt: welcomeMessagesPrompt,
-            }),
           parallelCall: () =>
             callParallelTask({
               prompt: welcomeMessagesPrompt,
@@ -1448,26 +1303,12 @@ export default async function postSignupWorkflowsHandler(
       instructionsProvider,
     };
 
-    if (researchProvider === "perplexity") {
-      postSignupWorkflowStatus.deepResearchModel = deepResearchModel;
-    } else {
-      postSignupWorkflowStatus.researchProcessor = parallelResearchProcessor;
-    }
-
-    if (instructionsProvider === "perplexity") {
-      postSignupWorkflowStatus.instructionsModel = instructionsModel;
-    } else {
-      postSignupWorkflowStatus.instructionsProcessor =
-        parallelInstructionsProcessor;
-    }
+    postSignupWorkflowStatus.researchProcessor = parallelResearchProcessor;
+    postSignupWorkflowStatus.instructionsProcessor = parallelInstructionsProcessor;
 
     if (welcomeMessagesProvider) {
       postSignupWorkflowStatus.welcomeProvider = welcomeMessagesProvider;
-      if (welcomeMessagesProvider === "perplexity") {
-        postSignupWorkflowStatus.welcomeModel = instructionsModel;
-      } else {
-        postSignupWorkflowStatus.welcomeProcessor = parallelWelcomeProcessor;
-      }
+      postSignupWorkflowStatus.welcomeProcessor = parallelWelcomeProcessor;
     }
 
     const updateData: Record<string, any> = {
