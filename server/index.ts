@@ -1,5 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { createServer } from "http";
+import rateLimit from "express-rate-limit";
+import { RedisStore } from "rate-limit-redis";
+import { createClient } from "redis";
 
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic } from "./vite";
@@ -8,6 +11,78 @@ import { attachRequestMeta, logger, generateTraceId, logSecurityEvent } from "./
 import { incrementRequestCount } from "./routes/health";
 
 const app = express();
+
+const rateLimitRedisUrl = process.env.RATE_LIMIT_REDIS_URL || process.env.REDIS_URL;
+const redisClient =
+  rateLimitRedisUrl && process.env.NODE_ENV === "production"
+    ? createClient({ url: rateLimitRedisUrl })
+    : null;
+
+if (redisClient) {
+  redisClient.on("error", (error) => {
+    logger.warn({ error }, "Redis rate limit store error");
+  });
+  void redisClient.connect();
+}
+
+const createRateLimitStore = (prefix: string) =>
+  redisClient
+    ? new RedisStore({
+        sendCommand: (...args: string[]) => redisClient.sendCommand(args),
+        prefix,
+      })
+    : undefined;
+
+const createRateLimiter = ({
+  windowMs,
+  limit,
+  prefix,
+  skipPaths = [],
+}: {
+  windowMs: number;
+  limit: number;
+  prefix: string;
+  skipPaths?: string[];
+}) =>
+  rateLimit({
+    windowMs,
+    limit,
+    standardHeaders: true,
+    legacyHeaders: false,
+    store: createRateLimitStore(prefix),
+    skip: (req) =>
+      req.method === "OPTIONS" || skipPaths.some((path) => req.path.startsWith(path)),
+    handler: (_req, res) => {
+      res.status(429).json({ error: "Too many requests. Please try again later." });
+    },
+  });
+
+const globalRateLimitWindowMs = Number(process.env.RATE_LIMIT_WINDOW_MS ?? 15 * 60 * 1000);
+const globalRateLimitMax = Number(process.env.RATE_LIMIT_MAX ?? 300);
+const globalLimiter = createRateLimiter({
+  windowMs: globalRateLimitWindowMs,
+  limit: globalRateLimitMax,
+  prefix: "rl:global:",
+  skipPaths: ["/health"],
+});
+
+const aiLimiter = createRateLimiter({
+  windowMs: Number(process.env.RATE_LIMIT_AI_WINDOW_MS ?? 15 * 60 * 1000),
+  limit: Number(process.env.RATE_LIMIT_AI_MAX ?? 30),
+  prefix: "rl:ai:",
+});
+
+const authLimiter = createRateLimiter({
+  windowMs: Number(process.env.RATE_LIMIT_AUTH_WINDOW_MS ?? 15 * 60 * 1000),
+  limit: Number(process.env.RATE_LIMIT_AUTH_MAX ?? 20),
+  prefix: "rl:auth:",
+});
+
+const uploadLimiter = createRateLimiter({
+  windowMs: Number(process.env.RATE_LIMIT_UPLOAD_WINDOW_MS ?? 60 * 60 * 1000),
+  limit: Number(process.env.RATE_LIMIT_UPLOAD_MAX ?? 10),
+  prefix: "rl:upload:",
+});
 
 // Configure middleware
 const defaultBodyLimit = process.env.API_BODY_LIMIT || "1mb";
@@ -45,8 +120,23 @@ app.use((req, res, next) => {
   next();
 });
 
+// Global rate limiting
+app.use(globalLimiter);
+
 // Mount the Gemini router
-app.use("/api/gemini", geminiRouter);
+app.use("/api/gemini", aiLimiter, geminiRouter);
+
+// Stricter limiters for sensitive routes
+app.use("/api/ai-studio", aiLimiter);
+app.use("/api/process-waitlist", aiLimiter);
+app.use("/api/post-signup-workflows", aiLimiter);
+app.use("/api/generate-image", aiLimiter);
+
+app.use("/api/auth", authLimiter);
+app.use("/api/create-checkout-session", authLimiter);
+app.use("/api/submit-to-sheets", authLimiter);
+
+app.use("/api/upload-to-b2", uploadLimiter);
 
 // Request tracking middleware
 app.use((req, res, next) => {
