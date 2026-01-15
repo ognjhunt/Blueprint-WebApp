@@ -231,11 +231,10 @@ export default function OnboardingChecklist() {
     if (!userData?.primaryNeeds || userData.primaryNeeds.length === 0) return null;
 
     const messages: Record<string, string> = {
-      "training-data": "Let's find the perfect training datasets for your AI model",
-      labeling: "Discover high-quality labeled datasets for your needs",
-      rlhf: "Explore RLHF and preference datasets to improve your models",
-      collection: "Browse our custom data collection options",
-      marketplace: "Start exploring our curated dataset marketplace",
+      "benchmark-packs": "Explore benchmark and eval packs tailored to your needs",
+      "scene-library": "Browse SimReady scenes that match your simulation goals",
+      "dataset-packs": "Find robotic policy trajectories and episodes for training",
+      "custom-capture": "Explore custom scene captures for your facilities",
       other: "Let's get you started with the right data",
     };
 

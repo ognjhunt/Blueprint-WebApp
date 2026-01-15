@@ -124,7 +124,7 @@ export interface UserData {
   finishedOnboarding: boolean;
 
   // Business signup fields
-  primaryNeeds?: ("training-data" | "labeling" | "rlhf" | "collection" | "marketplace" | "other")[];
+  primaryNeeds?: ("benchmark-packs" | "scene-library" | "dataset-packs" | "custom-capture" | "other")[];
   companySize?: "1-10" | "11-50" | "51-200" | "201-1000" | "1000+";
   projectDescription?: string;
   expectedVolume?: "exploring" | "small" | "medium" | "large" | "enterprise";

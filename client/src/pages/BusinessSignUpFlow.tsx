@@ -56,11 +56,10 @@ import type { UserData } from "@/lib/firebase";
 
 // Primary need options
 const PRIMARY_NEED_OPTIONS = [
-  { value: "training-data", label: "Training data for AI models" },
-  { value: "labeling", label: "Data labeling & annotation" },
-  { value: "rlhf", label: "RLHF & preference data" },
-  { value: "collection", label: "Custom data collection" },
-  { value: "marketplace", label: "Dataset marketplace access" },
+  { value: "benchmark-packs", label: "Benchmark & eval packs (scenes, tasks & harnesses)" },
+  { value: "scene-library", label: "SimReady scenes (USD environments)" },
+  { value: "dataset-packs", label: "Robotic policy trajectories & episodes" },
+  { value: "custom-capture", label: "Custom scene capture (on-site facility scan)" },
   { value: "other", label: "Other" },
 ] as const;
 
@@ -705,7 +704,8 @@ export default function BusinessSignUpFlow() {
                     {/* Primary Need - Multi-choice */}
                     <div>
                       <Label className="text-sm font-medium text-zinc-700 mb-2 block">
-                        What are your primary needs? <span className="text-red-500">*</span>
+                        What are your primary needs? Select all that apply.{" "}
+                        <span className="text-red-500">*</span>
                       </Label>
                       <div className="space-y-2">
                         {PRIMARY_NEED_OPTIONS.map((option) => (

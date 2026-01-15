@@ -25,22 +25,20 @@ interface UseMarketplacePersonalizationReturn {
 
 // Map primary needs to marketplace categories/filters
 const PRIMARY_NEED_TO_CATEGORY: Record<string, string[]> = {
-  "training-data": ["training", "datasets"],
-  labeling: ["scenes", "datasets"],
-  rlhf: ["training", "datasets"],
-  collection: ["scenes"],
-  marketplace: ["all"],
+  "benchmark-packs": ["scenes", "datasets"],
+  "scene-library": ["scenes"],
+  "dataset-packs": ["training", "datasets"],
+  "custom-capture": ["scenes"],
   other: ["all"],
 };
 
 // Map primary needs to welcome messages
 const PRIMARY_NEED_MESSAGES: Record<string, string> = {
-  "training-data": "Here are training datasets perfect for your AI models",
-  labeling: "Discover high-quality labeled data for your project",
-  rlhf: "Explore preference and RLHF datasets",
-  collection: "Browse our custom data collection scenes",
-  marketplace: "Welcome! Explore our curated dataset marketplace",
-  other: "Welcome! Start exploring our data offerings",
+  "benchmark-packs": "Explore benchmark and eval packs with scenes, tasks, and harnesses",
+  "scene-library": "Browse SimReady scenes ready for simulation",
+  "dataset-packs": "Discover robotic policy trajectories and episodes for training",
+  "custom-capture": "Request custom scene captures tailored to your facility",
+  other: "Welcome! Start exploring our simulation data offerings",
 };
 
 // Extract keywords from project description for suggestions
