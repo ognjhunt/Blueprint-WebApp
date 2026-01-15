@@ -10,6 +10,7 @@ import { LoadingScreen } from "./components/site/LoadingScreen";
 import { CookieConsent } from "./components/CookieConsent";
 import { Analytics } from "./components/Analytics";
 import { AuthProvider } from "./contexts/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const Home = lazy(() => import("./pages/Home"));
 const WhySimulation = lazy(() => import("./pages/WhySimulation"));
@@ -43,6 +44,17 @@ const withLayout = <P extends object>(Component: React.ComponentType<P>) =>
     </SiteLayout>
   );
 
+const withProtectedLayout = <P extends object>(
+  Component: React.ComponentType<P>,
+) =>
+  (props: P) => (
+    <ProtectedRoute>
+      <SiteLayout>
+        <Component {...props} />
+      </SiteLayout>
+    </ProtectedRoute>
+  );
+
 function Router() {
   return (
     <Suspense fallback={<LoadingScreen />}>
@@ -54,11 +66,11 @@ function Router() {
         <Route path="/environments" component={withLayout(Environments)} />
         <Route
           path="/marketplace/:slug"
-          component={withLayout(EnvironmentDetail)}
+          component={withProtectedLayout(EnvironmentDetail)}
         />
         <Route
           path="/environments/:slug"
-          component={withLayout(EnvironmentDetail)}
+          component={withProtectedLayout(EnvironmentDetail)}
         />
         <Route path="/solutions" component={withLayout(Solutions)} />
         <Route path="/pricing" component={withLayout(Pricing)} />
@@ -68,7 +80,7 @@ function Router() {
         <Route path="/benchmarks" component={withLayout(Evals)} />
         <Route
           path="/benchmarks/:slug"
-          component={withLayout(BenchmarkDetail)}
+          component={withProtectedLayout(BenchmarkDetail)}
         />
         <Route path="/rl-training" component={withLayout(RLTraining)} />
         <Route path="/case-studies" component={withLayout(CaseStudies)} />
