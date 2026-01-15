@@ -16,7 +16,7 @@ export function Analytics() {
       return;
     }
 
-    // Check consent status
+    // Check consent status (use isPersonalizationAllowed for marketing/personalization features)
     const consent = getCookieConsent();
     const analyticsAllowed = consent?.analytics ?? false;
 
