@@ -786,7 +786,7 @@ export default function Home() {
             </p>
           </div>
           <a
-            href="/marketplace"
+            href="/marketplace/datasets"
             className="group flex items-center gap-1 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
           >
             Explore full marketplace

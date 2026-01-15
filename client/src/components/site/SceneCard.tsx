@@ -12,7 +12,7 @@ export function SceneCard({ scene }: SceneCardProps) {
   const [, navigate] = useLocation();
 
   const handleCardClick = () => {
-    const targetPath = `/marketplace/${scene.slug}`;
+    const targetPath = `/marketplace/scenes/${scene.slug}`;
     if (!currentUser) {
       sessionStorage.setItem("redirectAfterAuth", targetPath);
       navigate("/login");

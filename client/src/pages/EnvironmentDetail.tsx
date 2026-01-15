@@ -132,6 +132,9 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
 
   const isTraining = Boolean(trainingDataset);
   const detailSlug = marketplaceItem?.slug || trainingDataset?.slug;
+  const detailBasePath = isTraining ? "/marketplace/datasets" : "/marketplace/scenes";
+  const detailPath = detailSlug ? `${detailBasePath}/${detailSlug}` : detailBasePath;
+  const detailUrl = `https://tryblueprint.io${detailPath}`;
 
   // Redirect benchmark suites to the benchmarks page
   useEffect(() => {
@@ -203,13 +206,13 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
       const response = await fetch("/api/create-checkout-session", {
         method: "POST",
         headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-        body: JSON.stringify({
-          sessionType: "marketplace",
-          successPath: `/marketplace/${detailSlug}?checkout=success`,
-          cancelPath: `/marketplace/${detailSlug}?checkout=cancel`,
-          marketplaceItem: checkoutItem,
-        }),
-      });
+          body: JSON.stringify({
+            sessionType: "marketplace",
+            successPath: `${detailPath}?checkout=success`,
+            cancelPath: `${detailPath}?checkout=cancel`,
+            marketplaceItem: checkoutItem,
+          }),
+        });
 
       const data = await response.json();
       if (!response.ok || !data?.sessionId) {
@@ -255,7 +258,15 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     } finally {
       setIsRedirecting(false);
     }
-  }, [detailSlug, isRedirecting, marketplaceItem, marketplaceScene, selectedOption, selectedAddons, totalPrice]);
+  }, [
+    detailPath,
+    isRedirecting,
+    marketplaceItem,
+    marketplaceScene,
+    selectedOption,
+    selectedAddons,
+    totalPrice,
+  ]);
 
   if (marketplaceItem) {
     const heroImage = marketplaceScene!.thumbnail;
@@ -303,7 +314,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
           />
           <meta name="robots" content="index, follow" />
           <meta property="og:type" content="product" />
-          <meta property="og:url" content={`https://tryblueprint.io/marketplace/${detailSlug}`} />
+          <meta property="og:url" content={detailUrl} />
           <meta property="og:title" content={`${marketplaceItem.title} | Blueprint`} />
           <meta property="og:description" content={marketplaceItem.description} />
           <meta
@@ -313,14 +324,14 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
           <meta name="twitter:card" content="summary_large_image" />
           <meta name="twitter:title" content={`${marketplaceItem.title} | Blueprint`} />
           <meta name="twitter:description" content={marketplaceItem.description} />
-          <link rel="canonical" href={`https://tryblueprint.io/marketplace/${detailSlug}`} />
+          <link rel="canonical" href={detailUrl} />
           <script type="application/ld+json">
             {JSON.stringify(productStructuredData)}
           </script>
         </Helmet>
         <div className="mx-auto max-w-6xl space-y-12 px-4 pb-24 pt-16 sm:px-6">
           <a
-            href="/marketplace"
+            href={detailBasePath}
             className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
           >
             <ArrowLeft className="h-4 w-4" /> Back to Marketplace
@@ -842,8 +853,8 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
           headers: await withCsrfHeader({ "Content-Type": "application/json" }),
           body: JSON.stringify({
             sessionType: "marketplace",
-            successPath: `/marketplace/${trainingDataset.slug}?checkout=success`,
-            cancelPath: `/marketplace/${trainingDataset.slug}?checkout=cancel`,
+            successPath: `${detailPath}?checkout=success`,
+            cancelPath: `${detailPath}?checkout=cancel`,
             marketplaceItem: checkoutItem,
           }),
         });
@@ -901,7 +912,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
           <meta name="description" content={trainingDataset.description} />
           <meta name="robots" content="index, follow" />
           <meta property="og:type" content="product" />
-          <meta property="og:url" content={`https://tryblueprint.io/marketplace/${trainingDataset.slug}`} />
+          <meta property="og:url" content={detailUrl} />
           <meta property="og:title" content={`${trainingDataset.title} | Blueprint`} />
           <meta property="og:description" content={trainingDataset.description} />
           <meta
@@ -911,14 +922,14 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
           <meta name="twitter:card" content="summary_large_image" />
           <meta name="twitter:title" content={`${trainingDataset.title} | Blueprint`} />
           <meta name="twitter:description" content={trainingDataset.description} />
-          <link rel="canonical" href={`https://tryblueprint.io/marketplace/${trainingDataset.slug}`} />
+          <link rel="canonical" href={detailUrl} />
           <script type="application/ld+json">
             {JSON.stringify(trainingProductStructuredData)}
           </script>
         </Helmet>
         <div className="mx-auto max-w-6xl space-y-12 px-4 pb-24 pt-16 sm:px-6">
           <a
-            href="/marketplace"
+            href={detailBasePath}
             className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
           >
             <ArrowLeft className="h-4 w-4" /> Back to Marketplace
@@ -1262,7 +1273,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
           The environment you are looking for isn't in our network yet. Browse other scenes or contact us to request a custom build.
         </p>
         <a
-          href="/marketplace"
+          href="/marketplace/scenes"
           className="mt-6 inline-flex rounded-full border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-900"
         >
           Back to Marketplace
@@ -1293,14 +1304,14 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
         <meta name="description" content={scene.seo} />
         <meta name="robots" content="index, follow" />
         <meta property="og:type" content="product" />
-        <meta property="og:url" content={`https://tryblueprint.io/marketplace/${scene.slug}`} />
+        <meta property="og:url" content={`https://tryblueprint.io/marketplace/scenes/${scene.slug}`} />
         <meta property="og:title" content={`${scene.title} | Blueprint`} />
         <meta property="og:description" content={scene.seo} />
         <meta property="og:image" content={sceneImage} />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={`${scene.title} | Blueprint`} />
         <meta name="twitter:description" content={scene.seo} />
-        <link rel="canonical" href={`https://tryblueprint.io/marketplace/${scene.slug}`} />
+        <link rel="canonical" href={`https://tryblueprint.io/marketplace/scenes/${scene.slug}`} />
       </Helmet>
       <div className="mx-auto max-w-6xl space-y-12 px-4 pb-24 pt-16 sm:px-6">
         <header className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr]">
