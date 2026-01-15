@@ -9,7 +9,7 @@
     "module": "ESNext",
     "strict": true,
     "lib": ["ES2015", "ES2017", "ES2018", "ES2019", "ES2020", "esnext", "dom", "dom.iterable"],
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "esModuleInterop": true,
     "noEmitOnError": false,
     "skipLibCheck": true,
