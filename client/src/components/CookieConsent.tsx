@@ -105,7 +105,11 @@ export function CookieConsent() {
         {/* Description */}
         <p className="mb-4 text-sm text-zinc-600">
           We use cookies to enhance your experience, analyze site traffic, and for marketing purposes.
-          You can customize your preferences or accept all cookies.
+          Review our{" "}
+          <a href="/privacy" className="font-medium text-indigo-600 hover:text-indigo-500">
+            Privacy &amp; Cookies
+          </a>{" "}
+          details, customize your preferences, or accept all cookies.
         </p>
 
         {/* Cookie Details (expandable) */}
@@ -210,6 +214,13 @@ export function getCookieConsent(): ConsentPreferences | null {
 export function isAnalyticsAllowed(): boolean {
   const consent = getCookieConsent();
   return consent?.analytics ?? false;
+}
+
+// Use this for personalization or marketing features that require explicit opt-in.
+// Example consumers: client/src/components/Analytics.tsx or any personalization logic.
+export function isPersonalizationAllowed(): boolean {
+  const consent = getCookieConsent();
+  return consent?.marketing ?? false;
 }
 
 // Extend Window interface for gtag
