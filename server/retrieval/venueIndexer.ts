@@ -469,7 +469,8 @@ export async function buildVenueIndex(blueprintId: string, rawSources: Knowledge
 
 export async function searchVenue(blueprintId: string, queryEmbedding: number[], k = 6) {
   if (!db) {
-    throw new Error("Firestore is not configured");
+    logger.warn("Firestore is not configured. Returning empty search results.");
+    return [];
   }
 
   const collectionRef = db
@@ -479,7 +480,8 @@ export async function searchVenue(blueprintId: string, queryEmbedding: number[],
 
   const finder = (collectionRef as any).findNearest;
   if (typeof finder !== "function") {
-    throw new Error("Firestore vector search is not available in this environment");
+    logger.warn("Firestore vector search is not available in this environment. Returning empty search results.");
+    return [];
   }
 
   const snapshot = await finder.call(collectionRef, "embedding", queryEmbedding, {
