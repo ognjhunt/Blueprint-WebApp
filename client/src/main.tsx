@@ -33,6 +33,7 @@ const Login = lazy(() => import("./pages/Login"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
+const Settings = lazy(() => import("./pages/Settings"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const withLayout = <P extends object>(Component: React.ComponentType<P>) =>
@@ -79,6 +80,7 @@ function Router() {
         <Route path="/forgot-password" component={withLayout(ForgotPassword)} />
         <Route path="/privacy" component={withLayout(Privacy)} />
         <Route path="/terms" component={withLayout(Terms)} />
+        <Route path="/settings" component={withLayout(Settings)} />
         <Route component={withLayout(NotFound)} />
       </Switch>
     </Suspense>
