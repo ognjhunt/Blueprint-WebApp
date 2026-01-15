@@ -24,6 +24,8 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
   const scene = isScene ? (item as MarketplaceScene) : null;
   const training = isTraining ? (item as TrainingDataset) : null;
   const slug = item.slug;
+  const detailBasePath = isTraining ? "/marketplace/datasets" : "/marketplace/scenes";
+  const detailPath = `${detailBasePath}/${slug}`;
 
   // Calculate savings for datasets
   const savingsPercent = dataset?.standardPricePerScene
@@ -83,8 +85,8 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
           headers: await withCsrfHeader({ "Content-Type": "application/json" }),
           body: JSON.stringify({
             sessionType: "marketplace",
-            successPath: `/marketplace/${slug}?checkout=success`,
-            cancelPath: `/marketplace/${slug}?checkout=cancel`,
+            successPath: `${detailPath}?checkout=success`,
+            cancelPath: `${detailPath}?checkout=cancel`,
             marketplaceItem: checkoutItem,
           }),
         });
@@ -134,18 +136,17 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
         setIsRedirecting(false);
       }
     },
-    [dataset, isDataset, isTraining, isRedirecting, scene, training, slug],
+    [dataset, detailPath, isDataset, isTraining, isRedirecting, scene, training],
   );
 
   const handleCardClick = useCallback(() => {
-    const targetPath = `/marketplace/${slug}`;
     if (!currentUser) {
-      sessionStorage.setItem("redirectAfterAuth", targetPath);
+      sessionStorage.setItem("redirectAfterAuth", detailPath);
       navigate("/login");
       return;
     }
-    navigate(targetPath);
-  }, [currentUser, navigate, slug]);
+    navigate(detailPath);
+  }, [currentUser, detailPath, navigate]);
 
   return (
     <article

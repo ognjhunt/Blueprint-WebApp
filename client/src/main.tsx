@@ -65,7 +65,17 @@ function Router() {
         <Route path="/why-simulation" component={withLayout(WhySimulation)} />
         {/* Primary route: /marketplace (canonical), /environments kept for backwards compatibility */}
         <Route path="/marketplace" component={withLayout(Environments)} />
+        <Route path="/marketplace/scenes" component={withLayout(Environments)} />
+        <Route path="/marketplace/datasets" component={withLayout(Environments)} />
         <Route path="/environments" component={withLayout(Environments)} />
+        <Route
+          path="/marketplace/scenes/:slug"
+          component={withProtectedLayout(EnvironmentDetail)}
+        />
+        <Route
+          path="/marketplace/datasets/:slug"
+          component={withProtectedLayout(EnvironmentDetail)}
+        />
         <Route
           path="/marketplace/:slug"
           component={withProtectedLayout(EnvironmentDetail)}

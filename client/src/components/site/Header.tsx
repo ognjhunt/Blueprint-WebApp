@@ -12,7 +12,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const navLinks = [
-  { href: "/marketplace", label: "Marketplace" },
+  { href: "/marketplace/scenes", label: "Scenes" },
+  { href: "/marketplace/datasets", label: "Datasets" },
   { href: "/evals", label: "Benchmarks" },
   { href: "/partners", label: "Partners" },
   { href: "/careers", label: "Careers" },
@@ -26,10 +27,18 @@ export function Header() {
   const isActive = useMemo(
     () =>
       (href: string) => {
-        // Handle /marketplace also matching /environments for backwards compatibility
-        if (href === "/marketplace") {
-          return location === "/marketplace" || location.startsWith("/marketplace/") ||
-                 location === "/environments" || location.startsWith("/environments/");
+        if (href === "/marketplace/scenes") {
+          return (
+            location === "/marketplace" ||
+            location.startsWith("/marketplace/scenes") ||
+            (location.startsWith("/marketplace/") &&
+              !location.startsWith("/marketplace/datasets")) ||
+            location === "/environments" ||
+            location.startsWith("/environments/")
+          );
+        }
+        if (href === "/marketplace/datasets") {
+          return location.startsWith("/marketplace/datasets");
         }
         return location === href || (href !== "/" && location.startsWith(href));
       },
