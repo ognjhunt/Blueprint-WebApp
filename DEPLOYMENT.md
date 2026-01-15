@@ -132,3 +132,24 @@ If you encounter deployment errors:
 3. Ensure all environment variables are properly set in Replit Secrets
 
 4. If you're still facing issues, check the deployment logs for specific error messages
+
+## Robots.txt and indexing headers (production)
+
+Production deploys must serve `client/public/robots.txt` verbatim. The Vite build copies `client/public/*` into `dist/public/`, and the server explicitly serves `/robots.txt` from `dist/public/robots.txt`. In production, the server now fails startup if that file is missing so we never ship a hosting default like `Disallow: /`.【F:server/index.ts†L234-L257】
+
+### Deployment checklist
+
+1. Ensure `client/public/robots.txt` contains the intended directives (no generated defaults).
+2. Confirm the build output includes the file:
+   ```
+   ls -l dist/public/robots.txt
+   ```
+3. Verify the deployed site serves the same content (no CDN/hosting override):
+   ```
+   curl -sS https://<your-domain>/robots.txt
+   ```
+4. Confirm no header-based overrides are set by the host/CDN (Cloud Run + Express do not set these by default). For any proxy/CDN you add, verify the response headers for `/` and `/robots.txt` do **not** include `X-Robots-Tag: noindex`:
+   ```
+   curl -sSI https://<your-domain>/ | rg -i 'x-robots-tag'
+   curl -sSI https://<your-domain>/robots.txt | rg -i 'x-robots-tag'
+   ```
