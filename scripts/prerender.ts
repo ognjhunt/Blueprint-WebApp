@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { publicRoutes } from "./public-routes";
+import { publicRoutes } from "../client/src/routes/publicRoutes";
 import { render } from "../client/src/entry-server";
 
 const distRoot = path.resolve("dist", "public");
