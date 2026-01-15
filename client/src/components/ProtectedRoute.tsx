@@ -13,16 +13,6 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [, setLocation] = useLocation();
   const [isReady, setIsReady] = useState(false);
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const isTestMode =
-    urlParams.get("resetOnboarding") === "true" ||
-    urlParams.get("test") === "true";
-
-  // If in test mode, bypass auth check
-  if (isTestMode) {
-    return children; // or whatever your component normally returns when authenticated
-  }
-
   useEffect(() => {
     // Only proceed when loading is complete
     if (!loading) {
