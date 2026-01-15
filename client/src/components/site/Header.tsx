@@ -89,12 +89,6 @@ export function Header() {
               >
                 Log in
               </a>
-              <a
-                href="/login"
-                className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-200"
-              >
-                Sign up
-              </a>
             </>
           ) : (
             <DropdownMenu>
@@ -166,13 +160,6 @@ export function Header() {
                   onClick={() => setOpen(false)}
                 >
                   Log in
-                </a>
-                <a
-                  href="/login"
-                  className="rounded-full bg-slate-100 px-4 py-2 text-center font-semibold text-slate-900"
-                  onClick={() => setOpen(false)}
-                >
-                  Sign up
                 </a>
               </>
             ) : (
