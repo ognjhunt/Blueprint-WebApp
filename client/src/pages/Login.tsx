@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { SEO } from "@/components/SEO";
 import { ArrowRight, Eye, EyeOff, Lock, Loader2, Mail, User, Check, X, AlertCircle } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 type AuthMode = "signin" | "signup";
 
@@ -87,6 +88,7 @@ export default function Login() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<ValidationErrors>({});
+  const [authError, setAuthError] = useState<string | null>(null);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [formData, setFormData] = useState({
     name: "",
@@ -94,6 +96,7 @@ export default function Login() {
     password: "",
     confirmPassword: "",
   });
+  const { signIn, signUp, signInWithGoogle } = useAuth();
 
   const passwordStrength = useMemo(
     () => getPasswordStrength(formData.password),
@@ -188,17 +191,46 @@ export default function Login() {
     }
 
     setIsLoading(true);
-    // TODO: Connect to AuthContext for actual authentication
-    console.log("Form submitted:", { mode, ...formData });
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsLoading(false);
+    setAuthError(null);
+
+    try {
+      if (mode === "signin") {
+        await signIn(formData.email, formData.password);
+      } else {
+        await signUp(formData.email, formData.password, formData.name);
+      }
+    } catch (error) {
+      setAuthError(
+        error instanceof Error
+          ? error.message
+          : "Authentication failed. Please try again.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleModeChange = (newMode: AuthMode) => {
     setMode(newMode);
     setErrors({});
     setTouched({});
+    setAuthError(null);
+  };
+
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    setAuthError(null);
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      setAuthError(
+        error instanceof Error
+          ? error.message
+          : "Google sign-in failed. Please try again.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -230,6 +262,7 @@ export default function Login() {
           {/* Google Button */}
           <button
             type="button"
+            onClick={handleGoogleSignIn}
             className="flex w-full items-center justify-center gap-3 rounded-xl bg-slate-900 px-4 py-3 text-white transition hover:bg-slate-800"
           >
             <svg
@@ -292,6 +325,12 @@ export default function Login() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            {authError && (
+              <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                <AlertCircle className="mt-0.5 h-4 w-4" />
+                <span>{authError}</span>
+              </div>
+            )}
             {mode === "signup" && (
               <div>
                 <label
