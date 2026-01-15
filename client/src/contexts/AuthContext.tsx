@@ -74,6 +74,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resolveRedirectPath = React.useCallback(
     (data: UserData | null): string => {
+      const marketingDestination =
+        (import.meta.env.VITE_MARKETING_DESTINATION as string | undefined)?.trim() ||
+        "/marketplace";
       let storedRedirect: string | null = null;
       try {
         storedRedirect = sessionStorage.getItem("redirectAfterAuth");
@@ -82,6 +85,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (storedRedirect) {
+        const normalizedRedirect =
+          storedRedirect === "/onboarding" ? marketingDestination : storedRedirect;
         try {
           sessionStorage.removeItem("redirectAfterAuth");
         } catch (storageError) {
@@ -90,11 +95,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             storageError,
           );
         }
-        return storedRedirect;
+        return normalizedRedirect;
       }
 
       if (data && data.finishedOnboarding !== true) {
-        return "/onboarding";
+        return marketingDestination;
       }
 
       return "/dashboard";
