@@ -1,10 +1,5 @@
 // lib/firebaseAdmin.ts
 import admin, { type ServiceAccount } from "firebase-admin";
-import path from "path";
-import { existsSync, readFileSync } from "fs";
-
-const SERVICE_ACCOUNT_FILE =
-  "blueprint-8c1ca-firebase-adminsdk-yu1gh-5992fcf620.json";
 
 function loadServiceAccount(): ServiceAccount | null {
   const fromEnv = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
@@ -19,29 +14,7 @@ function loadServiceAccount(): ServiceAccount | null {
       return null;
     }
   }
-
-  const serviceAccountPath =
-    process.env.GOOGLE_APPLICATION_CREDENTIALS ||
-    path.resolve(process.cwd(), SERVICE_ACCOUNT_FILE);
-
-  if (!existsSync(serviceAccountPath)) {
-    console.warn(
-      `Firebase Admin SDK service account file not found at ${serviceAccountPath}. ` +
-        `Set GOOGLE_APPLICATION_CREDENTIALS or FIREBASE_SERVICE_ACCOUNT_JSON to configure credentials.`,
-    );
-    return null;
-  }
-
-  try {
-    const serviceAccountKey = readFileSync(serviceAccountPath, "utf8");
-    return JSON.parse(serviceAccountKey) as ServiceAccount;
-  } catch (error: any) {
-    console.error(
-      `Failed to read Firebase service account key from ${serviceAccountPath}:`,
-      error.message,
-    );
-    return null;
-  }
+  return null;
 }
 
 const firebaseConfigForAdmin = {
@@ -59,10 +32,11 @@ function initializeFirebaseAdmin() {
     const serviceAccount = loadServiceAccount();
 
     if (!serviceAccount) {
-      console.warn(
-        "Firebase Admin SDK: Service account credentials are not available. Firestore operations will be disabled.",
-      );
-      return null;
+      const message =
+        "Firebase Admin SDK: Missing service account credentials. " +
+        "Set FIREBASE_SERVICE_ACCOUNT_JSON to a valid service account JSON string.";
+      console.error(message);
+      throw new Error(message);
     }
 
     try {
