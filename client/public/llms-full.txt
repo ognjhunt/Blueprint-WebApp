@@ -16,15 +16,20 @@ Blueprint is a robotics data platform for creating, delivering, and validating s
 - Integration-focused docs and guides for simulator pipelines.
 
 ## Structured summaries of important pages
-- **Home (`/`)**: Top-level product narrative for Blueprint as a complete data platform for robotics AI. Highlights marketplace access, SimReady environment quality, and evaluation tooling.
-- **Marketplace (`/marketplace`)**: Browse scenes, training datasets, and bundles. Each item contains specs, coverage notes, and purchase paths for teams that need ready-to-train assets.
-- **Docs (`/docs`)**: Technical overview of the SimReady spec, semantics, and integration guidance for pipelines and simulators.
+- **Home (`/`)**: Top-level product narrative for Blueprint as a complete data platform for robotics AI.
+- **Why Simulation (`/why-simulation`)**: Explains the case for simulation-first robotics development and validation.
+- **Marketplace (`/marketplace`)**: Browse SimReady environments, datasets, and bundles available for purchase.
+- **Solutions (`/solutions`)**: Use-case oriented summaries for teams applying Blueprint to specific workflows.
 - **Pricing (`/pricing`)**: Plan options for marketplace access, datasets, and services.
-- **Learn (`/learn`)**: Educational content on simulation, data quality, and best practices for robotics AI development.
-- **Case Studies (`/case-studies`)**: Examples of how teams use Blueprint environments to accelerate R&D and deployment.
-- **Solutions (`/solutions`)**: Use-case oriented summaries (e.g., manipulation, navigation, warehouse automation).
-- **Contact (`/contact`)**: Sales and partnership intake for marketplace procurement, custom scene work, and evaluation services.
-- **Careers (`/careers`)**: Hiring and contractor opportunities focused on simulation-ready asset creation and technical content.
+- **Learn (`/learn`)**: Educational content on simulation, data quality, and best practices.
+- **Docs (`/docs`)**: Technical overview of the SimReady spec, semantics, and integration guidance.
+- **Evaluations (`/evals`)**: Overview of evaluation tooling and benchmarking workflows.
+- **Benchmarks (`/benchmarks`)**: Catalog of benchmark suites and evaluation programs offered by Blueprint.
+- **RL Training (`/rl-training`)**: Guidance on reinforcement learning training workflows with SimReady data.
+- **Case Studies (`/case-studies`)**: Examples of how teams use Blueprint environments to accelerate R&D.
+- **Careers (`/careers`)**: Hiring and contractor opportunities focused on simulation-ready assets.
+- **Contact (`/contact`)**: Sales and partnership intake for marketplace procurement and custom scenes.
+- **Partner Program (`/partners`)**: Partnership opportunities for studios and robotics teams collaborating with Blueprint.
 - **Privacy (`/privacy`)**: Privacy policy covering data collection, usage, and vendor relationships.
 - **Terms (`/terms`)**: Terms of service for Blueprint services and marketplace purchases.
 
@@ -37,14 +42,30 @@ Blueprint is a robotics data platform for creating, delivering, and validating s
 
 ## Canonical URLs
 - / (Home)
-- /marketplace
-- /docs
-- /pricing
-- /learn
-- /case-studies
-- /solutions
-- /contact
-- /careers
-- /privacy
-- /terms
+- /why-simulation (Why Simulation)
+- /marketplace (Marketplace)
+- /solutions (Solutions)
+- /pricing (Pricing)
+- /learn (Learn)
+- /docs (Docs)
+- /evals (Evaluations)
+- /benchmarks (Benchmarks)
+- /rl-training (RL Training)
+- /case-studies (Case Studies)
+- /careers (Careers)
+- /contact (Contact)
+- /partners (Partner Program)
+- /privacy (Privacy)
+- /terms (Terms)
 
+## Backwards-compatible aliases
+- /environments → /marketplace: Backwards-compatible alias for the marketplace route.
+
+## Excluded private or gated routes
+- /marketplace/:slug: Environment detail pages require authentication and include gated content.
+- /environments/:slug: Legacy environment detail pages require authentication.
+- /benchmarks/:slug: Benchmark detail pages are user-specific and gated.
+- /portal: Partner portal content is not intended for public discovery.
+- /login: Authentication entry point, not a content page.
+- /forgot-password: Password recovery flow, not a content page.
+- /settings: User settings are account-specific and private.

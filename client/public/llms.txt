@@ -2,15 +2,15 @@ Blueprint is a robotics data platform delivering SimReady 3D environments, datas
 
 High-priority public URLs:
 - /
+- /why-simulation
 - /marketplace
-- /docs
+- /solutions
 - /pricing
 - /learn
+- /docs
+- /evals
+- /benchmarks
+- /rl-training
 - /case-studies
-- /solutions
-- /contact
-- /careers
-- /privacy
-- /terms
 
 Full content: /llms-full.txt
