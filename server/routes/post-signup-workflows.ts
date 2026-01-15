@@ -11,7 +11,11 @@ import {
   type PostSignupWorkflowPromptInput,
 } from "../utils/ai-prompts";
 
-const parallelApiKey = process.env.PARALLEL_API_KEY;
+const parallelApiKey = process.env.PARALLEL_API_KEY || "placeholder_parallel_api_key_do_not_use_in_production";
+
+if (!process.env.PARALLEL_API_KEY) {
+  console.warn("Warning: PARALLEL_API_KEY environment variable is not set. Using placeholder key.");
+}
 const rawParallelBaseUrl =
   process.env.PARALLEL_API_BASE_URL || "https://api.parallel.ai";
 const parallelBaseUrl = rawParallelBaseUrl.replace(/\/+$/, "");

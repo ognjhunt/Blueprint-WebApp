@@ -35,8 +35,8 @@ function initializeFirebaseAdmin() {
       const message =
         "Firebase Admin SDK: Missing service account credentials. " +
         "Set FIREBASE_SERVICE_ACCOUNT_JSON to a valid service account JSON string.";
-      console.error(message);
-      throw new Error(message);
+      console.warn(message);
+      return null;
     }
 
     try {

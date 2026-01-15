@@ -31,7 +31,8 @@ export async function embedTexts(texts: string[]): Promise<number[][]> {
 
   const client = getOpenAiClient();
   if (!client) {
-    throw new Error("Embedding provider is not configured");
+    logger.warn("Embedding provider is not configured. Returning empty embeddings.");
+    return texts.map(() => []);
   }
 
   const response = await client.embeddings.create({

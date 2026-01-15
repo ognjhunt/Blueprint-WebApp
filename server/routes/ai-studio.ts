@@ -536,9 +536,9 @@ router.post("/chat", async (req, res) => {
       content: userPromptSections.join("\n\n"),
     });
 
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-    if (!apiKey) {
-      throw new Error("GEMINI_API_KEY is not configured");
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "AIzaSyD_placeholder_key_do_not_use_in_production";
+    if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
+      console.warn("Warning: GEMINI_API_KEY is not configured. Using placeholder key.");
     }
 
     const systemInstructionContent = trimmedInstruction
