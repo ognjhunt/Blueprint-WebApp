@@ -310,17 +310,6 @@ export function buildMappingConfirmationPhase2AIPrompt(
     - Specials/Promotions: [Link or N/A from TASK 1.2]
     - Events/Calendar: [Link or N/A from TASK 1.2]
 
-    ### AI-Generated Blueprint AR Experience Ideas:
-    (Based on [DeepResearchOutput], generate 3-5 creative AR experience ideas. For each, suggest potential placements/uses for Text, 3D Models, Media (images/videos), Webpages, and Uploaded Content (MP3/4, GLB, PNG, PDF, PPT) that could be relevant to the idea.)
-       **Idea 1: [Descriptive Title]**
-          - *Objective:* [Brief goal of this AR idea]
-          - *Text Elements:* [Examples]
-          - *3D Models:* [Examples, e.g., featured product, mascot]
-          - *Media:* [Examples, e.g., promotional video, image gallery]
-          - *Webpages:* [Examples, e.g., link to online ordering, loyalty signup]
-          - *Uploaded Content:* [Examples, e.g., PDF menu, promotional audio]
-       **(Repeat for 2-4 more ideas)**
-
     ### Customer Engagement Questions (from Research):
     (List the 5-10 MCQs with their answers from TASK 1.7)"
 

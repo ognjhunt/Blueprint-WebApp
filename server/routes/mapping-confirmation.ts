@@ -418,9 +418,6 @@
 //     - Specials/Promotions: [URL or N/A]
 //     - Events/Calendar: [URL or N/A]
 
-//     ### AI-Generated Blueprint AR Experience Ideas:
-//     [Generate 3-5 creative AR experience ideas based on the research, with suggestions for Text, 3D Models, Media, Webpages, and Uploaded Content for each idea]
-
 //     ### Customer Engagement Questions:
 //     [List the research-based MCQs with answers]
 
