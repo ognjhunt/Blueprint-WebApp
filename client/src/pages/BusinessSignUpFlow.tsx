@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Mail,
   Lock,
@@ -165,7 +166,7 @@ export default function BusinessSignUpFlow() {
   const [contactName, setContactName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [primaryNeed, setPrimaryNeed] = useState<PrimaryNeed | "">("");
+  const [primaryNeeds, setPrimaryNeeds] = useState<PrimaryNeed[]>([]);
   const [companySize, setCompanySize] = useState<CompanySize | "">("");
 
   // Step 3: Project Details
@@ -183,7 +184,7 @@ export default function BusinessSignUpFlow() {
   const step2Valid =
     contactName.trim() !== "" &&
     isValidPhone(phoneNumber) &&
-    primaryNeed !== "" &&
+    primaryNeeds.length > 0 &&
     companySize !== "";
 
   const step3Valid =
@@ -209,15 +210,15 @@ export default function BusinessSignUpFlow() {
         setErrorMessage("Please enter your name.");
       } else if (!isValidPhone(phoneNumber)) {
         setErrorMessage("Please enter a valid phone number.");
-      } else if (!primaryNeed) {
-        setErrorMessage("Please select your primary need.");
+      } else if (primaryNeeds.length === 0) {
+        setErrorMessage("Please select at least one primary need.");
       } else if (!companySize) {
         setErrorMessage("Please select your company size.");
       }
       return;
     }
     setStep((s) => Math.min(s + 1, 3));
-  }, [step, step1Valid, step2Valid, organizationName, email, password, confirmPassword, contactName, phoneNumber, primaryNeed, companySize]);
+  }, [step, step1Valid, step2Valid, organizationName, email, password, confirmPassword, contactName, phoneNumber, primaryNeeds, companySize]);
 
   const handleBack = useCallback(() => {
     setErrorMessage("");
@@ -359,7 +360,7 @@ export default function BusinessSignUpFlow() {
         paymentMethods: [],
 
         // Business signup fields
-        primaryNeed: primaryNeed as PrimaryNeed,
+        primaryNeeds: primaryNeeds as PrimaryNeed[],
         companySize: companySize as CompanySize,
         projectDescription: projectDescription || undefined,
         expectedVolume: expectedVolume as ExpectedVolume,
@@ -408,7 +409,7 @@ export default function BusinessSignUpFlow() {
     contactName,
     jobTitle,
     phoneNumber,
-    primaryNeed,
+    primaryNeeds,
     companySize,
     projectDescription,
     setLocation,
@@ -701,26 +702,35 @@ export default function BusinessSignUpFlow() {
                       </div>
                     </div>
 
-                    {/* Primary Need */}
+                    {/* Primary Need - Multi-choice */}
                     <div>
-                      <Label htmlFor="primaryNeed" className="text-sm font-medium text-zinc-700">
-                        What&apos;s your primary need? <span className="text-red-500">*</span>
+                      <Label className="text-sm font-medium text-zinc-700 mb-2 block">
+                        What are your primary needs? <span className="text-red-500">*</span>
                       </Label>
-                      <Select value={primaryNeed} onValueChange={(v) => setPrimaryNeed(v as PrimaryNeed)}>
-                        <SelectTrigger className="mt-1">
-                          <div className="flex items-center gap-2">
-                            <Target className="h-4 w-4 text-zinc-400" />
-                            <SelectValue placeholder="Select your primary need" />
-                          </div>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {PRIMARY_NEED_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
+                      <div className="space-y-2">
+                        {PRIMARY_NEED_OPTIONS.map((option) => (
+                          <div key={option.value} className="flex items-center gap-3">
+                            <Checkbox
+                              id={`need-${option.value}`}
+                              checked={primaryNeeds.includes(option.value)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setPrimaryNeeds([...primaryNeeds, option.value]);
+                                } else {
+                                  setPrimaryNeeds(primaryNeeds.filter((n) => n !== option.value));
+                                }
+                              }}
+                              className="h-4 w-4"
+                            />
+                            <Label
+                              htmlFor={`need-${option.value}`}
+                              className="font-normal cursor-pointer text-sm text-zinc-700"
+                            >
                               {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
                     </div>
 
                     {/* Company Size */}

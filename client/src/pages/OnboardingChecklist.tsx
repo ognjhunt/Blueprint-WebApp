@@ -228,7 +228,7 @@ export default function OnboardingChecklist() {
 
   // Personalized message based on primary need
   const getPersonalizedMessage = () => {
-    if (!userData?.primaryNeed) return null;
+    if (!userData?.primaryNeeds || userData.primaryNeeds.length === 0) return null;
 
     const messages: Record<string, string> = {
       "training-data": "Let's find the perfect training datasets for your AI model",
@@ -239,7 +239,7 @@ export default function OnboardingChecklist() {
       other: "Let's get you started with the right data",
     };
 
-    return messages[userData.primaryNeed] || null;
+    return messages[userData.primaryNeeds[0]] || null;
   };
 
   const personalizedMessage = getPersonalizedMessage();
