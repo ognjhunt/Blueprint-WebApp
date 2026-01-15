@@ -43,8 +43,13 @@ class ErrorTrackingService {
   init(options?: { dsn?: string; environment?: string }) {
     if (this.isInitialized) return;
 
-    this.dsn = options?.dsn || import.meta.env.VITE_SENTRY_DSN || null;
-    this.environment = options?.environment || import.meta.env.MODE || "development";
+    const env =
+      typeof import.meta !== "undefined"
+        ? (import.meta as ImportMeta).env
+        : undefined;
+
+    this.dsn = options?.dsn || env?.VITE_SENTRY_DSN || null;
+    this.environment = options?.environment || env?.MODE || "development";
 
     // Set up global error handlers
     this.setupGlobalHandlers();
@@ -196,7 +201,11 @@ class ErrorTrackingService {
   private async sendToOwnApi(errorData: Record<string, unknown>) {
     try {
       // Only send in production or if explicitly enabled
-      if (this.environment !== "production" && !import.meta.env.VITE_ENABLE_ERROR_TRACKING) {
+      const env =
+        typeof import.meta !== "undefined"
+          ? (import.meta as ImportMeta).env
+          : undefined;
+      if (this.environment !== "production" && !env?.VITE_ENABLE_ERROR_TRACKING) {
         return;
       }
 
@@ -253,7 +262,9 @@ class ErrorTrackingService {
 export const errorTracking = new ErrorTrackingService();
 
 // Auto-initialize
-errorTracking.init();
+if (typeof window !== "undefined") {
+  errorTracking.init();
+}
 
 // Export convenience functions
 export const captureException = errorTracking.captureException.bind(errorTracking);
