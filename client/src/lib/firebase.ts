@@ -97,6 +97,14 @@ export interface UserData {
   uid: string;
   email: string;
   name: string;
+  displayName?: string;
+  photoURL?: string;
+  bio?: string;
+  jobTitle?: string;
+  company?: string;
+  timeZone?: string;
+  language?: string;
+  phoneNumber?: string;
   username: string;
   deviceToken: string;
   referralCode: string;
@@ -149,12 +157,70 @@ export interface UserData {
   skillLevels: { [key: string]: number };
   mostFrequentLocation: string;
   deviceTypes: string[];
+  planUsage?: number;
+  planExpiryDate?: Date | null;
+  activeBlueprintsPercentage?: number;
+  planCost?: number | string;
+  planHours?: number | string;
+  currentMonthHours?: number;
+  accountSettings?: {
+    email2FA?: boolean;
+    sms2FA?: boolean;
+    securityAlerts?: boolean;
+    loginAttempts?: boolean;
+  };
+  notificationSettings?: {
+    emailNotifications?: boolean;
+    pushNotifications?: boolean;
+    blueprintChanges?: boolean;
+    teamUpdates?: boolean;
+    usageAlerts?: boolean;
+    marketingEmails?: boolean;
+    weeklyDigest?: boolean;
+    securityNotifications?: boolean;
+  };
+  apiKeys?: Array<{
+    id?: string;
+    label?: string;
+    key?: string;
+    createdAt?: Date;
+    lastUsed?: Date;
+  }>;
+  integrations?: Array<{
+    id?: string;
+    name?: string;
+    status?: string;
+    connectedAt?: Date;
+  }>;
+  teamMembers?: {
+    count?: number;
+    pending?: number;
+  };
+  blueprintsShared?: {
+    count?: number;
+    sharedWith?: number;
+  };
+  billingHistory?: Array<{
+    id?: string;
+    date?: Date;
+    amount?: number;
+    status?: string;
+  }>;
+  paymentMethods?: Array<{
+    brand?: string;
+    last4?: string;
+    expiryDate?: string;
+  }>;
+  teamRoles?: {
+    count?: number;
+    roles?: string[];
+  };
 }
 
 // Firestore functions
 export const createUserDocument = async (
   user: FirebaseUser,
-  additionalData?: { name?: string },
+  additionalData?: { name?: string; displayName?: string; photoURL?: string },
 ): Promise<void> => {
   if (!user) {
     console.error("[Firebase] No user provided to createUserDocument");
@@ -174,7 +240,9 @@ export const createUserDocument = async (
 
     if (!snapshot.exists()) {
       const { email } = user;
-      const name = additionalData?.name || email?.split("@")[0] || "";
+      const name = additionalData?.name || user.displayName || email?.split("@")[0] || "";
+      const displayName = additionalData?.displayName || user.displayName || name;
+      const photoURL = additionalData?.photoURL || user.photoURL || "";
       const username = name.toLowerCase().replace(/\s+/g, "_");
       const timestamp = serverTimestamp();
 
@@ -182,6 +250,8 @@ export const createUserDocument = async (
         uid: user.uid,
         email,
         name,
+        displayName,
+        photoURL,
         username,
         deviceToken: "",
         referralCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
