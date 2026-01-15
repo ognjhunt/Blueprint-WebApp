@@ -8,7 +8,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic } from "./vite";
 import geminiRouter from "./routes/gemini";
 import { attachRequestMeta, logger, generateTraceId, logSecurityEvent } from "./logger";
-import { incrementRequestCount } from "./routes/health";
+import { incrementRequestCount, incrementErrorCount } from "./routes/health";
 
 const app = express();
 
@@ -168,6 +168,10 @@ app.use((req, res, next) => {
     const durationMs = Number(endTime - startTime) / 1_000_000;
 
     const logLevel = res.statusCode >= 500 ? "error" : res.statusCode >= 400 ? "warn" : "info";
+
+    if (res.statusCode >= 500) {
+      incrementErrorCount();
+    }
 
     logger[logLevel](
       attachRequestMeta({
