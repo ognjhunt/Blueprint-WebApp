@@ -269,15 +269,29 @@ export default function Nav({
               )} */}
 
               {!currentUser ? (
-                <Link
-                  href="/login"
-                  className="w-full"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <Button className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-900 font-semibold hover:opacity-90">
-                    Sign Up
-                  </Button>
-                </Link>
+                <>
+                  <Link
+                    href="/login"
+                    className="w-full"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <Button
+                      variant="outline"
+                      className="w-full rounded-xl border-2 border-slate-600 text-slate-100 hover:bg-slate-800"
+                    >
+                      Log in
+                    </Button>
+                  </Link>
+                  <Link
+                    href="/login"
+                    className="w-full"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <Button className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-900 font-semibold hover:opacity-90">
+                      Sign Up
+                    </Button>
+                  </Link>
+                </>
               ) : (
                 <>
                   {/* {!hideAuthenticatedFeatures && (
