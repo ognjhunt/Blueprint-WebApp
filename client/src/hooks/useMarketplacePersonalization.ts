@@ -81,7 +81,7 @@ export function useMarketplacePersonalization(): UseMarketplacePersonalizationRe
 
   const personalization: PersonalizationData = useMemo(() => {
     const firstName = userData?.name?.split(" ")[0] || "";
-    const primaryNeed = userData?.primaryNeed || null;
+    const primaryNeed = userData?.primaryNeeds?.[0] || null;
     const projectDescription = userData?.projectDescription || null;
 
     // Determine if we should show the welcome banner
@@ -126,7 +126,7 @@ export function useMarketplacePersonalization(): UseMarketplacePersonalizationRe
     };
   }, [
     userData?.name,
-    userData?.primaryNeed,
+    userData?.primaryNeeds,
     userData?.projectDescription,
     userData?.personalizedWelcomeShown,
   ]);
@@ -146,9 +146,9 @@ export function useMarketplacePersonalization(): UseMarketplacePersonalizationRe
 
   // Get recommended categories based on user data
   const getRecommendedCategories = useCallback((): string[] => {
-    if (!userData?.primaryNeed) return [];
-    return PRIMARY_NEED_TO_CATEGORY[userData.primaryNeed] || [];
-  }, [userData?.primaryNeed]);
+    if (!userData?.primaryNeeds || userData.primaryNeeds.length === 0) return [];
+    return PRIMARY_NEED_TO_CATEGORY[userData.primaryNeeds[0]] || [];
+  }, [userData?.primaryNeeds]);
 
   // Get suggested search terms based on project description
   const getSuggestedSearchTerms = useCallback((): string[] => {
