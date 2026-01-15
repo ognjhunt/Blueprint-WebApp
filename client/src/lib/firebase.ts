@@ -1,4 +1,4 @@
-import { initializeApp, type FirebaseOptions } from "firebase/app";
+import { initializeApp, type FirebaseApp, type FirebaseOptions } from "firebase/app";
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -7,6 +7,7 @@ import {
   GoogleAuthProvider,
   onAuthStateChanged,
   signOut,
+  type Auth,
   User as FirebaseUser,
 } from "firebase/auth";
 import {
@@ -17,8 +18,9 @@ import {
   updateDoc,
   serverTimestamp,
   increment,
+  type Firestore,
 } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
 
 // Firebase configuration - hardcoded for Render deployment
 // TODO: Move to environment variables when possible
@@ -33,29 +35,64 @@ const firebaseConfig: FirebaseOptions = {
   measurementId: "G-7LHTQSRF9L",
 };
 
+const isBrowser = typeof window !== "undefined";
+
 // Initialize Firebase - this will throw if configuration is invalid
-let app;
-try {
-  app = initializeApp(firebaseConfig);
-  console.log("[Firebase] App initialized successfully for project:", firebaseConfig.projectId);
-} catch (error) {
-  console.error("[Firebase] Failed to initialize app:", error);
-  throw error;
+let app: FirebaseApp | null = null;
+if (isBrowser) {
+  try {
+    app = initializeApp(firebaseConfig);
+    console.log("[Firebase] App initialized successfully for project:", firebaseConfig.projectId);
+  } catch (error) {
+    console.error("[Firebase] Failed to initialize app:", error);
+    throw error;
+  }
 }
 
 // Export non-null Firebase services
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+const authInstance = app ? getAuth(app) : null;
+const dbInstance = app ? getFirestore(app) : null;
+const storageInstance = app ? getStorage(app) : null;
+
+export const auth: Auth | null = authInstance;
+export const db = dbInstance as Firestore;
+export const storage = storageInstance as FirebaseStorage;
 
 // Log Firebase service initialization
-console.log("[Firebase] Services initialized - Auth:", !!auth, "Firestore:", !!db, "Storage:", !!storage);
+if (isBrowser) {
+  console.log(
+    "[Firebase] Services initialized - Auth:",
+    !!authInstance,
+    "Firestore:",
+    !!dbInstance,
+    "Storage:",
+    !!storageInstance,
+  );
+}
+
+const requireAuth = (): Auth => {
+  if (!authInstance) {
+    throw new Error("[Firebase] Auth has not been initialized.");
+  }
+  return authInstance;
+};
+
+const requireDb = (): Firestore => {
+  if (!dbInstance) {
+    throw new Error("[Firebase] Firestore has not been initialized.");
+  }
+  return dbInstance;
+};
 
 // Debug function to test Firestore connectivity
 export const testFirestoreConnection = async (): Promise<boolean> => {
   console.log("[Firebase] Testing Firestore connection...");
+  if (!dbInstance) {
+    console.warn("[Firebase] Firestore is not initialized. Skipping connection test.");
+    return false;
+  }
   try {
-    const testRef = doc(db, "_connection_test", "test");
+    const testRef = doc(dbInstance, "_connection_test", "test");
     await setDoc(testRef, { timestamp: serverTimestamp(), test: true });
     console.log("[Firebase] Firestore write test PASSED");
 
@@ -236,10 +273,11 @@ export const createUserDocument = async (
   }
 
   console.log("[Firebase] createUserDocument called for user:", user.uid);
-  console.log("[Firebase] Firestore db instance:", db ? "exists" : "null");
+  console.log("[Firebase] Firestore db instance:", dbInstance ? "exists" : "null");
 
   try {
-    const userRef = doc(db, "users", user.uid);
+    const firestore = requireDb();
+    const userRef = doc(firestore, "users", user.uid);
     console.log("[Firebase] Created doc reference for users/" + user.uid);
 
     console.log("[Firebase] Attempting to get existing document...");
@@ -340,8 +378,9 @@ export const createUserDocument = async (
 export const getUserData = async (uid: string): Promise<UserData | null> => {
   console.log("[Firebase] getUserData called for uid:", uid);
   try {
+    const firestore = requireDb();
     console.log("[Firebase] Attempting to fetch user document...");
-    const userDoc = await getDoc(doc(db, "users", uid));
+    const userDoc = await getDoc(doc(firestore, "users", uid));
     console.log("[Firebase] getUserData fetch completed, exists:", userDoc.exists());
     if (userDoc.exists()) {
       return userDoc.data() as UserData;
@@ -363,7 +402,8 @@ export const updateUserBillingDetails = async (
   updates: Pick<UserData, "paymentMethods" | "billingHistory">,
 ): Promise<void> => {
   try {
-    const userRef = doc(db, "users", uid);
+    const firestore = requireDb();
+    const userRef = doc(firestore, "users", uid);
     await updateDoc(userRef, updates);
   } catch (error) {
     console.error("[Firebase] Error updating billing details:", error);
@@ -377,7 +417,8 @@ export const loginWithEmailAndPassword = async (
   password: string,
 ) => {
   try {
-    const result = await signInWithEmailAndPassword(auth, email, password);
+    const firebaseAuth = requireAuth();
+    const result = await signInWithEmailAndPassword(firebaseAuth, email, password);
     await createUserDocument(result.user);
     return result.user;
   } catch (error: any) {
@@ -392,7 +433,8 @@ export const registerWithEmailAndPassword = async (
   name?: string,
 ) => {
   try {
-    const result = await createUserWithEmailAndPassword(auth, email, password);
+    const firebaseAuth = requireAuth();
+    const result = await createUserWithEmailAndPassword(firebaseAuth, email, password);
     await createUserDocument(result.user, { name });
     return result.user;
   } catch (error: any) {
@@ -403,7 +445,8 @@ export const registerWithEmailAndPassword = async (
 
 export const signInWithGoogle = async () => {
   try {
-    const result = await signInWithPopup(auth, googleProvider);
+    const firebaseAuth = requireAuth();
+    const result = await signInWithPopup(firebaseAuth, googleProvider);
     return result.user;
   } catch (error: any) {
     console.error("Google sign in error:", error);
@@ -413,7 +456,8 @@ export const signInWithGoogle = async () => {
 
 export const logOut = async () => {
   try {
-    await signOut(auth);
+    const firebaseAuth = requireAuth();
+    await signOut(firebaseAuth);
   } catch (error: any) {
     console.error("Logout error:", error);
     throw error;
