@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet";
 import { useLocation, useSearch } from "wouter";
 import {
@@ -10,6 +10,9 @@ import {
 } from "@/data/content";
 import { MarketplaceCard } from "@/components/site/MarketplaceCard";
 import { analyticsEvents } from "@/components/Analytics";
+import { useAuth } from "@/contexts/AuthContext";
+import { useMarketplacePersonalization } from "@/hooks/useMarketplacePersonalization";
+import { useOnboardingProgress } from "@/hooks/useOnboardingProgress";
 import {
   Search,
   Filter,
@@ -24,6 +27,8 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Sparkles,
+  ArrowRight,
 } from "lucide-react";
 
 // --- Types ---
@@ -184,11 +189,82 @@ function CheckoutNotification({
 
 const ITEMS_PER_PAGE = 12;
 
+// --- Personalized Welcome Banner ---
+function PersonalizedWelcomeBanner({
+  firstName,
+  welcomeMessage,
+  onDismiss,
+  onExplore,
+}: {
+  firstName: string;
+  welcomeMessage: string | null;
+  onDismiss: () => void;
+  onExplore: () => void;
+}) {
+  if (!welcomeMessage) return null;
+
+  return (
+    <div className="mb-8 rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0 rounded-full bg-emerald-100 p-2">
+            <Sparkles className="h-4 w-4 text-emerald-600" />
+          </div>
+          <div>
+            <h3 className="font-medium text-emerald-900">
+              Hi {firstName || "there"}!
+            </h3>
+            <p className="mt-0.5 text-sm text-emerald-700">{welcomeMessage}</p>
+            <button
+              onClick={onExplore}
+              className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-emerald-700 hover:text-emerald-800"
+            >
+              View Recommended
+              <ArrowRight className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+        <button
+          onClick={onDismiss}
+          className="flex-shrink-0 rounded-lg p-1 text-emerald-400 hover:bg-emerald-100 hover:text-emerald-600"
+          aria-label="Dismiss"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Environments() {
   // --- State ---
   const [, setLocation] = useLocation();
   const searchString = useSearch();
   const [checkoutStatus, setCheckoutStatus] = useState<"success" | "cancel" | null>(null);
+
+  // --- Personalization ---
+  const { currentUser } = useAuth();
+  const { personalization, dismissWelcomeBanner } = useMarketplacePersonalization();
+  const { markStepComplete } = useOnboardingProgress();
+
+  // Track marketplace exploration on mount
+  useEffect(() => {
+    if (currentUser?.uid) {
+      markStepComplete("exploreMarketplace").catch(console.error);
+    }
+  }, [currentUser?.uid, markStepComplete]);
+
+  // Handle welcome banner dismiss
+  const handleDismissWelcome = useCallback(() => {
+    dismissWelcomeBanner();
+  }, [dismissWelcomeBanner]);
+
+  // Handle explore recommended click
+  const handleExploreRecommended = useCallback(() => {
+    dismissWelcomeBanner();
+    // Scroll to results
+    window.scrollTo({ top: 400, behavior: "smooth" });
+  }, [dismissWelcomeBanner]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemTypeFilter, setItemTypeFilter] =
     useState<MarketplaceItemType>("all");
@@ -639,6 +715,16 @@ export default function Environments() {
             )}
           </div>
         </header>
+
+        {/* --- Personalized Welcome Banner --- */}
+        {personalization.showWelcomeBanner && (
+          <PersonalizedWelcomeBanner
+            firstName={personalization.firstName}
+            welcomeMessage={personalization.welcomeMessage}
+            onDismiss={handleDismissWelcome}
+            onExplore={handleExploreRecommended}
+          />
+        )}
 
         {/* --- Control Panel (Filters) --- */}
         <section className="rounded-3xl border border-zinc-200 bg-white/80 shadow-sm backdrop-blur-xl">

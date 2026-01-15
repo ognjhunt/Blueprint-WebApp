@@ -102,6 +102,7 @@ export interface UserData {
   bio?: string;
   jobTitle?: string;
   company?: string;
+  organizationName?: string;
   timeZone?: string;
   language?: string;
   phoneNumber?: string;
@@ -121,6 +122,29 @@ export interface UserData {
   subscriptionStartEstimate?: Date | null;
   credits: number;
   finishedOnboarding: boolean;
+
+  // Business signup fields
+  primaryNeed?: "training-data" | "labeling" | "rlhf" | "collection" | "marketplace" | "other";
+  companySize?: "1-10" | "11-50" | "51-200" | "201-1000" | "1000+";
+  projectDescription?: string;
+  expectedVolume?: "exploring" | "small" | "medium" | "large" | "enterprise";
+  referralSource?: "google" | "linkedin" | "twitter" | "referral" | "event" | "other";
+
+  // Onboarding state
+  onboardingStep?: "welcome" | "explore" | "order" | "team" | "completed";
+  onboardingProgress?: {
+    profileComplete: boolean;
+    exploreMarketplace: boolean;
+    createFirstOrder: boolean;
+    inviteTeam: boolean;
+    completedAt?: Date;
+  };
+
+  // Personalization metadata
+  recommendedCategories?: string[];
+  personalizedWelcomeShown?: boolean;
+  firstMarketplaceVisit?: Date;
+  firstOrderAt?: Date;
   hasEnteredNotes: boolean;
   hasEnteredInventory: boolean;
   hasEnteredCameraRoll: boolean;

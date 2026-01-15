@@ -15,6 +15,8 @@ import ProtectedRoute from "./components/ProtectedRoute";
 const Home = lazy(() => import("./pages/Home"));
 const WhySimulation = lazy(() => import("./pages/WhySimulation"));
 const Environments = lazy(() => import("./pages/Environments"));
+const BusinessSignUpFlow = lazy(() => import("./pages/BusinessSignUpFlow"));
+const OnboardingChecklist = lazy(() => import("./pages/OnboardingChecklist"));
 // const Recipes = lazy(() => import("./pages/Recipes")); // Hidden: recipes temporarily removed from offerings
 const EnvironmentDetail = lazy(() => import("./pages/EnvironmentDetail"));
 const Solutions = lazy(() => import("./pages/Solutions"));
@@ -89,6 +91,9 @@ function Router() {
         <Route path="/partners" component={withLayout(PartnerProgram)} />
         <Route path="/portal" component={withLayout(Portal)} />
         <Route path="/login" component={withLayout(Login)} />
+        <Route path="/signup" component={withLayout(BusinessSignUpFlow)} />
+        <Route path="/signup/business" component={withLayout(BusinessSignUpFlow)} />
+        <Route path="/onboarding" component={withProtectedLayout(OnboardingChecklist)} />
         <Route path="/forgot-password" component={withLayout(ForgotPassword)} />
         <Route path="/privacy" component={withLayout(Privacy)} />
         <Route path="/terms" component={withLayout(Terms)} />
