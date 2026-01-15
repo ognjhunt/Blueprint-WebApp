@@ -67,7 +67,16 @@ describe('ContactForm', () => {
     getGoogleMapsApiKeyMock.mockReturnValue(null);
     addDocMock.mockClear();
     loaderLoadMock.mockClear();
-    global.fetch = vi.fn().mockResolvedValue({ ok: true });
+    global.fetch = vi.fn().mockImplementation((input: RequestInfo) => {
+      if (input === "/api/csrf") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ csrfToken: "test-token" }),
+        });
+      }
+
+      return Promise.resolve({ ok: true });
+    });
     window.alert = vi.fn();
   });
 

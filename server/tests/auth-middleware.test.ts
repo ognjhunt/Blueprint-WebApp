@@ -20,6 +20,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
 let server: Server;
 let baseUrl: string;
 let registerRoutes: typeof import("../routes").registerRoutes;
+let csrfCookie: string;
+let csrfToken: string;
 
 beforeAll(async () => {
   process.env.PARALLEL_API_KEY = "test-parallel-key";
@@ -42,6 +44,12 @@ beforeAll(async () => {
       resolve();
     });
   });
+
+  const csrfResponse = await fetch(`${baseUrl}/api/csrf`);
+  const setCookie = csrfResponse.headers.get("set-cookie");
+  csrfCookie = setCookie ? setCookie.split(";")[0] : "";
+  const data = (await csrfResponse.json()) as { csrfToken?: string };
+  csrfToken = data.csrfToken ?? "";
 });
 
 afterAll(async () => {
@@ -71,6 +79,12 @@ describe("verifyFirebaseToken middleware", () => {
         method: endpoint.method,
         headers: {
           "Content-Type": "application/json",
+          ...(endpoint.method === "POST"
+            ? {
+                Cookie: csrfCookie,
+                "X-CSRF-Token": csrfToken,
+              }
+            : {}),
         },
       });
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
+import { withCsrfHeader } from "@/lib/csrf";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import { Badge } from "@/components/ui/badge";
@@ -377,9 +378,7 @@ export default function BlueprintAiStudio() {
     try {
       const response = await fetch("/api/ai-studio/chat", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           blueprintId,
           message: trimmedInput,

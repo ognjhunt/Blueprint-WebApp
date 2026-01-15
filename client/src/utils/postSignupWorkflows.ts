@@ -1,3 +1,5 @@
+import { withCsrfHeader } from "@/lib/csrf";
+
 export type PostSignupWorkflowPayload = {
   blueprintId: string;
   userId?: string;
@@ -39,9 +41,7 @@ export async function triggerPostSignupWorkflows(
   try {
     const response = await fetch(POST_SIGNUP_ENDPOINT, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: await withCsrfHeader({ "Content-Type": "application/json" }),
       body: JSON.stringify(buildPayload(body)),
     });
 

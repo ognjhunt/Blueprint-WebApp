@@ -5,6 +5,7 @@ import { Shield, Package, Sparkles, TrendingUp, ShoppingCart, Loader2, Play, Lay
 import type { SyntheticDataset, MarketplaceScene, TrainingDataset } from "@/data/content";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
+import { withCsrfHeader } from "@/lib/csrf";
 
 interface MarketplaceCardProps {
   item: SyntheticDataset | MarketplaceScene | TrainingDataset;
@@ -79,9 +80,7 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
       try {
         const response = await fetch("/api/create-checkout-session", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
           body: JSON.stringify({
             sessionType: "marketplace",
             successPath: `/marketplace/${slug}?checkout=success`,

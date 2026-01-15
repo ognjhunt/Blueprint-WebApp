@@ -19,6 +19,7 @@ import applyHandler from "./routes/apply";
 import healthRouter from "./routes/health";
 import errorsRouter from "./routes/errors";
 import verifyFirebaseToken from "./middleware/verifyFirebaseToken";
+import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
 
 export function registerRoutes(app: Express) {
   app.use(appleAssociationRouter);
@@ -27,34 +28,52 @@ export function registerRoutes(app: Express) {
   app.use(healthRouter);
 
   // API routes for Express
+  app.get("/api/csrf", csrfCookieHandler);
   app.use("/api/webhooks", webhooksRouter);
-  app.use("/api/errors", errorsRouter);
+  app.use("/api/errors", csrfProtection, errorsRouter);
   app.post(
     "/api/create-checkout-session",
+    csrfProtection,
     verifyFirebaseToken,
     createCheckoutSessionHandler,
   );
   app.get("/api/googlePlaces", verifyFirebaseToken, googlePlacesHandler);
-  app.all("/api/generate-image", verifyFirebaseToken, generateImageHandler);
+  app.all(
+    "/api/generate-image",
+    csrfProtection,
+    verifyFirebaseToken,
+    generateImageHandler,
+  );
   app.post(
     "/api/submit-to-sheets",
+    csrfProtection,
     verifyFirebaseToken,
     submitToSheetsHandler,
   );
-  app.post("/api/process-waitlist", processWaitlistHandler);
+  app.post("/api/process-waitlist", csrfProtection, processWaitlistHandler);
   // Public endpoints (no Firebase auth required).
-  app.post("/api/contact", contactHandler);
-  app.post("/api/waitlist", waitlistHandler);
-  app.post("/api/apply", applyHandler);
+  app.post("/api/contact", csrfProtection, contactHandler);
+  app.post("/api/waitlist", csrfProtection, waitlistHandler);
+  app.post("/api/apply", csrfProtection, applyHandler);
   // app.post("/api/mapping-confirmation", processMappingConfirmationHandler); // Commented out - handler is not exported
-  app.post("/api/demo-day-confirmation", demoDayConfirmationHandler);
-  app.post("/api/upload-to-b2", verifyFirebaseToken, uploadToB2Handler);
+  app.post(
+    "/api/demo-day-confirmation",
+    csrfProtection,
+    demoDayConfirmationHandler,
+  );
+  app.post(
+    "/api/upload-to-b2",
+    csrfProtection,
+    verifyFirebaseToken,
+    uploadToB2Handler,
+  );
   app.post(
     "/api/post-signup-workflows",
+    csrfProtection,
     verifyFirebaseToken,
     postSignupWorkflowsHandler,
   );
-  app.use("/api/ai-studio", verifyFirebaseToken, aiStudioRouter);
-  app.use("/api/qr", verifyFirebaseToken, qrLinkRouter);
-  app.use("/v1/stripe", stripeAccountRouter);
+  app.use("/api/ai-studio", csrfProtection, verifyFirebaseToken, aiStudioRouter);
+  app.use("/api/qr", csrfProtection, verifyFirebaseToken, qrLinkRouter);
+  app.use("/v1/stripe", csrfProtection, stripeAccountRouter);
 }

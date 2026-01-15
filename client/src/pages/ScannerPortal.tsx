@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { createRaycaster, type Vector3, type Quaternion, type Scene, type PerspectiveCamera, type WebGLRenderer, type Object3D } from "@/lib/threeUtils";
 import axios from "axios";
+import { getCsrfToken } from "@/lib/csrf";
 
 // Add pdfjsLib interface to Window
 declare global {
@@ -933,7 +934,11 @@ export default function ScannerPortal() {
         formData.append("file", modelFile);
 
         const response = await axios.post("/api/upload-to-b2", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
+          headers: {
+            "Content-Type": "multipart/form-data",
+            "X-CSRF-Token": await getCsrfToken(),
+          },
+          withCredentials: true,
           onUploadProgress: (event) => {
             if (event.total) {
               const progress = (event.loaded / event.total) * 100;

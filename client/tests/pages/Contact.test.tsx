@@ -3,7 +3,16 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import Contact from '@/pages/Contact';
 
 beforeEach(() => {
-  global.fetch = vi.fn().mockResolvedValue({ ok: true });
+  global.fetch = vi.fn().mockImplementation((input: RequestInfo) => {
+    if (input === "/api/csrf") {
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ csrfToken: "test-token" }),
+      });
+    }
+
+    return Promise.resolve({ ok: true });
+  });
 });
 
 describe('Contact page', () => {
@@ -46,8 +55,8 @@ describe('Contact page', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        '/api/contact',
-        expect.objectContaining({ method: 'POST' }),
+        "/api/contact",
+        expect.objectContaining({ method: "POST" }),
       );
     });
   });
