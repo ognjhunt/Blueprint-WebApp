@@ -8,6 +8,8 @@
     "build": "tsx scripts/generate-sitemap.ts && vite build && npx esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "generate-qr": "tsx scripts/generate-qr.ts"
   },
