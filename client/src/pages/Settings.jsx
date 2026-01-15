@@ -25,24 +25,6 @@ export default function SettingsPage() {
     return new Date(createdDate).toLocaleDateString();
   }, [userData]);
 
-  const providerDetails = useMemo(() => {
-    if (!currentUser?.providerData?.length) {
-      return [];
-    }
-
-    return currentUser.providerData.map((provider) => ({
-      id: provider.providerId,
-      displayName: provider.displayName,
-      email: provider.email,
-      phoneNumber: provider.phoneNumber,
-      photoURL: provider.photoURL,
-    }));
-  }, [currentUser]);
-
-  const hasGoogleProvider = providerDetails.some(
-    (provider) => provider.id === "google.com",
-  );
-
   const purchases =
     userData?.purchases || userData?.library || userData?.purchasedItems || [];
 
@@ -148,42 +130,7 @@ export default function SettingsPage() {
                           {currentUser.email || userData?.email || "—"}
                         </p>
                       </div>
-                      <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
-                          Provider
-                        </p>
-                        <p className="mt-2 text-sm font-medium text-zinc-900">
-                          {hasGoogleProvider ? "Google" : "Email"}
-                        </p>
-                      </div>
                     </div>
-
-                    {hasGoogleProvider && (
-                      <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-500">
-                          Google account connected
-                        </p>
-                        <div className="mt-3 grid gap-3 text-sm text-emerald-900 sm:grid-cols-2">
-                          {providerDetails
-                            .filter((provider) => provider.id === "google.com")
-                            .map((provider, index) => (
-                              <div key={`${provider.id}-${index}`}>
-                                <p className="font-medium">
-                                  {provider.displayName || "Google profile"}
-                                </p>
-                                <p className="text-emerald-700">
-                                  {provider.email || "No email on file"}
-                                </p>
-                                {provider.photoURL && (
-                                  <p className="text-emerald-600">
-                                    Photo linked
-                                  </p>
-                                )}
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               </section>
