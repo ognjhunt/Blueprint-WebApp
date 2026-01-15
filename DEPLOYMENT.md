@@ -26,6 +26,28 @@ Stripe checkout and onboarding routes require the secret key at runtime:
 
 - `STRIPE_SECRET_KEY` (required; server startup fails fast if unset)
 
+## Error tracking (Sentry)
+
+Client-side error tracking uses the Sentry browser SDK. Provide the DSN in your
+deployment environment so Vite can inject it at build time:
+
+- `VITE_SENTRY_DSN` (required to send events to Sentry)
+
+Optional smoke test toggle:
+
+- `VITE_ENABLE_ERROR_TRACKING_SMOKE_TEST=true` (exposes `window.runErrorTrackingSmokeTest()` for a
+  one-time verification in staging/production).
+
+### Smoke test steps
+
+1. Deploy with `VITE_SENTRY_DSN` set (and the smoke test toggle if desired).
+2. Open the deployed site in a browser.
+3. In the devtools console, run:
+   ```
+   window.runErrorTrackingSmokeTest?.()
+   ```
+4. Confirm the "Sentry smoke test" event appears in the Sentry dashboard.
+
 ## Database migrations (Drizzle)
 
 This project uses Drizzle migrations generated from `db/schema.ts`. Migrations live in the `migrations/` directory and should always be committed to the repository.

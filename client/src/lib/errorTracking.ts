@@ -7,8 +7,10 @@
  * To connect to Sentry:
  * 1. Install: npm install @sentry/react
  * 2. Set VITE_SENTRY_DSN in your .env
- * 3. Uncomment the Sentry integration below
+ * 3. Optionally enable the smoke test helper via VITE_ENABLE_ERROR_TRACKING_SMOKE_TEST
  */
+
+import * as Sentry from "@sentry/react";
 
 interface ErrorContext {
   componentStack?: string;
@@ -36,6 +38,7 @@ class ErrorTrackingService {
   private breadcrumbs: BreadcrumbData[] = [];
   private maxBreadcrumbs = 100;
   private errorQueue: Array<{ error: Error; context: ErrorContext }> = [];
+  private sentryEnabled = false;
 
   /**
    * Initialize the error tracking service
@@ -45,6 +48,15 @@ class ErrorTrackingService {
 
     this.dsn = options?.dsn || import.meta.env.VITE_SENTRY_DSN || null;
     this.environment = options?.environment || import.meta.env.MODE || "development";
+
+    if (this.dsn) {
+      Sentry.init({
+        dsn: this.dsn,
+        environment: this.environment,
+        enabled: true,
+      });
+      this.sentryEnabled = true;
+    }
 
     // Set up global error handlers
     this.setupGlobalHandlers();
@@ -136,19 +148,19 @@ class ErrorTrackingService {
     }
 
     // If DSN is configured, send to error tracking service
-    if (this.dsn) {
-      this.sendToBackend(errorData);
-    }
+    const eventId = this.sendToBackend(error, context);
 
     // Also send to our own API for logging
     this.sendToOwnApi(errorData);
+
+    return eventId;
   }
 
   /**
    * Capture a message (non-error)
    */
   captureMessage(message: string, level: ErrorContext["level"] = "info") {
-    this.captureException(new Error(message), { level });
+    return this.captureException(new Error(message), { level });
   }
 
   /**
@@ -159,6 +171,15 @@ class ErrorTrackingService {
       ...data,
       level: data.level || "info",
     });
+
+    if (this.sentryEnabled) {
+      Sentry.addBreadcrumb({
+        category: data.category,
+        message: data.message,
+        level: data.level,
+        data: data.data,
+      });
+    }
 
     // Keep only the last N breadcrumbs
     if (this.breadcrumbs.length > this.maxBreadcrumbs) {
@@ -177,17 +198,48 @@ class ErrorTrackingService {
         message: `User identified: ${user.email || user.id || "unknown"}`,
       });
     }
+
+    if (this.sentryEnabled) {
+      Sentry.setUser(user ?? null);
+    }
   }
 
   /**
    * Send error data to external tracking service
    */
-  private async sendToBackend(errorData: Record<string, unknown>) {
-    // This would integrate with Sentry, LogRocket, etc.
-    // For now, we just log that we would send it
-    if (this.environment === "development") {
-      console.log("[ErrorTracking] Would send to external service:", this.dsn);
+  private sendToBackend(error: Error, context: ErrorContext) {
+    if (!this.sentryEnabled) {
+      return undefined;
     }
+
+    let eventId: string | undefined;
+    Sentry.withScope((scope) => {
+      if (context.level) {
+        scope.setLevel(context.level);
+      }
+
+      if (context.tags) {
+        scope.setTags(context.tags);
+      }
+
+      if (context.extra) {
+        scope.setExtras(context.extra);
+      }
+
+      if (context.user) {
+        scope.setUser(context.user);
+      }
+
+      if (context.componentStack) {
+        scope.setContext("react", {
+          componentStack: context.componentStack,
+        });
+      }
+
+      eventId = Sentry.captureException(error);
+    });
+
+    return eventId;
   }
 
   /**
@@ -247,6 +299,14 @@ class ErrorTrackingService {
       }
     }) as T;
   }
+
+  runSmokeTest() {
+    return this.captureException(new Error("Sentry smoke test"), {
+      tags: { smoke_test: "true" },
+      extra: { source: "errorTracking.runSmokeTest" },
+      level: "error",
+    });
+  }
 }
 
 // Export singleton instance
@@ -260,3 +320,17 @@ export const captureException = errorTracking.captureException.bind(errorTrackin
 export const captureMessage = errorTracking.captureMessage.bind(errorTracking);
 export const addBreadcrumb = errorTracking.addBreadcrumb.bind(errorTracking);
 export const setUser = errorTracking.setUser.bind(errorTracking);
+export const runErrorTrackingSmokeTest = errorTracking.runSmokeTest.bind(errorTracking);
+
+declare global {
+  interface Window {
+    runErrorTrackingSmokeTest?: () => string | undefined;
+  }
+}
+
+const isSmokeTestEnabled =
+  (import.meta.env.VITE_ENABLE_ERROR_TRACKING_SMOKE_TEST as string | undefined) === "true";
+
+if (isSmokeTestEnabled) {
+  window.runErrorTrackingSmokeTest = () => errorTracking.runSmokeTest();
+}
