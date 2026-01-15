@@ -18,6 +18,7 @@ import waitlistHandler from "./routes/waitlist";
 import applyHandler from "./routes/apply";
 import healthRouter from "./routes/health";
 import errorsRouter from "./routes/errors";
+import siteContentRouter from "./routes/site-content";
 import verifyFirebaseToken from "./middleware/verifyFirebaseToken";
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
 
@@ -26,6 +27,9 @@ export function registerRoutes(app: Express) {
 
   // Health check routes (no /api prefix for standard probe paths)
   app.use(healthRouter);
+
+  // Public content summary for external tooling.
+  app.use("/api/site-content", siteContentRouter);
 
   // API routes for Express
   app.get("/api/csrf", csrfCookieHandler);
