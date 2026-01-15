@@ -66,7 +66,12 @@ export default function Nav({
     }
   }, [logout, toast, setLocation]);
 
-  const userInitials = getInitials(userData?.name || userData?.displayName);
+  const resolvedDisplayName =
+    currentUser?.displayName || userData?.displayName;
+  const resolvedPhotoURL = currentUser?.photoURL || userData?.photoURL || "";
+  const userInitials = getInitials(
+    resolvedDisplayName || userData?.name || userData?.displayName,
+  );
 
   const navLinks = [
     { href: "/why-simulation", label: "Why Simulation?", badge: "New" },
@@ -182,9 +187,8 @@ export default function Nav({
                     aria-label="User menu"
                   >
                     <UserAvatarDisplay
-                      photoURL={userData?.photoURL}
-                      name={userData?.name}
-                      displayName={userData?.displayName}
+                      photoURL={resolvedPhotoURL}
+                      displayName={resolvedDisplayName}
                       initials={userInitials}
                     />
                   </Button>
@@ -333,12 +337,12 @@ export default function Nav({
 }
 
 // ===== memoized bits =====
-const UserAvatarDisplay = memo(({ photoURL, name, displayName, initials }) => {
+const UserAvatarDisplay = memo(({ photoURL, displayName, initials }) => {
   return (
     <Avatar className="h-10 w-10">
       <AvatarImage
-        src={photoURL || ""}
-        alt={name || displayName || "User Profile"}
+        src={photoURL}
+        alt={displayName || "User Profile"}
         onError={(e) => {
           e.target.style.display = "none";
         }}
