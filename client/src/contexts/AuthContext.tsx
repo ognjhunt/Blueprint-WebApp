@@ -17,6 +17,7 @@ import {
   UserData,
 } from "@/lib/firebase";
 import { User as FirebaseUser } from "firebase/auth";
+import { getImportMetaEnv } from "@/lib/import-meta-env";
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -75,9 +76,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resolveRedirectPath = React.useCallback(
     (data: UserData | null): string => {
-      const marketingDestination =
-        (import.meta.env.VITE_MARKETING_DESTINATION as string | undefined)?.trim() ||
-        "/marketplace";
+      const marketingDestination = (() => {
+        if (typeof window === "undefined") {
+          return "/marketplace";
+        }
+        const env = getImportMetaEnv();
+        return (env.VITE_MARKETING_DESTINATION ?? "").trim() || "/marketplace";
+      })();
       let storedRedirect: string | null = null;
       try {
         storedRedirect = sessionStorage.getItem("redirectAfterAuth");

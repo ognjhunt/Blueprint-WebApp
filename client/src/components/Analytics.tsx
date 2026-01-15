@@ -1,13 +1,17 @@
 import { useEffect } from "react";
+import { getImportMetaEnv } from "@/lib/import-meta-env";
 import { getCookieConsent } from "./CookieConsent";
-
-const env: ImportMetaEnv | Record<string, never> = import.meta.env ?? {};
-
-// Replace with your actual GA4 Measurement ID
-const GA_MEASUREMENT_ID = env.VITE_GA_MEASUREMENT_ID ?? "G-XXXXXXXXXX";
 
 export function Analytics() {
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const env = getImportMetaEnv();
+    // Replace with your actual GA4 Measurement ID
+    const gaMeasurementId = env.VITE_GA_MEASUREMENT_ID ?? "G-XXXXXXXXXX";
+
     // Don't initialize in development unless explicitly enabled
     if (env.DEV && !env.VITE_ENABLE_ANALYTICS) {
       return;
@@ -26,7 +30,7 @@ export function Analytics() {
     const script = document.createElement("script");
     script.id = "ga-script";
     script.async = true;
-    script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`;
     document.head.appendChild(script);
 
     // Initialize gtag with consent mode
@@ -44,7 +48,7 @@ export function Analytics() {
     });
 
     // Configure GA
-    window.gtag("config", GA_MEASUREMENT_ID, {
+    window.gtag("config", gaMeasurementId, {
       anonymize_ip: true,
       cookie_flags: "SameSite=None;Secure",
     });
