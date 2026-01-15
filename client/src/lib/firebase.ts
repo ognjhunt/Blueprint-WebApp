@@ -74,10 +74,18 @@ export const testFirestoreConnection = async (): Promise<boolean> => {
   }
 };
 
-// Run connection test on load (for debugging - remove in production)
-testFirestoreConnection().then(success => {
-  console.log("[Firebase] Initial connection test result:", success ? "SUCCESS" : "FAILED");
-});
+const isFirestoreDebugEnabled =
+  import.meta.env.DEV || import.meta.env.VITE_FIREBASE_DEBUG === "true";
+
+export const runFirestoreConnectionTestIfDebug = async (): Promise<boolean> => {
+  if (!isFirestoreDebugEnabled) {
+    return false;
+  }
+
+  const success = await testFirestoreConnection();
+  console.log("[Firebase] Debug connection test result:", success ? "SUCCESS" : "FAILED");
+  return success;
+};
 
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
