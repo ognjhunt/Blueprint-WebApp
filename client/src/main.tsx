@@ -9,6 +9,7 @@ import { SiteLayout } from "./components/site/SiteLayout";
 import { LoadingScreen } from "./components/site/LoadingScreen";
 import { CookieConsent } from "./components/CookieConsent";
 import { Analytics } from "./components/Analytics";
+import { AuthProvider } from "./contexts/AuthContext";
 
 const Home = lazy(() => import("./pages/Home"));
 const WhySimulation = lazy(() => import("./pages/WhySimulation"));
@@ -87,10 +88,12 @@ function Router() {
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <Analytics />
-      <Router />
-      <Toaster />
-      <CookieConsent />
+      <AuthProvider>
+        <Analytics />
+        <Router />
+        <Toaster />
+        <CookieConsent />
+      </AuthProvider>
     </QueryClientProvider>
   </StrictMode>,
 );
