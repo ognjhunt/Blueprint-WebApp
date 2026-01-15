@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CheckCircle2 } from "lucide-react";
+import { withCsrfHeader } from "@/lib/csrf";
 
 const budgetRanges = [
   "<$50K",
@@ -80,7 +81,7 @@ export function ContactForm() {
     try {
       const res = await fetch("/api/contact", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
         body: JSON.stringify(payload),
       });
 

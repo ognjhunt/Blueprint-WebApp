@@ -23,6 +23,7 @@ import DatePicker from "react-datepicker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { loadStripe } from "@stripe/stripe-js";
+import { withCsrfHeader } from "@/lib/csrf";
 import {
   Calendar,
   Mail,
@@ -1610,7 +1611,7 @@ export default function OffWaitlistSignUpFlow() {
 
         const response = await fetch("/api/create-checkout-session", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
           body: JSON.stringify({
             sessionType: "onboarding",
             onboardingFee: ONBOARDING_FEE,

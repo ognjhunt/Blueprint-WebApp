@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet";
 import { loadStripe } from "@stripe/stripe-js";
+import { withCsrfHeader } from "@/lib/csrf";
 import {
   scenes,
   syntheticDatasets,
@@ -201,9 +202,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     try {
       const response = await fetch("/api/create-checkout-session", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           sessionType: "marketplace",
           successPath: `/marketplace/${detailSlug}?checkout=success`,
@@ -840,9 +839,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
       try {
         const response = await fetch("/api/create-checkout-session", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
           body: JSON.stringify({
             sessionType: "marketplace",
             successPath: `/marketplace/${trainingDataset.slug}?checkout=success`,

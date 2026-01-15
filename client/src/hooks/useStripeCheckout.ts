@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import { analyticsEvents } from "@/components/Analytics";
+import { withCsrfHeader } from "@/lib/csrf";
 
 const stripePublishableKey =
   import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
@@ -46,7 +47,7 @@ export function useStripeCheckout(): UseStripeCheckoutReturn {
 
       const response = await fetch("/api/create-checkout-session", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           sessionType: "marketplace",
           marketplaceItem: {

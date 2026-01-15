@@ -25,6 +25,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getGoogleMapsApiKey } from "@/lib/client-env";
+import { withCsrfHeader } from "@/lib/csrf";
 import KitArrivalCountdown, {
   DEFAULT_KIT_TRACKING_URL,
   KIT_DELIVERY_LEAD_TIME_BUSINESS_DAYS,
@@ -1087,7 +1088,7 @@ export default function Onboarding() {
 
       const response = await fetch("/api/create-checkout-session", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           sessionType: "onboarding",
           onboardingFee: 0,

@@ -1,3 +1,5 @@
+import { withCsrfHeader } from "./csrf";
+
 /**
  * Error Tracking Service
  *
@@ -202,7 +204,7 @@ class ErrorTrackingService {
 
       await fetch("/api/errors", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
         body: JSON.stringify(errorData),
         // Don't let error tracking errors cause more errors
         keepalive: true,

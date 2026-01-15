@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
+import { withCsrfHeader } from "@/lib/csrf";
 
 export function WaitlistForm() {
   const [email, setEmail] = useState("");
@@ -17,7 +18,7 @@ export function WaitlistForm() {
     try {
       const res = await fetch("/api/waitlist", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
         body: JSON.stringify({ email, locationType }),
       });
 
