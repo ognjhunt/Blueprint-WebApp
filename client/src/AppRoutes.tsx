@@ -4,6 +4,11 @@ import { Route, Switch } from "wouter";
 import { SiteLayout } from "./components/site/SiteLayout";
 import { LoadingScreen } from "./components/site/LoadingScreen";
 import ProtectedRoute from "./components/ProtectedRoute";
+import {
+  publicRouteAliases,
+  publicRoutes,
+  type PublicRouteEntry,
+} from "./routes/publicRoutes";
 
 const Home = lazy(() => import("./pages/Home"));
 const WhySimulation = lazy(() => import("./pages/WhySimulation"));
@@ -48,15 +53,60 @@ const withProtectedLayout = <P extends object>(
     </ProtectedRoute>
   );
 
-export function AppRoutes() {
+const publicRouteComponents: Record<
+  PublicRouteEntry["path"],
+  ComponentType<object>
+> = {
+  "/": Home,
+  "/why-simulation": WhySimulation,
+  "/marketplace": Environments,
+  "/solutions": Solutions,
+  "/pricing": Pricing,
+  "/learn": Learn,
+  "/docs": Docs,
+  "/evals": Evals,
+  "/benchmarks": Evals,
+  "/rl-training": RLTraining,
+  "/case-studies": CaseStudies,
+  "/careers": Careers,
+  "/contact": Contact,
+  "/partners": PartnerProgram,
+  "/privacy": Privacy,
+  "/terms": Terms,
+};
+
+type AppRoutesProps = {
+  publicRouteEntries?: PublicRouteEntry[];
+};
+
+export function AppRoutes({ publicRouteEntries = publicRoutes }: AppRoutesProps) {
   return (
     <Suspense fallback={<LoadingScreen />}>
       <Switch>
-        <Route path="/" component={withLayout(Home)} />
-        <Route path="/why-simulation" component={withLayout(WhySimulation)} />
-        {/* Primary route: /marketplace (canonical), /environments kept for backwards compatibility */}
-        <Route path="/marketplace" component={withLayout(Environments)} />
-        <Route path="/environments" component={withLayout(Environments)} />
+        {publicRouteEntries.map(({ path }) => {
+          const Component = publicRouteComponents[path];
+          if (!Component) {
+            return null;
+          }
+
+          return (
+            <Route key={path} path={path} component={withLayout(Component)} />
+          );
+        })}
+        {publicRouteAliases.map((alias) => {
+          const Component = publicRouteComponents[alias.aliasFor];
+          if (!Component) {
+            return null;
+          }
+
+          return (
+            <Route
+              key={alias.path}
+              path={alias.path}
+              component={withLayout(Component)}
+            />
+          );
+        })}
         <Route
           path="/marketplace/:slug"
           component={withProtectedLayout(EnvironmentDetail)}
@@ -65,26 +115,13 @@ export function AppRoutes() {
           path="/environments/:slug"
           component={withProtectedLayout(EnvironmentDetail)}
         />
-        <Route path="/solutions" component={withLayout(Solutions)} />
-        <Route path="/pricing" component={withLayout(Pricing)} />
-        <Route path="/learn" component={withLayout(Learn)} />
-        <Route path="/docs" component={withLayout(Docs)} />
-        <Route path="/evals" component={withLayout(Evals)} />
-        <Route path="/benchmarks" component={withLayout(Evals)} />
         <Route
           path="/benchmarks/:slug"
           component={withProtectedLayout(BenchmarkDetail)}
         />
-        <Route path="/rl-training" component={withLayout(RLTraining)} />
-        <Route path="/case-studies" component={withLayout(CaseStudies)} />
-        <Route path="/careers" component={withLayout(Careers)} />
-        <Route path="/contact" component={withLayout(Contact)} />
-        <Route path="/partners" component={withLayout(PartnerProgram)} />
         <Route path="/portal" component={withLayout(Portal)} />
         <Route path="/login" component={withLayout(Login)} />
         <Route path="/forgot-password" component={withLayout(ForgotPassword)} />
-        <Route path="/privacy" component={withLayout(Privacy)} />
-        <Route path="/terms" component={withLayout(Terms)} />
         <Route path="/settings" component={withLayout(Settings)} />
         <Route component={withLayout(NotFound)} />
       </Switch>

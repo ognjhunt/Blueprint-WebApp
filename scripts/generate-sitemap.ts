@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { publicRoutes } from "./public-routes";
+import { publicRoutes } from "../client/src/routes/publicRoutes";
 
 const BASE_URL = "https://tryblueprint.io";
 const BUILD_DATE = new Date().toISOString().slice(0, 10);
