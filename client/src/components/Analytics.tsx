@@ -1,13 +1,15 @@
 import { useEffect } from "react";
 import { getCookieConsent } from "./CookieConsent";
 
+const env: ImportMetaEnv | Record<string, never> = import.meta.env ?? {};
+
 // Replace with your actual GA4 Measurement ID
-const GA_MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID || "G-XXXXXXXXXX";
+const GA_MEASUREMENT_ID = env.VITE_GA_MEASUREMENT_ID ?? "G-XXXXXXXXXX";
 
 export function Analytics() {
   useEffect(() => {
     // Don't initialize in development unless explicitly enabled
-    if (import.meta.env.DEV && !import.meta.env.VITE_ENABLE_ANALYTICS) {
+    if (env.DEV && !env.VITE_ENABLE_ANALYTICS) {
       return;
     }
 
