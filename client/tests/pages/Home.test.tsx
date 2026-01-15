@@ -1,30 +1,29 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-
-// Placeholder for actual component import
-// import Home from '@/pages/Home';
+import { render, screen } from '@testing-library/react';
+import Home from '@/pages/Home';
 
 describe('Home', () => {
-  it('should be a placeholder test', () => {
-    expect(true).toBe(true);
+  it('renders the hero messaging and primary CTAs', () => {
+    render(<Home />);
+
+    expect(
+      screen.getByRole('heading', {
+        name: /The complete data platform for robotic AI\./i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: /Browse Marketplace/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: /Submit a request/i }),
+    ).toBeInTheDocument();
   });
 
-  describe('useEffect redirect for logged-in users', () => {
-    it('should redirect to /dashboard if currentUser exists', () => {
-      // Placeholder
-      expect(true).toBe(true);
-    });
+  it('highlights the SimReady value proposition', () => {
+    render(<Home />);
 
-    it('should not redirect if no currentUser', () => {
-      // Placeholder
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('handleScrollToContactForm()', () => {
-    it('should scroll to the contact form section', () => {
-      // Placeholder
-      expect(true).toBe(true);
-    });
+    expect(
+      screen.getByRole('heading', { name: /Why SimReady\?/i }),
+    ).toBeInTheDocument();
   });
 });

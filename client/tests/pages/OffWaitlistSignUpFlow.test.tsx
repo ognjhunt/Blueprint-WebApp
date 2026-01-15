@@ -1,27 +1,33 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import OffWaitlistSignUpFlow from '@/pages/OffWaitlistSignUpFlow';
 
-// Placeholder for actual component import
-// import OffWaitlistSignUpFlow from '@/pages/OffWaitlistSignUpFlow';
+const getGoogleMapsApiKeyMock = vi.hoisted(() => vi.fn(() => null));
 
-// Mock dependencies
-vi.mock('@/components/Nav', () => ({ default: () => <div>Nav Mock</div> }));
-vi.mock('@/components/Footer', () => ({ default: () => <div>Footer Mock</div> }));
-vi.mock('@googlemaps/js-api-loader', () => ({
-  Loader: vi.fn().mockImplementation(() => ({
-    load: vi.fn().mockResolvedValue(null),
-  })),
+vi.mock('@/components/Nav', () => ({
+  default: () => <div>Nav Mock</div>,
+}));
+vi.mock('@/components/Footer', () => ({
+  default: () => <div>Footer Mock</div>,
 }));
 vi.mock('@react-oauth/google', () => ({
   GoogleOAuthProvider: ({ children }) => <div>{children}</div>,
   GoogleLogin: () => <button>Google Login Mock</button>,
 }));
+vi.mock('@stripe/stripe-js', () => ({
+  loadStripe: vi.fn().mockResolvedValue(null),
+}));
 vi.mock('@/lib/firebase', () => ({
-  db: {}, // Mock db object
+  db: {},
+}));
+vi.mock('@/lib/client-env', () => ({
+  getGoogleMapsApiKey: () => getGoogleMapsApiKeyMock(),
 }));
 vi.mock('firebase/auth', () => ({
-  getAuth: vi.fn(),
-  createUserWithEmailAndPassword: vi.fn().mockResolvedValue({ user: { uid: 'test-uid' } }),
+  getAuth: vi.fn(() => ({ currentUser: { uid: 'test-user' } })),
+  createUserWithEmailAndPassword: vi.fn().mockResolvedValue({
+    user: { uid: 'test-uid' },
+  }),
 }));
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn(),
@@ -31,144 +37,63 @@ vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   query: vi.fn(),
   where: vi.fn(),
-  getDocs: vi.fn().mockResolvedValue({ empty: true, docs: [] }), // Default to no token found
+  getDocs: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
   arrayUnion: vi.fn(),
 }));
-
-
-// Validation functions copied from OffWaitlistSignUpFlow.tsx for direct testing
-function isValidEmail(email: string) {
-  const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return pattern.test(email);
-}
-
-function isValidPhone(phone: string) {
-  const digits = phone.replace(/\D/g, "");
-  return digits.length === 10;
-}
-
+vi.mock('firebase/storage', () => ({
+  getStorage: vi.fn(),
+  ref: vi.fn(),
+  uploadBytes: vi.fn(),
+}));
+vi.mock('@/utils/lindyWebhook', () => ({
+  triggerLindyWebhook: vi.fn(),
+}));
+vi.mock('@/utils/postSignupWorkflows', () => ({
+  triggerPostSignupWorkflowsDetached: vi.fn(),
+}));
 
 describe('OffWaitlistSignUpFlow', () => {
-  // Placeholder for component rendering tests
-  // it('should render Step 1 by default', () => {
-  //   render(<OffWaitlistSignUpFlow />);
-  //   expect(screen.getByText(/Basic Account Setup/i)).toBeInTheDocument();
-  // });
-
-  describe('Validation Utilities', () => {
-    describe('isValidEmail()', () => {
-      it('should return true for valid emails', () => {
-        expect(isValidEmail('test@example.com')).toBe(true);
-        expect(isValidEmail('test.user@example.co.uk')).toBe(true);
-        expect(isValidEmail('test+alias@example.com')).toBe(true);
-      });
-
-      it('should return false for invalid emails', () => {
-        expect(isValidEmail('testexample.com')).toBe(false);
-        expect(isValidEmail('test@example')).toBe(false);
-        expect(isValidEmail('@example.com')).toBe(false);
-        expect(isValidEmail('test@.com')).toBe(false);
-        expect(isValidEmail('')).toBe(false);
-        expect(isValidEmail(' ')).toBe(false);
-      });
-    });
-
-    describe('isValidPhone()', () => {
-      it('should return true for valid 10-digit phone numbers', () => {
-        expect(isValidPhone('(123) 456-7890')).toBe(true);
-        expect(isValidPhone('123-456-7890')).toBe(true);
-        expect(isValidPhone('1234567890')).toBe(true);
-        expect(isValidPhone('123.456.7890')).toBe(true);
-      });
-
-      it('should return false for invalid phone numbers', () => {
-        expect(isValidPhone('12345')).toBe(false); // Too short
-        expect(isValidPhone('12345678901')).toBe(false); // Too long
-        expect(isValidPhone('123-456-789A')).toBe(false); // Non-numeric that's not formatting
-        expect(isValidPhone('')).toBe(false);
-        expect(isValidPhone(' ')).toBe(false);
-        expect(isValidPhone('abcdefghij')).toBe(false);
-      });
-    });
+  beforeEach(() => {
+    window.history.pushState(
+      {},
+      '',
+      '/off-waitlist-signup?token=blueprint-internal-test-token-2025',
+    );
   });
 
-  describe('handleNextStep()', () => {
-    describe('Step 1 (Account Creation)', () => {
-      it('should validate token before proceeding', () => {
-        // Placeholder
-        expect(true).toBe(true);
-      });
+  it('renders the first step and validates email input', async () => {
+    render(<OffWaitlistSignUpFlow />);
 
-      it('should validate password length', () => {
-        // Placeholder
-        expect(true).toBe(true);
-      });
+    expect(
+      await screen.findByRole('heading', { name: /Welcome off the waitlist/i }),
+    ).toBeInTheDocument();
 
-      it('should create Firebase auth user and Firestore user document', () => {
-        // Placeholder
-        expect(true).toBe(true);
-      });
+    const emailInput = screen.getByPlaceholderText('you@business.com');
+    fireEvent.change(emailInput, { target: { value: 'invalid-email' } });
 
-      it('should mark waitlist token as used', () => {
-        // Placeholder
-        expect(true).toBe(true);
-      });
-
-      it('should handle errors during user creation', () => {
-        // Placeholder
-        expect(true).toBe(true);
-      });
-    });
-
-    describe('Step 2 (Contact & Location)', () => {
-      it('should validate contact and location inputs', () => {
-        // Placeholder
-        expect(true).toBe(true);
-      });
-
-      it('should update user document in Firestore', () => {
-        // Placeholder
-        expect(true).toBe(true);
-      });
-    });
-
-    describe('Step 3 (Scheduling)', () => {
-      it('should update user document with schedule', () => {
-        // Placeholder
-        expect(true).toBe(true);
-      });
-
-      it('should create booking and blueprint documents in Firestore', () => {
-        // Placeholder
-        expect(true).toBe(true);
-      });
-
-      it('should call /api/mapping-confirmation', () => {
-        // Placeholder
-        expect(true).toBe(true);
-      });
-    });
+    expect(
+      screen.getByText(/Please enter a valid email address\./i),
+    ).toBeInTheDocument();
   });
 
-  describe('Token validation (useEffect hook)', () => {
-    it('should validate token on component mount', () => {
-      // Placeholder
-      expect(true).toBe(true);
-    });
-  });
+  it('advances to contact details once step one is valid', async () => {
+    render(<OffWaitlistSignUpFlow />);
 
-  describe('Google Places API integration', () => {
-    it('should load Google Places API for address suggestions', () => {
-      // Placeholder
-      expect(true).toBe(true);
+    const continueButton = await screen.findByRole('button', {
+      name: /Continue/i,
     });
-  });
+    expect(continueButton).toBeDisabled();
 
-  describe('Scheduling logic in Step 3', () => {
-    it('should generate time slots correctly', () => {
-      // Placeholder for generateTimeSlots
-      expect(true).toBe(true);
+    const passwordInput = screen.getByPlaceholderText('At least 8 characters');
+    fireEvent.change(passwordInput, { target: { value: 'strong-pass' } });
+
+    await waitFor(() => {
+      expect(continueButton).toBeEnabled();
     });
-    // Add more tests for scheduling logic
+    fireEvent.click(continueButton);
+
+    expect(
+      await screen.findByRole('heading', { name: /Contact & Location/i }),
+    ).toBeInTheDocument();
   });
 });
