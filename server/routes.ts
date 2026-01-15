@@ -18,6 +18,7 @@ import waitlistHandler from "./routes/waitlist";
 import applyHandler from "./routes/apply";
 import healthRouter from "./routes/health";
 import errorsRouter from "./routes/errors";
+import verifyFirebaseToken from "./middleware/verifyFirebaseToken";
 
 export function registerRoutes(app: Express) {
   app.use(appleAssociationRouter);
@@ -28,19 +29,32 @@ export function registerRoutes(app: Express) {
   // API routes for Express
   app.use("/api/webhooks", webhooksRouter);
   app.use("/api/errors", errorsRouter);
-  app.post("/api/create-checkout-session", createCheckoutSessionHandler);
-  app.get("/api/googlePlaces", googlePlacesHandler);
-  app.all("/api/generate-image", generateImageHandler);
-  app.post("/api/submit-to-sheets", submitToSheetsHandler);
+  app.post(
+    "/api/create-checkout-session",
+    verifyFirebaseToken,
+    createCheckoutSessionHandler,
+  );
+  app.get("/api/googlePlaces", verifyFirebaseToken, googlePlacesHandler);
+  app.all("/api/generate-image", verifyFirebaseToken, generateImageHandler);
+  app.post(
+    "/api/submit-to-sheets",
+    verifyFirebaseToken,
+    submitToSheetsHandler,
+  );
   app.post("/api/process-waitlist", processWaitlistHandler);
+  // Public endpoints (no Firebase auth required).
   app.post("/api/contact", contactHandler);
   app.post("/api/waitlist", waitlistHandler);
   app.post("/api/apply", applyHandler);
   // app.post("/api/mapping-confirmation", processMappingConfirmationHandler); // Commented out - handler is not exported
   app.post("/api/demo-day-confirmation", demoDayConfirmationHandler);
-  app.post("/api/upload-to-b2", uploadToB2Handler);
-  app.post("/api/post-signup-workflows", postSignupWorkflowsHandler);
-  app.use("/api/ai-studio", aiStudioRouter);
-  app.use("/api/qr", qrLinkRouter);
+  app.post("/api/upload-to-b2", verifyFirebaseToken, uploadToB2Handler);
+  app.post(
+    "/api/post-signup-workflows",
+    verifyFirebaseToken,
+    postSignupWorkflowsHandler,
+  );
+  app.use("/api/ai-studio", verifyFirebaseToken, aiStudioRouter);
+  app.use("/api/qr", verifyFirebaseToken, qrLinkRouter);
   app.use("/v1/stripe", stripeAccountRouter);
 }
