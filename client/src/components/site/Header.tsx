@@ -81,7 +81,22 @@ export function Header() {
           >
             Request a Scene
           </a>
-          {currentUser ? (
+          {!currentUser ? (
+            <>
+              <a
+                href="/login"
+                className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+              >
+                Log in
+              </a>
+              <a
+                href="/login"
+                className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-200"
+              >
+                Sign up
+              </a>
+            </>
+          ) : (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -111,7 +126,7 @@ export function Header() {
                 <DropdownMenuItem onClick={handleSignOut}>Sign out</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : null}
+          )}
         </div>
         <button
           type="button"
@@ -143,7 +158,24 @@ export function Header() {
             >
               Request a Scene
             </a>
-            {currentUser ? (
+            {!currentUser ? (
+              <>
+                <a
+                  href="/login"
+                  className="rounded-full border border-slate-200 px-4 py-2 text-center text-slate-700"
+                  onClick={() => setOpen(false)}
+                >
+                  Log in
+                </a>
+                <a
+                  href="/login"
+                  className="rounded-full bg-slate-100 px-4 py-2 text-center font-semibold text-slate-900"
+                  onClick={() => setOpen(false)}
+                >
+                  Sign up
+                </a>
+              </>
+            ) : (
               <>
                 <a
                   href="/settings"
@@ -163,7 +195,7 @@ export function Header() {
                   Sign out
                 </button>
               </>
-            ) : null}
+            )}
           </nav>
         </div>
       ) : null}
