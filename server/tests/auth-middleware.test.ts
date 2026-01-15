@@ -24,9 +24,6 @@ let csrfCookie: string;
 let csrfToken: string;
 
 beforeAll(async () => {
-  process.env.PARALLEL_API_KEY = "test-parallel-key";
-  process.env.PERPLEXITY_API_KEY = "test-perplexity-key";
-
   ({ registerRoutes } = await import("../routes"));
 
   const app = express();
