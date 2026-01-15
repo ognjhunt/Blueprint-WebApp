@@ -154,23 +154,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       return;
     }
-    
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-      if (user) {
-        try {
-          const userData = await getUserData(user.uid);
-          setUserData(normalizeUserData(userData));
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-        }
-      } else {
-        setUserData(null);
-      }
-      setLoading(false);
-    });
 
-    return unsubscribe;
+    let fallbackTimeout: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+      console.warn("Auth initialization timed out. Rendering app without auth state.");
+      setLoading(false);
+    }, 8000);
+    let unsubscribe = () => {};
+
+    const clearFallbackTimeout = () => {
+      if (fallbackTimeout) {
+        clearTimeout(fallbackTimeout);
+        fallbackTimeout = null;
+      }
+    };
+
+    try {
+      unsubscribe = onAuthStateChanged(
+        auth,
+        async (user) => {
+          setCurrentUser(user);
+          if (user) {
+            try {
+              const userData = await getUserData(user.uid);
+              setUserData(normalizeUserData(userData));
+            } catch (error) {
+              console.error("Error fetching user data:", error);
+            }
+          } else {
+            setUserData(null);
+          }
+          clearFallbackTimeout();
+          setLoading(false);
+        },
+        (error) => {
+          console.error("Auth state change listener error:", error);
+          clearFallbackTimeout();
+          setLoading(false);
+        },
+      );
+    } catch (error) {
+      console.error("Failed to initialize auth state listener:", error);
+      clearFallbackTimeout();
+      setLoading(false);
+    }
+
+    return () => {
+      clearFallbackTimeout();
+      unsubscribe();
+    };
   }, []);
 
   async function signIn(email: string, password: string) {
