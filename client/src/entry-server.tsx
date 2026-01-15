@@ -1,6 +1,6 @@
 import { renderToString } from "react-dom/server";
 import { Helmet } from "react-helmet";
-import { memoryLocation } from "wouter";
+import { memoryLocation } from "wouter/memory-location";
 import { AppShell } from "./AppShell";
 import { AppRoutesServer } from "./AppRoutesServer";
 
