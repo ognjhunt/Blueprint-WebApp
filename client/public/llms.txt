@@ -14,3 +14,6 @@ High-priority public URLs:
 - /terms
 
 Full content: /llms-full.txt
+
+API endpoints:
+- /api/site-content (public JSON summary of key pages and non-sensitive content)
