@@ -15,12 +15,14 @@ type AppShellProps = {
 export function AppShell({ children, locationHook }: AppShellProps) {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Analytics />
-        <WouterRouter hook={locationHook}>{children}</WouterRouter>
-        <Toaster />
-        <CookieConsent />
-      </AuthProvider>
+      <WouterRouter hook={locationHook}>
+        <AuthProvider>
+          <Analytics />
+          {children}
+          <Toaster />
+          <CookieConsent />
+        </AuthProvider>
+      </WouterRouter>
     </QueryClientProvider>
   );
 }
