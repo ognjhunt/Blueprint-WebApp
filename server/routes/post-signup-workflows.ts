@@ -11,8 +11,7 @@ import {
   type PostSignupWorkflowPromptInput,
 } from "../utils/ai-prompts";
 
-const parallelApiKey =
-  process.env.PARALLEL_API_KEY || "V9xyphAxwfrJb1faYC5c_-x4T93eYzbZDWdenFEw";
+const parallelApiKey = process.env.PARALLEL_API_KEY;
 const rawParallelBaseUrl =
   process.env.PARALLEL_API_BASE_URL || "https://api.parallel.ai";
 const parallelBaseUrl = rawParallelBaseUrl.replace(/\/+$/, "");
@@ -58,9 +57,7 @@ const parallelWebhookEvents = process.env.PARALLEL_WEBHOOK_EVENTS
       .filter(Boolean)
   : ["task.updated", "task.completed", "task.failed"];
 
-const perplexityApiKey =
-  process.env.PERPLEXITY_API_KEY ||
-  "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";
+const perplexityApiKey = process.env.PERPLEXITY_API_KEY;
 const perplexityTimeoutMs = Number(process.env.PERPLEXITY_TIMEOUT_MS ?? 60_000);
 const deepResearchModel =
   process.env.PERPLEXITY_DEEP_RESEARCH_MODEL || "sonar-reasoning-pro";
@@ -73,6 +70,14 @@ const reasoningEffort = (process.env.PERPLEXITY_REASONING_EFFORT ?? "high") as
 const PERPLEXITY_ENDPOINT = "https://api.perplexity.ai/chat/completions";
 const PERPLEXITY_SYSTEM_MESSAGE =
   "You are Blueprint's automation copilot. Follow the user's instructions exactly and respond with valid JSON whenever a schema is provided.";
+
+if (!parallelApiKey) {
+  throw new Error("PARALLEL_API_KEY is not configured");
+}
+
+if (!perplexityApiKey) {
+  throw new Error("PERPLEXITY_API_KEY is not configured");
+}
 
 type AiProvider = "perplexity" | "parallel";
 
