@@ -1,4 +1,4 @@
-# Deployment Instructions for Blueprint AR
+# Deployment Instructions for Blueprint
 
 There is an issue with the default build script in `package.json` that contains an invalid esbuild flag `--no-check`. This flag is causing deployment failures. We've provided several solutions to fix this issue.
 

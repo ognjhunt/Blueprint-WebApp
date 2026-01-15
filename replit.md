@@ -1,8 +1,8 @@
-# Blueprint AR Platform
+# Blueprint Robotics Platform
 
 ## Overview
 
-Blueprint is a comprehensive AR (Augmented Reality) and AI platform that enables businesses to create immersive, interactive experiences for their physical spaces. The platform combines React frontend with Express.js backend, providing tools for space mapping, AR element placement, AI-powered customer interactions, and analytics.
+Blueprint is a comprehensive robotics data and AI platform that provides spatial context and digital twins for autonomous systems. The platform combines React frontend with Express.js backend, providing tools for space mapping, environmental context delivery, AI-powered robot interactions, and analytics.
 
 ## System Architecture
 
@@ -12,7 +12,7 @@ Blueprint is a comprehensive AR (Augmented Reality) and AI platform that enables
 - **UI Framework**: Tailwind CSS with shadcn/ui components
 - **State Management**: React hooks with context providers
 - **Routing**: Wouter for client-side routing
-- **3D Rendering**: Three.js for 3D model visualization and AR experiences
+- **3D Rendering**: Three.js for 3D model visualization and spatial context
 
 ### Backend Architecture
 - **Runtime**: Node.js with Express.js server
@@ -32,25 +32,25 @@ Blueprint is a comprehensive AR (Augmented Reality) and AI platform that enables
 
 ## Key Components
 
-### Blueprint Editor
-- Interactive floor plan editor with grid-based layout
-- Drag-and-drop AR element placement
+### Scene Management
+- Interactive floor plan and 3D space editor with grid-based layout
+- Spatial data representation and context mapping
 - Real-time 3D model preview and manipulation
-- Multi-layer content management (annotations, links, models)
-- Collaborative editing capabilities
+- Multi-layer content management (annotations, sensor data, models)
+- Scene graph management for robot navigation
 
-### AR Experience Engine
-- QR code-based space entry
+### Robot Context Engine
+- Digital twin creation and maintenance
+- Real-time spatial context delivery
 - 3D model loading and positioning
-- Interactive anchor points and hotspots
-- Real-time user interaction tracking
-- Cross-platform AR compatibility
+- Environmental constraint and rule encoding
+- Robot-specific data serving and management
 
 ### AI Integration Layer
 - Automated floor plan analysis using Gemini Vision
-- Dynamic content generation for space descriptions
-- Personalized user recommendations
-- Natural language processing for customer interactions
+- Dynamic spatial context generation
+- Robot path planning optimization
+- Natural language processing for robot instructions
 
 ### Authentication System
 - Firebase-based user management
@@ -60,10 +60,10 @@ Blueprint is a comprehensive AR (Augmented Reality) and AI platform that enables
 
 ## Data Flow
 
-1. **Business Onboarding**: Users upload floor plans → Gemini analyzes layout → AI suggests optimal AR placement zones
-2. **Content Creation**: Business owners place AR elements → System generates spatial coordinates → Content is stored with positional metadata
-3. **User Experience**: Visitors scan QR codes → App loads space data → AR elements render based on device position
-4. **Analytics Flow**: User interactions captured → Data processed for insights → Business dashboard updated with engagement metrics
+1. **Site Onboarding**: Clients upload floor plans → Gemini analyzes layout → System creates digital twin with spatial markers
+2. **Scene Configuration**: Operators place spatial data elements → System generates scene graph coordinates → Context is stored with positional metadata
+3. **Robot Arrival**: Robot authenticates with platform → Downloads digital twin data → Robot receives spatial context and navigation constraints
+4. **Analytics Flow**: Robot telemetry captured → Data processed for insights → Platform dashboard updated with deployment metrics
 
 ## External Dependencies
 
