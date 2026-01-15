@@ -2251,9 +2251,9 @@ export const InteractiveExperiencesConfigScreen = ({
         prompt = `${locationInfo} - I'm creating a fact or fiction interactive experience for customers that come in to have fun and increase industry knowledge - give me ${configData.questionCount} different fact or fiction questions on the industry along with the answer`;
       }
 
-      // Call Perplexity API
+      // Call content generation API
       const response = await fetch(
-        "https://api.perplexity.ai/chat/completions",
+        import.meta.env.VITE_CONTENT_GENERATION_API_URL,
         {
           method: "POST",
           headers: {
@@ -2279,11 +2279,11 @@ export const InteractiveExperiencesConfigScreen = ({
         },
       );
 
-      // In generateContent function, after Perplexity API call
+      // In generateContent function, after API call
       const data = await response.json();
-      console.log("Perplexity API response:", data);
+      console.log("Content API response:", data);
       const rawContent = data.choices[0].message.content;
-      console.log("Raw content from Perplexity:", rawContent);
+      console.log("Raw content from content API:", rawContent);
 
       // In formatContentWithGemini function, after Gemini API call
       const result = await model.generateContent(prompt);
