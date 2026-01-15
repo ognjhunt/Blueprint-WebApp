@@ -85,8 +85,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (storedRedirect) {
+        // Allow redirect to onboarding if user hasn't completed it
         const normalizedRedirect =
-          storedRedirect === "/onboarding" ? marketingDestination : storedRedirect;
+          storedRedirect === "/onboarding" && data?.onboardingStep === "completed"
+            ? marketingDestination
+            : storedRedirect;
         try {
           sessionStorage.removeItem("redirectAfterAuth");
         } catch (storageError) {
@@ -98,6 +101,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return normalizedRedirect;
       }
 
+      // If user just signed up (has onboardingStep set but not completed)
+      if (data?.onboardingStep && data.onboardingStep !== "completed") {
+        return "/onboarding";
+      }
+
+      // If user hasn't finished main onboarding flow
       if (data && data.finishedOnboarding !== true) {
         return marketingDestination;
       }
