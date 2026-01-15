@@ -234,12 +234,15 @@ app.use((req, res, next) => {
   const publicDir = path.resolve(process.cwd(), "dist", "public");
   const robotsPath = path.join(publicDir, "robots.txt");
   const sitemapPath = path.join(publicDir, "sitemap.xml");
+  const isProduction = process.env.NODE_ENV === "production";
 
   if (!fs.existsSync(robotsPath)) {
-    logger.warn(
-      { path: robotsPath },
-      "robots.txt is missing from dist/public. Falling back to allow-all response."
-    );
+    const message =
+      "robots.txt is missing from dist/public. Ensure client/public/robots.txt is deployed verbatim.";
+    if (isProduction) {
+      throw new Error(message);
+    }
+    logger.warn({ path: robotsPath }, message);
   }
 
   app.get("/robots.txt", (_req, res) => {
@@ -247,7 +250,7 @@ app.use((req, res, next) => {
       return res.sendFile(robotsPath);
     }
 
-    return res.type("text/plain").send("User-agent: *\nAllow: /\n");
+    return res.status(500).type("text/plain").send("robots.txt is missing.");
   });
 
   app.get("/sitemap.xml", (_req, res) => {
