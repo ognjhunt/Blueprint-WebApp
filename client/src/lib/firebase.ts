@@ -74,8 +74,12 @@ export const testFirestoreConnection = async (): Promise<boolean> => {
   }
 };
 
+const env =
+  typeof import.meta !== "undefined"
+    ? (import.meta as { env?: { DEV?: boolean; VITE_FIREBASE_DEBUG?: string } }).env
+    : undefined;
 const isFirestoreDebugEnabled =
-  import.meta.env.DEV || import.meta.env.VITE_FIREBASE_DEBUG === "true";
+  (env?.DEV ?? false) || env?.VITE_FIREBASE_DEBUG === "true";
 
 export const runFirestoreConnectionTestIfDebug = async (): Promise<boolean> => {
   if (!isFirestoreDebugEnabled) {
