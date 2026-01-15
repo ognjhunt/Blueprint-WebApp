@@ -20,6 +20,12 @@ Set the Firebase web config and Admin credentials in your deployment secrets bef
 
 These variables must be available in the build/runtime environment (Replit secrets, hosting console, or CI) so both the Vite build and Express routes can initialize Firebase.
 
+## Stripe configuration
+
+Stripe checkout and onboarding routes require the secret key at runtime:
+
+- `STRIPE_SECRET_KEY` (required; server startup fails fast if unset)
+
 ## Method 1: Pre-Deployment Script (Recommended)
 
 This method fixes the package.json file before deployment:

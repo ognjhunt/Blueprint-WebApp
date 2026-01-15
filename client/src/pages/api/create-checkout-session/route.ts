@@ -46,10 +46,15 @@ type CheckoutRequestBody = {
   };
 };
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "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";
-const stripe = stripeSecretKey
-  ? new Stripe(stripeSecretKey)
-  : null;
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
+
+function getStripeClient() {
+  if (!stripeSecretKey) {
+    throw new Error("STRIPE_SECRET_KEY environment variable is required");
+  }
+
+  return new Stripe(stripeSecretKey);
+}
 
 const configuredOrigins = (process.env.CHECKOUT_ALLOWED_ORIGINS || "")
   .split(",")
@@ -97,9 +102,7 @@ export default async function handler(req: Request, res: Response) {
   }
 
   try {
-    if (!stripe) {
-      throw new Error("STRIPE_SECRET_KEY environment variable is required");
-    }
+    const stripe = getStripeClient();
 
     const body = (req.body || {}) as CheckoutRequestBody;
     const sessionType: PaymentSessionType =

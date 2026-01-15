@@ -1,13 +1,12 @@
 import Stripe from "stripe";
 
-const STRIPE_SECRET_KEY =
-  process.env.STRIPE_SECRET_KEY?.trim() ||
-  process.env.STRIPE_LIVE_SECRET_KEY?.trim() ||
-  "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";
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY?.trim();
 
-export const stripeClient = STRIPE_SECRET_KEY
-  ? new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" })
-  : null;
+if (!STRIPE_SECRET_KEY) {
+  throw new Error("STRIPE_SECRET_KEY environment variable is required at startup.");
+}
+
+export const stripeClient = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" });
 
 export const STRIPE_CONNECT_ACCOUNT_ID =
   process.env.STRIPE_CONNECT_ACCOUNT_ID?.trim() || "acct_1OE1ptPrtLGHqzOG";
