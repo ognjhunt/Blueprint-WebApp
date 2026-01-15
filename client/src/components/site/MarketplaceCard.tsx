@@ -4,6 +4,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Shield, Package, Sparkles, TrendingUp, ShoppingCart, Loader2, Play, Layers, Database } from "lucide-react";
 import type { SyntheticDataset, MarketplaceScene, TrainingDataset } from "@/data/content";
 import { useLocation } from "wouter";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface MarketplaceCardProps {
   item: SyntheticDataset | MarketplaceScene | TrainingDataset;
@@ -14,6 +15,7 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [, navigate] = useLocation();
+  const { currentUser } = useAuth();
   const isDataset = type === "dataset";
   const isTraining = type === "training";
   const isScene = type === "scene";
@@ -136,9 +138,15 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
     [dataset, isDataset, isTraining, isRedirecting, scene, training, slug],
   );
 
-  const handleCardClick = () => {
-    navigate(`/marketplace/${slug}`);
-  };
+  const handleCardClick = useCallback(() => {
+    const targetPath = `/marketplace/${slug}`;
+    if (!currentUser) {
+      sessionStorage.setItem("redirectAfterAuth", targetPath);
+      navigate("/login");
+      return;
+    }
+    navigate(targetPath);
+  }, [currentUser, navigate, slug]);
 
   return (
     <article

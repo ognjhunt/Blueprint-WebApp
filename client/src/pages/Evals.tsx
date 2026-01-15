@@ -1,4 +1,5 @@
 import { SEO } from "@/components/SEO";
+import { useAuth } from "@/contexts/AuthContext";
 import { syntheticDatasets } from "@/data/content";
 import {
   ArrowRight,
@@ -22,6 +23,7 @@ import {
   Workflow,
   Zap,
 } from "lucide-react";
+import { useLocation } from "wouter";
 
 // --- Data ---
 
@@ -137,6 +139,18 @@ function DotPattern() {
 // --- Main Component ---
 
 export default function Evals() {
+  const { currentUser } = useAuth();
+  const [, navigate] = useLocation();
+
+  const handleBenchmarkClick = (targetPath: string) => {
+    if (!currentUser) {
+      sessionStorage.setItem("redirectAfterAuth", targetPath);
+      navigate("/login");
+      return;
+    }
+    navigate(targetPath);
+  };
+
   return (
     <>
       <SEO
@@ -722,10 +736,11 @@ export default function Evals() {
 
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {syntheticDatasets.map((benchmark) => (
-                  <a
+                  <button
                     key={benchmark.slug}
-                    href={`/benchmarks/${benchmark.slug}`}
-                    className="group rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:border-emerald-200"
+                    type="button"
+                    onClick={() => handleBenchmarkClick(`/benchmarks/${benchmark.slug}`)}
+                    className="group rounded-2xl border border-zinc-200 bg-white p-6 text-left shadow-sm transition-all hover:shadow-md hover:border-emerald-200"
                   >
                     <div className="aspect-video overflow-hidden rounded-xl mb-4">
                       <img
@@ -756,7 +771,7 @@ export default function Evals() {
                         <span>{benchmark.variationCount?.toLocaleString()} variations</span>
                       </div>
                     </div>
-                  </a>
+                  </button>
                 ))}
               </div>
 

@@ -1,15 +1,31 @@
 import { InteractionBadges } from "./InteractionBadges";
 import type { Scene } from "@/data/content";
+import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "wouter";
 
 interface SceneCardProps {
   scene: Scene;
 }
 
 export function SceneCard({ scene }: SceneCardProps) {
+  const { currentUser } = useAuth();
+  const [, navigate] = useLocation();
+
+  const handleCardClick = () => {
+    const targetPath = `/marketplace/${scene.slug}`;
+    if (!currentUser) {
+      sessionStorage.setItem("redirectAfterAuth", targetPath);
+      navigate("/login");
+      return;
+    }
+    navigate(targetPath);
+  };
+
   return (
-    <a
-      href={`/marketplace/${scene.slug}`}
-      className="group flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white transition hover:-translate-y-1 hover:shadow-lg"
+    <button
+      type="button"
+      onClick={handleCardClick}
+      className="group flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white text-left transition hover:-translate-y-1 hover:shadow-lg"
     >
       <div className="aspect-[4/3] overflow-hidden bg-slate-100">
         <img
@@ -37,6 +53,6 @@ export function SceneCard({ scene }: SceneCardProps) {
           </span>
         </div>
       </div>
-    </a>
+    </button>
   );
 }
