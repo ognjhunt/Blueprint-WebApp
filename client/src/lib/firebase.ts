@@ -127,7 +127,7 @@ export interface UserData {
   primaryNeeds?: ("training-data" | "labeling" | "rlhf" | "collection" | "marketplace" | "other")[];
   companySize?: "1-10" | "11-50" | "51-200" | "201-1000" | "1000+";
   projectDescription?: string;
-  expectedVolume?: "exploring" | "small" | "medium" | "large" | "enterprise";
+  budgetRange?: "<$50K" | "$50K-$300K" | "$300K-$1M" | ">$1M" | "Undecided/Unsure";
   referralSource?: "google" | "linkedin" | "twitter" | "referral" | "event" | "other";
 
   // Onboarding state
