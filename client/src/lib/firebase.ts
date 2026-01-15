@@ -207,9 +207,13 @@ export interface UserData {
     status?: string;
   }>;
   paymentMethods?: Array<{
+    id?: string;
+    cardholder?: string;
     brand?: string;
     last4?: string;
     expiryDate?: string;
+    isDefault?: boolean;
+    stripePaymentMethodId?: string;
   }>;
   teamRoles?: {
     count?: number;
@@ -301,6 +305,8 @@ export const createUserDocument = async (
         skillLevels: {},
         mostFrequentLocation: "",
         deviceTypes: [],
+        billingHistory: [],
+        paymentMethods: [],
       };
 
       console.log("[Firebase] Attempting setDoc for new user...");
@@ -344,6 +350,19 @@ export const getUserData = async (uid: string): Promise<UserData | null> => {
       code: (error as any)?.code,
       message: (error as any)?.message,
     });
+    throw error;
+  }
+};
+
+export const updateUserBillingDetails = async (
+  uid: string,
+  updates: Pick<UserData, "paymentMethods" | "billingHistory">,
+): Promise<void> => {
+  try {
+    const userRef = doc(db, "users", uid);
+    await updateDoc(userRef, updates);
+  } catch (error) {
+    console.error("[Firebase] Error updating billing details:", error);
     throw error;
   }
 };
