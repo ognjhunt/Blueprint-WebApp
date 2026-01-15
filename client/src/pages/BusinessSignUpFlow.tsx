@@ -4,7 +4,7 @@
 // 3-step flow:
 // Step 1: Account Basics (organization name, email, password, OAuth)
 // Step 2: Business Context (name, title, phone, primary need, company size)
-// Step 3: Project Details (description, volume, referral source)
+// Step 3: Project Details (description, budget, referral source)
 
 "use client";
 
@@ -72,13 +72,13 @@ const COMPANY_SIZE_OPTIONS = [
   { value: "1000+", label: "1000+" },
 ] as const;
 
-// Expected volume options
-const EXPECTED_VOLUME_OPTIONS = [
-  { value: "exploring", label: "Just exploring" },
-  { value: "small", label: "Small (< 1,000 annotations)" },
-  { value: "medium", label: "Medium (1K - 10K)" },
-  { value: "large", label: "Large (10K - 100K)" },
-  { value: "enterprise", label: "Enterprise (100K+)" },
+// Budget range options
+const BUDGET_RANGE_OPTIONS = [
+  "<$50K",
+  "$50K-$300K",
+  "$300K-$1M",
+  ">$1M",
+  "Undecided/Unsure",
 ] as const;
 
 // Referral source options
@@ -93,7 +93,7 @@ const REFERRAL_SOURCE_OPTIONS = [
 
 type PrimaryNeed = typeof PRIMARY_NEED_OPTIONS[number]["value"];
 type CompanySize = typeof COMPANY_SIZE_OPTIONS[number]["value"];
-type ExpectedVolume = typeof EXPECTED_VOLUME_OPTIONS[number]["value"];
+type BudgetRange = typeof BUDGET_RANGE_OPTIONS[number];
 type ReferralSource = typeof REFERRAL_SOURCE_OPTIONS[number]["value"];
 
 // Step indicator component
@@ -170,7 +170,7 @@ export default function BusinessSignUpFlow() {
 
   // Step 3: Project Details
   const [projectDescription, setProjectDescription] = useState("");
-  const [expectedVolume, setExpectedVolume] = useState<ExpectedVolume | "">("");
+  const [budgetRange, setBudgetRange] = useState<BudgetRange | "">("");
   const [referralSource, setReferralSource] = useState<ReferralSource | "">("");
 
   // Step validations
@@ -187,7 +187,7 @@ export default function BusinessSignUpFlow() {
     companySize !== "";
 
   const step3Valid =
-    expectedVolume !== "" &&
+    budgetRange !== "" &&
     referralSource !== "";
 
   const handleNext = useCallback(() => {
@@ -259,8 +259,8 @@ export default function BusinessSignUpFlow() {
 
   const handleSubmit = useCallback(async () => {
     if (!step3Valid) {
-      if (!expectedVolume) {
-        setErrorMessage("Please select your expected volume.");
+      if (!budgetRange) {
+        setErrorMessage("Please select your project budget.");
       } else if (!referralSource) {
         setErrorMessage("Please tell us how you heard about us.");
       }
@@ -362,7 +362,7 @@ export default function BusinessSignUpFlow() {
         primaryNeeds: primaryNeeds as PrimaryNeed[],
         companySize: companySize as CompanySize,
         projectDescription: projectDescription || undefined,
-        expectedVolume: expectedVolume as ExpectedVolume,
+        budgetRange: budgetRange as BudgetRange,
         referralSource: referralSource as ReferralSource,
 
         // Onboarding state
@@ -400,7 +400,7 @@ export default function BusinessSignUpFlow() {
     }
   }, [
     step3Valid,
-    expectedVolume,
+    budgetRange,
     referralSource,
     email,
     password,
@@ -821,22 +821,22 @@ export default function BusinessSignUpFlow() {
                       </p>
                     </div>
 
-                    {/* Expected Volume */}
+                    {/* Project Budget */}
                     <div>
-                      <Label htmlFor="expectedVolume" className="text-sm font-medium text-zinc-700">
-                        Expected monthly volume <span className="text-red-500">*</span>
+                      <Label htmlFor="budgetRange" className="text-sm font-medium text-zinc-700">
+                        Project budget <span className="text-red-500">*</span>
                       </Label>
-                      <Select value={expectedVolume} onValueChange={(v) => setExpectedVolume(v as ExpectedVolume)}>
+                      <Select value={budgetRange} onValueChange={(v) => setBudgetRange(v as BudgetRange)}>
                         <SelectTrigger className="mt-1">
                           <div className="flex items-center gap-2">
                             <BarChart3 className="h-4 w-4 text-zinc-400" />
-                            <SelectValue placeholder="Select expected volume" />
+                            <SelectValue placeholder="Select project budget" />
                           </div>
                         </SelectTrigger>
                         <SelectContent>
-                          {EXPECTED_VOLUME_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
+                          {BUDGET_RANGE_OPTIONS.map((option) => (
+                            <SelectItem key={option} value={option}>
+                              {option}
                             </SelectItem>
                           ))}
                         </SelectContent>
