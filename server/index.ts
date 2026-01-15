@@ -1,4 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
+import fs from "fs";
+import path from "path";
 import { createServer } from "http";
 import rateLimit from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
@@ -227,6 +229,33 @@ app.use((req, res, next) => {
       },
       "Unhandled application error",
     );
+  });
+
+  const publicDir = path.resolve(process.cwd(), "dist", "public");
+  const robotsPath = path.join(publicDir, "robots.txt");
+  const sitemapPath = path.join(publicDir, "sitemap.xml");
+
+  if (!fs.existsSync(robotsPath)) {
+    logger.warn(
+      { path: robotsPath },
+      "robots.txt is missing from dist/public. Falling back to allow-all response."
+    );
+  }
+
+  app.get("/robots.txt", (_req, res) => {
+    if (fs.existsSync(robotsPath)) {
+      return res.sendFile(robotsPath);
+    }
+
+    return res.type("text/plain").send("User-agent: *\nAllow: /\n");
+  });
+
+  app.get("/sitemap.xml", (_req, res) => {
+    if (fs.existsSync(sitemapPath)) {
+      return res.sendFile(sitemapPath);
+    }
+
+    return res.sendStatus(404);
   });
 
   if (app.get("env") === "development") {
