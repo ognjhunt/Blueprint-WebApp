@@ -282,15 +282,6 @@ export default function Nav({
                       Log in
                     </Button>
                   </Link>
-                  <Link
-                    href="/login"
-                    className="w-full"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    <Button className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-900 font-semibold hover:opacity-90">
-                      Sign Up
-                    </Button>
-                  </Link>
                 </>
               ) : (
                 <>
@@ -412,16 +403,11 @@ InviteTeamButtonInternal.displayName = "InviteTeamButtonInternal";
 const SignInButtonInternal = memo(() => (
   <div className="flex items-center gap-3">
     <Link href="/login">
-      <Button 
+      <Button
         variant="outline"
         className="rounded-full border-2 border-slate-300 text-slate-900 bg-white hover:bg-slate-50 font-semibold px-8 py-2.5"
       >
         Log in
-      </Button>
-    </Link>
-    <Link href="/login">
-      <Button className="rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-900 font-semibold hover:opacity-90 px-8 py-2.5">
-        Sign up
       </Button>
     </Link>
   </div>
