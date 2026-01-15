@@ -1,29 +1,31 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, waitFor } from "@testing-library/react";
-import ProtectedRoute from "@/components/ProtectedRoute";
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
-const setLocation = vi.fn();
+const useAuthMock = vi.hoisted(() => vi.fn());
+const setLocationMock = vi.hoisted(() => vi.fn());
 
-vi.mock("wouter", () => ({
-  useLocation: () => ["/marketplace", setLocation],
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => useAuthMock(),
 }));
 
-vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({
-    currentUser: null,
-    userData: null,
-    loading: false,
-  }),
+vi.mock('wouter', () => ({
+  useLocation: () => ['/', setLocationMock],
 }));
 
-describe("ProtectedRoute", () => {
+describe('ProtectedRoute', () => {
   beforeEach(() => {
-    setLocation.mockClear();
     sessionStorage.clear();
-    window.history.pushState({}, "", "/marketplace?test=true");
+    setLocationMock.mockClear();
   });
 
-  it("redirects unauthenticated users to /login even with test query params", async () => {
+  it('redirects unauthenticated users to login and stores redirect path', async () => {
+    useAuthMock.mockReturnValue({
+      currentUser: null,
+      userData: null,
+      loading: false,
+    });
+
     render(
       <ProtectedRoute>
         <div>Protected Content</div>
@@ -31,7 +33,27 @@ describe("ProtectedRoute", () => {
     );
 
     await waitFor(() => {
-      expect(setLocation).toHaveBeenCalledWith("/login");
+      expect(setLocationMock).toHaveBeenCalledWith('/login');
     });
+
+    expect(sessionStorage.getItem('redirectAfterAuth')).toBe('/');
+  });
+
+  it('renders children when the user is authenticated', async () => {
+    useAuthMock.mockReturnValue({
+      currentUser: { uid: 'user-1' },
+      userData: { name: 'Test User' },
+      loading: false,
+    });
+
+    render(
+      <ProtectedRoute>
+        <div>Protected Content</div>
+      </ProtectedRoute>,
+    );
+
+    expect(
+      await screen.findByText('Protected Content'),
+    ).toBeInTheDocument();
   });
 });

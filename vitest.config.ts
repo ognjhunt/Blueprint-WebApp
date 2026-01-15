@@ -12,6 +12,17 @@ export default defineConfig({
     environment: 'happy-dom',
     setupFiles: './client/tests/setup.ts',
     css: true,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      reportsDirectory: './coverage',
+      thresholds: {
+        lines: 60,
+        functions: 60,
+        statements: 60,
+        branches: 50,
+      },
+    },
   },
   resolve: {
     alias: {

@@ -1,36 +1,40 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
-// Import the actual Nav component and the getInitials function
-import Nav, { getInitials as getInitialsInternal } from '@/components/Nav'; // Assuming getInitials is exported or accessible
+import Nav from '@/components/Nav';
 
-// Mock dependencies used by Nav component
+const setLocationMock = vi.hoisted(() => vi.fn());
+const toastMock = vi.hoisted(() => vi.fn());
+const logoutMock = vi.hoisted(() => vi.fn().mockResolvedValue(null));
+const useAuthMock = vi.hoisted(() => vi.fn());
+
 vi.mock('@/hooks/use-toast', () => ({
-  useToast: () => ({ toast: vi.fn() }),
+  useToast: () => ({ toast: toastMock }),
 }));
 
 vi.mock('@/contexts/AuthContext', () => ({
-  useAuth: () => ({
-    currentUser: null, // Default mock, can be overridden in tests
-    userData: null,    // Default mock
-    logout: vi.fn().mockResolvedValue(null),
-  }),
+  useAuth: () => useAuthMock(),
 }));
 
-// Mock wouter hooks
 vi.mock('wouter', () => ({
-  useLocation: () => ['/', vi.fn()], // Mock location and navigation function
-  useRoute: () => [false, null],    // Default to not matching any specific route like /blueprint-editor
-  Link: ({ children, href }) => <a href={href}>{children}</a>, // Simple mock for Link
+  useLocation: () => ['/', setLocationMock],
+  useRoute: () => [false, null],
+  Link: ({ children, href }) => <a href={href}>{children}</a>,
 }));
 
+vi.mock('@/components/ui/dropdown-menu', () => ({
+  DropdownMenu: ({ children }) => <div>{children}</div>,
+  DropdownMenuTrigger: ({ children }) => <div>{children}</div>,
+  DropdownMenuContent: ({ children }) => <div>{children}</div>,
+  DropdownMenuItem: ({ children, onClick }) => (
+    <button type="button" onClick={onClick}>
+      {children}
+    </button>
+  ),
+  DropdownMenuLabel: ({ children }) => <div>{children}</div>,
+  DropdownMenuSeparator: () => <div />,
+}));
 
-// If getInitials is not directly exported, copy its logic here for testing
-// For this exercise, we'll assume it's exported or we test it via component rendering if needed.
-// If it was a named export from Nav.jsx:
-// import { getInitials } from '@/components/Nav';
-
-// If getInitials is NOT exported, we copy the function here for unit testing:
 const getInitials = (name) => {
   if (!name) return "";
   return name
@@ -42,14 +46,19 @@ const getInitials = (name) => {
     .toUpperCase();
 };
 
-
 describe('Nav Component', () => {
-  // Placeholder for Nav component rendering tests
-  it('should render login/signup buttons if no currentUser', () => {
-    render(<Nav />);
-    expect(screen.getByText('Sign In')).toBeInTheDocument();
+  beforeEach(() => {
+    useAuthMock.mockReturnValue({
+      currentUser: null,
+      userData: null,
+      logout: logoutMock,
+    });
   });
-  // Add more Nav component specific tests here later if needed
+
+  it('renders login button when no currentUser', () => {
+    render(<Nav />);
+    expect(screen.getByRole('button', { name: /Log in/i })).toBeInTheDocument();
+  });
 
   describe('getInitials() utility function', () => {
     it('should return correct initials for a two-word name', () => {
@@ -61,9 +70,10 @@ describe('Nav Component', () => {
     });
 
     it('should return correct initials for a multi-word name (more than two)', () => {
-      expect(getInitials('Mary Ann Jones')).toBe('MA'); // Only first two
+      expect(getInitials('Mary Ann Jones')).toBe('MA');
     });
-     it('should return correct initials for names with leading/trailing spaces', () => {
+
+    it('should return correct initials for names with leading/trailing spaces', () => {
       expect(getInitials('  John Doe  ')).toBe('JD');
     });
 
@@ -77,35 +87,48 @@ describe('Nav Component', () => {
       expect(getInitials('John   Doe')).toBe('JD');
     });
 
-     it('should handle names with only spaces', () => {
+    it('should handle names with only spaces', () => {
       expect(getInitials('   ')).toBe('');
     });
   });
 
-
-  describe('handleSignOut()', () => {
-    it('should call logout, show toast, and navigate to home on sign out', () => {
-      // Placeholder
-      expect(true).toBe(true);
+  it('calls logout and navigates home on sign out', () => {
+    useAuthMock.mockReturnValue({
+      currentUser: { displayName: 'Jane Doe', email: 'jane@example.com' },
+      userData: { name: 'Jane Doe' },
+      logout: logoutMock,
     });
+
+    render(<Nav />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Sign out/i }));
+
+    expect(logoutMock).toHaveBeenCalled();
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Signed Out' }),
+    );
+    expect(setLocationMock).toHaveBeenCalledWith('/');
   });
 
-  describe('Conditional rendering based on currentUser', () => {
-    it('should show login/signup buttons if no currentUser', () => {
-      // Placeholder
-      expect(true).toBe(true);
+  it('shows the user menu when a currentUser exists', () => {
+    useAuthMock.mockReturnValue({
+      currentUser: { displayName: 'Jane Doe', email: 'jane@example.com' },
+      userData: { name: 'Jane Doe' },
+      logout: logoutMock,
     });
 
-    it('should show user avatar and logout button if currentUser exists', () => {
-      // Placeholder
-      expect(true).toBe(true);
-    });
+    render(<Nav />);
+
+    expect(screen.getByLabelText('User menu')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Log in/i })).toBeNull();
   });
 
-  describe('Mobile menu toggle', () => {
-    it('should toggle mobile menu visibility on button click', () => {
-      // Placeholder
-      expect(true).toBe(true);
-    });
+  it('toggles the mobile menu visibility', () => {
+    render(<Nav />);
+
+    const toggleButton = screen.getByRole('button', { name: /Open menu/i });
+    fireEvent.click(toggleButton);
+
+    expect(screen.getByText(/Why Simulation\?/i)).toBeInTheDocument();
   });
 });
