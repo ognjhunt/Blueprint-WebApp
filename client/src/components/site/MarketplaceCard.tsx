@@ -47,6 +47,7 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
   const description = item.description;
   const thumbnail = isDataset ? dataset!.heroImage : isTraining ? training!.heroImage : scene!.thumbnail;
   const tags = item.tags;
+  const exclusiveDatasetUrl = `/contact?interest=exclusive-dataset&product=${encodeURIComponent(slug)}`;
 
   const handleCheckout = useCallback(
     async (event?: MouseEvent<HTMLButtonElement>) => {
@@ -454,6 +455,26 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
             </>
           )}
         </button>
+        {(isDataset || isTraining) && (
+          <a
+            href={exclusiveDatasetUrl}
+            onClick={(event) => event.stopPropagation()}
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-xs font-semibold text-zinc-900 transition hover:bg-zinc-100"
+          >
+            Request Exclusive Dataset
+            <ChevronRight className="h-3.5 w-3.5" />
+          </a>
+        )}
+        {isScene && (
+          <a
+            href={exclusiveDatasetUrl}
+            onClick={(event) => event.stopPropagation()}
+            className="mt-3 inline-flex items-center justify-center gap-1 text-[11px] font-semibold text-zinc-500 hover:text-zinc-700 transition-colors"
+          >
+            Request Exclusive Dataset
+            <ChevronRight className="h-3 w-3" />
+          </a>
+        )}
       </div>
     </article>
   );

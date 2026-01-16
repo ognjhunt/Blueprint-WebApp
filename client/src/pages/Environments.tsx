@@ -811,34 +811,44 @@ export default function Environments() {
         <section className="rounded-3xl border border-zinc-200 bg-white/80 shadow-sm backdrop-blur-xl">
           <div className="border-b border-zinc-100 p-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              {/* Search */}
-              <div className="relative w-full md:max-w-sm">
-                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                <input
-                  type="search"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search name, policy, or object..."
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2.5 pl-10 pr-4 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
-                />
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-4 md:flex-1">
+                {/* Search */}
+                <div className="relative w-full md:max-w-sm">
+                  <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                  <input
+                    type="search"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Search name, policy, or object..."
+                    className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2.5 pl-10 pr-4 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                  />
+                </div>
+
+                {/* Sort Options */}
+                <div className="flex gap-1 rounded-lg border border-zinc-200 p-1">
+                  {sortOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => setSortOption(option.value)}
+                      className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                        sortOption === option.value
+                          ? "bg-zinc-900 text-white shadow-sm"
+                          : "text-zinc-600 hover:bg-zinc-100"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {/* Sort Options */}
-              <div className="flex gap-1 rounded-lg border border-zinc-200 p-1">
-                {sortOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => setSortOption(option.value)}
-                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                      sortOption === option.value
-                        ? "bg-zinc-900 text-white shadow-sm"
-                        : "text-zinc-600 hover:bg-zinc-100"
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+              <a
+                href="/contact?interest=exclusive-dataset"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-900 px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-600"
+              >
+                Request Exclusive Dataset
+                <ArrowRight className="h-3.5 w-3.5" />
+              </a>
             </div>
           </div>
 
