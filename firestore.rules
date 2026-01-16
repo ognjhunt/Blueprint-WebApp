@@ -5,6 +5,12 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isAdmin() {
+      return isAuthenticated() &&
+        (request.auth.token.admin == true ||
+         request.auth.token.email in ['ohstnhunt@gmail.com', 'ops@tryblueprint.io']);
+    }
+
     function isStringField(field) {
       return field is string;
     }
@@ -44,6 +50,25 @@ service cloud.firestore {
       allow create: if hasValidContactRequestPayload();
       allow read: if isAuthenticated();
       allow update, delete: if false;
+    }
+
+    // Inbound requests collection - lead pipeline
+    // Writes are only allowed via server-side (Admin SDK)
+    // Reads are restricted to admin users
+    match /inboundRequests/{requestId} {
+      allow read: if isAdmin();
+      allow write: if false; // Server-side only via Admin SDK
+
+      // Notes subcollection
+      match /notes/{noteId} {
+        allow read: if isAdmin();
+        allow write: if false; // Server-side only via Admin SDK
+      }
+    }
+
+    // Lead routing configuration - admin only
+    match /leadRoutingConfig/{ruleId} {
+      allow read, write: if isAdmin();
     }
 
     match /waitlistTokens/{id} {

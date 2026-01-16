@@ -19,6 +19,8 @@ import applyHandler from "./routes/apply";
 import healthRouter from "./routes/health";
 import errorsRouter from "./routes/errors";
 import siteContentRouter from "./routes/site-content";
+import inboundRequestRouter from "./routes/inbound-request";
+import adminLeadsRouter from "./routes/admin-leads";
 import verifyFirebaseToken from "./middleware/verifyFirebaseToken";
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
 
@@ -59,6 +61,15 @@ export function registerRoutes(app: Express) {
   app.post("/api/contact", csrfProtection, contactHandler);
   app.post("/api/waitlist", csrfProtection, waitlistHandler);
   app.post("/api/apply", csrfProtection, applyHandler);
+  // Inbound request (lead pipeline) - public submission endpoint
+  app.use("/api/inbound-request", csrfProtection, inboundRequestRouter);
+  // Admin leads management - requires Firebase auth
+  app.use(
+    "/api/admin/leads",
+    csrfProtection,
+    verifyFirebaseToken,
+    adminLeadsRouter,
+  );
   // app.post("/api/mapping-confirmation", processMappingConfirmationHandler); // Commented out - handler is not exported
   app.post(
     "/api/demo-day-confirmation",

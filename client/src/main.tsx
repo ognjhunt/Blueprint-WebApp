@@ -37,6 +37,7 @@ const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Settings = lazy(() => import("./pages/Settings"));
+const AdminLeads = lazy(() => import("./pages/AdminLeads"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const withLayout = <P extends object>(Component: React.ComponentType<P>) =>
@@ -108,6 +109,9 @@ function Router() {
         <Route path="/privacy" component={withLayout(Privacy)} />
         <Route path="/terms" component={withLayout(Terms)} />
         <Route path="/settings" component={withLayout(Settings)} />
+        {/* Admin routes */}
+        <Route path="/admin/leads" component={withProtectedLayout(AdminLeads)} />
+        <Route path="/admin/leads/:requestId" component={withProtectedLayout(AdminLeads)} />
         <Route component={withLayout(NotFound)} />
       </Switch>
     </Suspense>
