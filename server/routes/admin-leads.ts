@@ -1,0 +1,561 @@
+import { Request, Response, Router } from "express";
+import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { logger } from "../logger";
+import type {
+  InboundRequest,
+  RequestStatus,
+  InboundRequestListItem,
+  RequestNote,
+  UpdateRequestStatusPayload,
+  AssignRequestOwnerPayload,
+  AddRequestNotePayload,
+} from "../types/inbound-request";
+
+const router = Router();
+
+// Admin email allowlist (in production, use Firebase Custom Claims)
+const ADMIN_EMAILS = [
+  "ohstnhunt@gmail.com",
+  "ops@tryblueprint.io",
+];
+
+/**
+ * Middleware to check if user is admin
+ */
+async function requireAdmin(req: Request, res: Response, next: () => void) {
+  const user = (req as any).user;
+
+  if (!user) {
+    return res.status(401).json({ error: "Authentication required" });
+  }
+
+  // Check if user email is in admin list
+  if (!ADMIN_EMAILS.includes(user.email || "")) {
+    // Also check for admin custom claim
+    if (!user.admin) {
+      logger.warn(
+        { email: user.email },
+        "Non-admin user attempted to access admin routes"
+      );
+      return res.status(403).json({ error: "Admin access required" });
+    }
+  }
+
+  next();
+}
+
+/**
+ * GET /api/admin/leads
+ * List all inbound requests with pagination and filtering
+ */
+router.get("/", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: "Database not available" });
+    }
+
+    const {
+      status,
+      priority,
+      limit = "50",
+      startAfter,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+    } = req.query;
+
+    let query = db.collection("inboundRequests") as FirebaseFirestore.Query;
+
+    // Apply filters
+    if (status && typeof status === "string") {
+      query = query.where("status", "==", status);
+    }
+
+    if (priority && typeof priority === "string") {
+      query = query.where("priority", "==", priority);
+    }
+
+    // Apply sorting
+    const validSortFields = ["createdAt", "priority", "status"];
+    const sortField = validSortFields.includes(sortBy as string)
+      ? (sortBy as string)
+      : "createdAt";
+    const order = sortOrder === "asc" ? "asc" : "desc";
+    query = query.orderBy(sortField, order);
+
+    // Apply pagination
+    const limitNum = Math.min(parseInt(limit as string) || 50, 100);
+
+    if (startAfter && typeof startAfter === "string") {
+      const startDoc = await db
+        .collection("inboundRequests")
+        .doc(startAfter)
+        .get();
+      if (startDoc.exists) {
+        query = query.startAfter(startDoc);
+      }
+    }
+
+    query = query.limit(limitNum);
+
+    const snapshot = await query.get();
+
+    const leads: InboundRequestListItem[] = snapshot.docs.map((doc) => {
+      const data = doc.data() as InboundRequest;
+      return {
+        requestId: data.requestId,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || "",
+        status: data.status,
+        priority: data.priority,
+        contact: {
+          firstName: data.contact.firstName,
+          lastName: data.contact.lastName,
+          email: data.contact.email,
+          company: data.contact.company,
+        },
+        request: {
+          budgetBucket: data.request.budgetBucket,
+          helpWith: data.request.helpWith,
+        },
+        owner: data.owner,
+      };
+    });
+
+    // Get total count for pagination info
+    const countQuery = db.collection("inboundRequests");
+    const countSnapshot = await countQuery.count().get();
+    const totalCount = countSnapshot.data().count;
+
+    return res.json({
+      leads,
+      pagination: {
+        total: totalCount,
+        limit: limitNum,
+        hasMore: leads.length === limitNum,
+        lastId: leads.length > 0 ? leads[leads.length - 1].requestId : null,
+      },
+    });
+  } catch (error) {
+    logger.error({ error }, "Error fetching leads");
+    return res.status(500).json({ error: "Failed to fetch leads" });
+  }
+});
+
+/**
+ * GET /api/admin/leads/:requestId
+ * Get full details for a specific request
+ */
+router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: "Database not available" });
+    }
+
+    const { requestId } = req.params;
+    const doc = await db.collection("inboundRequests").doc(requestId).get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ error: "Request not found" });
+    }
+
+    const data = doc.data() as InboundRequest;
+
+    // Get notes subcollection
+    const notesSnapshot = await db
+      .collection("inboundRequests")
+      .doc(requestId)
+      .collection("notes")
+      .orderBy("createdAt", "desc")
+      .get();
+
+    const notes = notesSnapshot.docs.map((noteDoc) => {
+      const noteData = noteDoc.data();
+      return {
+        id: noteDoc.id,
+        content: noteData.content,
+        authorUid: noteData.authorUid,
+        authorEmail: noteData.authorEmail,
+        createdAt: noteData.createdAt?.toDate?.()?.toISOString() || "",
+      };
+    });
+
+    return res.json({
+      requestId: data.requestId,
+      createdAt: data.createdAt?.toDate?.()?.toISOString() || "",
+      status: data.status,
+      priority: data.priority,
+      contact: {
+        firstName: data.contact.firstName,
+        lastName: data.contact.lastName,
+        email: data.contact.email,
+        company: data.contact.company,
+        roleTitle: data.contact.roleTitle,
+      },
+      request: {
+        budgetBucket: data.request.budgetBucket,
+        helpWith: data.request.helpWith,
+        details: data.request.details,
+      },
+      owner: data.owner,
+      context: {
+        sourcePageUrl: data.context.sourcePageUrl,
+        referrer: data.context.referrer,
+        utm: data.context.utm,
+      },
+      enrichment: data.enrichment,
+      events: {
+        confirmationEmailSentAt:
+          data.events.confirmationEmailSentAt?.toDate?.()?.toISOString() || null,
+        slackNotifiedAt:
+          data.events.slackNotifiedAt?.toDate?.()?.toISOString() || null,
+        crmSyncedAt:
+          data.events.crmSyncedAt?.toDate?.()?.toISOString() || null,
+      },
+      notes,
+    });
+  } catch (error) {
+    logger.error({ error, requestId: req.params.requestId }, "Error fetching lead detail");
+    return res.status(500).json({ error: "Failed to fetch lead details" });
+  }
+});
+
+/**
+ * PATCH /api/admin/leads/:requestId/status
+ * Update the status of a request
+ */
+router.patch(
+  "/:requestId/status",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      if (!db) {
+        return res.status(500).json({ error: "Database not available" });
+      }
+
+      const { requestId } = req.params;
+      const { status, note } = req.body as UpdateRequestStatusPayload;
+      const user = (req as any).user;
+
+      const validStatuses: RequestStatus[] = [
+        "new",
+        "triaging",
+        "scheduled",
+        "qualified",
+        "disqualified",
+        "closed",
+      ];
+
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: "Invalid status" });
+      }
+
+      const docRef = db.collection("inboundRequests").doc(requestId);
+      const doc = await docRef.get();
+
+      if (!doc.exists) {
+        return res.status(404).json({ error: "Request not found" });
+      }
+
+      // Update status
+      await docRef.update({
+        status,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Add note if provided
+      if (note && note.trim()) {
+        await docRef.collection("notes").add({
+          content: `Status changed to "${status}": ${note.trim()}`,
+          authorUid: user.uid || null,
+          authorEmail: user.email || null,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+
+      logger.info({ requestId, status, by: user.email }, "Lead status updated");
+
+      return res.json({ ok: true, status });
+    } catch (error) {
+      logger.error(
+        { error, requestId: req.params.requestId },
+        "Error updating lead status"
+      );
+      return res.status(500).json({ error: "Failed to update status" });
+    }
+  }
+);
+
+/**
+ * PATCH /api/admin/leads/:requestId/owner
+ * Assign an owner to a request
+ */
+router.patch(
+  "/:requestId/owner",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      if (!db) {
+        return res.status(500).json({ error: "Database not available" });
+      }
+
+      const { requestId } = req.params;
+      const { owner } = req.body as AssignRequestOwnerPayload;
+      const user = (req as any).user;
+
+      const docRef = db.collection("inboundRequests").doc(requestId);
+      const doc = await docRef.get();
+
+      if (!doc.exists) {
+        return res.status(404).json({ error: "Request not found" });
+      }
+
+      await docRef.update({
+        owner: {
+          uid: owner.uid || null,
+          email: owner.email || null,
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Add note about assignment
+      await docRef.collection("notes").add({
+        content: `Owner assigned: ${owner.email || owner.uid || "Unassigned"}`,
+        authorUid: user.uid || null,
+        authorEmail: user.email || null,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      logger.info(
+        { requestId, owner, by: user.email },
+        "Lead owner assigned"
+      );
+
+      return res.json({ ok: true, owner });
+    } catch (error) {
+      logger.error(
+        { error, requestId: req.params.requestId },
+        "Error assigning lead owner"
+      );
+      return res.status(500).json({ error: "Failed to assign owner" });
+    }
+  }
+);
+
+/**
+ * POST /api/admin/leads/:requestId/notes
+ * Add a note to a request
+ */
+router.post(
+  "/:requestId/notes",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      if (!db) {
+        return res.status(500).json({ error: "Database not available" });
+      }
+
+      const { requestId } = req.params;
+      const { content } = req.body as AddRequestNotePayload;
+      const user = (req as any).user;
+
+      if (!content || !content.trim()) {
+        return res.status(400).json({ error: "Note content is required" });
+      }
+
+      const docRef = db.collection("inboundRequests").doc(requestId);
+      const doc = await docRef.get();
+
+      if (!doc.exists) {
+        return res.status(404).json({ error: "Request not found" });
+      }
+
+      const noteRef = await docRef.collection("notes").add({
+        content: content.trim(),
+        authorUid: user.uid || null,
+        authorEmail: user.email || null,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      logger.info({ requestId, noteId: noteRef.id, by: user.email }, "Note added to lead");
+
+      return res.json({
+        ok: true,
+        note: {
+          id: noteRef.id,
+          content: content.trim(),
+          authorUid: user.uid || null,
+          authorEmail: user.email || null,
+          createdAt: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      logger.error(
+        { error, requestId: req.params.requestId },
+        "Error adding note"
+      );
+      return res.status(500).json({ error: "Failed to add note" });
+    }
+  }
+);
+
+/**
+ * GET /api/admin/leads/stats
+ * Get summary statistics for the dashboard
+ */
+router.get("/stats/summary", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: "Database not available" });
+    }
+
+    // Get counts by status
+    const statusCounts: Record<string, number> = {
+      new: 0,
+      triaging: 0,
+      scheduled: 0,
+      qualified: 0,
+      disqualified: 0,
+      closed: 0,
+    };
+
+    const statusPromises = Object.keys(statusCounts).map(async (status) => {
+      const snapshot = await db
+        .collection("inboundRequests")
+        .where("status", "==", status)
+        .count()
+        .get();
+      statusCounts[status] = snapshot.data().count;
+    });
+
+    await Promise.all(statusPromises);
+
+    // Get counts by priority
+    const priorityCounts: Record<string, number> = {
+      high: 0,
+      normal: 0,
+      low: 0,
+    };
+
+    const priorityPromises = Object.keys(priorityCounts).map(async (priority) => {
+      const snapshot = await db
+        .collection("inboundRequests")
+        .where("priority", "==", priority)
+        .count()
+        .get();
+      priorityCounts[priority] = snapshot.data().count;
+    });
+
+    await Promise.all(priorityPromises);
+
+    // Get new leads from last 24 hours
+    const oneDayAgo = new Date();
+    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+
+    const recentSnapshot = await db
+      .collection("inboundRequests")
+      .where("createdAt", ">=", oneDayAgo)
+      .count()
+      .get();
+    const newLast24h = recentSnapshot.data().count;
+
+    // Get total count
+    const totalSnapshot = await db.collection("inboundRequests").count().get();
+    const total = totalSnapshot.data().count;
+
+    return res.json({
+      total,
+      newLast24h,
+      byStatus: statusCounts,
+      byPriority: priorityCounts,
+    });
+  } catch (error) {
+    logger.error({ error }, "Error fetching lead stats");
+    return res.status(500).json({ error: "Failed to fetch stats" });
+  }
+});
+
+/**
+ * GET /api/admin/leads/export
+ * Export leads as CSV
+ */
+router.get("/export/csv", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: "Database not available" });
+    }
+
+    const { status, startDate, endDate } = req.query;
+
+    let query = db.collection("inboundRequests") as FirebaseFirestore.Query;
+
+    if (status && typeof status === "string") {
+      query = query.where("status", "==", status);
+    }
+
+    if (startDate && typeof startDate === "string") {
+      query = query.where("createdAt", ">=", new Date(startDate));
+    }
+
+    if (endDate && typeof endDate === "string") {
+      query = query.where("createdAt", "<=", new Date(endDate));
+    }
+
+    query = query.orderBy("createdAt", "desc");
+
+    const snapshot = await query.get();
+
+    // Build CSV
+    const headers = [
+      "Request ID",
+      "Created At",
+      "Status",
+      "Priority",
+      "First Name",
+      "Last Name",
+      "Email",
+      "Company",
+      "Role",
+      "Budget",
+      "Products",
+      "Details",
+      "Source URL",
+      "Owner Email",
+    ];
+
+    const rows = snapshot.docs.map((doc) => {
+      const data = doc.data() as InboundRequest;
+      return [
+        data.requestId,
+        data.createdAt?.toDate?.()?.toISOString() || "",
+        data.status,
+        data.priority,
+        data.contact.firstName,
+        data.contact.lastName,
+        data.contact.email,
+        data.contact.company,
+        data.contact.roleTitle,
+        data.request.budgetBucket,
+        data.request.helpWith.join("; "),
+        (data.request.details || "").replace(/"/g, '""'),
+        data.context.sourcePageUrl,
+        data.owner.email || "",
+      ].map((val) => `"${val}"`);
+    });
+
+    const csv = [headers.join(","), ...rows.map((row) => row.join(","))].join(
+      "\n"
+    );
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="leads-export-${new Date().toISOString().split("T")[0]}.csv"`
+    );
+
+    return res.send(csv);
+  } catch (error) {
+    logger.error({ error }, "Error exporting leads");
+    return res.status(500).json({ error: "Failed to export leads" });
+  }
+});
+
+export default router;
