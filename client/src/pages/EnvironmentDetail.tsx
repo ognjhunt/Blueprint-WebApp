@@ -314,6 +314,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     const bundlePrice = marketplaceScene!.bundlePrice || marketplaceScene!.price;
     const sceneOnlyPrice = marketplaceScene!.sceneOnlyPrice || Math.round(marketplaceScene!.price * 0.45);
     const episodesOnlyPrice = marketplaceScene!.episodesOnlyPrice || Math.round(marketplaceScene!.price * 0.65);
+    const exclusiveDatasetUrl = `/contact?interest=exclusive-dataset&product=${encodeURIComponent(marketplaceItem.slug)}`;
 
     // Calculate savings for bundle
     const separateTotal = sceneOnlyPrice + episodesOnlyPrice;
@@ -733,6 +734,13 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                   ? "Redirecting..."
                   : `Buy Now — $${totalPrice?.toLocaleString()}`}
               </button>
+              <a
+                href={exclusiveDatasetUrl}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-xs font-semibold text-zinc-900 transition hover:bg-zinc-100"
+              >
+                Request Exclusive Dataset
+                <ChevronRight className="h-3.5 w-3.5" />
+              </a>
             </div>
 
             {/* What's Included Card */}
@@ -907,6 +915,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
       day: "numeric",
       year: "numeric",
     }).format(new Date(trainingDataset.releaseDate));
+    const exclusiveDatasetUrl = `/contact?interest=exclusive-dataset&product=${encodeURIComponent(trainingDataset.slug)}`;
 
     const trainingProductStructuredData = {
       "@context": "https://schema.org",
@@ -1369,6 +1378,13 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                         selectedExclusivity
                       ).toLocaleString()}`}
                 </button>
+                <a
+                  href={exclusiveDatasetUrl}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-xs font-semibold text-zinc-900 transition hover:bg-zinc-100"
+                >
+                  Request Exclusive Dataset
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </a>
               </div>
 
               <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm space-y-3">
