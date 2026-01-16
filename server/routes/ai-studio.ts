@@ -135,14 +135,14 @@ function connectorSummary(
 ) {
   const lines = connectors.map((connector) => {
     const status = state[connector.id] ?? false;
-    return `${connector.name} — ${status ? "enabled" : "disabled"}${
+    return `${connector.name} - ${status ? "enabled" : "disabled"}${
       connector.description ? ` (${connector.description})` : ""
     }`;
   });
 
   const unknown = Object.entries(state)
     .filter(([id]) => !connectors.some((connector) => connector.id === id))
-    .map(([id, enabled]) => `${id} — ${enabled ? "enabled" : "disabled"}`);
+    .map(([id, enabled]) => `${id} - ${enabled ? "enabled" : "disabled"}`);
 
   const combined = [...lines, ...unknown];
   return combined.length ? combined.join("\n") : "None";
@@ -154,14 +154,14 @@ function capabilitySummary(
 ) {
   const lines = capabilities.map((capability) => {
     const status = state[capability.id] ?? false;
-    return `${capability.name} — ${status ? "enabled" : "disabled"}${
+    return `${capability.name} - ${status ? "enabled" : "disabled"}${
       capability.description ? ` (${capability.description})` : ""
     }`;
   });
 
   const unknown = Object.entries(state)
     .filter(([id]) => !capabilities.some((capability) => capability.id === id))
-    .map(([id, enabled]) => `${id} — ${enabled ? "enabled" : "disabled"}`);
+    .map(([id, enabled]) => `${id} - ${enabled ? "enabled" : "disabled"}`);
 
   const combined = [...lines, ...unknown];
   return combined.length ? combined.join("\n") : "None";
@@ -319,7 +319,7 @@ function buildSystemInstruction(options: {
         `- ${source.title}`,
         source.category ? ` [${source.category}]` : "",
         `: ${source.url}`,
-        source.description ? ` — ${source.description}` : "",
+        source.description ? ` (${source.description})` : "",
       ].join(""),
     )
     .join("\n");
@@ -381,7 +381,7 @@ function buildRetrievalContext(sources: SourceReference[]) {
       const header = `Source ${index + 1}: ${source.title} (${source.url})`;
       const distance =
         typeof source.distance === "number"
-          ? ` — similarity ${(1 - source.distance).toFixed(3)}`
+          ? ` - similarity ${(1 - source.distance).toFixed(3)}`
           : "";
       return `${header}${distance}\n${source.snippet}`;
     })

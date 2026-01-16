@@ -4,7 +4,7 @@ export type FAQ = { q: string; a: string };
 export const PILOT_FAQ: FAQ[] = [
   {
     q: "What is Blueprint in one sentence?",
-    a: "It’s an AI glasses concierge for your physical space—scan a QR code, and visitors instantly get guided answers, stories, and offers hands-free.",
+    a: "It’s an AI glasses concierge for your physical space, so scan a QR code and visitors instantly get guided answers, stories, and offers hands-free.",
   },
   {
     q: "What does the pilot cost?",
@@ -20,7 +20,7 @@ export const PILOT_FAQ: FAQ[] = [
   },
   {
     q: "What do you need from us?",
-    a: "Access for mapping, some basic business info, and your feedback after demo day. We handle the rest—design, setup, and analytics.",
+    a: "Access for mapping, some basic business info, and your feedback after demo day. We handle the rest, including design, setup, and analytics.",
   },
   {
     q: "Is the AR experience live for more than a day?",

@@ -31,7 +31,7 @@ const glossaryTerms = [
   {
     term: "Sim2Real Transfer",
     definition:
-      "The process of transferring a policy or model trained in simulation to a real-world robot. Success depends on how well the simulation matches reality—including physics accuracy, visual fidelity, and sensor noise modeling.",
+      "The process of transferring a policy or model trained in simulation to a real-world robot. Success depends on how well the simulation matches reality, including physics accuracy, visual fidelity, and sensor noise modeling.",
     category: "Training",
     icon: <ArrowRight className="h-5 w-5" />,
   },
@@ -228,7 +228,7 @@ export default function Learn() {
                 </h2>
                 <p className="mt-4 text-lg text-zinc-600 leading-relaxed">
                   The most successful robotics teams don't choose between simulation and
-                  real-world data—they use both. Simulation provides the scale and diversity
+                  real-world data, and they use both. Simulation provides the scale and diversity
                   your models need, while real data anchors them to reality.
                 </p>
                 <ul className="mt-6 space-y-3">

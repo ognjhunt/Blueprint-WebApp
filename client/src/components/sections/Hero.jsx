@@ -23,7 +23,7 @@ export default function Hero({ onPrimaryCta }) {
       k: "pitch",
       pre: "The simple pitch:",
       highlight: "Turn your location into an AI-powered place people love.",
-      sub: "Blueprint adds a ‘glasses concierge’ that answers questions, gives directions, and triggers tasks—without you building an app.",
+      sub: "Blueprint adds a ‘glasses concierge’ that answers questions, gives directions, and triggers tasks without you building an app.",
     },
     {
       k: "how",
@@ -35,7 +35,7 @@ export default function Hero({ onPrimaryCta }) {
       k: "why",
       pre: "Why now:",
       highlight: "AI + glasses are moving from novelty to normal.",
-      sub: "Be ready as staff and visitors start wearing them on-site—Blueprint makes it easy to start, learn, and scale.",
+      sub: "Be ready as staff and visitors start wearing them on-site, and Blueprint makes it easy to start, learn, and scale.",
     },
     {
       k: "compat",
@@ -289,7 +289,7 @@ export default function Hero({ onPrimaryCta }) {
 //       k: "what",
 //       pre: "Blueprint in one line:",
 //       highlight:
-//         "Turn your space into a guided, interactive AR layer—just by scanning a QR code.",
+//         "Turn your space into a guided, interactive AR layer, just by scanning a QR code.",
 //       sub: "Guests use their headsets (or smart glasses). No app to install. No hardware to buy.",
 //     },
 //     {
@@ -486,7 +486,7 @@ export default function Hero({ onPrimaryCta }) {
 //       k: "what",
 //       pre: "Blueprint in one line:",
 //       highlight:
-//         "Turn your space into a guided, interactive AR layer—just by scanning a QR code.",
+//         "Turn your space into a guided, interactive AR layer, just by scanning a QR code.",
 //       sub: "Guests use their headsets (or smart glasses). No app to install. No hardware to buy.",
 //     },
 //     {

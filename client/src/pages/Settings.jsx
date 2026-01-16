@@ -29,7 +29,7 @@ export default function SettingsPage() {
   const createdDateLabel = useMemo(() => {
     const createdDate = userData?.createdDate;
     if (!createdDate) {
-      return "—";
+      return "N/A";
     }
     if (typeof createdDate === "object" && createdDate !== null) {
       if (typeof createdDate.toDate === "function") {
@@ -254,7 +254,7 @@ export default function SettingsPage() {
                           Primary email
                         </p>
                         <p className="mt-2 text-sm font-medium text-zinc-900">
-                          {currentUser.email || userData?.email || "—"}
+                          {currentUser.email || userData?.email || "N/A"}
                         </p>
                       </div>
                     </div>
@@ -300,10 +300,10 @@ export default function SettingsPage() {
                               >
                                 <div>
                                   <p className="text-sm font-semibold text-zinc-900">
-                                    {method.brand || "Card"} •••• {method.last4 || "—"}
+                                    {method.brand || "Card"} •••• {method.last4 || "N/A"}
                                   </p>
                                   <p className="text-xs text-zinc-500">
-                                    Expires {method.expiryDate || "—"}
+                                    Expires {method.expiryDate || "N/A"}
                                   </p>
                                   {method.isDefault && (
                                     <span className="mt-2 inline-flex w-fit rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">
@@ -444,7 +444,7 @@ export default function SettingsPage() {
                               >
                                 <div>
                                   <p className="font-semibold text-zinc-900">
-                                    {entry.amount ? `$${entry.amount}` : "—"}
+                                    {entry.amount ? `$${entry.amount}` : "N/A"}
                                   </p>
                                   <p className="text-xs text-zinc-500">
                                     {formatBillingDate(entry.date)}

@@ -1,4 +1,4 @@
-# Blueprint — long-form overview
+# Blueprint: long-form overview
 
 ## Product overview
 Blueprint is a robotics data platform for creating, delivering, and validating simulation-ready assets. It provides SimReady 3D environments, datasets, and evaluation tooling so robotics teams can train, benchmark, and deploy AI systems with confidence. Blueprint also offers on-site capture and custom scene production to transform real locations into reusable digital twins for simulation.
@@ -31,7 +31,7 @@ Blueprint is a robotics data platform for creating, delivering, and validating s
 ## FAQs (canonical)
 - **What is Blueprint?** A robotics data platform for building simulation-ready digital twins and datasets, delivering the assets, data, and tools needed to train and validate AI systems.
 - **How are assets delivered?** Through the Marketplace and custom capture projects, with standardized specs for simulation pipelines.
-- **Do you offer custom scenes?** Yes—teams can request on-site capture and custom SimReady environments.
+- **Do you offer custom scenes?** Yes, teams can request on-site capture and custom SimReady environments.
 - **Who is Blueprint for?** Robotics teams, simulation engineers, and organizations building AI systems that need high-quality 3D environments and data.
 - **How do I get started?** Browse the Marketplace, review documentation, and contact the team for tailored datasets or services.
 
@@ -47,4 +47,3 @@ Blueprint is a robotics data platform for creating, delivering, and validating s
 - /careers
 - /privacy
 - /terms
-

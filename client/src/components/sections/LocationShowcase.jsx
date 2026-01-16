@@ -175,7 +175,7 @@ export default function LocationShowcase() {
             </span>
           </h2>
           <p className="mt-2 text-slate-300 max-w-2xl mx-auto text-sm md:text-base">
-            Scrub to compare before/after — how visitors experience your space
+            Scrub to compare before/after to see how visitors experience your space
             with AI overlays, guidance, and bite-size info.
           </p>
         </div>
@@ -333,7 +333,7 @@ export default function LocationShowcase() {
             onClick={scrollToContact}
             className="rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white border-0 h-12 px-6 hover:shadow-2xl hover:scale-[1.02] transition"
           >
-            Join the AI glasses pilot — Free Setup
+            Join the AI glasses pilot, free setup
           </Button>
         </div>
       </div>
@@ -518,7 +518,7 @@ export default function LocationShowcase() {
 //             </span>
 //           </h2>
 //           <p className="mt-2 text-slate-300 max-w-2xl mx-auto text-sm md:text-base">
-//             Scrub to compare before/after — how visitors experience your space
+//             Scrub to compare before/after to see how visitors experience your space
 //             with AR overlays, guidance, and bite-size info.
 //           </p>
 //         </div>
@@ -676,7 +676,7 @@ export default function LocationShowcase() {
 //             onClick={scrollToContact}
 //             className="rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white border-0 h-12 px-6 hover:shadow-2xl hover:scale-[1.02] transition"
 //           >
-//             Join the Durham Pilot — Free Setup
+//             Join the Durham Pilot, free setup
 //           </Button>
 //         </div>
 //       </div>

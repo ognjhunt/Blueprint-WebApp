@@ -78,8 +78,8 @@
 //             </h1>
 //             <p className="max-w-xl text-lg text-slate-600">
 //               High-fidelity scenes, physics-clean assets, delivered fast. Pick
-//               from our synthetic marketplace—new datasets publish daily with
-//               frames, randomizers, and plug-and-play USD—or send us to your
+//               from our synthetic marketplace, where new datasets publish daily with
+//               frames, randomizers, and plug-and-play USD, or send us to your
 //               actual site and we’ll return a SimReady digital twin tuned to your
 //               deployment stack. Either path keeps labs out of DCC tools so they
 //               can focus on training and proving ROI sooner.
@@ -581,10 +581,10 @@ function DotPattern() {
 }
 
 const heroDescriptionWithCapture =
-  "SimReady scenes, expert trajectories, and standardized benchmarks—plus $320k+ in premium analytics included. Everything you need to train, evaluate, and deploy robotic policies that transfer to the real world.";
+  "SimReady scenes, expert trajectories, and standardized benchmarks, plus $320k+ in premium analytics included. Everything you need to train, evaluate, and deploy robotic policies that transfer to the real world.";
 
 const heroDescriptionWithoutCapture =
-  "SimReady scenes, expert trajectories, and standardized benchmarks—plus $320k+ in premium analytics included. Everything you need to train, evaluate, and deploy robotic policies that transfer to the real world.";
+  "SimReady scenes, expert trajectories, and standardized benchmarks, plus $320k+ in premium analytics included. Everything you need to train, evaluate, and deploy robotic policies that transfer to the real world.";
 
 const facilitySupportCopy = SHOW_REAL_WORLD_CAPTURE
   ? "Need exact facility matching? Request a custom SimReady scene built from your specifications. We'll deliver a physics-accurate environment with Isaac Lab configs and QA validation."

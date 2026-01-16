@@ -732,7 +732,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                 <ShoppingCart className="h-4 w-4" />
                 {isRedirecting
                   ? "Redirecting..."
-                  : `Buy Now — $${totalPrice?.toLocaleString()}`}
+                  : `Buy Now - $${totalPrice?.toLocaleString()}`}
               </button>
               <a
                 href={exclusiveDatasetUrl}
@@ -1368,7 +1368,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                   <ShoppingCart className="h-4 w-4" />
                   {isRedirecting
                     ? "Redirecting..."
-                    : `Buy Now — $${calculateTotalPrice(
+                    : `Buy Now - $${calculateTotalPrice(
                         selectedTier === 'basic'
                           ? (trainingDataset.basicPrice || Math.round(trainingDataset.price * 0.4))
                           : selectedTier === 'premium'
@@ -1593,7 +1593,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                     </span>
                   </div>
                   <p className="mt-2 text-xs text-slate-500">
-                    Axis {interaction.axis || "—"} • Limits {interaction.limits || "N/A"}
+                    Axis {interaction.axis || "N/A"} • Limits {interaction.limits || "N/A"}
                   </p>
                   {interaction.notes ? (
                     <p className="mt-2 text-xs text-slate-500">{interaction.notes}</p>
