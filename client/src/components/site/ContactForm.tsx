@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { withCsrfHeader } from "@/lib/csrf";
+import { useAuth } from "@/contexts/AuthContext";
 
 const budgetRanges = [
   "<$50K",
@@ -18,10 +19,46 @@ const offerings = [
 ] as const;
 
 export function ContactForm() {
+  const { currentUser, userData } = useAuth();
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const [selectedBudget, setSelectedBudget] = useState<string>("");
   const [selectedOfferings, setSelectedOfferings] = useState<string[]>([]);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [company, setCompany] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
+  const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    const displayName = userData?.name || currentUser?.displayName || "";
+    const trimmedName = displayName.trim();
+    const [defaultFirstName, ...restName] = trimmedName ? trimmedName.split(/\s+/) : [];
+    const defaultLastName = restName.join(" ");
+    const defaultCompany = userData?.company || userData?.organizationName || "";
+    const defaultJobTitle = userData?.jobTitle || "";
+    const defaultEmail = currentUser?.email || "";
+
+    if (!firstName && defaultFirstName) {
+      setFirstName(defaultFirstName);
+    }
+
+    if (!lastName && defaultLastName) {
+      setLastName(defaultLastName);
+    }
+
+    if (!company && defaultCompany) {
+      setCompany(defaultCompany);
+    }
+
+    if (!jobTitle && defaultJobTitle) {
+      setJobTitle(defaultJobTitle);
+    }
+
+    if (!email && defaultEmail) {
+      setEmail(defaultEmail);
+    }
+  }, [company, currentUser, email, firstName, jobTitle, lastName, userData]);
 
   const handleOfferingToggle = (value: string) => {
     setSelectedOfferings((prev) =>
@@ -93,6 +130,11 @@ export function ContactForm() {
 
       setStatus("success");
       form.reset();
+      setFirstName("");
+      setLastName("");
+      setCompany("");
+      setJobTitle("");
+      setEmail("");
       setSelectedBudget("");
       setSelectedOfferings([]);
       setMessage("");
@@ -140,6 +182,8 @@ export function ContactForm() {
             name="firstName"
             placeholder="First name*"
             required
+            value={firstName}
+            onChange={(event) => setFirstName(event.target.value)}
             className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
@@ -151,6 +195,8 @@ export function ContactForm() {
             name="lastName"
             placeholder="Last name*"
             required
+            value={lastName}
+            onChange={(event) => setLastName(event.target.value)}
             className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
@@ -162,6 +208,8 @@ export function ContactForm() {
             name="company"
             placeholder="Company name*"
             required
+            value={company}
+            onChange={(event) => setCompany(event.target.value)}
             className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
@@ -172,6 +220,8 @@ export function ContactForm() {
             type="text"
             name="jobTitle"
             placeholder="Job title*"
+            value={jobTitle}
+            onChange={(event) => setJobTitle(event.target.value)}
             className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
@@ -184,6 +234,8 @@ export function ContactForm() {
           name="email"
           placeholder="Work email*"
           required
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
           className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
       </div>
