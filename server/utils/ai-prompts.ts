@@ -566,7 +566,7 @@ export function buildPostSignupSystemInstructionsPrompt(
   ]
 }`,
     ``,
-    `Strictness: Output JSON object only — no extra text, no markdown.`,
+    `Strictness: Output JSON object only, no extra text or markdown.`,
   ];
 
   return body.join("\n");

@@ -363,7 +363,7 @@ export default function Pricing() {
                   Already collecting real-world data?
                 </h2>
                 <p className="text-zinc-600">
-                  Simulation doesn't replace your real-world capture—it amplifies it.
+                  Simulation doesn't replace your real-world capture; it amplifies it.
                   Research shows teams that combine simulation with even small amounts
                   of real data see significantly better real-world performance.
                 </p>

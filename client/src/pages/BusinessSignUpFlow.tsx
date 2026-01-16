@@ -1,4 +1,4 @@
-// BusinessSignUpFlow — Multi-step business signup with context gathering
+// BusinessSignUpFlow - Multi-step business signup with context gathering
 // Based on SIGNUP_ONBOARDING_SPEC.md
 //
 // 3-step flow:

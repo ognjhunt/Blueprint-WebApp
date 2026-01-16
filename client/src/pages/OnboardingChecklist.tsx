@@ -1,4 +1,4 @@
-// OnboardingChecklist — Minimalist onboarding checklist page
+// OnboardingChecklist - Minimalist onboarding checklist page
 // Based on SIGNUP_ONBOARDING_SPEC.md
 //
 // Shows progress after signup with checklist items:

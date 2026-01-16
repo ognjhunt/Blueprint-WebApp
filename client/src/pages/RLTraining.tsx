@@ -34,7 +34,7 @@ const whatWeDeliver = [
   },
   {
     title: "Training Curves & Metrics",
-    desc: "Full visibility into how your policy learned — reward progression, success rates, and convergence data.",
+    desc: "Full visibility into how your policy learned, including reward progression, success rates, and convergence data.",
     icon: <LineChart className="h-6 w-6" />,
     color: "emerald",
   },
@@ -46,7 +46,7 @@ const whatWeDeliver = [
   },
   {
     title: "Sim-to-Real Indicators",
-    desc: "Metrics that predict real-world performance — action smoothness, jerk analysis, and transfer gap estimates.",
+    desc: "Metrics that predict real-world performance, including action smoothness, jerk analysis, and transfer gap estimates.",
     icon: <Target className="h-6 w-6" />,
     color: "rose",
   },
@@ -68,7 +68,7 @@ const howItWorks = [
   {
     step: "03",
     title: "Policy Learns from Experience",
-    desc: "Using reinforcement learning (PPO), your robot's brain improves through trial and error — millions of attempts compressed into hours.",
+    desc: "Using reinforcement learning (PPO), your robot's brain improves through trial and error, with millions of attempts compressed into hours.",
     icon: <RefreshCw className="h-6 w-6" />,
   },
   {
@@ -94,7 +94,7 @@ const whyRLTraining = [
   },
   {
     title: "Infinite Variations",
-    desc: "Train across thousands of scene variations — different object positions, lighting, physics randomization — so your policy generalizes.",
+    desc: "Train across thousands of scene variations, including different object positions, lighting, and physics randomization, so your policy generalizes.",
     stat: "4096+",
     statLabel: "Parallel environments",
   },
@@ -225,7 +225,7 @@ export default function RLTraining() {
                 <p className="max-w-2xl text-lg leading-relaxed text-zinc-600">
                   You bring the simulation scene. We run thousands of virtual robots in parallel,
                   learning through trial and error. You receive a trained policy ready for
-                  real-world deployment — no ML infrastructure required.
+                  real-world deployment, with no ML infrastructure required.
                 </p>
               </div>
 
@@ -347,7 +347,7 @@ export default function RLTraining() {
                   </h2>
                   <p className="text-zinc-600 leading-relaxed">
                     Traditional robotics requires engineers to manually program every movement.
-                    <strong> Reinforcement Learning (RL)</strong> is different — your robot learns
+                    <strong> Reinforcement Learning (RL)</strong> is different, and your robot learns
                     by trying things, getting feedback on what works, and improving over time.
                     Think of it like how humans learn to ride a bike: through practice, not instruction manuals.
                   </p>
@@ -406,7 +406,7 @@ export default function RLTraining() {
                     <div className="rounded-lg bg-zinc-50 p-4 text-xs text-zinc-600">
                       <p className="font-semibold text-zinc-900">The key insight:</p>
                       <p className="mt-1">
-                        We run this loop <strong>millions of times</strong> in simulation —
+                        We run this loop <strong>millions of times</strong> in simulation,
                         what would take years on a real robot happens in hours on our GPU cluster.
                       </p>
                     </div>
@@ -496,7 +496,7 @@ export default function RLTraining() {
                   What You Receive
                 </h2>
                 <p className="mt-4 max-w-2xl mx-auto text-zinc-600">
-                  Every RL training job delivers a complete analysis package — trained policy,
+                  Every RL training job delivers a complete analysis package, including a trained policy,
                   detailed training history, benchmark reports, and premium analytics showing
                   how well your policy will perform in the real world.
                 </p>
@@ -701,7 +701,7 @@ export default function RLTraining() {
                   </h2>
                   <p className="text-zinc-600 leading-relaxed">
                     Every scene from the Blueprint marketplace already includes Isaac Lab task
-                    configurations — reward functions, observation spaces, action configs, and
+                    configurations, including reward functions, observation spaces, action configs, and
                     domain randomization settings. Just select a scene and task, and RL Training
                     handles the rest.
                   </p>

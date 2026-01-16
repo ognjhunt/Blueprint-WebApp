@@ -128,7 +128,7 @@
 //           aria-describedby={`${portfolioId}-hint`}
 //         />
 //         <span id={`${portfolioId}-hint`} className="text-xs text-slate-500">
-//           Share your best work—reels, breakdowns, or project sites.
+//           Share your best work, including reels, breakdowns, or project sites.
 //         </span>
 //       </label>
 //       <label className="flex flex-col gap-2 text-sm text-slate-600" htmlFor={resumeId}>

@@ -211,9 +211,9 @@ export default function Evals() {
 
               <p className="mx-auto max-w-2xl text-lg text-zinc-600">
                 Send us your policy. We'll run it through our{" "}
-                <strong>reserved benchmark scenes</strong> — environments we
-                don't sell as data — and tell you how it performs on tasks like
-                picking objects, opening doors, and organizing spaces.
+                <strong>reserved benchmark scenes</strong>, which we don't sell
+                as data, and tell you how it performs on tasks like picking
+                objects, opening doors, and organizing spaces.
               </p>
 
               <div className="flex flex-col gap-4 sm:flex-row sm:justify-center pt-4">
@@ -244,8 +244,8 @@ export default function Evals() {
                   </div>
                   <h3 className="font-semibold text-zinc-900">Reserved Scenes</h3>
                   <p className="text-sm text-zinc-600">
-                    Our benchmark environments aren't sold as training data — no
-                    risk of overfitting to our test set.
+                    Our benchmark environments aren't sold as training data, so
+                    there is no risk of overfitting to our test set.
                   </p>
                 </div>
                 <div className="text-center space-y-3">
@@ -387,8 +387,8 @@ export default function Evals() {
                 </h2>
                 <p className="mt-3 text-zinc-400 max-w-xl mx-auto">
                   Our reserved evaluation scenes span multiple domains. These
-                  environments are exclusively for benchmarking — we don't sell
-                  them as training data.
+                  environments are exclusively for benchmarking, and we don't
+                  sell them as training data.
                 </p>
               </div>
 

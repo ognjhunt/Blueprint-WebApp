@@ -105,7 +105,7 @@ const complementarySteps = [
     step: "03",
     title: "Co-Training Maximizes Both",
     description:
-      "Train on a mixture of sim and real data in each batch. Research shows ~99% sim / ~1% real often works best—your real data anchors the policy while sim provides robustness.",
+      "Train on a mixture of sim and real data in each batch. Research shows ~99% sim / ~1% real often works best; your real data anchors the policy while sim provides robustness.",
     icon: <RefreshCw className="h-6 w-6" />,
     color: "amber",
   },
@@ -158,7 +158,7 @@ const objections = [
   {
     objection: "We already have enough real data",
     response:
-      "Your real data is invaluable—but is it diverse enough? Simulation lets you stress-test your policy against variations you haven't collected yet: different lighting, clutter, object positions, and failure modes. It's insurance against the scenarios you haven't seen.",
+      "Your real data is invaluable, but is it diverse enough? Simulation lets you stress-test your policy against variations you haven't collected yet: different lighting, clutter, object positions, and failure modes. It's insurance against the scenarios you haven't seen.",
   },
   {
     objection: "Simulation is too expensive to set up",
@@ -191,7 +191,7 @@ export default function WhySimulation() {
               </h1>
               <p className="mt-6 text-lg leading-relaxed text-zinc-600 sm:text-xl">
                 The world's best robotics teams don't choose between simulation and real-world data.
-                They use simulation to <strong>complement</strong> their real-world capture—and their
+                They use simulation to <strong>complement</strong> their real-world capture, and their
                 models perform better because of it.
               </p>
               <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
@@ -221,7 +221,7 @@ export default function WhySimulation() {
                 The Complement Model
               </h2>
               <p className="mt-4 max-w-2xl mx-auto text-lg text-zinc-600">
-                Real-world data is irreplaceable—but it's also slow and expensive.
+                Real-world data is irreplaceable, but it's also slow and expensive.
                 Simulation fills the gaps that real capture can't cover economically.
               </p>
             </div>
@@ -334,7 +334,7 @@ export default function WhySimulation() {
                   "Mixing simulation with even a small amount of real data can improve real-world task performance by <strong>38% on average</strong> compared to real-only training."
                 </p>
                 <p className="mt-3 text-sm text-emerald-100">
-                  — Sim-and-Real Co-Training Research, 2025
+                  - Sim-and-Real Co-Training Research, 2025
                 </p>
               </div>
             </div>
@@ -487,7 +487,7 @@ export default function WhySimulation() {
                 Common Questions from Real-Data Teams
               </h2>
               <p className="mt-4 text-lg text-zinc-400">
-                We get it—simulation skepticism is healthy. Here's how we address it.
+                We get it, simulation skepticism is healthy. Here's how we address it.
               </p>
             </div>
 

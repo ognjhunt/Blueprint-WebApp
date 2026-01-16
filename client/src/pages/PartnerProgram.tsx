@@ -47,7 +47,7 @@ export default function PartnerProgram() {
               <div className="border-l-2 border-slate-200 pl-6">
                 <h3 className="font-semibold text-slate-900">Training Data Generation</h3>
                 <p className="text-sm text-slate-600">
-                  Thousands of automatically generated robot training examples — camera views, positions, success/failure, everything your AI needs.
+                  Thousands of automatically generated robot training examples, including camera views, positions, success/failure, and everything your AI needs.
                 </p>
               </div>
 
@@ -107,7 +107,7 @@ export default function PartnerProgram() {
               </div>
 
               <div>
-                <h3 className="mb-2 font-semibold text-slate-900">Founding Partner pricing — forever</h3>
+                <h3 className="mb-2 font-semibold text-slate-900">Founding Partner pricing - forever</h3>
                 <p className="text-slate-600">
                   Lock in early-access rates permanently. When we raise prices for new customers, yours stays the same.
                 </p>
@@ -133,7 +133,7 @@ export default function PartnerProgram() {
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-slate-900" />
                 <div>
                   <p className="font-semibold text-slate-900">Teams with real robot hardware</p>
-                  <p className="text-sm text-slate-600">Robot arms, mobile robots, humanoids — we prioritize partners who can validate sim-to-real transfer</p>
+                  <p className="text-sm text-slate-600">Robot arms, mobile robots, and humanoids are welcome, and we prioritize partners who can validate sim-to-real transfer</p>
                 </div>
               </div>
 
@@ -166,7 +166,7 @@ export default function PartnerProgram() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-slate-900">Apply</h3>
-                  <p className="text-sm text-slate-600">Fill out the form below — takes 2 minutes</p>
+                  <p className="text-sm text-slate-600">Fill out the form below, it takes 2 minutes</p>
                 </div>
               </div>
 

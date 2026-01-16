@@ -2112,7 +2112,7 @@ const ThreeViewer = React.memo(
                 alphaTest: 0.1,
               });
 
-              // 6) Same PlaneGeometry—UVs stay perfect
+              // 6) Same PlaneGeometry - UVs stay perfect
               const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
               const imagePlane = new THREE.Mesh(geometry, material);
 

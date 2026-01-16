@@ -1,4 +1,4 @@
-// OffWaitlistSignUpFlow — Revamped UI in Blueprint's emerald/cyan dark theme
+// OffWaitlistSignUpFlow - Revamped UI in Blueprint's emerald/cyan dark theme
 // Keeps all existing functionality (token validation, Firebase auth, Firestore writes,
 // Places Autocomplete, mapping + demo scheduling, webhook call, confirmation redirect).
 //
@@ -2055,7 +2055,7 @@ export default function OffWaitlistSignUpFlow() {
                           <div>
                             <p className="text-slate-400">Organization</p>
                             <p className="text-white">
-                              {organizationName || "—"}
+                              {organizationName || "N/A"}
                             </p>
                           </div>
                         </div>
@@ -2064,7 +2064,7 @@ export default function OffWaitlistSignUpFlow() {
                           <div>
                             <p className="text-slate-400">Email</p>
                             <p className="text-white break-all">
-                              {email || "—"}
+                              {email || "N/A"}
                             </p>
                           </div>
                         </div>
@@ -2073,7 +2073,7 @@ export default function OffWaitlistSignUpFlow() {
                           <div>
                             <p className="text-slate-400">Contact</p>
                             <p className="text-white">
-                              {contactName || "—"}{" "}
+                              {contactName || "N/A"}{" "}
                               {phoneNumber ? `• ${phoneNumber}` : ""}
                             </p>
                           </div>
@@ -2083,7 +2083,7 @@ export default function OffWaitlistSignUpFlow() {
                           <div className="min-w-0">
                             <p className="text-slate-400">Address</p>
                             <p className="text-white break-words">
-                              {address || "—"}
+                              {address || "N/A"}
                             </p>
                           </div>
                         </div>
@@ -2091,7 +2091,7 @@ export default function OffWaitlistSignUpFlow() {
                           <Ruler className="w-4 h-4 text-emerald-300 mt-0.5" />
                           <div>
                             <p className="text-slate-400">Sq Ft</p>
-                            <p className="text-white">{squareFootage || "—"}</p>
+                            <p className="text-white">{squareFootage || "N/A"}</p>
                           </div>
                         </div>
                         <div className="flex items-start gap-2">
@@ -2101,8 +2101,8 @@ export default function OffWaitlistSignUpFlow() {
                             <p className="text-white">
                               {scheduleDate
                                 ? scheduleDate.toLocaleDateString()
-                                : "—"}{" "}
-                              • {scheduleTime || "—"}
+                                : "N/A"}{" "}
+                              • {scheduleTime || "N/A"}
                             </p>
                           </div>
                         </div>
@@ -2111,8 +2111,8 @@ export default function OffWaitlistSignUpFlow() {
                           <div>
                             <p className="text-slate-400">Next-Day Demo</p>
                             <p className="text-white">
-                              {demoDate ? demoDate.toLocaleDateString() : "—"} •{" "}
-                              {demoTime || "—"}
+                              {demoDate ? demoDate.toLocaleDateString() : "N/A"} •{" "}
+                              {demoTime || "N/A"}
                             </p>
                           </div>
                         </div>
@@ -2204,46 +2204,46 @@ export default function OffWaitlistSignUpFlow() {
                       <div>
                         Organization:{" "}
                         <span className="text-white">
-                          {organizationName || "—"}
+                          {organizationName || "N/A"}
                         </span>
                       </div>
                       <div>
                         Email:{" "}
                         <span className="text-white break-all">
-                          {email || "—"}
+                          {email || "N/A"}
                         </span>
                       </div>
                       <div>
                         Contact:{" "}
                         <span className="text-white">
-                          {contactName || "—"}{" "}
+                          {contactName || "N/A"}{" "}
                           {phoneNumber ? `• ${phoneNumber}` : ""}
                         </span>
                       </div>
                       <div>
                         Address:{" "}
                         <span className="text-white break-words">
-                          {address || "—"}
+                          {address || "N/A"}
                         </span>
                       </div>
                       <div>
                         Sq Ft:{" "}
                         <span className="text-white">
-                          {squareFootage || "—"}
+                          {squareFootage || "N/A"}
                         </span>
                       </div>
                       <div>
                         Mapping:{" "}
                         <span className="text-white">
-                          {scheduleDate?.toLocaleDateString() || "—"} •{" "}
-                          {scheduleTime || "—"}
+                          {scheduleDate?.toLocaleDateString() || "N/A"} •{" "}
+                          {scheduleTime || "N/A"}
                         </span>
                       </div>
                       <div>
                         Next-Day Demo:{" "}
                         <span className="text-white">
-                          {demoDate?.toLocaleDateString() || "—"} •{" "}
-                          {demoTime || "—"}
+                          {demoDate?.toLocaleDateString() || "N/A"} •{" "}
+                          {demoTime || "N/A"}
                         </span>
                       </div>
                     </div>

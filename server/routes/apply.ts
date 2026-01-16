@@ -81,7 +81,7 @@ export default function applyHandler(req: Request, res: Response) {
         "",
         "Appreciate you taking the time to share your work.",
         "",
-        "— The Blueprint Team",
+        "The Blueprint Team",
       ].join("\n");
 
       const confirmationHtml = `<!DOCTYPE html>
@@ -109,7 +109,7 @@ export default function applyHandler(req: Request, res: Response) {
                   Thanks for applying to collaborate with Blueprint. We’ll review your materials for the ${jobRole} role and reach out if the fit is right.
                 </p>
                 <p style="margin:0 0 12px;font-size:16px;color:#cbd5f5;">Appreciate you taking the time to share your work.</p>
-                <p style="margin:0;font-size:16px;color:#cbd5f5;">— The Blueprint Team</p>
+                <p style="margin:0;font-size:16px;color:#cbd5f5;">The Blueprint Team</p>
               </td>
             </tr>
           </table>

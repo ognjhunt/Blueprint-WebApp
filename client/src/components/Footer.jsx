@@ -46,7 +46,7 @@ export default function Footer() {
             </div>
             <p className="text-slate-400 max-w-xl">
               Simulation data that complements your real-world capture. Physics-accurate
-              environments with domain randomization and sim2real validation—designed to
+              environments with domain randomization and sim2real validation, designed to
               boost your models by up to 38%.
             </p>
             <div className="flex items-center gap-4 mt-5 text-slate-400">

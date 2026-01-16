@@ -1,4 +1,4 @@
-// OutboundSignUpFlow — Revamped UI in Blueprint's emerald/cyan dark theme
+// OutboundSignUpFlow - Revamped UI in Blueprint's emerald/cyan dark theme
 // Keeps all existing functionality (Firebase auth, Firestore writes, Places Autocomplete,
 // booking + demo scheduling, webhook call, confirmation redirect).
 //
@@ -133,7 +133,7 @@ export default function OutboundSignUpFlow() {
   const [address, setAddress] = useState("");
   const [squareFootage, setSquareFootage] = useState<number | null>(null);
 
-  // Step 3 — Mapping
+  // Step 3 - Mapping
   const [scheduleDate, setScheduleDate] = useState(new Date());
   const [scheduleTime, setScheduleTime] = useState("08:00");
 
@@ -146,13 +146,13 @@ export default function OutboundSignUpFlow() {
     );
   }, [scheduleDate]);
 
-  // Step 4 — Demo
+  // Step 4 - Demo
   // const [demoDate, setDemoDate] = useState(() => {
   //   const d = new Date();
   //   d.setDate(d.getDate() + 7);
   //   return d;
   // });
-  // Step 4 — Demo
+  // Step 4 - Demo
   const [demoDate, setDemoDate] = useState(new Date()); // effect will snap to the next day
 
   const [demoTime, setDemoTime] = useState("11:00");
@@ -1847,7 +1847,7 @@ export default function OutboundSignUpFlow() {
         <section className="pb-16">
           <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Left Rail — persuasion + trust */}
+              {/* Left Rail - persuasion + trust */}
               <aside className="lg:col-span-1">
                 <div className="sticky top-28 space-y-6">
                   {/* Live summary */}
@@ -1864,7 +1864,7 @@ export default function OutboundSignUpFlow() {
                         <div>
                           <p className="text-slate-400">Organization</p>
                           <p className="text-white">
-                            {organizationName || "—"}
+                            {organizationName || "N/A"}
                           </p>
                         </div>
                       </div>
@@ -1872,7 +1872,7 @@ export default function OutboundSignUpFlow() {
                         <Mail className="w-4 h-4 text-emerald-300 mt-0.5" />
                         <div>
                           <p className="text-slate-400">Email</p>
-                          <p className="text-white break-all">{email || "—"}</p>
+                          <p className="text-white break-all">{email || "N/A"}</p>
                         </div>
                       </div>
                       <div className="flex items-start gap-2">
@@ -1880,7 +1880,7 @@ export default function OutboundSignUpFlow() {
                         <div>
                           <p className="text-slate-400">Contact</p>
                           <p className="text-white">
-                            {contactName || "—"}{" "}
+                            {contactName || "N/A"}{" "}
                             {phoneNumber ? `• ${phoneNumber}` : ""}
                           </p>
                         </div>
@@ -1890,7 +1890,7 @@ export default function OutboundSignUpFlow() {
                         <div className="min-w-0">
                           <p className="text-slate-400">Address</p>
                           <p className="text-white break-words">
-                            {address || "—"}
+                            {address || "N/A"}
                           </p>
                         </div>
                       </div>
@@ -1898,7 +1898,7 @@ export default function OutboundSignUpFlow() {
                         <Ruler className="w-4 h-4 text-emerald-300 mt-0.5" />
                         <div>
                           <p className="text-slate-400">Sq Ft</p>
-                          <p className="text-white">{squareFootage || "—"}</p>
+                          <p className="text-white">{squareFootage || "N/A"}</p>
                         </div>
                       </div>
                       <div className="flex items-start gap-2">
@@ -1908,8 +1908,8 @@ export default function OutboundSignUpFlow() {
                           <p className="text-white">
                             {scheduleDate
                               ? scheduleDate.toLocaleDateString()
-                              : "—"}{" "}
-                            • {scheduleTime || "—"}
+                              : "N/A"}{" "}
+                            • {scheduleTime || "N/A"}
                           </p>
                         </div>
                       </div>
@@ -1918,8 +1918,8 @@ export default function OutboundSignUpFlow() {
                           <div>
                             <p className="text-slate-400">Next-Day Demo</p>
                             <p className="text-white">
-                              {demoDate ? demoDate.toLocaleDateString() : "—"} •{" "}
-                              {demoTime || "—"}
+                              {demoDate ? demoDate.toLocaleDateString() : "N/A"} •{" "}
+                              {demoTime || "N/A"}
                             </p>
                           </div>
                         </div>
@@ -2011,44 +2011,44 @@ export default function OutboundSignUpFlow() {
                     <div>
                       Organization:{" "}
                       <span className="text-white">
-                        {organizationName || "—"}
+                        {organizationName || "N/A"}
                       </span>
                     </div>
                     <div>
                       Email:{" "}
                       <span className="text-white break-all">
-                        {email || "—"}
+                        {email || "N/A"}
                       </span>
                     </div>
                     <div>
                       Contact:{" "}
                       <span className="text-white">
-                        {contactName || "—"}{" "}
+                        {contactName || "N/A"}{" "}
                         {phoneNumber ? `• ${phoneNumber}` : ""}
                       </span>
                     </div>
                     <div>
                       Address:{" "}
                       <span className="text-white break-words">
-                        {address || "—"}
+                        {address || "N/A"}
                       </span>
                     </div>
                     <div>
                       Sq Ft:{" "}
-                      <span className="text-white">{squareFootage || "—"}</span>
+                      <span className="text-white">{squareFootage || "N/A"}</span>
                     </div>
                     <div>
                       Mapping:{" "}
                       <span className="text-white">
-                        {scheduleDate?.toLocaleDateString() || "—"} •{" "}
-                        {scheduleTime || "—"}
+                        {scheduleDate?.toLocaleDateString() || "N/A"} •{" "}
+                        {scheduleTime || "N/A"}
                       </span>
                     </div>
                       <div>
                         Next-Day Demo:{" "}
                         <span className="text-white">
-                          {demoDate?.toLocaleDateString() || "—"} •{" "}
-                          {demoTime || "—"}
+                          {demoDate?.toLocaleDateString() || "N/A"} •{" "}
+                          {demoTime || "N/A"}
                         </span>
                       </div>
                   </div>
