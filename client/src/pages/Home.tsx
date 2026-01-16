@@ -45,7 +45,7 @@ const offeringCards = [
     title: "Dataset Packs",
     badge: "Training Data",
     description:
-      "Pre-generated trajectories for offline training in LeRobot format.",
+      "Pre-generated simulation trajectories for offline training in LeRobot format.",
     bullets: [
       "Thousands of expert episodes per scene",
       "Multi-sensor: RGB-D, proprioception, end-effector poses",
@@ -114,8 +114,8 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | The Complete Data Platform for Robotic AI"
-        description="SimReady scenes, expert trajectories, and standardized benchmarks for robotics. Train, evaluate, and deploy policies that transfer to real robots."
+        title="Blueprint | The Complete Simulation Data Platform for Robotic AI"
+        description="Physics-accurate simulation environments, synthetic expert trajectories, and standardized benchmarks for robotics. Train policies in sim and transfer them to real robots."
         canonical="/"
         image="https://tryblueprint.io/images/og-home.png"
       />
@@ -131,15 +131,15 @@ export default function Home() {
                 <div className="space-y-6">
                   <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
                     <Sparkles className="h-3 w-3" />
-                    SimReady Environment Network
+                    High-Fidelity Simulation Data
                   </div>
                   <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
-                    The complete data platform for robotic AI.
+                    The complete simulation data platform for robotic AI.
                   </h1>
                   <p className="max-w-xl text-lg leading-relaxed text-zinc-600">
-                    SimReady scenes, expert trajectories, and standardized benchmarks.
-                    Everything you need to train and deploy robotic policies that
-                    transfer to the real world.
+                    Physics-accurate simulation environments, synthetic expert trajectories,
+                    and standardized benchmarks. Everything you need to train robotic policies
+                    in sim and transfer them to real-world robots.
                   </p>
                 </div>
 
@@ -357,7 +357,7 @@ export default function Home() {
               Ready to accelerate your robotics AI?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-zinc-400">
-              Browse our marketplace for SimReady scenes and datasets, or contact
+              Browse our marketplace for simulation-ready scenes and synthetic datasets, or contact
               us to discuss your specific requirements.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
