@@ -948,17 +948,17 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
       }
 
       // Get license tier config for description
-      const selectedLicenseConfig = licenseTiers[selectedLicenseTier];
-      const selectedExclusivityConfig = exclusivityOptions[selectedExclusivity];
+      const selectedLicenseConfig = licenseTiers.find(t => t.tier === selectedLicenseTier);
+      const selectedExclusivityConfig = exclusivityOptions.find(o => o.type === selectedExclusivity);
 
       // Calculate total price with license tier and exclusivity
-      const totalPrice = calculateTotalPrice(tierPrice, selectedLicenseTier, selectedExclusivity, 0);
+      const totalPrice = calculateTotalPrice(tierPrice, selectedLicenseTier, selectedExclusivity);
 
       // Build description with license and exclusivity info
       let description = trainingDataset.description;
       if (selectedLicenseTier !== 'commercial' || selectedExclusivity !== 'non-exclusive') {
-        const licenseInfo = selectedLicenseTier !== 'commercial' ? ` | ${selectedLicenseConfig.name} License` : '';
-        const exclusivityInfo = selectedExclusivity !== 'non-exclusive' ? ` | ${selectedExclusivityConfig.name}` : '';
+        const licenseInfo = selectedLicenseTier !== 'commercial' ? ` | ${selectedLicenseConfig?.name} License` : '';
+        const exclusivityInfo = selectedExclusivity !== 'non-exclusive' ? ` | ${selectedExclusivityConfig?.name}` : '';
         description = `${description}${licenseInfo}${exclusivityInfo}`;
       }
 
@@ -1318,7 +1318,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                   {selectedLicenseTier !== 'commercial' && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-zinc-600">
-                        {licenseTiers[selectedLicenseTier].name} License
+                        {licenseTiers.find(t => t.tier === selectedLicenseTier)?.name} License
                       </span>
                       <span className={`font-medium ${selectedLicenseTier === 'research' ? 'text-emerald-600' : 'text-zinc-900'}`}>
                         {selectedLicenseTier === 'research' ? '-40%' : '+150%'}
@@ -1328,10 +1328,10 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                   {selectedExclusivity !== 'non-exclusive' && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-zinc-600">
-                        {exclusivityOptions[selectedExclusivity].name}
+                        {exclusivityOptions.find(o => o.type === selectedExclusivity)?.name}
                       </span>
                       <span className="font-medium text-amber-600">
-                        +{((exclusivityOptions[selectedExclusivity].priceMultiplier - 1) * 100).toFixed(0)}%
+                        +{(((exclusivityOptions.find(o => o.type === selectedExclusivity)?.priceMultiplier || 1) - 1) * 100).toFixed(0)}%
                       </span>
                     </div>
                   )}
@@ -1345,8 +1345,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                           ? (trainingDataset.premiumPrice || Math.round(trainingDataset.price * 1.5))
                           : (trainingDataset.standardPrice || trainingDataset.price),
                         selectedLicenseTier,
-                        selectedExclusivity,
-                        0
+                        selectedExclusivity
                       ).toLocaleString()}
                     </span>
                   </div>
@@ -1367,8 +1366,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                           ? (trainingDataset.premiumPrice || Math.round(trainingDataset.price * 1.5))
                           : (trainingDataset.standardPrice || trainingDataset.price),
                         selectedLicenseTier,
-                        selectedExclusivity,
-                        0
+                        selectedExclusivity
                       ).toLocaleString()}`}
                 </button>
               </div>
