@@ -88,7 +88,7 @@ export function Header() {
             href="/contact"
             className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
           >
-            Request a Scene
+            Request Data
           </a>
           {!currentUser ? (
             <>
@@ -159,7 +159,7 @@ export function Header() {
               className="mt-2 rounded-full bg-slate-900 px-4 py-2 text-center text-white"
               onClick={() => setOpen(false)}
             >
-              Request a Scene
+              Request Data
             </a>
             {!currentUser ? (
               <>
