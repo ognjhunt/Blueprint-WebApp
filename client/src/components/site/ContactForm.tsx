@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
+import { useSearch } from "wouter";
 import { withCsrfHeader } from "@/lib/csrf";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -20,8 +21,14 @@ const offerings = [
 
 export function ContactForm() {
   const { currentUser, userData } = useAuth();
+  const searchString = useSearch();
+  const interest = useMemo(() => {
+    if (!searchString) return "";
+    return new URLSearchParams(searchString).get("interest")?.trim() ?? "";
+  }, [searchString]);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
+  const [detailsMessage, setDetailsMessage] = useState("");
   const [selectedBudget, setSelectedBudget] = useState<string>("");
   const [selectedOfferings, setSelectedOfferings] = useState<string[]>([]);
   const [firstName, setFirstName] = useState("");
@@ -59,6 +66,20 @@ export function ContactForm() {
       setEmail(defaultEmail);
     }
   }, [company, currentUser, email, firstName, jobTitle, lastName, userData]);
+
+  useEffect(() => {
+    if (interest !== "exclusive-dataset") {
+      return;
+    }
+
+    setSelectedOfferings((prev) =>
+      prev.includes("dataset-packs") ? prev : [...prev, "dataset-packs"]
+    );
+
+    setDetailsMessage((prev) =>
+      prev.trim().length > 0 ? prev : "Requesting an exclusive dataset license."
+    );
+  }, [interest]);
 
   const handleOfferingToggle = (value: string) => {
     setSelectedOfferings((prev) =>
@@ -108,8 +129,9 @@ export function ContactForm() {
       budgetRange: selectedBudget,
       requestType: "contact-form",
       useCases: selectedOfferings,
-      message: data.get("message"),
+      message: detailsMessage,
       requestSource: "simplified-contact-form",
+      interest,
     };
 
     setStatus("loading");
@@ -137,6 +159,7 @@ export function ContactForm() {
       setEmail("");
       setSelectedBudget("");
       setSelectedOfferings([]);
+      setDetailsMessage("");
       setMessage("");
     } catch (error) {
       console.error("Contact submission failed", error);
@@ -296,6 +319,8 @@ export function ContactForm() {
           name="message"
           rows={4}
           placeholder="Share additional details on your needs, we support a wide range of Embodied AI use cases beyond the options above."
+          value={detailsMessage}
+          onChange={(event) => setDetailsMessage(event.target.value)}
           className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
       </div>
