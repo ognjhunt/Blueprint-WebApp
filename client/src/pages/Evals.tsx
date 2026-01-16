@@ -1,6 +1,9 @@
 import { SEO } from "@/components/SEO";
+import { useAuth } from "@/contexts/AuthContext";
+import { syntheticDatasets } from "@/data/content";
 import {
   ArrowRight,
+  BarChart3,
   Beaker,
   CheckCircle2,
   ChefHat,
@@ -15,6 +18,7 @@ import {
   Warehouse,
   Wrench,
 } from "lucide-react";
+import { useLocation } from "wouter";
 
 // --- Task Categories (inspired by BEHAVIOR benchmark) ---
 
@@ -168,6 +172,18 @@ function DotPattern() {
 // --- Main Component ---
 
 export default function Evals() {
+  const { currentUser } = useAuth();
+  const [, navigate] = useLocation();
+
+  const handleBenchmarkClick = (targetPath: string) => {
+    if (!currentUser) {
+      sessionStorage.setItem("redirectAfterAuth", targetPath);
+      navigate("/login");
+      return;
+    }
+    navigate(targetPath);
+  };
+
   return (
     <>
       <SEO
@@ -387,6 +403,74 @@ export default function Evals() {
                     <p className="mt-1 text-sm text-zinc-400">{scene.desc}</p>
                   </div>
                 ))}
+              </div>
+            </section>
+
+            {/* --- Available Benchmark Suites Section --- */}
+            <section id="benchmark-suites" className="space-y-8 scroll-mt-8">
+              <div className="text-center">
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50/50 px-4 py-1 text-xs font-bold uppercase tracking-wider text-emerald-600">
+                  <BarChart3 className="h-3 w-3" />
+                  Available Suites
+                </div>
+                <h2 className="mt-4 text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
+                  Benchmark Suites
+                </h2>
+                <p className="mt-4 max-w-2xl mx-auto text-zinc-600">
+                  Submit your policy for evaluation against any of these standardized benchmark suites.
+                  Get comparable results with detailed metrics and failure analysis.
+                </p>
+              </div>
+
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {syntheticDatasets.map((benchmark) => (
+                  <button
+                    key={benchmark.slug}
+                    type="button"
+                    onClick={() => handleBenchmarkClick(`/benchmarks/${benchmark.slug}`)}
+                    className="group rounded-2xl border border-zinc-200 bg-white p-6 text-left shadow-sm transition-all hover:shadow-md hover:border-emerald-200"
+                  >
+                    <div className="aspect-video overflow-hidden rounded-xl mb-4">
+                      <img
+                        src={benchmark.heroImage}
+                        alt={benchmark.title}
+                        className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                          {benchmark.locationType}
+                        </span>
+                        {benchmark.isNew && (
+                          <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                            New
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="font-semibold text-zinc-900 group-hover:text-emerald-700 transition-colors">
+                        {benchmark.title}
+                      </h3>
+                      <p className="text-sm text-zinc-500 line-clamp-2">
+                        {benchmark.description}
+                      </p>
+                      <div className="flex items-center gap-4 pt-2 text-xs text-zinc-500">
+                        <span>{benchmark.sceneCount} scenes</span>
+                        <span>{benchmark.variationCount?.toLocaleString()} variations</span>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div className="text-center">
+                <a
+                  href="/contact?request=benchmark"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700"
+                >
+                  Need a custom benchmark suite?
+                  <ArrowRight className="h-4 w-4" />
+                </a>
               </div>
             </section>
 
