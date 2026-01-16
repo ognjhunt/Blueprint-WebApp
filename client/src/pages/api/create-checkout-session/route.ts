@@ -43,6 +43,11 @@ type CheckoutRequestBody = {
     price?: number;
     quantity?: number;
     itemType?: string;
+    // Hybrid marketplace fields
+    licenseTier?: 'research' | 'commercial' | 'enterprise';
+    exclusivity?: 'non-exclusive' | 'time-limited' | 'category' | 'semi-exclusive' | 'full-exclusive';
+    basePrice?: number;
+    addons?: string[];
   };
 };
 
@@ -133,6 +138,34 @@ export default async function handler(req: Request, res: Response) {
       }
 
       const sanitizedDescription = (marketplaceItem.description || "").slice(0, 500);
+
+      // Hybrid marketplace fields
+      const licenseTier = marketplaceItem.licenseTier || 'commercial';
+      const exclusivity = marketplaceItem.exclusivity || 'non-exclusive';
+      const basePrice = marketplaceItem.basePrice || price;
+      const addons = marketplaceItem.addons || [];
+
+      // Build product description with license info
+      const licenseLabels: Record<string, string> = {
+        research: 'Research License',
+        commercial: 'Commercial License',
+        enterprise: 'Enterprise License',
+      };
+      const licenseLabel = licenseLabels[licenseTier] || 'Commercial License';
+
+      const exclusivityLabels: Record<string, string> = {
+        'non-exclusive': '',
+        'time-limited': ' (90-Day Exclusive)',
+        'category': ' (Category Exclusive)',
+        'semi-exclusive': ' (Limited Availability)',
+        'full-exclusive': ' (Full Exclusive)',
+      };
+      const exclusivityLabel = exclusivityLabels[exclusivity] || '';
+
+      const fullDescription = sanitizedDescription
+        ? `${sanitizedDescription} | ${licenseLabel}${exclusivityLabel}`
+        : `${licenseLabel}${exclusivityLabel}`;
+
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         payment_method_types: ["card"],
@@ -142,10 +175,12 @@ export default async function handler(req: Request, res: Response) {
               currency: "usd",
               product_data: {
                 name: marketplaceItem.title,
-                description: sanitizedDescription || undefined,
+                description: fullDescription || undefined,
                 metadata: {
                   sku: marketplaceItem.sku || "",
                   itemType: marketplaceItem.itemType || "",
+                  licenseTier,
+                  exclusivity,
                 },
               },
               unit_amount: Math.round(price * 100),
@@ -160,6 +195,11 @@ export default async function handler(req: Request, res: Response) {
           marketplaceDescription: sanitizedDescription,
           marketplacePrice: price.toFixed(2),
           marketplaceQuantity: quantity.toString(),
+          // Hybrid marketplace metadata
+          licenseTier,
+          exclusivity,
+          basePrice: basePrice.toFixed(2),
+          addons: addons.join(','),
         },
         success_url: resolveUrl(
           originBase,

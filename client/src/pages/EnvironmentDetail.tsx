@@ -8,13 +8,22 @@ import {
   marketplaceScenes,
   trainingDatasets,
   premiumCapabilities,
+  licenseTiers,
+  exclusivityOptions,
+  calculateTotalPrice,
   type MarketplaceScene,
   type TrainingDataset,
   type PremiumCapability,
+  type LicenseTier,
+  type ExclusivityType,
 } from "@/data/content";
 import { InteractionBadges } from "@/components/site/InteractionBadges";
 import { SpecList } from "@/components/site/SpecList";
 import { SceneCard } from "@/components/site/SceneCard";
+import { LicenseTierSelector, LicenseTierBadge } from "@/components/site/LicenseTierSelector";
+import { ExclusivityOptions, ExclusivityBadge } from "@/components/site/ExclusivityOptions";
+import { DatasheetPanel, ProvenanceBadge } from "@/components/site/DatasheetPanel";
+import { EnterpriseContactCard, EnterpriseBanner } from "@/components/site/EnterpriseContactCard";
 import {
   ArrowLeft,
   BarChart3,
@@ -76,6 +85,10 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
   const [selectedAddons, setSelectedAddons] = useState<Set<string>>(new Set());
   const [showAddons, setShowAddons] = useState(true);
   const [selectedTier, setSelectedTier] = useState<DatasetTier>('standard');
+
+  // Hybrid marketplace state - license tiers and exclusivity
+  const [selectedLicenseTier, setSelectedLicenseTier] = useState<LicenseTier>('commercial');
+  const [selectedExclusivity, setSelectedExclusivity] = useState<ExclusivityType>('non-exclusive');
 
   // Scroll to top when navigating to this page
   useEffect(() => {
@@ -172,7 +185,17 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
   }, [marketplaceItem, marketplaceScene, selectedOption]);
 
   const basePrice = getBasePrice();
-  const totalPrice = basePrice + addonsTotal;
+
+  // Calculate total with license tier and exclusivity
+  const licensedPrice = useMemo(() => {
+    return calculateTotalPrice(basePrice, selectedLicenseTier, selectedExclusivity);
+  }, [basePrice, selectedLicenseTier, selectedExclusivity]);
+
+  const totalPrice = licensedPrice + addonsTotal;
+
+  // Get license tier config for display
+  const selectedLicenseConfig = licenseTiers.find(t => t.tier === selectedLicenseTier);
+  const selectedExclusivityConfig = exclusivityOptions.find(o => o.type === selectedExclusivity);
 
   const handleCheckout = useCallback(async () => {
     if (!marketplaceItem || isRedirecting) return;
@@ -191,14 +214,21 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     const addonNames = selectedAddonsList.map(a => a.shortTitle).join(', ');
     const titleSuffix = selectedAddonsList.length > 0 ? ` + ${selectedAddonsList.length} add-on${selectedAddonsList.length > 1 ? 's' : ''}` : '';
 
+    // Include license tier in title
+    const licenseLabel = selectedLicenseConfig?.shortName || 'Commercial';
+
     const checkoutItem = {
-      sku: `${marketplaceScene!.slug}-${selectedOption}${selectedAddons.size > 0 ? '-addons' : ''}`,
-      title: `${marketplaceScene!.title} (${optionLabels[selectedOption]})${titleSuffix}`,
+      sku: `${marketplaceScene!.slug}-${selectedOption}-${selectedLicenseTier}${selectedExclusivity !== 'non-exclusive' ? `-${selectedExclusivity}` : ''}${selectedAddons.size > 0 ? '-addons' : ''}`,
+      title: `${marketplaceScene!.title} (${optionLabels[selectedOption]}) - ${licenseLabel} License${titleSuffix}`,
       description: addonNames ? `${marketplaceScene!.description} | Add-ons: ${addonNames}` : marketplaceScene!.description,
       price: totalPrice,
       quantity: 1,
       itemType: "scene" as const,
       addons: Array.from(selectedAddons),
+      // Hybrid marketplace metadata
+      licenseTier: selectedLicenseTier,
+      exclusivity: selectedExclusivity,
+      basePrice: basePrice,
     };
 
     setIsRedirecting(true);
@@ -266,6 +296,10 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     selectedOption,
     selectedAddons,
     totalPrice,
+    selectedLicenseTier,
+    selectedExclusivity,
+    selectedLicenseConfig,
+    basePrice,
   ]);
 
   if (marketplaceItem) {
@@ -336,6 +370,9 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
           >
             <ArrowLeft className="h-4 w-4" /> Back to Marketplace
           </a>
+
+          {/* Enterprise Banner - Hybrid Marketplace Upsell */}
+          <EnterpriseBanner productSlug={marketplaceItem.slug} />
 
         <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-6">
@@ -496,8 +533,30 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                 </button>
               </div>
 
+              {/* License Tier Selection - Hybrid Marketplace */}
+              <div className="mt-4 border-t border-zinc-100 pt-4">
+                <LicenseTierSelector
+                  basePrice={basePrice}
+                  selectedTier={selectedLicenseTier}
+                  onTierChange={setSelectedLicenseTier}
+                  showPrices={true}
+                  compact={true}
+                />
+              </div>
+
+              {/* Exclusivity Options - Hybrid Marketplace */}
+              <div className="mt-4 border-t border-zinc-100 pt-4">
+                <ExclusivityOptions
+                  basePrice={licensedPrice}
+                  selectedExclusivity={selectedExclusivity}
+                  onExclusivityChange={setSelectedExclusivity}
+                  showPrices={true}
+                  collapsed={true}
+                />
+              </div>
+
               {/* Recommended Analytics Section */}
-              <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 p-4 border border-emerald-200">
+              <div className="mt-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 p-4 border border-emerald-200">
                 <div className="flex items-center gap-2 mb-3">
                   <BarChart3 className="h-4 w-4 text-emerald-700" />
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
@@ -602,12 +661,43 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
 
               {/* Order Summary */}
               <div className="mt-4 border-t border-zinc-100 pt-4 space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3">
+                  Order Summary
+                </p>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-zinc-600">
                     {selectedOption === 'bundle' ? 'Scene + Episodes' : selectedOption === 'scene' ? 'Scene Only' : 'Episodes Only'}
                   </span>
                   <span className="font-medium text-zinc-900">${basePrice?.toLocaleString()}</span>
                 </div>
+
+                {/* License Tier */}
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-zinc-600">{selectedLicenseConfig?.shortName} License</span>
+                    <LicenseTierBadge tier={selectedLicenseTier} />
+                  </div>
+                  <span className={`font-medium ${selectedLicenseTier === 'research' ? 'text-emerald-600' : selectedLicenseTier === 'enterprise' ? 'text-amber-600' : 'text-zinc-900'}`}>
+                    {selectedLicenseTier === 'research' ? `-${Math.round((1 - (selectedLicenseConfig?.priceMultiplier || 1)) * 100)}%` :
+                     selectedLicenseTier === 'enterprise' ? `+${Math.round(((selectedLicenseConfig?.priceMultiplier || 1) - 1) * 100)}%` :
+                     'Included'}
+                  </span>
+                </div>
+
+                {/* Exclusivity (if not non-exclusive) */}
+                {selectedExclusivity !== 'non-exclusive' && (
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-zinc-600">{selectedExclusivityConfig?.shortName}</span>
+                      <ExclusivityBadge type={selectedExclusivity} />
+                    </div>
+                    <span className="font-medium text-purple-600">
+                      +{Math.round(((selectedExclusivityConfig?.priceMultiplier || 1) - 1) * 100)}%
+                    </span>
+                  </div>
+                )}
+
+                {/* Add-ons */}
                 {selectedAddons.size > 0 && (
                   <>
                     {Array.from(selectedAddons).map(slug => {
@@ -620,14 +710,16 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                         </div>
                       );
                     })}
-                    <div className="border-t border-zinc-100 pt-2 mt-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-zinc-900">Total</span>
-                        <span className="text-xl font-bold text-zinc-900">${totalPrice?.toLocaleString()}</span>
-                      </div>
-                    </div>
                   </>
                 )}
+
+                {/* Total */}
+                <div className="border-t border-zinc-100 pt-3 mt-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-zinc-900">Total</span>
+                    <span className="text-xl font-bold text-zinc-900">${totalPrice?.toLocaleString()}</span>
+                  </div>
+                </div>
               </div>
 
               <button
@@ -711,6 +803,23 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                 ))}
               </div>
             </div>
+
+            {/* Dataset Datasheet - Trust Artifacts */}
+            <DatasheetPanel
+              title={marketplaceItem.title}
+              productType="scene"
+              version="1.0.0"
+              releaseDate={marketplaceItem.releaseDate}
+              deliverables={deliverables}
+              compatibility={["NVIDIA Isaac Sim 4.x", "Isaac Sim 5.x", "Omniverse"]}
+            />
+
+            {/* Enterprise/Custom Lane CTA */}
+            <EnterpriseContactCard
+              productTitle={marketplaceItem.title}
+              productSlug={marketplaceItem.slug}
+              variant="sidebar"
+            />
           </aside>
         </div>
 
