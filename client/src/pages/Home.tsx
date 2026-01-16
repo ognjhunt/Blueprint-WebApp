@@ -277,7 +277,7 @@ export default function Home() {
               <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
                 For 3D Artists
               </p>
-              <h3 className="mt-2 text-xl font-bold">
+              <h3 className="mt-2 text-xl font-bold text-white">
                 Build the worlds robots learn in.
               </h3>
               <ul className="mt-4 space-y-2">
