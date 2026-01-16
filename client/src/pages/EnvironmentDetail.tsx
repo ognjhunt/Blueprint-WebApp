@@ -10,6 +10,7 @@ import {
   premiumCapabilities,
   licenseTiers,
   exclusivityOptions,
+  calculateLicensePrice,
   calculateTotalPrice,
   type MarketplaceScene,
   type TrainingDataset,
@@ -931,7 +932,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     const handleTrainingCheckout = async () => {
       if (isRedirecting) return;
 
-      // Calculate price based on selected tier
+      // Calculate base price based on selected data tier
       let tierPrice = trainingDataset.price;
       let tierLabel = 'Complete Dataset';
 
@@ -946,13 +947,33 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
         tierLabel = 'Premium Bundle';
       }
 
+      // Get license tier config for description
+      const selectedLicenseConfig = licenseTiers[selectedLicenseTier];
+      const selectedExclusivityConfig = exclusivityOptions[selectedExclusivity];
+
+      // Calculate total price with license tier and exclusivity
+      const totalPrice = calculateTotalPrice(tierPrice, selectedLicenseTier, selectedExclusivity, 0);
+
+      // Build description with license and exclusivity info
+      let description = trainingDataset.description;
+      if (selectedLicenseTier !== 'commercial' || selectedExclusivity !== 'non-exclusive') {
+        const licenseInfo = selectedLicenseTier !== 'commercial' ? ` | ${selectedLicenseConfig.name} License` : '';
+        const exclusivityInfo = selectedExclusivity !== 'non-exclusive' ? ` | ${selectedExclusivityConfig.name}` : '';
+        description = `${description}${licenseInfo}${exclusivityInfo}`;
+      }
+
       const checkoutItem = {
-        sku: `${trainingDataset.slug}-${selectedTier}`,
+        sku: `${trainingDataset.slug}-${selectedTier}-${selectedLicenseTier}-${selectedExclusivity}`,
         title: `${trainingDataset.title} (${tierLabel})`,
-        description: trainingDataset.description,
-        price: tierPrice,
+        description: description.slice(0, 500),
+        price: totalPrice,
         quantity: 1,
         itemType: "training" as const,
+        // Hybrid marketplace metadata
+        licenseTier: selectedLicenseTier,
+        exclusivity: selectedExclusivity,
+        basePrice: tierPrice,
+        dataTier: selectedTier,
       };
 
       setIsRedirecting(true);
@@ -1043,6 +1064,9 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
           >
             <ArrowLeft className="h-4 w-4" /> Back to Marketplace
           </a>
+
+          {/* Enterprise Banner - Hybrid Marketplace Upsell for Datasets */}
+          <EnterpriseBanner productSlug={trainingDataset.slug} />
 
           <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="space-y-6">
@@ -1242,6 +1266,92 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                   </button>
                 </div>
 
+                {/* License Tier Selection - Hybrid Marketplace for Datasets */}
+                <div className="mt-4 border-t border-zinc-100 pt-4">
+                  <LicenseTierSelector
+                    basePrice={
+                      selectedTier === 'basic'
+                        ? (trainingDataset.basicPrice || Math.round(trainingDataset.price * 0.4))
+                        : selectedTier === 'premium'
+                        ? (trainingDataset.premiumPrice || Math.round(trainingDataset.price * 1.5))
+                        : (trainingDataset.standardPrice || trainingDataset.price)
+                    }
+                    selectedTier={selectedLicenseTier}
+                    onTierChange={setSelectedLicenseTier}
+                    showPrices={true}
+                    compact={true}
+                  />
+                </div>
+
+                {/* Exclusivity Options - Hybrid Marketplace for Datasets */}
+                <div className="mt-4 border-t border-zinc-100 pt-4">
+                  <ExclusivityOptions
+                    basePrice={calculateLicensePrice(
+                      selectedTier === 'basic'
+                        ? (trainingDataset.basicPrice || Math.round(trainingDataset.price * 0.4))
+                        : selectedTier === 'premium'
+                        ? (trainingDataset.premiumPrice || Math.round(trainingDataset.price * 1.5))
+                        : (trainingDataset.standardPrice || trainingDataset.price),
+                      selectedLicenseTier
+                    )}
+                    selectedExclusivity={selectedExclusivity}
+                    onExclusivityChange={setSelectedExclusivity}
+                    showPrices={true}
+                    collapsed={true}
+                  />
+                </div>
+
+                {/* Order Summary for Datasets */}
+                <div className="mt-4 border-t border-zinc-100 pt-4 space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-zinc-600">
+                      {selectedTier === 'basic' ? 'Core Data' : selectedTier === 'premium' ? 'Premium Bundle' : 'Complete Dataset'}
+                    </span>
+                    <span className="font-medium text-zinc-900">
+                      ${(selectedTier === 'basic'
+                        ? (trainingDataset.basicPrice || Math.round(trainingDataset.price * 0.4))
+                        : selectedTier === 'premium'
+                        ? (trainingDataset.premiumPrice || Math.round(trainingDataset.price * 1.5))
+                        : (trainingDataset.standardPrice || trainingDataset.price)).toLocaleString()}
+                    </span>
+                  </div>
+                  {selectedLicenseTier !== 'commercial' && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-zinc-600">
+                        {licenseTiers[selectedLicenseTier].name} License
+                      </span>
+                      <span className={`font-medium ${selectedLicenseTier === 'research' ? 'text-emerald-600' : 'text-zinc-900'}`}>
+                        {selectedLicenseTier === 'research' ? '-40%' : '+150%'}
+                      </span>
+                    </div>
+                  )}
+                  {selectedExclusivity !== 'non-exclusive' && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-zinc-600">
+                        {exclusivityOptions[selectedExclusivity].name}
+                      </span>
+                      <span className="font-medium text-amber-600">
+                        +{((exclusivityOptions[selectedExclusivity].priceMultiplier - 1) * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                  )}
+                  <div className="mt-3 pt-3 border-t border-zinc-200 flex items-center justify-between">
+                    <span className="text-sm font-semibold text-zinc-900">Total</span>
+                    <span className="text-xl font-bold text-indigo-600">
+                      ${calculateTotalPrice(
+                        selectedTier === 'basic'
+                          ? (trainingDataset.basicPrice || Math.round(trainingDataset.price * 0.4))
+                          : selectedTier === 'premium'
+                          ? (trainingDataset.premiumPrice || Math.round(trainingDataset.price * 1.5))
+                          : (trainingDataset.standardPrice || trainingDataset.price),
+                        selectedLicenseTier,
+                        selectedExclusivity,
+                        0
+                      ).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
                 <button
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-zinc-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-indigo-600 disabled:opacity-60"
                   onClick={handleTrainingCheckout}
@@ -1250,13 +1360,16 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                   <ShoppingCart className="h-4 w-4" />
                   {isRedirecting
                     ? "Redirecting..."
-                    : `Buy Now — $${
+                    : `Buy Now — $${calculateTotalPrice(
                         selectedTier === 'basic'
-                          ? (trainingDataset.basicPrice || Math.round(trainingDataset.price * 0.4)).toLocaleString()
+                          ? (trainingDataset.basicPrice || Math.round(trainingDataset.price * 0.4))
                           : selectedTier === 'premium'
-                          ? (trainingDataset.premiumPrice || Math.round(trainingDataset.price * 1.5)).toLocaleString()
-                          : (trainingDataset.standardPrice || trainingDataset.price).toLocaleString()
-                      }`}
+                          ? (trainingDataset.premiumPrice || Math.round(trainingDataset.price * 1.5))
+                          : (trainingDataset.standardPrice || trainingDataset.price),
+                        selectedLicenseTier,
+                        selectedExclusivity,
+                        0
+                      ).toLocaleString()}`}
                 </button>
               </div>
 
@@ -1305,6 +1418,23 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                   ))}
                 </ul>
               </div>
+
+              {/* Dataset Datasheet - Trust Artifacts */}
+              <DatasheetPanel
+                title={trainingDataset.title}
+                productType="dataset"
+                version="1.0.0"
+                releaseDate={trainingDataset.releaseDate}
+                deliverables={trainingDataset.deliverables}
+                compatibility={trainingDataset.compatibleWith}
+              />
+
+              {/* Enterprise/Custom Lane CTA for Datasets */}
+              <EnterpriseContactCard
+                productTitle={trainingDataset.title}
+                productSlug={trainingDataset.slug}
+                variant="sidebar"
+              />
             </aside>
           </div>
 
