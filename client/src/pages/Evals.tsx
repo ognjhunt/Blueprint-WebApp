@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   ChefHat,
   ClipboardList,
+  Cpu,
   Home,
   Package,
   Send,
@@ -17,6 +18,7 @@ import {
   Upload,
   Warehouse,
   Wrench,
+  Zap,
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -267,6 +269,48 @@ export default function Evals() {
                     Get detailed metrics and failure analysis to understand
                     where your policy struggles.
                   </p>
+                </div>
+              </div>
+            </section>
+
+            {/* --- Isaac Lab-Arena Integration --- */}
+            <section className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/30 to-white p-8">
+              <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                <div className="space-y-4">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white px-3 py-1 text-xs font-bold uppercase tracking-wider text-indigo-600">
+                    <Cpu className="h-3 w-3" />
+                    Isaac Lab-Arena Integration
+                  </div>
+                  <h2 className="text-2xl font-bold text-zinc-900">
+                    GPU-parallel policy evaluation
+                  </h2>
+                  <p className="max-w-lg text-zinc-600">
+                    Blueprint scenes export directly to NVIDIA Isaac Lab-Arena format
+                    for standardized affordances and 1000x parallel evaluation.
+                  </p>
+                  <div className="flex flex-wrap gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-indigo-500" />
+                      <span className="text-zinc-700">17 affordance types</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-indigo-500" />
+                      <span className="text-zinc-700">250+ task templates</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-indigo-500" />
+                      <span className="text-zinc-700">LeRobot Hub compatible</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex-shrink-0">
+                  <a
+                    href="/docs#isaac-lab-arena"
+                    className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-white px-5 py-2.5 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-50"
+                  >
+                    View Documentation
+                    <ArrowRight className="h-4 w-4" />
+                  </a>
                 </div>
               </div>
             </section>
