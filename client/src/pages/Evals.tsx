@@ -382,7 +382,7 @@ export default function Evals() {
             {/* --- Available Scene Types --- */}
             <section className="rounded-3xl bg-zinc-900 p-8 sm:p-10 text-white">
               <div className="text-center mb-10">
-                <h2 className="text-2xl font-bold sm:text-3xl">
+                <h2 className="text-2xl font-bold text-white sm:text-3xl">
                   Benchmark environments
                 </h2>
                 <p className="mt-3 text-zinc-400 max-w-xl mx-auto">
