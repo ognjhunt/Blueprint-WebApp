@@ -319,20 +319,22 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
           )}
 
           {/* License Tier Preview - Hybrid Marketplace */}
-          <div className="mt-3 flex items-center justify-between rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 text-[10px] text-zinc-500">
-                <GraduationCap className="h-3 w-3" />
-                <span>From ${calculateLicensePrice(isDataset ? (dataset!.bundlePrice || 0) : isTraining ? training!.price : (scene!.bundlePrice || scene!.price), 'research').toLocaleString()}</span>
+          {!isDataset && (
+            <div className="mt-3 flex items-center justify-between rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 text-[10px] text-zinc-500">
+                  <GraduationCap className="h-3 w-3" />
+                  <span>From ${calculateLicensePrice(isDataset ? (dataset!.bundlePrice || 0) : isTraining ? training!.price : (scene!.bundlePrice || scene!.price), 'research').toLocaleString()}</span>
+                </div>
+                <div className="h-3 w-px bg-zinc-200" />
+                <div className="flex items-center gap-1.5 text-[10px] font-medium text-indigo-600">
+                  <Building2 className="h-3 w-3" />
+                  <span>Commercial</span>
+                </div>
               </div>
-              <div className="h-3 w-px bg-zinc-200" />
-              <div className="flex items-center gap-1.5 text-[10px] font-medium text-indigo-600">
-                <Building2 className="h-3 w-3" />
-                <span>Commercial</span>
-              </div>
+              <ProvenanceBadge />
             </div>
-            <ProvenanceBadge />
-          </div>
+          )}
         </div>
 
         {/* Stats Grid */}
