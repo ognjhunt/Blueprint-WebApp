@@ -1,8 +1,10 @@
 import type { MouseEvent } from "react";
 import { useState, useCallback } from "react";
 import { loadStripe } from "@stripe/stripe-js";
-import { Shield, Package, Sparkles, TrendingUp, ShoppingCart, Loader2, Play, Layers, Database } from "lucide-react";
+import { Shield, Package, Sparkles, TrendingUp, ShoppingCart, Loader2, Play, Layers, Database, GraduationCap, Building2, ChevronRight } from "lucide-react";
 import type { SyntheticDataset, MarketplaceScene, TrainingDataset } from "@/data/content";
+import { licenseTiers, calculateLicensePrice } from "@/data/content";
+import { ProvenanceBadge } from "@/components/site/DatasheetPanel";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
@@ -254,6 +256,21 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
               <div className="text-xs text-zinc-500">
                 {dataset!.sceneCount} scenes • {dataset!.variationCount?.toLocaleString()} variations • {dataset!.episodeCount?.toLocaleString()} episodes
               </div>
+              {/* License Tier Preview - Dataset */}
+              <div className="mt-2 flex items-center justify-between rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5 text-[10px] text-zinc-500">
+                    <GraduationCap className="h-3 w-3" />
+                    <span>From ${calculateLicensePrice(dataset!.bundlePrice || 0, 'research').toLocaleString()}</span>
+                  </div>
+                  <div className="h-3 w-px bg-zinc-200" />
+                  <div className="flex items-center gap-1.5 text-[10px] font-medium text-indigo-600">
+                    <Building2 className="h-3 w-3" />
+                    <span>Commercial</span>
+                  </div>
+                </div>
+                <ProvenanceBadge />
+              </div>
             </>
           ) : isTraining ? (
             <>
@@ -267,6 +284,21 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
               </div>
               <div className="text-xs text-zinc-500">
                 {training!.episodeCount.toLocaleString()} episodes • {training!.trajectoryLength} per trajectory
+              </div>
+              {/* License Tier Preview - Training */}
+              <div className="mt-2 flex items-center justify-between rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5 text-[10px] text-zinc-500">
+                    <GraduationCap className="h-3 w-3" />
+                    <span>From ${calculateLicensePrice(training!.price, 'research').toLocaleString()}</span>
+                  </div>
+                  <div className="h-3 w-px bg-zinc-200" />
+                  <div className="flex items-center gap-1.5 text-[10px] font-medium text-indigo-600">
+                    <Building2 className="h-3 w-3" />
+                    <span>Commercial</span>
+                  </div>
+                </div>
+                <ProvenanceBadge />
               </div>
             </>
           ) : (
@@ -284,6 +316,22 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
               </div>
             </>
           )}
+
+          {/* License Tier Preview - Hybrid Marketplace */}
+          <div className="mt-3 flex items-center justify-between rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 text-[10px] text-zinc-500">
+                <GraduationCap className="h-3 w-3" />
+                <span>From ${calculateLicensePrice(isDataset ? (dataset!.bundlePrice || 0) : isTraining ? training!.price : (scene!.bundlePrice || scene!.price), 'research').toLocaleString()}</span>
+              </div>
+              <div className="h-3 w-px bg-zinc-200" />
+              <div className="flex items-center gap-1.5 text-[10px] font-medium text-indigo-600">
+                <Building2 className="h-3 w-3" />
+                <span>Commercial</span>
+              </div>
+            </div>
+            <ProvenanceBadge />
+          </div>
         </div>
 
         {/* Stats Grid */}
