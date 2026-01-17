@@ -3,40 +3,20 @@ import fs from "fs";
 import path from "path";
 import { createServer } from "http";
 import rateLimit from "express-rate-limit";
-import { RedisStore } from "rate-limit-redis";
-import { createClient } from "redis";
 
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic } from "./vite";
 import { attachRequestMeta, logger, generateTraceId, logSecurityEvent } from "./logger";
 import { incrementRequestCount, incrementErrorCount } from "./routes/health";
 import { validateEnv } from "./config/env";
+import { createRateLimitRedisStore } from "./utils/rate-limit-redis";
 
 const env = validateEnv();
 
 const app = express();
 const isProduction = process.env.NODE_ENV === "production";
 
-const rateLimitRedisUrl = env.RATE_LIMIT_REDIS_URL || env.REDIS_URL;
-const redisClient =
-  rateLimitRedisUrl && process.env.NODE_ENV === "production"
-    ? createClient({ url: rateLimitRedisUrl })
-    : null;
-
-if (redisClient) {
-  redisClient.on("error", (error) => {
-    logger.warn({ error }, "Redis rate limit store error");
-  });
-  void redisClient.connect();
-}
-
-const createRateLimitStore = (prefix: string) =>
-  redisClient
-    ? new RedisStore({
-        sendCommand: (...args: string[]) => redisClient.sendCommand(args),
-        prefix,
-      })
-    : undefined;
+const createRateLimitStore = (prefix: string) => createRateLimitRedisStore(prefix);
 
 // Known crawler/bot User-Agents that should bypass rate limiting
 const CRAWLER_USER_AGENTS = [

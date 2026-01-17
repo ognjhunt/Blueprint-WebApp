@@ -4,6 +4,7 @@ import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { sendEmail } from "../utils/email";
 import { notifySlackInboundRequest } from "../utils/slack";
 import { logger } from "../logger";
+import { getRateLimitRedisClient } from "../utils/rate-limit-redis";
 import type {
   InboundRequestPayload,
   InboundRequest,
@@ -16,13 +17,20 @@ import type {
 
 const router = Router();
 
-// Rate limiting maps (in production, use Redis)
-const rateLimitByIp = new Map<string, { count: number; resetAt: number }>();
-const rateLimitByEmail = new Map<string, { count: number; resetAt: number }>();
-
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const RATE_LIMIT_MAX_IP = 10; // Max 10 submissions per IP per window
 const RATE_LIMIT_MAX_EMAIL = 3; // Max 3 submissions per email per window
+const RATE_LIMIT_PREFIX = "rl:inbound:";
+
+const rateLimitRedisClient = getRateLimitRedisClient();
+
+const RATE_LIMIT_SCRIPT = `
+local current = redis.call("INCR", KEYS[1])
+if tonumber(current) == 1 then
+  redis.call("PEXPIRE", KEYS[1], ARGV[1])
+end
+return current
+`;
 
 // Valid budget buckets
 const VALID_BUDGET_BUCKETS: BudgetBucket[] = [
@@ -61,25 +69,29 @@ function hashIp(ip: string): string {
 /**
  * Check rate limit for a given key
  */
-function checkRateLimit(
-  map: Map<string, { count: number; resetAt: number }>,
+async function checkRateLimit(
   key: string,
   maxCount: number
-): { allowed: boolean; remaining: number } {
-  const now = Date.now();
-  const entry = map.get(key);
-
-  if (!entry || now > entry.resetAt) {
-    map.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return { allowed: true, remaining: maxCount - 1 };
+): Promise<{ allowed: boolean; remaining: number }> {
+  if (!rateLimitRedisClient) {
+    if (process.env.NODE_ENV === "production") {
+      logger.warn("Redis rate limit client unavailable; allowing inbound request");
+    }
+    return { allowed: true, remaining: maxCount };
   }
 
-  if (entry.count >= maxCount) {
-    return { allowed: false, remaining: 0 };
+  try {
+    const count = await rateLimitRedisClient.eval(RATE_LIMIT_SCRIPT, {
+      keys: [key],
+      arguments: [RATE_LIMIT_WINDOW_MS.toString()],
+    });
+    const current = typeof count === "number" ? count : Number(count);
+    const remaining = Math.max(maxCount - current, 0);
+    return { allowed: current <= maxCount, remaining };
+  } catch (error) {
+    logger.warn({ error }, "Redis rate limit check failed; allowing inbound request");
+    return { allowed: true, remaining: maxCount };
   }
-
-  entry.count++;
-  return { allowed: true, remaining: maxCount - entry.count };
 }
 
 /**
@@ -327,7 +339,10 @@ router.post("/", async (req: Request, res: Response) => {
     }
 
     // 5. Check rate limits
-    const ipRateLimit = checkRateLimit(rateLimitByIp, ipHash, RATE_LIMIT_MAX_IP);
+    const ipRateLimit = await checkRateLimit(
+      `${RATE_LIMIT_PREFIX}ip:${ipHash}`,
+      RATE_LIMIT_MAX_IP
+    );
     if (!ipRateLimit.allowed) {
       logger.warn({ ipHash }, "IP rate limit exceeded");
       return res.status(429).json({
@@ -339,9 +354,8 @@ router.post("/", async (req: Request, res: Response) => {
     }
 
     const emailDomain = emailLower.split("@")[1];
-    const emailRateLimit = checkRateLimit(
-      rateLimitByEmail,
-      emailDomain,
+    const emailRateLimit = await checkRateLimit(
+      `${RATE_LIMIT_PREFIX}email:${emailDomain}`,
       RATE_LIMIT_MAX_EMAIL
     );
     if (!emailRateLimit.allowed) {
