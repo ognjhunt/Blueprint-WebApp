@@ -24,7 +24,7 @@ export const csrfCookieHandler = (_req: Request, res: Response) => {
   const token = crypto.randomBytes(32).toString("hex");
 
   res.cookie(CSRF_COOKIE_NAME, token, {
-    httpOnly: false,
+    httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
