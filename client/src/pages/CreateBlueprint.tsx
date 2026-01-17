@@ -13,7 +13,6 @@ import {
 } from "react";
 import { Loader } from "@googlemaps/js-api-loader";
 import { ScanningSetup } from "@/components/ScanningSetup";
-import ScreenShareButton from "@/components/ScreenShareButton";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import { getGoogleMapsApiKey } from "@/lib/client-env";
@@ -1519,7 +1518,6 @@ export default function CreateBlueprint() {
       </main>
 
       <Footer />
-      <ScreenShareButton />
     </div>
   );
 }
