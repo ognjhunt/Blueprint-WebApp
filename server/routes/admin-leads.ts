@@ -254,12 +254,28 @@ router.patch(
       if (!doc.exists) {
         return res.status(404).json({ error: "Request not found" });
       }
+      const previousStatus = (doc.data() as InboundRequest).status;
 
       // Update status
       await docRef.update({
         status,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
+
+      if (previousStatus !== status) {
+        await db
+          .collection("stats")
+          .doc("inboundRequests")
+          .set(
+            {
+              [`byStatus.${previousStatus}`]:
+                admin.firestore.FieldValue.increment(-1),
+              [`byStatus.${status}`]: admin.firestore.FieldValue.increment(1),
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+      }
 
       // Add note if provided
       if (note && note.trim()) {
@@ -407,44 +423,26 @@ router.get("/stats/summary", requireAdmin, async (req: Request, res: Response) =
       return res.status(500).json({ error: "Database not available" });
     }
 
-    // Get counts by status
+    const statsSnapshot = await db
+      .collection("stats")
+      .doc("inboundRequests")
+      .get();
+    const statsData = statsSnapshot.exists ? statsSnapshot.data() ?? {} : {};
+
     const statusCounts: Record<string, number> = {
-      new: 0,
-      triaging: 0,
-      scheduled: 0,
-      qualified: 0,
-      disqualified: 0,
-      closed: 0,
+      new: statsData.byStatus?.new ?? 0,
+      triaging: statsData.byStatus?.triaging ?? 0,
+      scheduled: statsData.byStatus?.scheduled ?? 0,
+      qualified: statsData.byStatus?.qualified ?? 0,
+      disqualified: statsData.byStatus?.disqualified ?? 0,
+      closed: statsData.byStatus?.closed ?? 0,
     };
 
-    const statusPromises = Object.keys(statusCounts).map(async (status) => {
-      const snapshot = await db
-        .collection("inboundRequests")
-        .where("status", "==", status)
-        .count()
-        .get();
-      statusCounts[status] = snapshot.data().count;
-    });
-
-    await Promise.all(statusPromises);
-
-    // Get counts by priority
     const priorityCounts: Record<string, number> = {
-      high: 0,
-      normal: 0,
-      low: 0,
+      high: statsData.byPriority?.high ?? 0,
+      normal: statsData.byPriority?.normal ?? 0,
+      low: statsData.byPriority?.low ?? 0,
     };
-
-    const priorityPromises = Object.keys(priorityCounts).map(async (priority) => {
-      const snapshot = await db
-        .collection("inboundRequests")
-        .where("priority", "==", priority)
-        .count()
-        .get();
-      priorityCounts[priority] = snapshot.data().count;
-    });
-
-    await Promise.all(priorityPromises);
 
     // Get new leads from last 24 hours
     const oneDayAgo = new Date();
@@ -457,9 +455,7 @@ router.get("/stats/summary", requireAdmin, async (req: Request, res: Response) =
       .get();
     const newLast24h = recentSnapshot.data().count;
 
-    // Get total count
-    const totalSnapshot = await db.collection("inboundRequests").count().get();
-    const total = totalSnapshot.data().count;
+    const total = statsData.total ?? 0;
 
     return res.json({
       total,
