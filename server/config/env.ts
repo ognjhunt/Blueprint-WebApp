@@ -19,25 +19,7 @@ const envSchema = z
     ALLOWED_ORIGINS: z.string().trim().optional(),
     API_BODY_LIMIT: z.string().trim().optional(),
   })
-  .passthrough()
-  .superRefine((env, ctx) => {
-    if (env.NODE_ENV === "production") {
-      if (!env.STRIPE_SECRET_KEY) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["STRIPE_SECRET_KEY"],
-          message: "STRIPE_SECRET_KEY is required in production.",
-        });
-      }
-      if (!env.STRIPE_CONNECT_ACCOUNT_ID && !isPlaceholderValue(env.STRIPE_SECRET_KEY)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["STRIPE_CONNECT_ACCOUNT_ID"],
-          message: "STRIPE_CONNECT_ACCOUNT_ID is required in production.",
-        });
-      }
-    }
-  });
+  .passthrough();
 
 export type Env = z.infer<typeof envSchema>;
 
