@@ -1,5 +1,10 @@
 import { Request, Response } from "express";
 import { sendEmail } from "../utils/email";
+import {
+  buildIdempotencyKey,
+  fetchIdempotencyResponse,
+  storeIdempotencyResponse,
+} from "../utils/idempotency";
 import { isValidEmailAddress } from "../utils/validation";
 
 export default async function waitlistHandler(req: Request, res: Response) {
@@ -18,11 +23,34 @@ export default async function waitlistHandler(req: Request, res: Response) {
     return res.status(400).json({ error: "Invalid email format" });
   }
 
+  const { key: idempotencyKey, ttlMs: idempotencyTtlMs } = buildIdempotencyKey({
+    scope: "waitlist",
+    email: emailValue,
+    payload: {
+      email: emailValue,
+      locationType,
+    },
+  });
+
+  const cachedResponse = await fetchIdempotencyResponse(idempotencyKey);
+  if (cachedResponse) {
+    return res.status(cachedResponse.status).json(cachedResponse.body);
+  }
+
   const to = process.env.WAITLIST_TO ?? "ops@tryblueprint.io";
   const subject = "New on-site capture waitlist submission";
   const text = `Email: ${emailValue}\nLocation type: ${locationType}`;
 
   const { sent } = await sendEmail({ to, subject, text });
 
-  return res.status(sent ? 200 : 202).json({ success: true, sent });
+  const responseStatus = sent ? 200 : 202;
+  const responseBody = { success: true, sent };
+
+  await storeIdempotencyResponse({
+    key: idempotencyKey,
+    response: { status: responseStatus, body: responseBody },
+    ttlMs: idempotencyTtlMs,
+  });
+
+  return res.status(responseStatus).json(responseBody);
 }
