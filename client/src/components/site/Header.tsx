@@ -123,10 +123,14 @@ export function Header() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
                 <DropdownMenuItem asChild>
-                  <a href="/settings">Settings</a>
+                  <a href="/settings">
+                    Settings
+                  </a>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>Sign out</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSignOut}>
+                  Sign out
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
