@@ -1,5 +1,6 @@
 import { Request, Response, Router } from "express";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { HTTP_STATUS } from "../constants/http-status";
 import { logger } from "../logger";
 import type {
   InboundRequest,
@@ -345,7 +346,7 @@ router.patch(
         "Lead owner assigned"
       );
 
-      return res.json({ ok: true, owner });
+      return res.status(HTTP_STATUS.OK).json({ ok: true, owner });
     } catch (error) {
       logger.error(
         { error, requestId: req.params.requestId },
@@ -393,7 +394,7 @@ router.post(
 
       logger.info({ requestId, noteId: noteRef.id, by: user.email }, "Note added to lead");
 
-      return res.json({
+      return res.status(HTTP_STATUS.CREATED).json({
         ok: true,
         note: {
           id: noteRef.id,

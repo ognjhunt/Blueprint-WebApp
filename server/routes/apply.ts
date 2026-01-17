@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import multer from "multer";
 import path from "path";
 
+import { HTTP_STATUS } from "../constants/http-status";
 import { sendEmail } from "../utils/email";
 import { isValidEmailAddress } from "../utils/validation";
 
@@ -185,9 +186,11 @@ export default function applyHandler(req: Request, res: Response) {
         replyTo: "ohstnhunt@gmail.com",
       });
 
-      return res
-        .status(sent ? 200 : 202)
-        .json({ success: true, sent, confirmationSent: confirmationResult.sent });
+      return res.status(HTTP_STATUS.ACCEPTED).json({
+        success: true,
+        sent,
+        confirmationSent: confirmationResult.sent,
+      });
     } catch (error) {
       console.error(error);
       return res.status(500).json({ error: "Failed to process application" });

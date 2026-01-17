@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { HTTP_STATUS } from "../constants/http-status";
 import { attachRequestMeta, logger } from "../logger";
 
 type PostSignupWorkflowRequest = {
@@ -90,7 +91,7 @@ export default async function postSignupWorkflowsHandler(
 
     logger.info(requestMeta, "Post-signup workflows skipped");
 
-    return res.json({
+    return res.status(HTTP_STATUS.OK).json({
       success: true,
       blueprintId,
       knowledgeSourceCount: 0,

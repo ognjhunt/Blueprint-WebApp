@@ -1,5 +1,6 @@
 import express from "express";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { HTTP_STATUS } from "../constants/http-status";
 import { logger } from "../logger";
 
 const router = express.Router();
@@ -42,7 +43,7 @@ router.post('/analyze', async (req, res) => {
     const response = await result.response;
     const analysis = response.text();
 
-    res.json({ analysis });
+    res.status(HTTP_STATUS.OK).json({ analysis });
   } catch (error) {
     logger.error({ err: error }, "Error analyzing floor plan");
     res.status(500).json({ 

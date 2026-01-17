@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import express from "express";
 import { createServer } from "http";
 import type { Server } from "http";
+import { HTTP_STATUS } from "../constants/http-status";
 
 let server: Server;
 let baseUrl: string;
@@ -68,7 +69,7 @@ describe("CSRF protection", () => {
 
   it("accepts requests with matching CSRF cookie and header", async () => {
     const csrfResponse = await fetch(`${baseUrl}/api/csrf`);
-    expect(csrfResponse.status).toBe(200);
+    expect(csrfResponse.status).toBe(HTTP_STATUS.OK);
     const cookieHeader = getCookieValue(csrfResponse.headers.get("set-cookie"));
     const data = (await csrfResponse.json()) as { csrfToken?: string };
 
@@ -91,6 +92,6 @@ describe("CSRF protection", () => {
       }),
     });
 
-    expect(response.status).toBe(202);
+    expect(response.status).toBe(HTTP_STATUS.ACCEPTED);
   });
 });

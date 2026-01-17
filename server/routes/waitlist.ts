@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { HTTP_STATUS } from "../constants/http-status";
 import { sendEmail } from "../utils/email";
 import { isValidEmailAddress } from "../utils/validation";
 
@@ -24,5 +25,5 @@ export default async function waitlistHandler(req: Request, res: Response) {
 
   const { sent } = await sendEmail({ to, subject, text });
 
-  return res.status(sent ? 200 : 202).json({ success: true, sent });
+  return res.status(HTTP_STATUS.ACCEPTED).json({ success: true, sent });
 }

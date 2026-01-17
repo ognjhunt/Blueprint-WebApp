@@ -2,6 +2,7 @@ import { Router } from "express";
 import { randomUUID } from "crypto";
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { HTTP_STATUS } from "../constants/http-status";
 import { logger } from "../logger";
 import { GeoPoint, Timestamp } from "firebase-admin/firestore";
 
@@ -233,7 +234,9 @@ router.post("/pending-session", async (req, res) => {
 
   try {
     await db.collection("qrSessions").doc(token).set(payload, { merge: true });
-    return res.json({ token, expiresAt: expiresAt.toDate().toISOString() });
+    return res
+      .status(HTTP_STATUS.CREATED)
+      .json({ token, expiresAt: expiresAt.toDate().toISOString() });
   } catch (error) {
     logger.error({ err: error }, "Failed to create pending QR session");
     return res.status(500).json({ error: "Failed to create pending session" });

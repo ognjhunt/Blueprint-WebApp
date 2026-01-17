@@ -1,6 +1,7 @@
 import { Request, Response, Router } from "express";
 import crypto from "crypto";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { HTTP_STATUS } from "../constants/http-status";
 import { sendEmail } from "../utils/email";
 import { notifySlackInboundRequest } from "../utils/slack";
 import { logger } from "../logger";
@@ -276,7 +277,7 @@ router.post("/", async (req: Request, res: Response) => {
     if (payload.honeypot) {
       logger.warn({ ipHash }, "Honeypot triggered - likely bot submission");
       // Return success to not reveal detection
-      return res.status(200).json({
+      return res.status(HTTP_STATUS.ACCEPTED).json({
         ok: true,
         requestId: payload.requestId || "fake-id",
         status: "new",
@@ -390,7 +391,7 @@ router.post("/", async (req: Request, res: Response) => {
         "Duplicate request - returning existing"
       );
       const existingData = existingDoc.data() as InboundRequest;
-      return res.status(200).json({
+      return res.status(HTTP_STATUS.OK).json({
         ok: true,
         requestId: payload.requestId,
         status: existingData.status,
@@ -619,7 +620,7 @@ View in admin: ${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/$
     });
 
     // 11. Return success
-    return res.status(200).json({
+    return res.status(HTTP_STATUS.CREATED).json({
       ok: true,
       requestId: payload.requestId,
       status: "new",

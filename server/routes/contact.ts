@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { HTTP_STATUS } from "../constants/http-status";
 import { sendEmail } from "../utils/email";
 import { isValidEmailAddress } from "../utils/validation";
 
@@ -347,5 +348,5 @@ export default async function contactHandler(req: Request, res: Response) {
     });
   }
 
-  return res.status(sent ? 200 : 202).json({ success: true, sent });
+  return res.status(HTTP_STATUS.ACCEPTED).json({ success: true, sent });
 }

@@ -1,5 +1,6 @@
 import express from "express";
 
+import { HTTP_STATUS } from "../constants/http-status";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import {
@@ -429,7 +430,7 @@ router.post("/chat", async (req, res) => {
   try {
     const cached = (await getCachedAnswer(key)) as CachedPayload | null;
     if (cached && cached.content) {
-      return res.json({ ...cached, fromCache: true });
+      return res.status(HTTP_STATUS.OK).json({ ...cached, fromCache: true });
     }
   } catch (error) {
     logger.warn({ blueprintId, err: error }, "Answer cache lookup failed");
@@ -642,7 +643,7 @@ router.post("/chat", async (req, res) => {
 
     void putCachedAnswer(key, payloadToCache, 180);
 
-    return res.json(payloadToCache);
+    return res.status(HTTP_STATUS.OK).json(payloadToCache);
   } catch (error) {
     logger.error(
       { blueprintId, err: error },

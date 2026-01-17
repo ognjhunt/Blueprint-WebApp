@@ -1,5 +1,6 @@
 import { Router, type Response } from "express";
 import type Stripe from "stripe";
+import { HTTP_STATUS } from "../constants/http-status";
 import {
   STRIPE_CONNECT_ACCOUNT_ID,
   STRIPE_ONBOARDING_REFRESH_URL,
@@ -69,7 +70,7 @@ router.get("/account", async (_req, res) => {
   }
 });
 
-async function createOnboardingLink(res: Response) {
+async function createOnboardingLink(res: Response, statusCode = HTTP_STATUS.OK) {
   ensureStripeConfigured();
 
   if (!STRIPE_ONBOARDING_REFRESH_URL || !STRIPE_ONBOARDING_RETURN_URL) {
@@ -85,14 +86,14 @@ async function createOnboardingLink(res: Response) {
     type: "account_onboarding",
   });
 
-  return res.status(200).json({
+  return res.status(statusCode).json({
     onboarding_url: link.url,
   });
 }
 
 router.post("/account/onboarding_link", async (_req, res) => {
   try {
-    await createOnboardingLink(res);
+    await createOnboardingLink(res, HTTP_STATUS.CREATED);
   } catch (error) {
     const status = (error as any)?.status || 500;
     const message = (error as Error).message || "Failed to create onboarding link";
@@ -102,7 +103,7 @@ router.post("/account/onboarding_link", async (_req, res) => {
 
 router.get("/account/onboarding_link", async (_req, res) => {
   try {
-    await createOnboardingLink(res);
+    await createOnboardingLink(res, HTTP_STATUS.OK);
   } catch (error) {
     const status = (error as any)?.status || 500;
     const message = (error as Error).message || "Failed to create onboarding link";
@@ -161,7 +162,7 @@ router.post("/account/instant_payout", async (req, res) => {
       { stripeAccount: STRIPE_CONNECT_ACCOUNT_ID },
     );
 
-    return res.status(200).json({
+    return res.status(HTTP_STATUS.CREATED).json({
       success: true,
       payout_id: payout.id,
     });
