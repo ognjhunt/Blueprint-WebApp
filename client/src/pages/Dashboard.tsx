@@ -6,7 +6,6 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import GeminiChat from "@/components/GeminiChat";
-import GeminiMultimodal from "@/components/GeminiMultimodal";
 import { motion, AnimatePresence } from "framer-motion";
 import DarkModeToggle from "@/components/DarkModeToggle";
 import { LiveAPIProvider } from "@/contexts/LiveAPIContext";
