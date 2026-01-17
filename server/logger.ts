@@ -15,6 +15,10 @@ const REDACTED_FIELDS = [
   "body.cardNumber",
   "body.cvv",
   "body.ssn",
+  "body.email",
+  "contact.email",
+  "user.email",
+  "req.body.email",
   "error.config.headers.Authorization",
   "error.config.headers.authorization",
 ];
