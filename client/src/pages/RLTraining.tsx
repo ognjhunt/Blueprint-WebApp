@@ -62,7 +62,7 @@ const howItWorks = [
   {
     step: "02",
     title: "We Train at Scale",
-    desc: "Our infrastructure runs thousands of simulated robots in parallel, collecting experience 1000x faster than real-world training.",
+    desc: "Our infrastructure runs thousands of simulated robots at once, collecting experience 1000x faster than real-world training.",
     icon: <Server className="h-6 w-6" />,
   },
   {
@@ -82,7 +82,7 @@ const howItWorks = [
 const whyRLTraining = [
   {
     title: "1000x Faster Than Reality",
-    desc: "Train in hours what would take months of real-world robot time. Our GPU-parallel infrastructure runs thousands of simulations simultaneously.",
+    desc: "Train in hours what would take months of real-world robot time. Our GPU-accelerated infrastructure runs thousands of simulations simultaneously.",
     stat: "1000x",
     statLabel: "Speed increase",
   },
@@ -96,7 +96,7 @@ const whyRLTraining = [
     title: "Infinite Variations",
     desc: "Train across thousands of scene variations, including different object positions, lighting, and physics randomization, so your policy generalizes.",
     stat: "4096+",
-    statLabel: "Parallel environments",
+    statLabel: "Sim environments",
   },
   {
     title: "Reproducible Results",
@@ -197,7 +197,7 @@ export default function RLTraining() {
     <>
       <SEO
         title="RL Training | Reinforcement Learning as a Service"
-        description="Train robot policies at scale with GPU-parallel reinforcement learning. Blueprint delivers trained policy checkpoints, benchmark reports, and sim-to-real transfer indicators. Coming Q2 2026."
+        description="Train robot policies at scale with GPU-accelerated reinforcement learning. Blueprint delivers trained policy checkpoints, benchmark reports, and sim-to-real transfer indicators. Coming Q2 2026."
         canonical="/rl-training"
       />
       <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-violet-100 selection:text-violet-900">
@@ -223,7 +223,7 @@ export default function RLTraining() {
                   Train your robot's brain at scale.
                 </h1>
                 <p className="max-w-2xl text-lg leading-relaxed text-zinc-600">
-                  You bring the simulation scene. We run thousands of virtual robots in parallel,
+                  You bring the simulation scene. We run thousands of virtual robots at once,
                   learning through trial and error. You receive a trained policy ready for
                   real-world deployment, with no ML infrastructure required.
                 </p>
@@ -249,7 +249,7 @@ export default function RLTraining() {
               <div className="grid grid-cols-3 gap-6 pt-4">
                 <div className="text-center">
                   <p className="text-3xl font-bold text-violet-600">4096+</p>
-                  <p className="text-xs text-zinc-500 uppercase tracking-wider">Parallel Envs</p>
+                  <p className="text-xs text-zinc-500 uppercase tracking-wider">Sim Envs</p>
                 </div>
                 <div className="text-center">
                   <p className="text-3xl font-bold text-emerald-600">1000x</p>

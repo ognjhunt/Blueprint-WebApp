@@ -282,11 +282,11 @@ export default function Evals() {
                     Isaac Lab-Arena Integration
                   </div>
                   <h2 className="text-2xl font-bold text-zinc-900">
-                    GPU-parallel policy evaluation
+                    GPU-accelerated policy evaluation
                   </h2>
                   <p className="max-w-lg text-zinc-600">
                     Blueprint scenes export directly to NVIDIA Isaac Lab-Arena format
-                    for standardized affordances and 1000x parallel evaluation.
+                    for standardized affordances and 1000x throughput evaluation.
                   </p>
                   <div className="flex flex-wrap gap-4 text-sm">
                     <div className="flex items-center gap-2">

@@ -320,7 +320,7 @@ export function buildMappingConfirmationPhase2AIPrompt(
 
 // blueprint-prompts.v2.ts
 // Vendor-neutral wearables + on-site assistant prompt builders aligned with RAG URL context and local ops data.
-// Keeps function names for drop-in compatibility, but upgrades schemas and guidance for Parallel Deep Research + Gemini URL-Context.
+// Keeps function names for drop-in compatibility, but upgrades schemas and guidance for deep research and URL context.
 
 export interface PostSignupWorkflowPromptInput {
   companyName: string;

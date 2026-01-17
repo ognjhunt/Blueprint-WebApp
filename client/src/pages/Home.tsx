@@ -22,7 +22,7 @@ const offeringCards = [
       "Runnable benchmark suites with SimReady scenes, tasks, and evaluation harness.",
     bullets: [
       "Standardized metrics: success rate, collisions, path efficiency",
-      "GPU-parallel evaluation in Isaac Lab-Arena format",
+      "GPU-accelerated evaluation in Isaac Lab-Arena format",
     ],
     ctaLabel: "Browse benchmarks",
     ctaHref: "/evals",
@@ -329,7 +329,7 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="font-semibold text-zinc-900">Isaac Lab-Arena Integration</p>
-                  <p className="text-sm text-zinc-500">GPU-parallel policy evaluation</p>
+                  <p className="text-sm text-zinc-500">GPU-accelerated policy evaluation</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>

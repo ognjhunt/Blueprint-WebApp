@@ -6,7 +6,6 @@ import submitToSheetsHandler from "../client/src/pages/api/submit-to-sheets";
 import processWaitlistHandler from "./routes/process-waitlist";
 import uploadToB2Handler from "../client/src/pages/api/upload-to-b2";
 import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
-import webhooksRouter from "./routes/webhooks";
 import aiStudioRouter from "./routes/ai-studio";
 import geminiRouter from "./routes/gemini";
 import qrLinkRouter from "./routes/qr-link";
@@ -34,7 +33,6 @@ export function registerRoutes(app: Express) {
 
   // API routes for Express
   app.get("/api/csrf", csrfCookieHandler);
-  app.use("/api/webhooks", webhooksRouter);
   app.use("/api/errors", csrfProtection, errorsRouter);
   app.post(
     "/api/create-checkout-session",

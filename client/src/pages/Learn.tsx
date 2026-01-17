@@ -146,12 +146,12 @@ const faqItems = [
   {
     question: "Do I need expensive hardware for simulation?",
     answer:
-      "Basic RL training can run on consumer GPUs. Photorealistic rendering and large-scale parallel simulation benefit from RTX GPUs. Cloud options (AWS, GCP with NVIDIA instances) are available for teams without local hardware.",
+      "Basic RL training can run on consumer GPUs. Photorealistic rendering and large-scale simulation benefit from RTX GPUs. Cloud options (AWS, GCP with NVIDIA instances) are available for teams without local hardware.",
   },
   {
     question: "How much training data do I need?",
     answer:
-      "For perception: typically 10K-100K diverse synthetic images. For RL policies: millions of environment steps (achievable in hours with parallel simulation). Our scenes include domain randomization configs that maximize data diversity.",
+      "For perception: typically 10K-100K diverse synthetic images. For RL policies: millions of environment steps (achievable in hours with large-scale simulation). Our scenes include domain randomization configs that maximize data diversity.",
   },
 ];
 
@@ -173,7 +173,7 @@ const processSteps = [
     number: "03",
     title: "Train Your Policy",
     description:
-      "Load scenes in Isaac Sim or MuJoCo. Our task logic includes action/observation spaces, reward functions, and parallel environment configs for vectorized RL training.",
+      "Load scenes in Isaac Sim or MuJoCo. Our task logic includes action/observation spaces, reward functions, and multi-environment configs for vectorized RL training.",
   },
   {
     number: "04",
