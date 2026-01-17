@@ -62,6 +62,7 @@ afterAll(async () => {
 });
 
 const protectedEndpoints = [
+  { method: "POST", path: "/api/submit-to-sheets" },
   { method: "POST", path: "/api/post-signup-workflows" },
   { method: "POST", path: "/api/upload-to-b2" },
   { method: "POST", path: "/api/ai-studio/chat" },

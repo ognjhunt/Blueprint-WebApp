@@ -8,7 +8,6 @@ import { createClient } from "redis";
 
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic } from "./vite";
-import geminiRouter from "./routes/gemini";
 import { attachRequestMeta, logger, generateTraceId, logSecurityEvent } from "./logger";
 import { incrementRequestCount, incrementErrorCount } from "./routes/health";
 
@@ -158,8 +157,7 @@ app.use((req, res, next) => {
 // Global rate limiting
 app.use(globalLimiter);
 
-// Mount the Gemini router
-app.use("/api/gemini", aiLimiter, geminiRouter);
+app.use("/api/gemini", aiLimiter);
 
 // Stricter limiters for sensitive routes
 app.use("/api/ai-studio", aiLimiter);

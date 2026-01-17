@@ -10,6 +10,7 @@ import uploadToB2Handler from "../client/src/pages/api/upload-to-b2";
 import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
 import webhooksRouter from "./routes/webhooks";
 import aiStudioRouter from "./routes/ai-studio";
+import geminiRouter from "./routes/gemini";
 import qrLinkRouter from "./routes/qr-link";
 import appleAssociationRouter from "./routes/apple-app-site-association";
 import stripeAccountRouter from "./routes/stripe";
@@ -88,6 +89,7 @@ export function registerRoutes(app: Express) {
     verifyFirebaseToken,
     postSignupWorkflowsHandler,
   );
+  app.use("/api/gemini", csrfProtection, verifyFirebaseToken, geminiRouter);
   app.use("/api/ai-studio", csrfProtection, verifyFirebaseToken, aiStudioRouter);
   app.use("/api/qr", csrfProtection, verifyFirebaseToken, qrLinkRouter);
   app.use("/v1/stripe", csrfProtection, stripeAccountRouter);
