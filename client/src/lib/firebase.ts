@@ -7,6 +7,7 @@ import {
   GoogleAuthProvider,
   onAuthStateChanged,
   signOut,
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   User as FirebaseUser,
 } from "firebase/auth";
 import {
@@ -47,6 +48,7 @@ try {
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+export const sendPasswordResetEmail = firebaseSendPasswordResetEmail;
 
 // Log Firebase service initialization
 console.log("[Firebase] Services initialized - Auth:", !!auth, "Firestore:", !!db, "Storage:", !!storage);

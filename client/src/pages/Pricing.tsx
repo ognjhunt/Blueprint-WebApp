@@ -255,7 +255,7 @@ export default function Pricing() {
                     "Per-Step Telemetry - Rewards, collisions, grasps, forces at every step",
                     "Failure Analysis - Timeout/collision breakdown, phase-level tracking",
                     "Grasp Analytics - Event timeline, force profiles, contact tracking",
-                    "Parallel Eval Metrics - GPU utilization, throughput, statistical variance",
+                    "Evaluation Throughput Metrics - GPU utilization, throughput, statistical variance",
                   ]
                 },
               ].map((tier) => (

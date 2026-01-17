@@ -63,6 +63,7 @@ afterAll(async () => {
 
 const protectedEndpoints = [
   { method: "POST", path: "/api/gemini/analyze" },
+  { method: "POST", path: "/api/submit-to-sheets" },
   { method: "POST", path: "/api/post-signup-workflows" },
   { method: "POST", path: "/api/submit-to-sheets" },
   { method: "POST", path: "/api/upload-to-b2" },

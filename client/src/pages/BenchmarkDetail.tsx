@@ -351,8 +351,8 @@ export default function BenchmarkDetail({ params }: BenchmarkDetailProps) {
                     <Cpu className="h-4 w-4 text-indigo-600" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-zinc-900">GPU-Parallel Simulation</p>
-                    <p className="text-xs text-zinc-500">1000+ parallel evaluation runs</p>
+                    <p className="text-sm font-medium text-zinc-900">GPU-Accelerated Simulation</p>
+                    <p className="text-xs text-zinc-500">1000+ evaluation runs</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">

@@ -500,7 +500,7 @@ export const environmentPolicies: EnvironmentPolicy[] = [
     coverage: [
       "Shelf, tote, and countertop pick-place runs aligned with 2025 ManiSkill3 evaluation splits",
       "Clutter removal and table reset sequences with RLBench multi-stage rewards",
-      "Domain-randomized grasp sets spanning suction, parallel jaw, and soft grippers",
+      "Domain-randomized grasp sets spanning suction, two-finger, and soft grippers",
     ],
     metric: "92% success on ManiSkill3 multi-object pick benchmark",
     environments: ["kitchens", "grocery-aisles", "warehouse-lanes"],
@@ -2727,20 +2727,20 @@ export const premiumCapabilities: PremiumCapability[] = [
     title: "Policy Benchmarking",
     shortTitle: "Benchmarking",
     description:
-      "GPU-parallel policy evaluation with detailed performance reports.",
+      "GPU-accelerated policy evaluation with detailed performance reports.",
     detailedDescription:
-      "Send your trained policies to Blueprint for standardized benchmarking on this scene. Receive detailed reports with success rates, completion times, collision counts, and generalization metrics across 1000+ parallel evaluations.",
+      "Send your trained policies to Blueprint for standardized benchmarking on this scene. Receive detailed reports with success rates, completion times, collision counts, and generalization metrics across 1000+ evaluation episodes.",
     price: 350,
     priceDisplay: "+$350",
     tier: "immediate",
     icon: "bar-chart",
     benefits: [
-      "1000+ parallel evaluation episodes",
+      "1000+ evaluation episodes",
       "Standardized metrics (success rate, completion time, collisions)",
       "Comparison against baseline policies",
     ],
     technicalDetails: [
-      "Isaac Lab-Arena GPU-parallel execution",
+      "Isaac Lab-Arena GPU-accelerated execution",
       "Affordance-based task auto-generation",
       "JSON/PDF report with visualizations",
       "LeRobot Hub metrics integration",

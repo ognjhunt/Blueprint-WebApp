@@ -634,7 +634,7 @@ export default function Dashboard() {
           oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
           let createdWithinLastMonth = 0;
 
-          // Process blueprints in parallel for better performance
+          // Process blueprints in batches for better performance
           let hasBlueprintAssets = false;
           const blueprintsPromises = createdBlueprintIDs.map(
             async (blueprintID) => {

@@ -4,13 +4,12 @@ import googlePlacesHandler from "../client/src/pages/api/googlePlaces";
 import generateImageHandler from "../client/src/pages/api/generate-image";
 import submitToSheetsHandler from "../client/src/pages/api/submit-to-sheets";
 import processWaitlistHandler from "./routes/process-waitlist";
-// import processMappingConfirmationHandler from "./routes/mapping-confirmation"; // Commented out - handler is not exported
-import demoDayConfirmationHandler from "./routes/demo-day-confirmation";
 import uploadToB2Handler from "../client/src/pages/api/upload-to-b2";
 import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
 import geminiRouter from "./routes/gemini";
 import webhooksRouter from "./routes/webhooks";
 import aiStudioRouter from "./routes/ai-studio";
+import geminiRouter from "./routes/gemini";
 import qrLinkRouter from "./routes/qr-link";
 import appleAssociationRouter from "./routes/apple-app-site-association";
 import stripeAccountRouter from "./routes/stripe";
@@ -36,7 +35,6 @@ export function registerRoutes(app: Express) {
 
   // API routes for Express
   app.get("/api/csrf", csrfCookieHandler);
-  app.use("/api/webhooks", webhooksRouter);
   app.use("/api/errors", csrfProtection, errorsRouter);
   app.post(
     "/api/create-checkout-session",
@@ -70,12 +68,6 @@ export function registerRoutes(app: Express) {
     csrfProtection,
     verifyFirebaseToken,
     adminLeadsRouter,
-  );
-  // app.post("/api/mapping-confirmation", processMappingConfirmationHandler); // Commented out - handler is not exported
-  app.post(
-    "/api/demo-day-confirmation",
-    csrfProtection,
-    demoDayConfirmationHandler,
   );
   app.post(
     "/api/upload-to-b2",
