@@ -22,6 +22,15 @@ const EnvironmentDetail = lazy(() => import("./pages/EnvironmentDetail"));
 const Solutions = lazy(() => import("./pages/Solutions"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const Learn = lazy(() => import("./pages/Learn"));
+const Blog = lazy(() => import("./pages/Blog"));
+const RoboticsOS = lazy(() => import("./pages/blog/RoboticsOS"));
+const WorkplaceOS = lazy(() => import("./pages/blog/WorkplaceOS"));
+const RestaurantOS = lazy(() => import("./pages/blog/RestaurantOS"));
+const HospitalityOS = lazy(() => import("./pages/blog/HospitalityOS"));
+const MuseumOS = lazy(() => import("./pages/blog/MuseumOS"));
+const PropertyOS = lazy(() => import("./pages/blog/PropertyOS"));
+const RetailOS = lazy(() => import("./pages/blog/RetailOS"));
+const WarehouseOS = lazy(() => import("./pages/blog/WarehouseOS"));
 // const Capture = lazy(() => import("./pages/Capture")); // Capture service coming Q2 2026
 const Docs = lazy(() => import("./pages/Docs"));
 const Evals = lazy(() => import("./pages/Evals"));
@@ -88,6 +97,15 @@ function Router() {
         <Route path="/solutions" component={withLayout(Solutions)} />
         <Route path="/pricing" component={withLayout(Pricing)} />
         <Route path="/learn" component={withLayout(Learn)} />
+        <Route path="/blog" component={Blog} />
+        <Route path="/blog/robotics-os" component={RoboticsOS} />
+        <Route path="/blog/workplace-os" component={WorkplaceOS} />
+        <Route path="/blog/restaurant-os" component={RestaurantOS} />
+        <Route path="/blog/hospitality-os" component={HospitalityOS} />
+        <Route path="/blog/museum-os" component={MuseumOS} />
+        <Route path="/blog/property-os" component={PropertyOS} />
+        <Route path="/blog/retail-os" component={RetailOS} />
+        <Route path="/blog/warehouse-os" component={WarehouseOS} />
         <Route path="/docs" component={withLayout(Docs)} />
         <Route path="/evals" component={withLayout(Evals)} />
         <Route path="/benchmarks" component={withLayout(Evals)} />
