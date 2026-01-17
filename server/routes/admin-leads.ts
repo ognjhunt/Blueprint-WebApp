@@ -1,11 +1,16 @@
 import { Request, Response, Router } from "express";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import {
+  decryptFieldValue,
+  decryptInboundRequestForAdmin,
+  encryptFieldValue,
+} from "../utils/field-encryption";
 import type {
   InboundRequest,
+  InboundRequestStored,
   RequestStatus,
   InboundRequestListItem,
-  RequestNote,
   UpdateRequestStatusPayload,
   AssignRequestOwnerPayload,
   AddRequestNotePayload,
@@ -99,26 +104,29 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
 
     const snapshot = await query.get();
 
-    const leads: InboundRequestListItem[] = snapshot.docs.map((doc) => {
-      const data = doc.data() as InboundRequest;
-      return {
-        requestId: data.requestId,
-        createdAt: data.createdAt?.toDate?.()?.toISOString() || "",
-        status: data.status,
-        priority: data.priority,
-        contact: {
-          firstName: data.contact.firstName,
-          lastName: data.contact.lastName,
-          email: data.contact.email,
-          company: data.contact.company,
-        },
-        request: {
-          budgetBucket: data.request.budgetBucket,
-          helpWith: data.request.helpWith,
-        },
-        owner: data.owner,
-      };
-    });
+    const leads = await Promise.all(
+      snapshot.docs.map(async (doc) => {
+        const data = doc.data() as InboundRequestStored;
+        const decrypted = await decryptInboundRequestForAdmin(data);
+        return {
+          requestId: decrypted.requestId,
+          createdAt: decrypted.createdAt?.toDate?.()?.toISOString() || "",
+          status: decrypted.status,
+          priority: decrypted.priority,
+          contact: {
+            firstName: decrypted.contact.firstName,
+            lastName: decrypted.contact.lastName,
+            email: decrypted.contact.email,
+            company: decrypted.contact.company,
+          },
+          request: {
+            budgetBucket: decrypted.request.budgetBucket,
+            helpWith: decrypted.request.helpWith,
+          },
+          owner: decrypted.owner,
+        } satisfies InboundRequestListItem;
+      })
+    );
 
     // Get total count for pagination info
     const countQuery = db.collection("inboundRequests");
@@ -157,7 +165,8 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Request not found" });
     }
 
-    const data = doc.data() as InboundRequest;
+    const data = doc.data() as InboundRequestStored;
+    const decrypted = await decryptInboundRequestForAdmin(data);
 
     // Get notes subcollection
     const notesSnapshot = await db
@@ -167,48 +176,51 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
       .orderBy("createdAt", "desc")
       .get();
 
-    const notes = notesSnapshot.docs.map((noteDoc) => {
-      const noteData = noteDoc.data();
-      return {
-        id: noteDoc.id,
-        content: noteData.content,
-        authorUid: noteData.authorUid,
-        authorEmail: noteData.authorEmail,
-        createdAt: noteData.createdAt?.toDate?.()?.toISOString() || "",
-      };
-    });
+    const notes = await Promise.all(
+      notesSnapshot.docs.map(async (noteDoc) => {
+        const noteData = noteDoc.data();
+        return {
+          id: noteDoc.id,
+          content: await decryptFieldValue(noteData.content),
+          authorUid: noteData.authorUid,
+          authorEmail: noteData.authorEmail,
+          createdAt: noteData.createdAt?.toDate?.()?.toISOString() || "",
+        };
+      })
+    );
 
     return res.json({
-      requestId: data.requestId,
-      createdAt: data.createdAt?.toDate?.()?.toISOString() || "",
-      status: data.status,
-      priority: data.priority,
+      requestId: decrypted.requestId,
+      createdAt: decrypted.createdAt?.toDate?.()?.toISOString() || "",
+      status: decrypted.status,
+      priority: decrypted.priority,
       contact: {
-        firstName: data.contact.firstName,
-        lastName: data.contact.lastName,
-        email: data.contact.email,
-        company: data.contact.company,
-        roleTitle: data.contact.roleTitle,
+        firstName: decrypted.contact.firstName,
+        lastName: decrypted.contact.lastName,
+        email: decrypted.contact.email,
+        company: decrypted.contact.company,
+        roleTitle: decrypted.contact.roleTitle,
       },
       request: {
-        budgetBucket: data.request.budgetBucket,
-        helpWith: data.request.helpWith,
-        details: data.request.details,
+        budgetBucket: decrypted.request.budgetBucket,
+        helpWith: decrypted.request.helpWith,
+        details: decrypted.request.details,
       },
-      owner: data.owner,
+      owner: decrypted.owner,
       context: {
-        sourcePageUrl: data.context.sourcePageUrl,
-        referrer: data.context.referrer,
-        utm: data.context.utm,
+        sourcePageUrl: decrypted.context.sourcePageUrl,
+        referrer: decrypted.context.referrer,
+        utm: decrypted.context.utm,
       },
-      enrichment: data.enrichment,
+      enrichment: decrypted.enrichment,
       events: {
         confirmationEmailSentAt:
-          data.events.confirmationEmailSentAt?.toDate?.()?.toISOString() || null,
+          decrypted.events.confirmationEmailSentAt?.toDate?.()?.toISOString() ||
+          null,
         slackNotifiedAt:
-          data.events.slackNotifiedAt?.toDate?.()?.toISOString() || null,
+          decrypted.events.slackNotifiedAt?.toDate?.()?.toISOString() || null,
         crmSyncedAt:
-          data.events.crmSyncedAt?.toDate?.()?.toISOString() || null,
+          decrypted.events.crmSyncedAt?.toDate?.()?.toISOString() || null,
       },
       notes,
     });
@@ -279,8 +291,11 @@ router.patch(
 
       // Add note if provided
       if (note && note.trim()) {
+        const encryptedContent = await encryptFieldValue(
+          `Status changed to "${status}": ${note.trim()}`
+        );
         await docRef.collection("notes").add({
-          content: `Status changed to "${status}": ${note.trim()}`,
+          content: encryptedContent,
           authorUid: user.uid || null,
           authorEmail: user.email || null,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -333,8 +348,11 @@ router.patch(
       });
 
       // Add note about assignment
+      const encryptedContent = await encryptFieldValue(
+        `Owner assigned: ${owner.email || owner.uid || "Unassigned"}`
+      );
       await docRef.collection("notes").add({
-        content: `Owner assigned: ${owner.email || owner.uid || "Unassigned"}`,
+        content: encryptedContent,
         authorUid: user.uid || null,
         authorEmail: user.email || null,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -384,8 +402,9 @@ router.post(
         return res.status(404).json({ error: "Request not found" });
       }
 
+      const encryptedContent = await encryptFieldValue(content.trim());
       const noteRef = await docRef.collection("notes").add({
-        content: content.trim(),
+        content: encryptedContent,
         authorUid: user.uid || null,
         authorEmail: user.email || null,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -517,25 +536,28 @@ router.get("/export/csv", requireAdmin, async (req: Request, res: Response) => {
       "Owner Email",
     ];
 
-    const rows = snapshot.docs.map((doc) => {
-      const data = doc.data() as InboundRequest;
-      return [
-        data.requestId,
-        data.createdAt?.toDate?.()?.toISOString() || "",
-        data.status,
-        data.priority,
-        data.contact.firstName,
-        data.contact.lastName,
-        data.contact.email,
-        data.contact.company,
-        data.contact.roleTitle,
-        data.request.budgetBucket,
-        data.request.helpWith.join("; "),
-        (data.request.details || "").replace(/"/g, '""'),
-        data.context.sourcePageUrl,
-        data.owner.email || "",
-      ].map((val) => `"${val}"`);
-    });
+    const rows = await Promise.all(
+      snapshot.docs.map(async (doc) => {
+        const data = doc.data() as InboundRequestStored;
+        const decrypted = await decryptInboundRequestForAdmin(data);
+        return [
+          decrypted.requestId,
+          decrypted.createdAt?.toDate?.()?.toISOString() || "",
+          decrypted.status,
+          decrypted.priority,
+          decrypted.contact.firstName,
+          decrypted.contact.lastName,
+          decrypted.contact.email,
+          decrypted.contact.company,
+          decrypted.contact.roleTitle,
+          decrypted.request.budgetBucket,
+          decrypted.request.helpWith.join("; "),
+          (decrypted.request.details || "").replace(/"/g, '""'),
+          decrypted.context.sourcePageUrl,
+          decrypted.owner.email || "",
+        ].map((val) => `"${val}"`);
+      })
+    );
 
     const csv = [headers.join(","), ...rows.map((row) => row.join(","))].join(
       "\n"
