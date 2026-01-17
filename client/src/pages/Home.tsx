@@ -114,7 +114,7 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | The Complete Simulation Data Platform for Robotic AI"
+        title="Blueprint | The Complete Simulation Data Platform for Physical AI"
         description="Physics-accurate simulation environments, synthetic expert trajectories, and standardized benchmarks for robotics. Train policies in sim and transfer them to real robots."
         canonical="/"
         image="https://tryblueprint.io/images/og-home.png"
@@ -134,7 +134,7 @@ export default function Home() {
                     High-Fidelity Simulation Data
                   </div>
                   <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
-                    The complete simulation data platform for robotic AI.
+                    The complete simulation data platform for physical AI.
                   </h1>
                   <p className="max-w-xl text-lg leading-relaxed text-zinc-600">
                     Physics-accurate simulation environments, synthetic expert trajectories,
