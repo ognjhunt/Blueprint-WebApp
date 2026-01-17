@@ -21,8 +21,7 @@
     "baseUrl": ".",
     "types": ["node", "vite/client", "google.maps"],
     "paths": {
-      "@/*": ["./client/src/*"],
-      "@db/*": ["./db/*"]
+      "@/*": ["./client/src/*"]
     }
   }
 }
