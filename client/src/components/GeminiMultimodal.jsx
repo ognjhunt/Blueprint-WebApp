@@ -201,6 +201,7 @@ const GeminiMultimodal = () => {
               isListening ? "bg-red-600" : "bg-blue-600"
             } text-white`}
             onClick={isListening ? stopListening : startListening}
+            aria-label={isListening ? "Stop microphone" : "Start microphone"}
           >
             {isListening ? (
               <MicOff className="h-6 w-6" />
@@ -214,6 +215,7 @@ const GeminiMultimodal = () => {
             className="rounded-full transition-all duration-200 bg-blue-600 text-white"
             onClick={handleScreenCapture}
             disabled={isProcessing}
+            aria-label={isProcessing ? "Capturing screen" : "Capture screen"}
           >
             {isProcessing ? (
               <Loader2 className="h-6 w-6 animate-spin" />

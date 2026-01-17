@@ -529,6 +529,11 @@ export const AreaMarkingSystem: React.FC<AreaMarkingSystemProps> = ({
                                       isHidden: !area.isHidden,
                                     });
                                   }}
+                                  aria-label={
+                                    area.isHidden
+                                      ? `Show ${area.name}`
+                                      : `Hide ${area.name}`
+                                  }
                                 >
                                   {area.isHidden ? (
                                     <EyeOff className="h-4 w-4" />
@@ -550,6 +555,7 @@ export const AreaMarkingSystem: React.FC<AreaMarkingSystemProps> = ({
                                       onAreaDeleted(area.id);
                                     }
                                   }}
+                                  aria-label={`Delete ${area.name}`}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>

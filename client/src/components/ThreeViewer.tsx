@@ -7246,6 +7246,7 @@ const ThreeViewer = React.memo(
                       variant="ghost"
                       size="icon"
                       onClick={() => setShowSidePanel(false)}
+                      aria-label="Close add-to-scene panel"
                     >
                       <X className="h-4 w-4" />
                     </Button>

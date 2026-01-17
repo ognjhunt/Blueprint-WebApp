@@ -56,6 +56,7 @@ export function CheckoutModal({ isOpen, onClose, item }: CheckoutModalProps) {
         <button
           onClick={handleClose}
           className="absolute right-4 top-4 rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
+          aria-label="Close checkout modal"
         >
           <X className="h-5 w-5" />
         </button>

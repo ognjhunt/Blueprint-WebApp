@@ -31,6 +31,7 @@ const ScreenShareButton = () => {
         variant={isSharing ? "destructive" : "default"}
         size="icon"
         className="rounded-full h-12 w-12 shadow-lg"
+        aria-label="Start screen sharing"
       >
         <ScreenShare className="h-6 w-6" />
       </Button>

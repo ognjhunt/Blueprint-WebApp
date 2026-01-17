@@ -119,6 +119,7 @@ const AIChatButton = () => {
         <Button
           onClick={() => setIsOpen(true)}
           className="rounded-full w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
+          aria-label="Open AI assistant"
         >
           <MessageCircle className="h-6 w-6" />
         </Button>
@@ -126,7 +127,12 @@ const AIChatButton = () => {
         <Card className="p-4 shadow-lg w-80">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-semibold">AI Assistant</h3>
-            <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsOpen(false)}
+              aria-label="Close AI assistant"
+            >
               ×
             </Button>
           </div>
@@ -155,6 +161,7 @@ const AIChatButton = () => {
               } text-white`}
               onClick={isListening ? stopListening : startListening}
               disabled={isConnecting}
+              aria-label={isListening ? "Stop voice input" : "Start voice input"}
             >
               {isConnecting ? (
                 <Loader2 className="h-6 w-6 animate-spin" />

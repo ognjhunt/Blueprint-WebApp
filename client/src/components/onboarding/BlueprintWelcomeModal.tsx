@@ -34,6 +34,7 @@ export const BlueprintWelcomeModal: React.FC<WelcomeModalProps> = ({
                 size="icon"
                 className="absolute top-4 right-4 text-white hover:bg-white/20"
                 onClick={onSkip}
+                aria-label="Skip tour"
               >
                 <X className="h-5 w-5" />
               </Button>

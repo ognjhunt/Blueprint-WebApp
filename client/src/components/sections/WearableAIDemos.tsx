@@ -451,7 +451,7 @@ export default function WearableAIDemos() {
                         // tiny circular preview
                         <img
                           src={thumb}
-                          alt=""
+                          alt={`${demo.label} thumbnail`}
                           className="h-full w-full object-cover"
                           loading="lazy"
                           decoding="async"
