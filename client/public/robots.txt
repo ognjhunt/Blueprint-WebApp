@@ -4,3 +4,8 @@ Allow: /
 
 # Sitemap location
 Sitemap: https://tryblueprint.io/sitemap.xml
+
+# LLM/AI crawler information
+# For AI assistants and language models, see:
+# https://tryblueprint.io/llms.txt
+# https://tryblueprint.io/llms-full.txt
