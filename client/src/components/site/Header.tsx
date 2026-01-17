@@ -123,7 +123,7 @@ export function Header() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
                 <DropdownMenuItem asChild>
-                  <a href="/settings" rel="nofollow">
+                  <a href="/settings">
                     Settings
                   </a>
                 </DropdownMenuItem>
@@ -180,7 +180,6 @@ export function Header() {
                 <a
                   href="/settings"
                   className="rounded-full border border-slate-200 px-4 py-2 text-center text-slate-700"
-                  rel="nofollow"
                   onClick={() => setOpen(false)}
                 >
                   Settings
