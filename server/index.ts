@@ -160,6 +160,7 @@ app.use((req, res, next) => {
 // Global rate limiting
 app.use(globalLimiter);
 
+// Apply limiter for Gemini endpoints (routes registered in routes.ts)
 app.use("/api/gemini", aiLimiter);
 
 // Stricter limiters for sensitive routes
