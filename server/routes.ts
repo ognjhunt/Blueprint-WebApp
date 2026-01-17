@@ -8,7 +8,6 @@ import processWaitlistHandler from "./routes/process-waitlist";
 import demoDayConfirmationHandler from "./routes/demo-day-confirmation";
 import uploadToB2Handler from "../client/src/pages/api/upload-to-b2";
 import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
-import webhooksRouter from "./routes/webhooks";
 import aiStudioRouter from "./routes/ai-studio";
 import qrLinkRouter from "./routes/qr-link";
 import appleAssociationRouter from "./routes/apple-app-site-association";
@@ -35,7 +34,6 @@ export function registerRoutes(app: Express) {
 
   // API routes for Express
   app.get("/api/csrf", csrfCookieHandler);
-  app.use("/api/webhooks", webhooksRouter);
   app.use("/api/errors", csrfProtection, errorsRouter);
   app.post(
     "/api/create-checkout-session",

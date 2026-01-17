@@ -130,7 +130,7 @@ export default function WorkspacePage() {
         //         }),
         //       };
 
-        //       // Don't await, send in parallel
+        //       // Don't await, send at once
         //       fetch("https://api.gumloop.com/api/v1/start_pipeline", options)
         //         .then((response) => response.json())
         //         .then((data) =>
@@ -174,7 +174,7 @@ export default function WorkspacePage() {
             email: email,
           }),
         };
-        // Don't await, send in parallel
+        // Don't await, send at once
         fetch(
           "https://public.lindy.ai/api/v1/webhooks/lindy/91d17fff-be31-45f5-8b0b-497fb168c2b6",
           options,
