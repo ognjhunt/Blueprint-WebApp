@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "wouter";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
+import { SEO } from "@/components/SEO";
 import {
   Card,
   CardHeader,
@@ -69,6 +70,12 @@ export default function Blog() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#0B1220] text-slate-100">
+      <SEO
+        title="Blueprint Blog"
+        description="Blueprint product updates, OS phases, and spatial computing insights across robotics, workplace, and industry verticals."
+        canonical="/blog"
+        type="website"
+      />
       {/* BACKGROUND: subtle dot grid + emerald→cyan wash */}
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <div
