@@ -1,29 +1,32 @@
 import Stripe from "stripe";
 import { logger } from "../logger";
 
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY?.trim();
-const isProduction = process.env.NODE_ENV === "production";
+const PLACEHOLDER_VALUES = new Set(["PLACEHOLDER", "DUMMY"]);
 
-if (!STRIPE_SECRET_KEY) {
+const isPlaceholderValue = (value: string | undefined) =>
+  Boolean(value && PLACEHOLDER_VALUES.has(value.trim().toUpperCase()));
+
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY?.trim();
+const stripeSecretIsPlaceholder = isPlaceholderValue(STRIPE_SECRET_KEY);
+
+if (!STRIPE_SECRET_KEY || stripeSecretIsPlaceholder) {
   const message =
-    "STRIPE_SECRET_KEY environment variable is not set. Stripe routes will be unavailable.";
-  if (isProduction) {
-    throw new Error("STRIPE_SECRET_KEY is required in production.");
-  }
+    "STRIPE_SECRET_KEY is not set or is a placeholder. Stripe routes will be unavailable.";
   logger.warn(message);
 }
 
-export const stripeClient = STRIPE_SECRET_KEY
-  ? new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" })
-  : null;
+export const stripeClient =
+  STRIPE_SECRET_KEY && !stripeSecretIsPlaceholder
+    ? new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" })
+    : null;
 
 export const STRIPE_CONNECT_ACCOUNT_ID = process.env.STRIPE_CONNECT_ACCOUNT_ID?.trim();
-if (!STRIPE_CONNECT_ACCOUNT_ID) {
+export const stripeConnectAccountConfigured =
+  Boolean(STRIPE_CONNECT_ACCOUNT_ID) && !isPlaceholderValue(STRIPE_CONNECT_ACCOUNT_ID);
+
+if (!stripeConnectAccountConfigured) {
   const message =
-    "STRIPE_CONNECT_ACCOUNT_ID environment variable is not set. Stripe Connect features will be unavailable.";
-  if (isProduction) {
-    throw new Error("STRIPE_CONNECT_ACCOUNT_ID is required in production.");
-  }
+    "STRIPE_CONNECT_ACCOUNT_ID is not set or is a placeholder. Stripe Connect features will be unavailable.";
   logger.warn(message);
 }
 
