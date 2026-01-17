@@ -22,8 +22,8 @@ const ADMIN_EMAILS = [
 /**
  * Middleware to check if user is admin
  */
-async function requireAdmin(req: Request, res: Response, next: () => void) {
-  const user = (req as any).user;
+async function requireAdmin(_req: Request, res: Response, next: () => void) {
+  const user = res.locals.firebaseUser;
 
   if (!user) {
     return res.status(401).json({ error: "Authentication required" });
@@ -233,7 +233,7 @@ router.patch(
 
       const { requestId } = req.params;
       const { status, note } = req.body as UpdateRequestStatusPayload;
-      const user = (req as any).user;
+      const user = res.locals.firebaseUser;
 
       const validStatuses: RequestStatus[] = [
         "new",
@@ -315,7 +315,7 @@ router.patch(
 
       const { requestId } = req.params;
       const { owner } = req.body as AssignRequestOwnerPayload;
-      const user = (req as any).user;
+      const user = res.locals.firebaseUser;
 
       const docRef = db.collection("inboundRequests").doc(requestId);
       const doc = await docRef.get();
@@ -371,7 +371,7 @@ router.post(
 
       const { requestId } = req.params;
       const { content } = req.body as AddRequestNotePayload;
-      const user = (req as any).user;
+      const user = res.locals.firebaseUser;
 
       if (!content || !content.trim()) {
         return res.status(400).json({ error: "Note content is required" });
