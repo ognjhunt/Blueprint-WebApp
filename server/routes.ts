@@ -4,8 +4,6 @@ import googlePlacesHandler from "../client/src/pages/api/googlePlaces";
 import generateImageHandler from "../client/src/pages/api/generate-image";
 import submitToSheetsHandler from "../client/src/pages/api/submit-to-sheets";
 import processWaitlistHandler from "./routes/process-waitlist";
-// import processMappingConfirmationHandler from "./routes/mapping-confirmation"; // Commented out - handler is not exported
-import demoDayConfirmationHandler from "./routes/demo-day-confirmation";
 import uploadToB2Handler from "../client/src/pages/api/upload-to-b2";
 import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
 import webhooksRouter from "./routes/webhooks";
@@ -70,12 +68,6 @@ export function registerRoutes(app: Express) {
     csrfProtection,
     verifyFirebaseToken,
     adminLeadsRouter,
-  );
-  // app.post("/api/mapping-confirmation", processMappingConfirmationHandler); // Commented out - handler is not exported
-  app.post(
-    "/api/demo-day-confirmation",
-    csrfProtection,
-    demoDayConfirmationHandler,
   );
   app.post(
     "/api/upload-to-b2",
