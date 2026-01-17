@@ -52,34 +52,9 @@ Optional smoke test toggle:
    ```
 4. Confirm the "Sentry smoke test" event appears in the Sentry dashboard.
 
-## Database migrations (Drizzle)
+## Database usage (Firestore)
 
-This project uses Drizzle migrations generated from `db/schema.ts`. Migrations live in the `migrations/` directory and should always be committed to the repository.
-
-### Development workflow
-
-1. Update `db/schema.ts` as needed.
-2. Generate a migration:
-   ```
-   npm run db:generate
-   ```
-3. Apply it locally:
-   ```
-   npm run db:migrate
-   ```
-
-### Production workflow
-
-1. Generate and commit migrations in your development branch (see above).
-2. Ensure `DATABASE_URL` is set in the deployment environment.
-3. Apply migrations during deploy:
-   ```
-   npm run db:migrate
-   ```
-
-### CI / automated deploys
-
-CI runs `npm run db:migrate` against a disposable Postgres instance so migrations are applied and verified as part of the pipeline.
+Blueprint stores application data in Firebase Firestore. Postgres/Drizzle schemas and migrations were removed because they were not referenced by the app runtime, and Firestore is the source of truth for these records. Ensure the Firebase Admin credentials (above) are present in production so server routes can access Firestore.
 
 ## Method 1: Pre-Deployment Script (Recommended)
 
