@@ -3,21 +3,31 @@
 import { useState } from "react";
 import { SEO } from "@/components/SEO";
 import { ArrowLeft, ArrowRight, Mail, CheckCircle, Loader2 } from "lucide-react";
+import { auth, sendPasswordResetEmail } from "@/lib/firebase";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // TODO: Connect to Firebase password reset
-    console.log("Password reset requested for:", email);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsLoading(false);
-    setIsSubmitted(true);
+    setErrorMessage(null);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setIsSubmitted(true);
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "We couldn't send a reset email. Please try again.";
+      setErrorMessage(message);
+      setIsSubmitted(false);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -61,7 +71,10 @@ export default function ForgotPassword() {
               </p>
               <button
                 type="button"
-                onClick={() => setIsSubmitted(false)}
+                onClick={() => {
+                  setIsSubmitted(false);
+                  setErrorMessage(null);
+                }}
                 className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
               >
                 Try a different email
@@ -70,6 +83,14 @@ export default function ForgotPassword() {
           ) : (
             /* Form State */
             <form onSubmit={handleSubmit} className="space-y-4">
+              {errorMessage ? (
+                <div
+                  role="alert"
+                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                >
+                  {errorMessage}
+                </div>
+              ) : null}
               <div>
                 <label
                   htmlFor="email"
@@ -87,6 +108,7 @@ export default function ForgotPassword() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
                     required
+                    disabled={isLoading}
                     className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
