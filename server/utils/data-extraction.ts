@@ -1,3 +1,5 @@
+import { logger } from "../logger";
+
 /**
  * Extracts structured data from an AI response string based on predefined markers.
  * @param {string} responseText The raw text response from the AI.
@@ -9,7 +11,7 @@ export function extractDataFromAIResponse(responseText: string): {
 } {
   const extractedData: { [key: string]: string } = {};
   if (typeof responseText !== "string" || !responseText.trim()) {
-    console.warn(
+    logger.warn(
       "extractDataFromAIResponse received invalid input or empty string.",
     );
     return extractedData; // Return empty if no valid text

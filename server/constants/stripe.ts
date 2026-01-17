@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { logger } from "../logger";
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY?.trim();
 const isProduction = process.env.NODE_ENV === "production";
@@ -9,7 +10,7 @@ if (!STRIPE_SECRET_KEY) {
   if (isProduction) {
     throw new Error("STRIPE_SECRET_KEY is required in production.");
   }
-  console.warn(message);
+  logger.warn(message);
 }
 
 export const stripeClient = STRIPE_SECRET_KEY
@@ -23,7 +24,7 @@ if (!STRIPE_CONNECT_ACCOUNT_ID) {
   if (isProduction) {
     throw new Error("STRIPE_CONNECT_ACCOUNT_ID is required in production.");
   }
-  console.warn(message);
+  logger.warn(message);
 }
 
 const DEFAULT_BASE_URL =
