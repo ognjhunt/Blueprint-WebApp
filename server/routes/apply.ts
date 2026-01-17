@@ -1,16 +1,65 @@
 import { Request, Response } from "express";
 import multer from "multer";
+import path from "path";
 
 import { sendEmail } from "../utils/email";
+
+const allowedResumeMimeTypes = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
+
+const allowedResumeExtensions = new Set([".pdf", ".doc", ".docx"]);
+
+const resumeFileFilter: multer.Options["fileFilter"] = (_req, file, callback) => {
+  const extension = path.extname(file.originalname || "").toLowerCase();
+  const hasAllowedExtension = allowedResumeExtensions.has(extension);
+  const hasAllowedMimeType = allowedResumeMimeTypes.has(file.mimetype);
+
+  if (!hasAllowedExtension || !hasAllowedMimeType) {
+    return callback(new Error("Only PDF, DOC, or DOCX files are allowed."));
+  }
+
+  return callback(null, true);
+};
 
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 25 * 1024 * 1024,
   },
+  fileFilter: resumeFileFilter,
 });
 
 type RequestWithFile = Request & { file?: Express.Multer.File };
+
+async function scanResumeFile(file: Express.Multer.File): Promise<void> {
+  const scanUrl = process.env.MALWARE_SCAN_URL;
+
+  if (!scanUrl) {
+    return;
+  }
+
+  const response = await fetch(scanUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": file.mimetype,
+      "X-File-Name": encodeURIComponent(file.originalname),
+    },
+    body: file.buffer,
+  });
+
+  if (!response.ok) {
+    throw new Error("Resume scanning service is unavailable.");
+  }
+
+  const result = (await response.json()) as { clean?: boolean };
+
+  if (!result.clean) {
+    throw new Error("Uploaded file failed malware scanning.");
+  }
+}
 
 export default function applyHandler(req: Request, res: Response) {
   if (req.method !== "POST") {
@@ -43,6 +92,10 @@ export default function applyHandler(req: Request, res: Response) {
 
       const file = (req as RequestWithFile).file ?? null;
       const attachmentSummary = file ? file.originalname : "No file attached";
+
+      if (file) {
+        await scanResumeFile(file);
+      }
 
       const subject = `Application for ${jobRole}: ${applicantName}`;
       const summaryLines = [
