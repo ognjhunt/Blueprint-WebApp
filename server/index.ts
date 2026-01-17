@@ -10,10 +10,13 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic } from "./vite";
 import { attachRequestMeta, logger, generateTraceId, logSecurityEvent } from "./logger";
 import { incrementRequestCount, incrementErrorCount } from "./routes/health";
+import { validateEnv } from "./config/env";
+
+const env = validateEnv();
 
 const app = express();
 
-const rateLimitRedisUrl = process.env.RATE_LIMIT_REDIS_URL || process.env.REDIS_URL;
+const rateLimitRedisUrl = env.RATE_LIMIT_REDIS_URL || env.REDIS_URL;
 const redisClient =
   rateLimitRedisUrl && process.env.NODE_ENV === "production"
     ? createClient({ url: rateLimitRedisUrl })
@@ -116,13 +119,13 @@ const uploadLimiter = createRateLimiter({
 });
 
 // Configure middleware
-const defaultBodyLimit = process.env.API_BODY_LIMIT || "1mb";
+const defaultBodyLimit = env.API_BODY_LIMIT || "1mb";
 app.use(express.json({ limit: defaultBodyLimit }));
 app.use(express.urlencoded({ extended: false, limit: defaultBodyLimit }));
 
 // Configure CORS - restrict in production
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",")
+const allowedOrigins = env.ALLOWED_ORIGINS
+  ? env.ALLOWED_ORIGINS.split(",")
   : ["http://localhost:5000", "http://localhost:3000", "https://tryblueprint.io"];
 
 app.use((req, res, next) => {
@@ -313,7 +316,7 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  const PORT = Number(process.env.PORT) || 5000;
+  const PORT = env.PORT;
   server.listen(PORT, "0.0.0.0", () => {
     logger.info({ port: PORT }, "Server listening");
   });
