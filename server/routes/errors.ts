@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import { HTTP_STATUS } from "../constants/http-status";
 import { logger, attachRequestMeta } from "../logger";
 import { incrementErrorCount } from "./health";
 
@@ -96,7 +97,7 @@ router.post("/", (req: Request, res: Response) => {
   // 3. Trigger alerts for critical errors
   // 4. Rate limit by user/IP to prevent log flooding
 
-  res.status(202).json({
+  res.status(HTTP_STATUS.ACCEPTED).json({
     received: true,
     eventId: res.locals.requestId,
   });

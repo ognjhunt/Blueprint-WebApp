@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import multer from "multer";
 import path from "path";
 
+import { HTTP_STATUS } from "../constants/http-status";
 import { sendEmail } from "../utils/email";
 import {
   buildIdempotencyKey,
@@ -210,6 +211,11 @@ export default function applyHandler(req: Request, res: Response) {
         replyTo: "ohstnhunt@gmail.com",
       });
 
+      return res.status(HTTP_STATUS.ACCEPTED).json({
+        success: true,
+        sent,
+        confirmationSent: confirmationResult.sent,
+      });
       const responseStatus = sent ? 200 : 202;
       const responseBody = {
         success: true,

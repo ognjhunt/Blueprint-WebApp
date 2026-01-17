@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import OpenAI from "openai";
 
+import { HTTP_STATUS } from "../constants/http-status";
 import { attachRequestMeta, logger } from "../logger";
 import { buildWaitlistAIPrompt } from "../utils/ai-prompts";
 import { validateWaitlistData, WaitlistData } from "../utils/validation";
@@ -122,7 +123,7 @@ export default async function processWaitlistHandler(req: Request, res: Response
       "Waitlist submission processed",
     );
 
-    res.json({ success: true, response: mcpResponse });
+    res.status(HTTP_STATUS.OK).json({ success: true, response: mcpResponse });
   } catch (error: any) {
     const statusCode = error?.status ?? error?.statusCode ?? 500;
 

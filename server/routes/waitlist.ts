@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { HTTP_STATUS } from "../constants/http-status";
 import { sendEmail } from "../utils/email";
 import {
   buildIdempotencyKey,
@@ -43,6 +44,7 @@ export default async function waitlistHandler(req: Request, res: Response) {
 
   const { sent } = await sendEmail({ to, subject, text });
 
+  return res.status(HTTP_STATUS.ACCEPTED).json({ success: true, sent });
   const responseStatus = sent ? 200 : 202;
   const responseBody = { success: true, sent };
 
