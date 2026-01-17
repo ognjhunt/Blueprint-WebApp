@@ -32,19 +32,57 @@ const invocationPaths = Array.from(
   new Set([...DEFAULT_INVOCATION_PATHS, ...additionalPaths]),
 );
 
+const isPlaceholderValue = (value: string | undefined) => {
+  if (!value) {
+    return false;
+  }
+
+  const normalized = value.trim().toUpperCase();
+  return (
+    normalized === "PLACEHOLDER" ||
+    normalized === "REPLACE_ME" ||
+    normalized === "CHANGE_ME" ||
+    normalized === "YOUR_TEAM_ID" ||
+    normalized === "YOUR_APP_BUNDLE_ID" ||
+    normalized === "YOUR_APP_CLIP_BUNDLE_ID" ||
+    normalized === "APPLE_TEAM_ID" ||
+    normalized === "IOS_APP_BUNDLE_ID" ||
+    normalized === "IOS_APP_CLIP_BUNDLE_ID" ||
+    normalized === "APP_BUNDLE_ID" ||
+    normalized === "APP_CLIP_BUNDLE_ID" ||
+    /^YOUR[_-]/.test(normalized) ||
+    /^REPLACE[_-]/.test(normalized) ||
+    /^CHANGE[_-]/.test(normalized)
+  );
+};
+
 let associationPayload: AppleAssociationPayload | null = null;
 let configurationError: string | null = null;
+let usesPlaceholders = false;
+const placeholderFields: string[] = [];
+const missingFields: string[] = [];
 
 if (!APPLE_TEAM_ID) {
-  configurationError =
-    "Missing APPLE_TEAM_ID environment variable for App Clip association.";
-} else if (!IOS_APP_BUNDLE_ID) {
-  configurationError =
-    "Missing IOS_APP_BUNDLE_ID environment variable for App Clip association.";
-} else if (!IOS_APP_CLIP_BUNDLE_ID) {
-  configurationError =
-    "Missing IOS_APP_CLIP_BUNDLE_ID environment variable for App Clip association.";
-} else {
+  missingFields.push("APPLE_TEAM_ID");
+} else if (isPlaceholderValue(APPLE_TEAM_ID)) {
+  placeholderFields.push("APPLE_TEAM_ID");
+}
+
+if (!IOS_APP_BUNDLE_ID) {
+  missingFields.push("IOS_APP_BUNDLE_ID");
+} else if (isPlaceholderValue(IOS_APP_BUNDLE_ID)) {
+  placeholderFields.push("IOS_APP_BUNDLE_ID");
+}
+
+if (!IOS_APP_CLIP_BUNDLE_ID) {
+  missingFields.push("IOS_APP_CLIP_BUNDLE_ID");
+} else if (isPlaceholderValue(IOS_APP_CLIP_BUNDLE_ID)) {
+  placeholderFields.push("IOS_APP_CLIP_BUNDLE_ID");
+}
+
+usesPlaceholders = placeholderFields.length > 0;
+
+if (!usesPlaceholders && missingFields.length === 0) {
   const fullAppIdentifier = `${APPLE_TEAM_ID}.${IOS_APP_BUNDLE_ID}`;
   const fullClipIdentifier = `${APPLE_TEAM_ID}.${IOS_APP_CLIP_BUNDLE_ID}`;
 
@@ -73,6 +111,21 @@ if (!APPLE_TEAM_ID) {
   );
 }
 
+if (usesPlaceholders) {
+  logger.warn(
+    {
+      placeholderFields,
+    },
+    "App Clip association placeholders detected; returning disabled response",
+  );
+}
+
+if (missingFields.length > 0) {
+  configurationError = `Missing ${missingFields.join(
+    ", ",
+  )} environment variable(s) for App Clip association.`;
+}
+
 if (configurationError) {
   logger.warn(
     {
@@ -84,6 +137,11 @@ if (configurationError) {
 }
 
 function respondAssociation(_req: Request, res: Response) {
+  if (usesPlaceholders) {
+    res.status(204).end();
+    return;
+  }
+
   if (!associationPayload) {
     res
       .status(503)
@@ -108,6 +166,11 @@ const associationPaths = [
 router.get(associationPaths, respondAssociation);
 
 router.head(associationPaths, (_req: Request, res: Response) => {
+  if (usesPlaceholders) {
+    res.status(204).end();
+    return;
+  }
+
   if (!associationPayload) {
     res.status(503).end();
     return;
