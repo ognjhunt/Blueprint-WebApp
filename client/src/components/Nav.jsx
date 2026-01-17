@@ -78,7 +78,7 @@ export default function Nav({
     { href: "/learn", label: "Getting Started", badge: "Learn" },
     // Show these only if authenticated and not hidden
     ...(currentUser && !hideAuthenticatedFeatures
-      ? [{ href: "/scanner-portal", label: "Scanner Portal" }]
+      ? [{ href: "/scanner-portal", label: "Scanner Portal", rel: "nofollow" }]
       : []),
   ];
 
@@ -137,7 +137,7 @@ export default function Nav({
         {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-6">
           {navLinks.map((link) => (
-            <Link key={link.href} href={link.href}>
+            <Link key={link.href} href={link.href} rel={link.rel}>
               <motion.div
                 className={`text-base font-semibold relative group flex items-center gap-2 ${
                   isScrolled ? "text-slate-200" : "text-white"
@@ -247,6 +247,7 @@ export default function Nav({
                   key={link.href}
                   href={link.href}
                   className="w-full"
+                  rel={link.rel}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <div className="flex items-center justify-between text-slate-200 hover:text-white text-sm font-semibold py-4 px-4 hover:bg-slate-800 rounded-xl transition">
@@ -308,6 +309,7 @@ export default function Nav({
                     <Link
                       href="/settings"
                       className="w-full"
+                      rel="nofollow"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       <div className="text-slate-300 hover:text-white text-sm font-semibold py-4 px-4 hover:bg-slate-800 rounded-xl text-center">
@@ -375,7 +377,7 @@ const MemoizedDropdownMenuContent = memo(
         <DropdownMenuSeparator className="my-2 bg-slate-700" />
         {!hideAuthenticatedFeatures && (
           <>
-            <Link href="/settings">
+            <Link href="/settings" rel="nofollow">
               <DropdownMenuItem className="cursor-pointer hover:bg-slate-800 rounded-xl p-3 font-medium text-slate-200">
                 Settings
               </DropdownMenuItem>
