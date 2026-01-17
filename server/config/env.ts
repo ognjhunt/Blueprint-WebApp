@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+const PLACEHOLDER_VALUES = new Set(["PLACEHOLDER", "DUMMY"]);
+
+const isPlaceholderValue = (value: string | undefined) =>
+  Boolean(value && PLACEHOLDER_VALUES.has(value.trim().toUpperCase()));
+
 const envSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -24,7 +29,7 @@ const envSchema = z
           message: "STRIPE_SECRET_KEY is required in production.",
         });
       }
-      if (!env.STRIPE_CONNECT_ACCOUNT_ID) {
+      if (!env.STRIPE_CONNECT_ACCOUNT_ID && !isPlaceholderValue(env.STRIPE_SECRET_KEY)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["STRIPE_CONNECT_ACCOUNT_ID"],
