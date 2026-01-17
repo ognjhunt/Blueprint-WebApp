@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { sendEmail } from "../utils/email";
+import { isValidEmailAddress } from "../utils/validation";
 
 export default async function waitlistHandler(req: Request, res: Response) {
   if (req.method !== "POST") {
@@ -12,9 +13,14 @@ export default async function waitlistHandler(req: Request, res: Response) {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
+  const emailValue = typeof email === "string" ? email.trim() : "";
+  if (!emailValue || !isValidEmailAddress(emailValue)) {
+    return res.status(400).json({ error: "Invalid email format" });
+  }
+
   const to = process.env.WAITLIST_TO ?? "ops@tryblueprint.io";
   const subject = "New on-site capture waitlist submission";
-  const text = `Email: ${email}\nLocation type: ${locationType}`;
+  const text = `Email: ${emailValue}\nLocation type: ${locationType}`;
 
   const { sent } = await sendEmail({ to, subject, text });
 
