@@ -25,6 +25,10 @@ These variables must be available in the build/runtime environment (Replit secre
 Stripe checkout and onboarding routes require the secret key at runtime:
 
 - `STRIPE_SECRET_KEY` (required; server startup fails fast if unset)
+- `STRIPE_CONNECT_ACCOUNT_ID` (required for Connect features; server startup fails fast if unset)
+
+The server validates required runtime variables at startup (`server/config/env.ts`). In production,
+missing required values will halt the process with a clear error message.
 
 ## Error tracking (Sentry)
 

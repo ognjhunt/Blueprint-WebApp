@@ -1,15 +1,30 @@
 import Stripe from "stripe";
 
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY?.trim() || "sk_test_placeholder_key_do_not_use_in_production";
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY?.trim();
+const isProduction = process.env.NODE_ENV === "production";
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  console.warn("Warning: STRIPE_SECRET_KEY environment variable is not set. Using placeholder key.");
+if (!STRIPE_SECRET_KEY) {
+  const message =
+    "STRIPE_SECRET_KEY environment variable is not set. Stripe routes will be unavailable.";
+  if (isProduction) {
+    throw new Error("STRIPE_SECRET_KEY is required in production.");
+  }
+  console.warn(message);
 }
 
-export const stripeClient = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" });
+export const stripeClient = STRIPE_SECRET_KEY
+  ? new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" })
+  : null;
 
-export const STRIPE_CONNECT_ACCOUNT_ID =
-  process.env.STRIPE_CONNECT_ACCOUNT_ID?.trim() || "acct_1OE1ptPrtLGHqzOG";
+export const STRIPE_CONNECT_ACCOUNT_ID = process.env.STRIPE_CONNECT_ACCOUNT_ID?.trim();
+if (!STRIPE_CONNECT_ACCOUNT_ID) {
+  const message =
+    "STRIPE_CONNECT_ACCOUNT_ID environment variable is not set. Stripe Connect features will be unavailable.";
+  if (isProduction) {
+    throw new Error("STRIPE_CONNECT_ACCOUNT_ID is required in production.");
+  }
+  console.warn(message);
+}
 
 const DEFAULT_BASE_URL =
   process.env.STRIPE_PUBLIC_BASE_URL?.trim() ||
