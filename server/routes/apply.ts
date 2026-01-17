@@ -3,6 +3,7 @@ import multer from "multer";
 import path from "path";
 
 import { sendEmail } from "../utils/email";
+import { isValidEmailAddress } from "../utils/validation";
 
 const allowedResumeMimeTypes = new Set([
   "application/pdf",
@@ -88,6 +89,10 @@ export default function applyHandler(req: Request, res: Response) {
 
       if (!applicantName || !applicantPortfolio || !jobRole || !jobEmail || !applicantEmail) {
         return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      if (!isValidEmailAddress(jobEmail) || !isValidEmailAddress(applicantEmail)) {
+        return res.status(400).json({ error: "Invalid email format" });
       }
 
       const file = (req as RequestWithFile).file ?? null;

@@ -4,6 +4,7 @@ import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { sendEmail } from "../utils/email";
 import { notifySlackInboundRequest } from "../utils/slack";
 import { logger } from "../logger";
+import { isValidEmailAddress } from "../utils/validation";
 import type {
   InboundRequestPayload,
   InboundRequest,
@@ -136,8 +137,7 @@ function computeOwner(
  * Validate email format and check for disposable domains
  */
 function validateEmail(email: string): { valid: boolean; error?: string } {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
+  if (!isValidEmailAddress(email)) {
     return { valid: false, error: "Invalid email format" };
   }
 

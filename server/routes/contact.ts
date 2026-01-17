@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { sendEmail } from "../utils/email";
+import { isValidEmailAddress } from "../utils/validation";
 
 export default async function contactHandler(req: Request, res: Response) {
   if (req.method !== "POST") {
@@ -57,6 +58,11 @@ export default async function contactHandler(req: Request, res: Response) {
     });
   }
 
+  const emailValue = typeof email === "string" ? email.trim() : "";
+  if (!emailValue || !isValidEmailAddress(emailValue)) {
+    return res.status(400).json({ error: "Invalid email format" });
+  }
+
   const useCaseList = Array.isArray(useCases)
     ? useCases
     : useCases
@@ -81,7 +87,7 @@ export default async function contactHandler(req: Request, res: Response) {
   const requesterName = String(name);
   const summaryLines = [
     `Name: ${requesterName}`,
-    `Email: ${email}`,
+    `Email: ${emailValue}`,
     `Company: ${company}`,
     `Job title: ${jobTitle}`,
     `Country: ${country}`,

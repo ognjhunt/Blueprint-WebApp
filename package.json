@@ -117,6 +117,7 @@
     "three": "^0.158.0",
     "three-transform-controls": "^1.0.4",
     "uuid": "^11.1.0",
+    "validator": "^13.15.26",
     "vaul": "^1.1.0",
     "wouter": "^3.3.5",
     "ws": "^8.18.0",

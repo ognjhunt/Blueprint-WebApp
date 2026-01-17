@@ -1,3 +1,5 @@
+import validator from "validator";
+
 export interface WaitlistData {
   name?: string;
   email?: string;
@@ -20,6 +22,18 @@ export interface WaitlistData {
 export interface ValidationError { // Added export to make it available if needed by other modules, and JSDoc
   field: string;
   message: string;
+}
+
+export const EMAIL_VALIDATION_OPTIONS: validator.IsEmailOptions = {
+  allow_display_name: false,
+  allow_ip_domain: false,
+  allow_utf8_local_part: false,
+  domain_specific_validation: true,
+  require_tld: true,
+};
+
+export function isValidEmailAddress(email: string): boolean {
+  return validator.isEmail(email, EMAIL_VALIDATION_OPTIONS);
 }
 
 /**
@@ -55,9 +69,8 @@ export function validateWaitlistData(
   }
 
   if (requestBody.email && typeof requestBody.email === 'string') {
-    // Basic email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(requestBody.email)) {
+    const emailValue = requestBody.email.trim();
+    if (!isValidEmailAddress(emailValue)) {
       errors.push({ field: 'email', message: 'Invalid email format.' });
     }
   } else if (requiredFields.includes('email') && (!requestBody.email || !String(requestBody.email).trim())) {
