@@ -15,6 +15,7 @@ import { validateEnv } from "./config/env";
 const env = validateEnv();
 
 const app = express();
+const isProduction = process.env.NODE_ENV === "production";
 
 const rateLimitRedisUrl = env.RATE_LIMIT_REDIS_URL || env.REDIS_URL;
 const redisClient =
@@ -122,6 +123,42 @@ const uploadLimiter = createRateLimiter({
 const defaultBodyLimit = env.API_BODY_LIMIT || "1mb";
 app.use(express.json({ limit: defaultBodyLimit }));
 app.use(express.urlencoded({ extended: false, limit: defaultBodyLimit }));
+
+const cspDirectives = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'self'",
+  `script-src 'self' 'unsafe-inline' ${
+    isProduction ? "" : "'unsafe-eval' http://localhost:5173"
+  } https://js.stripe.com https://cdnjs.cloudflare.com https://apis.google.com https://accounts.google.com https://www.googletagmanager.com`,
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' https://fonts.gstatic.com data:",
+  "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://chat.lindy.ai https://www.youtube-nocookie.com",
+  "worker-src 'self' blob: https://cdnjs.cloudflare.com",
+  "media-src 'self' blob: https:",
+  `connect-src 'self' ${
+    isProduction ? "" : "http://localhost:5173 ws://localhost:5173"
+  } https://api.openai.com https://api.lumalabs.ai https://api.firecrawl.dev https://api.gumloop.com https://public.lindy.ai https://chat.lindy.ai https://*.googleapis.com https://*.gstatic.com https://*.firebaseio.com https://*.firebaseapp.com https://firebasestorage.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://maps.googleapis.com https://places.googleapis.com https://generativelanguage.googleapis.com wss://generativelanguage.googleapis.com https://js.stripe.com`,
+  "upgrade-insecure-requests",
+]
+  .map((directive) => directive.trim())
+  .join("; ");
+
+app.use((req, res, next) => {
+  res.setHeader("Content-Security-Policy", cspDirectives);
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+  );
+  if (isProduction) {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+  next();
+});
 
 // Configure CORS - restrict in production
 const allowedOrigins = env.ALLOWED_ORIGINS
@@ -266,8 +303,6 @@ app.use((req, res, next) => {
   const publicDir = path.resolve(process.cwd(), "dist", "public");
   const robotsPath = path.join(publicDir, "robots.txt");
   const sitemapPath = path.join(publicDir, "sitemap.xml");
-  const isProduction = process.env.NODE_ENV === "production";
-
   if (!fs.existsSync(robotsPath)) {
     const message =
       "robots.txt is missing from dist/public. Ensure client/public/robots.txt is deployed verbatim.";
