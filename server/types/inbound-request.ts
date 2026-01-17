@@ -1,3 +1,5 @@
+import type { EncryptableString } from "./field-encryption";
+
 /**
  * Types for the inbound request lead management system
  */
@@ -101,6 +103,26 @@ export interface InboundRequest {
   debug: {
     schemaVersion: number;
   };
+}
+
+export interface ContactInfoStored {
+  firstName: EncryptableString;
+  lastName: EncryptableString;
+  email: EncryptableString;
+  roleTitle: EncryptableString;
+  company: EncryptableString;
+}
+
+export interface RequestDetailsStored {
+  budgetBucket: BudgetBucket;
+  helpWith: HelpWithOption[];
+  details?: EncryptableString | null;
+}
+
+export interface InboundRequestStored
+  extends Omit<InboundRequest, "contact" | "request"> {
+  contact: ContactInfoStored;
+  request: RequestDetailsStored;
 }
 
 // Request payload from frontend form submission

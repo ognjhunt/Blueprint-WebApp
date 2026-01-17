@@ -6,6 +6,7 @@ import { notifySlackInboundRequest } from "../utils/slack";
 import { logger } from "../logger";
 import { isValidEmailAddress } from "../utils/validation";
 import { getRateLimitRedisClient } from "../utils/rate-limit-redis";
+import { encryptInboundRequestForStorage } from "../utils/field-encryption";
 import type {
   InboundRequestPayload,
   InboundRequest,
@@ -429,11 +430,15 @@ router.post("/", async (req: Request, res: Response) => {
       },
     };
 
+    const encryptedInboundRequest = await encryptInboundRequestForStorage(
+      inboundRequest
+    );
+
     // 9. Write to Firestore
     await db
       .collection("inboundRequests")
       .doc(payload.requestId)
-      .set(inboundRequest);
+      .set(encryptedInboundRequest);
 
     await db
       .collection("stats")

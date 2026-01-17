@@ -16,6 +16,7 @@
     "@anthropic-ai/sdk": "^0.52.0",
     "@firebase/auth": "^1.8.1",
     "@google-cloud/aiplatform": "^3.34.0",
+    "@google-cloud/kms": "^5.2.1",
     "@google/genai": "^1.20.0",
     "@google/generative-ai": "^0.21.0",
     "@googlemaps/js-api-loader": "^1.16.8",
