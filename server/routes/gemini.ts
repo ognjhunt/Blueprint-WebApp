@@ -1,5 +1,6 @@
-import express from 'express';
+import express from "express";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { logger } from "../logger";
 
 const router = express.Router();
 
@@ -43,7 +44,7 @@ router.post('/analyze', async (req, res) => {
 
     res.json({ analysis });
   } catch (error) {
-    console.error('Error analyzing floor plan:', error);
+    logger.error({ err: error }, "Error analyzing floor plan");
     res.status(500).json({ 
       error: error instanceof Error ? error.message : 'Failed to analyze floor plan' 
     });

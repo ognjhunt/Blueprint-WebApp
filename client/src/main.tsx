@@ -11,6 +11,9 @@ import { CookieConsent } from "./components/CookieConsent";
 import { Analytics } from "./components/Analytics";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { installClientLogger } from "./utils/clientLogger";
+
+installClientLogger();
 
 const Home = lazy(() => import("./pages/Home"));
 const WhySimulation = lazy(() => import("./pages/WhySimulation"));
