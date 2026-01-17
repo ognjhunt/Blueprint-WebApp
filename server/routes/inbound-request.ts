@@ -446,6 +446,19 @@ router.post("/", async (req: Request, res: Response) => {
       .doc(payload.requestId)
       .set(inboundRequest);
 
+    await db
+      .collection("stats")
+      .doc("inboundRequests")
+      .set(
+        {
+          total: admin.firestore.FieldValue.increment(1),
+          [`byStatus.new`]: admin.firestore.FieldValue.increment(1),
+          [`byPriority.${priority}`]: admin.firestore.FieldValue.increment(1),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
     logger.info(
       {
         requestId: payload.requestId,
