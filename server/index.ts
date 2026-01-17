@@ -35,6 +35,34 @@ const createRateLimitStore = (prefix: string) =>
       })
     : undefined;
 
+// Known crawler/bot User-Agents that should bypass rate limiting
+const CRAWLER_USER_AGENTS = [
+  "Googlebot",
+  "Bingbot",
+  "Slurp", // Yahoo
+  "DuckDuckBot",
+  "Baiduspider",
+  "YandexBot",
+  "facebookexternalhit",
+  "Twitterbot",
+  "LinkedInBot",
+  "GPTBot", // OpenAI
+  "ChatGPT-User", // OpenAI
+  "Claude-Web", // Anthropic
+  "Anthropic", // Anthropic
+  "PerplexityBot",
+  "Google-Extended", // Google AI
+  "CCBot", // Common Crawl
+  "Applebot",
+];
+
+const isCrawler = (userAgent: string | undefined): boolean => {
+  if (!userAgent) return false;
+  return CRAWLER_USER_AGENTS.some((bot) =>
+    userAgent.toLowerCase().includes(bot.toLowerCase())
+  );
+};
+
 const createRateLimiter = ({
   windowMs,
   limit,
@@ -53,7 +81,9 @@ const createRateLimiter = ({
     legacyHeaders: false,
     store: createRateLimitStore(prefix),
     skip: (req) =>
-      req.method === "OPTIONS" || skipPaths.some((path) => req.path.startsWith(path)),
+      req.method === "OPTIONS" ||
+      skipPaths.some((path) => req.path.startsWith(path)) ||
+      isCrawler(req.headers["user-agent"]),
     handler: (_req, res) => {
       res.status(429).json({ error: "Too many requests. Please try again later." });
     },
@@ -258,6 +288,24 @@ app.use((req, res, next) => {
       return res.sendFile(sitemapPath);
     }
 
+    return res.sendStatus(404);
+  });
+
+  // Serve llms.txt files for AI crawlers
+  const llmsPath = path.join(publicDir, "llms.txt");
+  const llmsFullPath = path.join(publicDir, "llms-full.txt");
+
+  app.get("/llms.txt", (_req, res) => {
+    if (fs.existsSync(llmsPath)) {
+      return res.type("text/plain").sendFile(llmsPath);
+    }
+    return res.sendStatus(404);
+  });
+
+  app.get("/llms-full.txt", (_req, res) => {
+    if (fs.existsSync(llmsFullPath)) {
+      return res.type("text/plain").sendFile(llmsFullPath);
+    }
     return res.sendStatus(404);
   });
 
