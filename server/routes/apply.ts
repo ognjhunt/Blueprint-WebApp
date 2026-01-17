@@ -4,6 +4,11 @@ import path from "path";
 
 import { HTTP_STATUS } from "../constants/http-status";
 import { sendEmail } from "../utils/email";
+import {
+  buildIdempotencyKey,
+  fetchIdempotencyResponse,
+  storeIdempotencyResponse,
+} from "../utils/idempotency";
 import { isValidEmailAddress } from "../utils/validation";
 
 const allowedResumeMimeTypes = new Set([
@@ -97,6 +102,26 @@ export default function applyHandler(req: Request, res: Response) {
       }
 
       const file = (req as RequestWithFile).file ?? null;
+      const { key: idempotencyKey, ttlMs: idempotencyTtlMs } = buildIdempotencyKey({
+        scope: "apply",
+        email: applicantEmail,
+        payload: {
+          name: applicantName,
+          portfolio: applicantPortfolio,
+          notes: applicantNotes,
+          role: jobRole,
+          jobEmail,
+          resumeName: file?.originalname ?? null,
+          resumeType: file?.mimetype ?? null,
+          resumeSize: file?.size ?? null,
+        },
+      });
+
+      const cachedResponse = await fetchIdempotencyResponse(idempotencyKey);
+      if (cachedResponse) {
+        return res.status(cachedResponse.status).json(cachedResponse.body);
+      }
+
       const attachmentSummary = file ? file.originalname : "No file attached";
 
       if (file) {
@@ -191,6 +216,20 @@ export default function applyHandler(req: Request, res: Response) {
         sent,
         confirmationSent: confirmationResult.sent,
       });
+      const responseStatus = sent ? 200 : 202;
+      const responseBody = {
+        success: true,
+        sent,
+        confirmationSent: confirmationResult.sent,
+      };
+
+      await storeIdempotencyResponse({
+        key: idempotencyKey,
+        response: { status: responseStatus, body: responseBody },
+        ttlMs: idempotencyTtlMs,
+      });
+
+      return res.status(responseStatus).json(responseBody);
     } catch (error) {
       console.error(error);
       return res.status(500).json({ error: "Failed to process application" });
