@@ -3,6 +3,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import SceneSmithExplainerMedia from "@/components/sections/SceneSmithExplainerMedia";
 import { 
   MapPin, 
   Edit3, 
@@ -76,6 +77,7 @@ export default function HowItWorks() {
         <HeroSection />
         <BenefitsSection />
         <StepsSection />
+        <SceneSmithExplainerMedia id="howItWorksSceneSmithMedia" />
         <LiveDemoSection />
         <CallToActionSection />
       </main>

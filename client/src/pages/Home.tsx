@@ -1,5 +1,6 @@
 import { CTAButtons } from "@/components/site/CTAButtons";
 import { LogoWall } from "@/components/site/LogoWall";
+import SceneSmithExplainerMedia from "@/components/sections/SceneSmithExplainerMedia";
 import { SEO } from "@/components/SEO";
 import {
   ArrowRight,
@@ -226,6 +227,8 @@ export default function Home() {
             ))}
           </div>
         </section>
+
+        <SceneSmithExplainerMedia />
 
         {/* --- Why SimReady --- */}
         <section className="border-y border-zinc-100 bg-zinc-50/50 py-16">
