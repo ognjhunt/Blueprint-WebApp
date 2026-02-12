@@ -59,6 +59,9 @@ const HELP_LABELS: Record<string, string> = {
   "scene-library": "Scene Library",
   "dataset-packs": "Dataset Packs",
   "custom-capture": "Custom Scene",
+  "pilot-exchange-location-brief": "Pilot Exchange: Location Brief",
+  "pilot-exchange-policy-submission": "Pilot Exchange: Policy Submission",
+  "pilot-exchange-data-licensing": "Pilot Exchange: Data Licensing",
 };
 
 const STATUS_COLORS: Record<RequestStatus, string> = {

@@ -115,4 +115,29 @@ export const analyticsEvents = {
   // Waitlist events
   waitlistSignup: (locationType: string) =>
     trackEvent("waitlist_signup", { location_type: locationType }),
+
+  // Pilot Exchange events
+  pilotExchangeView: () =>
+    trackEvent("pilot_exchange_view"),
+
+  pilotExchangeFilterApply: (filterType: string, filterValue: string) =>
+    trackEvent("pilot_exchange_filter_apply", {
+      filter_type: filterType,
+      filter_value: filterValue,
+    }),
+
+  pilotExchangeOpenBriefForm: () =>
+    trackEvent("pilot_exchange_open_brief_form"),
+
+  pilotExchangeSubmitBrief: (status: "success" | "error") =>
+    trackEvent("pilot_exchange_submit_brief", { status }),
+
+  pilotExchangeOpenPolicyForm: () =>
+    trackEvent("pilot_exchange_open_policy_form"),
+
+  pilotExchangeSubmitPolicy: (status: "success" | "error") =>
+    trackEvent("pilot_exchange_submit_policy", { status }),
+
+  pilotExchangeSubmitDataLicenseRequest: (status: "success" | "error") =>
+    trackEvent("pilot_exchange_submit_data_license_request", { status }),
 };

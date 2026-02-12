@@ -47,6 +47,9 @@ const HELP_WITH_LABELS: Record<HelpWithOption, string> = {
   "scene-library": "Scene Library",
   "dataset-packs": "Dataset Packs",
   "custom-capture": "Custom Scene",
+  "pilot-exchange-location-brief": "Pilot Exchange: Location Brief",
+  "pilot-exchange-policy-submission": "Pilot Exchange: Policy Submission",
+  "pilot-exchange-data-licensing": "Pilot Exchange: Data Licensing",
 };
 
 const PRIORITY_EMOJI: Record<RequestPriority, string> = {

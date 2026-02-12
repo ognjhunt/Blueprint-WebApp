@@ -15,7 +15,10 @@ export type HelpWithOption =
   | "benchmark-packs"
   | "scene-library"
   | "dataset-packs"
-  | "custom-capture";
+  | "custom-capture"
+  | "pilot-exchange-location-brief"
+  | "pilot-exchange-policy-submission"
+  | "pilot-exchange-data-licensing";
 
 // Request status for lead tracking
 export type RequestStatus =
@@ -170,6 +173,9 @@ export const HELP_WITH_LABELS: Record<HelpWithOption, string> = {
   "scene-library": "Scene Library",
   "dataset-packs": "Dataset Packs",
   "custom-capture": "Custom Scene",
+  "pilot-exchange-location-brief": "Pilot Exchange: Location Brief",
+  "pilot-exchange-policy-submission": "Pilot Exchange: Policy Submission",
+  "pilot-exchange-data-licensing": "Pilot Exchange: Data Licensing",
 };
 
 // Budget bucket labels for UI

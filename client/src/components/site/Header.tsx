@@ -14,6 +14,7 @@ import {
 const navLinks = [
   { href: "/marketplace/scenes", label: "Scenes" },
   { href: "/marketplace/datasets", label: "Datasets" },
+  { href: "/pilot-exchange", label: "Pilot Exchange" },
   { href: "/how-it-works", label: "How It Works" },
   { href: "/evals", label: "Benchmarks" },
   { href: "/partners", label: "Partners" },

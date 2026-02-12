@@ -18,6 +18,12 @@ router.get("/", (_req: Request, res: Response) => {
         description: "Discover curated 3D assets, datasets, and simulation-ready content.",
       },
       {
+        path: "/pilot-exchange",
+        title: "Pilot Exchange",
+        description:
+          "Eval-first marketplace where operators compare robot policy performance in digital twins before deployment.",
+      },
+      {
         path: "/docs",
         title: "Docs",
         description: "Product documentation, onboarding, and platform guides.",

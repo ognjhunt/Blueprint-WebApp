@@ -22,4 +22,12 @@ describe("Header", () => {
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "/how-it-works");
   });
+
+  it("shows Pilot Exchange in the top navigation", () => {
+    render(<Header />);
+
+    const link = screen.getByRole("link", { name: /Pilot Exchange/i });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", "/pilot-exchange");
+  });
 });

@@ -1,5 +1,6 @@
 const footerLinks = [
   { label: "Solutions", href: "/solutions" },
+  { label: "Pilot Exchange", href: "/pilot-exchange" },
   { label: "Benchmarks", href: "/evals" },
   { label: "Contact", href: "/contact" },
   { label: "Pricing", href: "/pricing" },

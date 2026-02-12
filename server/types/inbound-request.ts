@@ -17,7 +17,10 @@ export type HelpWithOption =
   | "benchmark-packs"
   | "scene-library"
   | "dataset-packs"
-  | "custom-capture";
+  | "custom-capture"
+  | "pilot-exchange-location-brief"
+  | "pilot-exchange-policy-submission"
+  | "pilot-exchange-data-licensing";
 
 // Request status for lead tracking
 export type RequestStatus =

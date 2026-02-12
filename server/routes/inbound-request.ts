@@ -48,6 +48,9 @@ const VALID_HELP_WITH: HelpWithOption[] = [
   "scene-library",
   "dataset-packs",
   "custom-capture",
+  "pilot-exchange-location-brief",
+  "pilot-exchange-policy-submission",
+  "pilot-exchange-data-licensing",
 ];
 
 // Known disposable email domains (extend as needed)
@@ -100,13 +103,25 @@ function computePriority(
     return "high";
   }
 
-  // High priority for custom capture requests (high-touch service)
-  if (helpWith.includes("custom-capture")) {
+  // High priority for high-touch deployment discovery work
+  if (
+    helpWith.includes("custom-capture") ||
+    helpWith.includes("pilot-exchange-location-brief")
+  ) {
     return "high";
   }
 
   // Normal priority for medium budgets
   if (budgetBucket === "$50K-$300K") {
+    return "normal";
+  }
+
+  // Normal priority for exchange policy + data licensing requests
+  if (
+    helpWith.includes("pilot-exchange-policy-submission") ||
+    helpWith.includes("pilot-exchange-data-licensing") ||
+    helpWith.includes("benchmark-packs")
+  ) {
     return "normal";
   }
 
@@ -120,10 +135,12 @@ function computePriority(
 function computeOwner(
   helpWith: HelpWithOption[]
 ): { uid: string | null; email: string | null } {
-  // Route custom capture and benchmark packs to solutions team
+  // Route eval + deployment workflow requests to solutions team
   if (
     helpWith.includes("custom-capture") ||
-    helpWith.includes("benchmark-packs")
+    helpWith.includes("benchmark-packs") ||
+    helpWith.includes("pilot-exchange-location-brief") ||
+    helpWith.includes("pilot-exchange-policy-submission")
   ) {
     return {
       uid: null,
@@ -131,7 +148,7 @@ function computeOwner(
     };
   }
 
-  // Route scene library and dataset packs to sales/BD
+  // Route scene/data catalog and licensing requests to sales/BD
   return {
     uid: null,
     email: process.env.SALES_OWNER_EMAIL || "ops@tryblueprint.io",
