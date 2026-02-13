@@ -2,10 +2,17 @@ import React from "react";
 import { Link } from "wouter";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
+import { SEO } from "@/components/SEO";
 
 export default function RoboticsOS() {
   return (
     <div className="min-h-screen flex flex-col bg-[#0B1220] text-slate-100">
+      <SEO
+        title="roboticsOS – spatial context for autonomous crews"
+        description="Living digital twins give humanoids and mobile robots instant context the moment they reach a new site."
+        canonical="/blog/robotics-os"
+        type="article"
+      />
       {/* BACKGROUND: aurora wash + subtle dot/grid */}
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         {/* dots/grid via radial-gradient */}
