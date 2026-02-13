@@ -4,6 +4,7 @@ import { analyticsEvents } from "@/components/Analytics";
 import { withCsrfHeader } from "@/lib/csrf";
 import {
   captureNetworkStats,
+  evalLeaderboardEntries,
   locationBriefs,
   pilotEmbodiments,
   pilotLocationTypes,
@@ -20,6 +21,8 @@ import type { BudgetBucket, HelpWithOption } from "@/types/inbound-request";
 import type {
   DeploymentTimeline,
   PilotLocationType,
+  EvalLeaderboardEntry,
+  LocationBrief,
   PrivacyMode,
   RobotEmbodiment,
 } from "@/types/pilot-exchange";
@@ -75,14 +78,27 @@ interface LocationBriefFormState extends BaseLeadFormState {
   evaluationGoal: string;
 }
 
-interface PolicySubmissionFormState extends BaseLeadFormState {
-  locationType: PilotLocationType | "";
-  robotEmbodiment: RobotEmbodiment | "";
-  timeline: DeploymentTimeline | "";
-  privacyMode: PrivacyMode | "";
-  policyName: string;
-  benchmarkEvidence: string;
-  deploymentSummary: string;
+type PolicyPackageKind = "Docker image" | "Checkpoint URL" | "API endpoint";
+
+interface SavedPolicyPackage {
+  id: string;
+  name: string;
+  kind: PolicyPackageKind;
+  uri: string;
+  robotEmbodiment?: RobotEmbodiment;
+}
+
+interface EvalRunFormState {
+  briefId: string;
+  policyId: string;
+  addNewPolicy: boolean;
+  newPolicyName: string;
+  newPolicyKind: PolicyPackageKind;
+  newPolicyUri: string;
+  contactName: string;
+  contactEmail: string;
+  contactCompany: string;
+  budgetBucket: BudgetBucket;
 }
 
 interface DataLicenseFormState extends BaseLeadFormState {
@@ -151,15 +167,19 @@ const defaultBriefFormState: LocationBriefFormState = {
   evaluationGoal: "",
 };
 
-const defaultPolicyFormState: PolicySubmissionFormState = {
-  ...defaultBaseFormState,
-  locationType: "",
-  robotEmbodiment: "",
-  timeline: "",
-  privacyMode: "",
-  policyName: "",
-  benchmarkEvidence: "",
-  deploymentSummary: "",
+const POLICY_LIBRARY_STORAGE_KEY = "bp_pilot_exchange_policy_library_v1";
+
+const defaultEvalRunFormState: EvalRunFormState = {
+  briefId: "",
+  policyId: "",
+  addNewPolicy: true,
+  newPolicyName: "",
+  newPolicyKind: "Docker image",
+  newPolicyUri: "",
+  contactName: "",
+  contactEmail: "",
+  contactCompany: "",
+  budgetBucket: "Undecided/Unsure",
 };
 
 const defaultDataLicenseFormState: DataLicenseFormState = {
@@ -232,6 +252,57 @@ function validateBaseFields(form: BaseLeadFormState): string | null {
   return null;
 }
 
+function parseContactName(fullName: string): { firstName: string; lastName: string } {
+  const trimmed = fullName.trim();
+  if (!trimmed) {
+    return { firstName: "", lastName: "" };
+  }
+
+  const [first, ...rest] = trimmed.split(/\s+/);
+  return {
+    firstName: first,
+    lastName: rest.join(" ") || "Unknown",
+  };
+}
+
+function inferCompanyFromEmail(email: string): string {
+  const trimmed = email.trim().toLowerCase();
+  const domain = trimmed.split("@")[1] || "";
+  return domain;
+}
+
+function readPolicyLibrary(): SavedPolicyPackage[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(POLICY_LIBRARY_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed as SavedPolicyPackage[];
+  } catch {
+    return [];
+  }
+}
+
+function formatThresholdDelta(successRate: number, threshold: number): {
+  label: string;
+  className: string;
+} {
+  const delta = Math.round(successRate - threshold);
+  const label = `${delta >= 0 ? "+" : ""}${delta}%`;
+  return {
+    label,
+    className: delta >= 0 ? "text-emerald-700" : "text-rose-600",
+  };
+}
+
 export default function PilotExchange() {
   const [activeTab, setActiveTab] = useState<ExchangeTab>("briefs");
 
@@ -252,11 +323,15 @@ export default function PilotExchange() {
   const [briefForm, setBriefForm] = useState<LocationBriefFormState>(
     defaultBriefFormState,
   );
-  const [policyForm, setPolicyForm] = useState<PolicySubmissionFormState>(
-    defaultPolicyFormState,
-  );
   const [dataLicenseForm, setDataLicenseForm] = useState<DataLicenseFormState>(
     defaultDataLicenseFormState,
+  );
+
+  const [policyLibrary, setPolicyLibrary] = useState<SavedPolicyPackage[]>(() =>
+    readPolicyLibrary(),
+  );
+  const [evalRunForm, setEvalRunForm] = useState<EvalRunFormState>(
+    defaultEvalRunFormState,
   );
 
   const [briefStatus, setBriefStatus] = useState<SubmissionStatus>("idle");
@@ -269,6 +344,110 @@ export default function PilotExchange() {
   useEffect(() => {
     analyticsEvents.pilotExchangeView();
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(
+        POLICY_LIBRARY_STORAGE_KEY,
+        JSON.stringify(policyLibrary),
+      );
+    } catch {
+      // Ignore storage failures (private browsing, quota, etc).
+    }
+  }, [policyLibrary]);
+
+  const leaderboardByBriefId = useMemo(() => {
+    const grouped = new Map<string, EvalLeaderboardEntry[]>();
+
+    for (const entry of evalLeaderboardEntries) {
+      const current = grouped.get(entry.briefId) ?? [];
+      current.push(entry);
+      grouped.set(entry.briefId, current);
+    }
+
+    for (const entries of grouped.values()) {
+      entries.sort((a, b) => a.rank - b.rank);
+    }
+
+    return grouped;
+  }, []);
+
+  const selectedEvalBrief = useMemo<LocationBrief | null>(() => {
+    if (!evalRunForm.briefId) {
+      return null;
+    }
+    return locationBriefs.find((brief) => brief.id === evalRunForm.briefId) ?? null;
+  }, [evalRunForm.briefId]);
+
+  const selectedEvalLeaderboard = useMemo(() => {
+    if (!evalRunForm.briefId) {
+      return [] as EvalLeaderboardEntry[];
+    }
+
+    return leaderboardByBriefId.get(evalRunForm.briefId) ?? [];
+  }, [evalRunForm.briefId, leaderboardByBriefId]);
+
+  const selectedEvalPolicy = useMemo<SavedPolicyPackage | null>(() => {
+    if (!evalRunForm.policyId) {
+      return null;
+    }
+    return policyLibrary.find((policy) => policy.id === evalRunForm.policyId) ?? null;
+  }, [evalRunForm.policyId, policyLibrary]);
+
+  useEffect(() => {
+    if (!evalRunForm.contactEmail.trim()) {
+      return;
+    }
+    if (evalRunForm.contactCompany.trim()) {
+      return;
+    }
+
+    const inferred = inferCompanyFromEmail(evalRunForm.contactEmail);
+    if (!inferred) {
+      return;
+    }
+
+    setEvalRunForm((prev) => {
+      if (prev.contactCompany.trim()) {
+        return prev;
+      }
+      return { ...prev, contactCompany: inferred };
+    });
+  }, [evalRunForm.contactCompany, evalRunForm.contactEmail]);
+
+  const openEvalDialog = useCallback(
+    (briefId?: string) => {
+      analyticsEvents.pilotExchangeOpenPolicyForm();
+      setPolicyStatus("idle");
+      setPolicyMessage("");
+
+      setEvalRunForm((prev) => {
+        const hasSavedPolicies = policyLibrary.length > 0;
+        const nextBriefId = typeof briefId === "string" ? briefId : prev.briefId;
+        const nextPolicyId = hasSavedPolicies
+          ? prev.policyId || policyLibrary[0]?.id || ""
+          : "";
+
+        return {
+          ...defaultEvalRunFormState,
+          briefId: nextBriefId || "",
+          policyId: nextPolicyId,
+          addNewPolicy: !hasSavedPolicies,
+          contactName: prev.contactName,
+          contactEmail: prev.contactEmail,
+          contactCompany:
+            prev.contactCompany || inferCompanyFromEmail(prev.contactEmail),
+        };
+      });
+
+      setIsPolicyDialogOpen(true);
+    },
+    [policyLibrary],
+  );
 
   const emitFilterEvent = useCallback((type: string, value: string) => {
     analyticsEvents.pilotExchangeFilterApply(type, value || "all");
@@ -435,53 +614,118 @@ export default function PilotExchange() {
     }
   };
 
-  const handlePolicySubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleEvalRunSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const baseError = validateBaseFields(policyForm);
-    if (baseError) {
+    if (!selectedEvalBrief) {
       setPolicyStatus("error");
-      setPolicyMessage(baseError);
+      setPolicyMessage("Select a digital twin to run against.");
       return;
     }
 
-    if (
-      !policyForm.locationType ||
-      !policyForm.robotEmbodiment ||
-      !policyForm.timeline ||
-      !policyForm.privacyMode ||
-      !policyForm.policyName.trim() ||
-      !policyForm.benchmarkEvidence.trim() ||
-      !policyForm.deploymentSummary.trim()
-    ) {
+    const nameError = !evalRunForm.contactName.trim()
+      ? "Your name is required."
+      : null;
+    if (nameError) {
       setPolicyStatus("error");
-      setPolicyMessage("Complete all policy submission fields before submitting.");
+      setPolicyMessage(nameError);
+      return;
+    }
+
+    if (!evalRunForm.contactEmail.trim()) {
+      setPolicyStatus("error");
+      setPolicyMessage("Work email is required.");
+      return;
+    }
+
+    const resolvedCompany =
+      evalRunForm.contactCompany.trim() || inferCompanyFromEmail(evalRunForm.contactEmail);
+    if (!resolvedCompany) {
+      setPolicyStatus("error");
+      setPolicyMessage("Company is required (or use a work email domain).");
+      return;
+    }
+
+    let resolvedPolicy: SavedPolicyPackage | null = null;
+
+    if (evalRunForm.addNewPolicy) {
+      if (!evalRunForm.newPolicyName.trim() || !evalRunForm.newPolicyUri.trim()) {
+        setPolicyStatus("error");
+        setPolicyMessage("Add a policy name and a package URL/endpoint.");
+        return;
+      }
+
+      const newPolicy: SavedPolicyPackage = {
+        id: `policy-${generateRequestId()}`,
+        name: evalRunForm.newPolicyName.trim(),
+        kind: evalRunForm.newPolicyKind,
+        uri: evalRunForm.newPolicyUri.trim(),
+        robotEmbodiment: selectedEvalBrief.robotEmbodiment,
+      };
+      setPolicyLibrary((prev) => [newPolicy, ...prev].slice(0, 25));
+      resolvedPolicy = newPolicy;
+    } else {
+      resolvedPolicy = selectedEvalPolicy;
+    }
+
+    if (!resolvedPolicy) {
+      setPolicyStatus("error");
+      setPolicyMessage("Select a policy package (or add a new one).");
       return;
     }
 
     setPolicyStatus("loading");
     setPolicyMessage("");
 
+    const parsedName = parseContactName(evalRunForm.contactName);
+
+    const leadForm: BaseLeadFormState = {
+      firstName: parsedName.firstName,
+      lastName: parsedName.lastName,
+      company: resolvedCompany,
+      roleTitle: "",
+      email: evalRunForm.contactEmail,
+      budgetBucket: evalRunForm.budgetBucket,
+    };
+
     try {
       await submitInboundRequest({
-        form: policyForm,
+        form: leadForm,
         helpWith: "pilot-exchange-policy-submission",
         details: {
-          submissionType: "policy-submission",
-          policyName: policyForm.policyName.trim(),
-          locationType: policyForm.locationType,
-          robotEmbodiment: policyForm.robotEmbodiment,
-          timeline: policyForm.timeline,
-          privacyMode: policyForm.privacyMode,
-          benchmarkEvidence: policyForm.benchmarkEvidence.trim(),
-          deploymentSummary: policyForm.deploymentSummary.trim(),
+          submissionType: "eval-run",
+          brief: {
+            id: selectedEvalBrief.id,
+            operatorAlias: selectedEvalBrief.operatorAlias,
+            locationType: selectedEvalBrief.locationType,
+            robotEmbodiment: selectedEvalBrief.robotEmbodiment,
+            timeline: selectedEvalBrief.timeline,
+            privacyMode: selectedEvalBrief.privacyMode,
+            qualifyingSuccessRateThreshold:
+              selectedEvalBrief.qualifyingSuccessRateThreshold,
+          },
+          policy: resolvedPolicy,
+          winCondition: `success_rate >= ${selectedEvalBrief.qualifyingSuccessRateThreshold}%`,
+          artifacts: "gated",
         },
       });
 
       analyticsEvents.pilotExchangeSubmitPolicy("success");
       setPolicyStatus("success");
-      setPolicyMessage("Policy submission received. We will queue your eval intake.");
-      setPolicyForm(defaultPolicyFormState);
+      setPolicyMessage(
+        `Eval queued. We'll email results and whether you met the ${selectedEvalBrief.qualifyingSuccessRateThreshold}% threshold.`,
+      );
+
+      setEvalRunForm((prev) => ({
+        ...defaultEvalRunFormState,
+        briefId: prev.briefId,
+        policyId: resolvedPolicy?.id || "",
+        addNewPolicy: false,
+        contactName: prev.contactName,
+        contactEmail: prev.contactEmail,
+        contactCompany: resolvedCompany,
+      }));
+
       setTimeout(() => {
         setIsPolicyDialogOpen(false);
         setPolicyStatus("idle");
@@ -491,7 +735,7 @@ export default function PilotExchange() {
       analyticsEvents.pilotExchangeSubmitPolicy("error");
       setPolicyStatus("error");
       setPolicyMessage(
-        error instanceof Error ? error.message : "Unable to submit policy request.",
+        error instanceof Error ? error.message : "Unable to queue evaluation run.",
       );
     }
   };
@@ -601,12 +845,11 @@ export default function PilotExchange() {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    analyticsEvents.pilotExchangeOpenPolicyForm();
-                    setIsPolicyDialogOpen(true);
+                    openEvalDialog();
                   }}
                   className="rounded-full border-zinc-300 px-6 py-2.5 text-sm font-semibold text-zinc-800"
                 >
-                  Submit Policy for Eval
+                  Run Eval
                 </Button>
               </div>
             </div>
@@ -781,57 +1024,126 @@ export default function PilotExchange() {
                     No location briefs match the current filters.
                   </div>
                 ) : (
-                  filteredLocationBriefs.map((brief) => (
-                    <article
-                      key={brief.id}
-                      className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-5"
-                    >
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="space-y-2">
-                          <h3 className="text-lg font-semibold text-zinc-900">
-                            {brief.operatorAlias}
-                          </h3>
-                          <p className="text-sm text-zinc-600">{brief.objective}</p>
-                          <p className="text-sm text-zinc-500">{brief.evaluationGoal}</p>
+                  filteredLocationBriefs.map((brief) => {
+                    const leaderboard = leaderboardByBriefId.get(brief.id) ?? [];
+                    const threshold = brief.qualifyingSuccessRateThreshold;
+                    const leaderboardPreview = leaderboard.slice(0, 3);
+
+                    return (
+                      <article
+                        key={brief.id}
+                        className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-5"
+                      >
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="space-y-2">
+                            <h3 className="text-lg font-semibold text-zinc-900">
+                              {brief.operatorAlias}
+                            </h3>
+                            <p className="text-sm text-zinc-600">{brief.objective}</p>
+                            <p className="text-sm text-zinc-500">
+                              {brief.evaluationGoal}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2 sm:justify-end">
+                            <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200">
+                              {brief.locationType}
+                            </span>
+                            <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200">
+                              {brief.robotEmbodiment}
+                            </span>
+                            <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200">
+                              {brief.timeline}
+                            </span>
+                            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
+                              Win ≥ {brief.qualifyingSuccessRateThreshold}% success
+                            </span>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200">
+                              {brief.privacyMode === "Anonymized" ? (
+                                <EyeOff className="h-3.5 w-3.5 text-zinc-500" />
+                              ) : (
+                                <Eye className="h-3.5 w-3.5 text-zinc-500" />
+                              )}
+                              {brief.privacyMode}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex flex-wrap gap-2 sm:justify-end">
-                          <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200">
-                            {brief.locationType}
+                        <div className="mt-4 flex flex-col gap-3 text-xs text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
+                          <span>
+                            {brief.region} · {brief.footprintSqFt.toLocaleString()} sq
+                            ft · {brief.openSlots} vendor slots
                           </span>
-                          <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200">
-                            {brief.robotEmbodiment}
-                          </span>
-                          <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200">
-                            {brief.timeline}
-                          </span>
-                          <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200">
-                            {brief.privacyMode === "Anonymized" ? (
-                              <EyeOff className="h-3.5 w-3.5 text-zinc-500" />
-                            ) : (
-                              <Eye className="h-3.5 w-3.5 text-zinc-500" />
-                            )}
-                            {brief.privacyMode}
-                          </span>
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 font-semibold text-emerald-700 hover:text-emerald-800"
+                            onClick={() => {
+                              openEvalDialog(brief.id);
+                            }}
+                          >
+                            Run eval against this twin
+                            <ChevronRight className="h-4 w-4" />
+                          </button>
                         </div>
-                      </div>
-                      <div className="mt-4 flex flex-col gap-3 text-xs text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
-                        <span>
-                          {brief.region} · {brief.footprintSqFt.toLocaleString()} sq ft · {brief.openSlots} vendor slots
-                        </span>
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-1 font-semibold text-emerald-700 hover:text-emerald-800"
-                          onClick={() => {
-                            analyticsEvents.pilotExchangeOpenPolicyForm();
-                            setIsPolicyDialogOpen(true);
-                          }}
-                        >
-                          Submit against this brief
-                          <ChevronRight className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </article>
-                  ))
+
+                        {leaderboardPreview.length > 0 ? (
+                          <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
+                            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                              <p className="text-sm font-semibold text-zinc-900">
+                                Leaderboard (anonymous)
+                              </p>
+                              <p className="text-xs text-zinc-500">
+                                {leaderboard.length.toLocaleString()} submitted runs
+                              </p>
+                            </div>
+                            <div className="mt-3 space-y-2">
+                              {leaderboardPreview.map((entry) => {
+                                const delta = formatThresholdDelta(
+                                  entry.successRate,
+                                  threshold,
+                                );
+
+                                return (
+                                  <div
+                                    key={entry.id}
+                                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2"
+                                  >
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <span className="text-xs font-semibold text-zinc-500">
+                                        #{entry.rank}
+                                      </span>
+                                      <span className="font-semibold text-zinc-900">
+                                        {entry.entrant}
+                                      </span>
+                                      <span className="text-xs text-zinc-500">
+                                        {entry.benchmarkRuns.toLocaleString()} runs
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-sm font-semibold text-zinc-900">
+                                        {entry.successRate}% success
+                                      </span>
+                                      <span
+                                        className={`text-xs font-semibold ${delta.className}`}
+                                      >
+                                        {delta.label}
+                                      </span>
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs text-zinc-600 ring-1 ring-zinc-200">
+                                        <Lock className="h-3.5 w-3.5" />
+                                        Gated
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            <p className="mt-3 text-xs text-zinc-500">
+                              Compare how close other teams are to the win threshold.
+                              Full artifacts remain gated.
+                            </p>
+                          </div>
+                        ) : null}
+                      </article>
+                    );
+                  })
                 )}
               </TabsContent>
 
@@ -972,13 +1284,12 @@ export default function PilotExchange() {
               </Button>
               <Button
                 onClick={() => {
-                  analyticsEvents.pilotExchangeOpenPolicyForm();
-                  setIsPolicyDialogOpen(true);
+                  openEvalDialog();
                 }}
                 variant="outline"
                 className="rounded-full border-zinc-500 text-white hover:bg-zinc-800"
               >
-                Submit Policy for Eval
+                Run Eval
               </Button>
               <Button
                 onClick={() => setIsDataDialogOpen(true)}
@@ -1096,93 +1407,261 @@ export default function PilotExchange() {
       <Dialog open={isPolicyDialogOpen} onOpenChange={setIsPolicyDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Submit Policy for Eval</DialogTitle>
+            <DialogTitle>Run Eval</DialogTitle>
             <DialogDescription>
-              Share your policy profile and benchmark evidence to enter active location
-              qualification cycles.
+              Pick a digital twin, choose a policy package, and run an evaluation. We
+              will email the scorecard and whether you met the site threshold.
             </DialogDescription>
           </DialogHeader>
-          <form className="space-y-4" onSubmit={handlePolicySubmit}>
-            <BaseLeadFields
-              form={policyForm}
-              onChange={(key, value) => setPolicyForm((prev) => ({ ...prev, [key]: value }))}
-            />
+          <form className="space-y-4" onSubmit={handleEvalRunSubmit}>
+            <div className="space-y-2">
+              <Label htmlFor="eval-brief">Digital twin</Label>
+              <select
+                id="eval-brief"
+                value={evalRunForm.briefId}
+                onChange={(event) =>
+                  setEvalRunForm((prev) => ({
+                    ...prev,
+                    briefId: event.target.value,
+                  }))
+                }
+                className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-700"
+              >
+                <option value="">Select a site twin…</option>
+                {locationBriefs.map((brief) => (
+                  <option key={brief.id} value={brief.id}>
+                    {brief.locationType} · {brief.robotEmbodiment} · {brief.timeline} ·{" "}
+                    {brief.operatorAlias}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selectedEvalBrief ? (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+                <p className="text-sm font-semibold text-emerald-900">
+                  Win threshold: ≥ {selectedEvalBrief.qualifyingSuccessRateThreshold}% success
+                </p>
+                <p className="mt-1 text-sm text-emerald-800/80">
+                  Passing the threshold is the minimum to start conversations. Full
+                  artifacts remain gated by default.
+                </p>
+              </div>
+            ) : null}
+
+            {selectedEvalBrief ? (
+              <div className="rounded-xl border border-zinc-200 bg-white p-4">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm font-semibold text-zinc-900">
+                    Leaderboard (anonymous)
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    {selectedEvalLeaderboard.length.toLocaleString()} submitted runs
+                  </p>
+                </div>
+
+                {selectedEvalLeaderboard.length === 0 ? (
+                  <p className="mt-3 text-sm text-zinc-600">
+                    No public runs yet. Be the first to benchmark against this twin.
+                  </p>
+                ) : (
+                  <div className="mt-3 space-y-2">
+                    {selectedEvalLeaderboard.map((entry) => {
+                      const delta = formatThresholdDelta(
+                        entry.successRate,
+                        selectedEvalBrief.qualifyingSuccessRateThreshold,
+                      );
+
+                      return (
+                        <div
+                          key={entry.id}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2"
+                        >
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="text-xs font-semibold text-zinc-500">
+                              #{entry.rank}
+                            </span>
+                            <span className="font-semibold text-zinc-900">
+                              {entry.entrant}
+                            </span>
+                            <span className="text-xs text-zinc-500">
+                              {entry.benchmarkRuns.toLocaleString()} runs
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-semibold text-zinc-900">
+                              {entry.successRate}% success
+                            </span>
+                            <span className={`text-xs font-semibold ${delta.className}`}>
+                              {delta.label}
+                            </span>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs text-zinc-600 ring-1 ring-zinc-200">
+                              <Lock className="h-3.5 w-3.5" />
+                              Gated
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <p className="mt-3 text-xs text-zinc-500">
+                  Results are shared anonymously so you can compare against the field.
+                  Detailed logs/videos/configs remain gated.
+                </p>
+              </div>
+            ) : null}
+
+            <div className="space-y-2">
+              <Label htmlFor="eval-policy">Policy</Label>
+              <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                <select
+                  id="eval-policy"
+                  value={evalRunForm.policyId}
+                  disabled={evalRunForm.addNewPolicy || policyLibrary.length === 0}
+                  onChange={(event) =>
+                    setEvalRunForm((prev) => ({
+                      ...prev,
+                      policyId: event.target.value,
+                    }))
+                  }
+                  className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-700 disabled:opacity-60"
+                >
+                  <option value="">
+                    {policyLibrary.length === 0
+                      ? "No saved policies yet"
+                      : "Select a saved policy…"}
+                  </option>
+                  {policyLibrary.map((policy) => (
+                    <option key={policy.id} value={policy.id}>
+                      {policy.name} ({policy.kind})
+                    </option>
+                  ))}
+                </select>
+
+                <label className="inline-flex select-none items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700">
+                  <input
+                    type="checkbox"
+                    checked={evalRunForm.addNewPolicy}
+                    onChange={(event) =>
+                      setEvalRunForm((prev) => ({
+                        ...prev,
+                        addNewPolicy: event.target.checked,
+                      }))
+                    }
+                  />
+                  Add new
+                </label>
+              </div>
+            </div>
+
+            {evalRunForm.addNewPolicy ? (
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="new-policy-name">Policy name</Label>
+                    <Input
+                      id="new-policy-name"
+                      value={evalRunForm.newPolicyName}
+                      onChange={(event) =>
+                        setEvalRunForm((prev) => ({
+                          ...prev,
+                          newPolicyName: event.target.value,
+                        }))
+                      }
+                      placeholder="e.g., warehouse-stack-v3"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="new-policy-kind">Package type</Label>
+                    <select
+                      id="new-policy-kind"
+                      value={evalRunForm.newPolicyKind}
+                      onChange={(event) =>
+                        setEvalRunForm((prev) => ({
+                          ...prev,
+                          newPolicyKind: event.target.value as PolicyPackageKind,
+                        }))
+                      }
+                      className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-700"
+                    >
+                      <option value="Docker image">Docker image</option>
+                      <option value="Checkpoint URL">Checkpoint URL</option>
+                      <option value="API endpoint">API endpoint</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="mt-4 space-y-2">
+                  <Label htmlFor="new-policy-uri">URL / endpoint</Label>
+                  <Input
+                    id="new-policy-uri"
+                    value={evalRunForm.newPolicyUri}
+                    onChange={(event) =>
+                      setEvalRunForm((prev) => ({
+                        ...prev,
+                        newPolicyUri: event.target.value,
+                      }))
+                    }
+                    placeholder="docker://ghcr.io/org/policy:tag or https://... or https://api.yourpolicy.com/act"
+                  />
+                </div>
+              </div>
+            ) : selectedEvalPolicy ? (
+              <div className="rounded-xl border border-zinc-200 bg-white p-4">
+                <p className="text-sm font-semibold text-zinc-900">
+                  {selectedEvalPolicy.name}
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  {selectedEvalPolicy.kind}: {selectedEvalPolicy.uri}
+                </p>
+              </div>
+            ) : null}
+
             <div className="grid gap-4 sm:grid-cols-2">
-              <SelectField
-                label="Target Location Type"
-                value={policyForm.locationType}
-                onChange={(value) =>
-                  setPolicyForm((prev) => ({ ...prev, locationType: value as PilotLocationType }))
-                }
-                options={pilotLocationTypes}
-              />
-              <SelectField
-                label="Robot Embodiment"
-                value={policyForm.robotEmbodiment}
-                onChange={(value) =>
-                  setPolicyForm((prev) => ({
-                    ...prev,
-                    robotEmbodiment: value as RobotEmbodiment,
-                  }))
-                }
-                options={pilotEmbodiments}
-              />
-              <SelectField
-                label="Deployment Timeline"
-                value={policyForm.timeline}
-                onChange={(value) =>
-                  setPolicyForm((prev) => ({ ...prev, timeline: value as DeploymentTimeline }))
-                }
-                options={pilotTimelines}
-              />
-              <SelectField
-                label="Privacy Preference"
-                value={policyForm.privacyMode}
-                onChange={(value) =>
-                  setPolicyForm((prev) => ({ ...prev, privacyMode: value as PrivacyMode }))
-                }
-                options={pilotPrivacyModes}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="eval-email">Work email</Label>
+                <Input
+                  id="eval-email"
+                  type="email"
+                  value={evalRunForm.contactEmail}
+                  onChange={(event) =>
+                    setEvalRunForm((prev) => ({
+                      ...prev,
+                      contactEmail: event.target.value,
+                    }))
+                  }
+                  placeholder="you@company.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="eval-name">Full name</Label>
+                <Input
+                  id="eval-name"
+                  value={evalRunForm.contactName}
+                  onChange={(event) =>
+                    setEvalRunForm((prev) => ({
+                      ...prev,
+                      contactName: event.target.value,
+                    }))
+                  }
+                  placeholder="Jane Doe"
+                />
+              </div>
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="policy-name">Policy / Stack Name</Label>
+              <Label htmlFor="eval-company">Company (optional)</Label>
               <Input
-                id="policy-name"
-                value={policyForm.policyName}
+                id="eval-company"
+                value={evalRunForm.contactCompany}
                 onChange={(event) =>
-                  setPolicyForm((prev) => ({ ...prev, policyName: event.target.value }))
-                }
-                placeholder="Your policy name or release tag"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="policy-benchmark">Benchmark Evidence</Label>
-              <Textarea
-                id="policy-benchmark"
-                value={policyForm.benchmarkEvidence}
-                onChange={(event) =>
-                  setPolicyForm((prev) => ({
+                  setEvalRunForm((prev) => ({
                     ...prev,
-                    benchmarkEvidence: event.target.value,
+                    contactCompany: event.target.value,
                   }))
                 }
-                placeholder="Summarize eval runs, score ranges, and failure modes."
-                rows={3}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="policy-deployment">Deployment Summary</Label>
-              <Textarea
-                id="policy-deployment"
-                value={policyForm.deploymentSummary}
-                onChange={(event) =>
-                  setPolicyForm((prev) => ({
-                    ...prev,
-                    deploymentSummary: event.target.value,
-                  }))
-                }
-                placeholder="Describe deployment constraints and readiness assumptions."
-                rows={3}
+                placeholder="Auto-filled from email domain"
               />
             </div>
 
@@ -1197,7 +1676,7 @@ export default function PilotExchange() {
             ) : null}
 
             <Button type="submit" disabled={policyStatus === "loading"} className="w-full">
-              {policyStatus === "loading" ? "Submitting..." : "Submit Policy for Eval"}
+              {policyStatus === "loading" ? "Running..." : "Run eval"}
             </Button>
           </form>
         </DialogContent>

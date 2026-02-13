@@ -29,6 +29,7 @@ export interface LocationBrief {
   robotEmbodiment: RobotEmbodiment;
   timeline: DeploymentTimeline;
   privacyMode: PrivacyMode;
+  qualifyingSuccessRateThreshold: number; // Minimum % success required to start conversations.
   objective: string;
   evaluationGoal: string;
   openSlots: number;
@@ -55,6 +56,17 @@ export interface ScoreSummary {
   robotEmbodiment: RobotEmbodiment;
   successRate: number;
   transferConfidence: number;
+  readiness: "Ready" | "Conditional" | "Needs Work";
+  detailsAccess: "Gated";
+}
+
+export interface EvalLeaderboardEntry {
+  id: string;
+  briefId: string;
+  rank: number;
+  entrant: string; // Anonymous by default (e.g., "Anon Team 014")
+  successRate: number;
+  benchmarkRuns: number;
   readiness: "Ready" | "Conditional" | "Needs Work";
   detailsAccess: "Gated";
 }

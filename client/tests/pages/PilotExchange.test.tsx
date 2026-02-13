@@ -97,6 +97,30 @@ describe("PilotExchange", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows an anonymous leaderboard for each location brief", () => {
+    render(<PilotExchange />);
+
+    expect(
+      screen.getAllByText(/Leaderboard \(anonymous\)/i).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByText(/Anon Team 014/i)).toBeInTheDocument();
+  });
+
+  it("shows the selected twin leaderboard inside the Run Eval modal", () => {
+    render(<PilotExchange />);
+
+    fireEvent.click(screen.getByRole("tab", { name: /Policy Submissions/i }));
+    expect(screen.queryByText(/Anon Team 014/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Run Eval/i })[0]);
+    fireEvent.change(screen.getByLabelText(/Digital twin/i), {
+      target: { value: "brief-001" },
+    });
+
+    expect(screen.getByText(/Anon Team 014/i)).toBeInTheDocument();
+    expect(screen.getByText(/Win threshold/i)).toBeInTheDocument();
+  });
+
   it("validates required fields for location brief form", async () => {
     render(<PilotExchange />);
 
@@ -110,52 +134,27 @@ describe("PilotExchange", () => {
   it("submits policy intake with the expected helpWith value", async () => {
     render(<PilotExchange />);
 
-    fireEvent.click(screen.getAllByRole("button", { name: /Submit Policy for Eval/i })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: /Run Eval/i })[0]);
 
-    fireEvent.change(screen.getByLabelText(/First Name/i), {
-      target: { value: "Taylor" },
+    fireEvent.change(screen.getByLabelText(/Digital twin/i), {
+      target: { value: "brief-001" },
     });
-    fireEvent.change(screen.getByLabelText(/Last Name/i), {
-      target: { value: "Chen" },
-    });
-    fireEvent.change(screen.getByLabelText(/Company/i), {
-      target: { value: "Eval Robotics" },
-    });
-    fireEvent.change(screen.getByLabelText(/Role Title/i), {
-      target: { value: "Deployment Engineer" },
-    });
-    fireEvent.change(screen.getByLabelText(/Work Email/i), {
-      target: { value: "taylor@evalrobotics.ai" },
-    });
-    fireEvent.change(screen.getByLabelText(/Budget Range/i), {
-      target: { value: "$50K-$300K" },
-    });
-    fireEvent.change(screen.getByLabelText(/Target Location Type/i), {
-      target: { value: "Warehouse" },
-    });
-    fireEvent.change(screen.getByLabelText(/Robot Embodiment/i), {
-      target: { value: "AMR + Arm" },
-    });
-    fireEvent.change(screen.getByLabelText(/Deployment Timeline/i), {
-      target: { value: "60 days" },
-    });
-    fireEvent.change(screen.getByLabelText(/Privacy Preference/i), {
-      target: { value: "Anonymized" },
-    });
-    fireEvent.change(screen.getByLabelText(/Policy \/ Stack Name/i), {
+
+    fireEvent.change(screen.getByLabelText(/Policy name/i), {
       target: { value: "stack-v3.1" },
     });
-    fireEvent.change(screen.getByLabelText(/Benchmark Evidence/i), {
-      target: { value: "Ran 1,000 eval episodes with low collision rates." },
-    });
-    fireEvent.change(screen.getByLabelText(/Deployment Summary/i), {
-      target: { value: "Ready for warehouse tote induction pilots." },
+    fireEvent.change(screen.getByLabelText(/URL \\/ endpoint/i), {
+      target: { value: "docker://ghcr.io/evalrobotics/stack:v3.1" },
     });
 
-    const submitButtons = screen.getAllByRole("button", {
-      name: /Submit Policy for Eval/i,
+    fireEvent.change(screen.getByLabelText(/Work email/i), {
+      target: { value: "taylor@evalrobotics.ai" },
     });
-    fireEvent.click(submitButtons[submitButtons.length - 1]);
+    fireEvent.change(screen.getByLabelText(/Full name/i), {
+      target: { value: "Taylor Chen" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^Run eval$/i }));
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -166,7 +165,7 @@ describe("PilotExchange", () => {
     const payload = JSON.parse(options.body as string);
 
     expect(payload.helpWith).toEqual(["pilot-exchange-policy-submission"]);
-    expect(payload.details).toContain('"submissionType":"policy-submission"');
+    expect(payload.details).toContain('"submissionType":"eval-run"');
     expect(analyticsEventsMock.pilotExchangeSubmitPolicy).toHaveBeenCalledWith("success");
   });
 
@@ -202,7 +201,7 @@ describe("PilotExchange", () => {
       screen.getAllByRole("button", { name: /Post Deployment Brief/i })[0],
     ).toBeInTheDocument();
     expect(
-      screen.getAllByRole("button", { name: /Submit Policy for Eval/i })[0],
+      screen.getAllByRole("button", { name: /Run Eval/i })[0],
     ).toBeInTheDocument();
   });
 
@@ -213,7 +212,7 @@ describe("PilotExchange", () => {
       name: /Post Deployment Brief/i,
     })[0];
     const submitPolicyButton = screen.getAllByRole("button", {
-      name: /Submit Policy for Eval/i,
+      name: /Run Eval/i,
     })[0];
     const dataLicensingButton = screen.getAllByRole("button", {
       name: /Request Data Licensing/i,
