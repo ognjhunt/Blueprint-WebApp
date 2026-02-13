@@ -7,9 +7,7 @@ import processWaitlistHandler from "./routes/process-waitlist";
 import uploadToB2Handler from "../client/src/pages/api/upload-to-b2";
 import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
 import geminiRouter from "./routes/gemini";
-import webhooksRouter from "./routes/webhooks";
 import aiStudioRouter from "./routes/ai-studio";
-import geminiRouter from "./routes/gemini";
 import qrLinkRouter from "./routes/qr-link";
 import appleAssociationRouter from "./routes/apple-app-site-association";
 import stripeAccountRouter from "./routes/stripe";
@@ -21,6 +19,7 @@ import errorsRouter from "./routes/errors";
 import siteContentRouter from "./routes/site-content";
 import inboundRequestRouter from "./routes/inbound-request";
 import adminLeadsRouter from "./routes/admin-leads";
+import marketplaceRouter from "./routes/marketplace";
 import verifyFirebaseToken from "./middleware/verifyFirebaseToken";
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
 
@@ -35,6 +34,8 @@ export function registerRoutes(app: Express) {
 
   // API routes for Express
   app.get("/api/csrf", csrfCookieHandler);
+  // Public semantic search for the marketplace (CSRF-protected, no auth required).
+  app.use("/api/marketplace", csrfProtection, marketplaceRouter);
   app.use("/api/errors", csrfProtection, errorsRouter);
   app.post(
     "/api/create-checkout-session",

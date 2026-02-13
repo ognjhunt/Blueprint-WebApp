@@ -550,14 +550,14 @@ export default function RLTraining() {
 
                 <div className="border-t border-zinc-200 pt-6">
                   <div className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-500">
-                    Premium Analytics Included
+                    Reports Included
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     {[
                       { title: "Per-Step Telemetry", desc: "Rewards, collisions, grasps, forces tracked at every step" },
                       { title: "Failure Analysis", desc: "Automatic breakdown of timeout vs collision failures" },
                       { title: "Grasp Quality", desc: "Force profiles, contact tracking, slip detection" },
-                      { title: "Sim2Real Confidence", desc: "Transfer likelihood score (0-100%) for real-world deployment" },
+                      { title: "Transfer Risk Notes", desc: "Practical notes and checks to validate transfer on your hardware" },
                       { title: "Trajectory Optimality", desc: "Path efficiency, jerk analysis, energy metrics" },
                       { title: "Generalization Metrics", desc: "Per-object success rates, learning curves, data efficiency" },
                     ].map((item) => (
@@ -570,9 +570,10 @@ export default function RLTraining() {
                 </div>
 
                 <div className="border-t border-zinc-200 pt-6 bg-white rounded-xl p-4 ring-1 ring-violet-100">
-                  <p className="text-xs font-bold uppercase tracking-wider text-violet-700 mb-2">Total Value</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-violet-700 mb-2">Included by default</p>
                   <p className="text-sm text-zinc-700">
-                    Every training job includes <strong>$50k-$100k+ in premium analytics</strong> showing exactly how your policy learned and whether it will succeed in the real world. No additional cost.
+                    Every training job ships with the diagnostics you need to iterate quickly: metrics,
+                    failure breakdowns, and transfer-focused notes.
                   </p>
                 </div>
               </div>

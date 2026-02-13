@@ -124,6 +124,9 @@ export interface TrainingDataset {
   locationType: string;
   policySlugs: string[];
   objectTags: string[];
+  // Quality & compatibility metadata (used for semantic search + filtering)
+  qualityScore?: number; // 0.0 - 1.0
+  robotModels?: string[]; // e.g., ["Franka", "UR5"]
   // Episode counts
   episodeCount: number;
   trajectoryLength: string; // e.g., "50-200 steps"
@@ -1143,6 +1146,8 @@ export const trainingDatasets: TrainingDataset[] = [
     locationType: "Kitchens",
     policySlugs: ["dexterous-pick-place", "articulated-access-validation"],
     objectTags: ["drawers", "utensils", "appliances"],
+    qualityScore: 0.86,
+    robotModels: ["Franka", "UR5"],
     episodeCount: 50000,
     trajectoryLength: "80-250 steps",
     sensorModalities: ["RGB-D", "Proprioception", "End-effector pose", "Force/torque"],
@@ -1167,6 +1172,8 @@ export const trainingDatasets: TrainingDataset[] = [
     locationType: "Grocery / Retail",
     policySlugs: ["dexterous-pick-place", "mixed-sku-logistics"],
     objectTags: ["shelves", "totes", "pallets"],
+    qualityScore: 0.83,
+    robotModels: ["UR5", "Franka"],
     episodeCount: 35000,
     trajectoryLength: "60-180 steps",
     sensorModalities: ["RGB-D", "Proprioception", "End-effector pose"],
@@ -1190,6 +1197,8 @@ export const trainingDatasets: TrainingDataset[] = [
     locationType: "Warehouses",
     policySlugs: ["mixed-sku-logistics", "dexterous-pick-place"],
     objectTags: ["pallets", "totes", "cartons", "racking"],
+    qualityScore: 0.79,
+    robotModels: ["UR5"],
     episodeCount: 40000,
     trajectoryLength: "100-300 steps",
     sensorModalities: ["RGB-D", "Proprioception", "End-effector pose", "Payload sensors"],
@@ -1213,6 +1222,8 @@ export const trainingDatasets: TrainingDataset[] = [
     locationType: "Labs",
     policySlugs: ["precision-insertion-assembly", "panel-interaction-suite"],
     objectTags: ["valves", "switches", "sample racks"],
+    qualityScore: 0.91,
+    robotModels: ["Franka"],
     episodeCount: 25000,
     trajectoryLength: "40-120 steps",
     sensorModalities: ["RGB-D", "Proprioception", "End-effector pose", "Force/torque", "Tactile"],
@@ -1233,6 +1244,8 @@ export const trainingDatasets: TrainingDataset[] = [
     locationType: "Utility Rooms",
     policySlugs: ["panel-interaction-suite"],
     objectTags: ["breakers", "knobs", "switches", "valves"],
+    qualityScore: 0.82,
+    robotModels: ["UR5", "Franka"],
     episodeCount: 20000,
     trajectoryLength: "30-80 steps",
     sensorModalities: ["RGB-D", "Proprioception", "End-effector pose"],
@@ -1252,6 +1265,8 @@ export const trainingDatasets: TrainingDataset[] = [
     locationType: "Home / Assistive",
     policySlugs: ["laundry-folding-assist"],
     objectTags: ["washers", "dryers", "hampers", "folding tables"],
+    qualityScore: 0.77,
+    robotModels: ["Franka"],
     episodeCount: 30000,
     trajectoryLength: "100-400 steps",
     sensorModalities: ["RGB-D", "Proprioception", "End-effector pose", "Cloth state"],
@@ -1271,6 +1286,8 @@ export const trainingDatasets: TrainingDataset[] = [
     locationType: "Warehouses",
     policySlugs: ["mixed-sku-logistics", "dexterous-pick-place"],
     objectTags: ["pallets", "racking", "totes"],
+    qualityScore: 0.84,
+    robotModels: ["UR5"],
     episodeCount: 45000,
     trajectoryLength: "200-600 steps",
     sensorModalities: ["RGB-D", "Proprioception", "Odometry", "LiDAR", "End-effector pose"],
@@ -1292,6 +1309,8 @@ export const trainingDatasets: TrainingDataset[] = [
     locationType: "Kitchens",
     policySlugs: ["dexterous-pick-place", "precision-insertion-assembly"],
     objectTags: ["utensils", "appliances", "drawers"],
+    qualityScore: 0.88,
+    robotModels: ["ALOHA"],
     episodeCount: 15000,
     trajectoryLength: "80-200 steps",
     sensorModalities: ["RGB-D (2x)", "Proprioception (2x)", "End-effector pose (2x)", "Force/torque (2x)"],

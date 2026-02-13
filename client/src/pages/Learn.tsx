@@ -24,9 +24,23 @@ const glossaryTerms = [
   {
     term: "SimReady",
     definition:
-      "An NVIDIA specification for 3D assets optimized for physics simulation. SimReady assets include precise geometry, physics properties (mass, inertia, friction), collision meshes, and material definitions that enable accurate robotic training in simulators like Isaac Sim.",
+      "An NVIDIA specification for 3D assets optimized for physics simulation. SimReady assets include precise geometry, physics properties (mass, inertia, friction), collision meshes, and material definitions that enable accurate robotic training in simulators like Isaac Sim. In practice, SimReady is table stakes; trustworthy datasets also require certification and episode QC.",
     category: "Standards",
     icon: <Sparkles className="h-5 w-5" />,
+  },
+  {
+    term: "Certification",
+    definition:
+      "A set of automated physics and episode QA checks that gate and score simulation outputs before they ship. Certification typically includes collider QA, stability and non-penetration checks, and dataset-level consistency guarantees.",
+    category: "Quality",
+    icon: <CheckCircle2 className="h-5 w-5" />,
+  },
+  {
+    term: "Provenance",
+    definition:
+      "Metadata that tracks asset sources, parameters, and versioning for a scene or dataset. Provenance makes it possible to reproduce results, audit training inputs, and debug regressions.",
+    category: "Quality",
+    icon: <Database className="h-5 w-5" />,
   },
   {
     term: "Sim2Real Transfer",
@@ -136,7 +150,7 @@ const faqItems = [
   {
     question: "How do I know if my simulation will transfer to reality?",
     answer:
-      "The sim2real gap is minimized by: accurate physics parameters, domain randomization during training, sensor noise modeling, and using environments that closely match your deployment context. Our marketplace scenes are validated for sim2real transfer in our QA pipeline.",
+      "The sim2real gap is minimized by accurate physics parameters, strong QA gates, domain randomization during training, sensor noise modeling, and using environments that closely match your deployment context. Blueprint ships certification outputs and episode metadata so you can validate transfer on your hardware with fewer surprises.",
   },
   {
     question: "What's the difference between USD and URDF?",
@@ -179,7 +193,7 @@ const processSteps = [
     number: "04",
     title: "Deploy to Reality",
     description:
-      "Transfer your trained policy to real hardware. Our sim2real validation notes help you understand expected transfer quality and fine-tuning requirements.",
+      "Transfer and validate on hardware. Use certification outputs and episode metadata to diagnose gaps and request targeted new data when needed.",
   },
 ];
 
@@ -233,9 +247,9 @@ export default function Learn() {
                 </p>
                 <ul className="mt-6 space-y-3">
                   {[
-                    { icon: <TrendingUp className="h-4 w-4" />, text: "38% average performance boost when combining sim + real data" },
-                    { icon: <Clock className="h-4 w-4" />, text: "27x faster data generation than human teleop" },
-                    { icon: <Database className="h-4 w-4" />, text: "10,000x more edge case coverage than real capture alone" },
+                    { icon: <TrendingUp className="h-4 w-4" />, text: "Faster iteration cycles vs hardware-only data collection" },
+                    { icon: <Clock className="h-4 w-4" />, text: "More trials per week without waiting for lab time" },
+                    { icon: <Database className="h-4 w-4" />, text: "Controlled variations for long-tail and edge-case coverage" },
                   ].map((item, i) => (
                     <li key={i} className="flex items-start gap-3 text-zinc-700">
                       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
@@ -269,7 +283,7 @@ export default function Learn() {
                       <p className="font-semibold text-zinc-900">Simulation Data</p>
                       <p className="text-sm text-zinc-600">Scale, diversity, edge cases</p>
                     </div>
-                    <p className="ml-auto text-2xl font-bold text-emerald-600">99%</p>
+                    <p className="ml-auto text-2xl font-bold text-emerald-600">Most</p>
                   </div>
                   <div className="flex items-center justify-center text-zinc-300">
                     <span className="text-2xl">+</span>
@@ -282,14 +296,14 @@ export default function Learn() {
                       <p className="font-semibold text-zinc-900">Real-World Data</p>
                       <p className="text-sm text-zinc-600">Reality anchoring, validation</p>
                     </div>
-                    <p className="ml-auto text-2xl font-bold text-indigo-600">1%</p>
+                    <p className="ml-auto text-2xl font-bold text-indigo-600">Some</p>
                   </div>
                   <div className="flex items-center justify-center text-zinc-300">
                     <span className="text-2xl">=</span>
                   </div>
                   <div className="rounded-xl bg-gradient-to-r from-emerald-600 to-indigo-600 p-4 text-white text-center">
                     <p className="text-lg font-bold">Better Real-World Performance</p>
-                    <p className="text-sm opacity-90">Research-backed optimal mix</p>
+                    <p className="text-sm opacity-90">Mix varies by task</p>
                   </div>
                 </div>
               </div>
@@ -417,8 +431,7 @@ export default function Learn() {
                 </h2>
                 <p className="mx-auto mt-4 max-w-2xl text-lg text-zinc-400">
                   Browse our marketplace for physics-accurate environments with
-                  domain randomization configs, task logic, and sim2real
-                  validation notes.
+                  certification outputs, quality scoring, and provenance metadata.
                 </p>
                 <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
                   <a

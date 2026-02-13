@@ -205,7 +205,7 @@ export default function Docs() {
     <>
       <SEO
         title="Documentation | SimReady Specification"
-        description="Technical specification for Blueprint SimReady scenes. Genie Sim 3.0 data generation, coordinate systems, physics materials, joint articulation, semantic labeling, and integration guides."
+        description="Technical specification for Blueprint certified SimReady scenes. Coordinate systems, physics materials, articulation, semantics, certification gates, and integration guides."
         canonical="/docs"
       />
       <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
@@ -257,8 +257,9 @@ export default function Docs() {
               <p className="max-w-3xl text-lg leading-relaxed text-zinc-600">
                 Every scene we ship follows strict engineering specs: metric
                 accuracy, clean articulation, physics-ready materials, and
-                semantic coverage. Use this guide to integrate Blueprint scenes
-                into your simulator.
+                semantic coverage, plus certification gates and provenance
+                metadata. Use this guide to integrate Blueprint scenes into your
+                simulator.
               </p>
               <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
                 <img

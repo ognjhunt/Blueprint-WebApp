@@ -50,10 +50,10 @@ export default function SceneSmithExplainerMedia({
               See the pipeline mechanics, not just the claims.
             </h2>
             <p className="text-base leading-relaxed text-slate-300">
-              These loops show the same core scene-generation and evaluation flow
-              powering Blueprint&apos;s robotics data pipeline. We are embedding
-              upstream project visuals first so teams can quickly understand
-              workflow, then swapping to custom Blueprint assets in place later.
+              These loops show the core scene-generation and certification flow
+              behind Blueprint. We&apos;re starting with upstream research visuals so
+              teams can understand the mechanics quickly, then swapping in
+              Blueprint-native runs and QA views over time.
             </p>
 
             <div

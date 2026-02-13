@@ -182,6 +182,7 @@ app.use("/api/gemini", aiLimiter);
 
 // Stricter limiters for sensitive routes
 app.use("/api/ai-studio", aiLimiter);
+app.use("/api/marketplace", aiLimiter);
 app.use("/api/process-waitlist", aiLimiter);
 app.use("/api/post-signup-workflows", aiLimiter);
 app.use("/api/generate-image", aiLimiter);

@@ -102,7 +102,7 @@ export default function Careers() {
     <>
       <SEO
         title="Careers"
-        description="Join Blueprint's artist and technical director network. We're looking for specialists who love building simulation-ready assets and crafting premium training environments."
+        description="Join Blueprint's artist and technical director network. We're looking for specialists who love building simulation-ready assets with real physics constraints and certification gates."
         canonical="/careers"
       />
       <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
@@ -125,9 +125,9 @@ export default function Careers() {
 
           <p className="max-w-2xl text-lg leading-relaxed text-zinc-600 md:mx-0 mx-auto">
             Blueprint’s artist and technical director network turns real spaces
-            into SimReady scenes. We’re looking for specialists who love
-            polishing geometry, building simulation-ready assets, and crafting
-            premium training environments.
+            into certified SimReady scenes. We’re looking for specialists who love
+            polishing geometry, authoring colliders and articulation, and shipping
+            assets that pass real physics QA gates.
           </p>
         </header>
 

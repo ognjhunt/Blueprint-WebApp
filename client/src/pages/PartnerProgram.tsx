@@ -7,7 +7,7 @@ export default function PartnerProgram() {
     <>
       <SEO
         title="Founding Partner Program - Blueprint"
-        description="Join Blueprint's Founding Partner Program. Get early access to our robotics data platform, shape the roadmap, and lock in exclusive pricing."
+        description="Join Blueprint's Founding Partner Program. Get early access to our certified robotics data factory, shape the roadmap, and lock in founding partner pricing."
         canonical="/partners"
       />
       <div className="min-h-screen bg-white">
@@ -18,10 +18,10 @@ export default function PartnerProgram() {
               Founding Partner Program
             </p>
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Be the first to use our robotics data platform
+              Be a founding partner of our certified data factory
             </h1>
             <p className="text-lg text-slate-600">
-              We're selecting a small group of robotics teams to get early access to Blueprint. You'll shape our roadmap, get hands-on support from our team, and lock in founding partner pricing permanently.
+              We're selecting a small group of robotics teams to get early access to Blueprint. You'll shape our roadmap, get hands-on support, and lock in founding partner pricing while we build the most trusted simulation datasets in the market.
             </p>
           </div>
 
@@ -39,7 +39,7 @@ export default function PartnerProgram() {
               <div className="border-l-2 border-slate-200 pl-6">
                 <h3 className="font-semibold text-slate-900">3D Training Environments</h3>
                 <p className="text-sm text-slate-600">
-                  Realistic scenes (kitchens, offices, warehouses) where your robot practices different tasks.
+                  Certified SimReady scenes (kitchens, offices, warehouses) with validated colliders and articulation for manipulation.
                 </p>
               </div>
 
@@ -47,7 +47,7 @@ export default function PartnerProgram() {
               <div className="border-l-2 border-slate-200 pl-6">
                 <h3 className="font-semibold text-slate-900">Training Data Generation</h3>
                 <p className="text-sm text-slate-600">
-                  Thousands of automatically generated robot training examples, including camera views, positions, success/failure, and everything your AI needs.
+                  Quality-scored trajectories with episode metadata and filters, delivered in formats your training stack expects.
                 </p>
               </div>
 
@@ -55,7 +55,7 @@ export default function PartnerProgram() {
               <div className="border-l-2 border-slate-200 pl-6">
                 <h3 className="font-semibold text-slate-900">Data Quality Reports</h3>
                 <p className="text-sm text-slate-600">
-                  Automatic analysis that tells you if your training data is actually good, identifies gaps, and recommends what to collect next.
+                  Certification outputs that document physics gates, episode QC, quality distributions, and known limits.
                 </p>
               </div>
 
@@ -71,7 +71,7 @@ export default function PartnerProgram() {
               <div className="border-l-2 border-slate-200 pl-6">
                 <h3 className="font-semibold text-slate-900">Real Robot Testing</h3>
                 <p className="text-sm text-slate-600">
-                  We'll work with you to test if sim training actually works on your real hardware and improve the transfer from simulation to reality.
+                  We'll help you validate transfer on your hardware and iterate quickly with targeted new data when gaps appear.
                 </p>
               </div>
 

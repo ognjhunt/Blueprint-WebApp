@@ -14,9 +14,10 @@ import {
 const navLinks = [
   { href: "/marketplace/scenes", label: "Scenes" },
   { href: "/marketplace/datasets", label: "Datasets" },
-  { href: "/pilot-exchange", label: "Pilot Exchange" },
-  { href: "/how-it-works", label: "How It Works" },
   { href: "/evals", label: "Benchmarks" },
+  { href: "/how-it-works", label: "How We Certify" },
+  { href: "/solutions", label: "Solutions" },
+  { href: "/pilot-exchange", label: "Pilot Exchange" },
   { href: "/partners", label: "Partners" },
   { href: "/careers", label: "Careers" },
 ];
@@ -90,7 +91,7 @@ export function Header() {
             href="/contact"
             className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
           >
-            Request Data
+            Request a Dataset
           </a>
           {!currentUser ? (
             <>
@@ -165,7 +166,7 @@ export function Header() {
               className="mt-2 rounded-full bg-slate-900 px-4 py-2 text-center text-white"
               onClick={() => setOpen(false)}
             >
-              Request Data
+              Request a Dataset
             </a>
             {!currentUser ? (
               <>

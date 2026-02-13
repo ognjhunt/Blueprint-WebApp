@@ -20,10 +20,10 @@ const budgetRanges: BudgetBucket[] = [
 ];
 
 const offerings: { value: HelpWithOption; label: string }[] = [
-  { value: "benchmark-packs", label: "Benchmark Packs - Evaluation suites with scenes, tasks & harnesses" },
-  { value: "scene-library", label: "Scene Library - Individual SimReady USD scenes" },
-  { value: "dataset-packs", label: "Dataset Packs - Pre-generated episodes for offline training" },
-  { value: "custom-capture", label: "Custom Scene - On-site facility scan to SimReady environment" },
+  { value: "benchmark-packs", label: "Benchmark Packs - Reserved evaluation suites (no training leakage)" },
+  { value: "scene-library", label: "Scene Library - Certified SimReady USD scenes" },
+  { value: "dataset-packs", label: "Dataset Packs - Quality-scored episodes with metadata + filters" },
+  { value: "custom-capture", label: "Custom Run - New scenes/datasets built + certified for your use case" },
 ];
 
 /**

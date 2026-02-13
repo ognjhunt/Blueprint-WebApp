@@ -1,379 +1,301 @@
-"use client";
-
-import React from "react";
-import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
+import { CTAButtons } from "@/components/site/CTAButtons";
 import SceneSmithExplainerMedia from "@/components/sections/SceneSmithExplainerMedia";
-import { 
-  MapPin, 
-  Edit3, 
-  Wand2, 
-  PlayCircle, 
-  Check, 
+import { SEO } from "@/components/SEO";
+import {
   ArrowRight,
-  Smartphone,
-  Eye,
-  Zap,
-  Users,
-  Building,
-  QrCode
+  CheckCircle2,
+  FileSearch,
+  ShieldCheck,
+  Sparkles,
+  Server,
+  Package,
 } from "lucide-react";
 
-const heroIllustration = "/images/apple-store-blueprint.jpeg";
+function DotPattern() {
+  return (
+    <svg
+      className="absolute inset-0 -z-10 h-full w-full stroke-zinc-200 [mask-image:radial-gradient(100%_100%_at_top_right,white,transparent)]"
+      aria-hidden="true"
+    >
+      <defs>
+        <pattern
+          id="grid-pattern-how"
+          width={40}
+          height={40}
+          x="50%"
+          y={-1}
+          patternUnits="userSpaceOnUse"
+        >
+          <path d="M.5 40V.5H40" fill="none" />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" strokeWidth={0} fill="url(#grid-pattern-how)" />
+    </svg>
+  );
+}
 
-const steps = [
+const painPoints = [
   {
-    icon: <Building className="w-10 h-10" />,
-    title: "Create Your Digital Space",
-    description: "Start fresh or claim an existing location Blueprint. Simply enter your business details and location. No technical skills required.",
-    highlight: "30 seconds",
-    details: ["Business information", "Location mapping", "Industry templates"]
+    title: "The infrastructure is brutal",
+    description:
+      "Running a data factory means standing up GPU-heavy generation, model servers, sim orchestration, and constant debugging. Most teams would rather spend those GPUs on training.",
+    icon: <Server className="h-6 w-6" />,
   },
   {
-    icon: <Edit3 className="w-10 h-10" />,
-    title: "Design Your Experience",
-    description: "Upload your branding, menus, or product catalogs. Our AI turns them into guided wearable moments automatically.",
-    highlight: "Drag & Drop",
-    details: ["Brand assets", "Product catalogs", "Custom content"]
+    title: "Raw simulation isn't trustworthy data",
+    description:
+      "Generation is easy. Trust is hard. Without physics gates and episode QC you can get clipping, inconsistent dynamics, and sim-only successes that fail on hardware.",
+    icon: <ShieldCheck className="h-6 w-6" />,
   },
   {
-    icon: <Wand2 className="w-10 h-10" />,
-    title: "Program AI Glasses Moments",
-    description: "Position guided prompts, 3D assists, and information overlays exactly where you want them in your physical space.",
-    highlight: "Real-time Preview",
-    details: ["3D placement", "Interactive hotspots", "Live preview"]
-  },
-  {
-    icon: <QrCode className="w-10 h-10" />,
-    title: "Launch & Share",
-    description: "Generate a QR code or shareable link. Guests instantly launch the AI glasses experience through any smartphone browser.",
-    highlight: "Instant Access",
-    details: ["QR code generation", "Browser-launched AI", "Analytics dashboard"]
+    title: "Customers need provenance, filters, and repeatability",
+    description:
+      "Teams need to know what they trained on: where assets came from, which parameters were used, and how to filter to only high-quality episodes.",
+    icon: <FileSearch className="h-6 w-6" />,
   },
 ];
 
-const benefits = [
+const pipelineSteps = [
   {
-    icon: <Smartphone className="w-6 h-6" />,
-    title: "No App Required",
-    description: "Works instantly in any browser"
+    step: "01",
+    title: "Define the dataset spec",
+    description:
+      "You tell us the task, robot, sensors, success criteria, and delivery format. We translate it into a runnable generation + QA plan.",
   },
   {
-    icon: <Zap className="w-6 h-6" />,
-    title: "Launch in Minutes",
-    description: "From setup to live in under 10 minutes"
+    step: "02",
+    title: "Build or tailor the environment",
+    description:
+      "We start from the catalog or create new scenes and assets, then author colliders, articulation, and physics materials for manipulation.",
   },
   {
-    icon: <Users className="w-6 h-6" />,
-    title: "Boost Engagement",
-    description: "3x higher customer interaction rates"
-  }
+    step: "03",
+    title: "Run physics certification gates",
+    description:
+      "We validate stability, non-penetration, collision quality, and dynamics bounds so the scene behaves consistently under contact.",
+  },
+  {
+    step: "04",
+    title: "Generate and normalize episodes",
+    description:
+      "We generate trajectories, normalize control signals, and enforce a consistent schema so you can train and debug without data surprises.",
+  },
+  {
+    step: "05",
+    title: "Score quality and deliver",
+    description:
+      "You get tiered subsets, quality distributions, and provenance metadata so you can filter to high-trust episodes or target specific failure modes.",
+  },
+];
+
+const deliverables = [
+  "SimReady scenes with validated colliders and articulation",
+  "Episode-level metadata (task, robot, sensors, parameters, versioning)",
+  "Quality scores and recommended filters (tiered subsets when needed)",
+  "Certification report: gates run, known limits, and reproducibility notes",
 ];
 
 export default function HowItWorks() {
   return (
-    <div className="min-h-screen flex flex-col bg-white">
-      <main className="flex-1">
-        <HeroSection />
-        <BenefitsSection />
-        <StepsSection />
+    <>
+      <SEO
+        title="How We Certify | Blueprint"
+        description="How Blueprint turns raw simulation into certified robotics datasets: physics gates, episode QC, quality scoring, and provenance metadata."
+        canonical="/how-it-works"
+      />
+
+      <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
+        <DotPattern />
+
+        {/* Hero */}
+        <section className="relative overflow-hidden pb-20 pt-16 sm:pt-24">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+              <div className="space-y-8">
+                <div className="space-y-6">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
+                    <Sparkles className="h-3 w-3" />
+                    How We Certify
+                  </div>
+                  <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
+                    From raw simulation to certified datasets.
+                  </h1>
+                  <p className="max-w-xl text-lg leading-relaxed text-zinc-600">
+                    Open tools can generate data. Blueprint ships data you can trust: physics
+                    certification, episode QC, quality scoring, and provenance metadata in every
+                    delivery.
+                  </p>
+                </div>
+
+                <CTAButtons
+                  primaryHref="/marketplace"
+                  primaryLabel="Browse the catalog"
+                  secondaryHref="/contact"
+                  secondaryLabel="Request a dataset"
+                />
+              </div>
+
+              <div className="relative">
+                <div className="absolute -inset-6 rounded-full bg-indigo-500/15 blur-3xl filter" />
+                <div className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white/80 p-6 shadow-xl backdrop-blur-md">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-zinc-100 text-zinc-800">
+                      <Package className="h-5 w-5" />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">
+                        What we ship
+                      </p>
+                      <p className="text-sm text-zinc-600">
+                        Scene + dataset + certification outputs, packaged with metadata so your
+                        training stack can ingest, filter, and reproduce results.
+                      </p>
+                      <a
+                        href="/marketplace"
+                        className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 hover:text-indigo-600"
+                      >
+                        See the catalog <ArrowRight className="h-4 w-4" />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Why Certification */}
+        <section className="border-y border-zinc-100 bg-zinc-50/50 py-16">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mb-10 max-w-2xl">
+              <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
+                Why certification exists
+              </h2>
+              <p className="mt-4 text-zinc-600">
+                Most teams don&apos;t need another generator. They need a reliable supply of
+                simulation data they can defend internally, iterate on quickly, and trust when it
+                matters.
+              </p>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-3">
+              {painPoints.map((item) => (
+                <div
+                  key={item.title}
+                  className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
+                >
+                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700">
+                    {item.icon}
+                  </div>
+                  <h3 className="font-semibold text-zinc-900">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                    {item.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Pipeline Steps */}
+        <section className="py-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mb-12 max-w-2xl">
+              <h2 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
+                The Blueprint certification pipeline
+              </h2>
+              <p className="mt-4 text-lg text-zinc-600">
+                Generation is only the first step. Certification is what turns trajectories into a
+                dataset you can train on with confidence.
+              </p>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {pipelineSteps.map((step) => (
+                <div
+                  key={step.step}
+                  className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
+                >
+                  <p className="text-sm font-mono font-bold text-indigo-600">{step.step}</p>
+                  <h3 className="mt-2 text-lg font-bold text-zinc-900">{step.title}</h3>
+                  <p className="mt-3 text-sm leading-relaxed text-zinc-600">
+                    {step.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <SceneSmithExplainerMedia id="howItWorksSceneSmithMedia" />
-        <LiveDemoSection />
-        <CallToActionSection />
-      </main>
-    </div>
-  );
-}
 
-function HeroSection() {
-  return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 pt-20 pb-16">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%239C92AC%22%20fill-opacity%3D%220.4%22%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2230%22%20r%3D%222%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')]" />
-      </div>
-
-      <div className="container mx-auto px-4 py-16 lg:py-24">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          {/* Left Content */}
-          <motion.div
-            className="text-center lg:text-left"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <div className="inline-flex items-center bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-medium mb-6">
-              <Eye className="w-4 h-4 mr-2" />
-              AI Glasses Made Simple
-            </div>
-
-            <h1 className="text-4xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-gray-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent leading-tight">
-              Transform Any Space Into an Interactive Experience
-            </h1>
-
-            <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-              Blueprint lets businesses create stunning AI glasses experiences that customers can access instantly through their phones. No app downloads required.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-4 mb-8">
-              <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-200">
-                Start Creating
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-              <Button size="lg" variant="outline" className="border-2 border-gray-300 hover:border-blue-600 px-8 py-4 text-lg rounded-xl transition-all duration-200">
-                Watch Demo
-                <PlayCircle className="w-5 h-5 ml-2" />
-              </Button>
-            </div>
-
-            <div className="flex items-center justify-center lg:justify-start text-sm text-gray-500">
-              <Check className="w-4 h-4 text-green-500 mr-2" />
-              Free 14-day trial • No credit card required
-            </div>
-          </motion.div>
-
-          {/* Right Illustration */}
-          <motion.div
-            className="relative"
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-          >
-            <div className="relative bg-white rounded-2xl shadow-2xl p-4 lg:p-8 border border-gray-100">
-              <img
-                src={heroIllustration}
-                alt="AI Glasses Blueprint Demo"
-                className="w-full h-auto rounded-xl"
-              />
-              {/* Floating Cards */}
-              <motion.div
-                className="absolute -top-4 -right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium"
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                Live AI Glasses View
-              </motion.div>
-              <motion.div
-                className="absolute -bottom-4 -left-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium"
-                animate={{ y: [0, 10, 0] }}
-                transition={{ duration: 2, repeat: Infinity, delay: 1 }}
-              >
-                No App Needed
-              </motion.div>
-            </div>
-          </motion.div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function BenefitsSection() {
-  return (
-    <section className="py-16 bg-white border-b border-gray-100">
-      <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {benefits.map((benefit, idx) => (
-            <motion.div
-              key={idx}
-              className="text-center"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: idx * 0.1 }}
-            >
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 text-blue-600 rounded-xl mb-4">
-                {benefit.icon}
-              </div>
-              <h3 className="text-lg font-semibold mb-2">{benefit.title}</h3>
-              <p className="text-gray-600">{benefit.description}</p>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function StepsSection() {
-  return (
-    <section className="py-20 bg-gray-50">
-      <div className="container mx-auto px-4">
-        {/* Section Header */}
-        <motion.div
-          className="text-center max-w-3xl mx-auto mb-16"
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <h2 className="text-4xl lg:text-5xl font-bold mb-6">
-            Get Started in <span className="text-blue-600">4 Simple Steps</span>
-          </h2>
-          <p className="text-xl text-gray-600">
-            Our streamlined process gets you from idea to live AI glasses experience in under 10 minutes
-          </p>
-        </motion.div>
-
-        {/* Steps */}
-        <div className="space-y-16">
-          {steps.map((step, idx) => (
-            <motion.div
-              key={idx}
-              className={`grid lg:grid-cols-2 gap-12 items-center ${
-                idx % 2 === 1 ? 'lg:grid-flow-col-dense' : ''
-              }`}
-              initial={{ opacity: 0, y: 50 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7, delay: 0.1 }}
-            >
-              {/* Content */}
-              <div className={`${idx % 2 === 1 ? 'lg:col-start-2' : ''}`}>
-                <div className="flex items-center mb-6">
-                  <div className="flex items-center justify-center w-16 h-16 bg-blue-600 text-white rounded-2xl mr-4">
-                    {step.icon}
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-blue-600 uppercase tracking-wide">
-                      Step {idx + 1}
-                    </div>
-                    <h3 className="text-2xl lg:text-3xl font-bold">{step.title}</h3>
-                  </div>
-                </div>
-
-                <p className="text-lg text-gray-600 mb-6 leading-relaxed">
-                  {step.description}
+        {/* Deliverables */}
+        <section className="py-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+              <div className="space-y-5">
+                <h2 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
+                  What you receive
+                </h2>
+                <p className="text-zinc-600">
+                  Deliverables are designed for teams that need more than a ZIP file. You get the
+                  artifacts required to reproduce results, filter to high-trust subsets, and keep
+                  training stable over time.
                 </p>
-
-                <div className="bg-blue-50 rounded-xl p-6 mb-6">
-                  <div className="flex items-center mb-4">
-                    <Zap className="w-5 h-5 text-blue-600 mr-2" />
-                    <span className="font-semibold text-blue-800">{step.highlight}</span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {step.details.map((detail, detailIdx) => (
-                      <div key={detailIdx} className="flex items-center text-sm text-gray-600">
-                        <Check className="w-4 h-4 text-green-500 mr-2 flex-shrink-0" />
-                        {detail}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {idx < steps.length - 1 && (
-                  <div className="flex items-center text-gray-400">
-                    <div className="flex-1 h-px bg-gray-200"></div>
-                    <ArrowRight className="w-5 h-5 mx-4" />
-                    <span className="text-sm">Next Step</span>
-                  </div>
-                )}
+                <a
+                  href="/contact"
+                  className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-700"
+                >
+                  Request a dataset
+                  <ArrowRight className="h-4 w-4" />
+                </a>
               </div>
 
-              {/* Visual */}
-              <div className={`${idx % 2 === 1 ? 'lg:col-start-1' : ''}`}>
-                <div className="relative bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-                  <div className="aspect-video bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl flex items-center justify-center">
-                    <div className="text-6xl opacity-20">
-                      {step.icon}
-                    </div>
-                  </div>
-                  {/* Step Number Badge */}
-                  <div className="absolute -top-4 -left-4 w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-lg shadow-lg">
-                    {idx + 1}
-                  </div>
-                </div>
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-6">
+                <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                  Included in every delivery
+                </p>
+                <ul className="mt-5 space-y-3">
+                  {deliverables.map((item) => (
+                    <li key={item} className="flex items-start gap-3 text-sm text-zinc-700">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function LiveDemoSection() {
-  return (
-    <section className="py-20 bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
-      <div className="container mx-auto px-4 text-center">
-        <motion.div
-          className="max-w-3xl mx-auto"
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <h2 className="text-3xl lg:text-4xl font-bold mb-6">
-            See Blueprint in Action
-          </h2>
-          <p className="text-xl text-blue-100 mb-8">
-            Experience a live AI glasses demo and discover how Blueprint can transform your business space
-          </p>
-          <Button 
-            size="lg" 
-            variant="outline" 
-            className="bg-white text-blue-600 hover:bg-gray-50 border-0 px-8 py-4 text-lg rounded-xl shadow-lg"
-          >
-            <PlayCircle className="w-5 h-5 mr-2" />
-            Launch Interactive Demo
-          </Button>
-        </motion.div>
-      </div>
-    </section>
-  );
-}
-
-function CallToActionSection() {
-  return (
-    <section className="py-20 bg-white">
-      <div className="container mx-auto px-4">
-        <motion.div
-          className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-3xl p-12 lg:p-16 text-center border border-gray-100 shadow-lg"
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <h2 className="text-3xl lg:text-4xl font-bold mb-6 text-gray-900">
-            Ready to Create Your First AI Glasses Experience?
-          </h2>
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Join thousands of businesses already using Blueprint to engage customers in revolutionary new ways
-          </p>
-
-          <div className="flex flex-col sm:flex-row justify-center gap-4 mb-8">
-            <Button 
-              size="lg" 
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
-            >
-              Start Your Free Trial
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
-            <Button 
-              size="lg" 
-              variant="outline" 
-              className="border-2 border-gray-300 hover:border-blue-600 px-8 py-4 text-lg rounded-xl transition-all duration-200"
-            >
-              Schedule a Demo
-            </Button>
-          </div>
-
-          <div className="flex items-center justify-center space-x-6 text-sm text-gray-500">
-            <div className="flex items-center">
-              <Check className="w-4 h-4 text-green-500 mr-2" />
-              14-day free trial
-            </div>
-            <div className="flex items-center">
-              <Check className="w-4 h-4 text-green-500 mr-2" />
-              No setup fees
-            </div>
-            <div className="flex items-center">
-              <Check className="w-4 h-4 text-green-500 mr-2" />
-              Cancel anytime
             </div>
           </div>
-        </motion.div>
+        </section>
+
+        {/* CTA */}
+        <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
+          <div className="rounded-2xl bg-zinc-900 p-8 text-center sm:p-12">
+            <h2 className="text-2xl font-bold text-white sm:text-3xl">
+              Tell us what you need. We&apos;ll ship certified data.
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-zinc-400">
+              Share your robot, task, and target formats. We&apos;ll recommend the fastest path:
+              off-the-shelf packs or a custom certified dataset run.
+            </p>
+            <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
+              <a
+                href="/marketplace"
+                className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
+              >
+                Browse the catalog
+              </a>
+              <a
+                href="/contact"
+                className="inline-flex items-center justify-center rounded-lg border border-zinc-700 px-6 py-3 text-sm font-semibold text-white hover:bg-zinc-800"
+              >
+                Contact sales
+              </a>
+            </div>
+          </div>
+        </section>
       </div>
-    </section>
+    </>
   );
 }
+

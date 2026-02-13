@@ -1,12 +1,13 @@
 const footerLinks = [
+  { label: "How We Certify", href: "/how-it-works" },
   { label: "Solutions", href: "/solutions" },
-  { label: "Pilot Exchange", href: "/pilot-exchange" },
   { label: "Benchmarks", href: "/evals" },
-  { label: "Contact", href: "/contact" },
   { label: "Pricing", href: "/pricing" },
-  { label: "New to Simulation?", href: "/learn" },
+  { label: "Contact", href: "/contact" },
+  { label: "Learn Simulation", href: "/learn" },
   { label: "Docs", href: "/docs" },
-  { label: "Portal", href: "/portal" },
+  { label: "Artist Portal", href: "/portal" },
+  { label: "Pilot Exchange", href: "/pilot-exchange" },
   { label: "Privacy", href: "/privacy" },
   { label: "Terms", href: "/terms" },
 ];
@@ -20,7 +21,7 @@ export function Footer() {
             Blueprint
           </a>
           <p className="text-sm text-slate-500">
-            Complete robotics data platform with SimReady scenes, policy evaluation, and $320k+ in premium analytics, all included by default.
+            Certified simulation scenes, datasets, and benchmarks for robot learning. Physics gates, quality scores, and provenance metadata in every delivery.
           </p>
         </div>
         <nav className="grid flex-1 grid-cols-2 gap-3 text-sm text-slate-600 sm:grid-cols-3">

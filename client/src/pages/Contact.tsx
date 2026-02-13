@@ -35,7 +35,7 @@ export default function Contact() {
     <>
       <SEO
         title="Contact Us"
-        description="Get in touch with Blueprint to discuss your robotics simulation needs. We offer SimReady scenes, data from Genie Sim 3.0, and comprehensive evaluation services."
+        description="Get in touch with Blueprint to discuss certified simulation datasets for robotics: scenes, quality-scored trajectories, benchmarks, and custom data runs."
         canonical="/contact"
       />
       <div className="relative min-h-screen overflow-hidden bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
@@ -48,12 +48,12 @@ export default function Contact() {
               Get in Touch
             </div>
             <h1 className="mt-6 text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl">
-              Build better robots with Blueprint
+              Tell us what you need. We&apos;ll ship certified data.
             </h1>
             <p className="mt-6 text-lg leading-relaxed text-zinc-600">
-              From high-fidelity simulation scenes to synthetic data generation
-              and comprehensive evaluation tools, Blueprint provides everything
-              you need to accelerate your embodied AI development.
+              Blueprint runs the data factory: we generate scenes and trajectories, certify
+              physics, score episode quality, and deliver provenance metadata so your team can
+              train with confidence.
             </p>
           </div>
 
@@ -121,7 +121,7 @@ export default function Contact() {
                       href="/marketplace"
                       className="group flex items-center gap-2 text-zinc-700 transition hover:text-indigo-600"
                     >
-                      <span>Scene Marketplace</span>
+                      <span>Catalog</span>
                       <span className="transition-transform group-hover:translate-x-0.5">→</span>
                     </a>
                   </li>

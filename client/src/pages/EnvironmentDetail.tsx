@@ -560,32 +560,32 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
               {/* Recommended Analytics Section */}
               <div className="mt-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 p-4 border border-emerald-200">
                 <div className="flex items-center gap-2 mb-3">
-                  <BarChart3 className="h-4 w-4 text-emerald-700" />
+                  <Shield className="h-4 w-4 text-emerald-700" />
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
-                    Premium Analytics
+                    Certification & QA
                   </p>
                 </div>
                 <p className="text-xs text-emerald-900 mb-3">
-                  Enhance this dataset with data quality validation:
+                  Review what ships with every pack:
                 </p>
                 <div className="space-y-2">
                   <a
-                    href="/analytics/failure-mode-analysis"
+                    href="/how-it-works"
                     className="block text-xs font-medium text-emerald-700 hover:text-emerald-900 hover:underline"
                   >
-                    ✓ Failure Mode Analysis
+                    ✓ How we certify (physics gates + episode QC)
                   </a>
                   <a
-                    href="/analytics/sim2real-fidelity"
+                    href="/docs"
                     className="block text-xs font-medium text-emerald-700 hover:text-emerald-900 hover:underline"
                   >
-                    ✓ Sim2Real Fidelity Matrix
+                    ✓ SimReady spec and deliverables
                   </a>
                   <a
-                    href="/analytics"
                     className="block text-xs font-semibold text-emerald-700 hover:text-emerald-900 hover:underline pt-2 border-t border-emerald-200"
+                    href="/contact?interest=exclusive-dataset"
                   >
-                    View all analytics →
+                    Request a custom dataset run →
                   </a>
                 </div>
               </div>

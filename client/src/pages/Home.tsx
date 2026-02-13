@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Database,
   LayoutGrid,
+  Shield,
   Sparkles,
   Terminal,
 } from "lucide-react";
@@ -20,23 +21,23 @@ const offeringCards = [
     title: "Benchmark Packs",
     badge: "Evaluation",
     description:
-      "Runnable benchmark suites with SimReady scenes, tasks, and evaluation harness.",
+      "Reserved evaluation suites with certified scenes, tasks, and harnesses so you can compare policies without test leakage.",
     bullets: [
-      "Standardized metrics: success rate, collisions, path efficiency",
-      "GPU-accelerated evaluation in Isaac Lab-Arena format",
+      "Standardized metrics: success rate, collisions, time-to-completion",
+      "Runnable locally or via Blueprint evaluation service",
     ],
-    ctaLabel: "Browse benchmarks",
+    ctaLabel: "Explore benchmarks",
     ctaHref: "/evals",
     icon: <BarChart3 className="h-8 w-8 text-zinc-900" />,
   },
   {
     title: "Scene Library",
-    badge: "Assets",
+    badge: "Scenes",
     description:
-      "Physics-accurate SimReady scenes for training and custom benchmark assembly.",
+      "SimReady environments with validated colliders, articulation, and physics materials built for manipulation.",
     bullets: [
-      "Sub-mm tolerances with full articulation metadata",
-      "Compatible with Isaac Sim, MuJoCo, and more",
+      "Physics gates: stability, non-penetration, and collision QA",
+      "USD-first delivery for Isaac Sim, with exports for other stacks",
     ],
     ctaLabel: "Browse scenes",
     ctaHref: "/marketplace/scenes",
@@ -46,10 +47,10 @@ const offeringCards = [
     title: "Dataset Packs",
     badge: "Training Data",
     description:
-      "Pre-generated simulation trajectories for offline training in LeRobot format.",
+      "Quality-scored trajectories with episode-level metadata and filters for offline training and finetuning.",
     bullets: [
-      "Thousands of expert episodes per scene",
-      "Multi-sensor: RGB-D, proprioception, end-effector poses",
+      "Episode certification + normalization for consistent dynamics",
+      "Delivered in LeRobot-ready formats with multi-sensor streams",
     ],
     ctaLabel: "Browse datasets",
     ctaHref: "/marketplace/datasets",
@@ -59,31 +60,31 @@ const offeringCards = [
 
 const whySimReady = [
   {
-    title: "Physics-accurate geometry",
+    title: "Physics certification, not just generation",
     description:
-      "Sub-millimeter tolerances for reliable policy transfer to real robots.",
+      "Collider QA, articulation validation, and dynamics bounds so your data behaves like the real world.",
   },
   {
-    title: "Full articulation metadata",
+    title: "Episode QC + quality scoring",
     description:
-      "Validated joints, friction, mass, and inertia ready for manipulation tasks.",
+      "Per-episode certification, normalization, and quality scores so you can filter to what actually transfers.",
   },
   {
-    title: "Simulation-ready",
+    title: "Provenance and reproducibility",
     description:
-      "Domain randomization configs and physics validation for Isaac Sim and MuJoCo.",
+      "Metadata that tracks assets, parameters, and synth fractions for every delivered pack.",
   },
 ];
 
 const labBullets = [
-  "Articulated containers with physics constraints",
-  "Sim2real-validated packages",
-  "Semantic annotations for perception",
+  "Request datasets by task, robot, and environment",
+  "Quality-scored episodes with filters and provenance",
+  "Physics certification gates for transfer-sensitive tasks",
 ];
 
 const artistBullets = [
-  "Ship scenes to leading robotics labs",
-  "Project-based pay with articulation bonuses",
+  "Build simulation-grade scenes used in real robot training",
+  "Paid briefs with clear QA gates: colliders, articulation, physics",
 ];
 
 // --- Component ---
@@ -115,8 +116,8 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | The Complete Simulation Data Platform for Physical AI"
-        description="Physics-accurate simulation environments, synthetic expert trajectories, and standardized benchmarks for robotics. Train policies in sim and transfer them to real robots."
+        title="Blueprint | Certified Simulation Data for Robot Learning"
+        description="Certified simulation scenes, quality-scored datasets, and reserved benchmarks for robotics. Blueprint runs the data factory so your team can train policies without operating GPU-heavy simulation infrastructure."
         canonical="/"
         image="https://tryblueprint.io/images/og-home.png"
       />
@@ -132,23 +133,23 @@ export default function Home() {
                 <div className="space-y-6">
                   <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
                     <Sparkles className="h-3 w-3" />
-                    High-Fidelity Simulation Data
+                    Certified Simulation Data
                   </div>
                   <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
-                    The complete simulation data platform for physical AI.
+                    Simulation datasets you can trust.
                   </h1>
                   <p className="max-w-xl text-lg leading-relaxed text-zinc-600">
-                    Physics-accurate simulation environments, synthetic expert trajectories,
-                    and standardized benchmarks. Everything you need to train robotic policies
-                    in sim and transfer them to real-world robots.
+                    Blueprint runs the data factory: we generate scenes and trajectories,
+                    certify physics, score quality, and ship provenance metadata so your
+                    team can train policies without maintaining a GPU-heavy simulation stack.
                   </p>
                 </div>
 
                 <CTAButtons
                   primaryHref="/marketplace"
-                  primaryLabel="Browse Marketplace"
+                  primaryLabel="Browse the catalog"
                   secondaryHref="/contact"
-                  secondaryLabel="Submit a request"
+                  secondaryLabel="Request a dataset"
                 />
 
                 <div className="pt-4 opacity-80 grayscale transition-all duration-500 hover:opacity-100 hover:grayscale-0">
@@ -171,10 +172,10 @@ export default function Home() {
                   <div className="mt-4 space-y-3">
                     <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
                       <Terminal className="h-4 w-4" />
-                      Supported Archetypes
+                      Common Archetypes
                     </div>
                     <p className="text-sm text-zinc-600">
-                      Kitchens, groceries, warehouses, labs, offices, retail, and utility environments.
+                      Kitchens, warehouses, labs, offices, retail, and utility environments.
                     </p>
                   </div>
                 </div>
@@ -234,9 +235,9 @@ export default function Home() {
         <section className="border-y border-zinc-100 bg-zinc-50/50 py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-10">
-              <h2 className="text-2xl font-bold text-zinc-900">Why SimReady?</h2>
+              <h2 className="text-2xl font-bold text-zinc-900">Why certification?</h2>
               <p className="mt-2 text-zinc-600">
-                Physics-accurate assets for perception and manipulation, not just visual fidelity.
+                Generating simulation data is easy. Shipping trustworthy data for robot learning is hard.
               </p>
             </div>
 
@@ -263,7 +264,7 @@ export default function Home() {
                 For Robotics Labs
               </p>
               <h3 className="mt-2 text-xl font-bold text-zinc-900">
-                Open. Slide. Pick. Repeat.
+                Specify the task. Get certified data.
               </h3>
               <ul className="mt-4 space-y-2">
                 {labBullets.map((item) => (
@@ -304,35 +305,35 @@ export default function Home() {
         {/* --- Feature Highlights (Teasers) --- */}
         <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
           <div className="grid gap-4 md:grid-cols-3">
-            {/* Premium Analytics Teaser */}
+            {/* Certification Teaser */}
             <a
-              href="/pricing"
+              href="/how-it-works"
               className="group rounded-xl border border-zinc-200 bg-white p-6 transition-all hover:border-indigo-200 hover:shadow-md"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-emerald-50 p-2 text-emerald-600">
-                  <Box className="h-5 w-5" />
+                  <Shield className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-zinc-900">$320K+ in Premium Analytics</p>
-                  <p className="text-sm text-zinc-500">Included with every bundle</p>
+                  <p className="font-semibold text-zinc-900">Certification gates</p>
+                  <p className="text-sm text-zinc-500">Physics and episode QC, built in</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
             </a>
 
-            {/* Isaac Lab-Arena Teaser */}
+            {/* Quality-Scored Data Teaser */}
             <a
-              href="/evals"
-              className="group rounded-xl border border-zinc-200 bg-white p-6 transition-all hover:border-emerald-200 hover:shadow-md"
+              href="/marketplace/datasets"
+              className="group rounded-xl border border-zinc-200 bg-white p-6 transition-all hover:border-indigo-200 hover:shadow-md"
             >
               <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-emerald-50 p-2 text-emerald-600">
-                  <BarChart3 className="h-5 w-5" />
+                <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600">
+                  <Database className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-zinc-900">Isaac Lab-Arena Integration</p>
-                  <p className="text-sm text-zinc-500">GPU-accelerated policy evaluation</p>
+                  <p className="font-semibold text-zinc-900">Quality-scored datasets</p>
+                  <p className="text-sm text-zinc-500">Filter to high-trust episodes</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
@@ -342,11 +343,11 @@ export default function Home() {
             <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-6">
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-violet-50 p-2 text-violet-600">
-                  <Sparkles className="h-5 w-5" />
+                  <Box className="h-5 w-5" />
                 </div>
                 <div>
                   <p className="font-semibold text-zinc-900">Coming Soon</p>
-                  <p className="text-sm text-zinc-500">Egocentric video datasets</p>
+                  <p className="text-sm text-zinc-500">Continuous dataset subscriptions</p>
                 </div>
               </div>
             </div>
@@ -357,11 +358,11 @@ export default function Home() {
         <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
           <div className="rounded-2xl bg-zinc-900 p-8 text-center sm:p-12">
             <h2 className="text-2xl font-bold text-white sm:text-3xl">
-              Ready to accelerate your robotics AI?
+              Ready to train with certified data?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-zinc-400">
-              Browse our marketplace for simulation-ready scenes and synthetic datasets, or contact
-              us to discuss your specific requirements.
+              Browse the catalog for off-the-shelf packs, or tell us what you need and we'll
+              generate, certify, and deliver a dataset spec'd to your robot and task.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
               <a

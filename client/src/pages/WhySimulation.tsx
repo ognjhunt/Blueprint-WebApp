@@ -11,7 +11,6 @@ import {
   Shield,
   Sparkles,
   Target,
-  TrendingUp,
   Zap,
 } from "lucide-react";
 
@@ -27,9 +26,9 @@ const comparisonData = {
       "Ground truth for final validation",
     ],
     challenges: [
-      "Expensive to collect ($$$)",
-      "Slow: ~1.7 demos per minute",
-      "Safety risks during collection",
+      "Expensive to collect and label",
+      "Slow and resource-intensive collection",
+      "Safety risks during exploration",
       "Limited variation coverage",
     ],
   },
@@ -37,9 +36,9 @@ const comparisonData = {
     label: "Simulation Data",
     color: "emerald",
     strengths: [
-      "27x faster generation (51 demos/min)",
-      "Infinite edge case coverage",
-      "Zero hardware risk",
+      "Faster generation and iteration cycles",
+      "Broad edge case and variation coverage",
+      "Zero hardware risk during collection",
       "Perfect ground truth labels",
     ],
     challenges: [
@@ -54,32 +53,32 @@ const comparisonData = {
 // Research-backed statistics
 const researchStats = [
   {
-    stat: "38%",
-    label: "Performance Boost",
-    description: "Average improvement when combining sim + real data vs real-only training",
-    source: "Sim-and-Real Co-Training, 2025",
-    icon: <TrendingUp className="h-6 w-6" />,
-  },
-  {
-    stat: "27x",
-    label: "Faster Generation",
-    description: "Simulation generates demos at 51/min vs 1.7/min for human teleop",
-    source: "Real2Render2Real, 2025",
+    stat: "Faster",
+    label: "Iteration",
+    description: "Run large numbers of trials without waiting for lab time",
+    source: "Operational reality",
     icon: <Zap className="h-6 w-6" />,
   },
   {
-    stat: "85%+",
-    label: "Transfer Rate",
-    description: "Achievable sim-to-real success with proper domain randomization",
-    source: "Industry benchmark standard",
-    icon: <Target className="h-6 w-6" />,
+    stat: "Safer",
+    label: "Exploration",
+    description: "Explore failure modes without risking hardware or operators",
+    source: "Operational reality",
+    icon: <Shield className="h-6 w-6" />,
   },
   {
-    stat: "10,000x",
-    label: "More Scenarios",
-    description: "Edge cases and variations impossible to stage in real life",
-    source: "Domain randomization research",
+    stat: "Broader",
+    label: "Coverage",
+    description: "Generate controlled variations that are impractical to stage in the real world",
+    source: "Operational reality",
     icon: <Layers className="h-6 w-6" />,
+  },
+  {
+    stat: "More",
+    label: "Repeatable",
+    description: "Deterministic seeds enable reproducible benchmarks and comparisons",
+    source: "Operational reality",
+    icon: <BarChart3 className="h-6 w-6" />,
   },
 ];
 
@@ -97,7 +96,7 @@ const complementarySteps = [
     step: "02",
     title: "Real Data Anchors Reality",
     description:
-      "A small set of real-world demonstrations (20-400 episodes) captures the true sensor noise, contact physics, and controller nuances that simulation approximates but can't perfectly replicate.",
+      "A small set of real-world demonstrations captures the true sensor noise, contact physics, and controller nuances that simulation approximates but can't perfectly replicate.",
     icon: <Target className="h-6 w-6" />,
     color: "indigo",
   },
@@ -105,7 +104,7 @@ const complementarySteps = [
     step: "03",
     title: "Co-Training Maximizes Both",
     description:
-      "Train on a mixture of sim and real data in each batch. Research shows ~99% sim / ~1% real often works best; your real data anchors the policy while sim provides robustness.",
+      "Train on a mixture of sim and real data in each batch. Many teams use mostly simulation and a small amount of real data for anchoring; the right mix depends on your setup.",
     icon: <RefreshCw className="h-6 w-6" />,
     color: "amber",
   },
@@ -118,28 +117,28 @@ const valueProps = [
     title: "Speed Up Iteration",
     description:
       "Test model changes in hours, not weeks. Catch regressions before expensive real-world validation. Run thousands of trials while you sleep.",
-    stat: "1000x faster iteration cycles",
+    stat: "Faster iteration cycles",
   },
   {
     icon: <Shield className="h-8 w-8" />,
     title: "Train Safely",
     description:
       "Let robots fail catastrophically in simulation. Explore dangerous edge cases without risking hardware, operators, or facilities.",
-    stat: "Zero hardware damage risk",
+    stat: "Lower hardware risk",
   },
   {
     icon: <Scale className="h-8 w-8" />,
     title: "Cover the Long Tail",
     description:
       "Your real dataset probably doesn't include the rare scenarios that cause production failures. Simulation can generate the weird cases your robots will eventually encounter.",
-    stat: "10,000+ variation coverage",
+    stat: "Broader scenario coverage",
   },
   {
     icon: <BarChart3 className="h-8 w-8" />,
     title: "Benchmark Consistently",
     description:
       "Repeatable evaluation environments let you compare model versions fairly. Deterministic seeds mean reproducible science and engineering.",
-    stat: "100% reproducible evals",
+    stat: "More repeatable evals",
   },
 ];
 
@@ -153,7 +152,7 @@ const objections = [
   {
     objection: "Sim-to-real transfer doesn't work",
     response:
-      "Transfer fails when simulation quality is low. With physics-accurate assets, proper domain randomization, and camera-aligned viewpoints, studies show 85%+ real-world transfer rates. Blueprint scenes are specifically engineered for sim-to-real success.",
+      "Transfer fails when simulation quality is low or datasets aren't certified. With physics gates, good randomization, and careful evaluation, simulation can be a powerful complement. Blueprint focuses on certification outputs so you can validate transfer on your hardware with fewer surprises.",
   },
   {
     objection: "We already have enough real data",
@@ -163,7 +162,7 @@ const objections = [
   {
     objection: "Simulation is too expensive to set up",
     response:
-      "Building simulation infrastructure from scratch is expensive. That's exactly what Blueprint solves: we deliver physics-accurate SimReady scenes with domain randomization already configured. You get the benefits without the setup cost.",
+      "Building simulation infrastructure from scratch is expensive. That's exactly what Blueprint solves: we deliver certified scenes and quality-scored datasets with the QA artifacts you need, without the setup and maintenance burden.",
   },
 ];
 
@@ -172,7 +171,7 @@ export default function WhySimulation() {
     <>
       <SEO
         title="Why Simulation Data? | Blueprint"
-        description="Simulation data complements real-world capture to accelerate robotics AI training. Learn how combining sim + real data improves performance by 38% while reducing costs and iteration time."
+        description="Simulation data complements real-world capture to accelerate robotics AI training. Learn how teams combine sim + real, and why certification matters for trustworthy results."
         canonical="/why-simulation"
       />
 
@@ -231,8 +230,8 @@ export default function WhySimulation() {
               {/* Connection line */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full bg-gradient-to-br from-indigo-100 to-emerald-100 flex items-center justify-center z-10 border-4 border-white shadow-lg">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-zinc-900">+38%</p>
-                  <p className="text-xs text-zinc-500">Combined</p>
+                  <p className="text-lg font-bold text-zinc-900">Better</p>
+                  <p className="text-xs text-zinc-500">Together</p>
                 </div>
               </div>
 
@@ -276,7 +275,7 @@ export default function WhySimulation() {
 
                   <div className="rounded-lg bg-indigo-50 p-4">
                     <p className="text-sm text-indigo-900">
-                      <strong>Typical collection:</strong> 20-400 expert demonstrations
+                      <strong>Typical collection:</strong> limited expert demonstrations
                     </p>
                   </div>
                 </div>
@@ -320,7 +319,7 @@ export default function WhySimulation() {
 
                   <div className="rounded-lg bg-emerald-50 p-4">
                     <p className="text-sm text-emerald-900">
-                      <strong>Typical generation:</strong> 10,000-1,000,000+ episodes
+                      <strong>Typical generation:</strong> thousands to millions of episodes
                     </p>
                   </div>
                 </div>
@@ -331,10 +330,7 @@ export default function WhySimulation() {
             <div className="mt-12 max-w-3xl mx-auto">
               <div className="rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-700 p-8 text-white text-center">
                 <p className="text-lg font-medium">
-                  "Mixing simulation with even a small amount of real data can improve real-world task performance by <strong>38% on average</strong> compared to real-only training."
-                </p>
-                <p className="mt-3 text-sm text-emerald-100">
-                  - Sim-and-Real Co-Training Research, 2025
+                  Simulation provides scale. Real data anchors reality. Certification is what keeps simulated data honest enough to train on.
                 </p>
               </div>
             </div>
@@ -346,10 +342,10 @@ export default function WhySimulation() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
               <h2 className="text-3xl font-bold tracking-tight text-zinc-900">
-                The Research Is Clear
+                Why teams use simulation
               </h2>
               <p className="mt-4 text-lg text-zinc-600">
-                Recent studies consistently show that simulation data improves robotics AI
+                Simulation is valuable for speed, safety, coverage, and repeatability.
               </p>
             </div>
 
@@ -412,30 +408,30 @@ export default function WhySimulation() {
             <div className="mt-16 max-w-2xl mx-auto">
               <div className="rounded-2xl border border-zinc-200 bg-white p-8">
                 <p className="text-sm font-bold uppercase tracking-wider text-zinc-400 mb-4">
-                  Typical Training Mix
+                  Common pattern
                 </p>
                 <div className="relative h-8 rounded-full overflow-hidden bg-zinc-100">
                   <div
                     className="absolute left-0 top-0 h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-l-full"
-                    style={{ width: "99%" }}
+                    style={{ width: "50%" }}
                   />
                   <div
                     className="absolute right-0 top-0 h-full bg-gradient-to-r from-indigo-500 to-indigo-400 rounded-r-full"
-                    style={{ width: "1%" }}
+                    style={{ width: "50%" }}
                   />
                 </div>
                 <div className="mt-4 flex justify-between text-sm">
                   <div className="flex items-center gap-2">
                     <span className="h-3 w-3 rounded-full bg-emerald-500" />
-                    <span className="text-zinc-600">~99% Simulation</span>
+                    <span className="text-zinc-600">Simulation (scale + variation)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="h-3 w-3 rounded-full bg-indigo-500" />
-                    <span className="text-zinc-600">~1% Real</span>
+                    <span className="text-zinc-600">Real-world (anchoring + validation)</span>
                   </div>
                 </div>
                 <p className="mt-4 text-sm text-zinc-500 text-center">
-                  Research shows this ratio often achieves the best real-world performance
+                  The mix varies by task and hardware. Co-training is common.
                 </p>
               </div>
             </div>
@@ -523,21 +519,20 @@ export default function WhySimulation() {
                     Why Blueprint
                   </div>
                   <h2 className="mt-6 text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
-                    Simulation data built for sim-to-real success
+                    Simulation data built to be trusted
                   </h2>
                   <p className="mt-4 text-lg text-zinc-600 leading-relaxed">
-                    We don't just create pretty 3D scenes. Every Blueprint environment is
-                    engineered with physics-accurate properties, domain randomization configs,
-                    and validation notes specifically designed for policies that transfer to
-                    real robots.
+                    Blueprint doesn&apos;t just generate environments. We ship certified scenes and
+                    quality-scored datasets with the artifacts teams need for repeatability: physics
+                    gates, episode QC, and provenance metadata.
                   </p>
                   <ul className="mt-8 space-y-4">
                     {[
-                      "Physics-accurate colliders, mass, and friction properties",
-                      "Domain randomization scripts for lighting, textures, and positions",
-                      "Camera alignment matched to real-world setups",
-                      "Sim2Real validation notes based on our QA testing",
-                      "Isaac Sim, MuJoCo, and LeRobot format support",
+                      "Validated colliders, articulation, and physics materials",
+                      "Physics certification gates (stability, non-penetration, bounds)",
+                      "Episode QC + normalization with quality scoring and filters",
+                      "Provenance metadata and versioned releases",
+                      "USD-first delivery for Isaac Sim plus dataset exports for training stacks",
                     ].map((item) => (
                       <li key={item} className="flex items-start gap-3 text-zinc-700">
                         <CheckCircle2 className="h-5 w-5 mt-0.5 text-emerald-500 shrink-0" />
@@ -549,20 +544,20 @@ export default function WhySimulation() {
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="rounded-xl bg-white p-6 shadow-md border border-emerald-100">
-                    <p className="text-3xl font-bold text-zinc-900">1,000+</p>
-                    <p className="mt-1 text-sm text-zinc-600">SimReady scenes available</p>
+                    <p className="text-lg font-bold text-zinc-900">Certified scenes</p>
+                    <p className="mt-1 text-sm text-zinc-600">Validated colliders and articulation for manipulation</p>
                   </div>
                   <div className="rounded-xl bg-white p-6 shadow-md border border-emerald-100">
-                    <p className="text-3xl font-bold text-zinc-900">85%+</p>
-                    <p className="mt-1 text-sm text-zinc-600">Sim2Real transfer target</p>
+                    <p className="text-lg font-bold text-zinc-900">Quality-scored data</p>
+                    <p className="mt-1 text-sm text-zinc-600">Episode QC, normalization, and filters</p>
                   </div>
                   <div className="rounded-xl bg-white p-6 shadow-md border border-emerald-100">
-                    <p className="text-3xl font-bold text-zinc-900">10M+</p>
-                    <p className="mt-1 text-sm text-zinc-600">Episodes generated</p>
+                    <p className="text-lg font-bold text-zinc-900">Reserved benchmarks</p>
+                    <p className="mt-1 text-sm text-zinc-600">Evaluation suites to compare policies fairly</p>
                   </div>
                   <div className="rounded-xl bg-white p-6 shadow-md border border-emerald-100">
-                    <p className="text-3xl font-bold text-zinc-900">50+</p>
-                    <p className="mt-1 text-sm text-zinc-600">Robotics teams served</p>
+                    <p className="text-lg font-bold text-zinc-900">Custom runs</p>
+                    <p className="mt-1 text-sm text-zinc-600">Dataset specs tailored to your robot and task</p>
                   </div>
                 </div>
               </div>
@@ -582,8 +577,8 @@ export default function WhySimulation() {
                   Ready to complement your real-world data?
                 </h2>
                 <p className="mx-auto mt-4 max-w-2xl text-lg text-zinc-400">
-                  Browse our marketplace of physics-accurate SimReady scenes, or talk to our team
-                  about how simulation can accelerate your robotics AI development.
+                  Browse certified scenes and quality-scored datasets, or talk to our team about a
+                  custom run spec&apos;d to your robot and task.
                 </p>
                 <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
                   <a

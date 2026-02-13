@@ -131,7 +131,7 @@ export default function Login() {
     <>
       <SEO
         title="Sign In"
-        description="Sign in to access Blueprint's SimReady environments, manage your projects, and track scene orders."
+        description="Sign in to access your Blueprint account, downloads, and purchased scene and dataset packs."
         canonical="/login"
       />
       <div className="min-h-screen bg-white text-slate-900">

@@ -8,8 +8,6 @@ import {
   MessageSquare,
   Sparkles,
   Zap,
-  TrendingUp,
-  Clock,
   ArrowRight,
 } from "lucide-react";
 
@@ -43,61 +41,52 @@ function DotPattern() {
 
 const foundationFeatures = [
   {
-    title: "Unlimited Scenes",
-    description: "Access to 1,000+ scenes library with new drops added continuously",
+    title: "Catalog Access",
+    description: "Access to a growing library of certified scenes and dataset packs",
     icon: <Database className="h-5 w-5" />,
   },
   {
-    title: "Unlimited Episodes",
-    description: "Generate as many training episodes as your models need",
+    title: "On-Demand Generation",
+    description: "Request new episodes and variations without standing up infrastructure",
     icon: <Infinity className="h-5 w-5" />,
   },
   {
-    title: "Streaming Dataset Delivery",
-    description: "Real-time data pipeline for continuous model training",
+    title: "Continuous Delivery",
+    description: "Recurring drops of quality-scored data aligned to your training cadence",
     icon: <Zap className="h-5 w-5" />,
   },
   {
     title: "Exclusive Scene Commissions",
-    description: "Custom scenes built to your exact specifications",
+    description: "Custom scenes and environment variants built to your deployment context",
     icon: <Sparkles className="h-5 w-5" />,
   },
   {
     title: "Custom Embodiment Retargeting",
-    description: "Adapt training data to your specific robot embodiments",
+    description: "Adapt tasks and data formats to your robot embodiment and sensors",
     icon: <Layers className="h-5 w-5" />,
   },
   {
-    title: "Priority Data Pipeline",
-    description: "Dedicated infrastructure for your training workflows",
+    title: "Dedicated Throughput",
+    description: "Reserved generation capacity and a tight iteration loop with our team",
     icon: <CheckCircle2 className="h-5 w-5" />,
   },
 ];
 
 const foundationHighlights = [
-  "All VLA fine-tuning configs (OpenVLA, Pi0, SmolVLA, GR00T)",
-  "Premium analytics ($320k+ value)",
-  "Sim2Real fidelity matrices & transfer confidence scoring",
-  "Multi-robot embodiment compatibility analysis",
-  "Per-step telemetry (rewards, collisions, grasps, forces)",
-  "Grasp quality analytics with force profiles",
-  "Failure analysis & breakdown",
-  "Trajectory optimality metrics",
-  "Policy leaderboards with statistical significance",
-  "Tactile sensor simulation",
-  "Language annotations for VLA training",
-  "Contact-rich task episodes",
-  "Dedicated Slack channel",
-  "Custom robot embodiment support",
-  "1-year support with dedicated account team",
+  "Physics certification gates (colliders, articulation, stability, non-penetration)",
+  "Episode QC + normalization for consistent schema across runs",
+  "Quality scores and tiered dataset subsets for filtering",
+  "Provenance metadata and versioned releases",
+  "Custom tasks, robots, and sensor schemas on request",
+  "Dedicated support channel and integration help",
 ];
 
 export default function Pricing() {
   return (
     <>
       <SEO
-        title="Pricing | Blueprint - Foundation Model Training Data"
-        description="Platform license for foundation model teams. Unlimited scenes, streaming access, and custom data pipelines for robotics AI at scale."
+        title="Pricing | Blueprint - Certified Simulation Data"
+        description="Platform license for teams training at scale. Catalog access, custom certified dataset runs, and continuous delivery for robotics AI."
         canonical="/pricing"
       />
 
@@ -113,13 +102,13 @@ export default function Pricing() {
             </div>
 
             <h1 className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl">
-              Foundation Model Licensing
+              Platform Licensing
             </h1>
 
             <p className="mx-auto max-w-2xl text-lg text-zinc-600">
-              Simulation data that complements your real-world capture. Research shows
-              teams that mix sim + real data see up to 38% better performance than
-              real-only approaches.
+              A managed data factory for teams training at scale. Access the catalog, request
+              custom certified runs, and keep a steady stream of quality-scored data without
+              operating the underlying generation infrastructure.
             </p>
           </header>
 
@@ -130,8 +119,7 @@ export default function Pricing() {
                 Looking for individual scenes or bundles?
               </p>
               <p className="text-zinc-600 mb-4">
-                Browse our marketplace for per-scene pricing starting at $5,499.
-                Each listing includes pricing, variations, and episode counts.
+                Browse the catalog for per-pack pricing, variations, and episode counts.
               </p>
               <a
                 href="/marketplace/scenes"
@@ -171,9 +159,9 @@ export default function Pricing() {
                   </div>
 
                   <p className="text-zinc-600">
-                    Platform license for foundation model teams. Unlimited scenes,
-                    streaming access, and custom data pipelines designed for
-                    training robotics AI at scale.
+                    Platform license for teams that need a dependable supply of simulation data.
+                    We combine generation with certification, quality scoring, and provenance so
+                    your training pipeline can scale without surprises.
                   </p>
 
                   <div className="flex flex-col gap-3 sm:flex-row">
@@ -214,69 +202,55 @@ export default function Pricing() {
             </div>
           </section>
 
-          {/* Premium Analytics Breakdown */}
-          <section className="mb-16 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/50 to-white p-8">
+          {/* Certification & QA */}
+          <section className="mb-16 rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50/50 to-white p-8">
             <div className="text-center mb-10">
               <h2 className="text-3xl font-bold text-zinc-900 mb-3">
-                $320k-$585k in Premium Features
+                Certification & QA are included
               </h2>
               <p className="text-zinc-600 max-w-2xl mx-auto">
-                Your Foundation Tier license includes ALL these premium robotics capabilities. They're built into every scene, evaluation, and training job.
+                A generator produces trajectories. A product ships trust. Every Blueprint delivery
+                includes the artifacts teams use to audit, filter, and reproduce results.
               </p>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {[
                 {
-                  category: "Tier 1: Essential Features ($40k-$75k)",
-                  features: [
-                    "Sim2Real Fidelity Matrix ($20k-$50k) - Physics/visual/sensor/robot fidelity scoring",
-                    "Embodiment Transfer Analysis ($20k-$100k) - Cross-robot compatibility matrices",
-                  ]
+                  title: "Physics gates",
+                  desc: "Collider QA, articulation checks, stability and non-penetration validation.",
                 },
                 {
-                  category: "Tier 2: Optimization ($30k-$65k)",
-                  features: [
-                    "Trajectory Optimality ($10k-$25k) - Path efficiency, jerk, energy analysis",
-                    "Policy Leaderboards ($20k-$40k) - Statistical significance testing",
-                    "Generalization Analyzer ($15k-$35k) - Learning curves, curriculum recommendations",
-                  ]
+                  title: "Episode QC",
+                  desc: "Normalization and schema enforcement so datasets stay consistent across versions.",
                 },
                 {
-                  category: "Tier 3: Premium ($25k-$60k)",
-                  features: [
-                    "Tactile Sensor Sim ($15k-$30k) - GelSight/DIGIT simulation",
-                    "Language Annotations ($10k-$25k) - VLA training instructions",
-                  ]
+                  title: "Quality scoring",
+                  desc: "Per-episode scores and tiering so you can filter to high-trust subsets.",
                 },
                 {
-                  category: "Core Analytics ($115k-$260k)",
-                  features: [
-                    "Per-Step Telemetry - Rewards, collisions, grasps, forces at every step",
-                    "Failure Analysis - Timeout/collision breakdown, phase-level tracking",
-                    "Grasp Analytics - Event timeline, force profiles, contact tracking",
-                    "Evaluation Throughput Metrics - GPU utilization, throughput, statistical variance",
-                  ]
+                  title: "Provenance",
+                  desc: "Versioned metadata for assets, parameters, and release notes.",
                 },
-              ].map((tier) => (
-                <div key={tier.category} className="rounded-xl border border-emerald-100 bg-white p-5 shadow-sm">
-                  <h3 className="font-bold text-zinc-900 text-sm mb-3">{tier.category}</h3>
-                  <ul className="space-y-2">
-                    {tier.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2 text-xs text-zinc-700">
-                        <span className="text-emerald-600 font-bold mt-0.5">✓</span>
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
+                {
+                  title: "Delivery formats",
+                  desc: "USD-first for Isaac Sim plus dataset exports that slot into training stacks.",
+                },
+                {
+                  title: "Support loop",
+                  desc: "A feedback loop to target data at your model's current failure modes.",
+                },
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className="rounded-xl border border-indigo-100 bg-white p-5 shadow-sm"
+                >
+                  <h3 className="font-bold text-zinc-900 text-sm mb-2">
+                    {item.title}
+                  </h3>
+                  <p className="text-xs text-zinc-700 leading-relaxed">{item.desc}</p>
                 </div>
               ))}
-            </div>
-
-            <div className="mt-8 rounded-lg bg-white p-4 border border-emerald-100 text-center">
-              <p className="text-sm text-zinc-700">
-                <strong>All included in your Foundation Tier license.</strong> No additional costs for any premium features. You get complete robotics research infrastructure.
-              </p>
             </div>
           </section>
 
@@ -309,44 +283,55 @@ export default function Pricing() {
             </div>
           </section>
 
-          {/* Sim2Real Section */}
+          {/* Transfer Section */}
           <section className="mb-16 rounded-2xl border border-zinc-200 bg-zinc-900 p-8 text-white">
             <div className="grid gap-8 lg:grid-cols-2 lg:items-center">
               <div className="space-y-4">
                 <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-400">
                   <CheckCircle2 className="h-3 w-3" />
-                  Sim2Real Validated
+                  Transfer-Focused
                 </div>
                 <h2 className="text-2xl font-bold">
-                  85%+ real-world transfer rates
+                  Reduce sim-to-real risk with certification
                 </h2>
                 <p className="text-zinc-400">
-                  Our sim2real validation service ensures your trained policies
-                  transfer to real hardware. Based on research showing proper
-                  domain randomization improves transfer from 5% to 87%.
+                  We don&apos;t promise transfer rates. We ship the gates, QC outputs, and metadata
+                  teams use to de-risk deployment, then you validate on your hardware with fewer
+                  surprises.
                 </p>
                 <a
-                  href="/contact?interest=sim2real"
+                  href="/how-it-works"
                   className="inline-flex items-center text-sm font-semibold text-emerald-400 hover:text-emerald-300"
                 >
-                  Learn about Sim2Real Validation
+                  See how we certify
                   <ChevronRight className="ml-1 h-4 w-4" />
                 </a>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div className="rounded-xl bg-white/10 p-4 text-center">
-                  <p className="text-2xl font-bold text-emerald-400">50%</p>
-                  <p className="mt-1 text-xs text-zinc-400">Basic</p>
-                </div>
-                <div className="rounded-xl bg-white/10 p-4 text-center ring-1 ring-emerald-500/50">
-                  <p className="text-2xl font-bold text-emerald-400">70%</p>
-                  <p className="mt-1 text-xs text-zinc-400">Standard</p>
-                </div>
-                <div className="rounded-xl bg-white/10 p-4 text-center">
-                  <p className="text-2xl font-bold text-emerald-400">85%+</p>
-                  <p className="mt-1 text-xs text-zinc-400">Premium</p>
-                </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {[
+                  {
+                    title: "Physics gates",
+                    desc: "Colliders, articulation, stability, non-penetration.",
+                  },
+                  {
+                    title: "Episode QC",
+                    desc: "Normalization, schema consistency, quality scoring.",
+                  },
+                  {
+                    title: "Provenance",
+                    desc: "Versioned assets, parameters, and release notes.",
+                  },
+                  {
+                    title: "Benchmarks",
+                    desc: "Standard tasks and evaluation harnesses (optional).",
+                  },
+                ].map((item) => (
+                  <div key={item.title} className="rounded-xl bg-white/10 p-4">
+                    <p className="text-sm font-semibold text-white">{item.title}</p>
+                    <p className="mt-1 text-xs text-zinc-300">{item.desc}</p>
+                  </div>
+                ))}
               </div>
             </div>
           </section>
@@ -356,30 +341,27 @@ export default function Pricing() {
             <div className="grid gap-8 lg:grid-cols-2 lg:items-center">
               <div className="space-y-4">
                 <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-700">
-                  <TrendingUp className="h-3 w-3" />
-                  Research-Backed
+                  <Sparkles className="h-3 w-3" />
+                  Works With Real Data
                 </div>
                 <h2 className="text-2xl font-bold text-zinc-900">
-                  Already collecting real-world data?
+                  Simulation amplifies real-world capture
                 </h2>
                 <p className="text-zinc-600">
-                  Simulation doesn't replace your real-world capture; it amplifies it.
-                  Research shows teams that combine simulation with even small amounts
-                  of real data see significantly better real-world performance.
+                  Simulation helps you scale coverage and iterate fast. Real-world data anchors
+                  validation. The right mix depends on your robot, task, and deployment context.
                 </p>
                 <ul className="space-y-2 text-sm text-zinc-600">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 mt-0.5 text-emerald-500 shrink-0" />
-                    <span><strong>38% average boost</strong> vs real-only training</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 mt-0.5 text-emerald-500 shrink-0" />
-                    <span><strong>27x faster</strong> data generation than teleop</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 mt-0.5 text-emerald-500 shrink-0" />
-                    <span><strong>10,000+ variations</strong> impossible to stage in real life</span>
-                  </li>
+                  {[
+                    "Faster iteration cycles with repeatable environments",
+                    "Safer exploration of failure modes without hardware risk",
+                    "Long-tail coverage through controlled variations",
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 mt-0.5 text-emerald-500 shrink-0" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
                 </ul>
                 <a
                   href="/why-simulation"
@@ -392,31 +374,23 @@ export default function Pricing() {
 
               <div className="rounded-xl bg-white p-6 shadow-md border border-emerald-100">
                 <p className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-4">
-                  Typical Training Mix
+                  Typical workflow
                 </p>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-3 flex-1 rounded-full bg-zinc-100 overflow-hidden">
-                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: "99%" }} />
-                    </div>
-                    <span className="text-sm font-semibold text-emerald-600 w-12">99%</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-zinc-500">
-                    <span>Simulation (scale + diversity)</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="h-3 flex-1 rounded-full bg-zinc-100 overflow-hidden">
-                      <div className="h-full bg-indigo-500 rounded-full" style={{ width: "1%" }} />
-                    </div>
-                    <span className="text-sm font-semibold text-indigo-600 w-12">1%</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-zinc-500">
-                    <span>Real-world (reality anchoring)</span>
-                  </div>
-                </div>
-                <p className="mt-4 text-xs text-zinc-400 text-center">
-                  Research shows ~99% sim / ~1% real often achieves optimal performance
-                </p>
+                <ol className="space-y-3 text-sm text-zinc-600">
+                  {[
+                    "Start with catalog packs for quick baselines",
+                    "Filter by quality scores and run benchmarks",
+                    "Validate transfer on your hardware with a small real dataset",
+                    "Request targeted new simulated data as failures appear",
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-3">
+                      <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">
+                        ✓
+                      </span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ol>
               </div>
             </div>
           </section>

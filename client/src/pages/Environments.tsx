@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet";
 import { useLocation, useSearch } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import {
   environmentPolicies,
   marketplaceScenes,
@@ -11,8 +12,14 @@ import {
 import { MarketplaceCard } from "@/components/site/MarketplaceCard";
 import { analyticsEvents } from "@/components/Analytics";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useMarketplacePersonalization } from "@/hooks/useMarketplacePersonalization";
 import { useOnboardingProgress } from "@/hooks/useOnboardingProgress";
+import { searchMarketplace } from "@/lib/marketplaceSearch";
+import type {
+  MarketplaceSearchResponse,
+  MarketplaceSearchSort,
+} from "@/types/marketplace-search";
 import {
   Search,
   Filter,
@@ -42,6 +49,7 @@ type MarketplaceItem =
 // --- Configuration ---
 
 const sortOptions = [
+  { label: "Relevance", value: "relevance" },
   { label: "Newest drops", value: "newest" },
   { label: "Price: Low → High", value: "price-asc" },
   { label: "Price: High → Low", value: "price-desc" },
@@ -273,8 +281,90 @@ export default function Environments() {
   const [objectFiltersSelection, setObjectFiltersSelection] = useState<
     string[]
   >([]);
-  const [sortOption, setSortOption] = useState<string>("newest");
+  const [sortOption, setSortOption] = useState<MarketplaceSearchSort>("newest");
+  const [hasTouchedSort, setHasTouchedSort] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [ignoreParsedKeys, setIgnoreParsedKeys] = useState<string[]>([]);
+
+  const debouncedQuery = useDebouncedValue(searchQuery, 350);
+  const isSemanticMode = searchQuery.trim().length >= 4;
+  const isSemanticSearchActive = debouncedQuery.trim().length >= 4;
+
+  // Reset ignored chips when the user changes the search query.
+  useEffect(() => {
+    setIgnoreParsedKeys([]);
+  }, [debouncedQuery]);
+
+  // Auto-switch to "Relevance" when entering semantic search mode (unless the user picked a sort).
+  useEffect(() => {
+    if (!isSemanticMode) {
+      setHasTouchedSort(false);
+      if (sortOption === "relevance") {
+        setSortOption("newest");
+      }
+      return;
+    }
+    if (!hasTouchedSort && sortOption === "newest") {
+      setSortOption("relevance");
+    }
+  }, [hasTouchedSort, isSemanticMode, sortOption]);
+
+  const handleSortClick = useCallback((value: MarketplaceSearchSort) => {
+    setHasTouchedSort(true);
+    setSortOption(value);
+    setCurrentPage(1);
+  }, []);
+
+  const manualSearchFilters = useMemo(() => {
+    const filters: Record<string, unknown> = {
+      itemType: itemTypeFilter,
+      sort: sortOption,
+    };
+
+    if (locationFilter) {
+      filters.locationType = locationFilter;
+    }
+    if (policyFilter) {
+      filters.policySlug = policyFilter;
+    }
+    if (objectFiltersSelection.length > 0) {
+      filters.objectTags = objectFiltersSelection;
+    }
+
+    return filters;
+  }, [itemTypeFilter, locationFilter, objectFiltersSelection, policyFilter, sortOption]);
+
+  const marketplaceSemanticSearch = useQuery<MarketplaceSearchResponse>({
+    queryKey: [
+      "marketplaceSearch",
+      debouncedQuery,
+      manualSearchFilters,
+      ignoreParsedKeys,
+    ],
+    queryFn: async () =>
+      searchMarketplace({
+        q: debouncedQuery,
+        limit: 60,
+        manualFilters: manualSearchFilters as any,
+        ignoreParsedKeys,
+      }),
+    enabled: isSemanticSearchActive,
+  });
+
+  const [semanticSearchSnapshot, setSemanticSearchSnapshot] =
+    useState<MarketplaceSearchResponse | null>(null);
+
+  useEffect(() => {
+    if (!isSemanticMode) {
+      setSemanticSearchSnapshot(null);
+      return;
+    }
+    if (marketplaceSemanticSearch.data) {
+      setSemanticSearchSnapshot(marketplaceSemanticSearch.data);
+    }
+  }, [isSemanticMode, marketplaceSemanticSearch.data]);
+
+  const semanticUiData = marketplaceSemanticSearch.data ?? semanticSearchSnapshot;
 
   const tabType = useMemo<MarketplaceItemType | null>(() => {
     if (location.startsWith("/marketplace/scenes")) {
@@ -333,8 +423,11 @@ export default function Environments() {
     }
 
     const sort = params.get("sort");
-    if (sort && ["newest", "price-asc", "price-desc", "scene-desc"].includes(sort)) {
-      setSortOption(sort);
+    if (
+      sort &&
+      ["relevance", "newest", "price-asc", "price-desc", "scene-desc"].includes(sort)
+    ) {
+      setSortOption(sort as MarketplaceSearchSort);
     }
 
     const q = params.get("q");
@@ -416,7 +509,8 @@ export default function Environments() {
     updateUrlWithFilters({ policy, page: null });
   };
 
-  const handleSortChange = (sort: string) => {
+  const handleSortChange = (sort: MarketplaceSearchSort) => {
+    setHasTouchedSort(true);
     setSortOption(sort);
     updateUrlWithFilters({ sort: sort === "newest" ? null : sort });
   };
@@ -478,7 +572,23 @@ export default function Environments() {
     return items;
   }, []);
 
-  const filteredItems = useMemo(() => {
+  const semanticItems = useMemo<MarketplaceItem[]>(() => {
+    if (!isSemanticMode) {
+      return [];
+    }
+
+    const data = marketplaceSemanticSearch.data || semanticSearchSnapshot;
+    if (!data?.results?.length) {
+      return [];
+    }
+
+    return data.results.map((result) => ({
+      type: result.type,
+      data: result.item as any,
+    }));
+  }, [isSemanticMode, marketplaceSemanticSearch.data, semanticSearchSnapshot]);
+
+  const localFilteredItems = useMemo(() => {
     let result = allMarketplaceItems.slice();
 
     // Filter by item type
@@ -513,7 +623,7 @@ export default function Environments() {
 
     // Search filter
     const normalizedSearchQuery = searchQuery.trim().toLowerCase();
-    if (normalizedSearchQuery) {
+    if (!isSemanticMode && normalizedSearchQuery) {
       result = result.filter((item) => {
         const searchableString = [
           item.data.title,
@@ -555,6 +665,7 @@ export default function Environments() {
           return countB - countA;
         });
         break;
+      case "relevance":
       case "newest":
       default:
         result.sort(
@@ -574,16 +685,28 @@ export default function Environments() {
     objectFiltersSelection,
     sortOption,
     searchQuery,
+    isSemanticMode,
   ]);
+
+  const filteredItems = useMemo(
+    () => (isSemanticMode ? semanticItems : localFilteredItems),
+    [isSemanticMode, localFilteredItems, semanticItems],
+  );
 
   // Featured items (show at top)
   const featuredItems = useMemo(() => {
+    if (isSemanticMode) {
+      return [];
+    }
     return filteredItems
       .filter((item) => item.data.isFeatured)
       .slice(0, 3);
-  }, [filteredItems]);
+  }, [filteredItems, isSemanticMode]);
 
   const regularItems = useMemo(() => {
+    if (isSemanticMode) {
+      return filteredItems;
+    }
     // Show all items if featured section is hidden (due to filters)
     if (featuredItems.length === 0) {
       return filteredItems;
@@ -622,10 +745,10 @@ export default function Environments() {
         badge: "Scene Library",
         title: "Scene Library",
         subtitle:
-          "SimReady scenes built for robotics policy development. Each scene includes physics-accurate USD assets, articulation, collision meshes, and domain randomization.",
+          "SimReady scenes with validated colliders, articulation, and physics materials. Certified for contact-rich manipulation and shipped with provenance metadata.",
         seoTitle: "Scene Library | Blueprint",
         seoDescription:
-          "Browse SimReady scenes for robotics. Isaac-ready USD environments with physics, articulation, and task logic.",
+          "Browse certified SimReady scenes for robotics. Isaac-ready USD environments with collider QA, articulation, and documentation.",
         canonicalUrl: "https://tryblueprint.io/marketplace/scenes",
       };
     }
@@ -634,10 +757,10 @@ export default function Environments() {
         badge: "Dataset Packs",
         title: "Dataset Packs",
         subtitle:
-          "Training-ready dataset packs with pre-generated trajectories, sensor streams, and annotations. Plug into your policy training pipeline quickly.",
+          "Quality-scored dataset packs with certified episodes, sensors, metadata, and filters. Plug into your training pipeline quickly.",
         seoTitle: "Dataset Packs | Blueprint",
         seoDescription:
-          "Explore dataset packs for robotics training. Pre-generated trajectories, LeRobot-ready data, and Isaac-compatible formats.",
+          "Explore quality-scored dataset packs for robotics. Certified episodes with metadata and filters, delivered in LeRobot-ready formats.",
         canonicalUrl: "https://tryblueprint.io/marketplace/datasets",
       };
     }
@@ -645,10 +768,10 @@ export default function Environments() {
       badge: "Marketplace",
       title: "Scene Library & Dataset Packs",
       subtitle:
-        "SimReady scenes and training datasets for robotics policy development. Each item includes physics-accurate USD scenes with articulation, collision meshes, and domain randomization.",
+        "Certified scenes and quality-scored dataset packs for robot learning. Physics gates, episode QC, and provenance in every delivery.",
       seoTitle: "Marketplace | Blueprint - Scene Library & Dataset Packs",
       seoDescription:
-        "Browse SimReady scenes and training datasets for robotics. Isaac-ready USD packages with physics, articulation, and task logic for policy training.",
+        "Browse certified scenes and quality-scored dataset packs for robotics. Isaac-ready USD environments with QA artifacts and provenance metadata.",
       canonicalUrl: "https://tryblueprint.io/marketplace",
     };
   }, [tabType]);
@@ -810,45 +933,117 @@ export default function Environments() {
         {/* --- Control Panel (Filters) --- */}
         <section className="rounded-3xl border border-zinc-200 bg-white/80 shadow-sm backdrop-blur-xl">
           <div className="border-b border-zinc-100 p-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-4 md:flex-1">
-                {/* Search */}
-                <div className="relative w-full md:max-w-sm">
-                  <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                  <input
-                    type="search"
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder="Search name, policy, or object..."
-                    className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2.5 pl-10 pr-4 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
-                  />
+            <div className="space-y-3">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-4 md:flex-1">
+                  {/* Search */}
+                  <div className="relative w-full md:max-w-sm">
+                    <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                    <input
+                      type="search"
+                      value={searchQuery}
+                      onChange={(event) => handleSearchChange(event.target.value)}
+                      placeholder='Search: "10K pick-and-place demos, quality > 0.8"'
+                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2.5 pl-10 pr-4 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                    />
+                  </div>
+
+                  {/* Sort Options */}
+                  <div className="flex gap-1 rounded-lg border border-zinc-200 p-1">
+                    {sortOptions.map((option) => {
+                      const disabled =
+                        option.value === "relevance" && !isSemanticMode;
+                      return (
+                        <button
+                          key={option.value}
+                          onClick={() =>
+                            handleSortClick(option.value as MarketplaceSearchSort)
+                          }
+                          disabled={disabled}
+                          className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                            disabled
+                              ? "cursor-not-allowed text-zinc-300"
+                              : sortOption === option.value
+                                ? "bg-zinc-900 text-white shadow-sm"
+                                : "text-zinc-600 hover:bg-zinc-100"
+                          }`}
+                          aria-label={
+                            disabled
+                              ? "Relevance sorting is available when searching"
+                              : `Sort by ${option.label}`
+                          }
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                {/* Sort Options */}
-                <div className="flex gap-1 rounded-lg border border-zinc-200 p-1">
-                  {sortOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => setSortOption(option.value)}
-                      className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                        sortOption === option.value
-                          ? "bg-zinc-900 text-white shadow-sm"
-                          : "text-zinc-600 hover:bg-zinc-100"
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
+                <a
+                  href="/contact?interest=exclusive-dataset"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-900 px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-600"
+                >
+                  Request a Custom Dataset
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </a>
               </div>
 
-              <a
-                href="/contact?interest=exclusive-dataset"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-900 px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-600"
-              >
-                Request Exclusive Dataset
-                <ArrowRight className="h-3.5 w-3.5" />
-              </a>
+              {/* Semantic search chips + warnings */}
+              {isSemanticMode && (
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                      AI Filters:
+                    </span>
+                    {semanticUiData?.parsed?.chips?.length ? (
+                      semanticUiData.parsed.chips.map((chip) => (
+                        <button
+                          key={chip.key}
+                          type="button"
+                          onClick={() => {
+                            setIgnoreParsedKeys((prev) =>
+                              prev.includes(chip.key)
+                                ? prev
+                                : [...prev, chip.key],
+                            );
+                            setCurrentPage(1);
+                          }}
+                          className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
+                          title="Disable this AI-applied filter"
+                          aria-label={`Disable AI filter ${chip.label} ${chip.value}`}
+                        >
+                          <span className="font-semibold">{chip.label}:</span>{" "}
+                          {chip.value}
+                          <X className="h-3 w-3 text-zinc-400" />
+                        </button>
+                      ))
+                    ) : marketplaceSemanticSearch.isFetching ? (
+                      <span className="text-xs text-zinc-400">
+                        Extracting constraints…
+                      </span>
+                    ) : (
+                      <span className="text-xs text-zinc-400">
+                        No constraints extracted.
+                      </span>
+                    )}
+                  </div>
+
+                  {semanticUiData?.parsed?.warnings?.length ? (
+                    <div className="text-xs text-amber-700">
+                      {semanticUiData.parsed.warnings.join(" · ")}
+                    </div>
+                  ) : null}
+
+                  {marketplaceSemanticSearch.error ? (
+                    <div className="text-xs text-red-600">
+                      {marketplaceSemanticSearch.error instanceof Error
+                        ? marketplaceSemanticSearch.error.message
+                        : "Semantic search failed. Please try again."}
+                    </div>
+                  ) : null}
+                </div>
+              )}
             </div>
           </div>
 
@@ -977,7 +1172,16 @@ export default function Environments() {
           {/* Results count and pagination info */}
           <div className="flex items-center justify-between text-sm text-zinc-500">
             <p>
-              {regularItems.length > ITEMS_PER_PAGE ? (
+              {isSemanticMode &&
+              marketplaceSemanticSearch.isFetching &&
+              !semanticUiData ? (
+                <>
+                  Searching…{" "}
+                  <span className="text-zinc-400">
+                    (semantic match + constraints)
+                  </span>
+                </>
+              ) : regularItems.length > ITEMS_PER_PAGE ? (
                 <>
                   Showing{" "}
                   <span className="font-medium text-zinc-900">
@@ -1013,7 +1217,37 @@ export default function Environments() {
             )}
           </div>
 
-          {filteredItems.length === 0 ? (
+          {isSemanticMode &&
+          marketplaceSemanticSearch.error &&
+          !semanticUiData ? (
+            <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-red-200 bg-red-50/50 p-20 text-center">
+              <div className="rounded-full bg-red-100 p-4 mb-4">
+                <XCircle className="h-6 w-6 text-red-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-zinc-900">
+                Semantic search failed
+              </h3>
+              <p className="mt-2 max-w-sm text-sm text-zinc-600">
+                {marketplaceSemanticSearch.error instanceof Error
+                  ? marketplaceSemanticSearch.error.message
+                  : "Please try again in a moment."}
+              </p>
+            </div>
+          ) : isSemanticMode &&
+            marketplaceSemanticSearch.isFetching &&
+            !semanticUiData ? (
+            <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 p-20 text-center">
+              <div className="rounded-full bg-zinc-100 p-4 mb-4">
+                <Search className="h-6 w-6 text-zinc-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-zinc-900">
+                Searching the marketplace…
+              </h3>
+              <p className="mt-2 max-w-sm text-sm text-zinc-600">
+                Matching your request against scenes and dataset packs.
+              </p>
+            </div>
+          ) : filteredItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 p-20 text-center">
               <div className="rounded-full bg-zinc-100 p-4 mb-4">
                 <Filter className="h-6 w-6 text-zinc-400" />

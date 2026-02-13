@@ -7,7 +7,7 @@ export default function Solutions() {
     <>
       <SEO
         title="Solutions - Blueprint"
-        description="Three simple ways to get training data for your robots"
+        description="Three ways to get certified simulation training data for robots: off-the-shelf packs, custom dataset runs, or continuous delivery."
         canonical="/solutions"
       />
       <div className="min-h-screen bg-white">
@@ -15,19 +15,21 @@ export default function Solutions() {
           {/* Hero */}
           <div className="mb-20 space-y-6">
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Three simple paths to training data for robots
+              Three ways to get certified training data for robots
             </h1>
 
-            <p className="text-lg text-slate-600 max-w-3xl">
-              Pick the approach that fits your timeline and budget. Each path gives you realistic 3D environments where robots can practice, plus detailed data analytics to understand if your training is working.
+            <p className="max-w-3xl text-lg text-slate-600">
+              Open-source generators can create trajectories. The hard part is shipping data you
+              can trust: certified physics, episode QC, quality scores, and provenance metadata.
+              Choose the path that matches your timeline.
             </p>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <a
-                href="#procedural"
+                href="#catalog"
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-800 transition"
               >
-                Browse marketplace
+                Browse the catalog
                 <ChevronRight className="h-4 w-4" />
               </a>
               <a
@@ -41,12 +43,15 @@ export default function Solutions() {
 
           {/* Three Paths */}
           <div className="mb-20 space-y-12">
-            {/* Path 1: Procedural */}
-            <div id="procedural" className="border-l-4 border-slate-900 pl-8 space-y-6">
+            {/* Path 1: Catalog */}
+            <div id="catalog" className="space-y-6 border-l-4 border-slate-900 pl-8">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900">1. Use pre-made scenes (fastest)</h2>
+                <h2 className="text-2xl font-bold text-slate-900">
+                  1. Buy off-the-shelf packs (fastest)
+                </h2>
                 <p className="mt-2 text-slate-600">
-                  Browse our marketplace of ready-to-use 3D environments. New scenes added daily. Perfect if you need data quickly.
+                  Start with scenes and dataset packs from the catalog. Each pack is shipped with
+                  certification outputs and metadata so you can train immediately.
                 </p>
               </div>
 
@@ -56,19 +61,19 @@ export default function Solutions() {
                   <ul className="mt-3 space-y-2 text-slate-600">
                     <li className="flex items-start gap-3">
                       <Check className="h-5 w-5 text-slate-400 shrink-0 mt-0.5" />
-                      <span>Ready-to-use 3D scene files</span>
+                      <span>SimReady scenes (USD) with validated colliders and articulation</span>
                     </li>
                     <li className="flex items-start gap-3">
                       <Check className="h-5 w-5 text-slate-400 shrink-0 mt-0.5" />
-                      <span>Thousands of training examples (episodes) from the scene</span>
+                      <span>Quality-scored episodes (where applicable) with episode-level metadata</span>
                     </li>
                     <li className="flex items-start gap-3">
                       <Check className="h-5 w-5 text-slate-400 shrink-0 mt-0.5" />
-                      <span>Quality reports showing if your robots actually learned</span>
+                      <span>Certification report: physics gates, known limits, and recommended filters</span>
                     </li>
                     <li className="flex items-start gap-3">
                       <Check className="h-5 w-5 text-slate-400 shrink-0 mt-0.5" />
-                      <span>Data analytics ($235k+ value) included for free</span>
+                      <span>Provenance metadata for reproducibility and auditing</span>
                     </li>
                   </ul>
                 </div>
@@ -78,7 +83,7 @@ export default function Solutions() {
                     <span className="font-semibold text-slate-900">Time to data:</span> Immediate (download and start training)
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
-                    <span className="font-semibold text-slate-900">Cost:</span> $1,000 - $5,000 per scene
+                    <span className="font-semibold text-slate-900">Cost:</span> Per-pack pricing is listed in the catalog
                   </p>
                 </div>
               </div>
@@ -87,57 +92,110 @@ export default function Solutions() {
                 href="/marketplace"
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-200 transition"
               >
-                Browse scenes
+                Browse the catalog
               </a>
             </div>
 
-            {/* Path 2: Custom Site Scan */}
-            <div className="border-l-4 border-slate-900 pl-8 space-y-6">
+            {/* Path 2: Custom */}
+            <div id="custom" className="space-y-6 border-l-4 border-slate-900 pl-8">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900">2. Full site scan (most accurate)</h2>
+                <h2 className="text-2xl font-bold text-slate-900">
+                  2. Request a custom dataset run (most common)
+                </h2>
                 <p className="mt-2 text-slate-600">
-                  We send a team to physically scan your facility with laser precision. Best for when you need an exact digital copy for testing before real deployment.
+                  Tell us the robot, task, environment archetype, and success criteria. We generate scenes
+                  and trajectories, then certify physics and score episode quality before delivery.
                 </p>
               </div>
 
               <div className="space-y-3">
                 <div>
-                  <h3 className="font-semibold text-slate-900">What happens:</h3>
+                  <h3 className="font-semibold text-slate-900">How it works:</h3>
                   <ol className="mt-3 space-y-2 text-slate-600">
                     <li className="flex items-start gap-3">
                       <span className="font-semibold text-slate-400 shrink-0">1.</span>
-                      <span>We schedule an on-site visit</span>
+                      <span>Define your dataset spec (robot, tasks, sensors, target formats)</span>
                     </li>
                     <li className="flex items-start gap-3">
                       <span className="font-semibold text-slate-400 shrink-0">2.</span>
-                      <span>Our team scans your space with LiDAR + high-res cameras</span>
+                      <span>Generate or tailor scenes (catalog + custom + reference-based)</span>
                     </li>
                     <li className="flex items-start gap-3">
                       <span className="font-semibold text-slate-400 shrink-0">3.</span>
-                      <span>We rebuild your exact facility in simulation</span>
+                      <span>Run physics certification and episode QC + quality scoring</span>
                     </li>
                     <li className="flex items-start gap-3">
                       <span className="font-semibold text-slate-400 shrink-0">4.</span>
-                      <span>Test your robots in the simulation before going real</span>
+                      <span>Deliver the dataset with metadata, filters, and documentation</span>
                     </li>
                   </ol>
                 </div>
 
                 <div className="rounded-lg bg-slate-50 p-4 border border-slate-200">
                   <p className="text-sm text-slate-600">
-                    <span className="font-semibold text-slate-900">Time to data:</span> 2-4 weeks (includes site visit + scene authoring)
+                    <span className="font-semibold text-slate-900">Time to data:</span> Days to weeks (depends on scope)
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
-                    <span className="font-semibold text-slate-900">Cost:</span> $10,000 - $50,000 depending on facility size
+                    <span className="font-semibold text-slate-900">Cost:</span> Custom (based on scenes, episodes, and certification gates)
                   </p>
                 </div>
               </div>
 
               <a
-                href="/contact?service=site-scan"
+                href="/contact?interest=exclusive-dataset"
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-200 transition"
               >
-                Schedule a scan
+                Request a dataset
+              </a>
+            </div>
+
+            {/* Path 3: Continuous */}
+            <div id="continuous" className="space-y-6 border-l-4 border-slate-900 pl-8">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">
+                  3. Subscribe to continuous delivery (scale)
+                </h2>
+                <p className="mt-2 text-slate-600">
+                  If you're training continuously, you need new certified data continuously. We run ongoing
+                  generation and QA so you can keep feeding your training pipeline without rebuilding
+                  infrastructure.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <h3 className="font-semibold text-slate-900">What you get:</h3>
+                  <ul className="mt-3 space-y-2 text-slate-600">
+                    <li className="flex items-start gap-3">
+                      <Check className="h-5 w-5 text-slate-400 shrink-0 mt-0.5" />
+                      <span>Recurring drops of new episodes and scene variations</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <Check className="h-5 w-5 text-slate-400 shrink-0 mt-0.5" />
+                      <span>Consistent schema, quality scoring, and versioned provenance</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <Check className="h-5 w-5 text-slate-400 shrink-0 mt-0.5" />
+                      <span>A dedicated feedback loop to target your model's current failure modes</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="rounded-lg bg-slate-50 p-4 border border-slate-200">
+                  <p className="text-sm text-slate-600">
+                    <span className="font-semibold text-slate-900">Time to value:</span> Weekly (or faster) ongoing updates
+                  </p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    <span className="font-semibold text-slate-900">Cost:</span> Annual license (based on throughput and scope)
+                  </p>
+                </div>
+              </div>
+
+              <a
+                href="/contact?tier=foundation"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-200 transition"
+              >
+                Talk about licensing
               </a>
             </div>
           </div>
@@ -146,38 +204,38 @@ export default function Solutions() {
           <div className="mb-20 border-t border-slate-200 pt-16 space-y-8">
             <div>
               <h2 className="text-2xl font-bold text-slate-900 mb-4">
-                Everything includes premium data analytics
+                Every delivery includes certification outputs
               </h2>
               <p className="text-slate-600 mb-6">
-                No matter which path you choose, you get $235k+ worth of analytics for free. This is data science that helps you understand if your training actually worked.
+                Whether you buy a pack or request a custom run, you get the artifacts that turn raw simulation into a trustworthy dataset: physics gates, episode QC, quality distributions, and provenance.
               </p>
             </div>
 
             <div className="space-y-4">
               {[
                 {
-                  title: "Quality Reports",
-                  desc: "Is your training data actually good? We tell you exactly what worked and what didn't."
+                  title: "Physics certification report",
+                  desc: "Documented gates and checks for colliders, articulation, stability, and known limits."
                 },
                 {
-                  title: "Success Rates by Task",
-                  desc: "See how well your robot succeeded at each task in simulation (picking, placing, opening, etc.)"
+                  title: "Episode quality scores",
+                  desc: "A quality distribution so you can filter or tier episodes by trust level."
                 },
                 {
-                  title: "Sim-to-Real Confidence",
-                  desc: "Get a confidence score for whether this simulation data will work on your real robot"
+                  title: "Normalization & schema consistency",
+                  desc: "Episode normalization so data stays consistent across scenes, runs, and versions."
                 },
                 {
-                  title: "Multi-Robot Compatibility",
-                  desc: "If you have multiple robots, we show you how much your Franka data helps your UR10 (data multiplier)"
+                  title: "Provenance metadata",
+                  desc: "Track assets, parameters, and versions for reproducibility and auditability."
                 },
                 {
-                  title: "Failure Analysis",
-                  desc: "Understand WHY your robot failed (collision vs timeout vs other reasons)"
+                  title: "Task and environment specs",
+                  desc: "Clear documentation of what the pack is for: tasks, sensors, and evaluation criteria."
                 },
                 {
-                  title: "Language Instructions",
-                  desc: "Automatic natural language descriptions of each training example (good for advanced AI models)"
+                  title: "Support for iteration",
+                  desc: "A feedback loop to request targeted new data as your model exposes new failure modes."
                 },
               ].map((item) => (
                 <div key={item.title} className="rounded-lg border border-slate-200 p-4 hover:border-slate-300 transition">
@@ -199,16 +257,16 @@ export default function Solutions() {
             <div className="space-y-4">
               {[
                 {
-                  when: "You need data fast and don't need it customized",
-                  path: "Use pre-made scenes"
+                  when: "You need something off-the-shelf and want to start training today",
+                  path: "Buy catalog packs"
                 },
                 {
-                  when: "You need laser-accurate 3D scan and real deployment testing",
-                  path: "Full site scan"
+                  when: "You need your exact robot, task, and constraints with QA gates",
+                  path: "Request a custom dataset run"
                 },
                 {
-                  when: "You're not sure which fits your situation",
-                  path: "Talk to our team"
+                  when: "You need a steady stream of new data as training scales",
+                  path: "Subscribe to continuous delivery"
                 },
               ].map((item, idx) => (
                 <div key={idx} className="rounded-lg border border-slate-200 p-4 hover:border-slate-300 transition">
@@ -226,7 +284,7 @@ export default function Solutions() {
                 Ready to get started?
               </h2>
               <p className="text-slate-600">
-                Tell us about your use case and we'll recommend the right solution.
+                Tell us your robot, task, environment archetype, and target formats. We'll recommend the fastest path to certified data.
               </p>
             </div>
 
