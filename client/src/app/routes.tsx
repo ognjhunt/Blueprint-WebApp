@@ -4,7 +4,8 @@ import type { ComponentType } from "react";
 export type AppRoute = {
   path?: string;
   layout: "public" | "protected";
-  component: ComponentType;
+  // Some route components require `params` props from wouter dynamic segments.
+  component: ComponentType<any>;
 };
 
 const Home = lazy(() => import("../pages/Home"));
