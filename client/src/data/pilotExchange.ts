@@ -405,14 +405,14 @@ export const trainingWorkflowSteps: TrainingWorkflowStep[] = [
   {
     id: "train-step-01",
     step: 1,
-    title: "Deliver SimReady Site Package",
+    title: "We Deliver the SimReady Site Package",
     description:
-      "Provide USD scene, semantics, physics layers, sensor profiles, and task API endpoints for the target site.",
+      "Our service team builds and delivers the complete package for the target site. We provide the USD scene, semantics, physics layers, sensor profiles, and task API endpoints; no external team needs to produce these artifacts.",
     checklist: [
-      "USD stage (facility) + SimReady assets like doors, drawers, carts, and shelves.",
-      "Physics materials, collisions, and semantic labels such as walkable, graspable, restricted, and dynamic.",
-      "Sensor configs including camera/LiDAR placements and intrinsics/extrinsics where required.",
-      "Task API targets like pick item X, open door D, and walk to waypoint W.",
+      "We deliver the USD facility stage plus SimReady assets like doors, drawers, carts, and shelves.",
+      "We author physics materials, collisions, and semantic labels such as walkable, graspable, restricted, and dynamic.",
+      "We configure sensor profiles, including camera/LiDAR placements and intrinsics/extrinsics where required.",
+      "We define task API targets like pick item X, open door D, and walk to waypoint W.",
     ],
   },
   {
