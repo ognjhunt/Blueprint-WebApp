@@ -72,4 +72,21 @@ describe("PilotExchangeGuide", () => {
     expect(screen.getByText(/Shared Twin \(Default\)/i)).toBeInTheDocument();
     expect(screen.getByText(/Private Twin Buyout/i)).toBeInTheDocument();
   });
+
+  it("explains practical training workflow with concrete step details", () => {
+    render(<PilotExchangeGuide />);
+
+    expect(screen.getByText(/How Training Runs in Practice/i)).toBeInTheDocument();
+    expect(screen.getByText(/Deliver SimReady Site Package/i)).toBeInTheDocument();
+    expect(screen.getByText(/Submit Robot Policy Package/i)).toBeInTheDocument();
+    expect(screen.getByText(/Run Training Loops/i)).toBeInTheDocument();
+    expect(screen.getByText(/Apply Robustification/i)).toBeInTheDocument();
+    expect(screen.getByText(/Score with Standardized Eval/i)).toBeInTheDocument();
+
+    expect(screen.getByText(/USD stage \(facility\) \+ SimReady assets/i)).toBeInTheDocument();
+    expect(screen.getByText(/container package that includes policy \+ training code/i)).toBeInTheDocument();
+    expect(screen.getByText(/Imitation learning from teleop\/planning demonstrations/i)).toBeInTheDocument();
+    expect(screen.getByText(/Fault injection: network latency, sensor dropouts/i)).toBeInTheDocument();
+    expect(screen.getByText(/Success rate by task and recovery rate after failures/i)).toBeInTheDocument();
+  });
 });

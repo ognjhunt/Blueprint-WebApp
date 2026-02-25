@@ -18,6 +18,10 @@ import type {
   ReadinessGate,
   RobotEmbodiment,
   ScoreSummary,
+  TrainingEvidencePoint,
+  TrainingPricingLane,
+  TrainingRequirement,
+  TrainingWorkflowStep,
   WorkflowValidationCheck,
 } from "@/types/pilot-exchange";
 
@@ -347,6 +351,143 @@ export const monetizationMix: MonetizationMixPoint[] = [
   { id: "mix-02", stream: "Robotics Subscription", percent: 28 },
   { id: "mix-03", stream: "Training Usage", percent: 22 },
   { id: "mix-04", stream: "Private Buyout", percent: 6 },
+];
+
+export const trainingEvidencePoints: TrainingEvidencePoint[] = [
+  {
+    id: "evidence-01",
+    source: "Partner deployment report",
+    result: "42% fewer missed grasp sequences",
+    note: "Same report also cites 50% fewer human interventions when partner/site data is included.",
+  },
+  {
+    id: "evidence-02",
+    source: "TwinRL-VLA-style twin trajectory training",
+    result: "OOD success can move from 0% to around 70%",
+    note: "Largest gains appear when the baseline model is weak on site-specific out-of-distribution tasks.",
+  },
+  {
+    id: "evidence-03",
+    source: "High-fidelity twin alignment studies",
+    result: "+10 to +22 points grasp success in reported object tests",
+    note: "Twin semantics/affordances quality impacts physical task outcomes directly.",
+  },
+  {
+    id: "evidence-04",
+    source: "Variant-based training studies",
+    result: "Site variants often outperform one pristine twin",
+    note: "A single exact twin can overfit; variant generation is usually required.",
+  },
+];
+
+export const trainingRequirements: TrainingRequirement[] = [
+  {
+    id: "req-01",
+    title: "Task + Metrics Harness",
+    description:
+      "Fixed tasks, pass/fail rules, and shared scorecards are required so teams cannot cherry-pick easy runs.",
+  },
+  {
+    id: "req-02",
+    title: "Twin Fidelity Where It Matters",
+    description:
+      "Semantics, affordances, contacts, and actuation-critical properties must be modeled, not just geometry.",
+  },
+  {
+    id: "req-03",
+    title: "Variation + Uncertainty Modeling",
+    description:
+      "Domain randomization and site variants are needed so policies do not overfit to one static twin snapshot.",
+  },
+];
+
+export const trainingWorkflowSteps: TrainingWorkflowStep[] = [
+  {
+    id: "train-step-01",
+    step: 1,
+    title: "Deliver SimReady Site Package",
+    description:
+      "Provide USD scene, semantics, physics layers, sensor profiles, and task API endpoints for the target site.",
+    checklist: [
+      "USD stage (facility) + SimReady assets like doors, drawers, carts, and shelves.",
+      "Physics materials, collisions, and semantic labels such as walkable, graspable, restricted, and dynamic.",
+      "Sensor configs including camera/LiDAR placements and intrinsics/extrinsics where required.",
+      "Task API targets like pick item X, open door D, and walk to waypoint W.",
+    ],
+  },
+  {
+    id: "train-step-02",
+    step: 2,
+    title: "Submit Robot Policy Package",
+    description:
+      "Team submits a policy container or endpoint implementing the exchange observation-to-action interface.",
+    checklist: [
+      "Container package that includes policy + training code.",
+      "Or a policy endpoint that implements the platform observation-to-action interface.",
+      "Humanoid stack handshake checks before training starts.",
+    ],
+  },
+  {
+    id: "train-step-03",
+    step: 3,
+    title: "Run Training Loops",
+    description:
+      "Run imitation learning, RL fine-tuning, or hybrid warm-start + RL loops against the calibrated twin.",
+    checklist: [
+      "Imitation learning from teleop/planning demonstrations in simulation.",
+      "RL fine-tuning loops with high-volume simulated rollouts.",
+      "Hybrid mode: demo warm start followed by RL robustness tuning.",
+    ],
+  },
+  {
+    id: "train-step-04",
+    step: 4,
+    title: "Apply Robustification",
+    description:
+      "Inject lighting/clutter changes, latency/dropout faults, and site variants to harden transfer reliability.",
+    checklist: [
+      "Domain randomization: lighting, clutter, textures, object poses, and occlusions.",
+      "Site-drift variants and parametric layout cousins.",
+      "Fault injection: network latency, sensor dropouts, blocked paths, and missing items.",
+    ],
+  },
+  {
+    id: "train-step-05",
+    step: 5,
+    title: "Score with Standardized Eval",
+    description:
+      "Produce comparable task success, intervention, throughput, and safety compliance scorecards.",
+    checklist: [
+      "Success rate by task and recovery rate after failures.",
+      "Time-to-complete and throughput bands.",
+      "Safety compliance against no-go zones, speed limits, and contact thresholds.",
+      "Robustness slices for dim lighting, clutter, and occlusion.",
+    ],
+  },
+];
+
+export const trainingPricingLanes: TrainingPricingLane[] = [
+  {
+    id: "price-01",
+    title: "Training Job Orchestration",
+    pricing: "$1K-$10K+ per managed job",
+    detail:
+      "Covers harness orchestration, logging, scenario setup, evaluation run, and scorecard generation.",
+  },
+  {
+    id: "price-02",
+    title: "Metered Compute Lanes",
+    pricing: "Pass-through compute + margin",
+    detail:
+      "Offer L40S and H100 lanes; publish per-hour pricing and bill by consumed GPU-hours.",
+  },
+  {
+    id: "price-03",
+    title: "Optional Site Training Unlock",
+    pricing: "Per-site premium",
+    detail:
+      "Applies when a site wants stricter access controls, exclusivity windows, or private-training terms.",
+  },
 ];
 
 export const locationBriefs: LocationBrief[] = [

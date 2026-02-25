@@ -97,6 +97,8 @@ describe("PilotExchange", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Robotics Teams Only/i)).toBeInTheDocument();
     expect(screen.getByText(/Eval submission is barred until purchase/i)).toBeInTheDocument();
+    expect(screen.getByText(/What the Paid Access Actually Includes/i)).toBeInTheDocument();
+    expect(screen.getByText(/Training Subscription Features/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Pilot Exchange Guide/i })).toHaveAttribute(
       "href",
       "/pilot-exchange-guide",

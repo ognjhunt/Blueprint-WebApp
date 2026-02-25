@@ -172,3 +172,34 @@ export interface MonetizationMixPoint {
     | "Private Buyout";
   percent: number;
 }
+
+export interface TrainingEvidencePoint {
+  id: string;
+  source: string;
+  result: string;
+  note: string;
+}
+
+export interface TrainingRequirement {
+  id: string;
+  title:
+    | "Task + Metrics Harness"
+    | "Twin Fidelity Where It Matters"
+    | "Variation + Uncertainty Modeling";
+  description: string;
+}
+
+export interface TrainingWorkflowStep {
+  id: string;
+  step: number;
+  title: string;
+  description: string;
+  checklist: string[];
+}
+
+export interface TrainingPricingLane {
+  id: string;
+  title: string;
+  pricing: string;
+  detail: string;
+}

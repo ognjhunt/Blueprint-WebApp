@@ -12,6 +12,10 @@ import {
   pilotExchangeFaq,
   readinessFunnel,
   readinessGates,
+  trainingEvidencePoints,
+  trainingPricingLanes,
+  trainingRequirements,
+  trainingWorkflowSteps,
   workflowValidationChecks,
 } from "@/data/pilotExchange";
 import type { ReadinessGate } from "@/types/pilot-exchange";
@@ -316,6 +320,124 @@ export default function PilotExchangeGuide() {
                 ))}
               </div>
             </article>
+          </section>
+
+          <section className="mb-10 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+            <h2 className="text-2xl font-bold text-zinc-900">
+              Does Training on SimReady Twins Improve Outcomes?
+            </h2>
+            <p className="mt-2 text-sm text-zinc-600">
+              Directionally yes. Teams typically see better success rates, fewer interventions, and
+              faster convergence when twin training includes calibration, standardized tasks, and
+              robust variation.
+            </p>
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              {trainingEvidencePoints.map((point) => (
+                <article key={point.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    {point.source}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-zinc-900">{point.result}</p>
+                  <p className="mt-1 text-xs text-zinc-600">{point.note}</p>
+                </article>
+              ))}
+            </div>
+            <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+              Illustrative summary of reported public results. Your site outcomes will vary.
+            </div>
+          </section>
+
+          <section className="mb-10 grid gap-5 lg:grid-cols-2">
+            <article className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-semibold text-zinc-900">
+                Required Ingredients for Real Lift
+              </h2>
+              <p className="mt-2 text-sm text-zinc-600">
+                SimReady USD alone is not enough. These three capabilities are required.
+              </p>
+              <div className="mt-4 space-y-3">
+                {trainingRequirements.map((requirement) => (
+                  <div key={requirement.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                    <p className="text-sm font-semibold text-zinc-900">{requirement.title}</p>
+                    <p className="mt-1 text-xs text-zinc-600">{requirement.description}</p>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-semibold text-zinc-900">
+                Training + Eval Features We Provide
+              </h2>
+              <p className="mt-2 text-sm text-zinc-600">
+                These features are included to make training decision-grade, not just demo-grade.
+              </p>
+              <ul className="mt-4 space-y-2 text-sm text-zinc-700">
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                  SimReady site package with semantics, physics layers, and task interfaces.
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                  Standardized task harness with pass/fail gates and scorecard outputs.
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                  Fault injection for blocked paths, missing items, and network/sensor instability.
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                  Domain randomization and site-variant generation to reduce overfitting.
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                  Managed training lanes (L40S/H100 tiers) with metered GPU billing.
+                </li>
+              </ul>
+            </article>
+          </section>
+
+          <section className="mb-10 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+            <h2 className="text-2xl font-bold text-zinc-900">How Training Runs in Practice</h2>
+            <p className="mt-2 text-sm text-zinc-600">
+              End-to-end flow from SimReady twin delivery to standardized scorecard. This is the
+              default pattern for scalable humanoid policy training on site twins.
+            </p>
+            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {trainingWorkflowSteps.map((step) => (
+                <article key={step.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    Step {step.step}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-zinc-900">{step.title}</p>
+                  <p className="mt-1 text-xs text-zinc-600">{step.description}</p>
+                  <ul className="mt-3 space-y-1 text-xs text-zinc-700">
+                    {step.checklist.map((item) => (
+                      <li key={item} className="flex items-start gap-2">
+                        <Circle className="mt-1 h-2.5 w-2.5 shrink-0 fill-zinc-400 text-zinc-400" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="mb-10 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+            <h2 className="text-2xl font-bold text-zinc-900">Training Monetization Model</h2>
+            <p className="mt-2 text-sm text-zinc-600">
+              Pricing is designed around actual workload usage rather than flat one-size plans.
+            </p>
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
+              {trainingPricingLanes.map((lane) => (
+                <article key={lane.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                  <p className="text-sm font-semibold text-zinc-900">{lane.title}</p>
+                  <p className="mt-1 text-sm font-medium text-emerald-700">{lane.pricing}</p>
+                  <p className="mt-1 text-xs text-zinc-600">{lane.detail}</p>
+                </article>
+              ))}
+            </div>
           </section>
 
           <section className="mb-10 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">

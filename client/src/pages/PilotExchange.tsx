@@ -904,6 +904,44 @@ export default function PilotExchange() {
             </div>
           </section>
 
+          <section className="mb-12 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+            <h2 className="text-2xl font-bold text-zinc-900">What the Paid Access Actually Includes</h2>
+            <p className="mt-2 text-sm text-zinc-600">
+              We include the full qualification stack needed for decision-grade results, not just
+              a static twin viewer.
+            </p>
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
+              <article className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                <p className="text-sm font-semibold text-zinc-900">Pro Site Evaluation Features</p>
+                <ul className="mt-2 space-y-1 text-xs text-zinc-600">
+                  <li>Standardized task harness and gate criteria.</li>
+                  <li>Interface and fallback context capture.</li>
+                  <li>Anonymous leaderboard and threshold scorecard.</li>
+                </ul>
+              </article>
+              <article className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                <p className="text-sm font-semibold text-zinc-900">Training Subscription Features</p>
+                <ul className="mt-2 space-y-1 text-xs text-zinc-600">
+                  <li>Training runs on calibrated SimReady site twins.</li>
+                  <li>Domain randomization and site-variant replay lanes.</li>
+                  <li>Managed compute lanes for iterative policy training.</li>
+                </ul>
+              </article>
+              <article className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                <p className="text-sm font-semibold text-zinc-900">Output Artifacts</p>
+                <ul className="mt-2 space-y-1 text-xs text-zinc-600">
+                  <li>Task success and intervention-rate breakdowns.</li>
+                  <li>Integration and Safety/SAT readiness signals.</li>
+                  <li>Comparable reports for pilot go/no-go decisions.</li>
+                </ul>
+              </article>
+            </div>
+            <div className="mt-4 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+              <Lock className="h-3.5 w-3.5" />
+              Eval submission remains purchase-gated.
+            </div>
+          </section>
+
           <section className="mb-16 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
             <div className="flex flex-col gap-4 border-b border-zinc-200 pb-6 sm:flex-row sm:items-center sm:justify-between">
               <div>
