@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { getGoogleApiKey } from "@/lib/client-env";
+import { logger } from "@/utils/logger";
+import {
+  getGoogleApiKey,
+  getGoogleClientId,
+  getGoogleAppId,
+} from "@/lib/client-env";
 
 declare global {
   interface Window {
@@ -28,17 +33,16 @@ const CloudUpload: React.FC<CloudUploadProps> = ({
     gapiScript.src = "https://apis.google.com/js/api.js";
     gapiScript.onload = () => setGapiLoaded(true);
     gapiScript.onerror = () =>
-      console.error("[CloudUpload] Failed to load gapi (api.js)");
+      logger.error("[CloudUpload] Failed to load gapi (api.js)");
     document.body.appendChild(gapiScript);
 
-    // ADD this script for modern Google Auth
     const gisScript = document.createElement("script");
     gisScript.src = "https://accounts.google.com/gsi/client";
     gisScript.async = true;
     gisScript.defer = true;
     gisScript.onload = () => setGisLoaded(true);
     gisScript.onerror = () =>
-      console.error(
+      logger.error(
         "[CloudUpload] Failed to load Google Identity Services (gsi/client)",
       );
     document.body.appendChild(gisScript);
@@ -46,11 +50,10 @@ const CloudUpload: React.FC<CloudUploadProps> = ({
     const oneDriveScript = document.createElement("script");
     oneDriveScript.src = "https://js.live.net/v7.2/OneDrive.js";
     oneDriveScript.onerror = () =>
-      console.error("[CloudUpload] Failed to load OneDrive.js");
+      logger.error("[CloudUpload] Failed to load OneDrive.js");
     document.body.appendChild(oneDriveScript);
   }, []);
 
-  // ADD: helper to give downloaded files sensible extensions when exporting Google Docs/Sheets/Slides
   const extFor = (mime: string) =>
     ({
       "application/pdf": ".pdf",
@@ -60,49 +63,10 @@ const CloudUpload: React.FC<CloudUploadProps> = ({
         ".pptx",
     })[mime] ?? "";
 
-  // REPLACE: handleGoogleDrive
   const handleGoogleDrive = () => {
     const apiKey = getGoogleApiKey();
-    const clientId =
-      "744608654760-2jkr2t3632m1qri95dcsasu5fnbotosd.apps.googleusercontent.com"; // (import.meta as any).env.VITE_GOOGLE_CLIENT_ID as string;
-    // NEW: numeric Cloud Project number (not the string project ID)
-    const appId = "744608654760"; //(import.meta as any).env.VITE_GOOGLE_APP_ID as string;
-
-    // Diagnostic: print which prerequisite is failing (without leaking secrets)
-    const mask = (v?: string) =>
-      v ? `${v.slice(0, 4)}...${v.slice(-4)}` : "(empty)";
-
-    console.groupCollapsed("[CloudUpload] Google Drive preflight");
-    console.table([
-      {
-        key: "gapiLoaded",
-        ok: gapiLoaded,
-        detail: `window.gapi=${!!window.gapi}`,
-      },
-      {
-        key: "gisLoaded",
-        ok: gisLoaded,
-        detail: `window.google=${!!window.google}`,
-      },
-      { key: "apiKey", ok: !!apiKey, sample: mask(apiKey) },
-      { key: "clientId", ok: !!clientId, sample: mask(clientId) },
-      {
-        key: "appId (numeric project number)",
-        ok: !!appId,
-        sample: mask(appId),
-      },
-    ]);
-    if (!gapiLoaded)
-      console.error("[CloudUpload] Missing: gapiLoaded (api.js not ready)");
-    if (!gisLoaded)
-      console.error("[CloudUpload] Missing: gisLoaded (GIS not ready)");
-    if (!apiKey) console.error("[CloudUpload] Missing: apiKey");
-    if (!clientId) console.error("[CloudUpload] Missing: clientId");
-    if (!appId)
-      console.error(
-        "[CloudUpload] Missing: appId (numeric Cloud Project number)",
-      );
-    console.groupEnd();
+    const clientId = getGoogleClientId();
+    const appId = getGoogleAppId();
 
     if (!gapiLoaded || !gisLoaded || !apiKey || !clientId || !appId) {
       toast({
@@ -126,20 +90,17 @@ const CloudUpload: React.FC<CloudUploadProps> = ({
         const tokenClient = window.google.accounts.oauth2.initTokenClient({
           client_id: clientId,
           scope: "https://www.googleapis.com/auth/drive.readonly",
-          // First time shows consent; subsequent times can go silent with empty prompt
           prompt: "",
           callback: async (tokenResponse: any) => {
             const accessToken = tokenResponse.access_token;
 
-            // Views: Drive files (with folders + Shared drives). Add upload view if you want Drive upload too.
             const docsView = new window.google.picker.DocsView(
               window.google.picker.ViewId.DOCS,
             )
               .setIncludeFolders(true)
               .setSelectFolderEnabled(false)
-              .setEnableDrives(true); // shows Shared drives
+              .setEnableDrives(true);
 
-            // Optional: let users upload directly into Drive from the picker modal
             const uploadView =
               new window.google.picker.DocsUploadView().setIncludeFolders(true);
 
@@ -148,15 +109,14 @@ const CloudUpload: React.FC<CloudUploadProps> = ({
               .addView(uploadView) // remove if you don’t want upload-in-picker
               .setOAuthToken(accessToken)
               .setDeveloperKey(apiKey)
-              .setAppId(appId) // Cloud project number
-              .setOrigin(`${window.location.protocol}//${window.location.host}`) // avoids “invalid origin” inside iframes
+              .setAppId(appId)
+              .setOrigin(`${window.location.protocol}//${window.location.host}`)
               .enableFeature(window.google.picker.Feature.SUPPORT_DRIVES)
               .enableFeature(window.google.picker.Feature.NAV_HIDDEN)
               .setCallback(async (data: any) => {
                 if (data.action === window.google.picker.Action.PICKED) {
                   const picked = data.docs[0];
 
-                  // Get file metadata to know if it’s a native Google type
                   const metaResp = await fetch(
                     `https://www.googleapis.com/drive/v3/files/${picked.id}?fields=id,name,mimeType,webViewLink`,
                     { headers: { Authorization: `Bearer ${accessToken}` } },
@@ -197,7 +157,6 @@ const CloudUpload: React.FC<CloudUploadProps> = ({
                       );
                     }
                   } else {
-                    // Binary file: download bytes
                     const res = await fetch(
                       `https://www.googleapis.com/drive/v3/files/${picked.id}?alt=media`,
                       { headers: { Authorization: `Bearer ${accessToken}` } },
@@ -219,7 +178,7 @@ const CloudUpload: React.FC<CloudUploadProps> = ({
 
         tokenClient.requestAccessToken();
       } catch (err) {
-        console.error("Google Drive picker error", err);
+        logger.error("Google Drive picker error", { err });
         toast({
           title: "Google Drive error",
           description: "Unable to open Google Drive picker.",
@@ -229,7 +188,6 @@ const CloudUpload: React.FC<CloudUploadProps> = ({
     });
   };
 
-  // REPLACE: handleOneDrive
   const handleOneDrive = () => {
     if (!window.OneDrive) {
       window.open("https://onedrive.live.com", "_blank");
@@ -263,7 +221,7 @@ const CloudUpload: React.FC<CloudUploadProps> = ({
       },
       cancel: () => {},
       error: (e: any) => {
-        console.error("OneDrive picker error", e);
+        logger.error("OneDrive picker error", { error: e });
       },
     });
   };

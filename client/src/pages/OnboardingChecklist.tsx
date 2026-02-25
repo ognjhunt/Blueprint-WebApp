@@ -12,8 +12,6 @@
 import React, { useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useLocation } from "wouter";
-import Nav from "@/components/Nav";
-import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import {
   CheckCircle2,
@@ -244,10 +242,8 @@ export default function OnboardingChecklist() {
   const personalizedMessage = getPersonalizedMessage();
 
   return (
-    <>
-      <Nav />
-      <main className="min-h-screen bg-white py-12 px-4">
-        <div className="max-w-lg mx-auto">
+    <main className="min-h-screen bg-white py-12 px-4">
+      <div className="max-w-lg mx-auto">
           {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -318,9 +314,7 @@ export default function OnboardingChecklist() {
               Skip to Marketplace
             </button>
           </motion.div>
-        </div>
-      </main>
-      <Footer />
-    </>
+      </div>
+    </main>
   );
 }

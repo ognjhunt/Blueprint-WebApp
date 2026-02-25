@@ -12,6 +12,9 @@ const analyticsEventsMock = {
   pilotExchangeOpenPolicyForm: vi.fn(),
   pilotExchangeSubmitPolicy: vi.fn(),
   pilotExchangeSubmitDataLicenseRequest: vi.fn(),
+  pilotExchangeSelectReadinessGate: vi.fn(),
+  pilotExchangeOpenFaq: vi.fn(),
+  pilotExchangeChartView: vi.fn(),
 };
 
 vi.mock("@/components/Analytics", () => ({
@@ -45,30 +48,38 @@ describe("PilotExchange", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders the hero and eval-first framing", () => {
+  it("renders the hero and readiness framing", () => {
     render(<PilotExchange />);
 
     expect(
       screen.getByRole("heading", { name: /Pilot Exchange/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Eval-First Marketplace/i),
+      screen.getByText(/Pre-Deployment Qualification Exchange/i),
     ).toBeInTheDocument();
+    expect(screen.getByText(/What this is/i)).toBeInTheDocument();
+    expect(screen.getByText(/What this is not/i)).toBeInTheDocument();
+    expect(screen.getByText(/Site Intake/i)).toBeInTheDocument();
+    expect(screen.getByText(/Controlled Pilot Ramp/i)).toBeInTheDocument();
+    expect(screen.getByText(/Readiness Funnel/i)).toBeInTheDocument();
+    expect(screen.getByText(/Confidence Bands/i)).toBeInTheDocument();
+    expect(screen.getByText(/Failure Attribution/i)).toBeInTheDocument();
     expect(analyticsEventsMock.pilotExchangeView).toHaveBeenCalledTimes(1);
+    expect(analyticsEventsMock.pilotExchangeChartView).toHaveBeenCalledTimes(3);
   });
 
   it("switches between Location Briefs and Policy Submissions tabs", () => {
     render(<PilotExchange />);
 
     expect(
-      screen.getByText(/Midwest Fulfillment Operator A/i),
+      screen.getByText(/Southeast Grocery Network B/i),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: /Policy Submissions/i }));
 
-    expect(screen.getByText(/Lab Collective 17/i)).toBeInTheDocument();
+    expect(screen.getByText(/Humanoid Systems Alpha/i)).toBeInTheDocument();
     expect(
-      screen.queryByText(/Midwest Fulfillment Operator A/i),
+      screen.queryByText(/Southeast Grocery Network B/i),
     ).not.toBeInTheDocument();
   });
 
@@ -83,17 +94,18 @@ describe("PilotExchange", () => {
       screen.getByText(/Regional Healthcare Operator F/i),
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(/Midwest Fulfillment Operator A/i),
+      screen.queryByText(/Southeast Grocery Network B/i),
     ).not.toBeInTheDocument();
     expect(analyticsEventsMock.pilotExchangeFilterApply).toHaveBeenCalled();
   });
 
-  it("shows public score summaries and gated detail badge", () => {
+  it("shows public score summaries and illustrative disclaimer", () => {
     render(<PilotExchange />);
 
-    expect(screen.getByText(/#1 Factory Motion Labs/i)).toBeInTheDocument();
+    expect(screen.getByText(/#1 Humanoid Systems Alpha/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Illustrative demo data/i).length).toBeGreaterThan(0);
     expect(
-      screen.getByText(/Detailed logs\/videos\/configs are gated/i),
+      screen.getByText(/Detailed logs\/videos\/configs remain gated/i),
     ).toBeInTheDocument();
   });
 
@@ -104,6 +116,7 @@ describe("PilotExchange", () => {
       screen.getAllByText(/Leaderboard \(anonymous\)/i).length,
     ).toBeGreaterThan(0);
     expect(screen.getByText(/Anon Team 014/i)).toBeInTheDocument();
+    expect(screen.getByText(/Interventions: 6\.2 \/ 100 tasks/i)).toBeInTheDocument();
   });
 
   it("shows the selected twin leaderboard inside the Run Eval modal", () => {
@@ -119,6 +132,7 @@ describe("PilotExchange", () => {
 
     expect(screen.getByText(/Anon Team 014/i)).toBeInTheDocument();
     expect(screen.getByText(/Win threshold/i)).toBeInTheDocument();
+    expect(screen.getByText(/Safety\/SAT:/i)).toBeInTheDocument();
   });
 
   it("validates required fields for location brief form", async () => {
@@ -131,7 +145,36 @@ describe("PilotExchange", () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it("submits policy intake with the expected helpWith value", async () => {
+  it("requires new qualification fields in location brief form", async () => {
+    render(<PilotExchange />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Post Deployment Brief/i })[0]);
+
+    fireEvent.change(screen.getByLabelText(/First Name/i), { target: { value: "Alex" } });
+    fireEvent.change(screen.getByLabelText(/Last Name/i), { target: { value: "Rivera" } });
+    fireEvent.change(screen.getByLabelText(/^Company$/i), { target: { value: "Example Ops" } });
+    fireEvent.change(screen.getByLabelText(/Role Title/i), { target: { value: "Ops Lead" } });
+    fireEvent.change(screen.getByLabelText(/Work Email/i), { target: { value: "alex@example.com" } });
+    fireEvent.change(screen.getByLabelText(/Budget Range/i), { target: { value: "$50K-$300K" } });
+
+    fireEvent.change(screen.getByLabelText(/Location Type/i), { target: { value: "Grocery" } });
+    fireEvent.change(screen.getByLabelText(/Robot Embodiment/i), { target: { value: "Humanoid" } });
+    fireEvent.change(screen.getByLabelText(/Target Timeline/i), { target: { value: "90 days" } });
+    fireEvent.change(screen.getByLabelText(/Privacy Mode/i), { target: { value: "Anonymized" } });
+
+    fireEvent.change(screen.getByLabelText(/Region/i), { target: { value: "US Southeast" } });
+    fireEvent.change(screen.getByLabelText(/Deployment Objective/i), { target: { value: "Shelf facing" } });
+    fireEvent.change(screen.getByLabelText(/Evaluation Goal/i), { target: { value: "Rank top vendors" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /Submit Deployment Brief/i }));
+
+    expect(
+      await screen.findByText(/Complete all required location brief fields before submitting\./i),
+    ).toBeInTheDocument();
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("submits policy intake with expected payload and helpWith value", async () => {
     render(<PilotExchange />);
 
     fireEvent.click(screen.getAllByRole("button", { name: /Run Eval/i })[0]);
@@ -140,11 +183,21 @@ describe("PilotExchange", () => {
       target: { value: "brief-001" },
     });
 
-    fireEvent.change(screen.getByLabelText(/Policy name/i), {
-      target: { value: "stack-v3.1" },
+    fireEvent.change(screen.getByLabelText(/Robot policy package name/i), {
+      target: { value: "humanoid-night-v1" },
     });
-    fireEvent.change(screen.getByLabelText(/URL \\/ endpoint/i), {
-      target: { value: "docker://ghcr.io/evalrobotics/stack:v3.1" },
+    fireEvent.change(screen.getByLabelText(/URL \/ endpoint/i), {
+      target: { value: "docker://ghcr.io/evalrobotics/humanoid-night:v1" },
+    });
+
+    fireEvent.change(screen.getByLabelText(/Interface Contract/i), {
+      target: { value: "ROS 2 action API + WMS webhook" },
+    });
+    fireEvent.change(screen.getByLabelText(/Fallback Strategy/i), {
+      target: { value: "Safe stop, alert operator, retry once" },
+    });
+    fireEvent.change(screen.getByLabelText(/Assumed Operating Envelope/i), {
+      target: { value: "Night shift only, no freezer aisles" },
     });
 
     fireEvent.change(screen.getByLabelText(/Work email/i), {
@@ -163,10 +216,29 @@ describe("PilotExchange", () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>;
     const [, options] = fetchMock.mock.calls[0];
     const payload = JSON.parse(options.body as string);
+    const details = JSON.parse(payload.details as string);
 
     expect(payload.helpWith).toEqual(["pilot-exchange-policy-submission"]);
-    expect(payload.details).toContain('"submissionType":"eval-run"');
+    expect(details.interfaceContract).toBe("ROS 2 action API + WMS webhook");
+    expect(details.fallbackStrategy).toBe("Safe stop, alert operator, retry once");
+    expect(details.assumedOperatingEnvelope).toBe("Night shift only, no freezer aisles");
     expect(analyticsEventsMock.pilotExchangeSubmitPolicy).toHaveBeenCalledWith("success");
+  });
+
+  it("tracks readiness gate and FAQ interactions", () => {
+    render(<PilotExchange />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Real-to-Sim Activation/i }));
+    expect(analyticsEventsMock.pilotExchangeSelectReadinessGate).toHaveBeenCalledWith(
+      "Real-to-Sim Activation",
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /Is this simulation-only, or do you still test in the real world\?/i,
+      }),
+    );
+    expect(analyticsEventsMock.pilotExchangeOpenFaq).toHaveBeenCalledWith("faq-01");
   });
 
   it("includes Pilot Exchange lead labels in admin mappings", () => {

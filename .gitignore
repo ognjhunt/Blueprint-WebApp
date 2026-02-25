@@ -9,3 +9,15 @@ vite.config.ts.*
 .env.*.local
 .env
 *firebase-adminsdk-*.json
+
+# Generated thumbnail mapping artifacts
+image-matches.json
+thumbnail-urls.json
+
+# Local screenshot and temp asset dumps
+Screenshot *.png
+Blueprint QR Code.png
+WEBSITE.png
+generated-icon.png
+image.png
+temp_large_assets/

@@ -15,27 +15,6 @@ service cloud.firestore {
       return field is string;
     }
 
-    function hasValidContactRequestPayload() {
-      return isStringField(request.resource.data.name)
-        && isStringField(request.resource.data.email)
-        && isStringField(request.resource.data.company)
-        && isStringField(request.resource.data.city)
-        && isStringField(request.resource.data.state)
-        && isStringField(request.resource.data.message)
-        && isStringField(request.resource.data.companyWebsite)
-        && isStringField(request.resource.data.token)
-        && isStringField(request.resource.data.offWaitlistUrl)
-        && request.resource.data.createdAt is timestamp;
-    }
-
-    function hasValidWaitlistTokenCreatePayload() {
-      return isStringField(request.resource.data.token)
-        && isStringField(request.resource.data.email)
-        && isStringField(request.resource.data.company)
-        && isStringField(request.resource.data.status)
-        && request.resource.data.createdAt is timestamp;
-    }
-
     function hasValidSceneCreatePayload() {
       return isStringField(request.resource.data.id)
         && isStringField(request.resource.data.name)
@@ -47,9 +26,8 @@ service cloud.firestore {
     }
 
     match /contactRequests/{id} {
-      allow create: if hasValidContactRequestPayload();
-      allow read: if isAuthenticated();
-      allow update, delete: if false;
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
     }
 
     // Inbound requests collection - lead pipeline
@@ -72,13 +50,11 @@ service cloud.firestore {
     }
 
     match /waitlistTokens/{id} {
-      allow create: if hasValidWaitlistTokenCreatePayload();
-      allow get, list: if true;
-      allow update, delete: if isAuthenticated();
+      allow read, write: if false;
     }
 
     match /scenes/{id} {
-      allow create: if hasValidSceneCreatePayload();
+      allow create: if isAuthenticated() && hasValidSceneCreatePayload();
       allow read: if isAuthenticated();
       allow update, delete: if isAuthenticated();
     }

@@ -140,4 +140,13 @@ export const analyticsEvents = {
 
   pilotExchangeSubmitDataLicenseRequest: (status: "success" | "error") =>
     trackEvent("pilot_exchange_submit_data_license_request", { status }),
+
+  pilotExchangeSelectReadinessGate: (gateTitle: string) =>
+    trackEvent("pilot_exchange_select_readiness_gate", { gate_title: gateTitle }),
+
+  pilotExchangeOpenFaq: (faqId: string) =>
+    trackEvent("pilot_exchange_open_faq", { faq_id: faqId }),
+
+  pilotExchangeChartView: (chartId: string) =>
+    trackEvent("pilot_exchange_chart_view", { chart_id: chartId }),
 };

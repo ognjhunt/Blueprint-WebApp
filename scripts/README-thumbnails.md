@@ -2,6 +2,9 @@
 
 This guide walks you through automatically matching your generated thumbnails to the correct cards and uploading them.
 
+Generated files `image-matches.json` and `thumbnail-urls.json` are intentionally
+ignored by Git. Regenerate them locally with the commands below whenever needed.
+
 ## Step 1: Install Dependencies
 
 ```bash

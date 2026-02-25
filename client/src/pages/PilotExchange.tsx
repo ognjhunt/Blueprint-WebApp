@@ -3,15 +3,23 @@ import { SEO } from "@/components/SEO";
 import { analyticsEvents } from "@/components/Analytics";
 import { withCsrfHeader } from "@/lib/csrf";
 import {
+  activationArtifacts,
+  activationSignals,
   captureNetworkStats,
+  confidenceBands,
   evalLeaderboardEntries,
+  failureAttribution,
   locationBriefs,
   pilotEmbodiments,
+  pilotExchangeFaq,
   pilotLocationTypes,
   pilotPrivacyModes,
   pilotTimelines,
   policySubmissions,
+  readinessFunnel,
+  readinessGates,
   scoreSummaries,
+  workflowValidationChecks,
 } from "@/data/pilotExchange";
 import type {
   InboundRequestPayload,
@@ -20,10 +28,11 @@ import type {
 import type { BudgetBucket, HelpWithOption } from "@/types/inbound-request";
 import type {
   DeploymentTimeline,
-  PilotLocationType,
   EvalLeaderboardEntry,
   LocationBrief,
+  PilotLocationType,
   PrivacyMode,
+  ReadinessGate,
   RobotEmbodiment,
 } from "@/types/pilot-exchange";
 import { Button } from "@/components/ui/button";
@@ -39,20 +48,42 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  AlertTriangle,
   ArrowRight,
-  ChartNoAxesColumn,
+  CheckCircle2,
   ChevronRight,
-  Database,
+  Circle,
   Eye,
   EyeOff,
   Filter,
+  Info,
   Lock,
   Radar,
   Search,
   ShieldCheck,
   Sparkles,
-  UserRoundSearch,
-  Warehouse,
 } from "lucide-react";
 
 type FilterValue<T extends string> = "all" | T;
@@ -76,6 +107,10 @@ interface LocationBriefFormState extends BaseLeadFormState {
   region: string;
   objective: string;
   evaluationGoal: string;
+  primaryTasks: string;
+  integrationSurface: string;
+  safetyConstraints: string;
+  excludedTasks: string;
 }
 
 type PolicyPackageKind = "Docker image" | "Checkpoint URL" | "API endpoint";
@@ -95,6 +130,9 @@ interface EvalRunFormState {
   newPolicyName: string;
   newPolicyKind: PolicyPackageKind;
   newPolicyUri: string;
+  interfaceContract: string;
+  fallbackStrategy: string;
+  assumedOperatingEnvelope: string;
   contactName: string;
   contactEmail: string;
   contactCompany: string;
@@ -119,34 +157,6 @@ const budgetOptions: BudgetBucket[] = [
   "Undecided/Unsure",
 ];
 
-const processSteps = [
-  {
-    title: "Capture",
-    description: "Paid smart-glasses contributors capture real indoor spaces.",
-    icon: UserRoundSearch,
-  },
-  {
-    title: "Twin",
-    description: "Blueprint reconstructs spatially faithful digital twins.",
-    icon: Warehouse,
-  },
-  {
-    title: "Eval Arena",
-    description: "Vendors run policies in standardized evaluation arenas.",
-    icon: Radar,
-  },
-  {
-    title: "Deployment Decision",
-    description: "Operators rank policy candidates before real-world rollout.",
-    icon: ChartNoAxesColumn,
-  },
-  {
-    title: "Optional Data Licensing",
-    description: "Approved twins generate targeted synthetic data packages.",
-    icon: Database,
-  },
-];
-
 const defaultBaseFormState: BaseLeadFormState = {
   firstName: "",
   lastName: "",
@@ -165,9 +175,13 @@ const defaultBriefFormState: LocationBriefFormState = {
   region: "",
   objective: "",
   evaluationGoal: "",
+  primaryTasks: "",
+  integrationSurface: "",
+  safetyConstraints: "",
+  excludedTasks: "",
 };
 
-const POLICY_LIBRARY_STORAGE_KEY = "bp_pilot_exchange_policy_library_v1";
+const POLICY_LIBRARY_STORAGE_KEY = "bp_pilot_exchange_policy_library_v2";
 
 const defaultEvalRunFormState: EvalRunFormState = {
   briefId: "",
@@ -176,6 +190,9 @@ const defaultEvalRunFormState: EvalRunFormState = {
   newPolicyName: "",
   newPolicyKind: "Docker image",
   newPolicyUri: "",
+  interfaceContract: "",
+  fallbackStrategy: "",
+  assumedOperatingEnvelope: "",
   contactName: "",
   contactEmail: "",
   contactCompany: "",
@@ -192,6 +209,43 @@ const defaultDataLicenseFormState: DataLicenseFormState = {
   dataNeeds: "",
   complianceNotes: "",
 };
+
+const readinessChartConfig = {
+  teams: {
+    label: "Teams",
+    color: "hsl(160 84% 39%)",
+  },
+} satisfies ChartConfig;
+
+const confidenceChartConfig = {
+  low: {
+    label: "Low",
+    color: "hsl(355 78% 56%)",
+  },
+  median: {
+    label: "Median",
+    color: "hsl(210 92% 47%)",
+  },
+  high: {
+    label: "High",
+    color: "hsl(160 84% 39%)",
+  },
+} satisfies ChartConfig;
+
+const failureChartConfig = {
+  percent: {
+    label: "Share",
+    color: "hsl(214 32% 40%)",
+  },
+} satisfies ChartConfig;
+
+const failureColors = [
+  "#7dd3fc",
+  "#34d399",
+  "#fbbf24",
+  "#f97316",
+  "#f87171",
+];
 
 function DotPattern() {
   return (
@@ -252,6 +306,13 @@ function validateBaseFields(form: BaseLeadFormState): string | null {
   return null;
 }
 
+function parseListInput(value: string): string[] {
+  return value
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function parseContactName(fullName: string): { firstName: string; lastName: string } {
   const trimmed = fullName.trim();
   if (!trimmed) {
@@ -303,8 +364,29 @@ function formatThresholdDelta(successRate: number, threshold: number): {
   };
 }
 
+function getIntegrationBadgeClass(status: EvalLeaderboardEntry["integrationCheckStatus"]): string {
+  if (status === "Passed") {
+    return "bg-emerald-50 text-emerald-700 ring-emerald-200";
+  }
+  if (status === "Partial") {
+    return "bg-amber-50 text-amber-700 ring-amber-200";
+  }
+  return "bg-rose-50 text-rose-700 ring-rose-200";
+}
+
+function getSafetyBadgeClass(status: EvalLeaderboardEntry["safetySatStatus"]): string {
+  if (status === "Ready") {
+    return "bg-emerald-50 text-emerald-700 ring-emerald-200";
+  }
+  if (status === "In Progress") {
+    return "bg-sky-50 text-sky-700 ring-sky-200";
+  }
+  return "bg-rose-50 text-rose-700 ring-rose-200";
+}
+
 export default function PilotExchange() {
   const [activeTab, setActiveTab] = useState<ExchangeTab>("briefs");
+  const [selectedGateId, setSelectedGateId] = useState<string>(readinessGates[0]?.id ?? "");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [locationFilter, setLocationFilter] =
@@ -343,6 +425,9 @@ export default function PilotExchange() {
 
   useEffect(() => {
     analyticsEvents.pilotExchangeView();
+    analyticsEvents.pilotExchangeChartView("readiness-funnel");
+    analyticsEvents.pilotExchangeChartView("confidence-bands");
+    analyticsEvents.pilotExchangeChartView("failure-attribution");
   }, []);
 
   useEffect(() => {
@@ -376,6 +461,13 @@ export default function PilotExchange() {
     return grouped;
   }, []);
 
+  const selectedGate = useMemo<ReadinessGate | null>(() => {
+    if (!selectedGateId) {
+      return null;
+    }
+    return readinessGates.find((gate) => gate.id === selectedGateId) ?? null;
+  }, [selectedGateId]);
+
   const selectedEvalBrief = useMemo<LocationBrief | null>(() => {
     if (!evalRunForm.briefId) {
       return null;
@@ -397,6 +489,50 @@ export default function PilotExchange() {
     }
     return policyLibrary.find((policy) => policy.id === evalRunForm.policyId) ?? null;
   }, [evalRunForm.policyId, policyLibrary]);
+
+  const hasPolicyInput = useMemo(() => {
+    if (evalRunForm.addNewPolicy) {
+      return Boolean(evalRunForm.newPolicyName.trim() && evalRunForm.newPolicyUri.trim());
+    }
+    return Boolean(selectedEvalPolicy);
+  }, [evalRunForm.addNewPolicy, evalRunForm.newPolicyName, evalRunForm.newPolicyUri, selectedEvalPolicy]);
+
+  const qualificationChecklist = useMemo(
+    () => [
+      {
+        id: "q-01",
+        label: "Selected site twin",
+        done: Boolean(selectedEvalBrief),
+      },
+      {
+        id: "q-02",
+        label: "Attached robot policy package",
+        done: hasPolicyInput,
+      },
+      {
+        id: "q-03",
+        label: "Documented interface contract",
+        done: Boolean(evalRunForm.interfaceContract.trim()),
+      },
+      {
+        id: "q-04",
+        label: "Defined fallback strategy",
+        done: Boolean(evalRunForm.fallbackStrategy.trim()),
+      },
+      {
+        id: "q-05",
+        label: "Declared operating envelope",
+        done: Boolean(evalRunForm.assumedOperatingEnvelope.trim()),
+      },
+    ],
+    [
+      evalRunForm.assumedOperatingEnvelope,
+      evalRunForm.fallbackStrategy,
+      evalRunForm.interfaceContract,
+      hasPolicyInput,
+      selectedEvalBrief,
+    ],
+  );
 
   useEffect(() => {
     if (!evalRunForm.contactEmail.trim()) {
@@ -462,7 +598,9 @@ export default function PilotExchange() {
         brief.operatorAlias.toLowerCase().includes(query) ||
         brief.region.toLowerCase().includes(query) ||
         brief.objective.toLowerCase().includes(query) ||
-        brief.evaluationGoal.toLowerCase().includes(query);
+        brief.evaluationGoal.toLowerCase().includes(query) ||
+        brief.primaryTasks.join(" ").toLowerCase().includes(query) ||
+        brief.integrationSurface.join(" ").toLowerCase().includes(query);
       const matchesLocation =
         locationFilter === "all" || brief.locationType === locationFilter;
       const matchesEmbodiment =
@@ -563,6 +701,10 @@ export default function PilotExchange() {
       return;
     }
 
+    const parsedPrimaryTasks = parseListInput(briefForm.primaryTasks);
+    const parsedIntegrationSurface = parseListInput(briefForm.integrationSurface);
+    const parsedSafetyConstraints = parseListInput(briefForm.safetyConstraints);
+
     if (
       !briefForm.locationType ||
       !briefForm.robotEmbodiment ||
@@ -570,10 +712,13 @@ export default function PilotExchange() {
       !briefForm.privacyMode ||
       !briefForm.region.trim() ||
       !briefForm.objective.trim() ||
-      !briefForm.evaluationGoal.trim()
+      !briefForm.evaluationGoal.trim() ||
+      parsedPrimaryTasks.length === 0 ||
+      parsedIntegrationSurface.length === 0 ||
+      parsedSafetyConstraints.length === 0
     ) {
       setBriefStatus("error");
-      setBriefMessage("Complete all location brief fields before submitting.");
+      setBriefMessage("Complete all required location brief fields before submitting.");
       return;
     }
 
@@ -593,12 +738,18 @@ export default function PilotExchange() {
           region: briefForm.region.trim(),
           objective: briefForm.objective.trim(),
           evaluationGoal: briefForm.evaluationGoal.trim(),
+          primaryTasks: parsedPrimaryTasks,
+          integrationSurface: parsedIntegrationSurface,
+          safetyConstraints: parsedSafetyConstraints,
+          excludedTasks: briefForm.excludedTasks.trim(),
         },
       });
 
       analyticsEvents.pilotExchangeSubmitBrief("success");
       setBriefStatus("success");
-      setBriefMessage("Deployment brief submitted. Our team will follow up shortly.");
+      setBriefMessage(
+        "Deployment brief submitted. We will follow up with a qualification kickoff checklist.",
+      );
       setBriefForm(defaultBriefFormState);
       setTimeout(() => {
         setIsBriefDialogOpen(false);
@@ -620,6 +771,24 @@ export default function PilotExchange() {
     if (!selectedEvalBrief) {
       setPolicyStatus("error");
       setPolicyMessage("Select a digital twin to run against.");
+      return;
+    }
+
+    if (!evalRunForm.interfaceContract.trim()) {
+      setPolicyStatus("error");
+      setPolicyMessage("Document the interface contract used in this evaluation.");
+      return;
+    }
+
+    if (!evalRunForm.fallbackStrategy.trim()) {
+      setPolicyStatus("error");
+      setPolicyMessage("Define your fallback strategy before submitting.");
+      return;
+    }
+
+    if (!evalRunForm.assumedOperatingEnvelope.trim()) {
+      setPolicyStatus("error");
+      setPolicyMessage("Declare the assumed operating envelope.");
       return;
     }
 
@@ -651,7 +820,7 @@ export default function PilotExchange() {
     if (evalRunForm.addNewPolicy) {
       if (!evalRunForm.newPolicyName.trim() || !evalRunForm.newPolicyUri.trim()) {
         setPolicyStatus("error");
-        setPolicyMessage("Add a policy name and a package URL/endpoint.");
+        setPolicyMessage("Add a robot policy package name and a URL/endpoint.");
         return;
       }
 
@@ -670,7 +839,7 @@ export default function PilotExchange() {
 
     if (!resolvedPolicy) {
       setPolicyStatus("error");
-      setPolicyMessage("Select a policy package (or add a new one).");
+      setPolicyMessage("Select a robot policy package (or add a new one).");
       return;
     }
 
@@ -705,6 +874,10 @@ export default function PilotExchange() {
               selectedEvalBrief.qualifyingSuccessRateThreshold,
           },
           policy: resolvedPolicy,
+          interfaceContract: evalRunForm.interfaceContract.trim(),
+          fallbackStrategy: evalRunForm.fallbackStrategy.trim(),
+          assumedOperatingEnvelope: evalRunForm.assumedOperatingEnvelope.trim(),
+          qualificationChecklist,
           winCondition: `success_rate >= ${selectedEvalBrief.qualifyingSuccessRateThreshold}%`,
           artifacts: "gated",
         },
@@ -713,7 +886,7 @@ export default function PilotExchange() {
       analyticsEvents.pilotExchangeSubmitPolicy("success");
       setPolicyStatus("success");
       setPolicyMessage(
-        `Eval queued. We'll email results and whether you met the ${selectedEvalBrief.qualifyingSuccessRateThreshold}% threshold.`,
+        `Eval queued. We'll email your scorecard and whether you met the ${selectedEvalBrief.qualifyingSuccessRateThreshold}% threshold.`,
       );
 
       setEvalRunForm((prev) => ({
@@ -804,7 +977,7 @@ export default function PilotExchange() {
     <>
       <SEO
         title="Pilot Exchange"
-        description="Eval-first deployment marketplace where location operators compare robot policy performance in digital twins before rollout, with optional data licensing after qualification."
+        description="Pre-deployment qualification marketplace where location operators and robot teams compare policy performance in calibrated digital twins before controlled pilot ramp."
         canonical="/pilot-exchange"
       />
       <div className="relative min-h-screen overflow-hidden bg-white text-zinc-900 selection:bg-emerald-100 selection:text-emerald-900">
@@ -812,24 +985,34 @@ export default function PilotExchange() {
         <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] bg-gradient-to-br from-emerald-100/60 via-cyan-50/60 to-transparent" />
 
         <div className="mx-auto max-w-7xl px-4 pb-24 pt-16 sm:px-6 lg:px-8">
-          <section className="mb-16 grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+          <section className="mb-12 grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
             <div className="space-y-6">
               <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
                 <Sparkles className="h-3.5 w-3.5" />
-                Eval-First Marketplace
+                Pre-Deployment Qualification Exchange
               </div>
               <h1 className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl">
                 Pilot Exchange
               </h1>
               <p className="max-w-2xl text-lg leading-relaxed text-zinc-600">
-                Blueprint brokers deployment pilots between location operators and robot
-                teams. Build a digital twin, run standardized policy evaluations, and
-                choose deployment partners with measurable confidence before on-site risk.
+                Pilot Exchange helps location operators and robot teams pre-qualify deployments
+                before they commit to expensive live pilots. We use calibrated digital twins,
+                standardized eval harnesses, and explicit safety/SAT gates to reduce risk.
               </p>
               <p className="max-w-2xl text-sm text-zinc-500">
-                Research has shown that evaluation in representative digital twins can
-                improve deployment qualification decisions versus trial-and-error pilots.
+                This process improves decision quality. It does not guarantee production success,
+                and every qualified program still runs a controlled on-site ramp.
               </p>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                  <Info className="h-3.5 w-3.5" />
+                  Illustrative demo data
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-600">
+                  Pre-qualification only, not a production guarantee
+                </span>
+              </div>
 
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Button
@@ -855,9 +1038,15 @@ export default function PilotExchange() {
             </div>
 
             <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-                Public Score Summary
-              </h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+                  Public Score Summary
+                </h2>
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700">
+                  <Info className="h-3 w-3" />
+                  Illustrative demo data
+                </span>
+              </div>
               <div className="mt-4 space-y-3">
                 {scoreSummaries.slice(0, 3).map((score) => (
                   <div
@@ -885,24 +1074,218 @@ export default function PilotExchange() {
               </div>
               <div className="mt-4 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
                 <Lock className="h-3.5 w-3.5" />
-                Detailed logs/videos/configs are gated
+                Detailed logs/videos/configs remain gated
               </div>
             </div>
           </section>
 
-          <section className="mb-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {processSteps.map((step, index) => (
-              <div key={step.title} className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="rounded-lg bg-emerald-50 p-2 text-emerald-700">
-                    <step.icon className="h-4 w-4" />
-                  </div>
-                  <span className="text-xs font-semibold text-zinc-400">0{index + 1}</span>
-                </div>
-                <h3 className="text-sm font-semibold text-zinc-900">{step.title}</h3>
-                <p className="mt-1 text-xs text-zinc-600">{step.description}</p>
+          <section className="mb-14 grid gap-4 lg:grid-cols-2">
+            <article className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-6">
+              <h2 className="text-lg font-semibold text-emerald-900">What this is</h2>
+              <ul className="mt-3 space-y-2 text-sm text-emerald-900/85">
+                <li>Structured pre-deployment qualification for operators and robot teams.</li>
+                <li>Calibrated simulation workflow plus standardized benchmark harnesses.</li>
+                <li>A decision tool to reduce pilot risk before on-site spend.</li>
+              </ul>
+            </article>
+            <article className="rounded-2xl border border-rose-200 bg-rose-50/50 p-6">
+              <h2 className="text-lg font-semibold text-rose-900">What this is not</h2>
+              <ul className="mt-3 space-y-2 text-sm text-rose-900/85">
+                <li>Not a guarantee that a policy will succeed in production on day one.</li>
+                <li>Not a replacement for SAT, safety sign-off, and controlled ramp.</li>
+                <li>Not a one-time scan-and-done workflow; twins require upkeep and calibration.</li>
+              </ul>
+            </article>
+          </section>
+
+          <section className="mb-16 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+            <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-zinc-900">7-Stage Readiness Flow</h2>
+                <p className="mt-1 text-sm text-zinc-600">
+                  SimReady assets improve fidelity, but every program still needs calibration,
+                  integration checks, and on-site ramp before deployment decisions.
+                </p>
               </div>
-            ))}
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                <Info className="h-3.5 w-3.5" />
+                Illustrative demo data
+              </span>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {readinessGates.map((gate, index) => {
+                const isActive = gate.id === selectedGateId;
+                return (
+                  <button
+                    key={gate.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedGateId(gate.id);
+                      analyticsEvents.pilotExchangeSelectReadinessGate(gate.title);
+                    }}
+                    className={`rounded-2xl border p-4 text-left shadow-sm transition ${
+                      isActive
+                        ? "border-emerald-300 bg-emerald-50/60"
+                        : "border-zinc-200 bg-zinc-50/70 hover:bg-white"
+                    }`}
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-xs font-semibold text-zinc-500">0{index + 1}</span>
+                      {isActive ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+                      ) : (
+                        <Circle className="h-4 w-4 text-zinc-400" />
+                      )}
+                    </div>
+                    <h3 className="text-sm font-semibold text-zinc-900">{gate.title}</h3>
+                    <p className="mt-1 text-xs text-zinc-600">{gate.description}</p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {selectedGate ? (
+              <div className="mt-5 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                <p className="text-sm font-semibold text-zinc-900">{selectedGate.title}</p>
+                <p className="mt-1 text-sm text-zinc-700">{selectedGate.whyItMatters}</p>
+              </div>
+            ) : null}
+          </section>
+
+          <section className="mb-16 grid gap-6 lg:grid-cols-2">
+            <article className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+              <div className="mb-4 flex items-center gap-2 text-zinc-900">
+                <Radar className="h-5 w-5" />
+                <h2 className="text-xl font-bold">Real-to-Sim Activation</h2>
+              </div>
+              <p className="text-sm text-zinc-600">
+                A small on-site evidence pack is used to tune dynamics, sensing, and timing before
+                teams are compared. This is the step that makes SimReady scenes decision-useful.
+              </p>
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    Input Signals
+                  </p>
+                  <div className="mt-2 space-y-2">
+                    {activationSignals.map((signal) => (
+                      <div key={signal.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+                        <p className="text-sm font-semibold text-zinc-900">{signal.label}</p>
+                        <p className="mt-1 text-xs text-zinc-600">{signal.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    Output Artifacts
+                  </p>
+                  <div className="mt-2 space-y-2">
+                    {activationArtifacts.map((artifact) => (
+                      <div key={artifact.id} className="rounded-xl border border-zinc-200 bg-white p-3">
+                        <p className="text-sm font-semibold text-zinc-900">{artifact.label}</p>
+                        <p className="mt-1 text-xs text-zinc-600">{artifact.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+              <div className="mb-4 flex items-center gap-2 text-zinc-900">
+                <AlertTriangle className="h-5 w-5" />
+                <h2 className="text-xl font-bold">Workflow + Integration Validation</h2>
+              </div>
+              <p className="text-sm text-zinc-600">
+                The hardest failures are usually in systems integration and exception handling,
+                not geometry alone. Pilot Exchange evaluates these pathways before live rollout.
+              </p>
+              <div className="mt-4 space-y-3">
+                {workflowValidationChecks.map((item) => (
+                  <div key={item.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                    <p className="text-sm font-semibold text-zinc-900">{item.label}</p>
+                    <ul className="mt-2 space-y-1 text-xs text-zinc-600">
+                      {item.checks.map((check) => (
+                        <li key={check}>• {check}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </article>
+          </section>
+
+          <section className="mb-16 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+            <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-zinc-900">Qualification Analytics</h2>
+                <p className="mt-1 text-sm text-zinc-600">
+                  These charts support pre-qualification decisions and are not production
+                  guarantees.
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                <Info className="h-3.5 w-3.5" />
+                Illustrative demo data
+              </span>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-3">
+              <article className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4">
+                <p className="text-sm font-semibold text-zinc-900">Readiness Funnel</p>
+                <p className="mt-1 text-xs text-zinc-500">Teams progressing through 7 gates</p>
+                <ChartContainer config={readinessChartConfig} className="mt-3 h-[300px] w-full aspect-auto">
+                  <BarChart data={readinessFunnel} layout="vertical" margin={{ left: 8, right: 8, top: 8, bottom: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                    <XAxis type="number" />
+                    <YAxis type="category" dataKey="stage" width={110} tick={{ fontSize: 10 }} />
+                    <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                    <Bar dataKey="teams" fill="var(--color-teams)" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ChartContainer>
+              </article>
+
+              <article className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4">
+                <p className="text-sm font-semibold text-zinc-900">Confidence Bands</p>
+                <p className="mt-1 text-xs text-zinc-500">Low / median / high expected task success</p>
+                <ChartContainer config={confidenceChartConfig} className="mt-3 h-[300px] w-full aspect-auto">
+                  <LineChart data={confidenceBands} margin={{ left: 8, right: 8, top: 8, bottom: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="task" tick={{ fontSize: 10 }} interval={0} angle={-25} textAnchor="end" height={80} />
+                    <YAxis domain={[0, 100]} />
+                    <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+                    <Line type="monotone" dataKey="low" stroke="var(--color-low)" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="median" stroke="var(--color-median)" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="high" stroke="var(--color-high)" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ChartContainer>
+              </article>
+
+              <article className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4">
+                <p className="text-sm font-semibold text-zinc-900">Failure Attribution</p>
+                <p className="mt-1 text-xs text-zinc-500">Where pre-deployment risk tends to appear</p>
+                <ChartContainer config={failureChartConfig} className="mt-3 h-[300px] w-full aspect-auto">
+                  <BarChart data={failureAttribution} margin={{ left: 8, right: 8, top: 8, bottom: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={70} />
+                    <YAxis domain={[0, 35]} />
+                    <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+                    <Bar dataKey="percent" radius={[4, 4, 0, 0]}>
+                      {failureAttribution.map((entry, index) => (
+                        <Cell key={entry.id} fill={failureColors[index % failureColors.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ChartContainer>
+              </article>
+            </div>
+
+            <p className="mt-4 text-xs text-zinc-500">
+              These charts are intended for pre-qualification and triage. Final deployment
+              readiness is confirmed through SAT and controlled on-site ramp.
+            </p>
           </section>
 
           <section className="mb-16 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
@@ -910,13 +1293,13 @@ export default function PilotExchange() {
               <div>
                 <h2 className="text-2xl font-bold text-zinc-900">Marketplace Workspace</h2>
                 <p className="mt-1 text-sm text-zinc-600">
-                  Browse anonymized location briefs and policy submissions for active
-                  deployment qualification cycles.
+                  Browse anonymized deployment briefs and policy submissions after understanding
+                  the qualification process.
                 </p>
               </div>
               <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-600">
                 <Filter className="h-3.5 w-3.5" />
-                Seeded catalog for v1
+                Seeded catalog for v2 demo
               </div>
             </div>
 
@@ -930,7 +1313,7 @@ export default function PilotExchange() {
                     emitFilterEvent("search", event.target.value || "all");
                   }}
                   className="pl-9"
-                  placeholder="Search briefs, teams, regions..."
+                  placeholder="Search briefs, teams, tasks, regions..."
                   aria-label="Search listings"
                 />
               </div>
@@ -1040,8 +1423,9 @@ export default function PilotExchange() {
                               {brief.operatorAlias}
                             </h3>
                             <p className="text-sm text-zinc-600">{brief.objective}</p>
-                            <p className="text-sm text-zinc-500">
-                              {brief.evaluationGoal}
+                            <p className="text-sm text-zinc-500">{brief.evaluationGoal}</p>
+                            <p className="text-xs text-zinc-500">
+                              Primary tasks: {brief.primaryTasks.join(" · ")}
                             </p>
                           </div>
                           <div className="flex flex-wrap gap-2 sm:justify-end">
@@ -1069,8 +1453,7 @@ export default function PilotExchange() {
                         </div>
                         <div className="mt-4 flex flex-col gap-3 text-xs text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
                           <span>
-                            {brief.region} · {brief.footprintSqFt.toLocaleString()} sq
-                            ft · {brief.openSlots} vendor slots
+                            {brief.region} · {brief.footprintSqFt.toLocaleString()} sq ft · {brief.openSlots} vendor slots
                           </span>
                           <button
                             type="button"
@@ -1104,31 +1487,42 @@ export default function PilotExchange() {
                                 return (
                                   <div
                                     key={entry.id}
-                                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2"
+                                    className="rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2"
                                   >
-                                    <div className="flex items-center gap-2 text-sm">
-                                      <span className="text-xs font-semibold text-zinc-500">
-                                        #{entry.rank}
-                                      </span>
-                                      <span className="font-semibold text-zinc-900">
-                                        {entry.entrant}
-                                      </span>
-                                      <span className="text-xs text-zinc-500">
-                                        {entry.benchmarkRuns.toLocaleString()} runs
-                                      </span>
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2 text-sm">
+                                        <span className="text-xs font-semibold text-zinc-500">
+                                          #{entry.rank}
+                                        </span>
+                                        <span className="font-semibold text-zinc-900">
+                                          {entry.entrant}
+                                        </span>
+                                        <span className="text-xs text-zinc-500">
+                                          {entry.benchmarkRuns.toLocaleString()} runs
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-3">
+                                        <span className="text-sm font-semibold text-zinc-900">
+                                          {entry.successRate}% success
+                                        </span>
+                                        <span className={`text-xs font-semibold ${delta.className}`}>
+                                          {delta.label}
+                                        </span>
+                                      </div>
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                      <span className="text-sm font-semibold text-zinc-900">
-                                        {entry.successRate}% success
+                                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                                      <span className="rounded-full bg-white px-2.5 py-1 text-zinc-700 ring-1 ring-zinc-200">
+                                        Interventions: {entry.interventionRatePer100.toFixed(1)} / 100 tasks
                                       </span>
-                                      <span
-                                        className={`text-xs font-semibold ${delta.className}`}
-                                      >
-                                        {delta.label}
+                                      <span className={`rounded-full px-2.5 py-1 ring-1 ${getIntegrationBadgeClass(entry.integrationCheckStatus)}`}>
+                                        Integration: {entry.integrationCheckStatus}
                                       </span>
-                                      <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs text-zinc-600 ring-1 ring-zinc-200">
+                                      <span className={`rounded-full px-2.5 py-1 ring-1 ${getSafetyBadgeClass(entry.safetySatStatus)}`}>
+                                        Safety/SAT: {entry.safetySatStatus}
+                                      </span>
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-zinc-600 ring-1 ring-zinc-200">
                                         <Lock className="h-3.5 w-3.5" />
-                                        Gated
+                                        Gated details
                                       </span>
                                     </div>
                                   </div>
@@ -1136,8 +1530,8 @@ export default function PilotExchange() {
                               })}
                             </div>
                             <p className="mt-3 text-xs text-zinc-500">
-                              Compare how close other teams are to the win threshold.
-                              Full artifacts remain gated.
+                              Metrics support pre-qualification. Final deployment readiness still
+                              requires SAT and a controlled on-site ramp.
                             </p>
                           </div>
                         ) : null}
@@ -1201,10 +1595,10 @@ export default function PilotExchange() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-zinc-900">
-                  Data Licensing from Approved Twins
+                  Optional Post-Qualification Output: Data Licensing
                 </h2>
                 <p className="mt-1 text-sm text-zinc-600">
-                  After eval qualification, Blueprint can generate targeted synthetic
+                  After qualification gates are met, Blueprint can generate targeted synthetic
                   episodes for adaptation and fine-tuning.
                 </p>
               </div>
@@ -1232,7 +1626,7 @@ export default function PilotExchange() {
               <div className="rounded-xl border border-zinc-200 bg-white p-4">
                 <p className="text-sm font-semibold text-zinc-900">Ops-Ready Metadata</p>
                 <p className="mt-1 text-sm text-zinc-600">
-                  Include simulator configs and validation notes for faster handoff.
+                  Include simulator configs and qualification notes for faster handoff.
                 </p>
               </div>
             </div>
@@ -1244,8 +1638,8 @@ export default function PilotExchange() {
                 <h2 className="text-2xl font-bold text-zinc-900">Capture Network</h2>
                 <p className="mt-1 text-sm text-zinc-600">
                   A paid capture workforce uses smart glasses to record real indoor spaces.
-                  Blueprint reconstructs those captures into digital twins and simulation-ready
-                  packages for eval-first deployment decisions.
+                  Blueprint reconstructs these captures into simulation-ready twins used for
+                  pre-deployment qualification.
                 </p>
               </div>
               <div className="hidden rounded-xl bg-emerald-50 p-2 text-emerald-700 sm:block">
@@ -1265,12 +1659,39 @@ export default function PilotExchange() {
             </div>
           </section>
 
+          <section className="mb-16 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+            <h2 className="text-2xl font-bold text-zinc-900">Pilot Exchange FAQ</h2>
+            <p className="mt-1 text-sm text-zinc-600">
+              Plain-language answers on what is evaluated before a real-world deployment.
+            </p>
+            <Accordion
+              type="single"
+              collapsible
+              className="mt-4"
+              onValueChange={(value) => {
+                if (value) {
+                  analyticsEvents.pilotExchangeOpenFaq(value);
+                }
+              }}
+            >
+              {pilotExchangeFaq.map((faq) => (
+                <AccordionItem key={faq.id} value={faq.id}>
+                  <AccordionTrigger className="text-left text-sm font-semibold text-zinc-900">
+                    {faq.question}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-sm text-zinc-600">
+                    {faq.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </section>
+
           <section className="rounded-3xl border border-zinc-200 bg-zinc-900 p-8 text-white">
             <h2 className="text-2xl font-bold">Ready to join Pilot Exchange?</h2>
             <p className="mt-2 max-w-2xl text-sm text-zinc-300">
               Operators can post deployment briefs. Robot teams can submit policies for
-              standardized evaluation. Data licensing is available once scenarios clear
-              qualification.
+              standardized evaluation. Data licensing is optional after qualification.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <Button
@@ -1308,8 +1729,8 @@ export default function PilotExchange() {
           <DialogHeader>
             <DialogTitle>Post Deployment Brief</DialogTitle>
             <DialogDescription>
-              Share your location profile and evaluation objective. We route matched
-              policy teams into your benchmark lane.
+              Share the tasks, integrations, and safety constraints needed for a decision-grade
+              qualification run.
             </DialogDescription>
           </DialogHeader>
           <form className="space-y-4" onSubmit={handleBriefSubmit}>
@@ -1386,6 +1807,54 @@ export default function PilotExchange() {
                 rows={3}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="brief-primary-tasks">Primary Tasks (required)</Label>
+              <Textarea
+                id="brief-primary-tasks"
+                value={briefForm.primaryTasks}
+                onChange={(event) =>
+                  setBriefForm((prev) => ({ ...prev, primaryTasks: event.target.value }))
+                }
+                placeholder="One per line (e.g. aisle recovery, shelf facing, cart handoff)"
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="brief-integration-surface">Integration Surface (required)</Label>
+              <Textarea
+                id="brief-integration-surface"
+                value={briefForm.integrationSurface}
+                onChange={(event) =>
+                  setBriefForm((prev) => ({ ...prev, integrationSurface: event.target.value }))
+                }
+                placeholder="WMS endpoints, PLC interfaces, door/elevator services"
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="brief-safety-constraints">Safety Constraints (required)</Label>
+              <Textarea
+                id="brief-safety-constraints"
+                value={briefForm.safetyConstraints}
+                onChange={(event) =>
+                  setBriefForm((prev) => ({ ...prev, safetyConstraints: event.target.value }))
+                }
+                placeholder="Speed caps, no-go zones, right-of-way rules"
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="brief-excluded-tasks">Excluded Tasks (optional)</Label>
+              <Textarea
+                id="brief-excluded-tasks"
+                value={briefForm.excludedTasks}
+                onChange={(event) =>
+                  setBriefForm((prev) => ({ ...prev, excludedTasks: event.target.value }))
+                }
+                placeholder="Tasks that should not be part of this qualification cycle"
+                rows={2}
+              />
+            </div>
 
             {briefMessage ? (
               <p
@@ -1409,8 +1878,8 @@ export default function PilotExchange() {
           <DialogHeader>
             <DialogTitle>Run Eval</DialogTitle>
             <DialogDescription>
-              Pick a digital twin, choose a policy package, and run an evaluation. We
-              will email the scorecard and whether you met the site threshold.
+              Pick a digital twin, attach a robot policy package, and submit your qualification
+              context. We email the scorecard and threshold outcome.
             </DialogDescription>
           </DialogHeader>
           <form className="space-y-4" onSubmit={handleEvalRunSubmit}>
@@ -1427,7 +1896,7 @@ export default function PilotExchange() {
                 }
                 className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-700"
               >
-                <option value="">Select a site twin…</option>
+                <option value="">Select a site twin...</option>
                 {locationBriefs.map((brief) => (
                   <option key={brief.id} value={brief.id}>
                     {brief.locationType} · {brief.robotEmbodiment} · {brief.timeline} ·{" "}
@@ -1443,8 +1912,8 @@ export default function PilotExchange() {
                   Win threshold: ≥ {selectedEvalBrief.qualifyingSuccessRateThreshold}% success
                 </p>
                 <p className="mt-1 text-sm text-emerald-800/80">
-                  Passing the threshold is the minimum to start conversations. Full
-                  artifacts remain gated by default.
+                  SimReady assets improve fidelity, but calibrated real-to-sim activation and
+                  controlled ramp are still required before deployment.
                 </p>
               </div>
             ) : null}
@@ -1475,29 +1944,38 @@ export default function PilotExchange() {
                       return (
                         <div
                           key={entry.id}
-                          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2"
+                          className="rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2"
                         >
-                          <div className="flex items-center gap-2 text-sm">
-                            <span className="text-xs font-semibold text-zinc-500">
-                              #{entry.rank}
-                            </span>
-                            <span className="font-semibold text-zinc-900">
-                              {entry.entrant}
-                            </span>
-                            <span className="text-xs text-zinc-500">
-                              {entry.benchmarkRuns.toLocaleString()} runs
-                            </span>
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className="text-xs font-semibold text-zinc-500">
+                                #{entry.rank}
+                              </span>
+                              <span className="font-semibold text-zinc-900">
+                                {entry.entrant}
+                              </span>
+                              <span className="text-xs text-zinc-500">
+                                {entry.benchmarkRuns.toLocaleString()} runs
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="text-sm font-semibold text-zinc-900">
+                                {entry.successRate}% success
+                              </span>
+                              <span className={`text-xs font-semibold ${delta.className}`}>
+                                {delta.label}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm font-semibold text-zinc-900">
-                              {entry.successRate}% success
+                          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                            <span className="rounded-full bg-white px-2.5 py-1 text-zinc-700 ring-1 ring-zinc-200">
+                              Interventions: {entry.interventionRatePer100.toFixed(1)} / 100 tasks
                             </span>
-                            <span className={`text-xs font-semibold ${delta.className}`}>
-                              {delta.label}
+                            <span className={`rounded-full px-2.5 py-1 ring-1 ${getIntegrationBadgeClass(entry.integrationCheckStatus)}`}>
+                              Integration: {entry.integrationCheckStatus}
                             </span>
-                            <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs text-zinc-600 ring-1 ring-zinc-200">
-                              <Lock className="h-3.5 w-3.5" />
-                              Gated
+                            <span className={`rounded-full px-2.5 py-1 ring-1 ${getSafetyBadgeClass(entry.safetySatStatus)}`}>
+                              Safety/SAT: {entry.safetySatStatus}
                             </span>
                           </div>
                         </div>
@@ -1507,14 +1985,17 @@ export default function PilotExchange() {
                 )}
 
                 <p className="mt-3 text-xs text-zinc-500">
-                  Results are shared anonymously so you can compare against the field.
-                  Detailed logs/videos/configs remain gated.
+                  Results are anonymous for field comparison. Detailed logs/videos/configs remain gated.
                 </p>
               </div>
             ) : null}
 
             <div className="space-y-2">
-              <Label htmlFor="eval-policy">Policy</Label>
+              <Label htmlFor="eval-policy">Robot policy package</Label>
+              <p className="text-xs text-zinc-500">
+                Provide an executable package (Docker, checkpoint endpoint, or hosted API) used
+                for standardized eval harness execution.
+              </p>
               <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
                 <select
                   id="eval-policy"
@@ -1530,8 +2011,8 @@ export default function PilotExchange() {
                 >
                   <option value="">
                     {policyLibrary.length === 0
-                      ? "No saved policies yet"
-                      : "Select a saved policy…"}
+                      ? "No saved packages yet"
+                      : "Select a saved package..."}
                   </option>
                   {policyLibrary.map((policy) => (
                     <option key={policy.id} value={policy.id}>
@@ -1560,7 +2041,7 @@ export default function PilotExchange() {
               <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="new-policy-name">Policy name</Label>
+                    <Label htmlFor="new-policy-name">Robot policy package name</Label>
                     <Input
                       id="new-policy-name"
                       value={evalRunForm.newPolicyName}
@@ -1570,7 +2051,7 @@ export default function PilotExchange() {
                           newPolicyName: event.target.value,
                         }))
                       }
-                      placeholder="e.g., warehouse-stack-v3"
+                      placeholder="e.g., humanoid-aisle-reset-v2"
                     />
                   </div>
                   <div className="space-y-2">
@@ -1603,7 +2084,7 @@ export default function PilotExchange() {
                         newPolicyUri: event.target.value,
                       }))
                     }
-                    placeholder="docker://ghcr.io/org/policy:tag or https://... or https://api.yourpolicy.com/act"
+                    placeholder="docker://ghcr.io/org/policy:tag or https://..."
                   />
                 </div>
               </div>
@@ -1617,6 +2098,70 @@ export default function PilotExchange() {
                 </p>
               </div>
             ) : null}
+
+            <div className="space-y-2">
+              <Label htmlFor="eval-interface-contract">Interface Contract</Label>
+              <Textarea
+                id="eval-interface-contract"
+                value={evalRunForm.interfaceContract}
+                onChange={(event) =>
+                  setEvalRunForm((prev) => ({
+                    ...prev,
+                    interfaceContract: event.target.value,
+                  }))
+                }
+                placeholder="APIs/topics/events used (WMS, ERP, doors, elevators, PLC, etc.)"
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="eval-fallback-strategy">Fallback Strategy</Label>
+              <Textarea
+                id="eval-fallback-strategy"
+                value={evalRunForm.fallbackStrategy}
+                onChange={(event) =>
+                  setEvalRunForm((prev) => ({
+                    ...prev,
+                    fallbackStrategy: event.target.value,
+                  }))
+                }
+                placeholder="How your system handles blocked paths, failed grasps, or missing items"
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="eval-operating-envelope">Assumed Operating Envelope</Label>
+              <Textarea
+                id="eval-operating-envelope"
+                value={evalRunForm.assumedOperatingEnvelope}
+                onChange={(event) =>
+                  setEvalRunForm((prev) => ({
+                    ...prev,
+                    assumedOperatingEnvelope: event.target.value,
+                  }))
+                }
+                placeholder="Hours, traffic assumptions, task exclusions, and environmental limits"
+                rows={3}
+              />
+            </div>
+
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+              <p className="text-sm font-semibold text-zinc-900">Qualification checklist</p>
+              <div className="mt-2 space-y-2">
+                {qualificationChecklist.map((item) => (
+                  <div key={item.id} className="flex items-center gap-2 text-sm">
+                    {item.done ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+                    ) : (
+                      <Circle className="h-4 w-4 text-zinc-400" />
+                    )}
+                    <span className={item.done ? "text-zinc-800" : "text-zinc-500"}>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -1687,8 +2232,7 @@ export default function PilotExchange() {
           <DialogHeader>
             <DialogTitle>Request Data Licensing</DialogTitle>
             <DialogDescription>
-              Tell us what synthetic or replayed data you need after evaluation
-              qualification.
+              Tell us what synthetic or replayed data you need after qualification.
             </DialogDescription>
           </DialogHeader>
           <form className="space-y-4" onSubmit={handleDataLicenseSubmit}>

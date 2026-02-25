@@ -29,13 +29,9 @@ export default defineConfig({
           if (!id.includes("node_modules")) return;
           if (
             id.includes("three") ||
-            id.includes("three-stdlib") ||
-            id.includes("three-transform-controls")
+            id.includes("three-stdlib")
           ) {
             return "vendor-3d";
-          }
-          if (id.includes("leaflet") || id.includes("react-leaflet")) {
-            return "vendor-maps";
           }
           if (id.includes("@googlemaps/js-api-loader")) {
             return "vendor-google-maps";
@@ -44,7 +40,6 @@ export default defineConfig({
             id.includes("openai") ||
             id.includes("@anthropic-ai") ||
             id.includes("@google/generative-ai") ||
-            id.includes("@google/genai") ||
             id.includes("@google-cloud/aiplatform") ||
             id.includes("lumaai")
           ) {
@@ -67,7 +62,6 @@ export default defineConfig({
           }
           if (
             id.includes("@tanstack") ||
-            id.includes("react-router") ||
             id.includes("react-dom") ||
             id.includes("react/jsx-runtime")
           ) {

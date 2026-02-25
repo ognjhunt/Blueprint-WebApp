@@ -11,8 +11,6 @@
 import React, { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
-import Nav from "@/components/Nav";
-import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -431,10 +429,8 @@ export default function BusinessSignUpFlow() {
   };
 
   return (
-    <>
-      <Nav />
-      <main className="min-h-screen bg-gradient-to-b from-zinc-50 to-white py-12 px-4">
-        <div className="max-w-md mx-auto">
+    <main className="min-h-screen bg-gradient-to-b from-zinc-50 to-white py-12 px-4">
+      <div className="max-w-md mx-auto">
           {/* Header */}
           <div className="text-center mb-8">
             <h1 className="text-2xl font-semibold text-zinc-900">
@@ -909,9 +905,7 @@ export default function BusinessSignUpFlow() {
               </motion.div>
             )}
           </div>
-        </div>
-      </main>
-      <Footer />
-    </>
+      </div>
+    </main>
   );
 }

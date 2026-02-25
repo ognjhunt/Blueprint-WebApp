@@ -3,19 +3,19 @@ import fs from "node:fs";
 import path from "node:path";
 
 describe("Route registration", () => {
-  it("registers /how-it-works in the main router", () => {
-    const routerPath = path.resolve(process.cwd(), "client/src/main.tsx");
-    const source = fs.readFileSync(routerPath, "utf-8");
+  it("registers /how-it-works and /pilot-exchange in route registry", () => {
+    const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
+    const source = fs.readFileSync(routesPath, "utf-8");
 
-    expect(source).toContain('const HowItWorks = lazy(() => import("./pages/HowItWorks"))');
-    expect(source).toContain('<Route path="/how-it-works" component={withLayout(HowItWorks)} />');
+    expect(source).toContain('path: "/how-it-works"');
+    expect(source).toContain('path: "/pilot-exchange"');
   });
 
-  it("registers /pilot-exchange in the main router", () => {
-    const routerPath = path.resolve(process.cwd(), "client/src/main.tsx");
-    const source = fs.readFileSync(routerPath, "utf-8");
+  it("keeps canonical dashboard and off-waitlist routes reachable", () => {
+    const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
+    const source = fs.readFileSync(routesPath, "utf-8");
 
-    expect(source).toContain('const PilotExchange = lazy(() => import("./pages/PilotExchange"))');
-    expect(source).toContain('<Route path="/pilot-exchange" component={withLayout(PilotExchange)} />');
+    expect(source).toContain('path: "/dashboard"');
+    expect(source).toContain('path: "/off-waitlist-signup"');
   });
 });

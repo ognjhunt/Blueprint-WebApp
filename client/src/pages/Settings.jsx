@@ -2,8 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { CreditCard, Mail, ShieldCheck, ShoppingBag, User } from "lucide-react";
-import Nav from "@/components/Nav";
-import Footer from "@/components/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -156,10 +154,8 @@ export default function SettingsPage() {
   };
 
   return (
-    <>
-      <Nav />
-      <main className="min-h-screen bg-white pt-20 text-zinc-900">
-        <div className="mx-auto flex max-w-5xl flex-col gap-10 px-4 pb-16 sm:px-6">
+    <main className="min-h-screen bg-white pt-20 text-zinc-900">
+      <div className="mx-auto flex max-w-5xl flex-col gap-10 px-4 pb-16 sm:px-6">
           <header className="space-y-4">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400">
               Settings
@@ -529,9 +525,7 @@ export default function SettingsPage() {
               </section>
             </>
           )}
-        </div>
-      </main>
-      <Footer />
-    </>
+      </div>
+    </main>
   );
 }

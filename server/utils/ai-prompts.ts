@@ -179,7 +179,7 @@ You should receive a Google Calendar Invite for this shortly. Please accept it t
 
 Based on the provided information (${estimated_square_footage} sq ft), we estimate the mapping will take approximately ${calculatedMappingDuration} minutes.
 
-Pilot Details: https://blueprint-vision-fork-nijelhunt.replit.app/pilot-program
+Pilot Details: https://www.tryblueprint.io/pilot-program
 Questions? Reply to this email or schedule a chat: https://calendly.com/blueprintar/30min
 
 Thanks,

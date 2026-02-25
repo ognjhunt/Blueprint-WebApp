@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { randomUUID } from "node:crypto";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { HTTP_STATUS } from "../constants/http-status";
 import { sendEmail } from "../utils/email";
@@ -13,6 +14,10 @@ export default async function contactHandler(req: Request, res: Response) {
     name,
     email,
     company,
+    city,
+    state,
+    companyWebsite,
+    companyAddress,
     jobTitle,
     country,
     requestType,
@@ -46,12 +51,16 @@ export default async function contactHandler(req: Request, res: Response) {
     emailOptIn,
   } = req.body ?? {};
 
+  const requestSource =
+    typeof req.body?.requestSource === "string"
+      ? req.body.requestSource
+      : "marketplace-wishlist";
+
   // Validate required fields and provide specific error messages
   const missingFields: string[] = [];
   if (!name) missingFields.push("Full Name");
   if (!email) missingFields.push("Work Email");
   if (!company) missingFields.push("Company");
-  if (!country) missingFields.push("Country");
 
   if (missingFields.length > 0) {
     return res.status(400).json({
@@ -63,6 +72,10 @@ export default async function contactHandler(req: Request, res: Response) {
   if (!emailValue || !isValidEmailAddress(emailValue)) {
     return res.status(400).json({ error: "Invalid email format" });
   }
+  const normalizedCountry =
+    typeof country === "string" && country.trim().length > 0
+      ? country.trim()
+      : "United States";
 
   const useCaseList = Array.isArray(useCases)
     ? useCases
@@ -91,7 +104,7 @@ export default async function contactHandler(req: Request, res: Response) {
     `Email: ${emailValue}`,
     `Company: ${company}`,
     `Job title: ${jobTitle}`,
-    `Country: ${country}`,
+    `Country: ${normalizedCountry}`,
   ];
 
   if (requestType) {
@@ -217,18 +230,13 @@ export default async function contactHandler(req: Request, res: Response) {
   const subject = `Blueprint request from ${company}`;
   const summary = summaryLines.join("\n");
 
-  const requestSource =
-    typeof req.body?.requestSource === "string"
-      ? req.body.requestSource
-      : "marketplace-wishlist";
-
   const logEntry = {
     requestSource,
     requesterName,
     email,
     company,
     jobTitle,
-    country,
+    country: normalizedCountry,
     requestType: req.body?.requestType ?? requestType ?? null,
     receivedAtIso: new Date().toISOString(),
     submittedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -256,6 +264,86 @@ export default async function contactHandler(req: Request, res: Response) {
     }
   } catch (error: any) {
     console.error("Failed to log contact submission to Firestore:", error);
+  }
+
+  let offWaitlistUrl: string | null = null;
+
+  if (requestSource === "website-contact-form") {
+    if (!db) {
+      return res
+        .status(HTTP_STATUS.SERVICE_UNAVAILABLE)
+        .json({ error: "Service temporarily unavailable" });
+    }
+
+    const baseUrl =
+      process.env.VITE_PUBLIC_APP_URL?.trim() ||
+      process.env.STRIPE_PUBLIC_BASE_URL?.trim() ||
+      process.env.BASE_URL?.trim() ||
+      "https://www.tryblueprint.io";
+    const sanitizedBaseUrl = baseUrl.replace(/\/$/, "");
+    const token = randomUUID();
+    offWaitlistUrl = `${sanitizedBaseUrl}/off-waitlist-signup?token=${token}`;
+    const timestamp = admin.firestore.FieldValue.serverTimestamp();
+
+    try {
+      await db.collection("waitlistTokens").add({
+        token,
+        email: emailValue,
+        company,
+        status: "unused",
+        createdAt: timestamp,
+      });
+
+      await db.collection("contactRequests").add({
+        name: requesterName,
+        email: emailValue,
+        company,
+        city: typeof city === "string" ? city : "",
+        state: typeof state === "string" ? state : "",
+        message: typeof message === "string" ? message : "",
+        companyWebsite: typeof companyWebsite === "string" ? companyWebsite : "",
+        token,
+        offWaitlistUrl,
+        createdAt: timestamp,
+      });
+
+      const sceneId = `scene-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      await db.collection("scenes").add({
+        id: sceneId,
+        name: company,
+        title: company,
+        description:
+          typeof message === "string" && message.length > 0
+            ? message
+            : `Scene for ${company}`,
+        status: "pending",
+        source: "contact_form",
+        contact: {
+          name: requesterName,
+          email: emailValue,
+          company,
+          city: typeof city === "string" ? city : "",
+          state: typeof state === "string" ? state : "",
+          message: typeof message === "string" ? message : "",
+          companyWebsite:
+            typeof companyWebsite === "string" ? companyWebsite : "",
+        },
+        location: {
+          city: typeof city === "string" ? city : "",
+          state: typeof state === "string" ? state : "",
+          address: typeof companyAddress === "string" ? companyAddress : "",
+        },
+        token,
+        offWaitlistUrl,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      });
+    } catch (error) {
+      console.error("Failed to create contact-form Firestore records:", error);
+      return res
+        .status(HTTP_STATUS.SERVICE_UNAVAILABLE)
+        .json({ error: "Unable to process contact request right now" });
+    }
   }
 
   const { sent } = await sendEmail({ to, subject, text: summary, replyTo: email });
@@ -348,5 +436,9 @@ export default async function contactHandler(req: Request, res: Response) {
     });
   }
 
-  return res.status(HTTP_STATUS.ACCEPTED).json({ success: true, sent });
+  return res.status(HTTP_STATUS.ACCEPTED).json({
+    success: true,
+    sent,
+    offWaitlistUrl,
+  });
 }

@@ -1,13 +1,21 @@
 import type {
+  ActivationArtifact,
+  ActivationSignal,
   CaptureNetworkStat,
+  ConfidenceBandPoint,
   DeploymentTimeline,
   EvalLeaderboardEntry,
+  FailureAttributionSlice,
   LocationBrief,
+  PilotExchangeFaqItem,
   PilotLocationType,
   PolicySubmission,
   PrivacyMode,
+  ReadinessFunnelPoint,
+  ReadinessGate,
   RobotEmbodiment,
   ScoreSummary,
+  WorkflowValidationCheck,
 } from "@/types/pilot-exchange";
 
 export const pilotLocationTypes: PilotLocationType[] = [
@@ -35,9 +43,266 @@ export const pilotTimelines: DeploymentTimeline[] = [
 
 export const pilotPrivacyModes: PrivacyMode[] = ["Anonymized", "Named"];
 
+export const readinessGates: ReadinessGate[] = [
+  {
+    id: "gate-01",
+    title: "Site Intake",
+    description:
+      "Collect task definitions, throughput targets, shift constraints, and no-go zones.",
+    whyItMatters:
+      "If task scope is vague, simulation scores will not map cleanly to operations.",
+  },
+  {
+    id: "gate-02",
+    title: "Digital Twin Capture",
+    description:
+      "Capture geometry, access points, and traffic bottlenecks from the real location.",
+    whyItMatters:
+      "A walkthrough twin provides spatial truth for early fit, reach, and path checks.",
+  },
+  {
+    id: "gate-03",
+    title: "SimReady Authoring",
+    description:
+      "Add physics semantics, collision layers, articulation, and machine-readable metadata.",
+    whyItMatters:
+      "SimReady improves fidelity, but it is still not enough without calibration.",
+  },
+  {
+    id: "gate-04",
+    title: "Real-to-Sim Activation",
+    description:
+      "Tune contact, sensors, control timing, and disturbances using small on-site log sets.",
+    whyItMatters:
+      "Calibration reduces the reality gap before teams invest in live pilot spend.",
+  },
+  {
+    id: "gate-05",
+    title: "Standardized Eval Harness",
+    description:
+      "Run all teams against shared tasks, stress cases, fault injection, and scoring rules.",
+    whyItMatters:
+      "A common harness prevents cherry-picked demos and enables apples-to-apples ranking.",
+  },
+  {
+    id: "gate-06",
+    title: "Safety + SAT Prep",
+    description:
+      "Define safety controls, SAT pass criteria, intervention runbooks, and escalation paths.",
+    whyItMatters:
+      "Deployment decisions must include safety readiness, not policy metrics alone.",
+  },
+  {
+    id: "gate-07",
+    title: "Controlled Pilot Ramp",
+    description:
+      "Start with limited hours and task subsets, then expand only after stable performance.",
+    whyItMatters:
+      "The final risk reduction step happens on-site with controlled exposure.",
+  },
+];
+
+export const readinessFunnel: ReadinessFunnelPoint[] = [
+  { id: "f-01", stage: "Briefs Submitted", teams: 124 },
+  { id: "f-02", stage: "Twin Captured", teams: 102 },
+  { id: "f-03", stage: "SimReady Authored", teams: 88 },
+  { id: "f-04", stage: "Real-to-Sim Activated", teams: 67 },
+  { id: "f-05", stage: "Harness Passed", teams: 49 },
+  { id: "f-06", stage: "Safety + SAT Ready", teams: 32 },
+  { id: "f-07", stage: "Pilot-Ready", teams: 21 },
+];
+
+export const confidenceBands: ConfidenceBandPoint[] = [
+  { id: "cb-01", task: "Humanoid aisle reset", low: 68, median: 79, high: 86 },
+  { id: "cb-02", task: "Shelf reach + face", low: 62, median: 74, high: 83 },
+  { id: "cb-03", task: "Door handoff", low: 58, median: 70, high: 81 },
+  { id: "cb-04", task: "Elevator transfer", low: 51, median: 66, high: 77 },
+  { id: "cb-05", task: "Night recovery loop", low: 65, median: 78, high: 87 },
+];
+
+export const failureAttribution: FailureAttributionSlice[] = [
+  {
+    id: "fa-01",
+    label: "Geometry",
+    percent: 14,
+    note: "Clearance, occlusion, and layout drift issues.",
+  },
+  {
+    id: "fa-02",
+    label: "Calibration",
+    percent: 23,
+    note: "Sensor, friction, and control-latency mismatch.",
+  },
+  {
+    id: "fa-03",
+    label: "Integration",
+    percent: 27,
+    note: "WMS/ERP contracts, retries, and event timing failures.",
+  },
+  {
+    id: "fa-04",
+    label: "Policy Logic",
+    percent: 21,
+    note: "Task policy edge cases and recovery behavior gaps.",
+  },
+  {
+    id: "fa-05",
+    label: "Ops Process",
+    percent: 15,
+    note: "Operator handoff and escalation process mismatches.",
+  },
+];
+
+export const activationSignals: ActivationSignal[] = [
+  {
+    id: "sig-01",
+    label: "Motion and contact logs",
+    description:
+      "Short scripted trajectories, docking traces, and foot-floor contact outcomes from the real site.",
+  },
+  {
+    id: "sig-02",
+    label: "Sensor characterization",
+    description:
+      "Camera/LiDAR noise, glare snapshots, and localization drift under real lighting.",
+  },
+  {
+    id: "sig-03",
+    label: "Timing and network traces",
+    description:
+      "Latency, jitter, and comm-loss patterns collected from production-like network conditions.",
+  },
+  {
+    id: "sig-04",
+    label: "Workflow exception traces",
+    description:
+      "Logs for item missing, wrong bin, blocked path, and human escalation events.",
+  },
+];
+
+export const activationArtifacts: ActivationArtifact[] = [
+  {
+    id: "art-01",
+    label: "Calibrated sim profile",
+    description:
+      "Tuned dynamics and control parameters bound to the location twin.",
+  },
+  {
+    id: "art-02",
+    label: "Sensor noise profile",
+    description:
+      "Versioned noise and dropout models aligned to on-site capture evidence.",
+  },
+  {
+    id: "art-03",
+    label: "Randomization envelope",
+    description:
+      "Stress ranges used to avoid overfitting to a single frozen twin snapshot.",
+  },
+  {
+    id: "art-04",
+    label: "Qualification report",
+    description:
+      "Task-level confidence bands, intervention rates, and gating outcomes.",
+  },
+];
+
+export const workflowValidationChecks: WorkflowValidationCheck[] = [
+  {
+    id: "wf-01",
+    label: "WMS / ERP Contracts",
+    checks: [
+      "Dispatch, cancel, and retry behavior under load",
+      "Order mapping and idempotency on replay",
+      "Timeout and backpressure handling",
+    ],
+  },
+  {
+    id: "wf-02",
+    label: "Exception Handling",
+    checks: [
+      "Item missing, wrong bin, unreadable label",
+      "Blocked aisle and reroute behavior",
+      "Safe fallback and retry limits",
+    ],
+  },
+  {
+    id: "wf-03",
+    label: "Facility Handoffs",
+    checks: [
+      "Conveyor, door, and lift state transitions",
+      "Interface failures and degraded-mode actions",
+      "Cross-system event ordering",
+    ],
+  },
+  {
+    id: "wf-04",
+    label: "Human-in-the-Loop Ops",
+    checks: [
+      "Escalation trigger timing",
+      "Intervention tooling and response windows",
+      "Post-intervention resume correctness",
+    ],
+  },
+];
+
+export const pilotExchangeFaq: PilotExchangeFaqItem[] = [
+  {
+    id: "faq-01",
+    question: "Is this simulation-only, or do you still test in the real world?",
+    answer:
+      "Both. Simulation is used for pre-qualification and faster iteration. A controlled on-site pilot ramp is still required before broader rollout.",
+  },
+  {
+    id: "faq-02",
+    question: "If a policy scores well in sim, why can a pilot still pause?",
+    answer:
+      "Most pauses happen in integration, safety, and operations. Strong policy scores reduce risk but do not eliminate interface, exception, and process mismatches.",
+  },
+  {
+    id: "faq-03",
+    question: "Do third parties help with testing and deployment readiness?",
+    answer:
+      "Yes. Many teams use third-party integrators, safety assessors, and FAT/SAT witnesses. Pilot Exchange can complement those workflows by standardizing pre-qualification artifacts.",
+  },
+  {
+    id: "faq-04",
+    question: "What does transfer confidence mean here?",
+    answer:
+      "It is a pre-deployment confidence band based on calibrated simulation evidence. It is not a production guarantee and must be validated during SAT and pilot ramp.",
+  },
+];
+
 export const locationBriefs: LocationBrief[] = [
   {
     id: "brief-001",
+    operatorAlias: "Southeast Grocery Network B",
+    locationType: "Grocery",
+    region: "US Southeast",
+    footprintSqFt: 45000,
+    robotEmbodiment: "Humanoid",
+    timeline: "90 days",
+    privacyMode: "Anonymized",
+    qualifyingSuccessRateThreshold: 82,
+    objective: "Night reset, shelf facing, and aisle recovery",
+    evaluationGoal:
+      "Rank humanoid teams by success rate, intervention burden, and integration readiness.",
+    primaryTasks: [
+      "Aisle walk + obstacle avoidance",
+      "Lower/upper shelf facing",
+      "Backroom to floor restock handoff",
+    ],
+    integrationSurface: ["WMS tasks", "Door controller", "Inventory event bus"],
+    safetyConstraints: [
+      "No operation during customer peak windows",
+      "Max speed 1.2 m/s in mixed aisles",
+      "Immediate safe-stop on blocked egress",
+    ],
+    excludedTasks: "No freezer-room operation in this cycle.",
+    openSlots: 8,
+  },
+  {
+    id: "brief-002",
     operatorAlias: "Midwest Fulfillment Operator A",
     locationType: "Warehouse",
     region: "US Midwest",
@@ -47,22 +312,20 @@ export const locationBriefs: LocationBrief[] = [
     privacyMode: "Anonymized",
     qualifyingSuccessRateThreshold: 90,
     objective: "Inbound tote induction and pallet breakdown",
-    evaluationGoal: "Rank 10 policy vendors by throughput and safety events.",
+    evaluationGoal:
+      "Compare throughput under congestion while containing intervention rate.",
+    primaryTasks: [
+      "Dock-to-buffer routing",
+      "Tote pick and transfer",
+      "Pallet breakdown sequencing",
+    ],
+    integrationSurface: ["WMS", "Dock door state", "Conveyor PLC"],
+    safetyConstraints: [
+      "Forklift traffic right-of-way",
+      "No autonomous motion near manual pallet jacks",
+    ],
+    excludedTasks: "No trailer loading in this pilot.",
     openSlots: 10,
-  },
-  {
-    id: "brief-002",
-    operatorAlias: "Southeast Grocery Network B",
-    locationType: "Grocery",
-    region: "US Southeast",
-    footprintSqFt: 45000,
-    robotEmbodiment: "Humanoid",
-    timeline: "90 days",
-    privacyMode: "Anonymized",
-    qualifyingSuccessRateThreshold: 80,
-    objective: "Night reset, shelf facing, and aisle recovery",
-    evaluationGoal: "Compare resilience under clutter and shopper-traffic constraints.",
-    openSlots: 8,
   },
   {
     id: "brief-003",
@@ -76,6 +339,9 @@ export const locationBriefs: LocationBrief[] = [
     qualifyingSuccessRateThreshold: 90,
     objective: "Backroom sortation and planogram staging",
     evaluationGoal: "Select best pick-place policy by speed/precision tradeoff.",
+    primaryTasks: ["Bin pick", "SKU sort", "Planogram tote staging"],
+    integrationSurface: ["Store OMS", "Barcode scan service"],
+    safetyConstraints: ["Light curtain interlock", "No arm motion outside cell bounds"],
     openSlots: 6,
   },
   {
@@ -89,7 +355,11 @@ export const locationBriefs: LocationBrief[] = [
     privacyMode: "Anonymized",
     qualifyingSuccessRateThreshold: 85,
     objective: "Housekeeping cart replenishment and service routing",
-    evaluationGoal: "Validate policy reliability across multi-floor navigation tasks.",
+    evaluationGoal:
+      "Validate policy reliability across multi-floor handoff and corridor routing tasks.",
+    primaryTasks: ["Storage pull", "Cart load", "Elevator transfer", "Floor delivery"],
+    integrationSurface: ["BMS elevator API", "Service dispatch"],
+    safetyConstraints: ["Yield-to-human in all hallways", "No operation near wet floors"],
     openSlots: 12,
   },
   {
@@ -103,7 +373,10 @@ export const locationBriefs: LocationBrief[] = [
     privacyMode: "Named",
     qualifyingSuccessRateThreshold: 92,
     objective: "Machine tending and part-kitting workflows",
-    evaluationGoal: "Benchmark cycle time variance against target takt time.",
+    evaluationGoal: "Benchmark cycle-time variance against target takt time.",
+    primaryTasks: ["Part pickup", "Fixture placement", "Kitting tray handoff"],
+    integrationSurface: ["MES", "Machine state bus", "Vision QA output"],
+    safetyConstraints: ["Dual-channel E-stop", "Door interlock verification"],
     openSlots: 5,
   },
   {
@@ -117,7 +390,11 @@ export const locationBriefs: LocationBrief[] = [
     privacyMode: "Anonymized",
     qualifyingSuccessRateThreshold: 88,
     objective: "Supply cart transport and med-room stock checks",
-    evaluationGoal: "Assess failure modes in constrained corridor environments.",
+    evaluationGoal:
+      "Assess failure modes in constrained corridors and strict access controls.",
+    primaryTasks: ["Cart routing", "Cabinet interaction", "Inventory confirmation"],
+    integrationSurface: ["CMMS", "Badge access", "Medication inventory service"],
+    safetyConstraints: ["HIPAA zone restrictions", "No autonomous entry into procedure rooms"],
     openSlots: 7,
   },
 ];
@@ -125,6 +402,18 @@ export const locationBriefs: LocationBrief[] = [
 export const policySubmissions: PolicySubmission[] = [
   {
     id: "policy-001",
+    teamAlias: "Humanoid Systems Alpha",
+    locationType: "Grocery",
+    robotEmbodiment: "Humanoid",
+    timeline: "90 days",
+    privacyMode: "Anonymized",
+    benchmarkRuns: 1230,
+    summary: "Strong shelf-facing consistency with stable reroute behavior.",
+    readiness: "Ready",
+    successRate: 86,
+  },
+  {
+    id: "policy-002",
     teamAlias: "Lab Collective 17",
     locationType: "Warehouse",
     robotEmbodiment: "AMR + Arm",
@@ -134,18 +423,6 @@ export const policySubmissions: PolicySubmission[] = [
     summary: "Strong recovery under pallet occlusion and reroute events.",
     readiness: "Ready",
     successRate: 91,
-  },
-  {
-    id: "policy-002",
-    teamAlias: "Humanoid Systems Alpha",
-    locationType: "Grocery",
-    robotEmbodiment: "Humanoid",
-    timeline: "90 days",
-    privacyMode: "Anonymized",
-    benchmarkRuns: 990,
-    summary: "High aisle compliance; unstable on lower-shelf reach tasks.",
-    readiness: "Conditional",
-    successRate: 83,
   },
   {
     id: "policy-003",
@@ -191,7 +468,7 @@ export const policySubmissions: PolicySubmission[] = [
     timeline: "90 days",
     privacyMode: "Anonymized",
     benchmarkRuns: 910,
-    summary: "Robust in hallway routing, weak in drawer-access subtasks.",
+    summary: "Robust hallway routing, weak in drawer-access subtasks.",
     readiness: "Needs Work",
     successRate: 72,
   },
@@ -201,6 +478,17 @@ export const scoreSummaries: ScoreSummary[] = [
   {
     id: "score-001",
     rank: 1,
+    entrant: "Humanoid Systems Alpha",
+    locationType: "Grocery",
+    robotEmbodiment: "Humanoid",
+    successRate: 86,
+    transferConfidence: 82,
+    readiness: "Ready",
+    detailsAccess: "Gated",
+  },
+  {
+    id: "score-002",
+    rank: 2,
     entrant: "Factory Motion Labs",
     locationType: "Industrial",
     robotEmbodiment: "Franka Arm",
@@ -210,8 +498,8 @@ export const scoreSummaries: ScoreSummary[] = [
     detailsAccess: "Gated",
   },
   {
-    id: "score-002",
-    rank: 2,
+    id: "score-003",
+    rank: 3,
     entrant: "Dexter Robotics Beta",
     locationType: "Retail",
     robotEmbodiment: "Franka Arm",
@@ -221,25 +509,14 @@ export const scoreSummaries: ScoreSummary[] = [
     detailsAccess: "Gated",
   },
   {
-    id: "score-003",
-    rank: 3,
+    id: "score-004",
+    rank: 4,
     entrant: "Lab Collective 17",
     locationType: "Warehouse",
     robotEmbodiment: "AMR + Arm",
     successRate: 91,
     transferConfidence: 84,
     readiness: "Ready",
-    detailsAccess: "Gated",
-  },
-  {
-    id: "score-004",
-    rank: 4,
-    entrant: "Humanoid Systems Alpha",
-    locationType: "Grocery",
-    robotEmbodiment: "Humanoid",
-    successRate: 83,
-    transferConfidence: 76,
-    readiness: "Conditional",
     detailsAccess: "Gated",
   },
   {
@@ -261,7 +538,10 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     briefId: "brief-001",
     rank: 1,
     entrant: "Anon Team 014",
-    successRate: 93,
+    successRate: 87,
+    interventionRatePer100: 6.2,
+    integrationCheckStatus: "Passed",
+    safetySatStatus: "Ready",
     benchmarkRuns: 420,
     readiness: "Ready",
     detailsAccess: "Gated",
@@ -271,9 +551,12 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     briefId: "brief-001",
     rank: 2,
     entrant: "Anon Team 022",
-    successRate: 91,
+    successRate: 84,
+    interventionRatePer100: 8.9,
+    integrationCheckStatus: "Partial",
+    safetySatStatus: "In Progress",
     benchmarkRuns: 310,
-    readiness: "Ready",
+    readiness: "Conditional",
     detailsAccess: "Gated",
   },
   {
@@ -281,7 +564,10 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     briefId: "brief-001",
     rank: 3,
     entrant: "Anon Team 007",
-    successRate: 89,
+    successRate: 81,
+    interventionRatePer100: 11.4,
+    integrationCheckStatus: "Partial",
+    safetySatStatus: "In Progress",
     benchmarkRuns: 280,
     readiness: "Conditional",
     detailsAccess: "Gated",
@@ -291,7 +577,10 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     briefId: "brief-001",
     rank: 4,
     entrant: "Anon Team 031",
-    successRate: 86,
+    successRate: 76,
+    interventionRatePer100: 15.7,
+    integrationCheckStatus: "Failed",
+    safetySatStatus: "Blocked",
     benchmarkRuns: 190,
     readiness: "Needs Work",
     detailsAccess: "Gated",
@@ -301,7 +590,10 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     briefId: "brief-002",
     rank: 1,
     entrant: "Anon Team 004",
-    successRate: 87,
+    successRate: 93,
+    interventionRatePer100: 4.5,
+    integrationCheckStatus: "Passed",
+    safetySatStatus: "Ready",
     benchmarkRuns: 260,
     readiness: "Ready",
     detailsAccess: "Gated",
@@ -311,9 +603,12 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     briefId: "brief-002",
     rank: 2,
     entrant: "Anon Team 019",
-    successRate: 82,
+    successRate: 91,
+    interventionRatePer100: 6.1,
+    integrationCheckStatus: "Passed",
+    safetySatStatus: "In Progress",
     benchmarkRuns: 210,
-    readiness: "Conditional",
+    readiness: "Ready",
     detailsAccess: "Gated",
   },
   {
@@ -321,7 +616,10 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     briefId: "brief-002",
     rank: 3,
     entrant: "Anon Team 011",
-    successRate: 79,
+    successRate: 89,
+    interventionRatePer100: 7.3,
+    integrationCheckStatus: "Partial",
+    safetySatStatus: "In Progress",
     benchmarkRuns: 230,
     readiness: "Conditional",
     detailsAccess: "Gated",
@@ -331,7 +629,10 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     briefId: "brief-002",
     rank: 4,
     entrant: "Anon Team 028",
-    successRate: 74,
+    successRate: 84,
+    interventionRatePer100: 11.6,
+    integrationCheckStatus: "Partial",
+    safetySatStatus: "Blocked",
     benchmarkRuns: 170,
     readiness: "Needs Work",
     detailsAccess: "Gated",
@@ -342,6 +643,9 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     rank: 1,
     entrant: "Anon Team 006",
     successRate: 96,
+    interventionRatePer100: 2.8,
+    integrationCheckStatus: "Passed",
+    safetySatStatus: "Ready",
     benchmarkRuns: 510,
     readiness: "Ready",
     detailsAccess: "Gated",
@@ -352,6 +656,9 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     rank: 2,
     entrant: "Anon Team 013",
     successRate: 92,
+    interventionRatePer100: 4.2,
+    integrationCheckStatus: "Passed",
+    safetySatStatus: "Ready",
     benchmarkRuns: 420,
     readiness: "Ready",
     detailsAccess: "Gated",
@@ -362,6 +669,9 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     rank: 3,
     entrant: "Anon Team 025",
     successRate: 90,
+    interventionRatePer100: 5.9,
+    integrationCheckStatus: "Partial",
+    safetySatStatus: "In Progress",
     benchmarkRuns: 380,
     readiness: "Conditional",
     detailsAccess: "Gated",
@@ -372,6 +682,9 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     rank: 4,
     entrant: "Anon Team 002",
     successRate: 88,
+    interventionRatePer100: 7.1,
+    integrationCheckStatus: "Partial",
+    safetySatStatus: "In Progress",
     benchmarkRuns: 250,
     readiness: "Conditional",
     detailsAccess: "Gated",
@@ -382,6 +695,9 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     rank: 1,
     entrant: "Anon Team 021",
     successRate: 88,
+    interventionRatePer100: 6.7,
+    integrationCheckStatus: "Passed",
+    safetySatStatus: "In Progress",
     benchmarkRuns: 340,
     readiness: "Conditional",
     detailsAccess: "Gated",
@@ -392,6 +708,9 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     rank: 2,
     entrant: "Anon Team 015",
     successRate: 85,
+    interventionRatePer100: 8.3,
+    integrationCheckStatus: "Partial",
+    safetySatStatus: "In Progress",
     benchmarkRuns: 290,
     readiness: "Conditional",
     detailsAccess: "Gated",
@@ -402,6 +721,9 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     rank: 3,
     entrant: "Anon Team 009",
     successRate: 83,
+    interventionRatePer100: 10.2,
+    integrationCheckStatus: "Partial",
+    safetySatStatus: "Blocked",
     benchmarkRuns: 310,
     readiness: "Needs Work",
     detailsAccess: "Gated",
@@ -412,6 +734,9 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     rank: 4,
     entrant: "Anon Team 033",
     successRate: 80,
+    interventionRatePer100: 12.4,
+    integrationCheckStatus: "Failed",
+    safetySatStatus: "Blocked",
     benchmarkRuns: 220,
     readiness: "Needs Work",
     detailsAccess: "Gated",
@@ -422,6 +747,9 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     rank: 1,
     entrant: "Anon Team 012",
     successRate: 97,
+    interventionRatePer100: 1.9,
+    integrationCheckStatus: "Passed",
+    safetySatStatus: "Ready",
     benchmarkRuns: 640,
     readiness: "Ready",
     detailsAccess: "Gated",
@@ -432,6 +760,9 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     rank: 2,
     entrant: "Anon Team 001",
     successRate: 93,
+    interventionRatePer100: 3.7,
+    integrationCheckStatus: "Passed",
+    safetySatStatus: "Ready",
     benchmarkRuns: 520,
     readiness: "Ready",
     detailsAccess: "Gated",
@@ -442,6 +773,9 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     rank: 3,
     entrant: "Anon Team 018",
     successRate: 91,
+    interventionRatePer100: 5.5,
+    integrationCheckStatus: "Partial",
+    safetySatStatus: "In Progress",
     benchmarkRuns: 410,
     readiness: "Conditional",
     detailsAccess: "Gated",
@@ -452,6 +786,9 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     rank: 4,
     entrant: "Anon Team 029",
     successRate: 89,
+    interventionRatePer100: 7.0,
+    integrationCheckStatus: "Partial",
+    safetySatStatus: "In Progress",
     benchmarkRuns: 360,
     readiness: "Conditional",
     detailsAccess: "Gated",
@@ -462,6 +799,9 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     rank: 1,
     entrant: "Anon Team 023",
     successRate: 90,
+    interventionRatePer100: 5.6,
+    integrationCheckStatus: "Passed",
+    safetySatStatus: "Ready",
     benchmarkRuns: 370,
     readiness: "Conditional",
     detailsAccess: "Gated",
@@ -472,6 +812,9 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     rank: 2,
     entrant: "Anon Team 010",
     successRate: 88,
+    interventionRatePer100: 6.8,
+    integrationCheckStatus: "Partial",
+    safetySatStatus: "In Progress",
     benchmarkRuns: 330,
     readiness: "Conditional",
     detailsAccess: "Gated",
@@ -482,6 +825,9 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     rank: 3,
     entrant: "Anon Team 027",
     successRate: 86,
+    interventionRatePer100: 9.2,
+    integrationCheckStatus: "Partial",
+    safetySatStatus: "Blocked",
     benchmarkRuns: 300,
     readiness: "Needs Work",
     detailsAccess: "Gated",
@@ -492,6 +838,9 @@ export const evalLeaderboardEntries: EvalLeaderboardEntry[] = [
     rank: 4,
     entrant: "Anon Team 005",
     successRate: 81,
+    interventionRatePer100: 13.1,
+    integrationCheckStatus: "Failed",
+    safetySatStatus: "Blocked",
     benchmarkRuns: 240,
     readiness: "Needs Work",
     detailsAccess: "Gated",
@@ -513,9 +862,9 @@ export const captureNetworkStats: CaptureNetworkStat[] = [
   },
   {
     id: "capture-003",
-    label: "Median Twin-to-Sim Time",
+    label: "Median Twin-to-Sim Activation Time",
     value: "36h",
-    note: "From capture upload to eval-ready simulation package.",
+    note: "From capture upload to calibrated, eval-ready package.",
   },
   {
     id: "capture-004",

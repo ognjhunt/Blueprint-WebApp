@@ -21,7 +21,7 @@ router.get("/", (_req: Request, res: Response) => {
         path: "/pilot-exchange",
         title: "Pilot Exchange",
         description:
-          "Eval-first marketplace where operators compare robot policy performance in digital twins before deployment.",
+          "Pre-deployment qualification marketplace where operators and robot teams compare calibrated policy performance before pilot ramp.",
       },
       {
         path: "/docs",

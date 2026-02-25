@@ -33,6 +33,7 @@ if (!stripeConnectAccountConfigured) {
 const DEFAULT_BASE_URL =
   process.env.STRIPE_PUBLIC_BASE_URL?.trim() ||
   process.env.NEXT_PUBLIC_BASE_URL?.trim() ||
+  process.env.VITE_PUBLIC_APP_URL?.trim() ||
   process.env.VITE_PUBLIC_URL?.trim() ||
   process.env.BASE_URL?.trim() ||
   "https://www.tryblueprint.io";

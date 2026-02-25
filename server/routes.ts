@@ -1,10 +1,10 @@
 import type { Express } from "express";
-import createCheckoutSessionHandler from "../client/src/pages/api/create-checkout-session/route";
-import googlePlacesHandler from "../client/src/pages/api/googlePlaces";
-import generateImageHandler from "../client/src/pages/api/generate-image";
-import submitToSheetsHandler from "../client/src/pages/api/submit-to-sheets";
+import createCheckoutSessionHandler from "./routes/api/create-checkout-session";
+import googlePlacesHandler from "./routes/api/google-places";
+import generateImageHandler from "./routes/api/generate-image";
+import submitToSheetsHandler from "./routes/api/submit-to-sheets";
 import processWaitlistHandler from "./routes/process-waitlist";
-import uploadToB2Handler from "../client/src/pages/api/upload-to-b2";
+import uploadToB2Handler from "./routes/api/upload-to-b2";
 import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
 import geminiRouter from "./routes/gemini";
 import aiStudioRouter from "./routes/ai-studio";

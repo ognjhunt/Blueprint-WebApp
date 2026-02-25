@@ -21,6 +21,15 @@ import {
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
+const isFirestoreDebugEnabled =
+  import.meta.env.DEV || import.meta.env.VITE_FIREBASE_DEBUG === "true";
+
+const logDebug = (...args: unknown[]) => {
+  if (isFirestoreDebugEnabled) {
+    console.debug(...args);
+  }
+};
+
 // Firebase configuration - hardcoded for Render deployment
 // TODO: Move to environment variables when possible
 const firebaseConfig: FirebaseOptions = {
@@ -38,7 +47,10 @@ const firebaseConfig: FirebaseOptions = {
 let app;
 try {
   app = initializeApp(firebaseConfig);
-  console.log("[Firebase] App initialized successfully for project:", firebaseConfig.projectId);
+  logDebug(
+    "[Firebase] App initialized successfully for project:",
+    firebaseConfig.projectId,
+  );
 } catch (error) {
   console.error("[Firebase] Failed to initialize app:", error);
   throw error;
@@ -51,18 +63,25 @@ export const storage = getStorage(app);
 export const sendPasswordResetEmail = firebaseSendPasswordResetEmail;
 
 // Log Firebase service initialization
-console.log("[Firebase] Services initialized - Auth:", !!auth, "Firestore:", !!db, "Storage:", !!storage);
+logDebug(
+  "[Firebase] Services initialized - Auth:",
+  !!auth,
+  "Firestore:",
+  !!db,
+  "Storage:",
+  !!storage,
+);
 
 // Debug function to test Firestore connectivity
 export const testFirestoreConnection = async (): Promise<boolean> => {
-  console.log("[Firebase] Testing Firestore connection...");
+  logDebug("[Firebase] Testing Firestore connection...");
   try {
     const testRef = doc(db, "_connection_test", "test");
     await setDoc(testRef, { timestamp: serverTimestamp(), test: true });
-    console.log("[Firebase] Firestore write test PASSED");
+    logDebug("[Firebase] Firestore write test PASSED");
 
     const testDoc = await getDoc(testRef);
-    console.log("[Firebase] Firestore read test PASSED, doc exists:", testDoc.exists());
+    logDebug("[Firebase] Firestore read test PASSED, doc exists:", testDoc.exists());
 
     return true;
   } catch (error) {
@@ -76,16 +95,13 @@ export const testFirestoreConnection = async (): Promise<boolean> => {
   }
 };
 
-const isFirestoreDebugEnabled =
-  import.meta.env.DEV || import.meta.env.VITE_FIREBASE_DEBUG === "true";
-
 export const runFirestoreConnectionTestIfDebug = async (): Promise<boolean> => {
   if (!isFirestoreDebugEnabled) {
     return false;
   }
 
   const success = await testFirestoreConnection();
-  console.log("[Firebase] Debug connection test result:", success ? "SUCCESS" : "FAILED");
+  logDebug("[Firebase] Debug connection test result:", success ? "SUCCESS" : "FAILED");
   return success;
 };
 
@@ -257,16 +273,16 @@ export const createUserDocument = async (
     throw new Error("No user provided to createUserDocument");
   }
 
-  console.log("[Firebase] createUserDocument called for user:", user.uid);
-  console.log("[Firebase] Firestore db instance:", db ? "exists" : "null");
+  logDebug("[Firebase] createUserDocument called for user:", user.uid);
+  logDebug("[Firebase] Firestore db instance:", db ? "exists" : "null");
 
   try {
     const userRef = doc(db, "users", user.uid);
-    console.log("[Firebase] Created doc reference for users/" + user.uid);
+    logDebug("[Firebase] Created doc reference for users/" + user.uid);
 
-    console.log("[Firebase] Attempting to get existing document...");
+    logDebug("[Firebase] Attempting to get existing document...");
     const snapshot = await getDoc(userRef);
-    console.log("[Firebase] getDoc completed, exists:", snapshot.exists());
+    logDebug("[Firebase] getDoc completed, exists:", snapshot.exists());
 
     if (!snapshot.exists()) {
       const { email } = user;
@@ -335,16 +351,16 @@ export const createUserDocument = async (
         paymentMethods: [],
       };
 
-      console.log("[Firebase] Attempting setDoc for new user...");
+      logDebug("[Firebase] Attempting setDoc for new user...");
       await setDoc(userRef, newUserData);
-      console.log("[Firebase] setDoc completed successfully for new user");
+      logDebug("[Firebase] setDoc completed successfully for new user");
     } else {
-      console.log("[Firebase] User exists, attempting updateDoc...");
+      logDebug("[Firebase] User exists, attempting updateDoc...");
       await updateDoc(userRef, {
         lastLoginAt: serverTimestamp(),
         numSessions: increment(1),
       });
-      console.log("[Firebase] updateDoc completed successfully");
+      logDebug("[Firebase] updateDoc completed successfully");
     }
   } catch (error) {
     console.error("[Firebase] Error in createUserDocument:", error);
@@ -360,11 +376,11 @@ export const createUserDocument = async (
 };
 
 export const getUserData = async (uid: string): Promise<UserData | null> => {
-  console.log("[Firebase] getUserData called for uid:", uid);
+  logDebug("[Firebase] getUserData called for uid:", uid);
   try {
-    console.log("[Firebase] Attempting to fetch user document...");
+    logDebug("[Firebase] Attempting to fetch user document...");
     const userDoc = await getDoc(doc(db, "users", uid));
-    console.log("[Firebase] getUserData fetch completed, exists:", userDoc.exists());
+    logDebug("[Firebase] getUserData fetch completed, exists:", userDoc.exists());
     if (userDoc.exists()) {
       return userDoc.data() as UserData;
     }
