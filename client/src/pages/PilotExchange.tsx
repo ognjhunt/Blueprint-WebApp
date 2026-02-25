@@ -38,13 +38,17 @@ import {
 } from "@/components/ui/dialog";
 import {
   ArrowRight,
+  CheckCircle2,
   ChevronRight,
+  CircleDashed,
   Eye,
   EyeOff,
   Filter,
   Lock,
   Search,
-  Sparkles,
+  ShieldCheck,
+  Unlock,
+  XCircle,
 } from "lucide-react";
 
 type FilterValue<T extends string> = "all" | T;
@@ -111,19 +115,19 @@ const defaultEvalRunFormState: EvalRunFormState = {
 function DotPattern() {
   return (
     <svg
-      className="absolute inset-0 -z-10 h-full w-full stroke-zinc-200 [mask-image:radial-gradient(80%_80%_at_top_right,white,transparent)]"
+      className="absolute inset-0 -z-10 h-full w-full stroke-zinc-200/60 [mask-image:radial-gradient(80%_80%_at_top_right,black,transparent)]"
       aria-hidden="true"
     >
       <defs>
         <pattern
           id="grid-pattern-policy-exchange"
-          width={44}
-          height={44}
+          width={40}
+          height={40}
           x="50%"
           y={-1}
           patternUnits="userSpaceOnUse"
         >
-          <path d="M.5 44V.5H44" fill="none" />
+          <path d="M.5 40V.5H40" fill="none" />
         </pattern>
       </defs>
       <rect width="100%" height="100%" strokeWidth={0} fill="url(#grid-pattern-policy-exchange)" />
@@ -135,7 +139,6 @@ function generateRequestId(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();
   }
-
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
     const random = (Math.random() * 16) | 0;
     const value = char === "x" ? random : (random & 0x3) | 0x8;
@@ -144,9 +147,7 @@ function generateRequestId(): string {
 }
 
 function getUTMParams() {
-  if (typeof window === "undefined") {
-    return {};
-  }
+  if (typeof window === "undefined") return {};
   const params = new URLSearchParams(window.location.search);
   return {
     source: params.get("utm_source") || null,
@@ -159,79 +160,49 @@ function getUTMParams() {
 
 function parseContactName(fullName: string): { firstName: string; lastName: string } {
   const trimmed = fullName.trim();
-  if (!trimmed) {
-    return { firstName: "", lastName: "" };
-  }
-
+  if (!trimmed) return { firstName: "", lastName: "" };
   const [first, ...rest] = trimmed.split(/\s+/);
-  return {
-    firstName: first,
-    lastName: rest.join(" ") || "Unknown",
-  };
+  return { firstName: first, lastName: rest.join(" ") || "Unknown" };
 }
 
 function inferCompanyFromEmail(email: string): string {
   const trimmed = email.trim().toLowerCase();
-  const domain = trimmed.split("@")[1] || "";
-  return domain;
+  return trimmed.split("@")[1] || "";
 }
 
 function readPolicyLibrary(): SavedPolicyPackage[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
+  if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(POLICY_LIBRARY_STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
+    if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
+    if (!Array.isArray(parsed)) return [];
     return parsed as SavedPolicyPackage[];
   } catch {
     return [];
   }
 }
 
-function formatThresholdDelta(successRate: number, threshold: number): {
-  label: string;
-  className: string;
-} {
+function formatThresholdDelta(successRate: number, threshold: number) {
   const delta = Math.round(successRate - threshold);
-  const label = `${delta >= 0 ? "+" : ""}${delta}%`;
   return {
-    label,
-    className: delta >= 0 ? "text-emerald-700" : "text-rose-600",
+    label: `${delta >= 0 ? "+" : ""}${delta}%`,
+    isPositive: delta >= 0,
   };
 }
 
-function getIntegrationBadgeClass(status: EvalLeaderboardEntry["integrationCheckStatus"]): string {
-  if (status === "Passed") {
-    return "bg-emerald-50 text-emerald-700 ring-emerald-200";
+function StatusIcon({ status }: { status: string }) {
+  if (status === "Passed" || status === "Ready") {
+    return <CheckCircle2 className="h-4 w-4 text-zinc-900" />;
   }
-  if (status === "Partial") {
-    return "bg-amber-50 text-amber-700 ring-amber-200";
+  if (status === "Partial" || status === "In Progress" || status === "Conditional") {
+    return <CircleDashed className="h-4 w-4 text-zinc-500" />;
   }
-  return "bg-rose-50 text-rose-700 ring-rose-200";
-}
-
-function getSafetyBadgeClass(status: EvalLeaderboardEntry["safetySatStatus"]): string {
-  if (status === "Ready") {
-    return "bg-emerald-50 text-emerald-700 ring-emerald-200";
-  }
-  if (status === "In Progress") {
-    return "bg-sky-50 text-sky-700 ring-sky-200";
-  }
-  return "bg-rose-50 text-rose-700 ring-rose-200";
+  return <XCircle className="h-4 w-4 text-zinc-400" />;
 }
 
 function readAccessFlag(storageKey: string): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
+  if (typeof window === "undefined") return false;
   return window.localStorage.getItem(storageKey) === "true";
 }
 
@@ -239,24 +210,17 @@ export default function PilotExchange() {
   const [activeTab, setActiveTab] = useState<ExchangeTab>("briefs");
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [locationFilter, setLocationFilter] =
-    useState<FilterValue<PilotLocationType>>("all");
-  const [embodimentFilter, setEmbodimentFilter] =
-    useState<FilterValue<RobotEmbodiment>>("all");
-  const [timelineFilter, setTimelineFilter] =
-    useState<FilterValue<DeploymentTimeline>>("all");
-  const [privacyFilter, setPrivacyFilter] =
-    useState<FilterValue<PrivacyMode>>("all");
+  const [locationFilter, setLocationFilter] = useState<FilterValue<PilotLocationType>>("all");
+  const [embodimentFilter, setEmbodimentFilter] = useState<FilterValue<RobotEmbodiment>>("all");
+  const [timelineFilter, setTimelineFilter] = useState<FilterValue<DeploymentTimeline>>("all");
+  const [privacyFilter, setPrivacyFilter] = useState<FilterValue<PrivacyMode>>("all");
+  const [showFilters, setShowFilters] = useState(false);
 
   const [isPolicyDialogOpen, setIsPolicyDialogOpen] = useState(false);
   const [isAccessDialogOpen, setIsAccessDialogOpen] = useState(false);
 
-  const [policyLibrary, setPolicyLibrary] = useState<SavedPolicyPackage[]>(() =>
-    readPolicyLibrary(),
-  );
-  const [evalRunForm, setEvalRunForm] = useState<EvalRunFormState>(
-    defaultEvalRunFormState,
-  );
+  const [policyLibrary, setPolicyLibrary] = useState<SavedPolicyPackage[]>(() => readPolicyLibrary());
+  const [evalRunForm, setEvalRunForm] = useState<EvalRunFormState>(defaultEvalRunFormState);
 
   const [policyStatus, setPolicyStatus] = useState<SubmissionStatus>("idle");
   const [policyMessage, setPolicyMessage] = useState("");
@@ -264,19 +228,13 @@ export default function PilotExchange() {
   const [checkoutError, setCheckoutError] = useState("");
   const [checkoutLoadingPlan, setCheckoutLoadingPlan] = useState<AccessPlan | null>(null);
 
-  const [evaluationAccessUnlocked, setEvaluationAccessUnlocked] =
-    useState<boolean>(() => readAccessFlag(EVAL_ACCESS_STORAGE_KEY));
-  const [subscriptionAccessUnlocked, setSubscriptionAccessUnlocked] =
-    useState<boolean>(() => readAccessFlag(SUBSCRIPTION_ACCESS_STORAGE_KEY));
-  const [trainingAccessUnlocked, setTrainingAccessUnlocked] =
-    useState<boolean>(() => readAccessFlag(TRAINING_ACCESS_STORAGE_KEY));
+  const [evaluationAccessUnlocked, setEvaluationAccessUnlocked] = useState<boolean>(() => readAccessFlag(EVAL_ACCESS_STORAGE_KEY));
+  const [subscriptionAccessUnlocked, setSubscriptionAccessUnlocked] = useState<boolean>(() => readAccessFlag(SUBSCRIPTION_ACCESS_STORAGE_KEY));
+  const [trainingAccessUnlocked, setTrainingAccessUnlocked] = useState<boolean>(() => readAccessFlag(TRAINING_ACCESS_STORAGE_KEY));
 
   useEffect(() => {
     analyticsEvents.pilotExchangeView();
-
-    if (typeof window === "undefined") {
-      return;
-    }
+    if (typeof window === "undefined") return;
 
     const params = new URLSearchParams(window.location.search);
     const checkout = params.get("checkout");
@@ -285,7 +243,7 @@ export default function PilotExchange() {
     if (checkout === "success" && access === "evaluation") {
       window.localStorage.setItem(EVAL_ACCESS_STORAGE_KEY, "true");
       setEvaluationAccessUnlocked(true);
-      setCheckoutMessage("Evaluation access unlocked. You can now submit policy evaluations.");
+      setCheckoutMessage("Evaluation access unlocked. You can now submit policies.");
     }
 
     if (checkout === "success" && access === "subscription") {
@@ -307,7 +265,7 @@ export default function PilotExchange() {
     }
 
     if (checkout === "cancel") {
-      setCheckoutError("Checkout was canceled. Complete purchase to run evaluations.");
+      setCheckoutError("Checkout was canceled. Please complete the purchase to proceed.");
     }
 
     if (checkout) {
@@ -320,77 +278,47 @@ export default function PilotExchange() {
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
+    if (typeof window === "undefined") return;
     try {
-      window.localStorage.setItem(
-        POLICY_LIBRARY_STORAGE_KEY,
-        JSON.stringify(policyLibrary),
-      );
+      window.localStorage.setItem(POLICY_LIBRARY_STORAGE_KEY, JSON.stringify(policyLibrary));
     } catch {
-      // Ignore storage failures.
+      // Ignore
     }
   }, [policyLibrary]);
 
   const leaderboardByBriefId = useMemo(() => {
     const grouped = new Map<string, EvalLeaderboardEntry[]>();
-
     for (const entry of evalLeaderboardEntries) {
       const current = grouped.get(entry.briefId) ?? [];
       current.push(entry);
       grouped.set(entry.briefId, current);
     }
-
     for (const entries of grouped.values()) {
       entries.sort((a, b) => a.rank - b.rank);
     }
-
     return grouped;
   }, []);
 
   const selectedEvalBrief = useMemo<LocationBrief | null>(() => {
-    if (!evalRunForm.briefId) {
-      return null;
-    }
+    if (!evalRunForm.briefId) return null;
     return locationBriefs.find((brief) => brief.id === evalRunForm.briefId) ?? null;
   }, [evalRunForm.briefId]);
 
   const selectedEvalLeaderboard = useMemo(() => {
-    if (!evalRunForm.briefId) {
-      return [] as EvalLeaderboardEntry[];
-    }
-
+    if (!evalRunForm.briefId) return [] as EvalLeaderboardEntry[];
     return leaderboardByBriefId.get(evalRunForm.briefId) ?? [];
   }, [evalRunForm.briefId, leaderboardByBriefId]);
 
   const selectedEvalPolicy = useMemo<SavedPolicyPackage | null>(() => {
-    if (!evalRunForm.policyId) {
-      return null;
-    }
+    if (!evalRunForm.policyId) return null;
     return policyLibrary.find((policy) => policy.id === evalRunForm.policyId) ?? null;
   }, [evalRunForm.policyId, policyLibrary]);
 
   useEffect(() => {
-    if (!evalRunForm.contactEmail.trim()) {
-      return;
-    }
-    if (evalRunForm.contactCompany.trim()) {
-      return;
-    }
-
+    if (!evalRunForm.contactEmail.trim() || evalRunForm.contactCompany.trim()) return;
     const inferred = inferCompanyFromEmail(evalRunForm.contactEmail);
-    if (!inferred) {
-      return;
-    }
-
-    setEvalRunForm((prev) => {
-      if (prev.contactCompany.trim()) {
-        return prev;
-      }
-      return { ...prev, contactCompany: inferred };
-    });
+    if (!inferred) return;
+    setEvalRunForm((prev) => prev.contactCompany.trim() ? prev : { ...prev, contactCompany: inferred });
   }, [evalRunForm.contactCompany, evalRunForm.contactEmail]);
 
   const openEvalDialog = useCallback(
@@ -400,7 +328,6 @@ export default function PilotExchange() {
         setPolicyMessage("Purchase required before evaluation submissions.");
         return;
       }
-
       analyticsEvents.pilotExchangeOpenPolicyForm();
       setPolicyStatus("idle");
       setPolicyMessage("");
@@ -408,10 +335,7 @@ export default function PilotExchange() {
       setEvalRunForm((prev) => {
         const hasSavedPolicies = policyLibrary.length > 0;
         const nextBriefId = typeof briefId === "string" ? briefId : prev.briefId;
-        const nextPolicyId = hasSavedPolicies
-          ? prev.policyId || policyLibrary[0]?.id || ""
-          : "";
-
+        const nextPolicyId = hasSavedPolicies ? prev.policyId || policyLibrary[0]?.id || "" : "";
         return {
           ...defaultEvalRunFormState,
           briefId: nextBriefId || "",
@@ -419,14 +343,12 @@ export default function PilotExchange() {
           addNewPolicy: !hasSavedPolicies,
           contactName: prev.contactName,
           contactEmail: prev.contactEmail,
-          contactCompany:
-            prev.contactCompany || inferCompanyFromEmail(prev.contactEmail),
+          contactCompany: prev.contactCompany || inferCompanyFromEmail(prev.contactEmail),
         };
       });
-
       setIsPolicyDialogOpen(true);
     },
-    [evaluationAccessUnlocked, policyLibrary],
+    [evaluationAccessUnlocked, policyLibrary]
   );
 
   const emitFilterEvent = useCallback((type: string, value: string) => {
@@ -435,85 +357,38 @@ export default function PilotExchange() {
 
   const filteredLocationBriefs = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-
     return locationBriefs.filter((brief) => {
-      const matchesQuery =
-        query.length === 0 ||
-        brief.operatorAlias.toLowerCase().includes(query) ||
-        brief.region.toLowerCase().includes(query) ||
-        brief.objective.toLowerCase().includes(query) ||
-        brief.evaluationGoal.toLowerCase().includes(query) ||
-        brief.primaryTasks.join(" ").toLowerCase().includes(query) ||
-        brief.integrationSurface.join(" ").toLowerCase().includes(query);
-      const matchesLocation =
-        locationFilter === "all" || brief.locationType === locationFilter;
-      const matchesEmbodiment =
-        embodimentFilter === "all" || brief.robotEmbodiment === embodimentFilter;
-      const matchesTimeline =
-        timelineFilter === "all" || brief.timeline === timelineFilter;
-      const matchesPrivacy =
-        privacyFilter === "all" || brief.privacyMode === privacyFilter;
-
-      return (
-        matchesQuery &&
-        matchesLocation &&
-        matchesEmbodiment &&
-        matchesTimeline &&
-        matchesPrivacy
-      );
+      const matchesQuery = !query || brief.operatorAlias.toLowerCase().includes(query) || brief.objective.toLowerCase().includes(query);
+      const matchesLocation = locationFilter === "all" || brief.locationType === locationFilter;
+      const matchesEmbodiment = embodimentFilter === "all" || brief.robotEmbodiment === embodimentFilter;
+      const matchesTimeline = timelineFilter === "all" || brief.timeline === timelineFilter;
+      const matchesPrivacy = privacyFilter === "all" || brief.privacyMode === privacyFilter;
+      return matchesQuery && matchesLocation && matchesEmbodiment && matchesTimeline && matchesPrivacy;
     });
   }, [embodimentFilter, locationFilter, privacyFilter, searchQuery, timelineFilter]);
 
   const filteredPolicySubmissions = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-
     return policySubmissions.filter((submission) => {
-      const matchesQuery =
-        query.length === 0 ||
-        submission.teamAlias.toLowerCase().includes(query) ||
-        submission.summary.toLowerCase().includes(query) ||
-        submission.readiness.toLowerCase().includes(query);
-      const matchesLocation =
-        locationFilter === "all" || submission.locationType === locationFilter;
-      const matchesEmbodiment =
-        embodimentFilter === "all" ||
-        submission.robotEmbodiment === embodimentFilter;
-      const matchesTimeline =
-        timelineFilter === "all" || submission.timeline === timelineFilter;
-      const matchesPrivacy =
-        privacyFilter === "all" || submission.privacyMode === privacyFilter;
-
-      return (
-        matchesQuery &&
-        matchesLocation &&
-        matchesEmbodiment &&
-        matchesTimeline &&
-        matchesPrivacy
-      );
+      const matchesQuery = !query || submission.teamAlias.toLowerCase().includes(query) || submission.summary.toLowerCase().includes(query);
+      const matchesLocation = locationFilter === "all" || submission.locationType === locationFilter;
+      const matchesEmbodiment = embodimentFilter === "all" || submission.robotEmbodiment === embodimentFilter;
+      const matchesTimeline = timelineFilter === "all" || submission.timeline === timelineFilter;
+      const matchesPrivacy = privacyFilter === "all" || submission.privacyMode === privacyFilter;
+      return matchesQuery && matchesLocation && matchesEmbodiment && matchesTimeline && matchesPrivacy;
     });
   }, [embodimentFilter, locationFilter, privacyFilter, searchQuery, timelineFilter]);
 
   const submitInboundRequest = useCallback(
-    async (args: {
-      form: BaseLeadFormState;
-      helpWith: HelpWithOption;
-      details: Record<string, unknown>;
-    }) => {
+    async (args: { form: BaseLeadFormState; helpWith: HelpWithOption; details: Record<string, unknown> }) => {
       const payload: InboundRequestPayload = {
         requestId: generateRequestId(),
-        firstName: args.form.firstName.trim(),
-        lastName: args.form.lastName.trim(),
-        company: args.form.company.trim(),
-        roleTitle: args.form.roleTitle.trim(),
-        email: args.form.email.trim().toLowerCase(),
-        budgetBucket: args.form.budgetBucket,
+        ...args.form,
         helpWith: [args.helpWith],
         details: JSON.stringify(args.details),
         context: {
-          sourcePageUrl:
-            typeof window !== "undefined" ? window.location.href : "/pilot-exchange",
-          referrer:
-            typeof document !== "undefined" ? document.referrer || undefined : undefined,
+          sourcePageUrl: typeof window !== "undefined" ? window.location.href : "/pilot-exchange",
+          referrer: typeof document !== "undefined" ? document.referrer || undefined : undefined,
           utm: getUTMParams(),
           timezoneOffset: new Date().getTimezoneOffset(),
           locale: typeof navigator !== "undefined" ? navigator.language : undefined,
@@ -528,11 +403,9 @@ export default function PilotExchange() {
       });
 
       const body = (await response.json()) as SubmitInboundRequestResponse;
-      if (!response.ok || !body.ok) {
-        throw new Error(body.message || "Unable to submit request");
-      }
+      if (!response.ok || !body.ok) throw new Error(body.message || "Unable to submit request");
     },
-    [],
+    []
   );
 
   const startCheckout = async (plan: AccessPlan) => {
@@ -541,33 +414,11 @@ export default function PilotExchange() {
       setCheckoutError("");
       setCheckoutMessage("");
 
-      const pricing =
-        plan === "evaluation"
-          ? {
-              sku: "exchange-pro-eval",
-              title: "Pilot Exchange Pro Site Evaluation",
-              description:
-                "Unlock policy evaluation submissions and standard scorecards for one site cycle.",
-              price: 4900,
-              successPath: "/pilot-exchange?checkout=success&access=evaluation",
-            }
-          : plan === "subscription"
-            ? {
-                sku: "exchange-team-subscription",
-                title: "Pilot Exchange Robotics Team Subscription (30-day)",
-                description:
-                  "Recurring access for robotics teams running ongoing qualification cycles.",
-                price: 1200,
-                successPath: "/pilot-exchange?checkout=success&access=subscription",
-              }
-            : {
-                sku: "exchange-training-subscription",
-                title: "Pilot Exchange Training Subscription (30-day)",
-                description:
-                  "Enable policy training on calibrated site twins with monthly renewal.",
-                price: 2400,
-                successPath: "/pilot-exchange?checkout=success&access=training",
-              };
+      const pricing = plan === "evaluation"
+        ? { sku: "exchange-pro-eval", title: "Pilot Exchange Pro Site Evaluation", price: 4900, successPath: "/pilot-exchange?checkout=success&access=evaluation" }
+        : plan === "subscription"
+        ? { sku: "exchange-team-subscription", title: "Robotics Team Subscription", price: 1200, successPath: "/pilot-exchange?checkout=success&access=subscription" }
+        : { sku: "exchange-training-subscription", title: "Training Subscription", price: 2400, successPath: "/pilot-exchange?checkout=success&access=training" };
 
       const response = await fetch("/api/create-checkout-session", {
         method: "POST",
@@ -576,27 +427,16 @@ export default function PilotExchange() {
           sessionType: "marketplace",
           successPath: pricing.successPath,
           cancelPath: "/pilot-exchange?checkout=cancel",
-          marketplaceItem: {
-            sku: pricing.sku,
-            title: pricing.title,
-            description: pricing.description,
-            price: pricing.price,
-            quantity: 1,
-            itemType: "dataset",
-          },
+          marketplaceItem: { sku: pricing.sku, title: pricing.title, description: "Pilot Exchange Access", price: pricing.price, quantity: 1, itemType: "dataset" },
         }),
       });
 
       const body = await response.json();
-      if (!response.ok) {
-        throw new Error(body?.error || "Unable to start checkout.");
-      }
-
+      if (!response.ok) throw new Error(body?.error || "Unable to start checkout.");
       if (body?.sessionUrl) {
         window.location.href = body.sessionUrl;
         return;
       }
-
       throw new Error("Checkout session was created without a redirect URL.");
     } catch (error) {
       setCheckoutError(error instanceof Error ? error.message : "Unable to start checkout.");
@@ -607,67 +447,23 @@ export default function PilotExchange() {
 
   const handleEvalRunSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
     if (!evaluationAccessUnlocked) {
       setPolicyStatus("error");
-      setPolicyMessage("Evaluation access is locked until purchase is complete.");
+      setPolicyMessage("Evaluation access is locked. Please purchase access first.");
       setIsAccessDialogOpen(true);
       return;
     }
+    if (!selectedEvalBrief) return setPolicyStatus("error"), setPolicyMessage("Select a digital twin.");
+    if (!evalRunForm.interfaceContract.trim()) return setPolicyStatus("error"), setPolicyMessage("Document the interface contract.");
+    if (!evalRunForm.fallbackStrategy.trim()) return setPolicyStatus("error"), setPolicyMessage("Define your fallback strategy.");
+    if (!evalRunForm.assumedOperatingEnvelope.trim()) return setPolicyStatus("error"), setPolicyMessage("Declare the assumed envelope.");
+    if (!evalRunForm.contactName.trim() || !evalRunForm.contactEmail.trim()) return setPolicyStatus("error"), setPolicyMessage("Contact details are required.");
 
-    if (!selectedEvalBrief) {
-      setPolicyStatus("error");
-      setPolicyMessage("Select a digital twin to run against.");
-      return;
-    }
-
-    if (!evalRunForm.interfaceContract.trim()) {
-      setPolicyStatus("error");
-      setPolicyMessage("Document the interface contract used in this evaluation.");
-      return;
-    }
-
-    if (!evalRunForm.fallbackStrategy.trim()) {
-      setPolicyStatus("error");
-      setPolicyMessage("Define your fallback strategy before submitting.");
-      return;
-    }
-
-    if (!evalRunForm.assumedOperatingEnvelope.trim()) {
-      setPolicyStatus("error");
-      setPolicyMessage("Declare the assumed operating envelope.");
-      return;
-    }
-
-    if (!evalRunForm.contactName.trim()) {
-      setPolicyStatus("error");
-      setPolicyMessage("Your name is required.");
-      return;
-    }
-
-    if (!evalRunForm.contactEmail.trim()) {
-      setPolicyStatus("error");
-      setPolicyMessage("Work email is required.");
-      return;
-    }
-
-    const resolvedCompany =
-      evalRunForm.contactCompany.trim() || inferCompanyFromEmail(evalRunForm.contactEmail);
-    if (!resolvedCompany) {
-      setPolicyStatus("error");
-      setPolicyMessage("Company is required (or use a work email domain).");
-      return;
-    }
-
+    const resolvedCompany = evalRunForm.contactCompany.trim() || inferCompanyFromEmail(evalRunForm.contactEmail);
     let resolvedPolicy: SavedPolicyPackage | null = null;
 
     if (evalRunForm.addNewPolicy) {
-      if (!evalRunForm.newPolicyName.trim() || !evalRunForm.newPolicyUri.trim()) {
-        setPolicyStatus("error");
-        setPolicyMessage("Add a robot policy package name and a URL/endpoint.");
-        return;
-      }
-
+      if (!evalRunForm.newPolicyName.trim() || !evalRunForm.newPolicyUri.trim()) return setPolicyStatus("error"), setPolicyMessage("Provide policy details.");
       const newPolicy: SavedPolicyPackage = {
         id: `policy-${generateRequestId()}`,
         name: evalRunForm.newPolicyName.trim(),
@@ -681,17 +477,12 @@ export default function PilotExchange() {
       resolvedPolicy = selectedEvalPolicy;
     }
 
-    if (!resolvedPolicy) {
-      setPolicyStatus("error");
-      setPolicyMessage("Select a robot policy package (or add a new one).");
-      return;
-    }
+    if (!resolvedPolicy) return setPolicyStatus("error"), setPolicyMessage("Select or create a policy.");
 
     setPolicyStatus("loading");
     setPolicyMessage("");
 
     const parsedName = parseContactName(evalRunForm.contactName);
-
     const leadForm: BaseLeadFormState = {
       firstName: parsedName.firstName,
       lastName: parsedName.lastName,
@@ -707,36 +498,17 @@ export default function PilotExchange() {
         helpWith: "pilot-exchange-policy-submission",
         details: {
           submissionType: "eval-run",
-          accessTier: trainingAccessUnlocked
-            ? "training-subscription"
-            : subscriptionAccessUnlocked
-              ? "team-subscription"
-              : "pro-evaluation",
-          brief: {
-            id: selectedEvalBrief.id,
-            operatorAlias: selectedEvalBrief.operatorAlias,
-            locationType: selectedEvalBrief.locationType,
-            robotEmbodiment: selectedEvalBrief.robotEmbodiment,
-            timeline: selectedEvalBrief.timeline,
-            privacyMode: selectedEvalBrief.privacyMode,
-            qualifyingSuccessRateThreshold:
-              selectedEvalBrief.qualifyingSuccessRateThreshold,
-          },
+          briefId: selectedEvalBrief.id,
           policy: resolvedPolicy,
           interfaceContract: evalRunForm.interfaceContract.trim(),
           fallbackStrategy: evalRunForm.fallbackStrategy.trim(),
           assumedOperatingEnvelope: evalRunForm.assumedOperatingEnvelope.trim(),
-          trainingAccessRequested: trainingAccessUnlocked,
-          winCondition: `success_rate >= ${selectedEvalBrief.qualifyingSuccessRateThreshold}%`,
-          artifacts: "gated",
         },
       });
 
       analyticsEvents.pilotExchangeSubmitPolicy("success");
       setPolicyStatus("success");
-      setPolicyMessage(
-        `Eval queued. We'll email your scorecard and whether you met the ${selectedEvalBrief.qualifyingSuccessRateThreshold}% threshold.`,
-      );
+      setPolicyMessage("Evaluation queued successfully. We will email your scorecard.");
 
       setEvalRunForm((prev) => ({
         ...defaultEvalRunFormState,
@@ -748,915 +520,484 @@ export default function PilotExchange() {
         contactCompany: resolvedCompany,
       }));
 
-      setTimeout(() => {
-        setIsPolicyDialogOpen(false);
-        setPolicyStatus("idle");
-        setPolicyMessage("");
-      }, 900);
+      setTimeout(() => { setIsPolicyDialogOpen(false); setPolicyStatus("idle"); setPolicyMessage(""); }, 1500);
     } catch (error) {
       analyticsEvents.pilotExchangeSubmitPolicy("error");
       setPolicyStatus("error");
-      setPolicyMessage(
-        error instanceof Error ? error.message : "Unable to queue evaluation run.",
-      );
+      setPolicyMessage(error instanceof Error ? error.message : "Unable to queue evaluation run.");
     }
   };
 
   return (
     <>
       <SEO
-        title="Pilot Exchange Marketplace"
-        description="Robotics-team marketplace for paid policy evaluation, scorecards, and training on calibrated site twins before on-site pilots."
+        title="Pilot Exchange | Evaluate Robotics Policies"
+        description="Marketplace for robotics teams to evaluate policies in high-fidelity digital twins before physical pilot deployments."
         canonical="/pilot-exchange"
       />
-      <div className="relative min-h-screen overflow-hidden bg-white text-zinc-900 selection:bg-emerald-100 selection:text-emerald-900">
+      <div className="relative min-h-screen bg-white text-zinc-900 font-sans selection:bg-zinc-200 selection:text-zinc-900">
         <DotPattern />
-        <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] bg-gradient-to-br from-emerald-100/60 via-cyan-50/60 to-transparent" />
 
-        <div className="mx-auto max-w-7xl px-4 pb-24 pt-16 sm:px-6 lg:px-8">
-          <section className="mb-12 grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
-            <div className="space-y-6">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                <Sparkles className="h-3.5 w-3.5" />
-                Robotics Teams Only
-              </div>
-              <h1 className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl">
-                Pilot Exchange Marketplace
-              </h1>
-              <p className="max-w-2xl text-lg leading-relaxed text-zinc-600">
-                For robotics teams: upload robot policy packages, run paid evaluations on
-                calibrated site twins, and receive scorecards before live pilot spend.
-              </p>
-              <p className="max-w-2xl text-sm text-zinc-500">
-                New to this concept? Read the beginner guide at
-                <a href="/pilot-exchange-guide" className="ml-1 font-semibold text-emerald-700 hover:text-emerald-800">
-                  Pilot Exchange Guide
-                </a>
-                .
-              </p>
-
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Button
-                  onClick={() => openEvalDialog()}
-                  className="rounded-full bg-zinc-900 px-6 py-2.5 text-sm font-semibold text-white hover:bg-zinc-700"
-                >
-                  {evaluationAccessUnlocked ? "Run Eval" : "Unlock Evaluation Access"}
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsAccessDialogOpen(true)}
-                  className="rounded-full border-zinc-300 px-6 py-2.5 text-sm font-semibold text-zinc-800"
-                >
-                  View Pricing
-                </Button>
-              </div>
-
-              {checkoutMessage ? (
-                <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                  {checkoutMessage}
-                </p>
-              ) : null}
-
-              {checkoutError ? (
-                <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                  {checkoutError}
-                </p>
-              ) : null}
-            </div>
-
-            <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-                Access Status
-              </h2>
-              <div className="mt-4 space-y-3">
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                  <p className="text-sm font-semibold text-zinc-900">Robotics Team Subscription</p>
-                  <p className="mt-1 text-xs text-zinc-600">$1,200 / month (evaluation access)</p>
-                  <p className="mt-2 text-xs font-semibold text-zinc-700">
-                    {subscriptionAccessUnlocked ? "Active" : "Not active"}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                  <p className="text-sm font-semibold text-zinc-900">Pro Site Evaluation</p>
-                  <p className="mt-1 text-xs text-zinc-600">$4,900 per site cycle + scorecard</p>
-                  <p className="mt-2 text-xs font-semibold text-zinc-700">
-                    {evaluationAccessUnlocked ? "Unlocked" : "Locked"}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                  <p className="text-sm font-semibold text-zinc-900">Training Subscription</p>
-                  <p className="mt-1 text-xs text-zinc-600">$2,400 / month (training rights + eval access)</p>
-                  <p className="mt-2 text-xs font-semibold text-zinc-700">
-                    {trainingAccessUnlocked ? "Active" : "Not active"}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-4 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
-                <Lock className="h-3.5 w-3.5" />
-                Eval submission is barred until purchase
+        {/* Access Banner */}
+        <div className="border-b border-zinc-200 bg-zinc-50 py-3 px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-6xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
+            <div className="flex items-center gap-4">
+              <span className="font-semibold text-zinc-900 flex items-center gap-1.5">
+                {evaluationAccessUnlocked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                Your Access Status
+              </span>
+              <div className="hidden sm:flex items-center gap-3 text-zinc-600">
+                <span className={evaluationAccessUnlocked ? "text-zinc-900 font-medium" : ""}>Evaluations</span>
+                <span>•</span>
+                <span className={subscriptionAccessUnlocked ? "text-zinc-900 font-medium" : ""}>Subscriptions</span>
+                <span>•</span>
+                <span className={trainingAccessUnlocked ? "text-zinc-900 font-medium" : ""}>Training</span>
               </div>
             </div>
-          </section>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAccessDialogOpen(true)}
+              className="bg-white border-zinc-300 text-zinc-800 hover:bg-zinc-100"
+            >
+              Manage Billing & Access
+            </Button>
+          </div>
+        </div>
 
-          <section className="mb-12 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-zinc-900">Simple Commercial Model</h2>
-                <p className="mt-1 text-sm text-zinc-600">
-                  Sites are scanned for free by default and Blueprint owns the shared exchange twin.
-                  Robotics teams pay for evaluation access, subscription, and training usage.
-                </p>
-              </div>
-              <a
-                href="/pilot-exchange-guide"
-                className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 hover:text-emerald-800"
+        <main className="mx-auto max-w-6xl px-4 pb-24 pt-16 sm:px-6 lg:px-8">
+          {/* Hero */}
+          <section className="mb-16 max-w-3xl">
+            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-zinc-950 mb-6">
+              Validate your robotics policies in digital reality.
+            </h1>
+            <p className="text-lg text-zinc-600 mb-8 leading-relaxed">
+              Upload your robot policy packages and evaluate them against calibrated digital twins of real-world environments. Get standardized scorecards and prove your system's readiness before spending on live pilots.
+            </p>
+            <div className="flex flex-wrap items-center gap-4">
+              <Button
+                onClick={() => openEvalDialog()}
+                className="bg-zinc-900 text-white hover:bg-zinc-800 px-6 py-5 text-sm font-medium"
               >
-                Learn ownership details
-                <ChevronRight className="h-4 w-4" />
+                {evaluationAccessUnlocked ? "Run an Evaluation" : "Unlock Evaluation Access"}
+              </Button>
+              <a href="/pilot-exchange-guide" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 underline underline-offset-4 decoration-zinc-300">
+                Read the beginner guide
               </a>
             </div>
-            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                <p className="text-sm font-semibold text-zinc-900">1) Free Site Scan</p>
-                <p className="mt-1 text-sm text-zinc-600">
-                  Default shared-twin onboarding is free for locations.
-                </p>
+
+            {checkoutMessage && <p className="mt-6 text-sm text-zinc-900 bg-zinc-100 border border-zinc-200 py-3 px-4 rounded-md">{checkoutMessage}</p>}
+            {checkoutError && <p className="mt-6 text-sm text-zinc-900 bg-zinc-100 border border-zinc-200 py-3 px-4 rounded-md">{checkoutError}</p>}
+          </section>
+
+          {/* Simple How-it-Works */}
+          <section className="mb-16">
+            <h2 className="text-xl font-bold text-zinc-900 mb-6 border-b border-zinc-200 pb-2">How it works</h2>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div>
+                <span className="block text-zinc-400 font-mono text-sm mb-2">01</span>
+                <h3 className="font-semibold text-zinc-900 mb-1">Select an Environment</h3>
+                <p className="text-sm text-zinc-600">Browse real-world site twins provided by operators.</p>
               </div>
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                <p className="text-sm font-semibold text-zinc-900">2) Team Subscription</p>
-                <p className="mt-1 text-sm text-zinc-600">
-                  Monthly plan for robotics teams running ongoing eval cycles.
-                </p>
+              <div>
+                <span className="block text-zinc-400 font-mono text-sm mb-2">02</span>
+                <h3 className="font-semibold text-zinc-900 mb-1">Submit Your Policy</h3>
+                <p className="text-sm text-zinc-600">Provide an executable package (Docker, Checkpoint, API).</p>
               </div>
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                <p className="text-sm font-semibold text-zinc-900">3) Pro Site Evaluation</p>
-                <p className="mt-1 text-sm text-zinc-600">
-                  Paid per site cycle with standard scorecard output.
-                </p>
+              <div>
+                <span className="block text-zinc-400 font-mono text-sm mb-2">03</span>
+                <h3 className="font-semibold text-zinc-900 mb-1">Simulated Evaluation</h3>
+                <p className="text-sm text-zinc-600">We run standard tasks, interventions, and edge cases.</p>
               </div>
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                <p className="text-sm font-semibold text-zinc-900">4) Training + Optional Buyout</p>
-                <p className="mt-1 text-sm text-zinc-600">
-                  Teams can pay for training access; sites can pay for private twin buyout.
-                </p>
+              <div>
+                <span className="block text-zinc-400 font-mono text-sm mb-2">04</span>
+                <h3 className="font-semibold text-zinc-900 mb-1">Get the Scorecard</h3>
+                <p className="text-sm text-zinc-600">Receive actionable readiness metrics and leaderboard ranking.</p>
               </div>
             </div>
           </section>
 
-          <section className="mb-12 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
-            <h2 className="text-2xl font-bold text-zinc-900">What the Paid Access Actually Includes</h2>
-            <p className="mt-2 text-sm text-zinc-600">
-              We include the full qualification stack needed for decision-grade results, not just
-              a static twin viewer.
-            </p>
-            <div className="mt-5 grid gap-4 md:grid-cols-3">
-              <article className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                <p className="text-sm font-semibold text-zinc-900">Pro Site Evaluation Features</p>
-                <ul className="mt-2 space-y-1 text-xs text-zinc-600">
-                  <li>Standardized task harness and gate criteria.</li>
-                  <li>Interface and fallback context capture.</li>
-                  <li>Anonymous leaderboard and threshold scorecard.</li>
-                </ul>
-              </article>
-              <article className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                <p className="text-sm font-semibold text-zinc-900">Training Subscription Features</p>
-                <ul className="mt-2 space-y-1 text-xs text-zinc-600">
-                  <li>Training runs on calibrated SimReady site twins.</li>
-                  <li>Domain randomization and site-variant replay lanes.</li>
-                  <li>Managed compute lanes for iterative policy training.</li>
-                </ul>
-              </article>
-              <article className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                <p className="text-sm font-semibold text-zinc-900">Output Artifacts</p>
-                <ul className="mt-2 space-y-1 text-xs text-zinc-600">
-                  <li>Task success and intervention-rate breakdowns.</li>
-                  <li>Integration and Safety/SAT readiness signals.</li>
-                  <li>Comparable reports for pilot go/no-go decisions.</li>
-                </ul>
-              </article>
-            </div>
-            <div className="mt-4 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
-              <Lock className="h-3.5 w-3.5" />
-              Eval submission remains purchase-gated.
-            </div>
-          </section>
-
-          <section className="mb-16 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
-            <div className="flex flex-col gap-4 border-b border-zinc-200 pb-6 sm:flex-row sm:items-center sm:justify-between">
+          {/* Exchange Explorer */}
+          <section id="marketplace">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-zinc-900">Exchange Marketplace</h2>
-                <p className="mt-1 text-sm text-zinc-600">
-                  Browse anonymized location briefs and policy submissions for active evaluation cycles.
-                </p>
+                <p className="text-sm text-zinc-600 mt-1">Explore available environments and active policy submissions.</p>
               </div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-600">
-                <Filter className="h-3.5 w-3.5" />
-                Access-controlled evaluations
-              </div>
+              <Button
+                variant="outline"
+                onClick={() => setShowFilters(!showFilters)}
+                className="bg-white text-zinc-800 border-zinc-300 md:w-auto w-full"
+              >
+                <Filter className="w-4 h-4 mr-2" />
+                {showFilters ? "Hide Filters" : "Filter Results"}
+              </Button>
             </div>
 
-            <div className="mt-6 grid gap-4 lg:grid-cols-[1.1fr_repeat(4,minmax(0,1fr))]">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                <Input
-                  value={searchQuery}
-                  onChange={(event) => {
-                    setSearchQuery(event.target.value);
-                    emitFilterEvent("search", event.target.value || "all");
-                  }}
-                  className="pl-9"
-                  placeholder="Search briefs, teams, tasks, regions..."
-                  aria-label="Search listings"
-                />
+            {/* Filter Bar */}
+            {showFilters && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 p-4 mb-6 bg-zinc-50 border border-zinc-200 rounded-lg">
+                <div className="relative col-span-1 lg:col-span-2">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                  <Input
+                    placeholder="Search by name, region, task..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 bg-white border-zinc-300 focus-visible:ring-zinc-900"
+                  />
+                </div>
+                <select className="border border-zinc-300 rounded-md text-sm px-3 py-2 bg-white" value={locationFilter} onChange={(e) => setLocationFilter(e.target.value as any)}>
+                  <option value="all">All Locations</option>
+                  {pilotLocationTypes.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
+                <select className="border border-zinc-300 rounded-md text-sm px-3 py-2 bg-white" value={embodimentFilter} onChange={(e) => setEmbodimentFilter(e.target.value as any)}>
+                  <option value="all">All Robots</option>
+                  {pilotEmbodiments.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
+                <select className="border border-zinc-300 rounded-md text-sm px-3 py-2 bg-white" value={timelineFilter} onChange={(e) => setTimelineFilter(e.target.value as any)}>
+                  <option value="all">All Timelines</option>
+                  {pilotTimelines.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
               </div>
+            )}
 
-              <select
-                aria-label="Location type filter"
-                className="h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-700"
-                value={locationFilter}
-                onChange={(event) => {
-                  const value = event.target.value as FilterValue<PilotLocationType>;
-                  setLocationFilter(value);
-                  emitFilterEvent("location_type", value);
-                }}
-              >
-                <option value="all">All location types</option>
-                {pilotLocationTypes.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                aria-label="Embodiment filter"
-                className="h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-700"
-                value={embodimentFilter}
-                onChange={(event) => {
-                  const value = event.target.value as FilterValue<RobotEmbodiment>;
-                  setEmbodimentFilter(value);
-                  emitFilterEvent("robot_embodiment", value);
-                }}
-              >
-                <option value="all">All embodiments</option>
-                {pilotEmbodiments.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                aria-label="Timeline filter"
-                className="h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-700"
-                value={timelineFilter}
-                onChange={(event) => {
-                  const value = event.target.value as FilterValue<DeploymentTimeline>;
-                  setTimelineFilter(value);
-                  emitFilterEvent("timeline", value);
-                }}
-              >
-                <option value="all">All timelines</option>
-                {pilotTimelines.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                aria-label="Privacy filter"
-                className="h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-700"
-                value={privacyFilter}
-                onChange={(event) => {
-                  const value = event.target.value as FilterValue<PrivacyMode>;
-                  setPrivacyFilter(value);
-                  emitFilterEvent("privacy_mode", value);
-                }}
-              >
-                <option value="all">All privacy modes</option>
-                {pilotPrivacyModes.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <Tabs
-              value={activeTab}
-              onValueChange={(value) => setActiveTab(value as ExchangeTab)}
-              className="mt-6"
-            >
-              <TabsList className="grid w-full grid-cols-2 bg-zinc-100">
-                <TabsTrigger value="briefs">Location Briefs</TabsTrigger>
-                <TabsTrigger value="policies">Policy Submissions</TabsTrigger>
+            <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as ExchangeTab)} className="mt-2">
+              <TabsList className="bg-transparent border-b border-zinc-200 w-full justify-start rounded-none p-0 h-auto gap-6">
+                <TabsTrigger 
+                  value="briefs" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-zinc-900 data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 py-3 text-sm font-medium text-zinc-500 data-[state=active]:text-zinc-900"
+                >
+                  Digital Twins (Environments)
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="policies" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-zinc-900 data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 py-3 text-sm font-medium text-zinc-500 data-[state=active]:text-zinc-900"
+                >
+                  Policy Submissions
+                </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="briefs" className="mt-5 space-y-4">
+              <TabsContent value="briefs" className="mt-6 space-y-4">
                 {filteredLocationBriefs.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-500">
-                    No location briefs match the current filters.
-                  </div>
+                  <div className="py-12 text-center text-zinc-500 border border-dashed border-zinc-300 rounded-lg">No environments match your criteria.</div>
                 ) : (
                   filteredLocationBriefs.map((brief) => {
                     const leaderboard = leaderboardByBriefId.get(brief.id) ?? [];
-                    const threshold = brief.qualifyingSuccessRateThreshold;
-                    const leaderboardPreview = leaderboard.slice(0, 3);
-
                     return (
-                      <article
-                        key={brief.id}
-                        className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-5"
-                      >
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="space-y-2">
-                            <h3 className="text-lg font-semibold text-zinc-900">
-                              {brief.operatorAlias}
-                            </h3>
-                            <p className="text-sm text-zinc-600">{brief.objective}</p>
-                            <p className="text-sm text-zinc-500">{brief.evaluationGoal}</p>
-                            <p className="text-xs text-zinc-500">
-                              Primary tasks: {brief.primaryTasks.join(" · ")}
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap gap-2 sm:justify-end">
-                            <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200">
-                              {brief.locationType}
-                            </span>
-                            <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200">
-                              {brief.robotEmbodiment}
-                            </span>
-                            <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200">
-                              {brief.timeline}
-                            </span>
-                            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
-                              Win ≥ {brief.qualifyingSuccessRateThreshold}% success
-                            </span>
-                            <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200">
-                              {brief.privacyMode === "Anonymized" ? (
-                                <EyeOff className="h-3.5 w-3.5 text-zinc-500" />
-                              ) : (
-                                <Eye className="h-3.5 w-3.5 text-zinc-500" />
+                      <div key={brief.id} className="group border border-zinc-200 rounded-xl bg-white overflow-hidden hover:border-zinc-300 transition-colors">
+                        <div className="p-6 sm:p-8 grid md:grid-cols-[1fr_300px] gap-8">
+                          {/* Left Details */}
+                          <div>
+                            <div className="flex items-center gap-3 mb-3">
+                              <h3 className="text-xl font-bold text-zinc-900">{brief.operatorAlias}</h3>
+                              {brief.privacyMode === "Anonymized" && (
+                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 font-medium">
+                                  <EyeOff className="w-3 h-3" /> Anonymized
+                                </span>
                               )}
-                              {brief.privacyMode}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="mt-4 flex flex-col gap-3 text-xs text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
-                          <span>
-                            {brief.region} · {brief.footprintSqFt.toLocaleString()} sq ft · {brief.openSlots} vendor slots
-                          </span>
-                          <button
-                            type="button"
-                            className="inline-flex items-center gap-1 font-semibold text-emerald-700 hover:text-emerald-800"
-                            onClick={() => {
-                              openEvalDialog(brief.id);
-                            }}
-                          >
-                            {evaluationAccessUnlocked ? "Run eval against this twin" : "Unlock access to run eval"}
-                            <ChevronRight className="h-4 w-4" />
-                          </button>
-                        </div>
-
-                        {leaderboardPreview.length > 0 ? (
-                          <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
-                            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                              <p className="text-sm font-semibold text-zinc-900">
-                                Leaderboard (anonymous)
-                              </p>
-                              <p className="text-xs text-zinc-500">
-                                {leaderboard.length.toLocaleString()} submitted runs
-                              </p>
                             </div>
-                            <div className="mt-3 space-y-2">
-                              {leaderboardPreview.map((entry) => {
-                                const delta = formatThresholdDelta(
-                                  entry.successRate,
-                                  threshold,
-                                );
+                            <p className="text-zinc-700 mb-4">{brief.objective}</p>
+                            
+                            <div className="flex flex-wrap gap-2 mb-6">
+                              <span className="text-xs px-2.5 py-1 rounded-md border border-zinc-200 text-zinc-600 bg-zinc-50">
+                                {brief.locationType}
+                              </span>
+                              <span className="text-xs px-2.5 py-1 rounded-md border border-zinc-200 text-zinc-600 bg-zinc-50">
+                                {brief.robotEmbodiment}
+                              </span>
+                              <span className="text-xs px-2.5 py-1 rounded-md border border-zinc-200 text-zinc-600 bg-zinc-50">
+                                {brief.timeline}
+                              </span>
+                              <span className="text-xs px-2.5 py-1 rounded-md border-zinc-900 border text-zinc-900 bg-zinc-50 font-medium">
+                                Threshold: ≥ {brief.qualifyingSuccessRateThreshold}%
+                              </span>
+                            </div>
 
-                                return (
-                                  <div
-                                    key={entry.id}
-                                    className="rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2"
-                                  >
-                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                      <div className="flex items-center gap-2 text-sm">
-                                        <span className="text-xs font-semibold text-zinc-500">
-                                          #{entry.rank}
-                                        </span>
-                                        <span className="font-semibold text-zinc-900">
-                                          {entry.entrant}
-                                        </span>
-                                        <span className="text-xs text-zinc-500">
-                                          {entry.benchmarkRuns.toLocaleString()} runs
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center gap-3">
-                                        <span className="text-sm font-semibold text-zinc-900">
-                                          {entry.successRate}% success
-                                        </span>
-                                        <span className={`text-xs font-semibold ${delta.className}`}>
-                                          {delta.label}
-                                        </span>
-                                      </div>
-                                    </div>
-                                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                                      <span className="rounded-full bg-white px-2.5 py-1 text-zinc-700 ring-1 ring-zinc-200">
-                                        Interventions: {entry.interventionRatePer100.toFixed(1)} / 100 tasks
-                                      </span>
-                                      <span className={`rounded-full px-2.5 py-1 ring-1 ${getIntegrationBadgeClass(entry.integrationCheckStatus)}`}>
-                                        Integration: {entry.integrationCheckStatus}
-                                      </span>
-                                      <span className={`rounded-full px-2.5 py-1 ring-1 ${getSafetyBadgeClass(entry.safetySatStatus)}`}>
-                                        Safety/SAT: {entry.safetySatStatus}
-                                      </span>
-                                    </div>
-                                  </div>
-                                );
-                              })}
+                            <div className="text-sm text-zinc-600 space-y-1">
+                              <p><span className="font-medium text-zinc-900">Primary tasks:</span> {brief.primaryTasks.join(", ")}</p>
+                              <p><span className="font-medium text-zinc-900">Region:</span> {brief.region} ({brief.footprintSqFt.toLocaleString()} sq ft)</p>
                             </div>
                           </div>
-                        ) : null}
-                      </article>
+
+                          {/* Right Action & Leaderboard Summary */}
+                          <div className="flex flex-col justify-between bg-zinc-50 p-5 rounded-lg border border-zinc-100">
+                            <div>
+                              <div className="flex justify-between items-center mb-3">
+                                <span className="text-sm font-semibold text-zinc-900">Top Submissions</span>
+                                <span className="text-xs text-zinc-500">{leaderboard.length} total</span>
+                              </div>
+                              {leaderboard.length > 0 ? (
+                                <ul className="space-y-3">
+                                  {leaderboard.slice(0, 3).map((entry) => {
+                                    const delta = formatThresholdDelta(entry.successRate, brief.qualifyingSuccessRateThreshold);
+                                    return (
+                                      <li key={entry.id} className="flex justify-between items-center text-sm border-b border-zinc-200/50 pb-2 last:border-0 last:pb-0">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-zinc-400 font-mono text-xs">#{entry.rank}</span>
+                                          <span className="font-medium text-zinc-800">{entry.entrant}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-semibold text-zinc-900">{entry.successRate}%</span>
+                                          <span className={`text-xs ${delta.isPositive ? 'text-zinc-900 font-medium' : 'text-zinc-400'}`}>
+                                            ({delta.label})
+                                          </span>
+                                        </div>
+                                      </li>
+                                    )
+                                  })}
+                                </ul>
+                              ) : (
+                                <p className="text-sm text-zinc-500 italic">No public evaluations yet.</p>
+                              )}
+                            </div>
+
+                            <Button 
+                              onClick={() => openEvalDialog(brief.id)} 
+                              className="w-full mt-6 bg-white text-zinc-900 border border-zinc-300 hover:bg-zinc-100"
+                            >
+                              Run Evaluation Here
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
                     );
                   })
                 )}
               </TabsContent>
 
-              <TabsContent value="policies" className="mt-5 space-y-4">
+              <TabsContent value="policies" className="mt-6 space-y-4">
                 {filteredPolicySubmissions.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-500">
-                    No policy submissions match the current filters.
-                  </div>
+                  <div className="py-12 text-center text-zinc-500 border border-dashed border-zinc-300 rounded-lg">No submissions match your criteria.</div>
                 ) : (
-                  filteredPolicySubmissions.map((submission) => (
-                    <article
-                      key={submission.id}
-                      className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-5"
-                    >
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="space-y-2">
-                          <h3 className="text-lg font-semibold text-zinc-900">
-                            {submission.teamAlias}
-                          </h3>
-                          <p className="text-sm text-zinc-600">{submission.summary}</p>
-                          <p className="text-xs text-zinc-500">
-                            {submission.benchmarkRuns.toLocaleString()} benchmark runs
-                          </p>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {filteredPolicySubmissions.map((sub) => (
+                      <div key={sub.id} className="border border-zinc-200 rounded-xl p-6 bg-white flex flex-col justify-between">
+                        <div>
+                          <div className="flex justify-between items-start mb-2">
+                            <h3 className="font-bold text-zinc-900">{sub.teamAlias}</h3>
+                            <span className="font-mono font-semibold text-zinc-900 bg-zinc-100 px-2 py-1 rounded text-sm">
+                              {sub.successRate}%
+                            </span>
+                          </div>
+                          <p className="text-sm text-zinc-600 mb-4">{sub.summary}</p>
+                          <div className="flex flex-wrap gap-2 mb-4 text-xs text-zinc-500">
+                            <span className="px-2 py-1 rounded bg-zinc-50 border border-zinc-200">{sub.locationType}</span>
+                            <span className="px-2 py-1 rounded bg-zinc-50 border border-zinc-200">{sub.robotEmbodiment}</span>
+                          </div>
                         </div>
-                        <div className="flex flex-wrap gap-2 sm:justify-end">
-                          <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200">
-                            {submission.locationType}
+                        <div className="pt-4 border-t border-zinc-100 flex justify-between items-center text-sm">
+                          <span className="flex items-center gap-1.5 font-medium text-zinc-700">
+                            <StatusIcon status={sub.readiness} />
+                            Readiness: {sub.readiness}
                           </span>
-                          <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200">
-                            {submission.robotEmbodiment}
-                          </span>
-                          <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200">
-                            {submission.timeline}
-                          </span>
-                          <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200">
-                            {submission.successRate}% success
+                          <span className="text-zinc-400 flex items-center gap-1 text-xs">
+                            <Lock className="w-3 h-3" /> Artifacts Gated
                           </span>
                         </div>
                       </div>
-                      <div className="mt-4 flex items-center justify-between text-xs text-zinc-500">
-                        <span>Readiness: {submission.readiness}</span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-amber-700 ring-1 ring-amber-200">
-                          <Lock className="h-3.5 w-3.5" />
-                          Full artifacts gated
-                        </span>
-                      </div>
-                    </article>
-                  ))
+                    ))}
+                  </div>
                 )}
               </TabsContent>
             </Tabs>
           </section>
-
-          <section className="rounded-3xl border border-zinc-200 bg-zinc-900 p-8 text-white">
-            <h2 className="text-2xl font-bold">Ready to run paid evaluations?</h2>
-            <p className="mt-2 max-w-2xl text-sm text-zinc-300">
-              Purchase access, submit your policy package, and get standardized scorecards.
-              Add the training subscription to run training directly on calibrated site twins.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Button
-                onClick={() => openEvalDialog()}
-                className="rounded-full bg-white text-zinc-900 hover:bg-zinc-200"
-              >
-                {evaluationAccessUnlocked ? "Run Eval" : "Unlock Evaluation Access"}
-              </Button>
-              <Button
-                onClick={() => setIsAccessDialogOpen(true)}
-                variant="outline"
-                className="rounded-full border-zinc-500 text-white hover:bg-zinc-800"
-              >
-                See Pricing & Purchase
-              </Button>
-              <a
-                href="/pilot-exchange-guide"
-                className="inline-flex items-center justify-center rounded-full border border-zinc-500 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
-              >
-                Beginner Guide
-              </a>
-            </div>
-          </section>
-        </div>
+        </main>
       </div>
 
+      {/* Access/Pricing Modal */}
       <Dialog open={isAccessDialogOpen} onOpenChange={setIsAccessDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Unlock Exchange Access</DialogTitle>
-            <DialogDescription>
-              Evaluation submissions are purchase-gated. Choose a plan to continue.
+        <DialogContent className="sm:max-w-3xl p-0 overflow-hidden bg-white">
+          <div className="p-6 sm:p-8 bg-zinc-900 text-white">
+            <DialogTitle className="text-2xl font-bold">Pilot Exchange Access</DialogTitle>
+            <DialogDescription className="text-zinc-300 mt-2">
+              Choose an access plan to submit evaluation runs, receive standardized scorecards, and unlock training capabilities.
             </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-              <p className="text-sm font-semibold text-zinc-900">Robotics Team Subscription</p>
-              <p className="mt-1 text-sm text-zinc-600">$1,200 / month (30-day renewable)</p>
-              <p className="mt-1 text-xs text-zinc-500">
-                Best for teams running frequent evaluations across multiple site twins.
-              </p>
-              <Button
-                className="mt-3 w-full"
-                disabled={checkoutLoadingPlan !== null}
-                onClick={() => startCheckout("subscription")}
-              >
-                {checkoutLoadingPlan === "subscription"
-                  ? "Starting checkout..."
-                  : "Start Team Subscription"}
-              </Button>
-            </div>
-
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-              <p className="text-sm font-semibold text-zinc-900">Pro Site Evaluation</p>
-              <p className="mt-1 text-sm text-zinc-600">$4,900 per site cycle</p>
-              <p className="mt-1 text-xs text-zinc-500">
-                Includes standardized scorecard, threshold benchmark, and anonymous leaderboard placement.
-              </p>
-              <Button
-                className="mt-3 w-full"
-                disabled={checkoutLoadingPlan !== null}
-                onClick={() => startCheckout("evaluation")}
-              >
-                {checkoutLoadingPlan === "evaluation" ? "Starting checkout..." : "Purchase Pro Evaluation"}
-              </Button>
-            </div>
-
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-              <p className="text-sm font-semibold text-zinc-900">Training Subscription</p>
-              <p className="mt-1 text-sm text-zinc-600">$2,400 / month (30-day renewable)</p>
-              <p className="mt-1 text-xs text-zinc-500">
-                Adds training rights on site twins and includes subscription + evaluation access.
-              </p>
-              <Button
-                className="mt-3 w-full"
-                disabled={checkoutLoadingPlan !== null}
-                onClick={() => startCheckout("training")}
-              >
-                {checkoutLoadingPlan === "training" ? "Starting checkout..." : "Start Training Subscription"}
-              </Button>
-            </div>
-
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
-              <p className="font-semibold">Ownership policy (simple)</p>
-              <p className="mt-1">
-                Site scans are free by default and listed under Blueprint-owned shared twins. Sites can
-                purchase a private twin buyout for stricter ownership/use restrictions.
-              </p>
-            </div>
-
-            {checkoutError ? (
-              <p className="text-sm text-rose-700">{checkoutError}</p>
-            ) : null}
           </div>
+          
+          <div className="p-6 sm:p-8 grid md:grid-cols-3 gap-6 bg-zinc-50">
+            {/* Card 1 */}
+            <div className="bg-white border border-zinc-200 rounded-xl p-6 flex flex-col">
+              <h4 className="font-bold text-zinc-900">Pro Site Evaluation</h4>
+              <p className="text-2xl font-semibold mt-2 mb-4">$4,900 <span className="text-sm text-zinc-500 font-normal">/ cycle</span></p>
+              <ul className="text-sm text-zinc-600 space-y-3 mb-6 flex-grow">
+                <li className="flex gap-2 items-start"><CheckCircle2 className="w-4 h-4 text-zinc-900 mt-0.5 shrink-0" /> One evaluation submission to a specific site twin</li>
+                <li className="flex gap-2 items-start"><CheckCircle2 className="w-4 h-4 text-zinc-900 mt-0.5 shrink-0" /> Standardized threshold scorecard</li>
+                <li className="flex gap-2 items-start"><CheckCircle2 className="w-4 h-4 text-zinc-900 mt-0.5 shrink-0" /> Anonymous leaderboard entry</li>
+              </ul>
+              <Button disabled={checkoutLoadingPlan !== null} onClick={() => startCheckout("evaluation")} className="w-full bg-white border border-zinc-300 text-zinc-900 hover:bg-zinc-50">
+                {checkoutLoadingPlan === "evaluation" ? "Processing..." : "Purchase"}
+              </Button>
+            </div>
+
+            {/* Card 2 */}
+            <div className="bg-white border-2 border-zinc-900 rounded-xl p-6 flex flex-col relative">
+              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-zinc-900 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full">Recommended</span>
+              <h4 className="font-bold text-zinc-900">Team Subscription</h4>
+              <p className="text-2xl font-semibold mt-2 mb-4">$1,200 <span className="text-sm text-zinc-500 font-normal">/ mo</span></p>
+              <ul className="text-sm text-zinc-600 space-y-3 mb-6 flex-grow">
+                <li className="flex gap-2 items-start"><CheckCircle2 className="w-4 h-4 text-zinc-900 mt-0.5 shrink-0" /> Unlimited ongoing evaluation cycles</li>
+                <li className="flex gap-2 items-start"><CheckCircle2 className="w-4 h-4 text-zinc-900 mt-0.5 shrink-0" /> Cross-site benchmarking</li>
+                <li className="flex gap-2 items-start"><CheckCircle2 className="w-4 h-4 text-zinc-900 mt-0.5 shrink-0" /> Private artifacts & reports</li>
+              </ul>
+              <Button disabled={checkoutLoadingPlan !== null} onClick={() => startCheckout("subscription")} className="w-full bg-zinc-900 text-white hover:bg-zinc-800">
+                {checkoutLoadingPlan === "subscription" ? "Processing..." : "Subscribe"}
+              </Button>
+            </div>
+
+            {/* Card 3 */}
+            <div className="bg-white border border-zinc-200 rounded-xl p-6 flex flex-col">
+              <h4 className="font-bold text-zinc-900">Training Unlock</h4>
+              <p className="text-2xl font-semibold mt-2 mb-4">$2,400 <span className="text-sm text-zinc-500 font-normal">/ mo</span></p>
+              <ul className="text-sm text-zinc-600 space-y-3 mb-6 flex-grow">
+                <li className="flex gap-2 items-start"><CheckCircle2 className="w-4 h-4 text-zinc-900 mt-0.5 shrink-0" /> Everything in Team plan</li>
+                <li className="flex gap-2 items-start"><CheckCircle2 className="w-4 h-4 text-zinc-900 mt-0.5 shrink-0" /> Training rights on site twins</li>
+                <li className="flex gap-2 items-start"><CheckCircle2 className="w-4 h-4 text-zinc-900 mt-0.5 shrink-0" /> Managed compute lanes</li>
+              </ul>
+              <Button disabled={checkoutLoadingPlan !== null} onClick={() => startCheckout("training")} className="w-full bg-white border border-zinc-300 text-zinc-900 hover:bg-zinc-50">
+                {checkoutLoadingPlan === "training" ? "Processing..." : "Subscribe"}
+              </Button>
+            </div>
+          </div>
+          {checkoutError && <div className="p-4 bg-zinc-100 text-zinc-900 text-sm text-center border-t border-zinc-200">{checkoutError}</div>}
         </DialogContent>
       </Dialog>
 
+      {/* Eval Submission Modal */}
       <Dialog open={isPolicyDialogOpen} onOpenChange={setIsPolicyDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Run Eval</DialogTitle>
-            <DialogDescription>
-              Pick a digital twin, attach a robot policy package, and submit your qualification context.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-white p-0">
+          <div className="p-6 sm:p-8 border-b border-zinc-100 bg-zinc-50 sticky top-0 z-10">
+            <DialogTitle className="text-xl font-bold">Run Policy Evaluation</DialogTitle>
+            <DialogDescription className="mt-1">Select an environment and provide your policy package for simulated testing.</DialogDescription>
+          </div>
 
-          {!evaluationAccessUnlocked ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-              Evaluation access is locked until purchase is complete.
-            </div>
-          ) : null}
-
-          <form className="space-y-4" onSubmit={handleEvalRunSubmit}>
-            <div className="space-y-2">
-              <Label htmlFor="eval-brief">Digital twin</Label>
+          <form onSubmit={handleEvalRunSubmit} className="p-6 sm:p-8 space-y-8">
+            {/* Step 1: Environment */}
+            <section>
+              <h3 className="text-sm font-bold text-zinc-900 uppercase tracking-wide mb-4 flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-zinc-200 text-zinc-700 flex items-center justify-center text-xs">1</span>
+                Target Environment
+              </h3>
               <select
-                id="eval-brief"
+                required
                 value={evalRunForm.briefId}
-                onChange={(event) =>
-                  setEvalRunForm((prev) => ({
-                    ...prev,
-                    briefId: event.target.value,
-                  }))
-                }
-                className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-700"
+                onChange={(e) => setEvalRunForm((p) => ({ ...p, briefId: e.target.value }))}
+                className="w-full h-11 px-3 border border-zinc-300 rounded-md bg-white text-zinc-900 focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900"
               >
-                <option value="">Select a site twin...</option>
+                <option value="">Select a digital twin...</option>
                 {locationBriefs.map((brief) => (
                   <option key={brief.id} value={brief.id}>
-                    {brief.locationType} · {brief.robotEmbodiment} · {brief.timeline} · {brief.operatorAlias}
+                    {brief.operatorAlias} — {brief.robotEmbodiment}
                   </option>
                 ))}
               </select>
-            </div>
-
-            {selectedEvalBrief ? (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
-                <p className="text-sm font-semibold text-emerald-900">
-                  Win threshold: ≥ {selectedEvalBrief.qualifyingSuccessRateThreshold}% success
-                </p>
-                <p className="mt-1 text-sm text-emerald-800/80">
-                  Passing this threshold starts partner discussions. Detailed artifacts remain gated.
-                </p>
-              </div>
-            ) : null}
-
-            {selectedEvalBrief ? (
-              <div className="rounded-xl border border-zinc-200 bg-white p-4">
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm font-semibold text-zinc-900">Leaderboard (anonymous)</p>
-                  <p className="text-xs text-zinc-500">
-                    {selectedEvalLeaderboard.length.toLocaleString()} submitted runs
-                  </p>
-                </div>
-                {selectedEvalLeaderboard.length === 0 ? (
-                  <p className="mt-3 text-sm text-zinc-600">No public runs yet.</p>
-                ) : (
-                  <div className="mt-3 space-y-2">
-                    {selectedEvalLeaderboard.slice(0, 4).map((entry) => {
-                      const delta = formatThresholdDelta(
-                        entry.successRate,
-                        selectedEvalBrief.qualifyingSuccessRateThreshold,
-                      );
-
-                      return (
-                        <div
-                          key={entry.id}
-                          className="rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2"
-                        >
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 text-sm">
-                              <span className="text-xs font-semibold text-zinc-500">#{entry.rank}</span>
-                              <span className="font-semibold text-zinc-900">{entry.entrant}</span>
-                              <span className="text-xs text-zinc-500">{entry.benchmarkRuns.toLocaleString()} runs</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span className="text-sm font-semibold text-zinc-900">{entry.successRate}% success</span>
-                              <span className={`text-xs font-semibold ${delta.className}`}>{delta.label}</span>
-                            </div>
-                          </div>
-                          <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                            <span className="rounded-full bg-white px-2.5 py-1 text-zinc-700 ring-1 ring-zinc-200">
-                              Interventions: {entry.interventionRatePer100.toFixed(1)} / 100 tasks
-                            </span>
-                            <span className={`rounded-full px-2.5 py-1 ring-1 ${getIntegrationBadgeClass(entry.integrationCheckStatus)}`}>
-                              Integration: {entry.integrationCheckStatus}
-                            </span>
-                            <span className={`rounded-full px-2.5 py-1 ring-1 ${getSafetyBadgeClass(entry.safetySatStatus)}`}>
-                              Safety/SAT: {entry.safetySatStatus}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
+              {selectedEvalBrief && (
+                <div className="mt-3 p-4 border border-zinc-200 bg-zinc-50 rounded-lg flex items-start gap-3">
+                  <ShieldCheck className="w-5 h-5 text-zinc-700 shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-900">Required Pass Threshold: ≥ {selectedEvalBrief.qualifyingSuccessRateThreshold}%</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">Scoring above this threshold signals readiness for pilot discussions.</p>
                   </div>
-                )}
-              </div>
-            ) : null}
+                </div>
+              )}
+            </section>
 
-            <div className="space-y-2">
-              <Label htmlFor="eval-policy">Robot policy package</Label>
-              <p className="text-xs text-zinc-500">
-                Provide an executable package (Docker image, checkpoint endpoint, or hosted API).
-              </p>
-              <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-                <select
-                  id="eval-policy"
-                  value={evalRunForm.policyId}
-                  disabled={evalRunForm.addNewPolicy || policyLibrary.length === 0}
-                  onChange={(event) =>
-                    setEvalRunForm((prev) => ({
-                      ...prev,
-                      policyId: event.target.value,
-                    }))
-                  }
-                  className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-700 disabled:opacity-60"
-                >
-                  <option value="">
-                    {policyLibrary.length === 0 ? "No saved packages yet" : "Select a saved package..."}
-                  </option>
-                  {policyLibrary.map((policy) => (
-                    <option key={policy.id} value={policy.id}>
-                      {policy.name} ({policy.kind})
-                    </option>
-                  ))}
-                </select>
-
-                <label className="inline-flex select-none items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700">
-                  <input
-                    type="checkbox"
-                    checked={evalRunForm.addNewPolicy}
-                    onChange={(event) =>
-                      setEvalRunForm((prev) => ({
-                        ...prev,
-                        addNewPolicy: event.target.checked,
-                      }))
-                    }
-                  />
-                  Add new
+            {/* Step 2: Policy */}
+            <section>
+              <h3 className="text-sm font-bold text-zinc-900 uppercase tracking-wide mb-4 flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-zinc-200 text-zinc-700 flex items-center justify-center text-xs">2</span>
+                Robot Policy Package
+              </h3>
+              
+              <div className="flex gap-4 mb-4">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="radio" name="policyMode" checked={!evalRunForm.addNewPolicy} onChange={() => setEvalRunForm(p => ({ ...p, addNewPolicy: false }))} disabled={policyLibrary.length === 0} />
+                  Existing Package
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="radio" name="policyMode" checked={evalRunForm.addNewPolicy} onChange={() => setEvalRunForm(p => ({ ...p, addNewPolicy: true }))} />
+                  Add New Package
                 </label>
               </div>
-            </div>
 
-            {evalRunForm.addNewPolicy ? (
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                <div className="grid gap-4 sm:grid-cols-2">
+              {evalRunForm.addNewPolicy ? (
+                <div className="grid gap-4 sm:grid-cols-2 bg-zinc-50 p-4 rounded-lg border border-zinc-200">
                   <div className="space-y-2">
-                    <Label htmlFor="new-policy-name">Robot policy package name</Label>
-                    <Input
-                      id="new-policy-name"
-                      value={evalRunForm.newPolicyName}
-                      onChange={(event) =>
-                        setEvalRunForm((prev) => ({
-                          ...prev,
-                          newPolicyName: event.target.value,
-                        }))
-                      }
-                      placeholder="e.g., humanoid-aisle-reset-v2"
-                    />
+                    <Label className="text-xs text-zinc-500 font-semibold uppercase">Name</Label>
+                    <Input placeholder="e.g., aisle-reset-v2" value={evalRunForm.newPolicyName} onChange={(e) => setEvalRunForm(p => ({ ...p, newPolicyName: e.target.value }))} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="new-policy-kind">Package type</Label>
-                    <select
-                      id="new-policy-kind"
-                      value={evalRunForm.newPolicyKind}
-                      onChange={(event) =>
-                        setEvalRunForm((prev) => ({
-                          ...prev,
-                          newPolicyKind: event.target.value as PolicyPackageKind,
-                        }))
-                      }
-                      className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-700"
-                    >
-                      <option value="Docker image">Docker image</option>
+                    <Label className="text-xs text-zinc-500 font-semibold uppercase">Type</Label>
+                    <select value={evalRunForm.newPolicyKind} onChange={(e) => setEvalRunForm(p => ({ ...p, newPolicyKind: e.target.value as PolicyPackageKind }))} className="w-full h-10 px-3 border border-zinc-300 rounded-md bg-white text-sm">
+                      <option value="Docker image">Docker Image</option>
                       <option value="Checkpoint URL">Checkpoint URL</option>
-                      <option value="API endpoint">API endpoint</option>
+                      <option value="API endpoint">API Endpoint</option>
                     </select>
                   </div>
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label className="text-xs text-zinc-500 font-semibold uppercase">URI / Endpoint</Label>
+                    <Input placeholder="docker://ghcr.io/org/policy:tag" value={evalRunForm.newPolicyUri} onChange={(e) => setEvalRunForm(p => ({ ...p, newPolicyUri: e.target.value }))} />
+                  </div>
                 </div>
-                <div className="mt-4 space-y-2">
-                  <Label htmlFor="new-policy-uri">URL / endpoint</Label>
-                  <Input
-                    id="new-policy-uri"
-                    value={evalRunForm.newPolicyUri}
-                    onChange={(event) =>
-                      setEvalRunForm((prev) => ({
-                        ...prev,
-                        newPolicyUri: event.target.value,
-                      }))
-                    }
-                    placeholder="docker://ghcr.io/org/policy:tag or https://..."
-                  />
+              ) : (
+                <select value={evalRunForm.policyId} onChange={(e) => setEvalRunForm(p => ({ ...p, policyId: e.target.value }))} className="w-full h-11 px-3 border border-zinc-300 rounded-md bg-white">
+                  {policyLibrary.map((policy) => (
+                    <option key={policy.id} value={policy.id}>{policy.name} ({policy.kind})</option>
+                  ))}
+                </select>
+              )}
+            </section>
+
+            {/* Step 3: Context Details */}
+            <section>
+              <h3 className="text-sm font-bold text-zinc-900 uppercase tracking-wide mb-4 flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-zinc-200 text-zinc-700 flex items-center justify-center text-xs">3</span>
+                Technical Context
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-zinc-700 font-medium mb-1.5 block">Interface Contract</Label>
+                  <Textarea required placeholder="Describe APIs, topics, or events used..." rows={2} value={evalRunForm.interfaceContract} onChange={(e) => setEvalRunForm(p => ({ ...p, interfaceContract: e.target.value }))} className="resize-none" />
+                </div>
+                <div>
+                  <Label className="text-zinc-700 font-medium mb-1.5 block">Fallback Strategy</Label>
+                  <Textarea required placeholder="How your system handles blocks or failures..." rows={2} value={evalRunForm.fallbackStrategy} onChange={(e) => setEvalRunForm(p => ({ ...p, fallbackStrategy: e.target.value }))} className="resize-none" />
+                </div>
+                <div>
+                  <Label className="text-zinc-700 font-medium mb-1.5 block">Assumed Operating Envelope</Label>
+                  <Textarea required placeholder="Hours, traffic assumptions, speed limits..." rows={2} value={evalRunForm.assumedOperatingEnvelope} onChange={(e) => setEvalRunForm(p => ({ ...p, assumedOperatingEnvelope: e.target.value }))} className="resize-none" />
                 </div>
               </div>
-            ) : selectedEvalPolicy ? (
-              <div className="rounded-xl border border-zinc-200 bg-white p-4">
-                <p className="text-sm font-semibold text-zinc-900">{selectedEvalPolicy.name}</p>
-                <p className="mt-1 text-xs text-zinc-500">
-                  {selectedEvalPolicy.kind}: {selectedEvalPolicy.uri}
-                </p>
+            </section>
+
+            {/* Step 4: Contact */}
+            <section>
+              <h3 className="text-sm font-bold text-zinc-900 uppercase tracking-wide mb-4 flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-zinc-200 text-zinc-700 flex items-center justify-center text-xs">4</span>
+                Your Details
+              </h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Full Name</Label>
+                  <Input required placeholder="Jane Doe" value={evalRunForm.contactName} onChange={(e) => setEvalRunForm(p => ({ ...p, contactName: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Work Email</Label>
+                  <Input required type="email" placeholder="jane@robotics.com" value={evalRunForm.contactEmail} onChange={(e) => setEvalRunForm(p => ({ ...p, contactEmail: e.target.value }))} />
+                </div>
               </div>
-            ) : null}
+            </section>
 
-            <div className="space-y-2">
-              <Label htmlFor="eval-interface-contract">Interface Contract</Label>
-              <Textarea
-                id="eval-interface-contract"
-                value={evalRunForm.interfaceContract}
-                onChange={(event) =>
-                  setEvalRunForm((prev) => ({
-                    ...prev,
-                    interfaceContract: event.target.value,
-                  }))
-                }
-                placeholder="APIs/topics/events used (WMS, ERP, doors, elevators, PLC, etc.)"
-                rows={3}
-              />
+            {/* Submit */}
+            <div className="pt-4 border-t border-zinc-200">
+              {policyMessage && (
+                <div className={`p-3 mb-4 text-sm rounded-md ${policyStatus === 'success' ? 'bg-zinc-100 text-zinc-900 border border-zinc-200' : 'bg-white border border-zinc-300 text-zinc-900'}`}>
+                  {policyMessage}
+                </div>
+              )}
+              <Button type="submit" disabled={policyStatus === "loading"} className="w-full bg-zinc-900 text-white hover:bg-zinc-800 h-12 text-base font-semibold">
+                {policyStatus === "loading" ? "Submitting Evaluation..." : "Submit Evaluation"}
+              </Button>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="eval-fallback-strategy">Fallback Strategy</Label>
-              <Textarea
-                id="eval-fallback-strategy"
-                value={evalRunForm.fallbackStrategy}
-                onChange={(event) =>
-                  setEvalRunForm((prev) => ({
-                    ...prev,
-                    fallbackStrategy: event.target.value,
-                  }))
-                }
-                placeholder="How your system handles blocked paths, failed grasps, or missing items"
-                rows={3}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="eval-operating-envelope">Assumed Operating Envelope</Label>
-              <Textarea
-                id="eval-operating-envelope"
-                value={evalRunForm.assumedOperatingEnvelope}
-                onChange={(event) =>
-                  setEvalRunForm((prev) => ({
-                    ...prev,
-                    assumedOperatingEnvelope: event.target.value,
-                  }))
-                }
-                placeholder="Hours, traffic assumptions, task exclusions, and environmental limits"
-                rows={3}
-              />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="eval-email">Work email</Label>
-                <Input
-                  id="eval-email"
-                  type="email"
-                  value={evalRunForm.contactEmail}
-                  onChange={(event) =>
-                    setEvalRunForm((prev) => ({
-                      ...prev,
-                      contactEmail: event.target.value,
-                    }))
-                  }
-                  placeholder="you@company.com"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="eval-name">Full name</Label>
-                <Input
-                  id="eval-name"
-                  value={evalRunForm.contactName}
-                  onChange={(event) =>
-                    setEvalRunForm((prev) => ({
-                      ...prev,
-                      contactName: event.target.value,
-                    }))
-                  }
-                  placeholder="Jane Doe"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="eval-company">Company (optional)</Label>
-              <Input
-                id="eval-company"
-                value={evalRunForm.contactCompany}
-                onChange={(event) =>
-                  setEvalRunForm((prev) => ({
-                    ...prev,
-                    contactCompany: event.target.value,
-                  }))
-                }
-                placeholder="Auto-filled from email domain"
-              />
-            </div>
-
-            {policyMessage ? (
-              <p
-                className={`text-sm ${
-                  policyStatus === "success" ? "text-emerald-700" : "text-red-600"
-                }`}
-              >
-                {policyMessage}
-              </p>
-            ) : null}
-
-            <Button
-              type="submit"
-              disabled={policyStatus === "loading" || !evaluationAccessUnlocked}
-              className="w-full"
-            >
-              {policyStatus === "loading" ? "Running..." : "Run eval"}
-            </Button>
           </form>
         </DialogContent>
       </Dialog>
