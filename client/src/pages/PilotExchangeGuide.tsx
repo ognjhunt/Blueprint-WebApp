@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect } from "react";
 import { SEO } from "@/components/SEO";
 import { analyticsEvents } from "@/components/Analytics";
 import {
@@ -18,7 +18,6 @@ import {
   trainingWorkflowSteps,
   workflowValidationChecks,
 } from "@/data/pilotExchange";
-import type { ReadinessGate } from "@/types/pilot-exchange";
 import { Button } from "@/components/ui/button";
 import {
   Accordion,
@@ -43,90 +42,79 @@ import {
   YAxis,
 } from "recharts";
 import {
-  AlertTriangle,
   ArrowRight,
   CheckCircle2,
+  ChevronRight,
   Circle,
-  Coins,
+  HelpCircle,
   ShieldCheck,
+  XCircle,
 } from "lucide-react";
 
+// Updated to elegant grayscale color palette
 const readinessChartConfig = {
   teams: {
     label: "Teams",
-    color: "hsl(160 84% 39%)",
+    color: "#18181b", // zinc-900
   },
 } satisfies ChartConfig;
 
 const confidenceChartConfig = {
   low: {
     label: "Low",
-    color: "hsl(355 78% 56%)",
+    color: "#d4d4d8", // zinc-300
   },
   median: {
     label: "Median",
-    color: "hsl(210 92% 47%)",
+    color: "#71717a", // zinc-500
   },
   high: {
     label: "High",
-    color: "hsl(160 84% 39%)",
+    color: "#18181b", // zinc-900
   },
 } satisfies ChartConfig;
 
 const failureChartConfig = {
   percent: {
     label: "Risk Share",
-    color: "hsl(214 32% 40%)",
+    color: "#3f3f46", // zinc-700
   },
 } satisfies ChartConfig;
 
 const monetizationChartConfig = {
   percent: {
     label: "Revenue Share",
-    color: "hsl(262 83% 58%)",
+    color: "#18181b", // zinc-900
   },
 } satisfies ChartConfig;
 
-const failureColors = ["#7dd3fc", "#34d399", "#fbbf24", "#f97316", "#f87171"];
+// Grayscale palette for the pie/bar slices
+const failureColors = ["#18181b", "#3f3f46", "#71717a", "#a1a1aa", "#e4e4e7"];
 
 function DotPattern() {
   return (
     <svg
-      className="absolute inset-0 -z-10 h-full w-full stroke-zinc-200 [mask-image:radial-gradient(80%_80%_at_top_right,white,transparent)]"
+      className="absolute inset-0 -z-10 h-full w-full stroke-zinc-200/60 [mask-image:radial-gradient(80%_80%_at_top_right,black,transparent)]"
       aria-hidden="true"
     >
       <defs>
         <pattern
           id="grid-pattern-pilot-exchange-guide"
-          width={44}
-          height={44}
+          width={40}
+          height={40}
           x="50%"
           y={-1}
           patternUnits="userSpaceOnUse"
         >
-          <path d="M.5 44V.5H44" fill="none" />
+          <path d="M.5 40V.5H40" fill="none" />
         </pattern>
       </defs>
-      <rect
-        width="100%"
-        height="100%"
-        strokeWidth={0}
-        fill="url(#grid-pattern-pilot-exchange-guide)"
-      />
+      <rect width="100%" height="100%" strokeWidth={0} fill="url(#grid-pattern-pilot-exchange-guide)" />
     </svg>
   );
 }
 
 export default function PilotExchangeGuide() {
-  const [selectedGateId, setSelectedGateId] = useState<string>(() => readinessGates[0]?.id || "");
-
-  const selectedGate = useMemo<ReadinessGate | null>(() => {
-    if (!selectedGateId) {
-      return readinessGates[0] ?? null;
-    }
-    return readinessGates.find((gate) => gate.id === selectedGateId) ?? readinessGates[0] ?? null;
-  }, [selectedGateId]);
-
   useEffect(() => {
     analyticsEvents.pilotExchangeView();
     analyticsEvents.pilotExchangeChartView("readiness_funnel");
@@ -142,500 +130,337 @@ export default function PilotExchangeGuide() {
         description="Beginner guide to how Pilot Exchange pre-qualifies humanoid and robotics policies before controlled on-site pilot ramp."
         canonical="/pilot-exchange-guide"
       />
-      <div className="relative min-h-screen overflow-hidden bg-white text-zinc-900 selection:bg-emerald-100 selection:text-emerald-900">
+      <div className="relative min-h-screen bg-white text-zinc-900 font-sans selection:bg-zinc-200 selection:text-zinc-900">
         <DotPattern />
-        <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[460px] bg-gradient-to-br from-cyan-100/70 via-emerald-50/70 to-transparent" />
-        <div className="mx-auto max-w-7xl px-4 pb-24 pt-16 sm:px-6 lg:px-8">
-          <section className="mb-10 rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
-              Beginner Guide
+
+        <main className="mx-auto max-w-5xl px-4 pb-24 pt-16 sm:px-6 lg:px-8">
+          {/* Header Section */}
+          <section className="mb-20 max-w-3xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-bold uppercase tracking-widest text-zinc-600 mb-6">
+              Beginner's Guide
             </div>
-            <h1 className="mt-4 text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl">
-              What Pilot Exchange Is and How It Works
+            <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 mb-6">
+              How Pilot Exchange Works
             </h1>
-            <p className="mt-4 max-w-3xl text-lg leading-relaxed text-zinc-600">
-              Pilot Exchange is a pre-deployment qualification workflow. It helps teams test robot
-              policies on calibrated digital twins before spending on full live pilots.
+            <p className="text-lg text-zinc-600 leading-relaxed mb-8">
+              Pilot Exchange is a pre-deployment qualification workflow. We help teams test robot policies on calibrated digital twins before spending money and time on physical, live pilots.
             </p>
-            <p className="mt-3 max-w-3xl text-sm text-zinc-500">
-              This reduces pilot risk. It does not guarantee production success.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <div className="flex flex-wrap items-center gap-4">
               <a href="/pilot-exchange">
-                <Button className="rounded-full bg-zinc-900 px-6 py-2.5 text-sm font-semibold text-white hover:bg-zinc-700">
-                  Open Exchange Marketplace
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                <Button className="bg-zinc-900 text-white hover:bg-zinc-800 px-6 py-5 text-sm font-medium">
+                  Open Marketplace <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>
               </a>
-              <a href="/contact">
-                <Button variant="outline" className="rounded-full px-6 py-2.5">
-                  Talk to the Team
-                </Button>
+              <a href="/contact" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 underline underline-offset-4 decoration-zinc-300">
+                Talk to our team
               </a>
             </div>
           </section>
 
-          <section className="mb-10 grid gap-5 md:grid-cols-2">
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
-              <h2 className="text-xl font-semibold text-emerald-900">What this is</h2>
-              <ul className="mt-3 space-y-2 text-sm text-emerald-900/90">
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-                  A staged qualification process before on-site rollout.
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-                  Standardized evaluation harness so teams are scored the same way.
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-                  Humanoid-first testing with integration and fallback checks.
-                </li>
-              </ul>
-            </div>
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
-              <h2 className="text-xl font-semibold text-amber-900">What this is not</h2>
-              <ul className="mt-3 space-y-2 text-sm text-amber-900/90">
-                <li className="flex items-start gap-2">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                  Not a production guarantee.
-                </li>
-                <li className="flex items-start gap-2">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                  Not a replacement for safety validation and SAT.
-                </li>
-                <li className="flex items-start gap-2">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                  Not a one-click shortcut for every site edge case.
-                </li>
-              </ul>
-            </div>
-          </section>
-
-          <section className="mb-10 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="text-2xl font-bold text-zinc-900">7-Stage Readiness Flow</h2>
-              <p className="text-xs font-medium text-zinc-500">Ordered gates, no shortcuts</p>
-            </div>
-            <p className="mt-2 text-sm text-zinc-600">
-              Teams move through these gates before a controlled pilot ramp.
-            </p>
-            <div className="mt-5 grid gap-3 lg:grid-cols-[0.9fr_1.1fr]">
-              <div className="space-y-2">
-                {readinessGates.map((gate, index) => (
-                  <button
-                    key={gate.id}
-                    type="button"
-                    className={`w-full rounded-xl border px-4 py-3 text-left transition ${
-                      selectedGate?.id === gate.id
-                        ? "border-emerald-300 bg-emerald-50"
-                        : "border-zinc-200 bg-zinc-50 hover:bg-zinc-100"
-                    }`}
-                    onClick={() => {
-                      setSelectedGateId(gate.id);
-                      analyticsEvents.pilotExchangeSelectReadinessGate(gate.title);
-                    }}
-                  >
-                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                      Stage {index + 1}
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-zinc-900">{gate.title}</p>
-                  </button>
-                ))}
-              </div>
-
-              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-6">
-                {selectedGate ? (
-                  <>
-                    <h3 className="text-lg font-semibold text-zinc-900">{selectedGate.title}</h3>
-                    <p className="mt-2 text-sm text-zinc-700">{selectedGate.description}</p>
-                    <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                        Why this matters
-                      </p>
-                      <p className="mt-1 text-sm text-emerald-900">{selectedGate.whyItMatters}</p>
-                    </div>
-                  </>
-                ) : null}
-              </div>
-            </div>
-          </section>
-
-          <section className="mb-10 grid gap-5 lg:grid-cols-2">
-            <article className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-semibold text-zinc-900">Real-to-Sim Activation</h2>
-              <p className="mt-2 text-sm text-zinc-600">
-                SimReady assets improve fidelity, but calibration and on-site ramp are still needed.
-              </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                    Input Signals
-                  </p>
-                  <ul className="mt-2 space-y-2">
-                    {activationSignals.map((signal) => (
-                      <li key={signal.id} className="text-xs text-zinc-700">
-                        <span className="font-semibold text-zinc-900">{signal.label}:</span>{" "}
-                        {signal.description}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                    Output Artifacts
-                  </p>
-                  <ul className="mt-2 space-y-2">
-                    {activationArtifacts.map((artifact) => (
-                      <li key={artifact.id} className="text-xs text-zinc-700">
-                        <span className="font-semibold text-zinc-900">{artifact.label}:</span>{" "}
-                        {artifact.description}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </article>
-
-            <article className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-semibold text-zinc-900">
-                Workflow + Integration Validation
+          {/* Is / Isn't Section */}
+          <section className="mb-20 grid sm:grid-cols-2 gap-8 border-y border-zinc-200 py-12">
+            <div>
+              <h2 className="text-xl font-bold text-zinc-900 flex items-center gap-2 mb-4">
+                <CheckCircle2 className="w-5 h-5 text-zinc-900" /> What this is
               </h2>
-              <p className="mt-2 text-sm text-zinc-600">
-                The hardest pilot failures usually come from integration and operations logic.
-              </p>
-              <div className="mt-4 space-y-3">
-                {workflowValidationChecks.map((group) => (
-                  <div key={group.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                    <p className="text-sm font-semibold text-zinc-900">{group.label}</p>
-                    <ul className="mt-2 space-y-1 text-xs text-zinc-700">
-                      {group.checks.map((item) => (
-                        <li key={item} className="flex items-start gap-2">
-                          <Circle className="mt-1 h-2.5 w-2.5 shrink-0 fill-zinc-400 text-zinc-400" />
-                          <span>{item}</span>
+              <ul className="space-y-3 text-zinc-600">
+                <li className="flex gap-3"><span className="text-zinc-300 mt-1">•</span> A staged qualification process before on-site rollout.</li>
+                <li className="flex gap-3"><span className="text-zinc-300 mt-1">•</span> A standardized evaluation harness so all teams are scored fairly.</li>
+                <li className="flex gap-3"><span className="text-zinc-300 mt-1">•</span> A safe environment for integration and fallback checks.</li>
+              </ul>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-zinc-900 flex items-center gap-2 mb-4">
+                <XCircle className="w-5 h-5 text-zinc-400" /> What this is NOT
+              </h2>
+              <ul className="space-y-3 text-zinc-600">
+                <li className="flex gap-3"><span className="text-zinc-300 mt-1">•</span> A 100% guarantee of production success.</li>
+                <li className="flex gap-3"><span className="text-zinc-300 mt-1">•</span> A replacement for physical safety validation (SAT).</li>
+                <li className="flex gap-3"><span className="text-zinc-300 mt-1">•</span> A magical shortcut that bypasses real-world edge cases.</li>
+              </ul>
+            </div>
+          </section>
+
+          {/* 7-Stage Process - Redesigned as a vertical timeline for easier reading */}
+          <section className="mb-24">
+            <div className="max-w-2xl mb-10">
+              <h2 className="text-3xl font-bold text-zinc-900 mb-3">The 7-Stage Readiness Flow</h2>
+              <p className="text-zinc-600">Teams must move through these sequential gates before a controlled pilot ramp. There are no shortcuts.</p>
+            </div>
+
+            <div className="space-y-6">
+              {readinessGates.map((gate, index) => (
+                <div key={gate.id} className="group flex gap-6 sm:gap-8 bg-white border border-zinc-200 rounded-2xl p-6 sm:p-8 hover:border-zinc-300 transition-colors">
+                  <div className="hidden sm:flex flex-col items-center">
+                    <span className="flex items-center justify-center w-10 h-10 rounded-full bg-zinc-100 text-zinc-900 font-bold font-mono text-sm border border-zinc-200">
+                      0{index + 1}
+                    </span>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-zinc-900 mb-2 flex items-center gap-3">
+                      <span className="sm:hidden text-zinc-400 font-mono text-base">0{index + 1}</span>
+                      {gate.title}
+                    </h3>
+                    <p className="text-zinc-600 mb-4">{gate.description}</p>
+                    <div className="bg-zinc-50 border border-zinc-100 rounded-lg p-4">
+                      <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-1">Why it matters</p>
+                      <p className="text-sm text-zinc-800">{gate.whyItMatters}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Core Capabilities */}
+          <section className="mb-24">
+            <h2 className="text-3xl font-bold text-zinc-900 mb-8">Under the Hood</h2>
+            
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="border border-zinc-200 rounded-2xl p-8 bg-zinc-50/50">
+                <h3 className="text-xl font-bold text-zinc-900 mb-3">Real-to-Sim Activation</h3>
+                <p className="text-sm text-zinc-600 mb-6">Simulation assets are useless without calibration. We align the twin to reality using log sets.</p>
+                
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-3">Inputs We Use</h4>
+                    <ul className="space-y-3">
+                      {activationSignals.map((sig) => (
+                        <li key={sig.id} className="text-sm text-zinc-600 flex gap-2">
+                          <ChevronRight className="w-4 h-4 text-zinc-300 shrink-0 mt-0.5" />
+                          <span><strong className="text-zinc-900 font-semibold">{sig.label}:</strong> {sig.description}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
-                ))}
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-3">Outputs We Generate</h4>
+                    <ul className="space-y-3">
+                      {activationArtifacts.map((art) => (
+                        <li key={art.id} className="text-sm text-zinc-600 flex gap-2">
+                          <ChevronRight className="w-4 h-4 text-zinc-300 shrink-0 mt-0.5" />
+                          <span><strong className="text-zinc-900 font-semibold">{art.label}:</strong> {art.description}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
               </div>
-            </article>
+
+              <div className="border border-zinc-200 rounded-2xl p-8 bg-zinc-50/50">
+                <h3 className="text-xl font-bold text-zinc-900 mb-3">Workflow Validation</h3>
+                <p className="text-sm text-zinc-600 mb-6">The hardest pilot failures usually stem from logic and operations, not just motion planning.</p>
+                
+                <div className="space-y-6">
+                  {workflowValidationChecks.map((group) => (
+                    <div key={group.id}>
+                      <h4 className="text-sm font-bold text-zinc-900 mb-2">{group.label}</h4>
+                      <ul className="space-y-2">
+                        {group.checks.map((item) => (
+                          <li key={item} className="text-sm text-zinc-600 flex gap-2">
+                            <Circle className="w-1.5 h-1.5 fill-zinc-300 text-zinc-300 shrink-0 mt-2" />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </section>
 
-          <section className="mb-10 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
-            <h2 className="text-2xl font-bold text-zinc-900">
-              Does Training on SimReady Twins Improve Outcomes?
-            </h2>
-            <p className="mt-2 text-sm text-zinc-600">
-              Directionally yes. Teams typically see better success rates, fewer interventions, and
-              faster convergence when twin training includes calibration, standardized tasks, and
-              robust variation.
-            </p>
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
+          {/* Training Workflows */}
+          <section className="mb-24 border-t border-zinc-200 pt-16">
+            <div className="max-w-2xl mb-10">
+              <h2 className="text-3xl font-bold text-zinc-900 mb-3">Does Twin Training Actually Work?</h2>
+              <p className="text-zinc-600">Directionally, yes. Teams see better success rates and fewer interventions when twin training includes strict calibration and standardized tasks.</p>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4 mb-16">
               {trainingEvidencePoints.map((point) => (
-                <article key={point.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                    {point.source}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-zinc-900">{point.result}</p>
-                  <p className="mt-1 text-xs text-zinc-600">{point.note}</p>
-                </article>
+                <div key={point.id} className="bg-white border border-zinc-200 rounded-xl p-6">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-2">{point.source}</p>
+                  <p className="text-lg font-bold text-zinc-900 mb-2">{point.result}</p>
+                  <p className="text-sm text-zinc-600">{point.note}</p>
+                </div>
               ))}
             </div>
-            <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-              Illustrative summary of reported public results. Your site outcomes will vary.
-            </div>
-          </section>
 
-          <section className="mb-10 grid gap-5 lg:grid-cols-2">
-            <article className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-semibold text-zinc-900">
-                Required Ingredients for Real Lift
-              </h2>
-              <p className="mt-2 text-sm text-zinc-600">
-                SimReady USD alone is not enough. These three capabilities are required.
-              </p>
-              <div className="mt-4 space-y-3">
-                {trainingRequirements.map((requirement) => (
-                  <div key={requirement.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                    <p className="text-sm font-semibold text-zinc-900">{requirement.title}</p>
-                    <p className="mt-1 text-xs text-zinc-600">{requirement.description}</p>
-                  </div>
-                ))}
-              </div>
-            </article>
-
-            <article className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-semibold text-zinc-900">
-                Training + Eval Features We Provide
-              </h2>
-              <p className="mt-2 text-sm text-zinc-600">
-                These features are included to make training decision-grade, not just demo-grade.
-              </p>
-              <ul className="mt-4 space-y-2 text-sm text-zinc-700">
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                  SimReady site package with semantics, physics layers, and task interfaces.
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                  Standardized task harness with pass/fail gates and scorecard outputs.
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                  Fault injection for blocked paths, missing items, and network/sensor instability.
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                  Domain randomization and site-variant generation to reduce overfitting.
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                  Managed training lanes (L40S/H100 tiers) with metered GPU billing.
-                </li>
-              </ul>
-            </article>
-          </section>
-
-          <section className="mb-10 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
-            <h2 className="text-2xl font-bold text-zinc-900">How Training Runs in Practice</h2>
-            <p className="mt-2 text-sm text-zinc-600">
-              End-to-end flow from SimReady twin delivery to standardized scorecard. This is the
-              default pattern for scalable humanoid policy training on site twins.
-            </p>
-            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <h3 className="text-2xl font-bold text-zinc-900 mb-6">How Training Runs in Practice</h3>
+            <div className="grid md:grid-cols-3 gap-6">
               {trainingWorkflowSteps.map((step) => (
-                <article key={step.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                    Step {step.step}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-zinc-900">{step.title}</p>
-                  <p className="mt-1 text-xs text-zinc-600">{step.description}</p>
-                  <ul className="mt-3 space-y-1 text-xs text-zinc-700">
+                <div key={step.id} className="relative pl-6 sm:pl-0 border-l sm:border-l-0 sm:border-t border-zinc-200 pt-6">
+                  <div className="absolute left-0 top-0 sm:-top-3 -translate-x-[1px] sm:translate-x-0 w-3 h-3 rounded-full bg-zinc-900"></div>
+                  <h4 className="text-lg font-bold text-zinc-900 mb-2">Step {step.step}: {step.title}</h4>
+                  <p className="text-sm text-zinc-600 mb-4">{step.description}</p>
+                  <ul className="space-y-2">
                     {step.checklist.map((item) => (
-                      <li key={item} className="flex items-start gap-2">
-                        <Circle className="mt-1 h-2.5 w-2.5 shrink-0 fill-zinc-400 text-zinc-400" />
-                        <span>{item}</span>
+                      <li key={item} className="text-xs text-zinc-500 flex gap-2">
+                        <span className="text-zinc-300">•</span> {item}
                       </li>
                     ))}
                   </ul>
-                </article>
+                </div>
               ))}
             </div>
           </section>
 
-          <section className="mb-10 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
-            <h2 className="text-2xl font-bold text-zinc-900">Training Monetization Model</h2>
-            <p className="mt-2 text-sm text-zinc-600">
-              Pricing is designed around actual workload usage rather than flat one-size plans.
-            </p>
-            <div className="mt-5 grid gap-4 md:grid-cols-3">
-              {trainingPricingLanes.map((lane) => (
-                <article key={lane.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                  <p className="text-sm font-semibold text-zinc-900">{lane.title}</p>
-                  <p className="mt-1 text-sm font-medium text-emerald-700">{lane.pricing}</p>
-                  <p className="mt-1 text-xs text-zinc-600">{lane.detail}</p>
-                </article>
-              ))}
+          {/* Charts & Data */}
+          <section className="mb-24 bg-zinc-50 border border-zinc-200 rounded-3xl p-6 sm:p-10">
+            <div className="max-w-2xl mb-10">
+              <h2 className="text-3xl font-bold text-zinc-900 mb-3">Industry Insights</h2>
+              <p className="text-zinc-600">Pre-qualification guidance based on aggregated network data. (Illustrative metrics).</p>
             </div>
-          </section>
 
-          <section className="mb-10 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-zinc-900">Qualification Graphs</h2>
-              <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-                Illustrative demo data
-              </span>
-            </div>
-            <p className="mt-2 text-sm text-zinc-600">
-              These charts are for pre-qualification guidance, not production guarantees.
-            </p>
-
-            <div className="mt-6 grid gap-6 xl:grid-cols-3">
-              <article className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                <h3 className="text-sm font-semibold text-zinc-900">Readiness Funnel</h3>
-                <ChartContainer config={readinessChartConfig} className="mt-3 h-64 w-full">
-                  <BarChart data={readinessFunnel} margin={{ top: 12, right: 8, left: -20, bottom: 78 }}>
-                    <CartesianGrid vertical={false} />
-                    <XAxis
-                      dataKey="stage"
-                      tickLine={false}
-                      axisLine={false}
-                      angle={-30}
-                      textAnchor="end"
-                      interval={0}
-                      height={84}
-                    />
-                    <YAxis allowDecimals={false} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="teams" fill="var(--color-teams)" radius={[6, 6, 0, 0]} />
+            <div className="grid lg:grid-cols-2 gap-8 mb-8">
+              {/* Funnel */}
+              <div className="bg-white border border-zinc-200 rounded-2xl p-6">
+                <h3 className="font-bold text-zinc-900 mb-6">Readiness Funnel</h3>
+                <ChartContainer config={readinessChartConfig} className="h-64 w-full">
+                  <BarChart data={readinessFunnel} margin={{ top: 12, right: 8, left: -20, bottom: 60 }}>
+                    <CartesianGrid vertical={false} stroke="#e4e4e7" strokeDasharray="4 4" />
+                    <XAxis dataKey="stage" tickLine={false} axisLine={false} angle={-35} textAnchor="end" tick={{ fill: '#71717a', fontSize: 12 }} />
+                    <YAxis allowDecimals={false} tick={{ fill: '#71717a', fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <ChartTooltip cursor={{ fill: '#f4f4f5' }} content={<ChartTooltipContent />} />
+                    <Bar dataKey="teams" fill="var(--color-teams)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ChartContainer>
-              </article>
+              </div>
 
-              <article className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                <h3 className="text-sm font-semibold text-zinc-900">Confidence Bands</h3>
-                <ChartContainer config={confidenceChartConfig} className="mt-3 h-64 w-full">
-                  <LineChart data={confidenceBands} margin={{ top: 12, right: 8, left: -20, bottom: 8 }}>
-                    <CartesianGrid vertical={false} />
-                    <XAxis dataKey="task" tickLine={false} axisLine={false} interval={0} height={64} />
-                    <YAxis domain={[40, 100]} />
+              {/* Confidence Bands */}
+              <div className="bg-white border border-zinc-200 rounded-2xl p-6">
+                <h3 className="font-bold text-zinc-900 mb-6">Task Confidence Bands</h3>
+                <ChartContainer config={confidenceChartConfig} className="h-64 w-full">
+                  <LineChart data={confidenceBands} margin={{ top: 12, right: 8, left: -20, bottom: 10 }}>
+                    <CartesianGrid vertical={false} stroke="#e4e4e7" strokeDasharray="4 4" />
+                    <XAxis dataKey="task" tickLine={false} axisLine={false} tick={{ fill: '#71717a', fontSize: 12 }} />
+                    <YAxis domain={[40, 100]} tick={{ fill: '#71717a', fontSize: 12 }} axisLine={false} tickLine={false} />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Line type="monotone" dataKey="low" stroke="var(--color-low)" strokeWidth={2} dot={false} />
-                    <Line
-                      type="monotone"
-                      dataKey="median"
-                      stroke="var(--color-median)"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                    <Line type="monotone" dataKey="high" stroke="var(--color-high)" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="low" stroke="var(--color-low)" strokeWidth={2} dot={{ r: 3, fill: "var(--color-low)" }} />
+                    <Line type="monotone" dataKey="median" stroke="var(--color-median)" strokeWidth={2} dot={{ r: 3, fill: "var(--color-median)" }} />
+                    <Line type="monotone" dataKey="high" stroke="var(--color-high)" strokeWidth={2} dot={{ r: 3, fill: "var(--color-high)" }} />
                   </LineChart>
                 </ChartContainer>
-              </article>
-
-              <article className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                <h3 className="text-sm font-semibold text-zinc-900">Failure Attribution</h3>
-                <ChartContainer config={failureChartConfig} className="mt-3 h-64 w-full">
-                  <BarChart data={failureAttribution} margin={{ top: 12, right: 8, left: -20, bottom: 28 }}>
-                    <CartesianGrid vertical={false} />
-                    <XAxis dataKey="label" tickLine={false} axisLine={false} interval={0} />
-                    <YAxis />
-                    <ChartTooltip
-                      content={
-                        <ChartTooltipContent
-                          formatter={(value, _name, item) => (
-                            <div className="space-y-1">
-                              <p className="text-xs font-semibold text-zinc-900">
-                                {value}% risk share
-                              </p>
-                              <p className="max-w-[220px] text-xs text-zinc-600">
-                                {String(item.payload.note)}
-                              </p>
-                            </div>
-                          )}
-                        />
-                      }
-                    />
-                    <Bar dataKey="percent" radius={[6, 6, 0, 0]}>
-                      {failureAttribution.map((slice, index) => (
-                        <Cell key={slice.id} fill={failureColors[index % failureColors.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ChartContainer>
-              </article>
-            </div>
-          </section>
-
-          <section className="mb-10 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
-            <div className="flex items-center gap-2">
-              <Coins className="h-5 w-5 text-zinc-700" />
-              <h2 className="text-2xl font-bold text-zinc-900">Who Pays for What</h2>
-            </div>
-            <p className="mt-2 text-sm text-zinc-600">
-              Default model keeps site onboarding simple while monetizing robotics usage.
-            </p>
-
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              {exchangeBusinessModelCards.map((card) => (
-                <article key={card.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                    {card.payer}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-zinc-900">{card.title}</p>
-                  <p className="mt-1 text-sm font-medium text-emerald-700">{card.pricing}</p>
-                  <p className="mt-1 text-xs text-zinc-600">{card.description}</p>
-                </article>
-              ))}
-            </div>
-
-            <div className="mt-6 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-              <h3 className="text-sm font-semibold text-zinc-900">Ownership Options</h3>
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
-                {ownershipOptions.map((option) => (
-                  <article key={option.id} className="rounded-xl border border-zinc-200 bg-white p-4">
-                    <p className="text-sm font-semibold text-zinc-900">{option.name}</p>
-                    <p className="mt-1 text-xs text-zinc-600">Owner: {option.owner}</p>
-                    <p className="mt-1 text-xs text-zinc-600">Site cost: {option.siteCost}</p>
-                    <p className="mt-1 text-xs text-zinc-600">{option.exchangeUsage}</p>
-                    <p className="mt-2 text-xs text-zinc-500">{option.note}</p>
-                  </article>
-                ))}
               </div>
             </div>
 
-            <div className="mt-6 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-zinc-900">Monetization Mix</h3>
-                <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700">
-                  Illustrative demo data
-                </span>
-              </div>
-              <ChartContainer config={monetizationChartConfig} className="mt-3 h-56 w-full">
-                <BarChart data={monetizationMix} margin={{ top: 8, right: 8, left: -20, bottom: 30 }}>
-                  <CartesianGrid vertical={false} />
-                  <XAxis dataKey="stream" tickLine={false} axisLine={false} interval={0} />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="percent" fill="var(--color-percent)" radius={[6, 6, 0, 0]} />
+            {/* Failure Attribution */}
+            <div className="bg-white border border-zinc-200 rounded-2xl p-6">
+              <h3 className="font-bold text-zinc-900 mb-6">Why Pilots Fail (Attribution)</h3>
+              <ChartContainer config={failureChartConfig} className="h-64 w-full">
+                <BarChart data={failureAttribution} margin={{ top: 12, right: 8, left: -20, bottom: 20 }}>
+                  <CartesianGrid vertical={false} stroke="#e4e4e7" strokeDasharray="4 4" />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: '#71717a', fontSize: 12 }} />
+                  <YAxis tick={{ fill: '#71717a', fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <ChartTooltip
+                    cursor={{ fill: '#f4f4f5' }}
+                    content={
+                      <ChartTooltipContent
+                        formatter={(value, _name, item) => (
+                          <div className="space-y-1 text-zinc-900">
+                            <p className="font-bold">{value}% risk share</p>
+                            <p className="text-xs text-zinc-500 max-w-[200px]">{String(item.payload.note)}</p>
+                          </div>
+                        )}
+                      />
+                    }
+                  />
+                  <Bar dataKey="percent" radius={[4, 4, 0, 0]}>
+                    {failureAttribution.map((slice, index) => (
+                      <Cell key={slice.id} fill={failureColors[index % failureColors.length]} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ChartContainer>
             </div>
           </section>
 
-          <section className="mb-10 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
-            <h2 className="text-2xl font-bold text-zinc-900">FAQ</h2>
-            <Accordion
-              type="single"
-              collapsible
-              className="mt-4"
-              onValueChange={(value) => {
-                if (value) {
-                  analyticsEvents.pilotExchangeOpenFaq(value);
-                }
-              }}
-            >
+          {/* Pricing & Business Model */}
+          <section className="mb-24">
+            <h2 className="text-3xl font-bold text-zinc-900 mb-8">Who Pays for What?</h2>
+            
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              {exchangeBusinessModelCards.map((card) => (
+                <div key={card.id} className="border border-zinc-200 rounded-xl p-5 bg-white">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-2">Payer: {card.payer}</p>
+                  <h3 className="font-bold text-zinc-900">{card.title}</h3>
+                  <p className="font-mono text-sm font-semibold text-zinc-900 my-2">{card.pricing}</p>
+                  <p className="text-xs text-zinc-600">{card.description}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8">
+              <div>
+                <h3 className="text-lg font-bold text-zinc-900 mb-4">Ownership Options</h3>
+                <div className="space-y-4">
+                  {ownershipOptions.map((opt) => (
+                    <div key={opt.id} className="border border-zinc-200 rounded-xl p-5 bg-zinc-50">
+                      <h4 className="font-bold text-zinc-900">{opt.name}</h4>
+                      <p className="text-sm text-zinc-600 mt-2"><strong className="text-zinc-900">Owner:</strong> {opt.owner}</p>
+                      <p className="text-sm text-zinc-600"><strong className="text-zinc-900">Usage:</strong> {opt.exchangeUsage}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-zinc-900 mb-4">Training Pricing Lanes</h3>
+                <div className="space-y-4">
+                  {trainingPricingLanes.map((lane) => (
+                    <div key={lane.id} className="border border-zinc-200 rounded-xl p-5 bg-white">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-bold text-zinc-900">{lane.title}</h4>
+                        <span className="font-mono text-xs font-semibold bg-zinc-100 px-2 py-1 rounded text-zinc-900">{lane.pricing}</span>
+                      </div>
+                      <p className="text-sm text-zinc-600">{lane.detail}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* FAQ */}
+          <section className="mb-24 max-w-3xl mx-auto">
+            <h2 className="text-3xl font-bold text-zinc-900 mb-8 text-center flex items-center justify-center gap-2">
+              <HelpCircle className="w-6 h-6 text-zinc-400" /> Frequently Asked Questions
+            </h2>
+            <Accordion type="single" collapsible className="w-full">
               {pilotExchangeFaq.map((item) => (
-                <AccordionItem key={item.id} value={item.id}>
-                  <AccordionTrigger>{item.question}</AccordionTrigger>
-                  <AccordionContent>{item.answer}</AccordionContent>
+                <AccordionItem key={item.id} value={item.id} className="border-zinc-200">
+                  <AccordionTrigger className="text-left font-semibold text-zinc-900 hover:text-zinc-600 hover:no-underline">
+                    {item.question}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-zinc-600 leading-relaxed">
+                    {item.answer}
+                  </AccordionContent>
                 </AccordionItem>
               ))}
             </Accordion>
           </section>
 
-          <section className="rounded-3xl border border-zinc-200 bg-zinc-900 p-8 text-white">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-2xl font-bold">Ready to test your policy?</h2>
-                <p className="mt-2 max-w-2xl text-sm text-zinc-300">
-                  Use the exchange marketplace to purchase access, submit your robot policy package,
-                  and get standardized evaluation scorecards.
-                </p>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <a href="/pilot-exchange">
-                  <Button className="rounded-full bg-white text-zinc-900 hover:bg-zinc-200">
-                    Open Marketplace
-                  </Button>
-                </a>
-                <a href="/contact">
-                  <Button
-                    variant="outline"
-                    className="rounded-full border-zinc-500 text-white hover:bg-zinc-800"
-                  >
-                    Talk to Sales
-                  </Button>
-                </a>
-              </div>
-            </div>
-            <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-zinc-600 bg-zinc-800/70 px-3 py-1 text-xs text-zinc-200">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Final deployment decisions still require SAT and controlled pilot ramp.
+          {/* Footer CTA */}
+          <section className="rounded-3xl border border-zinc-800 bg-zinc-950 p-8 sm:p-12 text-center">
+            <ShieldCheck className="w-12 h-12 text-white mx-auto mb-6 opacity-80" />
+            <h2 className="text-3xl font-bold text-white mb-4">Ready to test your policy?</h2>
+            <p className="max-w-xl mx-auto text-zinc-400 mb-8">
+              Use the exchange marketplace to purchase access, submit your robot policy package, and receive standardized evaluation scorecards.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <a href="/pilot-exchange">
+                <Button className="w-full sm:w-auto rounded-md bg-white text-zinc-900 hover:bg-zinc-200 px-8 py-6 text-base font-bold">
+                  Open Marketplace
+                </Button>
+              </a>
+              <a href="/contact">
+                <Button variant="outline" className="w-full sm:w-auto rounded-md border-zinc-700 text-white hover:bg-zinc-800 hover:text-white px-8 py-6 text-base font-medium">
+                  Talk to Sales
+                </Button>
+              </a>
             </div>
           </section>
-        </div>
+        </main>
       </div>
     </>
   );
