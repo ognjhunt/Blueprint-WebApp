@@ -18,6 +18,7 @@ const navLinks = [
   { href: "/how-it-works", label: "How We Certify" },
   { href: "/solutions", label: "Solutions" },
   { href: "/pilot-exchange", label: "Pilot Exchange" },
+  { href: "/pilot-exchange-guide", label: "Exchange Guide" },
   { href: "/partners", label: "Partners" },
   { href: "/careers", label: "Careers" },
 ];
@@ -42,6 +43,9 @@ export function Header() {
         }
         if (href === "/marketplace/datasets") {
           return location.startsWith("/marketplace/datasets");
+        }
+        if (href === "/pilot-exchange") {
+          return location === "/pilot-exchange";
         }
         return location === href || (href !== "/" && location.startsWith(href));
       },

@@ -18,7 +18,7 @@ describe("Header", () => {
   it("shows discoverable nav link for how-it-works route", () => {
     render(<Header />);
 
-    const link = screen.getByRole("link", { name: /How It Works/i });
+    const link = screen.getByRole("link", { name: /How We Certify/i });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "/how-it-works");
   });
@@ -29,5 +29,13 @@ describe("Header", () => {
     const link = screen.getByRole("link", { name: /Pilot Exchange/i });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "/pilot-exchange");
+  });
+
+  it("shows Exchange Guide in the top navigation", () => {
+    render(<Header />);
+
+    const link = screen.getByRole("link", { name: /Exchange Guide/i });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", "/pilot-exchange-guide");
   });
 });

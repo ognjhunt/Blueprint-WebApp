@@ -4,9 +4,12 @@ import type {
   CaptureNetworkStat,
   ConfidenceBandPoint,
   DeploymentTimeline,
+  ExchangeBusinessModelCard,
   EvalLeaderboardEntry,
   FailureAttributionSlice,
   LocationBrief,
+  MonetizationMixPoint,
+  OwnershipOption,
   PilotExchangeFaqItem,
   PilotLocationType,
   PolicySubmission,
@@ -271,6 +274,79 @@ export const pilotExchangeFaq: PilotExchangeFaqItem[] = [
     answer:
       "It is a pre-deployment confidence band based on calibrated simulation evidence. It is not a production guarantee and must be validated during SAT and pilot ramp.",
   },
+  {
+    id: "faq-05",
+    question: "Who pays for Pilot Exchange?",
+    answer:
+      "Location sites are scanned for free in the shared model by default. Robotics teams pay for evaluation runs, scorecards, subscription access, and training usage.",
+  },
+  {
+    id: "faq-06",
+    question: "Who owns the digital twin?",
+    answer:
+      "Default mode is a shared exchange twin owned by Blueprint. Sites can purchase a private twin buyout for stricter ownership and usage restrictions.",
+  },
+];
+
+export const exchangeBusinessModelCards: ExchangeBusinessModelCard[] = [
+  {
+    id: "biz-01",
+    title: "Free Site Scan (Shared Model)",
+    payer: "Location Site",
+    pricing: "$0 upfront",
+    description:
+      "Blueprint captures and hosts the shared twin to accelerate vendor qualification at no scanning fee.",
+  },
+  {
+    id: "biz-02",
+    title: "Pro Site Evaluation",
+    payer: "Robotics Team",
+    pricing: "$4,900 per site cycle",
+    description:
+      "Required purchase to submit policy evaluations, receive scorecards, and join anonymized leaderboards.",
+  },
+  {
+    id: "biz-03",
+    title: "Robotics Team Subscription",
+    payer: "Robotics Team",
+    pricing: "$1,200 / month",
+    description:
+      "Recurring access for teams running continuous qualification cycles across multiple site twins.",
+  },
+  {
+    id: "biz-04",
+    title: "Training Access",
+    payer: "Robotics Team",
+    pricing: "$2,400 / month",
+    description:
+      "Monetized training rights on calibrated site twins, including replay scenarios and regression sweeps.",
+  },
+];
+
+export const ownershipOptions: OwnershipOption[] = [
+  {
+    id: "owner-01",
+    name: "Shared Twin (Default)",
+    owner: "Blueprint",
+    siteCost: "Included with free scan",
+    exchangeUsage: "Eligible for marketplace evaluations by approved teams.",
+    note: "Fastest onboarding path for sites that want broad vendor coverage.",
+  },
+  {
+    id: "owner-02",
+    name: "Private Twin Buyout",
+    owner: "Site-directed ownership restrictions",
+    siteCost: "Custom premium pricing",
+    exchangeUsage: "Limited to site-approved teams and terms.",
+    note: "Used when a site needs stricter privacy and commercialization limits.",
+  },
+];
+
+export const monetizationMix: MonetizationMixPoint[] = [
+  { id: "mix-01", stream: "Eval + Scorecard", percent: 44 },
+  { id: "mix-02", stream: "Robotics Subscription", percent: 28 },
+  { id: "mix-03", stream: "Training Usage", percent: 22 },
+  { id: "mix-04", stream: "Private Buyout", percent: 6 },
 ];
 
 export const locationBriefs: LocationBrief[] = [

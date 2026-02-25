@@ -8,6 +8,7 @@ const footerLinks = [
   { label: "Docs", href: "/docs" },
   { label: "Artist Portal", href: "/portal" },
   { label: "Pilot Exchange", href: "/pilot-exchange" },
+  { label: "Exchange Guide", href: "/pilot-exchange-guide" },
   { label: "Privacy", href: "/privacy" },
   { label: "Terms", href: "/terms" },
 ];

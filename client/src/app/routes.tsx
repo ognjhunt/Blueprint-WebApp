@@ -26,6 +26,7 @@ const Careers = lazy(() => import("../pages/Careers"));
 const Contact = lazy(() => import("../pages/Contact"));
 const HowItWorks = lazy(() => import("../pages/HowItWorks"));
 const PilotExchange = lazy(() => import("../pages/PilotExchange"));
+const PilotExchangeGuide = lazy(() => import("../pages/PilotExchangeGuide"));
 const PartnerProgram = lazy(() => import("../pages/PartnerProgram"));
 const Portal = lazy(() => import("../pages/Portal"));
 const Login = lazy(() => import("../pages/Login"));
@@ -70,6 +71,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/contact", layout: "public", component: Contact },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
   { path: "/pilot-exchange", layout: "public", component: PilotExchange },
+  { path: "/pilot-exchange-guide", layout: "public", component: PilotExchangeGuide },
   { path: "/partners", layout: "public", component: PartnerProgram },
   { path: "/portal", layout: "public", component: Portal },
   { path: "/login", layout: "public", component: Login },

@@ -145,3 +145,30 @@ export interface CaptureNetworkStat {
   value: string;
   note: string;
 }
+
+export interface ExchangeBusinessModelCard {
+  id: string;
+  title: string;
+  payer: "Location Site" | "Robotics Team";
+  pricing: string;
+  description: string;
+}
+
+export interface OwnershipOption {
+  id: string;
+  name: "Shared Twin (Default)" | "Private Twin Buyout";
+  owner: string;
+  siteCost: string;
+  exchangeUsage: string;
+  note: string;
+}
+
+export interface MonetizationMixPoint {
+  id: string;
+  stream:
+    | "Eval + Scorecard"
+    | "Robotics Subscription"
+    | "Training Usage"
+    | "Private Buyout";
+  percent: number;
+}

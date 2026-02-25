@@ -21,7 +21,13 @@ router.get("/", (_req: Request, res: Response) => {
         path: "/pilot-exchange",
         title: "Pilot Exchange",
         description:
-          "Pre-deployment qualification marketplace where operators and robot teams compare calibrated policy performance before pilot ramp.",
+          "Robotics-team marketplace for paid policy evaluation, scorecards, and training on calibrated site twins.",
+      },
+      {
+        path: "/pilot-exchange-guide",
+        title: "Pilot Exchange Guide",
+        description:
+          "Beginner-friendly explainer of Pilot Exchange stages, graphs, ownership options, and pre-deployment risk reduction workflow.",
       },
       {
         path: "/docs",
