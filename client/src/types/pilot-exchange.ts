@@ -156,7 +156,7 @@ export interface ExchangeBusinessModelCard {
 
 export interface OwnershipOption {
   id: string;
-  name: "Shared Twin (Default)" | "Private Twin Buyout";
+  name: "Free Twin (Default)" | "Private Twin Buyout (Paid)";
   owner: string;
   siteCost: string;
   exchangeUsage: string;
@@ -202,4 +202,33 @@ export interface TrainingPricingLane {
   title: string;
   pricing: string;
   detail: string;
+}
+
+export interface GapConcept {
+  id: string;
+  title: string;
+  summary: string;
+  detail: string;
+}
+
+export interface Sim2RealBridgeStep {
+  id: string;
+  title: string;
+  summary: string;
+  checklist: string[];
+  example: string;
+}
+
+export interface ResearchDeltaPoint {
+  id: string;
+  study: string;
+  deltaPoints: number;
+  note: string;
+}
+
+export interface CorrelationSignal {
+  id: string;
+  label: string;
+  value: string;
+  note: string;
 }

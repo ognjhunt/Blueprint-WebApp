@@ -3,10 +3,12 @@ import type {
   ActivationSignal,
   CaptureNetworkStat,
   ConfidenceBandPoint,
+  CorrelationSignal,
   DeploymentTimeline,
   ExchangeBusinessModelCard,
   EvalLeaderboardEntry,
   FailureAttributionSlice,
+  GapConcept,
   LocationBrief,
   MonetizationMixPoint,
   OwnershipOption,
@@ -16,8 +18,10 @@ import type {
   PrivacyMode,
   ReadinessFunnelPoint,
   ReadinessGate,
+  ResearchDeltaPoint,
   RobotEmbodiment,
   ScoreSummary,
+  Sim2RealBridgeStep,
   TrainingEvidencePoint,
   TrainingPricingLane,
   TrainingRequirement,
@@ -106,6 +110,54 @@ export const readinessGates: ReadinessGate[] = [
       "Start with limited hours and task subsets, then expand only after stable performance.",
     whyItMatters:
       "The final risk reduction step happens on-site with controlled exposure.",
+  },
+];
+
+export const coreGapConcepts: GapConcept[] = [
+  {
+    id: "gap-01",
+    title: "Distribution Shift (Lab to Real World)",
+    summary:
+      "Policies that score high in lab settings can degrade on live floors when lighting, textures, clutter, and camera views differ.",
+    detail:
+      "A seemingly good policy can still create constant human interventions at production volume if site variation is not modeled up front.",
+  },
+  {
+    id: "gap-02",
+    title: "Environment-to-Model Gap (Site Adaptation)",
+    summary:
+      "A 3D scan is only the starting point. The twin must be calibrated to site-specific sensing, contact behavior, and timing.",
+    detail:
+      "Without activation, teams overfit to a clean virtual scene and underperform when real disturbances show up.",
+  },
+];
+
+export const sim2RealBridgeSteps: Sim2RealBridgeStep[] = [
+  {
+    id: "bridge-01",
+    title: "Step 1: Capture Site Geometry",
+    summary:
+      "Build the spatial scaffold from the real facility: structure, obstacles, traffic topology, and task zones.",
+    checklist: [
+      "Capture geometry, reach constraints, access points, and no-go zones.",
+      "Convert to simulation-ready assets with collisions and semantic labels.",
+      "Validate static layout against the actual floor plan and operator walk-throughs.",
+    ],
+    example:
+      "Warehouse tote induction: map true dock-to-buffer paths and bottlenecks before evaluating routing policies.",
+  },
+  {
+    id: "bridge-02",
+    title: "Step 2: Activate Site Behavior",
+    summary:
+      "Tune the twin to how the site actually behaves: lighting, contact physics, sensor noise, network jitter, and layout drift.",
+    checklist: [
+      "Calibrate visual conditions for shift-specific lighting and glare.",
+      "Tune friction/contact from short real-site motion and grasp traces.",
+      "Inject sensor noise, latency spikes, and exception scenarios seen in operations.",
+    ],
+    example:
+      "Grocery night reset: reflect real nighttime illumination and aisle clutter variation before scoring shelf-facing policies.",
   },
 ];
 
@@ -258,7 +310,7 @@ export const pilotExchangeFaq: PilotExchangeFaqItem[] = [
     id: "faq-01",
     question: "Is this simulation-only, or do you still test in the real world?",
     answer:
-      "Both. Simulation is used for pre-qualification and faster iteration. A controlled on-site pilot ramp is still required before broader rollout.",
+      "Pilot Exchange is pre-deployment simulation only. Our service scope ends before live deployment starts; real-world pilot execution and post-deployment data are handled directly between the location/site and robotics team.",
   },
   {
     id: "faq-02",
@@ -276,30 +328,30 @@ export const pilotExchangeFaq: PilotExchangeFaqItem[] = [
     id: "faq-04",
     question: "What does transfer confidence mean here?",
     answer:
-      "It is a pre-deployment confidence band based on calibrated simulation evidence. It is not a production guarantee and must be validated during SAT and pilot ramp.",
+      "It is a pre-deployment confidence band based on calibrated simulation evidence. It is not a production guarantee, and live SAT/pilot-ramp validation plus any post-deployment data collection are handled by the site and robotics team.",
   },
   {
     id: "faq-05",
     question: "Who pays for Pilot Exchange?",
     answer:
-      "Location sites are scanned for free in the shared model by default. Robotics teams pay for evaluation runs, scorecards, subscription access, and training usage.",
+      "Location sites use the free default onboarding model with $0 upfront scan cost. Robotics teams pay for evaluation runs, scorecards, subscription access, and training usage.",
   },
   {
     id: "faq-06",
     question: "Who owns the digital twin?",
     answer:
-      "Default mode is a shared exchange twin owned by Blueprint. Sites can purchase a private twin buyout for stricter ownership and usage restrictions.",
+      "Two options only: Free (default), where Blueprint owns and hosts the twin, or Private Twin Buyout, where the site pays for scan + hosting under private access terms.",
   },
 ];
 
 export const exchangeBusinessModelCards: ExchangeBusinessModelCard[] = [
   {
     id: "biz-01",
-    title: "Free Site Scan (Shared Model)",
+    title: "Free Site Scan (Default)",
     payer: "Location Site",
     pricing: "$0 upfront",
     description:
-      "Blueprint captures and hosts the shared twin to accelerate vendor qualification at no scanning fee.",
+      "Blueprint captures, calibrates, and hosts the default twin at no upfront scanning fee.",
   },
   {
     id: "biz-02",
@@ -330,19 +382,19 @@ export const exchangeBusinessModelCards: ExchangeBusinessModelCard[] = [
 export const ownershipOptions: OwnershipOption[] = [
   {
     id: "owner-01",
-    name: "Shared Twin (Default)",
+    name: "Free Twin (Default)",
     owner: "Blueprint",
-    siteCost: "Included with free scan",
+    siteCost: "Free ($0 upfront)",
     exchangeUsage: "Eligible for marketplace evaluations by approved teams.",
-    note: "Fastest onboarding path for sites that want broad vendor coverage.",
+    note: "Default onboarding path where Blueprint owns and operates the twin.",
   },
   {
     id: "owner-02",
-    name: "Private Twin Buyout",
-    owner: "Site-directed ownership restrictions",
-    siteCost: "Custom premium pricing",
+    name: "Private Twin Buyout (Paid)",
+    owner: "Private access under site-specific terms",
+    siteCost: "Paid scan + hosting (custom pricing)",
     exchangeUsage: "Limited to site-approved teams and terms.",
-    note: "Used when a site needs stricter privacy and commercialization limits.",
+    note: "Site buys out a private twin while Blueprint provides scan and hosting as a paid service.",
   },
 ];
 
@@ -356,27 +408,69 @@ export const monetizationMix: MonetizationMixPoint[] = [
 export const trainingEvidencePoints: TrainingEvidencePoint[] = [
   {
     id: "evidence-01",
-    source: "Partner deployment report",
-    result: "42% fewer missed grasp sequences",
-    note: "Same report also cites 50% fewer human interventions when partner/site data is included.",
+    source: "RialTo (MIT, 2024)",
+    result: "+67% average success improvement",
+    note: "Reported versus baseline policies across manipulated tasks in site-aligned real-to-sim-to-real experiments.",
   },
   {
     id: "evidence-02",
-    source: "TwinRL-VLA-style twin trajectory training",
-    result: "OOD success can move from 0% to around 70%",
-    note: "Largest gains appear when the baseline model is weak on site-specific out-of-distribution tasks.",
+    source: "Real-is-Sim (2025)",
+    result: "57% to 80% task success",
+    note: "Adding twin-generated demonstrations to real demos improved deployment outcomes in reported experiments.",
   },
   {
     id: "evidence-03",
-    source: "High-fidelity twin alignment studies",
-    result: "+10 to +22 points grasp success in reported object tests",
-    note: "Twin semantics/affordances quality impacts physical task outcomes directly.",
+    source: "NVIDIA Sim-Real Co-Training (2025)",
+    result: "10% to 80% in a novel-object setting",
+    note: "Mixing simulation with real demonstrations substantially outperformed real-only training in the study setup.",
   },
   {
     id: "evidence-04",
-    source: "Variant-based training studies",
-    result: "Site variants often outperform one pristine twin",
-    note: "A single exact twin can overfit; variant generation is usually required.",
+    source: "NeurIPS Domain Adaptation (2025)",
+    result: "Up to +30% real-world success",
+    note: "Reported gains when adaptation methods leverage simulation data rather than real-only training.",
+  },
+];
+
+export const researchDeltaPoints: ResearchDeltaPoint[] = [
+  {
+    id: "delta-01",
+    study: "MIT (2024)",
+    deltaPoints: 67,
+    note: "RialTo average success lift over baseline.",
+  },
+  {
+    id: "delta-02",
+    study: "Real-is-Sim (2025)",
+    deltaPoints: 23,
+    note: "57% to 80% success with twin-augmented data.",
+  },
+  {
+    id: "delta-03",
+    study: "NVIDIA (2025)",
+    deltaPoints: 70,
+    note: "10% to 80% in reported co-training benchmark.",
+  },
+  {
+    id: "delta-04",
+    study: "NeurIPS (2025)",
+    deltaPoints: 30,
+    note: "Up to +30% real-world improvement reported.",
+  },
+];
+
+export const correlationSignals: CorrelationSignal[] = [
+  {
+    id: "corr-01",
+    label: "Sim-to-real score correlation",
+    value: "r > 0.9",
+    note: "Reported in recent calibrated twin evaluation studies.",
+  },
+  {
+    id: "corr-02",
+    label: "Typical deployment sensitivity",
+    value: "95% to 80%",
+    note: "Commonly cited lab-to-site drop that can multiply interventions at operational volume.",
   },
 ];
 

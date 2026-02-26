@@ -4,6 +4,8 @@ import { analyticsEvents } from "@/components/Analytics";
 import {
   activationArtifacts,
   activationSignals,
+  coreGapConcepts,
+  correlationSignals,
   confidenceBands,
   exchangeBusinessModelCards,
   failureAttribution,
@@ -12,6 +14,8 @@ import {
   pilotExchangeFaq,
   readinessFunnel,
   readinessGates,
+  researchDeltaPoints,
+  sim2RealBridgeSteps,
   trainingEvidencePoints,
   trainingPricingLanes,
   trainingRequirements,
@@ -81,6 +85,13 @@ const failureChartConfig = {
   },
 } satisfies ChartConfig;
 
+const researchDeltaChartConfig = {
+  deltaPoints: {
+    label: "Success Lift (pts)",
+    color: "#18181b", // zinc-900
+  },
+} satisfies ChartConfig;
+
 const monetizationChartConfig = {
   percent: {
     label: "Revenue Share",
@@ -120,6 +131,7 @@ export default function PilotExchangeGuide() {
     analyticsEvents.pilotExchangeChartView("readiness_funnel");
     analyticsEvents.pilotExchangeChartView("confidence_band");
     analyticsEvents.pilotExchangeChartView("failure_attribution");
+    analyticsEvents.pilotExchangeChartView("research_delta");
     analyticsEvents.pilotExchangeChartView("monetization_mix");
   }, []);
 
@@ -178,6 +190,53 @@ export default function PilotExchangeGuide() {
                 <li className="flex gap-3"><span className="text-zinc-300 mt-1">•</span> A replacement for physical safety validation (SAT).</li>
                 <li className="flex gap-3"><span className="text-zinc-300 mt-1">•</span> A magical shortcut that bypasses real-world edge cases.</li>
               </ul>
+            </div>
+          </section>
+
+          <section className="mb-24">
+            <div className="max-w-3xl mb-8">
+              <h2 className="text-3xl font-bold text-zinc-900 mb-3">The Core Deployment Gap</h2>
+              <p className="text-zinc-600">
+                Pilot Exchange exists to reduce the lab-to-site drop. These are related problems, but they are not the same step in the pipeline.
+              </p>
+            </div>
+            <div className="grid md:grid-cols-2 gap-6">
+              {coreGapConcepts.map((item) => (
+                <div key={item.id} className="border border-zinc-200 rounded-2xl p-6 bg-white">
+                  <h3 className="text-lg font-bold text-zinc-900 mb-2">{item.title}</h3>
+                  <p className="text-sm text-zinc-600 mb-4">{item.summary}</p>
+                  <p className="text-sm text-zinc-800 bg-zinc-50 border border-zinc-100 rounded-lg p-4">{item.detail}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="mb-24">
+            <div className="max-w-3xl mb-8">
+              <h2 className="text-3xl font-bold text-zinc-900 mb-3">Capture vs Adaptation</h2>
+              <p className="text-zinc-600">
+                Site capture gives geometry. Site adaptation makes that geometry behave like the real facility for policy transfer.
+              </p>
+            </div>
+            <div className="grid md:grid-cols-2 gap-6">
+              {sim2RealBridgeSteps.map((step) => (
+                <div key={step.id} className="border border-zinc-200 rounded-2xl p-6 bg-zinc-50/50">
+                  <h3 className="text-lg font-bold text-zinc-900 mb-2">{step.title}</h3>
+                  <p className="text-sm text-zinc-600 mb-4">{step.summary}</p>
+                  <ul className="space-y-2 mb-4">
+                    {step.checklist.map((item) => (
+                      <li key={item} className="text-sm text-zinc-600 flex gap-2">
+                        <Circle className="w-1.5 h-1.5 fill-zinc-300 text-zinc-300 shrink-0 mt-2" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="border border-zinc-200 rounded-lg bg-white p-4">
+                    <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-1">Example</p>
+                    <p className="text-sm text-zinc-800">{step.example}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
 
@@ -274,7 +333,7 @@ export default function PilotExchangeGuide() {
           <section className="mb-24 border-t border-zinc-200 pt-16">
             <div className="max-w-2xl mb-10">
               <h2 className="text-3xl font-bold text-zinc-900 mb-3">Does Twin Training Actually Work?</h2>
-              <p className="text-zinc-600">Directionally, yes. Teams see better success rates and fewer interventions when twin training includes strict calibration and standardized tasks.</p>
+              <p className="text-zinc-600">In reported studies, yes. The strongest gains show up when teams use site-aligned calibration, not just generic simulation data.</p>
             </div>
 
             <div className="grid sm:grid-cols-2 gap-4 mb-16">
@@ -285,6 +344,43 @@ export default function PilotExchangeGuide() {
                   <p className="text-sm text-zinc-600">{point.note}</p>
                 </div>
               ))}
+            </div>
+
+            <div className="grid lg:grid-cols-[2fr_1fr] gap-6 mb-16">
+              <div className="bg-white border border-zinc-200 rounded-2xl p-6">
+                <h3 className="font-bold text-zinc-900 mb-6">Reported Success Lift vs Baselines</h3>
+                <ChartContainer config={researchDeltaChartConfig} className="h-64 w-full">
+                  <BarChart data={researchDeltaPoints} margin={{ top: 12, right: 8, left: -20, bottom: 10 }}>
+                    <CartesianGrid vertical={false} stroke="#e4e4e7" strokeDasharray="4 4" />
+                    <XAxis dataKey="study" tickLine={false} axisLine={false} tick={{ fill: "#71717a", fontSize: 12 }} />
+                    <YAxis tick={{ fill: "#71717a", fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <ChartTooltip
+                      cursor={{ fill: "#f4f4f5" }}
+                      content={
+                        <ChartTooltipContent
+                          formatter={(value, _name, item) => (
+                            <div className="space-y-1 text-zinc-900">
+                              <p className="font-bold">+{value} points</p>
+                              <p className="text-xs text-zinc-500 max-w-[200px]">{String(item.payload.note)}</p>
+                            </div>
+                          )}
+                        />
+                      }
+                    />
+                    <Bar dataKey="deltaPoints" fill="var(--color-deltaPoints)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ChartContainer>
+              </div>
+
+              <div className="space-y-4">
+                {correlationSignals.map((signal) => (
+                  <div key={signal.id} className="bg-white border border-zinc-200 rounded-xl p-5">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-2">{signal.label}</p>
+                    <p className="text-2xl font-bold text-zinc-900 mb-1">{signal.value}</p>
+                    <p className="text-sm text-zinc-600">{signal.note}</p>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <h3 className="text-2xl font-bold text-zinc-900 mb-6">How Training Runs in Practice</h3>

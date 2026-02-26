@@ -96,6 +96,48 @@ const EVAL_ACCESS_STORAGE_KEY = "bp_exchange_eval_access_v1";
 const SUBSCRIPTION_ACCESS_STORAGE_KEY = "bp_exchange_subscription_access_v1";
 const TRAINING_ACCESS_STORAGE_KEY = "bp_exchange_training_access_v1";
 
+const deploymentGapHighlights = [
+  {
+    id: "highlight-01",
+    title: "Distribution shift is the killer",
+    detail:
+      "Policies can perform well in lab conditions and still degrade in live facilities due to lighting, textures, clutter, and camera variation.",
+  },
+  {
+    id: "highlight-02",
+    title: "Capture and adaptation are different",
+    detail:
+      "A 3D twin gives geometry. Reliable transfer requires calibration of sensor noise, contact physics, timing, and workflow exceptions.",
+  },
+  {
+    id: "highlight-03",
+    title: "Scorecards reduce pilot waste",
+    detail:
+      "Standardized pre-qualification catches mismatch early, before months of on-site pilot cost and disruption.",
+  },
+];
+
+const exchangeClientSegments = [
+  {
+    id: "segment-01",
+    label: "Primary",
+    title: "Robotics teams in pilot gap",
+    detail: "Teams with strong lab demos that need site-proofed evidence before deployment contracts.",
+  },
+  {
+    id: "segment-02",
+    label: "Secondary",
+    title: "Operators evaluating vendors",
+    detail: "Sites that want comparable scorecards before allocating floor space and labor to pilots.",
+  },
+  {
+    id: "segment-03",
+    label: "Channel",
+    title: "Integrators and advisors",
+    detail: "System integrators who need an objective pre-pilot benchmark layer for client programs.",
+  },
+];
+
 const defaultEvalRunFormState: EvalRunFormState = {
   briefId: "",
   policyId: "",
@@ -614,6 +656,27 @@ export default function PilotExchange() {
                 <h3 className="font-semibold text-zinc-900 mb-1">Get the Scorecard</h3>
                 <p className="text-sm text-zinc-600">Receive actionable readiness metrics and leaderboard ranking.</p>
               </div>
+            </div>
+          </section>
+
+          <section className="mb-16">
+            <h2 className="text-xl font-bold text-zinc-900 mb-6 border-b border-zinc-200 pb-2">Why teams use this first</h2>
+            <div className="grid md:grid-cols-3 gap-4 mb-6">
+              {deploymentGapHighlights.map((item) => (
+                <div key={item.id} className="border border-zinc-200 rounded-xl p-5 bg-white">
+                  <h3 className="font-semibold text-zinc-900 mb-2">{item.title}</h3>
+                  <p className="text-sm text-zinc-600">{item.detail}</p>
+                </div>
+              ))}
+            </div>
+            <div className="grid md:grid-cols-3 gap-4">
+              {exchangeClientSegments.map((segment) => (
+                <div key={segment.id} className="border border-zinc-200 rounded-xl p-5 bg-zinc-50">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-2">{segment.label}</p>
+                  <h3 className="font-semibold text-zinc-900 mb-2">{segment.title}</h3>
+                  <p className="text-sm text-zinc-600">{segment.detail}</p>
+                </div>
+              ))}
             </div>
           </section>
 
