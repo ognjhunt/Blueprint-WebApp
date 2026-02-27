@@ -176,6 +176,7 @@ export interface MonetizationMixPoint {
 export interface TrainingEvidencePoint {
   id: string;
   source: string;
+  sourceUrl?: string;
   result: string;
   note: string;
 }
@@ -222,7 +223,7 @@ export interface Sim2RealBridgeStep {
 export interface ResearchDeltaPoint {
   id: string;
   study: string;
-  deltaPoints: number;
+  deltaPercent: number;
   note: string;
 }
 
@@ -230,5 +231,12 @@ export interface CorrelationSignal {
   id: string;
   label: string;
   value: string;
+  note: string;
+}
+
+export interface ResearchSourceLink {
+  id: string;
+  label: string;
+  url: string;
   note: string;
 }

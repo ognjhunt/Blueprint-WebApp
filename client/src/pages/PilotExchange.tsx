@@ -138,6 +138,27 @@ const exchangeClientSegments = [
   },
 ];
 
+const adaptationModes = [
+  {
+    id: "mode-01",
+    title: "Mode 1: Generalization Across Many Sites",
+    detail:
+      "Large environment packs improve broad robustness across warehouses and retail sites, but do not encode one exact facility in detail.",
+  },
+  {
+    id: "mode-02",
+    title: "Mode 2: Site-Specific Adaptation (Primary Service)",
+    detail:
+      "We calibrate and adapt to the exact target facility so policies arrive with stronger priors for that specific deployment route and workflow.",
+  },
+  {
+    id: "mode-03",
+    title: "Mode 3: Runtime Scene Conditioning (Emerging)",
+    detail:
+      "Models receive live scene context at inference. Promising direction, but less standardized than pre-deployment adaptation today.",
+  },
+];
+
 const defaultEvalRunFormState: EvalRunFormState = {
   briefId: "",
   policyId: "",
@@ -661,11 +682,29 @@ export default function PilotExchange() {
 
           <section className="mb-16">
             <h2 className="text-xl font-bold text-zinc-900 mb-6 border-b border-zinc-200 pb-2">Why teams use this first</h2>
+            <p className="text-sm text-zinc-600 mb-6">
+              The same pattern shows up across AI systems: broad models are useful, but performance jumps when you give the model the exact context of the job environment.
+            </p>
             <div className="grid md:grid-cols-3 gap-4 mb-6">
               {deploymentGapHighlights.map((item) => (
                 <div key={item.id} className="border border-zinc-200 rounded-xl p-5 bg-white">
                   <h3 className="font-semibold text-zinc-900 mb-2">{item.title}</h3>
                   <p className="text-sm text-zinc-600">{item.detail}</p>
+                </div>
+              ))}
+            </div>
+            <div className="grid md:grid-cols-3 gap-4 mb-6">
+              {adaptationModes.map((mode) => (
+                <div
+                  key={mode.id}
+                  className={
+                    mode.id === "mode-02"
+                      ? "border-2 border-zinc-900 rounded-xl p-5 bg-white"
+                      : "border border-zinc-200 rounded-xl p-5 bg-white"
+                  }
+                >
+                  <h3 className="font-semibold text-zinc-900 mb-2">{mode.title}</h3>
+                  <p className="text-sm text-zinc-600">{mode.detail}</p>
                 </div>
               ))}
             </div>

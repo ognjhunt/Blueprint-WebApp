@@ -18,6 +18,7 @@ import type {
   PrivacyMode,
   ReadinessFunnelPoint,
   ReadinessGate,
+  ResearchSourceLink,
   ResearchDeltaPoint,
   RobotEmbodiment,
   ScoreSummary,
@@ -409,26 +410,37 @@ export const trainingEvidencePoints: TrainingEvidencePoint[] = [
   {
     id: "evidence-01",
     source: "RialTo (MIT, 2024)",
+    sourceUrl: "https://arxiv.org/abs/2403.03949",
     result: "+67% average success improvement",
     note: "Reported versus baseline policies across manipulated tasks in site-aligned real-to-sim-to-real experiments.",
   },
   {
     id: "evidence-02",
-    source: "Real-is-Sim (2025)",
-    result: "57% to 80% task success",
-    note: "Adding twin-generated demonstrations to real demos improved deployment outcomes in reported experiments.",
+    source: "Sim-and-Real Co-Training (NVIDIA, RSS 2025)",
+    sourceUrl: "https://sim-and-real-co-training.github.io/",
+    result: "31% to 76% success on holdout objects",
+    note: "Reported average boost of +37.9% over real-only training when adding simulation and digital-cousin data.",
   },
   {
     id: "evidence-03",
-    source: "NVIDIA Sim-Real Co-Training (2025)",
-    result: "10% to 80% in a novel-object setting",
-    note: "Mixing simulation with real demonstrations substantially outperformed real-only training in the study setup.",
+    source: "Video Prediction Policy (ICML 2025)",
+    sourceUrl: "https://proceedings.mlr.press/v267/wang25dp.html",
+    result: "+31.6% real-world dexterous success",
+    note: "Fine-tuning video foundation models with robot data improved dexterous manipulation outcomes; paper also reports +18.6% on CALVIN.",
   },
   {
     id: "evidence-04",
-    source: "NeurIPS Domain Adaptation (2025)",
-    result: "Up to +30% real-world success",
-    note: "Reported gains when adaptation methods leverage simulation data rather than real-only training.",
+    source: "EgoScale (NVIDIA, 2026)",
+    sourceUrl: "https://arxiv.org/abs/2602.16710",
+    result: "+54% average success rate",
+    note: "Large-scale egocentric pretraining plus robot grounding data reported substantial gains over no-pretraining baselines.",
+  },
+  {
+    id: "evidence-05",
+    source: "DreamDojo (NVIDIA, 2026)",
+    sourceUrl: "https://arxiv.org/abs/2602.06949",
+    result: "44,711 hours pretraining corpus",
+    note: "World model paper reports large-scale human-video pretraining and real-time distillation capability (10.81 FPS).",
   },
 ];
 
@@ -436,41 +448,86 @@ export const researchDeltaPoints: ResearchDeltaPoint[] = [
   {
     id: "delta-01",
     study: "MIT (2024)",
-    deltaPoints: 67,
+    deltaPercent: 67,
     note: "RialTo average success lift over baseline.",
   },
   {
     id: "delta-02",
-    study: "Real-is-Sim (2025)",
-    deltaPoints: 23,
-    note: "57% to 80% success with twin-augmented data.",
+    study: "NVIDIA (2025)",
+    deltaPercent: 37.9,
+    note: "Sim-and-Real Co-Training reported average +37.9% over real-only.",
   },
   {
     id: "delta-03",
-    study: "NVIDIA (2025)",
-    deltaPoints: 70,
-    note: "10% to 80% in reported co-training benchmark.",
+    study: "VPP (2025)",
+    deltaPercent: 31.6,
+    note: "Video Prediction Policy reported +31.6% real-world dexterous success.",
   },
   {
     id: "delta-04",
-    study: "NeurIPS (2025)",
-    deltaPoints: 30,
-    note: "Up to +30% real-world improvement reported.",
+    study: "EgoScale (2026)",
+    deltaPercent: 54,
+    note: "EgoScale reported +54% average success versus no-pretraining baseline.",
   },
 ];
 
 export const correlationSignals: CorrelationSignal[] = [
   {
     id: "corr-01",
-    label: "Sim-to-real score correlation",
-    value: "r > 0.9",
-    note: "Reported in recent calibrated twin evaluation studies.",
+    label: "Cross-setup robustness",
+    value: "+37.9%",
+    note: "NVIDIA co-training reports significant average gain over real-only across setup variants.",
   },
   {
     id: "corr-02",
-    label: "Typical deployment sensitivity",
-    value: "95% to 80%",
-    note: "Commonly cited lab-to-site drop that can multiply interventions at operational volume.",
+    label: "Generalist efficiency",
+    value: "7B > 55B",
+    note: "OpenVLA reports stronger manipulation results than RT-2-X (55B) on direct transfer setups.",
+  },
+];
+
+export const researchSourceLinks: ResearchSourceLink[] = [
+  {
+    id: "src-01",
+    label: "RialTo (MIT CSAIL)",
+    url: "https://arxiv.org/abs/2403.03949",
+    note: "Real-to-sim-to-real with site-specific 3D scans; reports +67%.",
+  },
+  {
+    id: "src-02",
+    label: "Sim-and-Real Co-Training (RSS 2025)",
+    url: "https://sim-and-real-co-training.github.io/",
+    note: "Reports +37.9% average gain over real-only policy training.",
+  },
+  {
+    id: "src-03",
+    label: "Video Prediction Policy (ICML 2025)",
+    url: "https://proceedings.mlr.press/v267/wang25dp.html",
+    note: "Reports +18.6% on CALVIN and +31.6% real-world dexterous success.",
+  },
+  {
+    id: "src-04",
+    label: "EgoScale (2026)",
+    url: "https://arxiv.org/abs/2602.16710",
+    note: "Reports +54% average success over no-pretraining baseline.",
+  },
+  {
+    id: "src-05",
+    label: "DreamDojo (2026)",
+    url: "https://arxiv.org/abs/2602.06949",
+    note: "44,711 human-video hours; action-conditioned predictive world model.",
+  },
+  {
+    id: "src-06",
+    label: "OpenVLA (Open Source)",
+    url: "https://openvla.github.io/",
+    note: "7B VLA benchmarked against larger generalist RT-2-X across manip tasks.",
+  },
+  {
+    id: "src-07",
+    label: "SIMPLER Benchmark",
+    url: "https://simpler-env.github.io/",
+    note: "Simulation-to-real transfer benchmark over 1500+ episodes across environments.",
   },
 ];
 

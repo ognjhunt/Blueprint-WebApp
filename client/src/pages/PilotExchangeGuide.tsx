@@ -9,16 +9,15 @@ import {
   confidenceBands,
   exchangeBusinessModelCards,
   failureAttribution,
-  monetizationMix,
   ownershipOptions,
   pilotExchangeFaq,
   readinessFunnel,
   readinessGates,
+  researchSourceLinks,
   researchDeltaPoints,
   sim2RealBridgeSteps,
   trainingEvidencePoints,
   trainingPricingLanes,
-  trainingRequirements,
   trainingWorkflowSteps,
   workflowValidationChecks,
 } from "@/data/pilotExchange";
@@ -86,15 +85,8 @@ const failureChartConfig = {
 } satisfies ChartConfig;
 
 const researchDeltaChartConfig = {
-  deltaPoints: {
-    label: "Success Lift (pts)",
-    color: "#18181b", // zinc-900
-  },
-} satisfies ChartConfig;
-
-const monetizationChartConfig = {
-  percent: {
-    label: "Revenue Share",
+  deltaPercent: {
+    label: "Reported Improvement (%)",
     color: "#18181b", // zinc-900
   },
 } satisfies ChartConfig;
@@ -132,7 +124,6 @@ export default function PilotExchangeGuide() {
     analyticsEvents.pilotExchangeChartView("confidence_band");
     analyticsEvents.pilotExchangeChartView("failure_attribution");
     analyticsEvents.pilotExchangeChartView("research_delta");
-    analyticsEvents.pilotExchangeChartView("monetization_mix");
   }, []);
 
   return (
@@ -333,13 +324,24 @@ export default function PilotExchangeGuide() {
           <section className="mb-24 border-t border-zinc-200 pt-16">
             <div className="max-w-2xl mb-10">
               <h2 className="text-3xl font-bold text-zinc-900 mb-3">Does Twin Training Actually Work?</h2>
-              <p className="text-zinc-600">In reported studies, yes. The strongest gains show up when teams use site-aligned calibration, not just generic simulation data.</p>
+              <p className="text-zinc-600">In published robotics studies, yes. The strongest gains appear when policies get deployment-context data, not only broad general pretraining.</p>
             </div>
 
             <div className="grid sm:grid-cols-2 gap-4 mb-16">
               {trainingEvidencePoints.map((point) => (
                 <div key={point.id} className="bg-white border border-zinc-200 rounded-xl p-6">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-2">{point.source}</p>
+                  {point.sourceUrl ? (
+                    <a
+                      href={point.sourceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-2 inline-block underline underline-offset-4 decoration-zinc-300 hover:text-zinc-600"
+                    >
+                      {point.source}
+                    </a>
+                  ) : (
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-2">{point.source}</p>
+                  )}
                   <p className="text-lg font-bold text-zinc-900 mb-2">{point.result}</p>
                   <p className="text-sm text-zinc-600">{point.note}</p>
                 </div>
@@ -360,16 +362,19 @@ export default function PilotExchangeGuide() {
                         <ChartTooltipContent
                           formatter={(value, _name, item) => (
                             <div className="space-y-1 text-zinc-900">
-                              <p className="font-bold">+{value} points</p>
+                              <p className="font-bold">+{value}%</p>
                               <p className="text-xs text-zinc-500 max-w-[200px]">{String(item.payload.note)}</p>
                             </div>
                           )}
                         />
                       }
                     />
-                    <Bar dataKey="deltaPoints" fill="var(--color-deltaPoints)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="deltaPercent" fill="var(--color-deltaPercent)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ChartContainer>
+                <p className="text-xs text-zinc-500 mt-4">
+                  Not apples-to-apples. Values come from different tasks and benchmarks, shown directionally to compare adaptation strategies.
+                </p>
               </div>
 
               <div className="space-y-4">
@@ -381,6 +386,59 @@ export default function PilotExchangeGuide() {
                   </div>
                 ))}
               </div>
+            </div>
+
+            <div className="border border-zinc-200 rounded-2xl p-6 bg-zinc-50/60 mb-16">
+              <h3 className="font-bold text-zinc-900 mb-4">What This Means for Pilot Exchange</h3>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div className="border border-zinc-200 rounded-lg p-4 bg-white">
+                  <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-2">Mode 1</p>
+                  <h4 className="font-semibold text-zinc-900 mb-2">Generalization Pack</h4>
+                  <p className="text-sm text-zinc-600">Training across many scenes improves broad robustness, but does not memorize one facility.</p>
+                </div>
+                <div className="border-2 border-zinc-900 rounded-lg p-4 bg-white">
+                  <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-2">Mode 2 (Highest Value)</p>
+                  <h4 className="font-semibold text-zinc-900 mb-2">Site-Specific Adaptation</h4>
+                  <p className="text-sm text-zinc-600">Fine-tuning against the exact target facility creates strong visual and behavior priors for that deployment site.</p>
+                </div>
+                <div className="border border-zinc-200 rounded-lg p-4 bg-white">
+                  <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-2">Mode 3</p>
+                  <h4 className="font-semibold text-zinc-900 mb-2">Runtime Conditioning</h4>
+                  <p className="text-sm text-zinc-600">Emerging approach where a model receives scene context at inference time instead of only in weights.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="border border-zinc-200 rounded-2xl p-6 bg-white mb-16">
+              <h3 className="font-bold text-zinc-900 mb-4">How Evaluation Changes by Policy Type</h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="border border-zinc-200 rounded-lg p-4 bg-zinc-50">
+                  <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-2">Video World Models</p>
+                  <p className="text-sm text-zinc-600">
+                    Evaluation can run in pixel-space rollout loops (predicted future frames), which may not require full SimReady USD authoring for first-pass ranking.
+                  </p>
+                </div>
+                <div className="border border-zinc-200 rounded-lg p-4 bg-zinc-50">
+                  <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-2">Physics-Critical Policies</p>
+                  <p className="text-sm text-zinc-600">
+                    Contact-rich, safety-critical workflows still benefit from SimReady USD scenes for repeatable dynamics, integration checks, and SAT prep.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="border border-zinc-200 rounded-2xl p-6 bg-white">
+              <h3 className="font-bold text-zinc-900 mb-4">Research Sources</h3>
+              <ul className="space-y-3">
+                {researchSourceLinks.map((source) => (
+                  <li key={source.id} className="text-sm text-zinc-600">
+                    <a href={source.url} target="_blank" rel="noreferrer" className="font-semibold text-zinc-900 underline underline-offset-4 decoration-zinc-300 hover:text-zinc-700">
+                      {source.label}
+                    </a>
+                    <span className="ml-2">{source.note}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
 
             <h3 className="text-2xl font-bold text-zinc-900 mb-6">How Training Runs in Practice</h3>
