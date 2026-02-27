@@ -2,9 +2,11 @@ import { SEO } from "@/components/SEO";
 import {
   Book,
   Box,
+  Brain,
   Cpu,
   Layers,
   ArrowRight,
+  MapPin,
   Zap,
   RefreshCw,
   Settings2,
@@ -24,7 +26,7 @@ const glossaryTerms = [
   {
     term: "SimReady",
     definition:
-      "An NVIDIA specification for 3D assets optimized for physics simulation. SimReady assets include precise geometry, physics properties (mass, inertia, friction), collision meshes, and material definitions that enable accurate robotic training in simulators like Isaac Sim. In practice, SimReady is table stakes; trustworthy datasets also require certification and episode QC.",
+      "An NVIDIA specification for 3D assets optimized for physics simulation. SimReady assets include precise geometry, physics properties (mass, inertia, friction), collision meshes, and material definitions that enable accurate robotic training in simulators like Isaac Sim. In practice, SimReady is table stakes; trustworthy datasets also require certification and episode QC. Note: For world model customers who work with video (DreamDojo, Cosmos), SimReady USD conversion isn't needed \u2014 they consume rendered video from Gaussian Splats directly.",
     category: "Standards",
     icon: <Sparkles className="h-5 w-5" />,
   },
@@ -87,7 +89,7 @@ const glossaryTerms = [
   {
     term: "Digital Twin",
     definition:
-      "A virtual replica of a physical environment or system. In robotics, digital twins enable testing policies in simulation before real-world deployment, reducing risk and iteration time.",
+      "A 3D capture (Gaussian Splat) of a real physical location. Blueprint's digital twins are created from iPhone scans and used to render training video. One twin produces hours of training data from any viewpoint.",
     category: "Concepts",
     icon: <Layers className="h-5 w-5" />,
   },
@@ -133,6 +135,55 @@ const glossaryTerms = [
     category: "Tools",
     icon: <RefreshCw className="h-5 w-5" />,
   },
+  {
+    term: "Gaussian Splatting",
+    definition:
+      "A way to capture real-world scenes as 3D point clouds (called splats). One iPhone scan of a warehouse or store becomes a digital twin you can view from any angle. Blueprint uses Gaussian Splats as the raw material for generating training video.",
+    category: "Concepts",
+    icon: <Sparkles className="h-5 w-5" />,
+  },
+  {
+    term: "World Model",
+    definition:
+      "An AI model that predicts what will happen next in a video. Given the current frame and a robot's action, it guesses the next frame. Models like DreamDojo and Cosmos are world models. They learn how the world works by watching lots of video.",
+    category: "Training",
+    icon: <Brain className="h-5 w-5" />,
+  },
+  {
+    term: "LoRA (Low-Rank Adaptation)",
+    definition:
+      "A technique for fine-tuning large AI models cheaply. Instead of retraining the whole model, LoRA adds a small set of 'adapter weights' that customize the model's behavior. These weights are small enough to send over-the-air to a robot.",
+    category: "Training",
+    icon: <Zap className="h-5 w-5" />,
+  },
+  {
+    term: "VLA (Vision-Language-Action Model)",
+    definition:
+      "A robot brain that takes in what it sees (vision), understands instructions (language), and decides what to do (action). Models like OpenVLA and GR00T are VLAs. They can be fine-tuned with video from digital twins.",
+    category: "Training",
+    icon: <Target className="h-5 w-5" />,
+  },
+  {
+    term: "Site-Specific Adaptation",
+    definition:
+      "The process of fine-tuning a general-purpose robot model to work well at one specific location. A robot trained on 1,000 warehouses is good in general, but fine-tuning it on YOUR warehouse makes it great there.",
+    category: "Training",
+    icon: <MapPin className="h-5 w-5" />,
+  },
+  {
+    term: "DreamDojo",
+    definition:
+      "NVIDIA's world model for robot learning. It watches video of environments and learns to predict physics outcomes. Blueprint renders training video from Gaussian Splat twins so DreamDojo can fine-tune to specific facilities.",
+    category: "Platforms",
+    icon: <Cpu className="h-5 w-5" />,
+  },
+  {
+    term: "Environment Pack",
+    definition:
+      "A curated collection of digital twins across many similar facilities (e.g., 500 warehouses). Foundation model teams license environment packs to train broadly across many locations.",
+    category: "Concepts",
+    icon: <Layers className="h-5 w-5" />,
+  },
 ];
 
 // --- FAQ Items ---
@@ -173,27 +224,27 @@ const faqItems = [
 const processSteps = [
   {
     number: "01",
-    title: "Choose Your Environment",
+    title: "Scan Your Target Facility",
     description:
-      "Browse our marketplace for pre-built SimReady scenes matching your deployment context (kitchens, warehouses, labs, retail). Each scene includes physics metadata and task scaffolds.",
+      "Take a 15-min iPhone scan of your deployment location. We turn it into a Gaussian Splat twin.",
   },
   {
     number: "02",
-    title: "Configure Domain Randomization",
+    title: "Render Training Video",
     description:
-      "Use included Replicator scripts to randomize lighting, textures, object positions, and physics parameters. This builds robustness into your trained models.",
+      "We render video from the twin at many viewpoints. World models consume this directly.",
   },
   {
     number: "03",
-    title: "Train Your Policy",
+    title: "Fine-Tune Your Model",
     description:
-      "Load scenes in Isaac Sim or MuJoCo. Our task logic includes action/observation spaces, reward functions, and multi-environment configs for vectorized RL training.",
+      "Your world model or VLA fine-tunes on the site video. LoRA adapter weights customize it to the exact facility.",
   },
   {
     number: "04",
-    title: "Deploy to Reality",
+    title: "Deploy With Confidence",
     description:
-      "Transfer and validate on hardware. Use certification outputs and episode metadata to diagnose gaps and request targeted new data when needed.",
+      "Load adapter weights OTA. Your robot arrives at the facility ready to work, pre-adapted to the environment.",
   },
 ];
 
@@ -238,18 +289,20 @@ export default function Learn() {
                   Key Insight
                 </div>
                 <h2 className="text-3xl font-bold tracking-tight text-zinc-900">
-                  Simulation Complements Real-World Data
+                  Simulation complements real-world data
                 </h2>
                 <p className="mt-4 text-lg text-zinc-600 leading-relaxed">
                   The most successful robotics teams don't choose between simulation and
-                  real-world data, and they use both. Simulation provides the scale and diversity
-                  your models need, while real data anchors them to reality.
+                  real-world data -- they use both. Digital twins are the bridge: scanned from
+                  real locations (not hand-built in CAD), they bring real-world fidelity into
+                  simulation. This means your training data inherits the geometry, lighting, and
+                  layout of actual deployment sites.
                 </p>
                 <ul className="mt-6 space-y-3">
                   {[
                     { icon: <TrendingUp className="h-4 w-4" />, text: "Faster iteration cycles vs hardware-only data collection" },
-                    { icon: <Clock className="h-4 w-4" />, text: "More trials per week without waiting for lab time" },
-                    { icon: <Database className="h-4 w-4" />, text: "Controlled variations for long-tail and edge-case coverage" },
+                    { icon: <Clock className="h-4 w-4" />, text: "Many viewpoints from a single 15-minute iPhone scan" },
+                    { icon: <Database className="h-4 w-4" />, text: "Real-world fidelity without hand-building environments" },
                   ].map((item, i) => (
                     <li key={i} className="flex items-start gap-3 text-zinc-700">
                       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
@@ -316,7 +369,7 @@ export default function Learn() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-12 text-center">
               <h2 className="text-3xl font-bold tracking-tight text-zinc-900">
-                How Simulation Training Works
+                How simulation training works
               </h2>
               <p className="mt-4 text-lg text-zinc-600">
                 From scene selection to real-world deployment in four steps
@@ -349,7 +402,7 @@ export default function Learn() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-12">
               <h2 className="text-3xl font-bold tracking-tight text-zinc-900">
-                Essential Glossary
+                Glossary
               </h2>
               <p className="mt-4 text-lg text-zinc-600">
                 Key terms and concepts for robotics simulation
@@ -393,7 +446,7 @@ export default function Learn() {
           <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
             <div className="mb-12 text-center">
               <h2 className="text-3xl font-bold tracking-tight text-zinc-900">
-                Frequently Asked Questions
+                Common questions
               </h2>
               <p className="mt-4 text-lg text-zinc-600">
                 Common questions from teams new to simulation
@@ -427,25 +480,25 @@ export default function Learn() {
 
               <div className="relative z-10">
                 <h2 className="text-3xl font-bold text-white sm:text-4xl">
-                  Ready to explore SimReady scenes?
+                  Browse the digital twin library
                 </h2>
                 <p className="mx-auto mt-4 max-w-2xl text-lg text-zinc-400">
-                  Browse our marketplace for physics-accurate environments with
-                  certification outputs, quality scoring, and provenance metadata.
+                  Gaussian Splat twins of real-world facilities, ready to render
+                  training video for your world models and VLAs.
                 </p>
                 <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
                   <a
-                    href="/marketplace"
+                    href="/marketplace/scenes"
                     className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition-colors hover:bg-zinc-200"
                   >
                     <CheckCircle2 className="h-4 w-4" />
-                    Browse Marketplace
+                    Browse Digital Twins
                   </a>
                   <a
                     href="/solutions"
                     className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-700 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
                   >
-                    Learn More About Solutions
+                    Explore Solutions
                   </a>
                 </div>
               </div>

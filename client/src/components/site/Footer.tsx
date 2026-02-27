@@ -1,14 +1,14 @@
 const footerLinks = [
-  { label: "How We Certify", href: "/how-it-works" },
+  { label: "How It Works", href: "/how-it-works" },
   { label: "Solutions", href: "/solutions" },
-  { label: "Benchmarks", href: "/evals" },
   { label: "Pricing", href: "/pricing" },
-  { label: "Contact", href: "/contact" },
-  { label: "Learn Simulation", href: "/learn" },
-  { label: "Docs", href: "/docs" },
-  { label: "Artist Portal", href: "/portal" },
+  { label: "Benchmarks", href: "/evals" },
   { label: "Pilot Exchange", href: "/pilot-exchange" },
   { label: "Exchange Guide", href: "/pilot-exchange-guide" },
+  { label: "Learn", href: "/learn" },
+  { label: "Partners", href: "/partners" },
+  { label: "Contact", href: "/contact" },
+  { label: "Careers", href: "/careers" },
   { label: "Privacy", href: "/privacy" },
   { label: "Terms", href: "/terms" },
 ];
@@ -22,7 +22,7 @@ export function Footer() {
             Blueprint
           </a>
           <p className="text-sm text-slate-500">
-            Certified simulation scenes, datasets, and benchmarks for robot learning. Physics gates, quality scores, and provenance metadata in every delivery.
+            Digital twins of real commercial locations for robot learning. Scan once, fine-tune any world model or VLA, and deploy with confidence.
           </p>
         </div>
         <nav className="grid flex-1 grid-cols-2 gap-3 text-sm text-slate-600 sm:grid-cols-3">
@@ -36,7 +36,7 @@ export function Footer() {
       <div className="border-t border-slate-200 bg-white py-4">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p>© {new Date().getFullYear()} Blueprint, Inc. All rights reserved.</p>
-          <p>SimReady is a service mark of Blueprint.</p>
+          <p>Digital Twin Adaptation is a service of Blueprint.</p>
         </div>
       </div>
     </footer>

@@ -4,11 +4,12 @@ import { SEO } from "@/components/SEO";
 import {
   ArrowRight,
   CheckCircle2,
-  FileSearch,
-  ShieldCheck,
   Sparkles,
-  Server,
-  Package,
+  Smartphone,
+  Ruler,
+  Video,
+  BrainCircuit,
+  Send,
 } from "lucide-react";
 
 function DotPattern() {
@@ -36,71 +37,77 @@ function DotPattern() {
 
 const painPoints = [
   {
-    title: "The infrastructure is brutal",
+    title: "Every facility is different",
     description:
-      "Running a data factory means standing up GPU-heavy generation, model servers, sim orchestration, and constant debugging. Most teams would rather spend those GPUs on training.",
-    icon: <Server className="h-6 w-6" />,
+      "Warehouses, kitchens, retail floors, and factories each have unique layouts, lighting, and obstacles. A model trained on generic environments will encounter conditions it has never seen.",
+    icon: <Ruler className="h-6 w-6" />,
   },
   {
-    title: "Raw simulation isn't trustworthy data",
+    title: "General models don't transfer perfectly",
     description:
-      "Generation is easy. Trust is hard. Without physics gates and episode QC you can get clipping, inconsistent dynamics, and sim-only successes that fail on hardware.",
-    icon: <ShieldCheck className="h-6 w-6" />,
+      "A world model or VLA trained on broad data still makes mistakes in a specific building. Small differences in shelf height, aisle width, or ambient light add up to real failures on-site.",
+    icon: <BrainCircuit className="h-6 w-6" />,
   },
   {
-    title: "Customers need provenance, filters, and repeatability",
+    title: "Re-scanning is cheaper than re-deploying",
     description:
-      "Teams need to know what they trained on: where assets came from, which parameters were used, and how to filter to only high-quality episodes.",
-    icon: <FileSearch className="h-6 w-6" />,
+      "Sending a technician to fix a confused robot is expensive. A 15-minute iPhone scan that adapts the model before the robot ships is dramatically cheaper and faster.",
+    icon: <Smartphone className="h-6 w-6" />,
   },
 ];
 
 const pipelineSteps = [
   {
     step: "01",
-    title: "Define the dataset spec",
+    title: "Scan the facility",
+    icon: <Smartphone className="h-5 w-5" />,
     description:
-      "You tell us the task, robot, sensors, success criteria, and delivery format. We translate it into a runnable generation + QA plan.",
+      "A 15-minute iPhone scan captures a real commercial location -- warehouse, kitchen, retail store, or factory floor. We process the scan into a Gaussian Splat (a PLY file), a 3D representation of the space you can render from any angle.",
   },
   {
     step: "02",
-    title: "Build or tailor the environment",
+    title: "Calibrate the twin",
+    icon: <Ruler className="h-5 w-5" />,
     description:
-      "We start from the catalog or create new scenes and assets, then author colliders, articulation, and physics materials for manipulation.",
+      "We check geometric accuracy, lighting fidelity, and real-world scale. Location metadata gets tagged: room dimensions, facility type, scan date. The result is a digital twin you can measure against the real building.",
   },
   {
     step: "03",
-    title: "Run physics certification gates",
+    title: "Render training video",
+    icon: <Video className="h-5 w-5" />,
     description:
-      "We validate stability, non-penetration, collision quality, and dynamics bounds so the scene behaves consistently under contact.",
+      "The Gaussian Splat renders training video from novel camera viewpoints throughout the space -- hundreds of hours from a single scan. World models like DreamDojo and Cosmos consume this video directly. No physics engine or USD conversion required.",
   },
   {
     step: "04",
-    title: "Generate and normalize episodes",
+    title: "Fine-tune your model",
+    icon: <BrainCircuit className="h-5 w-5" />,
     description:
-      "We generate trajectories, normalize control signals, and enforce a consistent schema so you can train and debug without data surprises.",
+      "We run site-specific fine-tuning against the rendered video. Your world model or Vision-Language-Action model (VLA) adapts to the exact layout, lighting, and geometry of the target facility. This is what we call Mode 2: the model learns this specific place.",
   },
   {
     step: "05",
-    title: "Score quality and deliver",
+    title: "Deliver adapter weights",
+    icon: <Send className="h-5 w-5" />,
     description:
-      "You get tiered subsets, quality distributions, and provenance metadata so you can filter to high-trust episodes or target specific failure modes.",
+      "You receive LoRA adapter weights -- small, efficient model updates that can be transferred over the air. Your robot can load the site-specific weights before it arrives on-site, so it is already adapted to the facility on day one.",
   },
 ];
 
 const deliverables = [
-  "SimReady scenes with validated colliders and articulation",
-  "Episode-level metadata (task, robot, sensors, parameters, versioning)",
-  "Quality scores and recommended filters (tiered subsets when needed)",
-  "Certification report: gates run, known limits, and reproducibility notes",
+  "Gaussian Splat (PLY) of the target facility",
+  "Location metadata: dimensions, facility type, scan date, and quality report",
+  "Rendered training video from novel viewpoints throughout the space",
+  "LoRA adapter weights fine-tuned to the specific site (small enough for OTA transfer)",
+  "Evaluation report: video-prediction accuracy and site-adaptation metrics",
 ];
 
 export default function HowItWorks() {
   return (
     <>
       <SEO
-        title="How We Certify | Blueprint"
-        description="How Blueprint turns raw simulation into certified robotics datasets: physics gates, episode QC, quality scoring, and provenance metadata."
+        title="How It Works | Blueprint"
+        description="How Blueprint turns an iPhone scan into a digital twin and fine-tunes your world model to a specific facility. Adapter weights delivered over the air."
         canonical="/how-it-works"
       />
 
@@ -115,23 +122,23 @@ export default function HowItWorks() {
                 <div className="space-y-6">
                   <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
                     <Sparkles className="h-3 w-3" />
-                    How We Certify
+                    How It Works
                   </div>
                   <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
-                    From raw simulation to certified datasets.
+                    Scan a building. Fine-tune a model. Deploy on day one.
                   </h1>
                   <p className="max-w-xl text-lg leading-relaxed text-zinc-600">
-                    Open tools can generate data. Blueprint ships data you can trust: physics
-                    certification, episode QC, quality scoring, and provenance metadata in every
-                    delivery.
+                    Blueprint turns a 15-minute iPhone scan into a digital twin, then fine-tunes
+                    your world model or VLA to that exact facility. Your robot arrives already
+                    adapted to the site.
                   </p>
                 </div>
 
                 <CTAButtons
-                  primaryHref="/marketplace"
-                  primaryLabel="Browse the catalog"
-                  secondaryHref="/contact"
-                  secondaryLabel="Request a dataset"
+                  primaryHref="/contact"
+                  primaryLabel="Schedule a scan"
+                  secondaryHref="/marketplace"
+                  secondaryLabel="Browse environments"
                 />
               </div>
 
@@ -140,21 +147,22 @@ export default function HowItWorks() {
                 <div className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white/80 p-6 shadow-xl backdrop-blur-md">
                   <div className="flex items-start gap-4">
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-zinc-100 text-zinc-800">
-                      <Package className="h-5 w-5" />
+                      <Send className="h-5 w-5" />
                     </div>
                     <div className="space-y-2">
                       <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                        What we ship
+                        What we deliver
                       </p>
                       <p className="text-sm text-zinc-600">
-                        Scene + dataset + certification outputs, packaged with metadata so your
-                        training stack can ingest, filter, and reproduce results.
+                        A digital twin of your facility plus LoRA adapter weights that
+                        fine-tune your model to the site. Small enough for over-the-air transfer
+                        to the robot.
                       </p>
                       <a
-                        href="/marketplace"
+                        href="/contact"
                         className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 hover:text-indigo-600"
                       >
-                        See the catalog <ArrowRight className="h-4 w-4" />
+                        Get started <ArrowRight className="h-4 w-4" />
                       </a>
                     </div>
                   </div>
@@ -164,17 +172,17 @@ export default function HowItWorks() {
           </div>
         </section>
 
-        {/* Why Certification */}
+        {/* Why Site-Specific Fine-Tuning */}
         <section className="border-y border-zinc-100 bg-zinc-50/50 py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-10 max-w-2xl">
               <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
-                Why certification exists
+                Why site-specific fine-tuning matters
               </h2>
               <p className="mt-4 text-zinc-600">
-                Most teams don&apos;t need another generator. They need a reliable supply of
-                simulation data they can defend internally, iterate on quickly, and trust when it
-                matters.
+                General-purpose models are a strong starting point, but real deployment sites have
+                details that generic training data cannot capture. A quick fine-tuning pass on
+                the target facility fixes most of those errors.
               </p>
             </div>
 
@@ -202,11 +210,12 @@ export default function HowItWorks() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-12 max-w-2xl">
               <h2 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
-                The Blueprint certification pipeline
+                From iPhone scan to adapted robot
               </h2>
               <p className="mt-4 text-lg text-zinc-600">
-                Generation is only the first step. Certification is what turns trajectories into a
-                dataset you can train on with confidence.
+                Five steps take you from a raw facility scan to a model that already knows the
+                building. The whole process is designed so you never have to build simulation
+                infrastructure yourself.
               </p>
             </div>
 
@@ -216,8 +225,13 @@ export default function HowItWorks() {
                   key={step.step}
                   className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
                 >
-                  <p className="text-sm font-mono font-bold text-indigo-600">{step.step}</p>
-                  <h3 className="mt-2 text-lg font-bold text-zinc-900">{step.title}</h3>
+                  <div className="flex items-center gap-3">
+                    <p className="text-sm font-mono font-bold text-indigo-600">{step.step}</p>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700">
+                      {step.icon}
+                    </div>
+                  </div>
+                  <h3 className="mt-3 text-lg font-bold text-zinc-900">{step.title}</h3>
                   <p className="mt-3 text-sm leading-relaxed text-zinc-600">
                     {step.description}
                   </p>
@@ -229,6 +243,54 @@ export default function HowItWorks() {
 
         <SceneSmithExplainerMedia id="howItWorksSceneSmithMedia" />
 
+        {/* Evaluation Approach */}
+        <section className="border-y border-zinc-100 bg-zinc-50/50 py-16">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-10 lg:grid-cols-2 lg:items-start">
+              <div className="space-y-5">
+                <h2 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
+                  How we evaluate VLA performance
+                </h2>
+                <p className="text-zinc-600">
+                  Our primary evaluation method is world-model-based: we feed video of the target
+                  environment to the model, ask it to predict what happens next in pixels, and
+                  measure how well those predictions match reality. No physics engine is required --
+                  the evaluation runs entirely on rendered video.
+                </p>
+                <p className="text-zinc-600">
+                  This approach is fast, scalable, and directly tied to the visual data the model was
+                  fine-tuned on. It tells you how well the model understands the specific facility
+                  before the robot ever arrives.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                  Evaluation methods
+                </p>
+                <ul className="mt-5 space-y-4">
+                  <li className="flex items-start gap-3 text-sm text-zinc-700">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <span>
+                      <span className="font-semibold">Video prediction (primary):</span> Feed
+                      rendered site video to the model, predict outcomes in pixels, and score
+                      accuracy. Works today with any world model or VLA.
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-3 text-sm text-zinc-700">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
+                    <span>
+                      <span className="font-semibold">Physics-based sim eval (future):</span>{" "}
+                      Traditional simulation with SimReady USD assets, articulated objects, and
+                      contact dynamics. A planned capability for tasks where physics accuracy is
+                      critical, such as precision manipulation or load-bearing assessment.
+                    </span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Deliverables */}
         <section className="py-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -238,15 +300,15 @@ export default function HowItWorks() {
                   What you receive
                 </h2>
                 <p className="text-zinc-600">
-                  Deliverables are designed for teams that need more than a ZIP file. You get the
-                  artifacts required to reproduce results, filter to high-trust subsets, and keep
-                  training stable over time.
+                  Every engagement delivers the digital twin, the fine-tuned weights, and the
+                  evaluation data. Everything is packaged so your team can load the weights, verify
+                  the results, and deploy with confidence.
                 </p>
                 <a
                   href="/contact"
                   className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-700"
                 >
-                  Request a dataset
+                  Schedule a scan
                   <ArrowRight className="h-4 w-4" />
                 </a>
               </div>
@@ -272,24 +334,24 @@ export default function HowItWorks() {
         <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
           <div className="rounded-2xl bg-zinc-900 p-8 text-center sm:p-12">
             <h2 className="text-2xl font-bold text-white sm:text-3xl">
-              Tell us what you need. We&apos;ll ship certified data.
+              Adapt your model to any facility.
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-zinc-400">
-              Share your robot, task, and target formats. We&apos;ll recommend the fastest path:
-              off-the-shelf packs or a custom certified dataset run.
+              Tell us the site and the model. We&apos;ll scan the building, create the digital twin,
+              and deliver adapter weights your robot can load before it ships.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
               <a
-                href="/marketplace"
+                href="/contact"
                 className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
               >
-                Browse the catalog
+                Schedule a scan
               </a>
               <a
-                href="/contact"
+                href="/marketplace"
                 className="inline-flex items-center justify-center rounded-lg border border-zinc-700 px-6 py-3 text-sm font-semibold text-white hover:bg-zinc-800"
               >
-                Contact sales
+                Browse environments
               </a>
             </div>
           </div>
@@ -298,4 +360,3 @@ export default function HowItWorks() {
     </>
   );
 }
-

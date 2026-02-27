@@ -35,7 +35,7 @@ export default function Contact() {
     <>
       <SEO
         title="Contact Us"
-        description="Get in touch with Blueprint to discuss certified simulation datasets for robotics: scenes, quality-scored trajectories, benchmarks, and custom data runs."
+        description="Get in touch with Blueprint to discuss site-specific digital twins, fine-tuned world models, and LoRA adapter weights for robotic deployment."
         canonical="/contact"
       />
       <div className="relative min-h-screen overflow-hidden bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
@@ -48,12 +48,12 @@ export default function Contact() {
               Get in Touch
             </div>
             <h1 className="mt-6 text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl">
-              Tell us what you need. We&apos;ll ship certified data.
+              Tell us your target site. We&apos;ll deliver adapted weights.
             </h1>
             <p className="mt-6 text-lg leading-relaxed text-zinc-600">
-              Blueprint runs the data factory: we generate scenes and trajectories, certify
-              physics, score episode quality, and deliver provenance metadata so your team can
-              train with confidence.
+              Blueprint maintains digital twins of real commercial locations, fine-tunes world
+              models and VLAs per site, and delivers LoRA adapter weights ready for deployment
+              on your hardware.
             </p>
           </div>
 
@@ -109,28 +109,28 @@ export default function Contact() {
                 <ul className="space-y-3">
                   <li>
                     <a
-                      href="/evals"
+                      href="/how-it-works"
                       className="group flex items-center gap-2 text-zinc-700 transition hover:text-indigo-600"
                     >
-                      <span>Evaluation Services</span>
+                      <span>How It Works</span>
                       <span className="transition-transform group-hover:translate-x-0.5">→</span>
                     </a>
                   </li>
                   <li>
                     <a
-                      href="/marketplace"
+                      href="/solutions"
                       className="group flex items-center gap-2 text-zinc-700 transition hover:text-indigo-600"
                     >
-                      <span>Catalog</span>
+                      <span>Solutions</span>
                       <span className="transition-transform group-hover:translate-x-0.5">→</span>
                     </a>
                   </li>
                   <li>
                     <a
-                      href="/docs"
+                      href="/pilot-exchange"
                       className="group flex items-center gap-2 text-zinc-700 transition hover:text-indigo-600"
                     >
-                      <span>Documentation</span>
+                      <span>Pilot Exchange</span>
                       <span className="transition-transform group-hover:translate-x-0.5">→</span>
                     </a>
                   </li>

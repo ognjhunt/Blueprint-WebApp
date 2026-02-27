@@ -5,86 +5,104 @@ import { SEO } from "@/components/SEO";
 import {
   ArrowRight,
   BarChart3,
-  Box,
   CheckCircle2,
-  Database,
-  LayoutGrid,
+  Globe2,
+  Layers,
+  MapPin,
+  ScanLine,
   Shield,
   Sparkles,
   Terminal,
+  Zap,
 } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
-// --- Simplified Data ---
+// --- Data ---
 
 const offeringCards = [
   {
-    title: "Benchmark Packs",
+    title: "Twin Asset Access",
+    badge: "Digital Twins",
+    description:
+      "Gaussian Splat twins of real warehouses, kitchens, retail stores, and factories. One scan produces hours of training data for any world model.",
+    bullets: [
+      "Thousands of real commercial locations, with more added weekly",
+      "PLY files ready for DreamDojo, Cosmos, or Isaac Sim",
+    ],
+    ctaLabel: "Browse locations",
+    ctaHref: "/marketplace/scenes",
+    icon: <MapPin className="h-8 w-8 text-zinc-900" />,
+  },
+  {
+    title: "Site-Specific Fine-Tuning",
+    badge: "Core Service",
+    description:
+      "We render training video from your target facility's twin, then fine-tune your world model or VLA policy against it. You get LoRA adapter weights, ready to deploy.",
+    bullets: [
+      "Works with DreamDojo, Cosmos, OpenVLA, GR00T, and others",
+      "LoRA weights sent over the air before your robot arrives on-site",
+    ],
+    ctaLabel: "Learn how it works",
+    ctaHref: "/how-it-works",
+    icon: <Zap className="h-8 w-8 text-zinc-900" />,
+  },
+  {
+    title: "Policy Benchmarks",
     badge: "Evaluation",
     description:
-      "Reserved evaluation suites with certified scenes, tasks, and harnesses so you can compare policies without test leakage.",
+      "Test your fine-tuned policy against reserved twin scenes. Get success rates, failure analysis, and confidence scores before real-world deployment.",
     bullets: [
-      "Standardized metrics: success rate, collisions, time-to-completion",
-      "Runnable locally or via Blueprint evaluation service",
+      "Reserved benchmark twins not used for training (no overfitting)",
+      "Standardized metrics: success rate, collisions, completion time",
     ],
     ctaLabel: "Explore benchmarks",
     ctaHref: "/evals",
     icon: <BarChart3 className="h-8 w-8 text-zinc-900" />,
   },
+];
+
+const whyBlueprint = [
   {
-    title: "Scene Library",
-    badge: "Scenes",
+    title: "One scan, hundreds of hours of training data",
     description:
-      "SimReady environments with validated colliders, articulation, and physics materials built for manipulation.",
-    bullets: [
-      "Physics gates: stability, non-penetration, and collision QA",
-      "USD-first delivery for Isaac Sim, with exports for other stacks",
-    ],
-    ctaLabel: "Browse scenes",
-    ctaHref: "/marketplace/scenes",
-    icon: <LayoutGrid className="h-8 w-8 text-zinc-900" />,
+      "A 15-minute iPhone scan becomes a Gaussian Splat that renders 100+ hours of training video from different viewpoints. That's a 400:1 data multiplier from a single walk-through.",
   },
   {
-    title: "Dataset Packs",
-    badge: "Training Data",
+    title: "General models still struggle in specific buildings",
     description:
-      "Quality-scored trajectories with episode-level metadata and filters for offline training and finetuning.",
-    bullets: [
-      "Episode certification + normalization for consistent dynamics",
-      "Delivered in LeRobot-ready formats with multi-sensor streams",
-    ],
-    ctaLabel: "Browse datasets",
-    ctaHref: "/marketplace/datasets",
-    icon: <Database className="h-8 w-8 text-zinc-900" />,
+      "DreamDojo and Cosmos are powerful out of the box, but they make mistakes in unfamiliar facilities. Fine-tuning on your exact site fixes that. It's what we do.",
+  },
+  {
+    title: "Weights arrive before the robot does",
+    description:
+      "LoRA adapter weights are small enough to send over the air. Your robot loads them in transit and shows up already familiar with the building.",
   },
 ];
 
-const whySimReady = [
-  {
-    title: "Physics certification, not just generation",
-    description:
-      "Collider QA, articulation validation, and dynamics bounds so your data behaves like the real world.",
-  },
-  {
-    title: "Episode QC + quality scoring",
-    description:
-      "Per-episode certification, normalization, and quality scores so you can filter to what actually transfers.",
-  },
-  {
-    title: "Provenance and reproducibility",
-    description:
-      "Metadata that tracks assets, parameters, and synth fractions for every delivered pack.",
-  },
+const dataMultiplierChart = [
+  { name: "iPhone Scan", minutes: 15 },
+  { name: "Gaussian Splat", minutes: 30 },
+  { name: "Rendered Video", minutes: 6000 },
+  { name: "Fine-Tune Cycles", minutes: 12000 },
 ];
 
 const labBullets = [
-  "Request datasets by task, robot, and environment",
-  "Quality-scored episodes with filters and provenance",
-  "Physics certification gates for transfer-sensitive tasks",
+  "Access digital twins of real commercial locations",
+  "Fine-tune DreamDojo, Cosmos, or your own world model per site",
+  "Receive LoRA adapter weights ready for OTA deployment",
 ];
 
-const artistBullets = [
-  "Build simulation-grade scenes used in real robot training",
-  "Paid briefs with clear QA gates: colliders, articulation, physics",
+const providerBullets = [
+  "List your facilities to attract robotics pilots",
+  "Revenue share on every adaptation cycle your location enables",
 ];
 
 // --- Component ---
@@ -116,8 +134,8 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | Certified Simulation Data for Robot Learning"
-        description="Certified simulation scenes, quality-scored datasets, and reserved benchmarks for robotics. Blueprint runs the data factory so your team can train policies without operating GPU-heavy simulation infrastructure."
+        title="Blueprint | Digital Twins for Robot Learning"
+        description="Digital twins of real commercial locations. Fine-tune any world model or VLA policy for site-specific deployment. One scan, hundreds of hours of training data."
         canonical="/"
         image="https://tryblueprint.io/images/og-home.png"
       />
@@ -133,23 +151,24 @@ export default function Home() {
                 <div className="space-y-6">
                   <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
                     <Sparkles className="h-3 w-3" />
-                    Certified Simulation Data
+                    Digital Twins for Robots
                   </div>
                   <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
-                    Simulation datasets you can trust.
+                    Fine-tune any world model to your exact facility.
                   </h1>
                   <p className="max-w-xl text-lg leading-relaxed text-zinc-600">
-                    Blueprint runs the data factory: we generate scenes and trajectories,
-                    certify physics, score quality, and ship provenance metadata so your
-                    team can train policies without maintaining a GPU-heavy simulation stack.
+                    We scan real warehouses, kitchens, stores, and factories, then turn those
+                    scans into digital twins your model can learn from. Pick a site, and we
+                    fine-tune your model against it and ship adapter weights your robot can
+                    load before it arrives.
                   </p>
                 </div>
 
                 <CTAButtons
-                  primaryHref="/marketplace"
-                  primaryLabel="Browse the catalog"
+                  primaryHref="/solutions"
+                  primaryLabel="See how it works"
                   secondaryHref="/contact"
-                  secondaryLabel="Request a dataset"
+                  secondaryLabel="Get a twin"
                 />
 
                 <div className="pt-4 opacity-80 grayscale transition-all duration-500 hover:opacity-100 hover:grayscale-0">
@@ -164,7 +183,7 @@ export default function Home() {
                   <div className="overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50">
                     <img
                       src="/images/Gemini_Hero.png"
-                      alt="SimReady scene"
+                      alt="Digital twin of a commercial facility"
                       className="h-48 w-full object-cover"
                       loading="lazy"
                     />
@@ -172,10 +191,10 @@ export default function Home() {
                   <div className="mt-4 space-y-3">
                     <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
                       <Terminal className="h-4 w-4" />
-                      Common Archetypes
+                      Facility Types
                     </div>
                     <p className="text-sm text-zinc-600">
-                      Kitchens, warehouses, labs, offices, retail, and utility environments.
+                      Warehouses, kitchens, retail stores, factories, offices, and labs.
                     </p>
                   </div>
                 </div>
@@ -229,20 +248,77 @@ export default function Home() {
           </div>
         </section>
 
+        {/* --- Data Multiplier Chart --- */}
+        <section className="border-y border-zinc-100 bg-zinc-50/50 py-16">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-12 lg:grid-cols-[1fr_1.2fr] lg:items-center">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 mb-4">
+                  <ScanLine className="h-3 w-3" />
+                  The Data Multiplier
+                </div>
+                <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
+                  15 minutes of scanning. 100+ hours of training video.
+                </h2>
+                <p className="mt-4 text-zinc-600">
+                  An iPhone scan of a facility produces a Gaussian Splat you can render from
+                  any viewpoint. World models like DreamDojo and Cosmos consume this video
+                  directly for fine-tuning. No 3D conversion, no physics engine.
+                </p>
+                <div className="mt-6 grid grid-cols-2 gap-4">
+                  <div className="rounded-lg bg-white p-4 ring-1 ring-zinc-200">
+                    <p className="text-2xl font-bold text-emerald-600">15 min</p>
+                    <p className="text-xs text-zinc-500">iPhone scan time</p>
+                  </div>
+                  <div className="rounded-lg bg-white p-4 ring-1 ring-zinc-200">
+                    <p className="text-2xl font-bold text-emerald-600">100+ hrs</p>
+                    <p className="text-xs text-zinc-500">Rendered training video</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+                <p className="mb-4 text-xs font-bold uppercase tracking-wider text-zinc-400">
+                  Data Output by Pipeline Stage (minutes)
+                </p>
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={dataMultiplierChart} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis type="number" tick={{ fontSize: 12, fill: "#94a3b8" }} />
+                    <YAxis
+                      dataKey="name"
+                      type="category"
+                      width={110}
+                      tick={{ fontSize: 12, fill: "#64748b" }}
+                    />
+                    <Tooltip
+                      formatter={(value: number) => [`${value.toLocaleString()} min`, "Output"]}
+                      contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0" }}
+                    />
+                    <Bar dataKey="minutes" fill="#10b981" radius={[0, 6, 6, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <SceneSmithExplainerMedia />
 
-        {/* --- Why SimReady --- */}
+        {/* --- Why Blueprint --- */}
         <section className="border-y border-zinc-100 bg-zinc-50/50 py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-10">
-              <h2 className="text-2xl font-bold text-zinc-900">Why certification?</h2>
+              <h2 className="text-2xl font-bold text-zinc-900">Why bother with site-specific fine-tuning?</h2>
               <p className="mt-2 text-zinc-600">
-                Generating simulation data is easy. Shipping trustworthy data for robot learning is hard.
+                General-purpose world models are good, but they still make mistakes in
+                buildings they haven't seen. A quick fine-tuning pass on your facility
+                fixes most of those errors.
               </p>
             </div>
 
             <div className="grid gap-6 md:grid-cols-3">
-              {whySimReady.map((item) => (
+              {whyBlueprint.map((item) => (
                 <div
                   key={item.title}
                   className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-zinc-200"
@@ -258,13 +334,13 @@ export default function Home() {
         {/* --- Personas --- */}
         <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="grid gap-6 md:grid-cols-2">
-            {/* Lab Persona */}
+            {/* Robotics Team Persona */}
             <div className="rounded-2xl border border-zinc-200 bg-white p-8">
               <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                For Robotics Labs
+                For Robotics Teams
               </p>
               <h3 className="mt-2 text-xl font-bold text-zinc-900">
-                Specify the task. Get certified data.
+                Fine-tune your model. Deploy on-site.
               </h3>
               <ul className="mt-4 space-y-2">
                 {labBullets.map((item) => (
@@ -276,16 +352,16 @@ export default function Home() {
               </ul>
             </div>
 
-            {/* Artist Persona */}
+            {/* Facility Provider Persona */}
             <div className="rounded-2xl bg-zinc-900 p-8 text-white">
               <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-                For 3D Artists
+                For Facility Owners
               </p>
               <h3 className="mt-2 text-xl font-bold text-white">
-                Build the worlds robots learn in.
+                Your building is worth something to robotics teams.
               </h3>
               <ul className="mt-4 space-y-2">
-                {artistBullets.map((item) => (
+                {providerBullets.map((item) => (
                   <li key={item} className="flex items-start gap-2 text-sm text-zinc-300">
                     <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
                     {item}
@@ -293,10 +369,10 @@ export default function Home() {
                 ))}
               </ul>
               <a
-                href="/careers"
+                href="/pilot-exchange"
                 className="mt-6 inline-block rounded-lg bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
               >
-                Apply to network
+                Join the Pilot Exchange
               </a>
             </div>
           </div>
@@ -305,52 +381,53 @@ export default function Home() {
         {/* --- Feature Highlights (Teasers) --- */}
         <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
           <div className="grid gap-4 md:grid-cols-3">
-            {/* Certification Teaser */}
             <a
               href="/how-it-works"
               className="group rounded-xl border border-zinc-200 bg-white p-6 transition-all hover:border-indigo-200 hover:shadow-md"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-emerald-50 p-2 text-emerald-600">
-                  <Shield className="h-5 w-5" />
+                  <ScanLine className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-zinc-900">Certification gates</p>
-                  <p className="text-sm text-zinc-500">Physics and episode QC, built in</p>
+                  <p className="font-semibold text-zinc-900">Scan to adapt pipeline</p>
+                  <p className="text-sm text-zinc-500">iPhone scan to LoRA weights in days</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
             </a>
 
-            {/* Quality-Scored Data Teaser */}
             <a
-              href="/marketplace/datasets"
+              href="/evals"
               className="group rounded-xl border border-zinc-200 bg-white p-6 transition-all hover:border-indigo-200 hover:shadow-md"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600">
-                  <Database className="h-5 w-5" />
+                  <Shield className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-zinc-900">Quality-scored datasets</p>
-                  <p className="text-sm text-zinc-500">Filter to high-trust episodes</p>
+                  <p className="font-semibold text-zinc-900">Pre-deploy benchmarks</p>
+                  <p className="text-sm text-zinc-500">Test before you ship to site</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
             </a>
 
-            {/* Coming Soon Teaser */}
-            <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-6">
+            <a
+              href="/pilot-exchange"
+              className="group rounded-xl border border-zinc-200 bg-white p-6 transition-all hover:border-indigo-200 hover:shadow-md"
+            >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-violet-50 p-2 text-violet-600">
-                  <Box className="h-5 w-5" />
+                  <Globe2 className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-zinc-900">Coming Soon</p>
-                  <p className="text-sm text-zinc-500">Continuous dataset subscriptions</p>
+                  <p className="font-semibold text-zinc-900">Pilot Exchange</p>
+                  <p className="text-sm text-zinc-500">Match robots to real facilities</p>
                 </div>
+                <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
-            </div>
+            </a>
           </div>
         </section>
 
@@ -358,18 +435,18 @@ export default function Home() {
         <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
           <div className="rounded-2xl bg-zinc-900 p-8 text-center sm:p-12">
             <h2 className="text-2xl font-bold text-white sm:text-3xl">
-              Ready to train with certified data?
+              Tell us the building. We'll adapt the model.
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-zinc-400">
-              Browse the catalog for off-the-shelf packs, or tell us what you need and we'll
-              generate, certify, and deliver a dataset spec'd to your robot and task.
+              Share your target location and the model you're using. We'll scope
+              how fast we can get adapted weights to your robot.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
               <a
-                href="/marketplace"
+                href="/solutions"
                 className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
               >
-                Browse Marketplace
+                See Solutions
               </a>
               <a
                 href="/contact"

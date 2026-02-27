@@ -7,7 +7,7 @@ export default function PartnerProgram() {
     <>
       <SEO
         title="Founding Partner Program - Blueprint"
-        description="Join Blueprint's Founding Partner Program. Get early access to our certified robotics data factory, shape the roadmap, and lock in founding partner pricing."
+        description="Join Blueprint's Founding Partner Program. Get early access to our digital twin network, shape the roadmap, and lock in founding partner pricing."
         canonical="/partners"
       />
       <div className="min-h-screen bg-white">
@@ -18,10 +18,10 @@ export default function PartnerProgram() {
               Founding Partner Program
             </p>
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Be a founding partner of our certified data factory
+              Be a founding partner of our digital twin network
             </h1>
             <p className="text-lg text-slate-600">
-              We're selecting a small group of robotics teams to get early access to Blueprint. You'll shape our roadmap, get hands-on support, and lock in founding partner pricing while we build the most trusted simulation datasets in the market.
+              Blueprint is building a library of digital twins of real commercial locations. Partners get early access, shape the roadmap, and lock in founding pricing.
             </p>
           </div>
 
@@ -37,33 +37,33 @@ export default function PartnerProgram() {
             <div className="space-y-4">
               {/* Service 1 */}
               <div className="border-l-2 border-slate-200 pl-6">
-                <h3 className="font-semibold text-slate-900">3D Training Environments</h3>
+                <h3 className="font-semibold text-slate-900">Digital Twin Library Access</h3>
                 <p className="text-sm text-slate-600">
-                  Certified SimReady scenes (kitchens, offices, warehouses) with validated colliders and articulation for manipulation.
+                  Gaussian Splat twins of real commercial locations, ready for training and evaluation.
                 </p>
               </div>
 
               {/* Service 2 */}
               <div className="border-l-2 border-slate-200 pl-6">
-                <h3 className="font-semibold text-slate-900">Training Data Generation</h3>
+                <h3 className="font-semibold text-slate-900">Site-Specific Fine-Tuning</h3>
                 <p className="text-sm text-slate-600">
-                  Quality-scored trajectories with episode metadata and filters, delivered in formats your training stack expects.
+                  We fine-tune your world model or VLA per site and deliver LoRA adapter weights.
                 </p>
               </div>
 
               {/* Service 3 */}
               <div className="border-l-2 border-slate-200 pl-6">
-                <h3 className="font-semibold text-slate-900">Data Quality Reports</h3>
+                <h3 className="font-semibold text-slate-900">Pre-Deploy Benchmarks</h3>
                 <p className="text-sm text-slate-600">
-                  Certification outputs that document physics gates, episode QC, quality distributions, and known limits.
+                  Test your adapted policy before real-world deployment with site-matched evaluation suites.
                 </p>
               </div>
 
               {/* Service 4 */}
               <div className="border-l-2 border-slate-200 pl-6">
-                <h3 className="font-semibold text-slate-900">Multi-Robot Support</h3>
+                <h3 className="font-semibold text-slate-900">Multi-Model Support</h3>
                 <p className="text-sm text-slate-600">
-                  Works with robot arms, mobile robots, humanoids. We analyze if training data from one robot helps train another.
+                  Works with DreamDojo, Cosmos, OpenVLA, GR00T, and custom models.
                 </p>
               </div>
 
@@ -71,7 +71,7 @@ export default function PartnerProgram() {
               <div className="border-l-2 border-slate-200 pl-6">
                 <h3 className="font-semibold text-slate-900">Real Robot Testing</h3>
                 <p className="text-sm text-slate-600">
-                  We'll help you validate transfer on your hardware and iterate quickly with targeted new data when gaps appear.
+                  We help validate on your hardware and iterate until transfer works.
                 </p>
               </div>
 
@@ -79,7 +79,7 @@ export default function PartnerProgram() {
               <div className="border-l-2 border-slate-200 pl-6">
                 <h3 className="font-semibold text-slate-900">Everything Else</h3>
                 <p className="text-sm text-slate-600">
-                  Natural language instructions for tasks, audio descriptions, performance benchmarks, and more. Our entire platform.
+                  Pilot Exchange access, priority support, and environment pack licensing.
                 </p>
               </div>
             </div>
@@ -132,16 +132,16 @@ export default function PartnerProgram() {
               <div className="flex items-start gap-3">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-slate-900" />
                 <div>
-                  <p className="font-semibold text-slate-900">Teams with real robot hardware</p>
-                  <p className="text-sm text-slate-600">Robot arms, mobile robots, and humanoids are welcome, and we prioritize partners who can validate sim-to-real transfer</p>
+                  <p className="font-semibold text-slate-900">Teams training world models or VLAs for robot deployment</p>
+                  <p className="text-sm text-slate-600">You're building or fine-tuning models that need site-specific adaptation before going live</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-slate-900" />
                 <div>
-                  <p className="font-semibold text-slate-900">Active ML/AI training pipelines</p>
-                  <p className="text-sm text-slate-600">You're already training models for robot manipulation, navigation, or perception</p>
+                  <p className="font-semibold text-slate-900">Companies deploying robots to commercial facilities</p>
+                  <p className="text-sm text-slate-600">Warehouses, kitchens, retail, offices -- you need your policy to work in a specific real location</p>
                 </div>
               </div>
 

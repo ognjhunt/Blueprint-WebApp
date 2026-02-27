@@ -2,23 +2,16 @@ import { SEO } from "@/components/SEO";
 import {
   ArrowRight,
   BarChart3,
-  Box,
   Brain,
   CheckCircle2,
   Clock,
-  Cpu,
   Database,
-  FileJson,
-  Fingerprint,
   Layers,
   LineChart,
-  Play,
   RefreshCw,
   Server,
-  Settings2,
   Sparkles,
   Target,
-  Terminal,
   TrendingUp,
   Zap,
 } from "lucide-react";
@@ -27,26 +20,26 @@ import {
 
 const whatWeDeliver = [
   {
-    title: "Trained Policy Checkpoints",
-    desc: "Production-ready PyTorch models that work immediately with your robot hardware.",
+    title: "LoRA adapter weights",
+    desc: "Ready for over-the-air deployment. Drop these into your model and it knows the target facility.",
     icon: <Brain className="h-6 w-6" />,
     color: "indigo",
   },
   {
-    title: "Training Curves & Metrics",
-    desc: "Full visibility into how your policy learned, including reward progression, success rates, and convergence data.",
+    title: "Adaptation report",
+    desc: "Full fine-tuning metrics, loss curves, and confidence scores showing how well the model learned the new site.",
     icon: <LineChart className="h-6 w-6" />,
     color: "emerald",
   },
   {
-    title: "Benchmark Reports",
-    desc: "Standardized evaluation across fixed test scenarios so you know exactly how your policy performs.",
+    title: "Pre-deploy benchmark",
+    desc: "Video-prediction evaluation against the target digital twin, so you know how the adapted model performs before deploying.",
     icon: <BarChart3 className="h-6 w-6" />,
     color: "amber",
   },
   {
-    title: "Sim-to-Real Indicators",
-    desc: "Metrics that predict real-world performance, including action smoothness, jerk analysis, and transfer gap estimates.",
+    title: "Transfer indicators",
+    desc: "Gap analysis comparing adapted vs. unadapted model performance on the target site.",
     icon: <Target className="h-6 w-6" />,
     color: "rose",
   },
@@ -55,105 +48,93 @@ const whatWeDeliver = [
 const howItWorks = [
   {
     step: "01",
-    title: "You Provide the Scene",
-    desc: "Use any Blueprint scene from our marketplace or request a custom scene. Every scene already includes Isaac Lab task configs.",
+    title: "Pick a target facility",
+    desc: "Choose a location from the Blueprint twin library, or we scan your facility and build a new digital twin for you.",
     icon: <Layers className="h-6 w-6" />,
   },
   {
     step: "02",
-    title: "We Train at Scale",
-    desc: "Our infrastructure runs thousands of simulated robots at once, collecting experience 1000x faster than real-world training.",
+    title: "We render training video",
+    desc: "Our pipeline generates synthetic video from the digital twin, capturing the exact layout, lighting, and objects of the target site.",
     icon: <Server className="h-6 w-6" />,
   },
   {
     step: "03",
-    title: "Policy Learns from Experience",
-    desc: "Using reinforcement learning (PPO), your robot's brain improves through trial and error, with millions of attempts compressed into hours.",
+    title: "Fine-tune your model",
+    desc: "We run fine-tuning on your chosen world model or VLA against the rendered site data.",
     icon: <RefreshCw className="h-6 w-6" />,
   },
   {
     step: "04",
-    title: "You Receive Trained Policy",
-    desc: "Download a production-ready model with full training history, benchmark scores, and deployment guides.",
+    title: "Receive LoRA weights",
+    desc: "Download your LoRA adapter weights. Plug them into your base model and it knows the target site.",
     icon: <CheckCircle2 className="h-6 w-6" />,
   },
 ];
 
-const whyRLTraining = [
+const whyFineTuning = [
   {
-    title: "1000x Faster Than Reality",
-    desc: "Train in hours what would take months of real-world robot time. Our GPU-accelerated infrastructure runs thousands of simulations simultaneously.",
-    stat: "1000x",
-    statLabel: "Speed increase",
+    title: "Your specific site",
+    desc: "A general model knows about warehouses. A fine-tuned model knows YOUR warehouse -- every aisle, shelf, and loading dock.",
+    stat: "Your",
+    statLabel: "Specific site",
   },
   {
-    title: "No Hardware Risk",
-    desc: "Your physical robots stay safe while virtual ones learn through trial and error. Failures in simulation cost nothing.",
+    title: "No on-site data collection",
+    desc: "Instead of weeks of on-site recording, we render training video from the digital twin. No disruption to operations.",
     stat: "0",
-    statLabel: "Hardware damage",
+    statLabel: "Days on-site",
   },
   {
-    title: "Infinite Variations",
-    desc: "Train across thousands of scene variations, including different object positions, lighting, and physics randomization, so your policy generalizes.",
-    stat: "4096+",
-    statLabel: "Sim environments",
+    title: "Any world model",
+    desc: "Bring your preferred foundation model. We support DreamDojo, Cosmos, OpenVLA, GR00T, and others.",
+    stat: "4+",
+    statLabel: "Models supported",
   },
   {
-    title: "Reproducible Results",
-    desc: "Fixed benchmark seeds ensure consistent evaluation. Compare policies apples-to-apples across different training runs.",
+    title: "Measured improvement",
+    desc: "Every job includes before-and-after benchmarks so you can see how much the adaptation improved performance at the target site.",
     stat: "100%",
-    statLabel: "Reproducible",
+    statLabel: "Benchmarked",
   },
-];
-
-const supportedTasks = [
-  { name: "Pick & Place", desc: "Grasp objects and place them accurately", icon: <Box className="h-5 w-5" /> },
-  { name: "Door Opening", desc: "Handle articulated doors and latches", icon: <Fingerprint className="h-5 w-5" /> },
-  { name: "Drawer Access", desc: "Open and close drawers smoothly", icon: <Layers className="h-5 w-5" /> },
-  { name: "Knob Manipulation", desc: "Turn dials, knobs, and valves", icon: <Settings2 className="h-5 w-5" /> },
-  { name: "Button Pressing", desc: "Precise contact with switches and buttons", icon: <Play className="h-5 w-5" /> },
-  { name: "Precision Insertion", desc: "Peg-in-hole and connector tasks", icon: <Target className="h-5 w-5" /> },
 ];
 
 const pricingTiers = [
   {
     name: "Starter",
     price: "$5,000",
-    desc: "Perfect for evaluating RL training on a single scene",
+    desc: "Adapt one model to one facility and see the results",
     features: [
-      "1 scene, 1 task",
-      "Up to 1,500 training iterations",
-      "Single GPU training",
-      "Policy checkpoint delivery",
-      "Basic benchmark report",
+      "1 site, 1 model",
+      "Single adaptation cycle",
+      "LoRA weights delivery",
+      "Basic adaptation report",
     ],
     highlight: false,
   },
   {
     name: "Professional",
     price: "$15,000",
-    desc: "Production-ready training with comprehensive evaluation",
+    desc: "Multi-site adaptation with comprehensive benchmarking",
     features: [
-      "Up to 5 scenes, 3 tasks each",
-      "Up to 5,000 training iterations",
-      "Multi-GPU distributed training",
-      "Full benchmark suite with fixed seeds",
-      "Sim-to-real transfer indicators",
-      "Hyperparameter tuning",
+      "Up to 5 sites, 3 models",
+      "Full benchmark report included",
+      "Priority queue access",
+      "Transfer indicators & gap analysis",
+      "Dedicated support channel",
     ],
     highlight: true,
   },
   {
     name: "Enterprise",
     price: "Custom",
-    desc: "Foundation model scale with dedicated infrastructure",
+    desc: "Continuous adaptation at scale with dedicated infrastructure",
     features: [
-      "Unlimited scenes and tasks",
-      "Custom training duration",
-      "Dedicated GPU cluster",
-      "Priority queue access",
-      "Custom reward engineering",
-      "Ongoing policy iteration",
+      "Unlimited sites",
+      "Custom model support",
+      "Dedicated fine-tuning infrastructure",
+      "Living twin subscription",
+      "Ongoing re-adaptation as sites change",
       "Direct engineering support",
     ],
     highlight: false,
@@ -196,8 +177,8 @@ export default function RLTraining() {
   return (
     <>
       <SEO
-        title="RL Training | Reinforcement Learning as a Service"
-        description="Train robot policies at scale with GPU-accelerated reinforcement learning. Blueprint delivers trained policy checkpoints, benchmark reports, and sim-to-real transfer indicators. Coming Q2 2026."
+        title="Model Fine-Tuning | Fine-Tuning as a Service"
+        description="Fine-tune world models and VLAs against digital twins of specific facilities. Blueprint renders training video from your target site and delivers LoRA adapter weights. Coming Q2 2026."
         canonical="/rl-training"
       />
       <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-violet-100 selection:text-violet-900">
@@ -212,7 +193,7 @@ export default function RLTraining() {
                 <div className="flex items-center gap-3">
                   <div className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-violet-700 backdrop-blur-sm">
                     <Sparkles className="h-3 w-3" />
-                    RL Training-as-a-Service
+                    Model Fine-Tuning as a Service
                   </div>
                   <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-700">
                     <Clock className="h-3 w-3" />
@@ -220,12 +201,13 @@ export default function RLTraining() {
                   </div>
                 </div>
                 <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
-                  Train your robot's brain at scale.
+                  Fine-tune your model on any facility.
                 </h1>
                 <p className="max-w-2xl text-lg leading-relaxed text-zinc-600">
-                  You bring the simulation scene. We run thousands of virtual robots at once,
-                  learning through trial and error. You receive a trained policy ready for
-                  real-world deployment, with no ML infrastructure required.
+                  Blueprint fine-tunes world models and VLAs against digital twins of specific
+                  facilities. You pick a target location from our twin library, we render
+                  training video and run fine-tuning, and you receive LoRA adapter weights
+                  ready for deployment.
                 </p>
               </div>
 
@@ -248,16 +230,16 @@ export default function RLTraining() {
               {/* Quick Stats */}
               <div className="grid grid-cols-3 gap-6 pt-4">
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-violet-600">4096+</p>
-                  <p className="text-xs text-zinc-500 uppercase tracking-wider">Sim Envs</p>
+                  <p className="text-3xl font-bold text-violet-600">4+</p>
+                  <p className="text-xs text-zinc-500 uppercase tracking-wider">Models Supported</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-emerald-600">1000x</p>
-                  <p className="text-xs text-zinc-500 uppercase tracking-wider">Faster</p>
+                  <p className="text-3xl font-bold text-emerald-600">LoRA</p>
+                  <p className="text-xs text-zinc-500 uppercase tracking-wider">Adapter Weights</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-amber-600">14+</p>
-                  <p className="text-xs text-zinc-500 uppercase tracking-wider">Task Types</p>
+                  <p className="text-3xl font-bold text-amber-600">Any</p>
+                  <p className="text-xs text-zinc-500 uppercase tracking-wider">Facility Type</p>
                 </div>
               </div>
             </div>
@@ -275,7 +257,7 @@ export default function RLTraining() {
                       <div className="h-3 w-3 rounded-full bg-emerald-400" />
                     </div>
                     <span className="ml-2 font-mono text-xs text-zinc-500">
-                      rl_training_dashboard.py
+                      fine_tuning_dashboard.py
                     </span>
                   </div>
                 </div>
@@ -284,7 +266,7 @@ export default function RLTraining() {
                   {/* Training Progress */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium text-zinc-900">Training Progress</span>
+                      <span className="font-medium text-zinc-900">Fine-Tuning Progress</span>
                       <span className="font-mono text-violet-600">87%</span>
                     </div>
                     <div className="h-2 rounded-full bg-zinc-100 overflow-hidden">
@@ -294,7 +276,7 @@ export default function RLTraining() {
                       />
                     </div>
                     <div className="flex justify-between text-xs text-zinc-500">
-                      <span>Iteration 1,305 / 1,500</span>
+                      <span>Epoch 13 / 15</span>
                       <span>ETA: 23 min</span>
                     </div>
                   </div>
@@ -302,30 +284,30 @@ export default function RLTraining() {
                   {/* Live Metrics */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-lg bg-emerald-50 p-3 ring-1 ring-emerald-100">
-                      <p className="text-xs text-emerald-600 font-medium">Success Rate</p>
-                      <p className="text-xl font-bold text-emerald-700">87.3%</p>
+                      <p className="text-xs text-emerald-600 font-medium">Adaptation Score</p>
+                      <p className="text-xl font-bold text-emerald-700">92.1%</p>
                     </div>
                     <div className="rounded-lg bg-violet-50 p-3 ring-1 ring-violet-100">
-                      <p className="text-xs text-violet-600 font-medium">Mean Reward</p>
-                      <p className="text-xl font-bold text-violet-700">+85.2</p>
+                      <p className="text-xs text-violet-600 font-medium">Loss</p>
+                      <p className="text-xl font-bold text-violet-700">0.0034</p>
                     </div>
                     <div className="rounded-lg bg-amber-50 p-3 ring-1 ring-amber-100">
-                      <p className="text-xs text-amber-600 font-medium">Parallel Envs</p>
-                      <p className="text-xl font-bold text-amber-700">4,096</p>
+                      <p className="text-xs text-amber-600 font-medium">Video Frames</p>
+                      <p className="text-xl font-bold text-amber-700">48,000</p>
                     </div>
                     <div className="rounded-lg bg-zinc-50 p-3 ring-1 ring-zinc-200">
-                      <p className="text-xs text-zinc-500 font-medium">Steps/sec</p>
-                      <p className="text-xl font-bold text-zinc-700">45,000</p>
+                      <p className="text-xs text-zinc-500 font-medium">LoRA Rank</p>
+                      <p className="text-xl font-bold text-zinc-700">64</p>
                     </div>
                   </div>
 
                   {/* Task Info */}
                   <div className="rounded-lg bg-zinc-900 p-4 font-mono text-xs text-zinc-300">
-                    <p className="text-zinc-500"># Current training job</p>
-                    <p><span className="text-violet-400">scene:</span> industrial_kitchen_v3</p>
-                    <p><span className="text-violet-400">task:</span> dish_loading</p>
-                    <p><span className="text-violet-400">robot:</span> franka_panda</p>
-                    <p><span className="text-emerald-400">status:</span> training...</p>
+                    <p className="text-zinc-500"># Current fine-tuning job</p>
+                    <p><span className="text-violet-400">scene:</span> warehouse_seattle_42</p>
+                    <p><span className="text-violet-400">task:</span> site_adaptation</p>
+                    <p><span className="text-violet-400">model:</span> dreamdojo_v2</p>
+                    <p><span className="text-emerald-400">status:</span> fine-tuning...</p>
                   </div>
                 </div>
               </div>
@@ -333,30 +315,31 @@ export default function RLTraining() {
           </header>
 
           <div className="space-y-24">
-            {/* --- What is RL Training Section --- */}
+            {/* --- What is Model Fine-Tuning Section --- */}
             <section className="relative overflow-hidden rounded-[2.5rem] border border-violet-100 bg-gradient-to-br from-violet-50/50 to-white p-8 sm:p-12 lg:p-16">
               <div className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-violet-100/60 blur-3xl" />
 
               <div className="relative z-10 grid gap-12 lg:grid-cols-2 lg:items-center">
                 <div className="space-y-6">
                   <div className="inline-flex items-center gap-2 rounded-md bg-violet-100 px-2 py-1 text-xs font-bold uppercase tracking-wider text-violet-700">
-                    <Brain className="h-3 w-3" /> What is RL Training?
+                    <Brain className="h-3 w-3" /> What is Model Fine-Tuning?
                   </div>
                   <h2 className="text-3xl font-bold text-zinc-900 sm:text-4xl">
-                    Teaching robots through practice, not programming.
+                    Making a general model an expert at your specific site.
                   </h2>
                   <p className="text-zinc-600 leading-relaxed">
-                    Traditional robotics requires engineers to manually program every movement.
-                    <strong> Reinforcement Learning (RL)</strong> is different, and your robot learns
-                    by trying things, getting feedback on what works, and improving over time.
-                    Think of it like how humans learn to ride a bike: through practice, not instruction manuals.
+                    A <strong>world model</strong> (like DreamDojo or Cosmos) learns general knowledge
+                    from large amounts of video -- it understands how objects move, how rooms look,
+                    and how physics works. But to work well at <em>your</em> specific warehouse,
+                    kitchen, or store, it needs to see that exact place. That is where fine-tuning
+                    comes in.
                   </p>
                   <ul className="space-y-3 text-sm text-zinc-700">
                     {[
-                      "Robot takes an action (move arm, grasp object)",
-                      "Simulation tells it: good move or bad move (reward signal)",
-                      "Robot adjusts its behavior to get more rewards",
-                      "After millions of attempts, it becomes expert at the task",
+                      "A world model learns general knowledge from lots of video",
+                      "But it needs to see YOUR specific facility to work well there",
+                      "We scan the facility, create a digital twin, and render training video from it",
+                      "We fine-tune the model on that video -- the result is LoRA adapter weights that make it a site expert",
                     ].map((item, i) => (
                       <li key={item} className="flex items-start gap-3">
                         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-600">
@@ -368,29 +351,29 @@ export default function RLTraining() {
                   </ul>
                 </div>
 
-                {/* Visual: RL Loop Diagram */}
+                {/* Visual: Fine-Tuning Flow Diagram */}
                 <div className="rounded-2xl border border-violet-100 bg-white p-6 shadow-sm">
                   <p className="mb-4 text-xs font-bold uppercase tracking-widest text-violet-600">
-                    The RL Training Loop
+                    The Fine-Tuning Pipeline
                   </p>
                   <div className="space-y-4">
                     <div className="relative flex items-center justify-center py-8">
-                      {/* Circular flow visualization */}
+                      {/* Flow visualization */}
                       <div className="relative h-48 w-48">
                         <div className="absolute inset-0 rounded-full border-2 border-dashed border-violet-200" />
 
                         {/* Nodes */}
                         <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-lg bg-violet-100 px-3 py-2 text-center">
-                          <p className="text-xs font-bold text-violet-700">Action</p>
+                          <p className="text-xs font-bold text-violet-700">Scan</p>
                         </div>
                         <div className="absolute top-1/2 -right-3 -translate-y-1/2 rounded-lg bg-emerald-100 px-3 py-2 text-center">
-                          <p className="text-xs font-bold text-emerald-700">Reward</p>
+                          <p className="text-xs font-bold text-emerald-700">Render</p>
                         </div>
                         <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 rounded-lg bg-amber-100 px-3 py-2 text-center">
-                          <p className="text-xs font-bold text-amber-700">Learn</p>
+                          <p className="text-xs font-bold text-amber-700">Fine-Tune</p>
                         </div>
                         <div className="absolute top-1/2 -left-3 -translate-y-1/2 rounded-lg bg-rose-100 px-3 py-2 text-center">
-                          <p className="text-xs font-bold text-rose-700">Observe</p>
+                          <p className="text-xs font-bold text-rose-700">Deploy</p>
                         </div>
 
                         {/* Center */}
@@ -406,8 +389,9 @@ export default function RLTraining() {
                     <div className="rounded-lg bg-zinc-50 p-4 text-xs text-zinc-600">
                       <p className="font-semibold text-zinc-900">The key insight:</p>
                       <p className="mt-1">
-                        We run this loop <strong>millions of times</strong> in simulation,
-                        what would take years on a real robot happens in hours on our GPU cluster.
+                        Instead of collecting real video at the site, we render <strong>training
+                        data from the digital twin</strong> -- no disruption to your operations,
+                        no data-collection crews.
                       </p>
                     </div>
                   </div>
@@ -415,24 +399,24 @@ export default function RLTraining() {
               </div>
             </section>
 
-            {/* --- Why RL Training Section --- */}
+            {/* --- Why Fine-Tuning Section --- */}
             <section className="relative">
               <div className="text-center mb-12">
                 <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50/50 px-4 py-1 text-xs font-bold uppercase tracking-wider text-emerald-600">
                   <Zap className="h-3 w-3" />
-                  Why RL Training?
+                  Why Fine-Tuning?
                 </div>
                 <h2 className="mt-4 text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
-                  The benefits of simulation-first training.
+                  What fine-tuning on a digital twin gets you
                 </h2>
                 <p className="mt-4 max-w-2xl mx-auto text-zinc-600">
-                  Instead of risking expensive hardware and waiting months for results, train your
-                  robot's brain in a virtual environment where failures are free and time moves 1000x faster.
+                  General models work broadly but struggle in specific buildings. Fine-tuning against a
+                  digital twin of your facility fixes that, with no on-site data collection required.
                 </p>
               </div>
 
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                {whyRLTraining.map((item) => (
+                {whyFineTuning.map((item) => (
                   <div
                     key={item.title}
                     className="group rounded-2xl border border-zinc-200 bg-white p-6 transition-all hover:shadow-lg hover:border-emerald-200"
@@ -456,11 +440,11 @@ export default function RLTraining() {
               <div className="relative z-10 space-y-12">
                 <div className="text-center">
                   <h2 className="text-3xl font-bold text-white sm:text-4xl">
-                    How It Works
+                    How it works
                   </h2>
                   <p className="mt-4 max-w-2xl mx-auto text-zinc-400">
-                    From simulation scene to production-ready robot policy in four steps.
-                    No ML expertise required on your end.
+                    From target facility to deployed LoRA weights in four steps.
+                    No ML infrastructure required on your end.
                   </p>
                 </div>
 
@@ -493,12 +477,12 @@ export default function RLTraining() {
             <section className="space-y-8">
               <div className="text-center">
                 <h2 className="text-3xl font-bold tracking-tight text-zinc-900">
-                  What You Receive
+                  What you receive
                 </h2>
                 <p className="mt-4 max-w-2xl mx-auto text-zinc-600">
-                  Every RL training job delivers a complete analysis package, including a trained policy,
-                  detailed training history, benchmark reports, and premium analytics showing
-                  how well your policy will perform in the real world.
+                  Every fine-tuning job delivers a complete package: LoRA adapter weights
+                  for deployment, an adaptation report with metrics, a pre-deploy benchmark
+                  against the target twin, and transfer indicators showing the improvement.
                 </p>
               </div>
 
@@ -531,14 +515,14 @@ export default function RLTraining() {
               <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-6 space-y-6">
                 <div>
                   <div className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-500">
-                    Core Deliverable Files
+                    Core deliverable files
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {[
-                      { file: "policy.pt", desc: "Trained PyTorch model" },
-                      { file: "training_curves.json", desc: "Reward & metrics history" },
-                      { file: "benchmark_report.json", desc: "Evaluation results" },
-                      { file: "policy_config.json", desc: "Architecture & metadata" },
+                      { file: "lora_weights.safetensors", desc: "LoRA adapter weights" },
+                      { file: "adaptation_report.json", desc: "Fine-tuning metrics & scores" },
+                      { file: "benchmark_results.json", desc: "Pre-deploy evaluation" },
+                      { file: "transfer_analysis.json", desc: "Gap analysis & indicators" },
                     ].map((item) => (
                       <div key={item.file} className="rounded-xl bg-white p-4 ring-1 ring-zinc-200">
                         <p className="font-mono text-sm font-bold text-violet-600">{item.file}</p>
@@ -550,16 +534,16 @@ export default function RLTraining() {
 
                 <div className="border-t border-zinc-200 pt-6">
                   <div className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-500">
-                    Reports Included
+                    Reports included
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     {[
-                      { title: "Per-Step Telemetry", desc: "Rewards, collisions, grasps, forces tracked at every step" },
-                      { title: "Failure Analysis", desc: "Automatic breakdown of timeout vs collision failures" },
-                      { title: "Grasp Quality", desc: "Force profiles, contact tracking, slip detection" },
-                      { title: "Transfer Risk Notes", desc: "Practical notes and checks to validate transfer on your hardware" },
-                      { title: "Trajectory Optimality", desc: "Path efficiency, jerk analysis, energy metrics" },
-                      { title: "Generalization Metrics", desc: "Per-object success rates, learning curves, data efficiency" },
+                      { title: "Loss Curves & Convergence", desc: "Epoch-by-epoch training loss, validation metrics, and convergence analysis" },
+                      { title: "Confidence Scores", desc: "Per-scene confidence showing how well the model adapted to different areas of the facility" },
+                      { title: "Video Prediction Quality", desc: "Frame-level comparison of predicted vs. ground-truth video from the target twin" },
+                      { title: "Transfer Gap Analysis", desc: "Quantified performance difference between the base model and the adapted model on the target site" },
+                      { title: "Site Coverage Map", desc: "Which areas of the facility the model has strongest and weakest adaptation for" },
+                      { title: "Deployment Readiness", desc: "Pre-flight checks and recommendations for deploying the LoRA weights in production" },
                     ].map((item) => (
                       <div key={item.title} className="rounded-xl bg-white p-4 ring-1 ring-emerald-100">
                         <p className="font-semibold text-zinc-900">{item.title}</p>
@@ -572,51 +556,9 @@ export default function RLTraining() {
                 <div className="border-t border-zinc-200 pt-6 bg-white rounded-xl p-4 ring-1 ring-violet-100">
                   <p className="text-xs font-bold uppercase tracking-wider text-violet-700 mb-2">Included by default</p>
                   <p className="text-sm text-zinc-700">
-                    Every training job ships with the diagnostics you need to iterate quickly: metrics,
-                    failure breakdowns, and transfer-focused notes.
+                    Every fine-tuning job ships with the diagnostics you need to deploy confidently:
+                    adaptation metrics, benchmark evaluations, and transfer analysis.
                   </p>
-                </div>
-              </div>
-            </section>
-
-            {/* --- Supported Tasks Section --- */}
-            <section className="relative overflow-hidden rounded-[2.5rem] border border-amber-100 bg-gradient-to-br from-amber-50/50 to-white p-8 sm:p-12 lg:p-16">
-              <div className="absolute -left-24 -bottom-24 h-80 w-80 rounded-full bg-amber-100/60 blur-3xl" />
-
-              <div className="relative z-10 grid gap-12 lg:grid-cols-2">
-                <div className="space-y-6">
-                  <div className="inline-flex items-center gap-2 rounded-md bg-amber-100 px-2 py-1 text-xs font-bold uppercase tracking-wider text-amber-700">
-                    <Terminal className="h-3 w-3" /> Supported Tasks
-                  </div>
-                  <h2 className="text-3xl font-bold text-zinc-900 sm:text-4xl">
-                    14+ manipulation policies out of the box.
-                  </h2>
-                  <p className="text-zinc-600 leading-relaxed">
-                    Blueprint scenes already include task configurations for common manipulation
-                    scenarios. The RL Training service uses these configs to train policies that
-                    match your specific environment and objects.
-                  </p>
-                  <p className="text-sm text-zinc-500">
-                    Need a custom task? We can engineer reward functions and training configs for
-                    specialized manipulation requirements.
-                  </p>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {supportedTasks.map((task) => (
-                    <div
-                      key={task.name}
-                      className="flex items-start gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-amber-100"
-                    >
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
-                        {task.icon}
-                      </div>
-                      <div>
-                        <p className="font-bold text-zinc-900">{task.name}</p>
-                        <p className="mt-0.5 text-xs text-zinc-500">{task.desc}</p>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </div>
             </section>
@@ -629,11 +571,11 @@ export default function RLTraining() {
                   Pricing Preview
                 </div>
                 <h2 className="mt-4 text-3xl font-bold tracking-tight text-zinc-900">
-                  Training packages for every scale.
+                  Fine-tuning packages
                 </h2>
                 <p className="mt-4 max-w-2xl mx-auto text-zinc-600">
-                  From single-scene experiments to foundation model scale. Final pricing will be
-                  announced at launch.
+                  From a single-site proof of concept to enterprise-wide continuous adaptation.
+                  Final pricing will be announced at launch.
                 </p>
               </div>
 
@@ -698,20 +640,20 @@ export default function RLTraining() {
                     <Database className="h-3 w-3" /> Blueprint Integration
                   </div>
                   <h2 className="text-3xl font-bold text-zinc-900 sm:text-4xl">
-                    Works seamlessly with your Blueprint scenes.
+                    Built on the Blueprint twin library
                   </h2>
                   <p className="text-zinc-600 leading-relaxed">
-                    Every scene from the Blueprint marketplace already includes Isaac Lab task
-                    configurations, including reward functions, observation spaces, action configs, and
-                    domain randomization settings. Just select a scene and task, and RL Training
-                    handles the rest.
+                    Our scan-to-weights pipeline connects directly to the Blueprint digital twin
+                    library. Choose an existing twin or have us scan your facility, and the pipeline
+                    handles rendering, fine-tuning, and weight delivery. We support leading world
+                    models including DreamDojo, Cosmos, OpenVLA, and GR00T.
                   </p>
                   <ul className="space-y-3 text-sm text-zinc-700">
                     {[
-                      "Scenes already include env_cfg.py and train_cfg.yaml",
-                      "14+ policy types pre-configured per scene",
-                      "Domain randomization included for sim-to-real transfer",
-                      "Evaluation benchmark seeds for reproducible results",
+                      "Choose from the Blueprint twin library or bring your own scan",
+                      "Scan-to-weights pipeline: facility scan to LoRA delivery",
+                      "World model support: DreamDojo, Cosmos, OpenVLA, GR00T",
+                      "Continuous re-adaptation as your facility changes over time",
                     ].map((item) => (
                       <li key={item} className="flex items-start gap-3">
                         <CheckCircle2 className="mt-0.5 h-4 w-4 text-indigo-500 shrink-0" />
@@ -723,14 +665,14 @@ export default function RLTraining() {
 
                 <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-6 shadow-sm">
                   <p className="mb-4 text-xs font-bold uppercase tracking-widest text-indigo-600">
-                    The Complete Pipeline
+                    The scan-to-weights pipeline
                   </p>
                   <div className="space-y-3">
                     {[
-                      { step: "1", label: "Scene Generation", desc: "Blueprint creates SimReady USD", color: "bg-zinc-100 text-zinc-700" },
-                      { step: "2", label: "Task Config", desc: "Isaac Lab env configs included", color: "bg-indigo-100 text-indigo-700" },
-                      { step: "3", label: "Evals", desc: "Policy benchmarking & affordances", color: "bg-emerald-100 text-emerald-700" },
-                      { step: "4", label: "RL Training", desc: "Trained policy delivery", color: "bg-violet-100 text-violet-700" },
+                      { step: "1", label: "Twin Library", desc: "Pick a facility or scan yours", color: "bg-zinc-100 text-zinc-700" },
+                      { step: "2", label: "Render Video", desc: "Synthetic training data from the twin", color: "bg-indigo-100 text-indigo-700" },
+                      { step: "3", label: "Fine-Tune", desc: "Adapt your world model or VLA", color: "bg-emerald-100 text-emerald-700" },
+                      { step: "4", label: "LoRA Delivery", desc: "Adapter weights ready for deployment", color: "bg-violet-100 text-violet-700" },
                     ].map((item) => (
                       <div key={item.label} className="flex items-center gap-4">
                         <div className={`rounded-lg px-3 py-2 text-sm font-bold ${item.color}`}>
@@ -757,10 +699,10 @@ export default function RLTraining() {
                   Coming Q2 2026
                 </div>
                 <h2 className="text-3xl font-bold text-white sm:text-4xl">
-                  Be first in line for RL Training.
+                  Be first in line for model fine-tuning.
                 </h2>
                 <p className="mt-4 max-w-2xl mx-auto text-violet-100">
-                  Join the waitlist to get early access when RL Training launches. We'll notify
+                  Join the waitlist to get early access when fine-tuning launches. We'll notify
                   you as soon as the service is available, with priority access for early sign-ups.
                 </p>
 
@@ -776,17 +718,19 @@ export default function RLTraining() {
                     href="/marketplace"
                     className="inline-flex items-center justify-center rounded-xl border border-white/30 bg-white/10 px-8 py-4 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
                   >
-                    Explore Scenes Now
+                    Explore Twin Library
                   </a>
                 </div>
 
                 {/* Partner logos */}
                 <div className="mt-12 flex items-center justify-center gap-8 opacity-60">
                   <div className="text-xs font-bold text-white/80 uppercase tracking-wider">
-                    Powered by
+                    Models supported
                   </div>
-                  <div className="text-white/80 font-semibold">NVIDIA Isaac Lab</div>
-                  <div className="text-white/80 font-semibold">Ray</div>
+                  <div className="text-white/80 font-semibold">DreamDojo</div>
+                  <div className="text-white/80 font-semibold">Cosmos</div>
+                  <div className="text-white/80 font-semibold">OpenVLA</div>
+                  <div className="text-white/80 font-semibold">GR00T</div>
                 </div>
               </div>
             </section>

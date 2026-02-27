@@ -40,6 +40,7 @@ const comparisonData = {
       "Broad edge case and variation coverage",
       "Zero hardware risk during collection",
       "Perfect ground truth labels",
+      "Digital twins make simulation data site-specific -- not generic environments, but your exact facility",
     ],
     challenges: [
       "Physics approximations",
@@ -55,28 +56,28 @@ const researchStats = [
   {
     stat: "Faster",
     label: "Iteration",
-    description: "Run large numbers of trials without waiting for lab time",
+    description: "Render training video from a digital twin in hours instead of waiting weeks for lab time",
     source: "Operational reality",
     icon: <Zap className="h-6 w-6" />,
   },
   {
     stat: "Safer",
     label: "Exploration",
-    description: "Explore failure modes without risking hardware or operators",
+    description: "Explore failure modes in rendered video without risking hardware, operators, or facilities",
     source: "Operational reality",
     icon: <Shield className="h-6 w-6" />,
   },
   {
     stat: "Broader",
     label: "Coverage",
-    description: "Generate controlled variations that are impractical to stage in the real world",
+    description: "One digital twin generates hundreds of viewpoints, lighting, and clutter variations from the same scan",
     source: "Operational reality",
     icon: <Layers className="h-6 w-6" />,
   },
   {
     stat: "More",
-    label: "Repeatable",
-    description: "Deterministic seeds enable reproducible benchmarks and comparisons",
+    label: "Consistent",
+    description: "The same twin produces identical training runs, enabling reproducible benchmarks and fair comparisons",
     source: "Operational reality",
     icon: <BarChart3 className="h-6 w-6" />,
   },
@@ -86,25 +87,25 @@ const researchStats = [
 const complementarySteps = [
   {
     step: "01",
-    title: "Simulation Provides Scale",
+    title: "Digital twins provide scale",
     description:
-      "Generate thousands to millions of training episodes cheaply. Cover edge cases, lighting variations, object placements, and clutter that would take months to stage in the real world.",
+      "Scan a facility once, then render hours of training video from novel viewpoints and lighting conditions. World models like DreamDojo and Cosmos consume this video directly, so one scan turns into thousands of diverse training episodes.",
     icon: <Database className="h-6 w-6" />,
     color: "emerald",
   },
   {
     step: "02",
-    title: "Real Data Anchors Reality",
+    title: "Real data anchors reality",
     description:
-      "A small set of real-world demonstrations captures the true sensor noise, contact physics, and controller nuances that simulation approximates but can't perfectly replicate.",
+      "A small set of real-world demonstrations captures the true sensor noise, contact physics, and controller nuances that even the best digital twin approximates but can't perfectly replicate.",
     icon: <Target className="h-6 w-6" />,
     color: "indigo",
   },
   {
     step: "03",
-    title: "Co-Training Maximizes Both",
+    title: "Fine-tuning bridges the gap",
     description:
-      "Train on a mixture of sim and real data in each batch. Many teams use mostly simulation and a small amount of real data for anchoring; the right mix depends on your setup.",
+      "Your world model trains broadly on diverse video, then fine-tunes on rendered video from the exact deployment site. This site-specific adaptation means the policy already understands your facility before it touches a real robot.",
     icon: <RefreshCw className="h-6 w-6" />,
     color: "amber",
   },
@@ -114,31 +115,31 @@ const complementarySteps = [
 const valueProps = [
   {
     icon: <Clock className="h-8 w-8" />,
-    title: "Speed Up Iteration",
+    title: "Faster iteration",
     description:
-      "Test model changes in hours, not weeks. Catch regressions before expensive real-world validation. Run thousands of trials while you sleep.",
+      "Render new training video from a digital twin in hours, not weeks. Catch regressions before expensive real-world validation.",
     stat: "Faster iteration cycles",
   },
   {
     icon: <Shield className="h-8 w-8" />,
-    title: "Train Safely",
+    title: "Safer exploration",
     description:
-      "Let robots fail catastrophically in simulation. Explore dangerous edge cases without risking hardware, operators, or facilities.",
+      "Let robots fail in rendered video instead of on real hardware. Explore edge cases without risking equipment or people.",
     stat: "Lower hardware risk",
   },
   {
     icon: <Scale className="h-8 w-8" />,
-    title: "Cover the Long Tail",
+    title: "Long-tail coverage",
     description:
-      "Your real dataset probably doesn't include the rare scenarios that cause production failures. Simulation can generate the weird cases your robots will eventually encounter.",
+      "Your real dataset probably doesn't include the rare scenarios that cause production failures. A digital twin generates the unusual viewpoints, lighting, and clutter your robots will eventually encounter.",
     stat: "Broader scenario coverage",
   },
   {
     icon: <BarChart3 className="h-8 w-8" />,
-    title: "Benchmark Consistently",
+    title: "Reproducible benchmarks",
     description:
-      "Repeatable evaluation environments let you compare model versions fairly. Deterministic seeds mean reproducible science and engineering.",
-    stat: "More repeatable evals",
+      "The same digital twin produces identical rendered environments, so you can compare model versions fairly. Deterministic rendering means reproducible results.",
+    stat: "More consistent evals",
   },
 ];
 
@@ -147,22 +148,22 @@ const objections = [
   {
     objection: "We only trust real-world data",
     response:
-      "That's smart for final validation. But simulation accelerates your path there. Teams that mix sim + real reach deployment-ready policies faster than real-only approaches, with better generalization to unseen scenarios.",
+      "That's the right instinct for final validation. But a digital twin of your actual facility generates training video that looks like your site, not a generic sim. Teams that combine twin-rendered video with a small set of real demos tend to reach deployment faster.",
   },
   {
     objection: "Sim-to-real transfer doesn't work",
     response:
-      "Transfer fails when simulation quality is low or datasets aren't certified. With physics gates, good randomization, and careful evaluation, simulation can be a powerful complement. Blueprint focuses on certification outputs so you can validate transfer on your hardware with fewer surprises.",
+      "The gap shrinks when your training video comes from a digital twin of the actual deployment site. The model learns your facility's geometry, lighting, and layout before touching a real robot. DreamDojo showed 0.995 Pearson correlation between twin-rendered and real-world results.",
   },
   {
     objection: "We already have enough real data",
     response:
-      "Your real data is invaluable, but is it diverse enough? Simulation lets you stress-test your policy against variations you haven't collected yet: different lighting, clutter, object positions, and failure modes. It's insurance against the scenarios you haven't seen.",
+      "Your real data is valuable, but is it diverse enough? A digital twin lets you test your policy against many variations of the same site: different lighting, clutter, viewpoints. Think of it as coverage for the scenarios you haven't collected yet.",
   },
   {
     objection: "Simulation is too expensive to set up",
     response:
-      "Building simulation infrastructure from scratch is expensive. That's exactly what Blueprint solves: we deliver certified scenes and quality-scored datasets with the QA artifacts you need, without the setup and maintenance burden.",
+      "Building sim infrastructure from scratch is expensive, agreed. We handle the scanning, twin creation, and fine-tuning. You get site-specific training video and adapted weights without standing up the pipeline yourself.",
   },
 ];
 
@@ -171,7 +172,7 @@ export default function WhySimulation() {
     <>
       <SEO
         title="Why Simulation Data? | Blueprint"
-        description="Simulation data complements real-world capture to accelerate robotics AI training. Learn how teams combine sim + real, and why certification matters for trustworthy results."
+        description="Digital twins and simulation data complement real-world capture to accelerate robotics AI training. Learn how teams use Gaussian Splat twins, rendered video, and site-specific fine-tuning to reach production faster."
         canonical="/why-simulation"
       />
 
@@ -186,12 +187,12 @@ export default function WhySimulation() {
               </div>
               <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl lg:text-6xl">
                 Simulation + Real Data =
-                <span className="bg-gradient-to-r from-emerald-600 to-emerald-500 bg-clip-text text-transparent"> Better Robots</span>
+                <span className="bg-gradient-to-r from-emerald-600 to-emerald-500 bg-clip-text text-transparent"> better robots</span>
               </h1>
               <p className="mt-6 text-lg leading-relaxed text-zinc-600 sm:text-xl">
-                The world's best robotics teams don't choose between simulation and real-world data.
-                They use simulation to <strong>complement</strong> their real-world capture, and their
-                models perform better because of it.
+                Digital twins (Gaussian Splats) of real facilities let you generate hours of training
+                video without deploying real robots. Combine that with a small amount of real-world
+                data and you have a faster path to production.
               </p>
               <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
                 <a
@@ -230,8 +231,8 @@ export default function WhySimulation() {
               {/* Connection line */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full bg-gradient-to-br from-indigo-100 to-emerald-100 flex items-center justify-center z-10 border-4 border-white shadow-lg">
                 <div className="text-center">
-                  <p className="text-lg font-bold text-zinc-900">Better</p>
-                  <p className="text-xs text-zinc-500">Together</p>
+                  <p className="text-lg font-bold text-zinc-900">+</p>
+                  <p className="text-xs text-zinc-500">Combined</p>
                 </div>
               </div>
 
@@ -288,7 +289,7 @@ export default function WhySimulation() {
                     </div>
                     <div>
                       <h3 className="text-xl font-bold text-zinc-900">Simulation Data</h3>
-                      <p className="text-sm text-emerald-600 font-medium">Scales your training infinitely</p>
+                      <p className="text-sm text-emerald-600 font-medium">Adds scale without hardware</p>
                     </div>
                   </div>
 
@@ -330,7 +331,7 @@ export default function WhySimulation() {
             <div className="mt-12 max-w-3xl mx-auto">
               <div className="rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-700 p-8 text-white text-center">
                 <p className="text-lg font-medium">
-                  Simulation provides scale. Real data anchors reality. Certification is what keeps simulated data honest enough to train on.
+                  Digital twins provide scale. Real data anchors reality. Site-specific fine-tuning is what bridges the gap for production deployment.
                 </p>
               </div>
             </div>
@@ -373,7 +374,7 @@ export default function WhySimulation() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="max-w-2xl mb-16">
               <h2 className="text-3xl font-bold tracking-tight text-zinc-900">
-                How Teams Use Sim + Real Together
+                How teams use sim + real together
               </h2>
               <p className="mt-4 text-lg text-zinc-600">
                 The most successful robotics teams follow a simple pattern
@@ -423,15 +424,15 @@ export default function WhySimulation() {
                 <div className="mt-4 flex justify-between text-sm">
                   <div className="flex items-center gap-2">
                     <span className="h-3 w-3 rounded-full bg-emerald-500" />
-                    <span className="text-zinc-600">Simulation (scale + variation)</span>
+                    <span className="text-zinc-600">Twin-rendered video (scale + site specificity)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="h-3 w-3 rounded-full bg-indigo-500" />
-                    <span className="text-zinc-600">Real-world (anchoring + validation)</span>
+                    <span className="text-zinc-600">Real-world demos (anchoring + validation)</span>
                   </div>
                 </div>
                 <p className="mt-4 text-sm text-zinc-500 text-center">
-                  The mix varies by task and hardware. Co-training is common.
+                  Train broadly on diverse video, then fine-tune on your site. The mix varies by task.
                 </p>
               </div>
             </div>
@@ -443,7 +444,7 @@ export default function WhySimulation() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
               <h2 className="text-3xl font-bold tracking-tight text-zinc-900">
-                Why Add Simulation to Your Real-World Pipeline?
+                Why add simulation to your real-world pipeline?
               </h2>
               <p className="mt-4 max-w-2xl mx-auto text-lg text-zinc-600">
                 Even if you're committed to real-world data, simulation accelerates and de-risks your path to deployment
@@ -519,20 +520,20 @@ export default function WhySimulation() {
                     Why Blueprint
                   </div>
                   <h2 className="mt-6 text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
-                    Simulation data built to be trusted
+                    From scan to trained weights
                   </h2>
                   <p className="mt-4 text-lg text-zinc-600 leading-relaxed">
-                    Blueprint doesn&apos;t just generate environments. We ship certified scenes and
-                    quality-scored datasets with the artifacts teams need for repeatability: physics
-                    gates, episode QC, and provenance metadata.
+                    We handle the full pipeline: scan your facility, build a Gaussian Splat
+                    digital twin, render site-specific training video, and deliver adapted
+                    model weights you can deploy.
                   </p>
                   <ul className="mt-8 space-y-4">
                     {[
-                      "Validated colliders, articulation, and physics materials",
-                      "Physics certification gates (stability, non-penetration, bounds)",
-                      "Episode QC + normalization with quality scoring and filters",
-                      "Provenance metadata and versioned releases",
-                      "USD-first delivery for Isaac Sim plus dataset exports for training stacks",
+                      "Gaussian Splat digital twins of your actual facility",
+                      "Rendered training video from novel viewpoints and conditions",
+                      "DreamDojo, Cosmos, and other video-native architectures supported",
+                      "Site-specific LoRA adaptation fine-tuned to your deployment environment",
+                      "Scan-to-weights pipeline with provenance metadata at every stage",
                     ].map((item) => (
                       <li key={item} className="flex items-start gap-3 text-zinc-700">
                         <CheckCircle2 className="h-5 w-5 mt-0.5 text-emerald-500 shrink-0" />
@@ -544,20 +545,20 @@ export default function WhySimulation() {
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="rounded-xl bg-white p-6 shadow-md border border-emerald-100">
-                    <p className="text-lg font-bold text-zinc-900">Certified scenes</p>
-                    <p className="mt-1 text-sm text-zinc-600">Validated colliders and articulation for manipulation</p>
+                    <p className="text-lg font-bold text-zinc-900">Digital twins</p>
+                    <p className="mt-1 text-sm text-zinc-600">Gaussian Splats of your real facility</p>
                   </div>
                   <div className="rounded-xl bg-white p-6 shadow-md border border-emerald-100">
-                    <p className="text-lg font-bold text-zinc-900">Quality-scored data</p>
-                    <p className="mt-1 text-sm text-zinc-600">Episode QC, normalization, and filters</p>
+                    <p className="text-lg font-bold text-zinc-900">Rendered video</p>
+                    <p className="mt-1 text-sm text-zinc-600">Site-specific training video from novel viewpoints</p>
                   </div>
                   <div className="rounded-xl bg-white p-6 shadow-md border border-emerald-100">
-                    <p className="text-lg font-bold text-zinc-900">Reserved benchmarks</p>
-                    <p className="mt-1 text-sm text-zinc-600">Evaluation suites to compare policies fairly</p>
+                    <p className="text-lg font-bold text-zinc-900">LoRA adaptation</p>
+                    <p className="mt-1 text-sm text-zinc-600">Site-specific fine-tuning for your deployment environment</p>
                   </div>
                   <div className="rounded-xl bg-white p-6 shadow-md border border-emerald-100">
-                    <p className="text-lg font-bold text-zinc-900">Custom runs</p>
-                    <p className="mt-1 text-sm text-zinc-600">Dataset specs tailored to your robot and task</p>
+                    <p className="text-lg font-bold text-zinc-900">World model ready</p>
+                    <p className="mt-1 text-sm text-zinc-600">DreamDojo, Cosmos, and other video-native architectures</p>
                   </div>
                 </div>
               </div>
@@ -574,11 +575,11 @@ export default function WhySimulation() {
 
               <div className="relative z-10">
                 <h2 className="text-3xl font-bold text-white sm:text-4xl">
-                  Ready to complement your real-world data?
+                  Add simulation to your training pipeline.
                 </h2>
                 <p className="mx-auto mt-4 max-w-2xl text-lg text-zinc-400">
-                  Browse certified scenes and quality-scored datasets, or talk to our team about a
-                  custom run spec&apos;d to your robot and task.
+                  Get a digital twin of your facility and site-specific training video, or talk to
+                  our team about a scan-to-weights pipeline for your robot and task.
                 </p>
                 <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
                   <a

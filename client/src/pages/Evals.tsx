@@ -4,11 +4,11 @@ import { syntheticDatasets } from "@/data/content";
 import {
   ArrowRight,
   BarChart3,
-  Beaker,
   CheckCircle2,
   ChefHat,
   ClipboardList,
   Cpu,
+  Eye,
   Home,
   Package,
   Send,
@@ -16,6 +16,7 @@ import {
   Sparkles,
   Truck,
   Upload,
+  Video,
   Warehouse,
   Wrench,
   Zap,
@@ -98,20 +99,20 @@ const taskCategories = [
 const howItWorksSteps = [
   {
     step: "1",
-    title: "Send us your policy",
-    desc: "Upload your robot policy (any format: PyTorch, ONNX, or API endpoint).",
+    title: "Send us your model and target site",
+    desc: "Upload your robot policy (any format: PyTorch, ONNX, or API endpoint) and tell us where you plan to deploy.",
     icon: <Upload className="h-6 w-6" />,
   },
   {
     step: "2",
-    title: "We run evaluations",
-    desc: "Your policy runs through our reserved benchmark scenes with standardized tasks.",
-    icon: <Beaker className="h-6 w-6" />,
+    title: "We render and evaluate",
+    desc: "We render evaluation video from your target site's digital twin and run your policy through it to predict real-world outcomes.",
+    icon: <Video className="h-6 w-6" />,
   },
   {
     step: "3",
     title: "Get your results",
-    desc: "Receive detailed metrics: success rate, completion time, and failure analysis.",
+    desc: "Receive success predictions, confidence scores, failure analysis, and a comparison between adapted and baseline policies.",
     icon: <ClipboardList className="h-6 w-6" />,
   },
 ];
@@ -212,10 +213,15 @@ export default function Evals() {
               </h1>
 
               <p className="mx-auto max-w-2xl text-lg text-zinc-600">
-                Send us your policy. We'll run it through our{" "}
-                <strong>reserved benchmark scenes</strong>, which we don't sell
-                as data, and tell you how it performs on tasks like picking
-                objects, opening doors, and organizing spaces.
+                We evaluate your policy two ways.{" "}
+                <strong>World-model evaluation</strong> (available now) feeds
+                video from our digital twins to your model and predicts
+                outcomes in pixels -- no physics engine needed. This is how
+                DreamDojo showed 0.995 Pearson correlation with real-world
+                results.{" "}
+                <strong>Physics-based sim evaluation</strong> (coming soon)
+                uses SimReady USD scenes with articulated assets for tasks
+                that need contact physics.
               </p>
 
               <div className="flex flex-col gap-4 sm:flex-row sm:justify-center pt-4">
@@ -242,73 +248,79 @@ export default function Evals() {
               <div className="grid gap-6 sm:grid-cols-3">
                 <div className="text-center space-y-3">
                   <div className="mx-auto w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
-                    <Beaker className="h-6 w-6 text-emerald-600" />
+                    <Eye className="h-6 w-6 text-emerald-600" />
                   </div>
-                  <h3 className="font-semibold text-zinc-900">Reserved Scenes</h3>
+                  <h3 className="font-semibold text-zinc-900">Site-matched twins</h3>
                   <p className="text-sm text-zinc-600">
-                    Our benchmark environments aren't sold as training data, so
-                    there is no risk of overfitting to our test set.
+                    We evaluate against digital twins of your actual deployment
+                    facility, not generic environments. Your results reflect real
+                    site conditions.
                   </p>
                 </div>
                 <div className="text-center space-y-3">
                   <div className="mx-auto w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
-                    <ClipboardList className="h-6 w-6 text-emerald-600" />
+                    <Video className="h-6 w-6 text-emerald-600" />
                   </div>
-                  <h3 className="font-semibold text-zinc-900">Standardized Tasks</h3>
+                  <h3 className="font-semibold text-zinc-900">Two evaluation modes</h3>
                   <p className="text-sm text-zinc-600">
-                    Compare your policy against others using the same tasks,
-                    metrics, and success criteria.
+                    Video-prediction evaluation works now for most tasks.
+                    Physics-based sim evaluation is coming soon for
+                    contact-heavy tasks like grasping and manipulation.
                   </p>
                 </div>
                 <div className="text-center space-y-3">
                   <div className="mx-auto w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
                     <CheckCircle2 className="h-6 w-6 text-emerald-600" />
                   </div>
-                  <h3 className="font-semibold text-zinc-900">Actionable Results</h3>
+                  <h3 className="font-semibold text-zinc-900">Actionable results</h3>
                   <p className="text-sm text-zinc-600">
-                    Get detailed metrics and failure analysis to understand
-                    where your policy struggles.
+                    Get detailed metrics, failure analysis, and a direct
+                    comparison between your adapted and unadapted policies to
+                    see exactly what site-adaptation changes.
                   </p>
                 </div>
               </div>
             </section>
 
-            {/* --- Isaac Lab-Arena Integration --- */}
+            {/* --- Physics-Based Evaluation (Coming Soon) --- */}
             <section className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/30 to-white p-8">
               <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                 <div className="space-y-4">
                   <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white px-3 py-1 text-xs font-bold uppercase tracking-wider text-indigo-600">
                     <Cpu className="h-3 w-3" />
-                    Isaac Lab-Arena Integration
+                    Physics-Based Evaluation &mdash; Coming Soon
                   </div>
                   <h2 className="text-2xl font-bold text-zinc-900">
-                    GPU-accelerated policy evaluation
+                    Contact-physics simulation for grasping and manipulation
                   </h2>
                   <p className="max-w-lg text-zinc-600">
-                    Blueprint scenes export directly to NVIDIA Isaac Lab-Arena format
-                    for standardized affordances and 1000x throughput evaluation.
+                    For tasks that require contact physics -- grasping, pushing,
+                    and dexterous manipulation -- we're building traditional
+                    SimReady USD scenes with articulated assets. This approach is
+                    harder and slower than video-prediction, but it's important
+                    for evaluating physics-critical policies accurately.
                   </p>
                   <div className="flex flex-wrap gap-4 text-sm">
                     <div className="flex items-center gap-2">
                       <Zap className="h-4 w-4 text-indigo-500" />
-                      <span className="text-zinc-700">17 affordance types</span>
+                      <span className="text-zinc-700">SimReady USD scenes</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Zap className="h-4 w-4 text-indigo-500" />
-                      <span className="text-zinc-700">250+ task templates</span>
+                      <span className="text-zinc-700">Articulated assets</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Zap className="h-4 w-4 text-indigo-500" />
-                      <span className="text-zinc-700">LeRobot Hub compatible</span>
+                      <span className="text-zinc-700">Isaac Lab-Arena compatible</span>
                     </div>
                   </div>
                 </div>
                 <div className="flex-shrink-0">
                   <a
-                    href="/docs#isaac-lab-arena"
+                    href="/contact?request=physics-eval"
                     className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-white px-5 py-2.5 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-50"
                   >
-                    View Documentation
+                    Join the Waitlist
                     <ArrowRight className="h-4 w-4" />
                   </a>
                 </div>
@@ -455,10 +467,10 @@ export default function Evals() {
               <div className="text-center">
                 <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50/50 px-4 py-1 text-xs font-bold uppercase tracking-wider text-emerald-600">
                   <BarChart3 className="h-3 w-3" />
-                  Available Suites
+                  Available suites
                 </div>
                 <h2 className="mt-4 text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
-                  Benchmark Suites
+                  Benchmark suites
                 </h2>
                 <p className="mt-4 max-w-2xl mx-auto text-zinc-600">
                   Submit your policy for evaluation against any of these standardized benchmark suites.
@@ -530,15 +542,15 @@ export default function Evals() {
                 <div className="grid gap-8 sm:grid-cols-2">
                   <div>
                     <h3 className="font-semibold text-zinc-900 mb-4">
-                      Metrics Report
+                      Metrics report
                     </h3>
                     <ul className="space-y-3">
                       {[
-                        "Success rate across all tasks",
-                        "Average completion time",
-                        "Collision count and types",
-                        "Path efficiency scores",
-                        "Per-task breakdown",
+                        "Video-prediction accuracy",
+                        "Adapted vs. unadapted performance delta",
+                        "Site-specific confidence score",
+                        "Failure mode analysis",
+                        "Comparison to baseline policies",
                       ].map((item) => (
                         <li
                           key={item}
@@ -552,13 +564,13 @@ export default function Evals() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-zinc-900 mb-4">
-                      Failure Analysis
+                      Failure analysis
                     </h3>
                     <ul className="space-y-3">
                       {[
                         "Where your policy failed and why",
                         "Video recordings of failure cases",
-                        "Comparison to baseline policies",
+                        "Adapted vs. unadapted failure comparison",
                         "Recommendations for improvement",
                         "Raw data export (optional)",
                       ].map((item) => (
@@ -579,7 +591,7 @@ export default function Evals() {
             {/* --- CTA Section --- */}
             <section className="rounded-3xl bg-gradient-to-br from-emerald-600 to-emerald-800 p-8 sm:p-12 text-center shadow-xl">
               <h2 className="text-2xl font-bold text-white sm:text-3xl">
-                Ready to evaluate your policy?
+                Send us your policy. We'll test it.
               </h2>
               <p className="mt-4 max-w-xl mx-auto text-emerald-100">
                 Tell us about your robot and policy. We'll set up a custom

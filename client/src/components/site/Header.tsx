@@ -12,15 +12,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const navLinks = [
-  { href: "/marketplace/scenes", label: "Scenes" },
-  { href: "/marketplace/datasets", label: "Datasets" },
-  { href: "/evals", label: "Benchmarks" },
-  { href: "/how-it-works", label: "How We Certify" },
+  { href: "/how-it-works", label: "How It Works" },
   { href: "/solutions", label: "Solutions" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/evals", label: "Benchmarks" },
   { href: "/pilot-exchange", label: "Pilot Exchange" },
   { href: "/pilot-exchange-guide", label: "Exchange Guide" },
   { href: "/partners", label: "Partners" },
-  { href: "/careers", label: "Careers" },
+  { href: "/learn", label: "Learn" },
 ];
 
 export function Header() {
@@ -31,19 +30,6 @@ export function Header() {
   const isActive = useMemo(
     () =>
       (href: string) => {
-        if (href === "/marketplace/scenes") {
-          return (
-            location === "/marketplace" ||
-            location.startsWith("/marketplace/scenes") ||
-            (location.startsWith("/marketplace/") &&
-              !location.startsWith("/marketplace/datasets")) ||
-            location === "/environments" ||
-            location.startsWith("/environments/")
-          );
-        }
-        if (href === "/marketplace/datasets") {
-          return location.startsWith("/marketplace/datasets");
-        }
         if (href === "/pilot-exchange") {
           return location === "/pilot-exchange";
         }
@@ -95,7 +81,7 @@ export function Header() {
             href="/contact"
             className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
           >
-            Request a Dataset
+            Get a Twin
           </a>
           {!currentUser ? (
             <>
@@ -170,7 +156,7 @@ export function Header() {
               className="mt-2 rounded-full bg-slate-900 px-4 py-2 text-center text-white"
               onClick={() => setOpen(false)}
             >
-              Request a Dataset
+              Get a Twin
             </a>
             {!currentUser ? (
               <>
