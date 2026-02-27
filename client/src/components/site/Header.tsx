@@ -15,11 +15,7 @@ const navLinks = [
   { href: "/how-it-works", label: "How It Works" },
   { href: "/solutions", label: "Solutions" },
   { href: "/pricing", label: "Pricing" },
-  { href: "/evals", label: "Benchmarks" },
-  { href: "/pilot-exchange", label: "Pilot Exchange" },
-  { href: "/pilot-exchange-guide", label: "Exchange Guide" },
   { href: "/partners", label: "Partners" },
-  { href: "/learn", label: "Learn" },
 ];
 
 export function Header() {
@@ -30,9 +26,6 @@ export function Header() {
   const isActive = useMemo(
     () =>
       (href: string) => {
-        if (href === "/pilot-exchange") {
-          return location === "/pilot-exchange";
-        }
         return location === href || (href !== "/" && location.startsWith(href));
       },
     [location],
