@@ -1,6 +1,5 @@
 import { CTAButtons } from "@/components/site/CTAButtons";
 import { LogoWall } from "@/components/site/LogoWall";
-import SceneSmithExplainerMedia from "@/components/sections/SceneSmithExplainerMedia";
 import { SEO } from "@/components/SEO";
 import {
   ArrowRight,
@@ -302,8 +301,6 @@ export default function Home() {
             </div>
           </div>
         </section>
-
-        <SceneSmithExplainerMedia />
 
         {/* --- Why Blueprint --- */}
         <section className="border-y border-zinc-100 bg-zinc-50/50 py-16">
