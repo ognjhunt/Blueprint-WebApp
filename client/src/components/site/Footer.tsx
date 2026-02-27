@@ -2,6 +2,8 @@ const footerLinks = [
   { label: "How It Works", href: "/how-it-works" },
   { label: "Solutions", href: "/solutions" },
   { label: "Pricing", href: "/pricing" },
+  { label: "Pilot Exchange", href: "/pilot-exchange" },
+  { label: "Exchange Guide", href: "/pilot-exchange-guide" },
   { label: "Partners", href: "/partners" },
   { label: "Contact", href: "/contact" },
   { label: "Careers", href: "/careers" },
