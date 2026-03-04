@@ -90,10 +90,12 @@ interface EvalRunFormState {
 const POLICY_LIBRARY_STORAGE_KEY = "bp_pilot_exchange_policy_library_v3";
 
 type AccessQuote = {
-  evaluationRun: number;
-  fineTuneCycle: number;
-  dataLicense: number;
+  evaluationRun: { low: number; high: number };
+  fineTuneCycle: { low: number; high: number };
+  dataLicense: { low: number; high: number };
 };
+
+type AccessChoice = "evaluation" | "fine-tune" | "data-license";
 
 const deploymentGapHighlights = [
   {
@@ -271,11 +273,25 @@ function roundToStep(value: number, step: number): number {
   return Math.round(value / step) * step;
 }
 
+function generateQuotedRange(
+  globalMin: number,
+  globalMax: number,
+  minWidth: number,
+  maxWidth: number,
+  step: number
+) {
+  const width = roundToStep(randomInteger(minWidth, maxWidth), step);
+  const lowMax = globalMax - width;
+  const low = roundToStep(randomInteger(globalMin, lowMax), step);
+  const high = Math.min(globalMax, low + width);
+  return { low, high };
+}
+
 function generateAccessQuote(): AccessQuote {
   return {
-    evaluationRun: roundToStep(randomInteger(750, 2500), 50),
-    fineTuneCycle: roundToStep(randomInteger(8000, 35000), 500),
-    dataLicense: roundToStep(randomInteger(15000, 75000), 1000),
+    evaluationRun: generateQuotedRange(750, 2500, 350, 1100, 50),
+    fineTuneCycle: generateQuotedRange(8000, 35000, 3000, 12000, 500),
+    dataLicense: generateQuotedRange(15000, 75000, 9000, 28000, 1000),
   };
 }
 
@@ -300,6 +316,7 @@ export default function PilotExchange() {
   const [evalRunForm, setEvalRunForm] = useState<EvalRunFormState>(defaultEvalRunFormState);
   const [accessQuote, setAccessQuote] = useState<AccessQuote>(() => generateAccessQuote());
   const [accessTargetBriefId, setAccessTargetBriefId] = useState("");
+  const [selectedAccessChoice, setSelectedAccessChoice] = useState<AccessChoice>("evaluation");
 
   const [policyStatus, setPolicyStatus] = useState<SubmissionStatus>("idle");
   const [policyMessage, setPolicyMessage] = useState("");
@@ -380,8 +397,25 @@ export default function PilotExchange() {
   const openAccessDialog = useCallback((briefId?: string) => {
     setAccessQuote(generateAccessQuote());
     setAccessTargetBriefId(typeof briefId === "string" ? briefId : "");
+    setSelectedAccessChoice("evaluation");
     setIsAccessDialogOpen(true);
   }, []);
+
+  const continueWithAccessChoice = useCallback(() => {
+    if (selectedAccessChoice === "evaluation") {
+      const targetBriefId = accessTargetBriefId || undefined;
+      setIsAccessDialogOpen(false);
+      openEvalDialog(targetBriefId);
+      return;
+    }
+
+    if (typeof window === "undefined") return;
+    const interest =
+      selectedAccessChoice === "fine-tune"
+        ? "fine-tune-cycle"
+        : "data-license";
+    window.location.href = `/contact?interest=${interest}&source=deployment-marketplace`;
+  }, [accessTargetBriefId, openEvalDialog, selectedAccessChoice]);
 
   const emitFilterEvent = useCallback((type: string, value: string) => {
     analyticsEvents.pilotExchangeFilterApply(type, value || "all");
@@ -854,34 +888,106 @@ export default function PilotExchange() {
           </div>
 
           <div className="p-6 sm:p-8 bg-zinc-50">
+            <p className="mb-4 text-sm text-zinc-600">
+              Choose what you want to do now, then continue.
+            </p>
             <div className="space-y-3">
-              <div className="rounded-xl border border-zinc-200 bg-white p-4">
-                <p className="text-sm font-semibold text-zinc-900">Evaluation Runs</p>
-                <p className="mt-1 text-2xl font-bold text-zinc-900">{formatUsd(accessQuote.evaluationRun)} <span className="text-sm font-normal text-zinc-500">per run</span></p>
-                <p className="text-xs text-zinc-500 mt-1">Realistic band: $750-$2,500 per run</p>
-              </div>
-              <div className="rounded-xl border border-zinc-200 bg-white p-4">
-                <p className="text-sm font-semibold text-zinc-900">Fine-Tune Cycles</p>
-                <p className="mt-1 text-2xl font-bold text-zinc-900">{formatUsd(accessQuote.fineTuneCycle)} <span className="text-sm font-normal text-zinc-500">per cycle</span></p>
-                <p className="text-xs text-zinc-500 mt-1">Realistic band: $8,000-$35,000 per cycle</p>
-              </div>
-              <div className="rounded-xl border border-zinc-200 bg-white p-4">
-                <p className="text-sm font-semibold text-zinc-900">Data License (Non-Exclusive)</p>
-                <p className="mt-1 text-2xl font-bold text-zinc-900">{formatUsd(accessQuote.dataLicense)} <span className="text-sm font-normal text-zinc-500">per site/year</span></p>
-                <p className="text-xs text-zinc-500 mt-1">Realistic band: $15,000-$75,000 per site/year</p>
-              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedAccessChoice("evaluation")}
+                className={`w-full rounded-xl border bg-white p-4 text-left transition ${
+                  selectedAccessChoice === "evaluation"
+                    ? "border-zinc-900 ring-2 ring-zinc-900/10"
+                    : "border-zinc-200 hover:border-zinc-300"
+                }`}
+                aria-pressed={selectedAccessChoice === "evaluation"}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-900">Evaluation Runs</p>
+                    <p className="mt-1 text-2xl font-bold text-zinc-900">
+                      {formatUsd(accessQuote.evaluationRun.low)} - {formatUsd(accessQuote.evaluationRun.high)}{" "}
+                      <span className="text-sm font-normal text-zinc-500">per run</span>
+                    </p>
+                    <p className="mt-2 text-xs text-zinc-600">
+                      Best for teams that need a readiness scorecard before pilot rollout.
+                    </p>
+                  </div>
+                  {selectedAccessChoice === "evaluation" ? (
+                    <span className="rounded-full bg-zinc-900 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+                      Selected
+                    </span>
+                  ) : null}
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedAccessChoice("fine-tune")}
+                className={`w-full rounded-xl border bg-white p-4 text-left transition ${
+                  selectedAccessChoice === "fine-tune"
+                    ? "border-zinc-900 ring-2 ring-zinc-900/10"
+                    : "border-zinc-200 hover:border-zinc-300"
+                }`}
+                aria-pressed={selectedAccessChoice === "fine-tune"}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-900">Fine-Tune Cycles</p>
+                    <p className="mt-1 text-2xl font-bold text-zinc-900">
+                      {formatUsd(accessQuote.fineTuneCycle.low)} - {formatUsd(accessQuote.fineTuneCycle.high)}{" "}
+                      <span className="text-sm font-normal text-zinc-500">per cycle</span>
+                    </p>
+                    <p className="mt-2 text-xs text-zinc-600">
+                      Best for teams that want Blueprint to deliver site-adapted weights.
+                    </p>
+                  </div>
+                  {selectedAccessChoice === "fine-tune" ? (
+                    <span className="rounded-full bg-zinc-900 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+                      Selected
+                    </span>
+                  ) : null}
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedAccessChoice("data-license")}
+                className={`w-full rounded-xl border bg-white p-4 text-left transition ${
+                  selectedAccessChoice === "data-license"
+                    ? "border-zinc-900 ring-2 ring-zinc-900/10"
+                    : "border-zinc-200 hover:border-zinc-300"
+                }`}
+                aria-pressed={selectedAccessChoice === "data-license"}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-900">Data License (Non-Exclusive)</p>
+                    <p className="mt-1 text-2xl font-bold text-zinc-900">
+                      {formatUsd(accessQuote.dataLicense.low)} - {formatUsd(accessQuote.dataLicense.high)}{" "}
+                      <span className="text-sm font-normal text-zinc-500">per site/year</span>
+                    </p>
+                    <p className="mt-2 text-xs text-zinc-600">
+                      Best for teams that train in-house and need licensed site data.
+                    </p>
+                  </div>
+                  {selectedAccessChoice === "data-license" ? (
+                    <span className="rounded-full bg-zinc-900 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+                      Selected
+                    </span>
+                  ) : null}
+                </div>
+              </button>
             </div>
 
             <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Button
-                onClick={() => {
-                  const targetBriefId = accessTargetBriefId || undefined;
-                  setIsAccessDialogOpen(false);
-                  openEvalDialog(targetBriefId);
-                }}
+                onClick={continueWithAccessChoice}
                 className="bg-zinc-900 text-white hover:bg-zinc-800"
               >
-                Run Evaluation
+                {selectedAccessChoice === "evaluation" && "Continue to Evaluation"}
+                {selectedAccessChoice === "fine-tune" && "Continue to Fine-Tune"}
+                {selectedAccessChoice === "data-license" && "Continue to Data License"}
               </Button>
               <a
                 href="/contact?interest=deployment-marketplace-pricing"
