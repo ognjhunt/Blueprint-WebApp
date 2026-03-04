@@ -37,9 +37,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  ArrowRight,
   CheckCircle2,
-  ChevronRight,
   CircleDashed,
   Eye,
   EyeOff,
@@ -47,14 +45,12 @@ import {
   Lock,
   Search,
   ShieldCheck,
-  Unlock,
   XCircle,
 } from "lucide-react";
 
 type FilterValue<T extends string> = "all" | T;
 type SubmissionStatus = "idle" | "loading" | "success" | "error";
 type ExchangeTab = "briefs" | "policies";
-type AccessPlan = "evaluation" | "subscription" | "training";
 
 interface BaseLeadFormState {
   firstName: string;
@@ -92,9 +88,12 @@ interface EvalRunFormState {
 }
 
 const POLICY_LIBRARY_STORAGE_KEY = "bp_pilot_exchange_policy_library_v3";
-const EVAL_ACCESS_STORAGE_KEY = "bp_exchange_eval_access_v1";
-const SUBSCRIPTION_ACCESS_STORAGE_KEY = "bp_exchange_subscription_access_v1";
-const TRAINING_ACCESS_STORAGE_KEY = "bp_exchange_training_access_v1";
+
+type AccessQuote = {
+  evaluationRun: number;
+  fineTuneCycle: number;
+  dataLicense: number;
+};
 
 const deploymentGapHighlights = [
   {
@@ -264,9 +263,24 @@ function StatusIcon({ status }: { status: string }) {
   return <XCircle className="h-4 w-4 text-zinc-400" />;
 }
 
-function readAccessFlag(storageKey: string): boolean {
-  if (typeof window === "undefined") return false;
-  return window.localStorage.getItem(storageKey) === "true";
+function randomInteger(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function roundToStep(value: number, step: number): number {
+  return Math.round(value / step) * step;
+}
+
+function generateAccessQuote(): AccessQuote {
+  return {
+    evaluationRun: roundToStep(randomInteger(750, 2500), 50),
+    fineTuneCycle: roundToStep(randomInteger(8000, 35000), 500),
+    dataLicense: roundToStep(randomInteger(15000, 75000), 1000),
+  };
+}
+
+function formatUsd(value: number): string {
+  return `$${value.toLocaleString("en-US")}`;
 }
 
 export default function PilotExchange() {
@@ -284,60 +298,13 @@ export default function PilotExchange() {
 
   const [policyLibrary, setPolicyLibrary] = useState<SavedPolicyPackage[]>(() => readPolicyLibrary());
   const [evalRunForm, setEvalRunForm] = useState<EvalRunFormState>(defaultEvalRunFormState);
+  const [accessQuote, setAccessQuote] = useState<AccessQuote>(() => generateAccessQuote());
 
   const [policyStatus, setPolicyStatus] = useState<SubmissionStatus>("idle");
   const [policyMessage, setPolicyMessage] = useState("");
-  const [checkoutMessage, setCheckoutMessage] = useState("");
-  const [checkoutError, setCheckoutError] = useState("");
-  const [checkoutLoadingPlan, setCheckoutLoadingPlan] = useState<AccessPlan | null>(null);
-
-  const [evaluationAccessUnlocked, setEvaluationAccessUnlocked] = useState<boolean>(() => readAccessFlag(EVAL_ACCESS_STORAGE_KEY));
-  const [subscriptionAccessUnlocked, setSubscriptionAccessUnlocked] = useState<boolean>(() => readAccessFlag(SUBSCRIPTION_ACCESS_STORAGE_KEY));
-  const [trainingAccessUnlocked, setTrainingAccessUnlocked] = useState<boolean>(() => readAccessFlag(TRAINING_ACCESS_STORAGE_KEY));
 
   useEffect(() => {
     analyticsEvents.pilotExchangeView();
-    if (typeof window === "undefined") return;
-
-    const params = new URLSearchParams(window.location.search);
-    const checkout = params.get("checkout");
-    const access = params.get("access");
-
-    if (checkout === "success" && access === "evaluation") {
-      window.localStorage.setItem(EVAL_ACCESS_STORAGE_KEY, "true");
-      setEvaluationAccessUnlocked(true);
-      setCheckoutMessage("Evaluation access unlocked. You can now submit policies.");
-    }
-
-    if (checkout === "success" && access === "subscription") {
-      window.localStorage.setItem(EVAL_ACCESS_STORAGE_KEY, "true");
-      window.localStorage.setItem(SUBSCRIPTION_ACCESS_STORAGE_KEY, "true");
-      setEvaluationAccessUnlocked(true);
-      setSubscriptionAccessUnlocked(true);
-      setCheckoutMessage("Team subscription active. Evaluation access is included.");
-    }
-
-    if (checkout === "success" && access === "training") {
-      window.localStorage.setItem(EVAL_ACCESS_STORAGE_KEY, "true");
-      window.localStorage.setItem(SUBSCRIPTION_ACCESS_STORAGE_KEY, "true");
-      window.localStorage.setItem(TRAINING_ACCESS_STORAGE_KEY, "true");
-      setEvaluationAccessUnlocked(true);
-      setSubscriptionAccessUnlocked(true);
-      setTrainingAccessUnlocked(true);
-      setCheckoutMessage("Training subscription active. Evaluation access is included.");
-    }
-
-    if (checkout === "cancel") {
-      setCheckoutError("Checkout was canceled. Please complete the purchase to proceed.");
-    }
-
-    if (checkout) {
-      params.delete("checkout");
-      params.delete("access");
-      const nextQuery = params.toString();
-      const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`;
-      window.history.replaceState({}, "", nextUrl);
-    }
   }, []);
 
   useEffect(() => {
@@ -386,11 +353,6 @@ export default function PilotExchange() {
 
   const openEvalDialog = useCallback(
     (briefId?: string) => {
-      if (!evaluationAccessUnlocked) {
-        setIsAccessDialogOpen(true);
-        setPolicyMessage("Purchase required before evaluation submissions.");
-        return;
-      }
       analyticsEvents.pilotExchangeOpenPolicyForm();
       setPolicyStatus("idle");
       setPolicyMessage("");
@@ -411,8 +373,13 @@ export default function PilotExchange() {
       });
       setIsPolicyDialogOpen(true);
     },
-    [evaluationAccessUnlocked, policyLibrary]
+    [policyLibrary]
   );
+
+  const openAccessDialog = useCallback(() => {
+    setAccessQuote(generateAccessQuote());
+    setIsAccessDialogOpen(true);
+  }, []);
 
   const emitFilterEvent = useCallback((type: string, value: string) => {
     analyticsEvents.pilotExchangeFilterApply(type, value || "all");
@@ -471,51 +438,8 @@ export default function PilotExchange() {
     []
   );
 
-  const startCheckout = async (plan: AccessPlan) => {
-    try {
-      setCheckoutLoadingPlan(plan);
-      setCheckoutError("");
-      setCheckoutMessage("");
-
-      const pricing = plan === "evaluation"
-        ? { sku: "exchange-pro-eval", title: "Deployment Marketplace Pro Site Evaluation", price: 4900, successPath: "/deployment-marketplace?checkout=success&access=evaluation" }
-        : plan === "subscription"
-        ? { sku: "exchange-team-subscription", title: "Robotics Team Subscription", price: 1200, successPath: "/deployment-marketplace?checkout=success&access=subscription" }
-        : { sku: "exchange-training-subscription", title: "Training Subscription", price: 2400, successPath: "/deployment-marketplace?checkout=success&access=training" };
-
-      const response = await fetch("/api/create-checkout-session", {
-        method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-        body: JSON.stringify({
-          sessionType: "marketplace",
-          successPath: pricing.successPath,
-          cancelPath: "/deployment-marketplace?checkout=cancel",
-          marketplaceItem: { sku: pricing.sku, title: pricing.title, description: "Deployment Marketplace Access", price: pricing.price, quantity: 1, itemType: "dataset" },
-        }),
-      });
-
-      const body = await response.json();
-      if (!response.ok) throw new Error(body?.error || "Unable to start checkout.");
-      if (body?.sessionUrl) {
-        window.location.href = body.sessionUrl;
-        return;
-      }
-      throw new Error("Checkout session was created without a redirect URL.");
-    } catch (error) {
-      setCheckoutError(error instanceof Error ? error.message : "Unable to start checkout.");
-    } finally {
-      setCheckoutLoadingPlan(null);
-    }
-  };
-
   const handleEvalRunSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!evaluationAccessUnlocked) {
-      setPolicyStatus("error");
-      setPolicyMessage("Evaluation access is locked. Please purchase access first.");
-      setIsAccessDialogOpen(true);
-      return;
-    }
     if (!selectedEvalBrief) return setPolicyStatus("error"), setPolicyMessage("Select a digital twin.");
     if (!evalRunForm.interfaceContract.trim()) return setPolicyStatus("error"), setPolicyMessage("Document the interface contract.");
     if (!evalRunForm.fallbackStrategy.trim()) return setPolicyStatus("error"), setPolicyMessage("Define your fallback strategy.");
@@ -604,26 +528,17 @@ export default function PilotExchange() {
         {/* Access Banner */}
         <div className="border-b border-zinc-200 bg-zinc-50 py-3 px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-6xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
-            <div className="flex items-center gap-4">
-              <span className="font-semibold text-zinc-900 flex items-center gap-1.5">
-                {evaluationAccessUnlocked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-                Your Access Status
-              </span>
-              <div className="hidden sm:flex items-center gap-3 text-zinc-600">
-                <span className={evaluationAccessUnlocked ? "text-zinc-900 font-medium" : ""}>Evaluations</span>
-                <span>•</span>
-                <span className={subscriptionAccessUnlocked ? "text-zinc-900 font-medium" : ""}>Subscriptions</span>
-                <span>•</span>
-                <span className={trainingAccessUnlocked ? "text-zinc-900 font-medium" : ""}>Training</span>
-              </div>
+            <div className="flex items-center gap-2 text-zinc-700">
+              <Lock className="h-4 w-4" />
+              <span>Usage-based pricing for robot teams (site operators pay $0).</span>
             </div>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setIsAccessDialogOpen(true)}
+              onClick={openAccessDialog}
               className="bg-white border-zinc-300 text-zinc-800 hover:bg-zinc-100"
             >
-              Manage Billing & Access
+              View Pricing
             </Button>
           </div>
         </div>
@@ -642,15 +557,12 @@ export default function PilotExchange() {
                 onClick={() => openEvalDialog()}
                 className="bg-zinc-900 text-white hover:bg-zinc-800 px-6 py-5 text-sm font-medium"
               >
-                {evaluationAccessUnlocked ? "Run an Evaluation" : "Unlock Evaluation Access"}
+                Run an Evaluation
               </Button>
               <a href="/deployment-marketplace-guide" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 underline underline-offset-4 decoration-zinc-300">
                 Read the beginner guide
               </a>
             </div>
-
-            {checkoutMessage && <p className="mt-6 text-sm text-zinc-900 bg-zinc-100 border border-zinc-200 py-3 px-4 rounded-md">{checkoutMessage}</p>}
-            {checkoutError && <p className="mt-6 text-sm text-zinc-900 bg-zinc-100 border border-zinc-200 py-3 px-4 rounded-md">{checkoutError}</p>}
           </section>
 
           {/* Simple How-it-Works */}
@@ -790,6 +702,14 @@ export default function PilotExchange() {
                         <div className="p-6 sm:p-8 grid md:grid-cols-[1fr_300px] gap-8">
                           {/* Left Details */}
                           <div>
+                            <div className="mb-5 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">
+                              <img
+                                src={brief.thumbnailUrl}
+                                alt={brief.thumbnailAlt}
+                                loading="lazy"
+                                className="h-40 w-full object-cover"
+                              />
+                            </div>
                             <div className="flex items-center gap-3 mb-3">
                               <h3 className="text-xl font-bold text-zinc-900">{brief.operatorAlias}</h3>
                               {brief.privacyMode === "Anonymized" && (
@@ -874,6 +794,14 @@ export default function PilotExchange() {
                   <div className="grid md:grid-cols-2 gap-4">
                     {filteredPolicySubmissions.map((sub) => (
                       <div key={sub.id} className="border border-zinc-200 rounded-xl p-6 bg-white flex flex-col justify-between">
+                        <div className="mb-4 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">
+                          <img
+                            src={sub.thumbnailUrl}
+                            alt={sub.thumbnailAlt}
+                            loading="lazy"
+                            className="h-36 w-full object-cover"
+                          />
+                        </div>
                         <div>
                           <div className="flex justify-between items-start mb-2">
                             <h3 className="font-bold text-zinc-900">{sub.teamAlias}</h3>
@@ -907,60 +835,58 @@ export default function PilotExchange() {
       </div>
 
       {/* Access/Pricing Modal */}
-      <Dialog open={isAccessDialogOpen} onOpenChange={setIsAccessDialogOpen}>
+      <Dialog
+        open={isAccessDialogOpen}
+        onOpenChange={(open) => {
+          if (open) setAccessQuote(generateAccessQuote());
+          setIsAccessDialogOpen(open);
+        }}
+      >
         <DialogContent className="sm:max-w-3xl p-0 overflow-hidden bg-white">
           <div className="p-6 sm:p-8 bg-zinc-900 text-white">
-            <DialogTitle className="text-2xl font-bold">Deployment Marketplace Access</DialogTitle>
+            <DialogTitle className="text-2xl font-bold text-white">Deployment Marketplace Access</DialogTitle>
             <DialogDescription className="text-zinc-300 mt-2">
-              Choose an access plan to submit evaluation runs, receive standardized scorecards, and unlock training capabilities.
+              Site operators pay $0. Robot teams pay only for usage.
             </DialogDescription>
           </div>
-          
-          <div className="p-6 sm:p-8 grid md:grid-cols-3 gap-6 bg-zinc-50">
-            {/* Card 1 */}
-            <div className="bg-white border border-zinc-200 rounded-xl p-6 flex flex-col">
-              <h4 className="font-bold text-zinc-900">Pro Site Evaluation</h4>
-              <p className="text-2xl font-semibold mt-2 mb-4">$4,900 <span className="text-sm text-zinc-500 font-normal">/ cycle</span></p>
-              <ul className="text-sm text-zinc-600 space-y-3 mb-6 flex-grow">
-                <li className="flex gap-2 items-start"><CheckCircle2 className="w-4 h-4 text-zinc-900 mt-0.5 shrink-0" /> One evaluation submission to a specific site twin</li>
-                <li className="flex gap-2 items-start"><CheckCircle2 className="w-4 h-4 text-zinc-900 mt-0.5 shrink-0" /> Standardized threshold scorecard</li>
-                <li className="flex gap-2 items-start"><CheckCircle2 className="w-4 h-4 text-zinc-900 mt-0.5 shrink-0" /> Anonymous leaderboard entry</li>
-              </ul>
-              <Button disabled={checkoutLoadingPlan !== null} onClick={() => startCheckout("evaluation")} className="w-full bg-white border border-zinc-300 text-zinc-900 hover:bg-zinc-50">
-                {checkoutLoadingPlan === "evaluation" ? "Processing..." : "Purchase"}
-              </Button>
+
+          <div className="p-6 sm:p-8 bg-zinc-50">
+            <div className="space-y-3">
+              <div className="rounded-xl border border-zinc-200 bg-white p-4">
+                <p className="text-sm font-semibold text-zinc-900">Evaluation Runs</p>
+                <p className="mt-1 text-2xl font-bold text-zinc-900">{formatUsd(accessQuote.evaluationRun)} <span className="text-sm font-normal text-zinc-500">per run</span></p>
+                <p className="text-xs text-zinc-500 mt-1">Realistic band: $750-$2,500 per run</p>
+              </div>
+              <div className="rounded-xl border border-zinc-200 bg-white p-4">
+                <p className="text-sm font-semibold text-zinc-900">Fine-Tune Cycles</p>
+                <p className="mt-1 text-2xl font-bold text-zinc-900">{formatUsd(accessQuote.fineTuneCycle)} <span className="text-sm font-normal text-zinc-500">per cycle</span></p>
+                <p className="text-xs text-zinc-500 mt-1">Realistic band: $8,000-$35,000 per cycle</p>
+              </div>
+              <div className="rounded-xl border border-zinc-200 bg-white p-4">
+                <p className="text-sm font-semibold text-zinc-900">Data License (Non-Exclusive)</p>
+                <p className="mt-1 text-2xl font-bold text-zinc-900">{formatUsd(accessQuote.dataLicense)} <span className="text-sm font-normal text-zinc-500">per site/year</span></p>
+                <p className="text-xs text-zinc-500 mt-1">Realistic band: $15,000-$75,000 per site/year</p>
+              </div>
             </div>
 
-            {/* Card 2 */}
-            <div className="bg-white border-2 border-zinc-900 rounded-xl p-6 flex flex-col relative">
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-zinc-900 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full">Recommended</span>
-              <h4 className="font-bold text-zinc-900">Team Subscription</h4>
-              <p className="text-2xl font-semibold mt-2 mb-4">$1,200 <span className="text-sm text-zinc-500 font-normal">/ mo</span></p>
-              <ul className="text-sm text-zinc-600 space-y-3 mb-6 flex-grow">
-                <li className="flex gap-2 items-start"><CheckCircle2 className="w-4 h-4 text-zinc-900 mt-0.5 shrink-0" /> Unlimited ongoing evaluation cycles</li>
-                <li className="flex gap-2 items-start"><CheckCircle2 className="w-4 h-4 text-zinc-900 mt-0.5 shrink-0" /> Cross-site benchmarking</li>
-                <li className="flex gap-2 items-start"><CheckCircle2 className="w-4 h-4 text-zinc-900 mt-0.5 shrink-0" /> Private artifacts & reports</li>
-              </ul>
-              <Button disabled={checkoutLoadingPlan !== null} onClick={() => startCheckout("subscription")} className="w-full bg-zinc-900 text-white hover:bg-zinc-800">
-                {checkoutLoadingPlan === "subscription" ? "Processing..." : "Subscribe"}
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Button
+                onClick={() => {
+                  setIsAccessDialogOpen(false);
+                  openEvalDialog();
+                }}
+                className="bg-zinc-900 text-white hover:bg-zinc-800"
+              >
+                Run Evaluation
               </Button>
-            </div>
-
-            {/* Card 3 */}
-            <div className="bg-white border border-zinc-200 rounded-xl p-6 flex flex-col">
-              <h4 className="font-bold text-zinc-900">Training Unlock</h4>
-              <p className="text-2xl font-semibold mt-2 mb-4">$2,400 <span className="text-sm text-zinc-500 font-normal">/ mo</span></p>
-              <ul className="text-sm text-zinc-600 space-y-3 mb-6 flex-grow">
-                <li className="flex gap-2 items-start"><CheckCircle2 className="w-4 h-4 text-zinc-900 mt-0.5 shrink-0" /> Everything in Team plan</li>
-                <li className="flex gap-2 items-start"><CheckCircle2 className="w-4 h-4 text-zinc-900 mt-0.5 shrink-0" /> Training rights on site twins</li>
-                <li className="flex gap-2 items-start"><CheckCircle2 className="w-4 h-4 text-zinc-900 mt-0.5 shrink-0" /> Managed compute lanes</li>
-              </ul>
-              <Button disabled={checkoutLoadingPlan !== null} onClick={() => startCheckout("training")} className="w-full bg-white border border-zinc-300 text-zinc-900 hover:bg-zinc-50">
-                {checkoutLoadingPlan === "training" ? "Processing..." : "Subscribe"}
-              </Button>
+              <a
+                href="/contact?interest=deployment-marketplace-pricing"
+                className="inline-flex items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100"
+              >
+                Request Exact Quote
+              </a>
             </div>
           </div>
-          {checkoutError && <div className="p-4 bg-zinc-100 text-zinc-900 text-sm text-center border-t border-zinc-200">{checkoutError}</div>}
         </DialogContent>
       </Dialog>
 

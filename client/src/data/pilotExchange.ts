@@ -645,6 +645,8 @@ export const locationBriefs: LocationBrief[] = [
   {
     id: "brief-001",
     operatorAlias: "Southeast Grocery Network B",
+    thumbnailUrl: "/images/deployment-marketplace/brief-001-grocery.svg",
+    thumbnailAlt: "Stylized grocery floor map with highlighted evaluation zone.",
     locationType: "Grocery",
     region: "US Southeast",
     footprintSqFt: 45000,
@@ -672,6 +674,8 @@ export const locationBriefs: LocationBrief[] = [
   {
     id: "brief-002",
     operatorAlias: "Midwest Fulfillment Operator A",
+    thumbnailUrl: "/images/deployment-marketplace/brief-002-warehouse.svg",
+    thumbnailAlt: "Warehouse lane layout placeholder with route marker.",
     locationType: "Warehouse",
     region: "US Midwest",
     footprintSqFt: 120000,
@@ -698,6 +702,8 @@ export const locationBriefs: LocationBrief[] = [
   {
     id: "brief-003",
     operatorAlias: "Urban Retail Pilot Group C",
+    thumbnailUrl: "/images/deployment-marketplace/brief-003-retail.svg",
+    thumbnailAlt: "Retail backroom staging layout placeholder.",
     locationType: "Retail",
     region: "US Northeast",
     footprintSqFt: 30000,
@@ -715,6 +721,8 @@ export const locationBriefs: LocationBrief[] = [
   {
     id: "brief-004",
     operatorAlias: "Hospitality Chain D",
+    thumbnailUrl: "/images/deployment-marketplace/brief-004-hospitality.svg",
+    thumbnailAlt: "Hospitality corridor routing placeholder image.",
     locationType: "Hospitality",
     region: "US West Coast",
     footprintSqFt: 90000,
@@ -733,6 +741,8 @@ export const locationBriefs: LocationBrief[] = [
   {
     id: "brief-005",
     operatorAlias: "Advanced Manufacturing Site E",
+    thumbnailUrl: "/images/deployment-marketplace/brief-005-industrial.svg",
+    thumbnailAlt: "Industrial machine-cell flow placeholder image.",
     locationType: "Industrial",
     region: "US Southwest",
     footprintSqFt: 150000,
@@ -750,6 +760,8 @@ export const locationBriefs: LocationBrief[] = [
   {
     id: "brief-006",
     operatorAlias: "Regional Healthcare Operator F",
+    thumbnailUrl: "/images/deployment-marketplace/brief-006-healthcare.svg",
+    thumbnailAlt: "Healthcare supply path placeholder with highlighted zone.",
     locationType: "Healthcare",
     region: "US Mid-Atlantic",
     footprintSqFt: 70000,
@@ -771,6 +783,8 @@ export const policySubmissions: PolicySubmission[] = [
   {
     id: "policy-001",
     teamAlias: "Humanoid Systems Alpha",
+    thumbnailUrl: "/images/deployment-marketplace/policy-001-humanoid.svg",
+    thumbnailAlt: "Humanoid policy performance placeholder chart.",
     locationType: "Grocery",
     robotEmbodiment: "Humanoid",
     timeline: "90 days",
@@ -783,6 +797,8 @@ export const policySubmissions: PolicySubmission[] = [
   {
     id: "policy-002",
     teamAlias: "Lab Collective 17",
+    thumbnailUrl: "/images/deployment-marketplace/policy-002-amr-arm.svg",
+    thumbnailAlt: "AMR plus arm policy benchmark placeholder chart.",
     locationType: "Warehouse",
     robotEmbodiment: "AMR + Arm",
     timeline: "60 days",
@@ -795,6 +811,8 @@ export const policySubmissions: PolicySubmission[] = [
   {
     id: "policy-003",
     teamAlias: "Dexter Robotics Beta",
+    thumbnailUrl: "/images/deployment-marketplace/policy-003-franka-retail.svg",
+    thumbnailAlt: "Retail bin-pick policy placeholder chart.",
     locationType: "Retail",
     robotEmbodiment: "Franka Arm",
     timeline: "30 days",
@@ -807,6 +825,8 @@ export const policySubmissions: PolicySubmission[] = [
   {
     id: "policy-004",
     teamAlias: "ServiceOps Robotics",
+    thumbnailUrl: "/images/deployment-marketplace/policy-004-mobile-hospitality.svg",
+    thumbnailAlt: "Hospitality routing policy placeholder chart.",
     locationType: "Hospitality",
     robotEmbodiment: "Mobile Manipulator",
     timeline: "120+ days",
@@ -819,6 +839,8 @@ export const policySubmissions: PolicySubmission[] = [
   {
     id: "policy-005",
     teamAlias: "Factory Motion Labs",
+    thumbnailUrl: "/images/deployment-marketplace/policy-005-franka-industrial.svg",
+    thumbnailAlt: "Industrial manipulation policy placeholder chart.",
     locationType: "Industrial",
     robotEmbodiment: "Franka Arm",
     timeline: "60 days",
@@ -831,6 +853,8 @@ export const policySubmissions: PolicySubmission[] = [
   {
     id: "policy-006",
     teamAlias: "CareFlow Automation",
+    thumbnailUrl: "/images/deployment-marketplace/policy-006-mobile-healthcare.svg",
+    thumbnailAlt: "Healthcare robot policy placeholder chart.",
     locationType: "Healthcare",
     robotEmbodiment: "Mobile Manipulator",
     timeline: "90 days",

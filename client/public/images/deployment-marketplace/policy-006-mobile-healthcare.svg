@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" role="img" aria-label="CareFlow Automation">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0c4a6e"/>
+      <stop offset="100%" stop-color="#082f49"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.32"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.1"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="700" fill="url(#bg)"/>
+
+  <rect x="60" y="70" rx="28" ry="28" width="1080" height="400" fill="url(#glass)" stroke="#ffffff" stroke-opacity="0.25"/>
+
+  <g transform="translate(180 158)">
+    <circle cx="120" cy="88" r="62" fill="#ffffff" fill-opacity="0.9"/>
+    <rect x="44" y="162" width="152" height="120" rx="26" fill="#ffffff" fill-opacity="0.86"/>
+    <rect x="24" y="196" width="36" height="88" rx="14" fill="#ffffff" fill-opacity="0.76"/>
+    <rect x="180" y="196" width="36" height="88" rx="14" fill="#ffffff" fill-opacity="0.76"/>
+    <rect x="70" y="286" width="26" height="56" rx="8" fill="#ffffff" fill-opacity="0.76"/>
+    <rect x="144" y="286" width="26" height="56" rx="8" fill="#ffffff" fill-opacity="0.76"/>
+  </g>
+
+  <g transform="translate(610 154)">
+    <rect x="0" y="184" width="60" height="142" rx="8" fill="#ffffff" fill-opacity="0.88"/>
+    <rect x="86" y="132" width="60" height="194" rx="8" fill="#ffffff" fill-opacity="0.8"/>
+    <rect x="172" y="96" width="60" height="230" rx="8" fill="#ffffff" fill-opacity="0.72"/>
+    <rect x="258" y="64" width="60" height="262" rx="8" fill="#22d3ee" fill-opacity="0.95"/>
+    <path d="M10 88 L94 126 L180 90 L266 58" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="266" cy="58" r="12" fill="#ffffff"/>
+  </g>
+
+  <text x="74" y="556" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="44" font-weight="700">CareFlow Automation</text>
+  <text x="74" y="602" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="28" opacity="0.9">Hospital corridor robustness</text>
+  <text x="74" y="646" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="22" opacity="0.82">Policy Submission Placeholder</text>
+</svg>

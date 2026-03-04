@@ -84,6 +84,8 @@ export interface PilotExchangeFaqItem {
 export interface LocationBrief {
   id: string;
   operatorAlias: string;
+  thumbnailUrl: string;
+  thumbnailAlt: string;
   locationType: PilotLocationType;
   region: string;
   footprintSqFt: number;
@@ -103,6 +105,8 @@ export interface LocationBrief {
 export interface PolicySubmission {
   id: string;
   teamAlias: string;
+  thumbnailUrl: string;
+  thumbnailAlt: string;
   locationType: PilotLocationType;
   robotEmbodiment: RobotEmbodiment;
   timeline: DeploymentTimeline;
