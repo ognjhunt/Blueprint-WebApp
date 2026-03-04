@@ -36,6 +36,18 @@ const heroHeadlineVariants: HeroHeadlineVariant[] = [
     id: "ship-day-one",
     headline: "Ship robots that work on site, day one.",
   },
+  {
+    id: "on-site",
+    headline: "Boost on-site task success by up to +34 points.",
+  },
+  {
+    id: "deployment-success",
+    headline: "Improve deployment success by up to +34 points.",
+  },
+  {
+    id: "absolute-points",
+    headline: "Improve your real-world task success by up to +34 absolute points.",
+  },
 ];
 
 const offeringCards = [
