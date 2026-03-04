@@ -33,21 +33,8 @@ type HeroHeadlineVariant = {
 
 const heroHeadlineVariants: HeroHeadlineVariant[] = [
   {
-    id: "deploy-site",
-    headline:
-      "Improve real-world task success at your deployment site by up to +34 points.",
-  },
-  {
-    id: "on-site",
-    headline: "Boost on-site task success by up to +34 points.",
-  },
-  {
-    id: "deployment-success",
-    headline: "Improve deployment success by up to +34 points.",
-  },
-  {
-    id: "absolute-points",
-    headline: "Improve your real-world task success by up to +34 absolute points.",
+    id: "ship-day-one",
+    headline: "Ship robots that work on site, day one.",
   },
 ];
 
@@ -234,8 +221,8 @@ export default function Home() {
                 <div className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white/80 p-6 shadow-xl backdrop-blur-md">
                   <div className="overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50">
                     <img
-                      src="/images/hero-digital-twin-v2.svg"
-                      alt="Stylized digital twin map of a facility with scan and model-ready overlays"
+                      src="/images/hero-digital-twin-v3.svg"
+                      alt="3D point cloud reconstruction of a warehouse with robot navigation and capture-to-deploy pipeline"
                       className="h-48 w-full object-cover"
                       loading="lazy"
                     />
