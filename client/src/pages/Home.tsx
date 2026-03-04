@@ -152,28 +152,14 @@ export default function Home() {
                     Digital Twins for Robots
                   </div>
                   <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
-                    Fine-tune any world model to your exact facility.
+                    Improve your real-world task success by up to +34 absolute points.
                   </h1>
                   <p className="max-w-xl text-lg leading-relaxed text-zinc-600">
-                    We send people to record walkthroughs of real sites, reconstruct those
-                    captures into splat twins, and use that data to fine-tune and evaluate your
-                    model at the target location before your robot goes live.
+                    Fine-tune any world model to your exact facility. We send people to record
+                    walkthroughs of real sites, reconstruct those captures into splat twins, and
+                    use that data to fine-tune and evaluate your model at the target location
+                    before your robot goes live.
                   </p>
-                  <div className="max-w-xl rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3">
-                    <p className="text-sm font-semibold leading-relaxed text-emerald-900">
-                      Published real2sim2real results show up to{" "}
-                      <span className="text-base">+34 absolute points</span> in real-world
-                      success (23% to 57%) after environment-specific adaptation.
-                    </p>
-                    <a
-                      href="https://arxiv.org/abs/2510.11689"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-1 inline-block text-[11px] font-semibold uppercase tracking-wider text-emerald-800/80 hover:text-emerald-900"
-                    >
-                      Source: Phys2Real (arXiv 2025)
-                    </a>
-                  </div>
                 </div>
 
                 <CTAButtons
