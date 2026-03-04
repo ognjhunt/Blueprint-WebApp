@@ -1,7 +1,7 @@
 const footerLinks = [
   { label: "How It Works", href: "/how-it-works" },
-  { label: "Twin Marketplace", href: "/marketplace" },
-  { label: "Solutions", href: "/solutions" },
+  { label: "For Site Operators", href: "/for-site-operators" },
+  { label: "For Robot Teams", href: "/for-robot-integrators" },
   { label: "Pricing", href: "/pricing" },
   { label: "Pilot Exchange", href: "/pilot-exchange" },
   { label: "Contact", href: "/contact" },

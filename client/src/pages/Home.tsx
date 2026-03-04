@@ -1,6 +1,7 @@
 import { CTAButtons } from "@/components/site/CTAButtons";
 import { LogoWall } from "@/components/site/LogoWall";
 import { SEO } from "@/components/SEO";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   BarChart3,
@@ -24,6 +25,31 @@ import {
 } from "recharts";
 
 // --- Data ---
+
+type HeroHeadlineVariant = {
+  id: string;
+  headline: string;
+};
+
+const heroHeadlineVariants: HeroHeadlineVariant[] = [
+  {
+    id: "deploy-site",
+    headline:
+      "Improve real-world task success at your deployment site by up to +34 points.",
+  },
+  {
+    id: "on-site",
+    headline: "Boost on-site task success by up to +34 points.",
+  },
+  {
+    id: "deployment-success",
+    headline: "Improve deployment success by up to +34 points.",
+  },
+  {
+    id: "absolute-points",
+    headline: "Improve your real-world task success by up to +34 absolute points.",
+  },
+];
 
 const offeringCards = [
   {
@@ -129,6 +155,34 @@ function DotPattern() {
 }
 
 export default function Home() {
+  const [heroHeadlineVariant, setHeroHeadlineVariant] = useState<HeroHeadlineVariant>(
+    heroHeadlineVariants[0]
+  );
+
+  useEffect(() => {
+    // Randomize on page entry (client-side only). Keep stable for the tab session.
+    const storageKey = "bp_home_hero_headline_variant_v1";
+
+    try {
+      const storedId = sessionStorage.getItem(storageKey);
+      const stored = heroHeadlineVariants.find((variant) => variant.id === storedId);
+
+      if (stored) {
+        setHeroHeadlineVariant(stored);
+        return;
+      }
+
+      const picked =
+        heroHeadlineVariants[Math.floor(Math.random() * heroHeadlineVariants.length)];
+      sessionStorage.setItem(storageKey, picked.id);
+      setHeroHeadlineVariant(picked);
+    } catch {
+      const picked =
+        heroHeadlineVariants[Math.floor(Math.random() * heroHeadlineVariants.length)];
+      setHeroHeadlineVariant(picked);
+    }
+  }, []);
+
   return (
     <>
       <SEO
@@ -152,7 +206,7 @@ export default function Home() {
                     Digital Twins for Robots
                   </div>
                   <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
-                    Improve your real-world task success by up to +34 absolute points.
+                    {heroHeadlineVariant.headline}
                   </h1>
                   <p className="max-w-xl text-lg leading-relaxed text-zinc-600">
                     Fine-tune any world model to your exact facility. We send people to record

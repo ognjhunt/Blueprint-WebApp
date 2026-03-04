@@ -14,6 +14,8 @@ const BusinessSignUpFlow = lazy(() => import("../pages/BusinessSignUpFlow"));
 const OnboardingChecklist = lazy(() => import("../pages/OnboardingChecklist"));
 const EnvironmentDetail = lazy(() => import("../pages/EnvironmentDetail"));
 const Solutions = lazy(() => import("../pages/Solutions"));
+const ForSiteOperators = lazy(() => import("../pages/ForSiteOperators"));
+const ForRobotIntegrators = lazy(() => import("../pages/ForRobotIntegrators"));
 const Pricing = lazy(() => import("../pages/Pricing"));
 const Contact = lazy(() => import("../pages/Contact"));
 const HowItWorks = lazy(() => import("../pages/HowItWorks"));
@@ -50,6 +52,8 @@ export const appRoutes: AppRoute[] = [
   { path: "/marketplace/:slug", layout: "protected", component: EnvironmentDetail },
   { path: "/environments/:slug", layout: "protected", component: EnvironmentDetail },
   { path: "/solutions", layout: "public", component: Solutions },
+  { path: "/for-site-operators", layout: "public", component: ForSiteOperators },
+  { path: "/for-robot-integrators", layout: "public", component: ForRobotIntegrators },
   { path: "/pricing", layout: "public", component: Pricing },
   { path: "/contact", layout: "public", component: Contact },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
