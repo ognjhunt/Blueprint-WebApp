@@ -93,15 +93,15 @@ describe("PilotExchange", () => {
     render(<PilotExchange />);
 
     expect(
-      screen.getByRole("heading", { name: /Pilot Exchange Marketplace/i }),
+      screen.getByRole("heading", { name: /Deployment Marketplace/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Robotics Teams Only/i)).toBeInTheDocument();
     expect(screen.getByText(/Eval submission is barred until purchase/i)).toBeInTheDocument();
     expect(screen.getByText(/What the Paid Access Actually Includes/i)).toBeInTheDocument();
     expect(screen.getByText(/Training Subscription Features/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Pilot Exchange Guide/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Deployment Marketplace Guide/i })).toHaveAttribute(
       "href",
-      "/pilot-exchange-guide",
+      "/deployment-marketplace-guide",
     );
     expect(analyticsEventsMock.pilotExchangeView).toHaveBeenCalledTimes(1);
   });
@@ -128,7 +128,7 @@ describe("PilotExchange", () => {
 
     fireEvent.click(screen.getAllByRole("button", { name: /Unlock Evaluation Access/i })[0]);
 
-    expect(screen.getByRole("heading", { name: /Unlock Exchange Access/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Deployment Marketplace Access/i })).toBeInTheDocument();
     expect(screen.getByText(/Robotics Team Subscription/i)).toBeInTheDocument();
     expect(screen.getByText(/Pro Site Evaluation/i)).toBeInTheDocument();
     expect(screen.getByText(/Training Subscription/i)).toBeInTheDocument();

@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import type { ComponentType } from "react";
+import { MarketingRedirect } from "../pages/MarketingRedirect";
 
 export type AppRoute = {
   path?: string;
@@ -33,6 +34,14 @@ const Dashboard = lazy(() => import("../pages/Dashboard"));
 const OffWaitlistSignUpFlow = lazy(() => import("../pages/OffWaitlistSignUpFlow"));
 const NotFound = lazy(() => import("../pages/NotFound"));
 
+const LegacyPilotExchangeRedirect = () => (
+  <MarketingRedirect to="/deployment-marketplace" />
+);
+
+const LegacyPilotExchangeGuideRedirect = () => (
+  <MarketingRedirect to="/deployment-marketplace-guide" />
+);
+
 export const appRoutes: AppRoute[] = [
   { path: "/", layout: "public", component: Home },
   { path: "/marketplace", layout: "public", component: Environments },
@@ -57,8 +66,10 @@ export const appRoutes: AppRoute[] = [
   { path: "/pricing", layout: "public", component: Pricing },
   { path: "/contact", layout: "public", component: Contact },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
-  { path: "/pilot-exchange", layout: "public", component: PilotExchange },
-  { path: "/pilot-exchange-guide", layout: "public", component: PilotExchangeGuide },
+  { path: "/deployment-marketplace", layout: "public", component: PilotExchange },
+  { path: "/deployment-marketplace-guide", layout: "public", component: PilotExchangeGuide },
+  { path: "/pilot-exchange", layout: "public", component: LegacyPilotExchangeRedirect },
+  { path: "/pilot-exchange-guide", layout: "public", component: LegacyPilotExchangeGuideRedirect },
   { path: "/partners", layout: "public", component: PartnerProgram },
   { path: "/portal", layout: "public", component: Portal },
   { path: "/login", layout: "public", component: Login },

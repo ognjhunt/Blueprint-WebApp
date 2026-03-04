@@ -127,10 +127,10 @@ export default function Contact() {
                   </li>
                   <li>
                     <a
-                      href="/pilot-exchange"
+                      href="/deployment-marketplace"
                       className="group flex items-center gap-2 text-zinc-700 transition hover:text-indigo-600"
                     >
-                      <span>Pilot Exchange</span>
+                      <span>Deployment Marketplace</span>
                       <span className="transition-transform group-hover:translate-x-0.5">→</span>
                     </a>
                   </li>

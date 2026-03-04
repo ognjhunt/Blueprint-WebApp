@@ -131,10 +131,10 @@ export default function ForSiteOperators() {
               Plan a deployment-site brief
             </a>
             <a
-              href="/pilot-exchange"
+              href="/deployment-marketplace"
               className="inline-flex items-center rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
             >
-              Open Pilot Exchange
+              Open Deployment Marketplace
             </a>
           </section>
         </div>

@@ -116,7 +116,7 @@ export const analyticsEvents = {
   waitlistSignup: (locationType: string) =>
     trackEvent("waitlist_signup", { location_type: locationType }),
 
-  // Pilot Exchange events
+  // Deployment Marketplace events
   pilotExchangeView: () =>
     trackEvent("pilot_exchange_view"),
 

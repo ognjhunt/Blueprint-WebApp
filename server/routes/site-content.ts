@@ -18,16 +18,16 @@ router.get("/", (_req: Request, res: Response) => {
         description: "Discover curated 3D assets, datasets, and simulation-ready content.",
       },
       {
-        path: "/pilot-exchange",
-        title: "Pilot Exchange",
+        path: "/deployment-marketplace",
+        title: "Deployment Marketplace",
         description:
           "Robotics-team marketplace for paid policy evaluation, scorecards, and training on calibrated site twins.",
       },
       {
-        path: "/pilot-exchange-guide",
-        title: "Pilot Exchange Guide",
+        path: "/deployment-marketplace-guide",
+        title: "Deployment Marketplace Guide",
         description:
-          "Beginner-friendly explainer of Pilot Exchange stages, graphs, ownership options, and pre-deployment risk reduction workflow.",
+          "Beginner-friendly explainer of Deployment Marketplace stages, graphs, ownership options, and pre-deployment risk reduction workflow.",
       },
       {
         path: "/docs",

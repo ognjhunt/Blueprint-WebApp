@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Header } from "@/components/site/Header";
 
@@ -15,28 +15,26 @@ vi.mock("@/contexts/AuthContext", () => ({
 }));
 
 describe("Header", () => {
-  it("shows discoverable nav link for how-it-works route", () => {
+  it("does not show How It Works in the top navigation", () => {
     render(<Header />);
 
-    const link = screen.getByRole("link", { name: /How It Works/i });
-    expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute("href", "/how-it-works");
+    expect(screen.queryByRole("link", { name: /How It Works/i })).not.toBeInTheDocument();
   });
 
-  it("shows Twin Marketplace in the top navigation", () => {
+  it("shows Deployment Marketplace in the top navigation", () => {
     render(<Header />);
 
-    const link = screen.getByRole("link", { name: /Twin Marketplace/i });
+    const link = screen.getByRole("link", { name: /Deployment Marketplace/i });
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute("href", "/marketplace");
+    expect(link).toHaveAttribute("href", "/deployment-marketplace");
   });
 
-  it("shows Pilot Exchange in the top navigation", () => {
+  it("puts Deployment Marketplace first in the top navigation", () => {
     render(<Header />);
 
-    const link = screen.getByRole("link", { name: /Pilot Exchange/i });
-    expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute("href", "/pilot-exchange");
+    const nav = screen.getByRole("navigation");
+    const navLinks = within(nav).getAllByRole("link");
+    expect(navLinks[0]).toHaveTextContent("Deployment Marketplace");
   });
 
   it("does not show legacy partners nav link", () => {

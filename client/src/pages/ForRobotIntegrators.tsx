@@ -130,7 +130,7 @@ export default function ForRobotIntegrators() {
 
           <section className="mt-10 flex flex-wrap gap-3">
             <a
-              href="/pilot-exchange"
+              href="/deployment-marketplace"
               className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
               Start evaluation workflow

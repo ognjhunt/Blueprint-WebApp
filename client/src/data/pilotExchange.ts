@@ -311,7 +311,7 @@ export const pilotExchangeFaq: PilotExchangeFaqItem[] = [
     id: "faq-01",
     question: "Is this simulation-only, or do you still test in the real world?",
     answer:
-      "Pilot Exchange is pre-deployment simulation only. Our service scope ends before live deployment starts; real-world pilot execution and post-deployment data are handled directly between the location/site and robotics team.",
+      "Deployment Marketplace is pre-deployment simulation only. Our service scope ends before live deployment starts; real-world pilot execution and post-deployment data are handled directly between the location/site and robotics team.",
   },
   {
     id: "faq-02",
@@ -323,7 +323,7 @@ export const pilotExchangeFaq: PilotExchangeFaqItem[] = [
     id: "faq-03",
     question: "Do third parties help with testing and deployment readiness?",
     answer:
-      "Yes. Many teams use third-party integrators, safety assessors, and FAT/SAT witnesses. Pilot Exchange can complement those workflows by standardizing pre-qualification artifacts.",
+      "Yes. Many teams use third-party integrators, safety assessors, and FAT/SAT witnesses. Deployment Marketplace can complement those workflows by standardizing pre-qualification artifacts.",
   },
   {
     id: "faq-04",
@@ -333,7 +333,7 @@ export const pilotExchangeFaq: PilotExchangeFaqItem[] = [
   },
   {
     id: "faq-05",
-    question: "Who pays for Pilot Exchange?",
+    question: "Who pays for Deployment Marketplace?",
     answer:
       "Location sites use the free default onboarding model with $0 upfront scan cost. Robotics teams pay for evaluation runs, scorecards, subscription access, and training usage.",
   },

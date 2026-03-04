@@ -87,8 +87,8 @@ const offeringCards = [
       "Location-specific scorecards before spending on live pilot operations",
       "Exchange model for capture jobs, twin access, and adaptation cycles",
     ],
-    ctaLabel: "Open Pilot Exchange",
-    ctaHref: "/pilot-exchange",
+    ctaLabel: "Open Deployment Marketplace",
+    ctaHref: "/deployment-marketplace",
     icon: <BarChart3 className="h-8 w-8 text-zinc-900" />,
   },
 ];
@@ -419,7 +419,7 @@ export default function Home() {
                 ))}
               </ul>
               <a
-                href="/pilot-exchange"
+                href="/deployment-marketplace"
                 className="mt-6 inline-block rounded-lg bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
               >
                 List your location
@@ -448,7 +448,7 @@ export default function Home() {
             </a>
 
             <a
-              href="/pilot-exchange-guide"
+              href="/deployment-marketplace-guide"
               className="group rounded-xl border border-zinc-200 bg-white p-6 transition-all hover:border-indigo-200 hover:shadow-md"
             >
               <div className="flex items-center gap-3">
@@ -464,7 +464,7 @@ export default function Home() {
             </a>
 
             <a
-              href="/pilot-exchange"
+              href="/deployment-marketplace"
               className="group rounded-xl border border-zinc-200 bg-white p-6 transition-all hover:border-indigo-200 hover:shadow-md"
             >
               <div className="flex items-center gap-3">
@@ -472,7 +472,7 @@ export default function Home() {
                   <Globe2 className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-zinc-900">Pilot Exchange</p>
+                  <p className="font-semibold text-zinc-900">Deployment Marketplace</p>
                   <p className="text-sm text-zinc-500">Capture, twin, adaptation, and demand in one marketplace</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />

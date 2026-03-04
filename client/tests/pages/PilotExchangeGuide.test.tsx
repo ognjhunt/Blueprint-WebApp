@@ -28,7 +28,7 @@ describe("PilotExchangeGuide", () => {
     render(<PilotExchangeGuide />);
 
     expect(
-      screen.getByRole("heading", { name: /What Pilot Exchange Is and How It Works/i }),
+      screen.getByRole("heading", { name: /What Deployment Marketplace Is and How It Works/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/What this is/i)).toBeInTheDocument();
     expect(screen.getByText(/What this is not/i)).toBeInTheDocument();

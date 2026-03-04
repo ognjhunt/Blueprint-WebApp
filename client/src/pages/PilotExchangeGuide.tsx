@@ -129,9 +129,9 @@ export default function PilotExchangeGuide() {
   return (
     <>
       <SEO
-        title="Pilot Exchange Guide"
-        description="Beginner guide to how Pilot Exchange pre-qualifies humanoid and robotics policies before controlled on-site pilot ramp."
-        canonical="/pilot-exchange-guide"
+        title="Deployment Marketplace Guide"
+        description="Beginner guide to how Deployment Marketplace pre-qualifies humanoid and robotics policies before controlled on-site pilot ramp."
+        canonical="/deployment-marketplace-guide"
       />
       <div className="relative min-h-screen bg-white text-zinc-900 font-sans selection:bg-zinc-200 selection:text-zinc-900">
         <DotPattern />
@@ -143,13 +143,13 @@ export default function PilotExchangeGuide() {
               Beginner's Guide
             </div>
             <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 mb-6">
-              How Pilot Exchange Works
+              How Deployment Marketplace Works
             </h1>
             <p className="text-lg text-zinc-600 leading-relaxed mb-8">
-              Pilot Exchange is a pre-deployment qualification workflow. We help teams test robot policies on calibrated digital twins before spending money and time on physical, live pilots.
+              Deployment Marketplace is a pre-deployment qualification workflow. We help teams test robot policies on calibrated digital twins before spending money and time on physical, live pilots.
             </p>
             <div className="flex flex-wrap items-center gap-4">
-              <a href="/pilot-exchange">
+              <a href="/deployment-marketplace">
                 <Button className="bg-zinc-900 text-white hover:bg-zinc-800 px-6 py-5 text-sm font-medium">
                   Open Marketplace <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>
@@ -188,7 +188,7 @@ export default function PilotExchangeGuide() {
             <div className="max-w-3xl mb-8">
               <h2 className="text-3xl font-bold text-zinc-900 mb-3">The Core Deployment Gap</h2>
               <p className="text-zinc-600">
-                Pilot Exchange exists to reduce the lab-to-site drop. These are related problems, but they are not the same step in the pipeline.
+                Deployment Marketplace exists to reduce the lab-to-site drop. These are related problems, but they are not the same step in the pipeline.
               </p>
             </div>
             <div className="grid md:grid-cols-2 gap-6">
@@ -389,7 +389,7 @@ export default function PilotExchangeGuide() {
             </div>
 
             <div className="border border-zinc-200 rounded-2xl p-6 bg-zinc-50/60 mb-16">
-              <h3 className="font-bold text-zinc-900 mb-4">What This Means for Pilot Exchange</h3>
+              <h3 className="font-bold text-zinc-900 mb-4">What This Means for Deployment Marketplace</h3>
               <div className="grid md:grid-cols-3 gap-4">
                 <div className="border border-zinc-200 rounded-lg p-4 bg-white">
                   <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-2">Mode 1</p>
@@ -602,7 +602,7 @@ export default function PilotExchangeGuide() {
               Use the exchange marketplace to purchase access, submit your robot policy package, and receive standardized evaluation scorecards.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <a href="/pilot-exchange">
+              <a href="/deployment-marketplace">
                 <Button className="w-full sm:w-auto rounded-md bg-white text-zinc-900 hover:bg-zinc-200 px-8 py-6 text-base font-bold">
                   Open Marketplace
                 </Button>

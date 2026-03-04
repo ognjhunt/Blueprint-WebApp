@@ -12,11 +12,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const navLinks = [
-  { href: "/how-it-works", label: "How It Works" },
+  { href: "/deployment-marketplace", label: "Deployment Marketplace" },
   { href: "/for-site-operators", label: "For Site Operators" },
   { href: "/for-robot-integrators", label: "For Robot Teams" },
   { href: "/pricing", label: "Pricing" },
-  { href: "/pilot-exchange", label: "Pilot Exchange" },
 ];
 
 export function Header() {

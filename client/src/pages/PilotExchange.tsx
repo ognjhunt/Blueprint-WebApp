@@ -450,7 +450,7 @@ export default function PilotExchange() {
         helpWith: [args.helpWith],
         details: JSON.stringify(args.details),
         context: {
-          sourcePageUrl: typeof window !== "undefined" ? window.location.href : "/pilot-exchange",
+          sourcePageUrl: typeof window !== "undefined" ? window.location.href : "/deployment-marketplace",
           referrer: typeof document !== "undefined" ? document.referrer || undefined : undefined,
           utm: getUTMParams(),
           timezoneOffset: new Date().getTimezoneOffset(),
@@ -478,10 +478,10 @@ export default function PilotExchange() {
       setCheckoutMessage("");
 
       const pricing = plan === "evaluation"
-        ? { sku: "exchange-pro-eval", title: "Pilot Exchange Pro Site Evaluation", price: 4900, successPath: "/pilot-exchange?checkout=success&access=evaluation" }
+        ? { sku: "exchange-pro-eval", title: "Deployment Marketplace Pro Site Evaluation", price: 4900, successPath: "/deployment-marketplace?checkout=success&access=evaluation" }
         : plan === "subscription"
-        ? { sku: "exchange-team-subscription", title: "Robotics Team Subscription", price: 1200, successPath: "/pilot-exchange?checkout=success&access=subscription" }
-        : { sku: "exchange-training-subscription", title: "Training Subscription", price: 2400, successPath: "/pilot-exchange?checkout=success&access=training" };
+        ? { sku: "exchange-team-subscription", title: "Robotics Team Subscription", price: 1200, successPath: "/deployment-marketplace?checkout=success&access=subscription" }
+        : { sku: "exchange-training-subscription", title: "Training Subscription", price: 2400, successPath: "/deployment-marketplace?checkout=success&access=training" };
 
       const response = await fetch("/api/create-checkout-session", {
         method: "POST",
@@ -489,8 +489,8 @@ export default function PilotExchange() {
         body: JSON.stringify({
           sessionType: "marketplace",
           successPath: pricing.successPath,
-          cancelPath: "/pilot-exchange?checkout=cancel",
-          marketplaceItem: { sku: pricing.sku, title: pricing.title, description: "Pilot Exchange Access", price: pricing.price, quantity: 1, itemType: "dataset" },
+          cancelPath: "/deployment-marketplace?checkout=cancel",
+          marketplaceItem: { sku: pricing.sku, title: pricing.title, description: "Deployment Marketplace Access", price: pricing.price, quantity: 1, itemType: "dataset" },
         }),
       });
 
@@ -594,9 +594,9 @@ export default function PilotExchange() {
   return (
     <>
       <SEO
-        title="Pilot Exchange | Evaluate Robotics Policies"
+        title="Deployment Marketplace | Evaluate Robotics Policies"
         description="Marketplace for robotics teams to evaluate policies in high-fidelity digital twins before physical pilot deployments."
-        canonical="/pilot-exchange"
+        canonical="/deployment-marketplace"
       />
       <div className="relative min-h-screen bg-white text-zinc-900 font-sans selection:bg-zinc-200 selection:text-zinc-900">
         <DotPattern />
@@ -644,7 +644,7 @@ export default function PilotExchange() {
               >
                 {evaluationAccessUnlocked ? "Run an Evaluation" : "Unlock Evaluation Access"}
               </Button>
-              <a href="/pilot-exchange-guide" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 underline underline-offset-4 decoration-zinc-300">
+              <a href="/deployment-marketplace-guide" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 underline underline-offset-4 decoration-zinc-300">
                 Read the beginner guide
               </a>
             </div>
@@ -723,7 +723,7 @@ export default function PilotExchange() {
           <section id="marketplace">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
               <div>
-                <h2 className="text-2xl font-bold text-zinc-900">Exchange Marketplace</h2>
+                <h2 className="text-2xl font-bold text-zinc-900">Deployment Marketplace</h2>
                 <p className="text-sm text-zinc-600 mt-1">Explore available environments and active policy submissions.</p>
               </div>
               <Button
@@ -910,7 +910,7 @@ export default function PilotExchange() {
       <Dialog open={isAccessDialogOpen} onOpenChange={setIsAccessDialogOpen}>
         <DialogContent className="sm:max-w-3xl p-0 overflow-hidden bg-white">
           <div className="p-6 sm:p-8 bg-zinc-900 text-white">
-            <DialogTitle className="text-2xl font-bold">Pilot Exchange Access</DialogTitle>
+            <DialogTitle className="text-2xl font-bold">Deployment Marketplace Access</DialogTitle>
             <DialogDescription className="text-zinc-300 mt-2">
               Choose an access plan to submit evaluation runs, receive standardized scorecards, and unlock training capabilities.
             </DialogDescription>

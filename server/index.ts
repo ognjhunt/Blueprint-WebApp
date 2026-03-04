@@ -327,6 +327,19 @@ app.use((req, res, next) => {
     return res.sendStatus(404);
   });
 
+  const legacyPublicRedirects = [
+    ["/pilot-exchange", "/deployment-marketplace"],
+    ["/pilot-exchange-guide", "/deployment-marketplace-guide"],
+  ] as const;
+
+  legacyPublicRedirects.forEach(([from, to]) => {
+    app.get([from, `${from}/`], (req, res) => {
+      const queryStart = req.originalUrl.indexOf("?");
+      const query = queryStart >= 0 ? req.originalUrl.slice(queryStart) : "";
+      return res.redirect(301, `${to}${query}`);
+    });
+  });
+
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
