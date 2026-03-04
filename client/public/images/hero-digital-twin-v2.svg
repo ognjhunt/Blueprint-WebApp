@@ -1,0 +1,124 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Digital twin facility visualization</title>
+  <desc id="desc">Stylized warehouse scene with scan overlays, route path, and status chips representing digital twin capture and model adaptation.</desc>
+
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1600" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EFF6FF" />
+      <stop offset="0.48" stop-color="#F8FAFC" />
+      <stop offset="1" stop-color="#ECFEFF" />
+    </linearGradient>
+
+    <linearGradient id="roomGrad" x1="128" y1="108" x2="1480" y2="780" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" />
+      <stop offset="1" stop-color="#F3F4F6" />
+    </linearGradient>
+
+    <linearGradient id="scanBand" x1="330" y1="0" x2="940" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#60A5FA" stop-opacity="0" />
+      <stop offset="0.5" stop-color="#60A5FA" stop-opacity="0.32" />
+      <stop offset="1" stop-color="#60A5FA" stop-opacity="0" />
+    </linearGradient>
+
+    <linearGradient id="routeGrad" x1="320" y1="640" x2="1240" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6366F1" />
+      <stop offset="1" stop-color="#06B6D4" />
+    </linearGradient>
+
+    <filter id="softShadow" x="0" y="0" width="1800" height="1100" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="18"/>
+      <feGaussianBlur stdDeviation="22"/>
+      <feComposite in2="hardAlpha" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.0588235 0 0 0 0 0.0941176 0 0 0 0 0.164706 0 0 0 0.14 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1_4"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1_4" result="shape"/>
+    </filter>
+
+    <pattern id="grid" width="36" height="36" patternUnits="userSpaceOnUse">
+      <path d="M36 0H0V36" stroke="#CBD5E1" stroke-opacity="0.38" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1600" height="900" rx="36" fill="url(#bgGrad)"/>
+
+  <g opacity="0.88">
+    <circle cx="210" cy="136" r="170" fill="#BFDBFE" fill-opacity="0.34"/>
+    <circle cx="1490" cy="780" r="210" fill="#67E8F9" fill-opacity="0.21"/>
+    <circle cx="1360" cy="130" r="140" fill="#C7D2FE" fill-opacity="0.27"/>
+  </g>
+
+  <g filter="url(#softShadow)">
+    <rect x="120" y="96" width="1360" height="708" rx="34" fill="url(#roomGrad)"/>
+  </g>
+
+  <g>
+    <rect x="164" y="148" width="1272" height="584" rx="24" fill="#FFFFFF"/>
+    <rect x="164" y="148" width="1272" height="584" rx="24" fill="url(#grid)" opacity="0.48"/>
+
+    <path d="M182 612C460 502 721 640 988 540C1128 487 1230 402 1410 385" stroke="#E2E8F0" stroke-width="44" stroke-linecap="round"/>
+
+    <path d="M278 592C488 516 734 594 978 516C1118 472 1230 408 1362 384" stroke="url(#routeGrad)" stroke-width="9" stroke-linecap="round" stroke-dasharray="10 14"/>
+
+    <g fill="#E2E8F0">
+      <rect x="214" y="246" width="184" height="130" rx="12"/>
+      <rect x="430" y="220" width="206" height="154" rx="12"/>
+      <rect x="676" y="264" width="176" height="120" rx="12"/>
+      <rect x="884" y="228" width="228" height="150" rx="12"/>
+      <rect x="1144" y="258" width="210" height="136" rx="12"/>
+      <rect x="246" y="420" width="198" height="140" rx="12"/>
+      <rect x="488" y="428" width="174" height="132" rx="12"/>
+      <rect x="710" y="438" width="242" height="124" rx="12"/>
+      <rect x="996" y="432" width="174" height="126" rx="12"/>
+      <rect x="1210" y="424" width="132" height="134" rx="12"/>
+    </g>
+
+    <g>
+      <rect x="214" y="246" width="184" height="130" rx="12" stroke="#64748B" stroke-opacity="0.3" stroke-width="2" fill="none"/>
+      <rect x="430" y="220" width="206" height="154" rx="12" stroke="#64748B" stroke-opacity="0.3" stroke-width="2" fill="none"/>
+      <rect x="676" y="264" width="176" height="120" rx="12" stroke="#64748B" stroke-opacity="0.3" stroke-width="2" fill="none"/>
+      <rect x="884" y="228" width="228" height="150" rx="12" stroke="#64748B" stroke-opacity="0.3" stroke-width="2" fill="none"/>
+      <rect x="1144" y="258" width="210" height="136" rx="12" stroke="#64748B" stroke-opacity="0.3" stroke-width="2" fill="none"/>
+      <rect x="246" y="420" width="198" height="140" rx="12" stroke="#64748B" stroke-opacity="0.3" stroke-width="2" fill="none"/>
+      <rect x="488" y="428" width="174" height="132" rx="12" stroke="#64748B" stroke-opacity="0.3" stroke-width="2" fill="none"/>
+      <rect x="710" y="438" width="242" height="124" rx="12" stroke="#64748B" stroke-opacity="0.3" stroke-width="2" fill="none"/>
+      <rect x="996" y="432" width="174" height="126" rx="12" stroke="#64748B" stroke-opacity="0.3" stroke-width="2" fill="none"/>
+      <rect x="1210" y="424" width="132" height="134" rx="12" stroke="#64748B" stroke-opacity="0.3" stroke-width="2" fill="none"/>
+    </g>
+
+    <rect x="330" y="148" width="610" height="584" fill="url(#scanBand)">
+      <animate attributeName="x" values="216;958;216" dur="5.8s" repeatCount="indefinite"/>
+    </rect>
+
+    <g>
+      <circle cx="284" cy="590" r="16" fill="#0F172A"/>
+      <rect x="274" y="578" width="20" height="9" rx="4" fill="#38BDF8"/>
+      <circle cx="278" cy="606" r="4" fill="#E2E8F0"/>
+      <circle cx="290" cy="606" r="4" fill="#E2E8F0"/>
+    </g>
+
+    <g>
+      <circle cx="552" cy="540" r="6" fill="#2563EB"/>
+      <circle cx="794" cy="548" r="6" fill="#2563EB"/>
+      <circle cx="1048" cy="484" r="6" fill="#06B6D4"/>
+      <circle cx="1264" cy="414" r="6" fill="#06B6D4"/>
+    </g>
+  </g>
+
+  <g>
+    <rect x="196" y="172" width="174" height="46" rx="14" fill="#0F172A"/>
+    <text x="224" y="202" fill="#E2E8F0" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" letter-spacing="1">LIVE TWIN</text>
+
+    <rect x="1262" y="172" width="150" height="42" rx="14" fill="#E0F2FE"/>
+    <text x="1284" y="199" fill="#0369A1" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="700" letter-spacing="0.7">SCAN PASS</text>
+
+    <rect x="1244" y="742" width="168" height="42" rx="14" fill="#DCFCE7"/>
+    <text x="1262" y="769" fill="#166534" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="700" letter-spacing="0.6">MODEL READY</text>
+  </g>
+
+  <g>
+    <rect x="104" y="754" width="780" height="68" rx="18" fill="#FFFFFF" fill-opacity="0.85"/>
+    <text x="144" y="797" fill="#334155" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" letter-spacing="0.2">Facility digital twin map with capture-to-adaptation route</text>
+  </g>
+</svg>

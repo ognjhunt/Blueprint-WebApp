@@ -159,6 +159,21 @@ export default function Home() {
                     captures into splat twins, and use that data to fine-tune and evaluate your
                     model at the target location before your robot goes live.
                   </p>
+                  <div className="max-w-xl rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3">
+                    <p className="text-sm font-semibold leading-relaxed text-emerald-900">
+                      Published real2sim2real results show up to{" "}
+                      <span className="text-base">+34 absolute points</span> in real-world
+                      success (23% to 57%) after environment-specific adaptation.
+                    </p>
+                    <a
+                      href="https://arxiv.org/abs/2510.11689"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-block text-[11px] font-semibold uppercase tracking-wider text-emerald-800/80 hover:text-emerald-900"
+                    >
+                      Source: Phys2Real (arXiv 2025)
+                    </a>
+                  </div>
                 </div>
 
                 <CTAButtons
@@ -179,8 +194,8 @@ export default function Home() {
                 <div className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white/80 p-6 shadow-xl backdrop-blur-md">
                   <div className="overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50">
                     <img
-                      src="/images/Gemini_Hero.png"
-                      alt="Digital twin of a commercial facility"
+                      src="/images/hero-digital-twin-v2.svg"
+                      alt="Stylized digital twin map of a facility with scan and model-ready overlays"
                       className="h-48 w-full object-cover"
                       loading="lazy"
                     />
