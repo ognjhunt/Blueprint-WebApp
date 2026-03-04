@@ -299,6 +299,7 @@ export default function PilotExchange() {
   const [policyLibrary, setPolicyLibrary] = useState<SavedPolicyPackage[]>(() => readPolicyLibrary());
   const [evalRunForm, setEvalRunForm] = useState<EvalRunFormState>(defaultEvalRunFormState);
   const [accessQuote, setAccessQuote] = useState<AccessQuote>(() => generateAccessQuote());
+  const [accessTargetBriefId, setAccessTargetBriefId] = useState("");
 
   const [policyStatus, setPolicyStatus] = useState<SubmissionStatus>("idle");
   const [policyMessage, setPolicyMessage] = useState("");
@@ -376,8 +377,9 @@ export default function PilotExchange() {
     [policyLibrary]
   );
 
-  const openAccessDialog = useCallback(() => {
+  const openAccessDialog = useCallback((briefId?: string) => {
     setAccessQuote(generateAccessQuote());
+    setAccessTargetBriefId(typeof briefId === "string" ? briefId : "");
     setIsAccessDialogOpen(true);
   }, []);
 
@@ -535,7 +537,7 @@ export default function PilotExchange() {
             <Button
               variant="outline"
               size="sm"
-              onClick={openAccessDialog}
+              onClick={() => openAccessDialog()}
               className="bg-white border-zinc-300 text-zinc-800 hover:bg-zinc-100"
             >
               View Pricing
@@ -554,7 +556,7 @@ export default function PilotExchange() {
             </p>
             <div className="flex flex-wrap items-center gap-4">
               <Button
-                onClick={() => openEvalDialog()}
+                onClick={() => openAccessDialog()}
                 className="bg-zinc-900 text-white hover:bg-zinc-800 px-6 py-5 text-sm font-medium"
               >
                 Run an Evaluation
@@ -774,7 +776,7 @@ export default function PilotExchange() {
                             </div>
 
                             <Button 
-                              onClick={() => openEvalDialog(brief.id)} 
+                              onClick={() => openAccessDialog(brief.id)} 
                               className="w-full mt-6 bg-white text-zinc-900 border border-zinc-300 hover:bg-zinc-100"
                             >
                               Run Evaluation Here
@@ -839,6 +841,7 @@ export default function PilotExchange() {
         open={isAccessDialogOpen}
         onOpenChange={(open) => {
           if (open) setAccessQuote(generateAccessQuote());
+          if (!open) setAccessTargetBriefId("");
           setIsAccessDialogOpen(open);
         }}
       >
@@ -872,8 +875,9 @@ export default function PilotExchange() {
             <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Button
                 onClick={() => {
+                  const targetBriefId = accessTargetBriefId || undefined;
                   setIsAccessDialogOpen(false);
-                  openEvalDialog();
+                  openEvalDialog(targetBriefId);
                 }}
                 className="bg-zinc-900 text-white hover:bg-zinc-800"
               >
