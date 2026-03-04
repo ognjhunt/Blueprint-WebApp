@@ -6,7 +6,6 @@ import {
   BarChart3,
   CheckCircle2,
   Globe2,
-  Layers,
   MapPin,
   ScanLine,
   Shield,
@@ -28,61 +27,61 @@ import {
 
 const offeringCards = [
   {
-    title: "Twin Asset Access",
-    badge: "Digital Twins",
+    title: "Walkthrough Capture Network",
+    badge: "Capture Service",
     description:
-      "Gaussian Splat twins of real warehouses, kitchens, retail stores, and factories. One scan produces hours of training data for any world model.",
+      "Send us the target address and we coordinate local walkthrough capture. We ingest the footage into our reconstruction pipeline and deliver a splat twin you can use immediately.",
     bullets: [
-      "Thousands of real commercial locations, with more added weekly",
-      "PLY files ready for DreamDojo, Cosmos, or Isaac Sim",
+      "Coverage for warehouses, kitchens, retail stores, and factories",
+      "Capture QA and metadata contract so every upload is reconstruction-ready",
     ],
-    ctaLabel: "Browse locations",
-    ctaHref: "/marketplace/scenes",
+    ctaLabel: "Request a walkthrough",
+    ctaHref: "/contact?interest=capture",
     icon: <MapPin className="h-8 w-8 text-zinc-900" />,
   },
   {
     title: "Site-Specific Fine-Tuning",
     badge: "Core Service",
     description:
-      "We render training video from your target facility's twin, then fine-tune your world model or VLA policy against it. You get LoRA adapter weights, ready to deploy.",
+      "We render training and evaluation clips from your target twin, then post-train or fine-tune your world model/VLA for that location. You get adapter weights ready to deploy.",
     bullets: [
-      "Works with DreamDojo, Cosmos, OpenVLA, GR00T, and others",
-      "LoRA weights sent over the air before your robot arrives on-site",
+      "Works with DreamDojo, Cosmos, OpenVLA, GR00T, and custom stacks",
+      "Adapter weights and readiness report delivered together",
     ],
     ctaLabel: "Learn how it works",
     ctaHref: "/how-it-works",
     icon: <Zap className="h-8 w-8 text-zinc-900" />,
   },
   {
-    title: "Policy Benchmarks",
-    badge: "Evaluation",
+    title: "Deployment Evaluation + Exchange",
+    badge: "Marketplace",
     description:
-      "Test your fine-tuned policy against reserved twin scenes. Get success rates, failure analysis, and confidence scores before real-world deployment.",
+      "Run pre-deployment scorecards on the same location twin and transact through our marketplace. Capture providers, location owners, and robot teams coordinate in one system.",
     bullets: [
-      "Reserved benchmark twins not used for training (no overfitting)",
-      "Standardized metrics: success rate, collisions, completion time",
+      "Location-specific scorecards before spending on live pilot operations",
+      "Exchange model for capture jobs, twin access, and adaptation cycles",
     ],
-    ctaLabel: "Explore benchmarks",
-    ctaHref: "/evals",
+    ctaLabel: "Open Pilot Exchange",
+    ctaHref: "/pilot-exchange",
     icon: <BarChart3 className="h-8 w-8 text-zinc-900" />,
   },
 ];
 
 const whyBlueprint = [
   {
-    title: "One scan, hundreds of hours of training data",
+    title: "One walkthrough becomes a reusable location twin",
     description:
-      "A 15-minute iPhone scan becomes a Gaussian Splat that renders 100+ hours of training video from different viewpoints. That's a 400:1 data multiplier from a single walk-through.",
+      "A short walkthrough is reconstructed into a Gaussian Splat with standardized metadata, then reused for rendering, adaptation, and evaluation across multiple robot programs.",
   },
   {
-    title: "General models still struggle in specific buildings",
+    title: "Post-train on the exact place you deploy",
     description:
-      "DreamDojo and Cosmos are powerful out of the box, but they make mistakes in unfamiliar facilities. Fine-tuning on your exact site fixes that. It's what we do.",
+      "Base models stay generic by design. We fine-tune them on the target location twin so policies arrive with priors for that building's geometry, lighting, and workflow.",
   },
   {
-    title: "Weights arrive before the robot does",
+    title: "Exchange economics make each site productive",
     description:
-      "LoRA adapter weights are small enough to send over the air. Your robot loads them in transit and shows up already familiar with the building.",
+      "Location owners can list sites, capture operators can fulfill walkthrough jobs, and robotics teams can buy adaptation cycles. One capture can support repeated deployments.",
   },
 ];
 
@@ -94,14 +93,14 @@ const dataMultiplierChart = [
 ];
 
 const labBullets = [
-  "Access digital twins of real commercial locations",
-  "Fine-tune DreamDojo, Cosmos, or your own world model per site",
-  "Receive LoRA adapter weights ready for OTA deployment",
+  "Request a walkthrough capture or select an existing location twin",
+  "Receive splat assets plus rendered training and evaluation clips",
+  "Get location-adapted weights and a deployment readiness report",
 ];
 
 const providerBullets = [
-  "List your facilities to attract robotics pilots",
-  "Revenue share on every adaptation cycle your location enables",
+  "List your facilities and capture availability for robotics teams",
+  "Earn revenue on recurring adaptation and re-capture cycles",
 ];
 
 // --- Component ---
@@ -156,10 +155,9 @@ export default function Home() {
                     Fine-tune any world model to your exact facility.
                   </h1>
                   <p className="max-w-xl text-lg leading-relaxed text-zinc-600">
-                    We scan real warehouses, kitchens, stores, and factories, then turn those
-                    scans into digital twins your model can learn from. Pick a site, and we
-                    fine-tune your model against it and ship adapter weights your robot can
-                    load before it arrives.
+                    We send people to record walkthroughs of real sites, reconstruct those
+                    captures into splat twins, and use that data to fine-tune and evaluate your
+                    model at the target location before your robot goes live.
                   </p>
                 </div>
 
@@ -167,7 +165,7 @@ export default function Home() {
                   primaryHref="/solutions"
                   primaryLabel="See how it works"
                   secondaryHref="/contact"
-                  secondaryLabel="Get a twin"
+                  secondaryLabel="Start a capture"
                 />
 
                 <div className="pt-4 opacity-80 grayscale transition-all duration-500 hover:opacity-100 hover:grayscale-0">
@@ -352,7 +350,7 @@ export default function Home() {
             {/* Facility Provider Persona */}
             <div className="rounded-2xl bg-zinc-900 p-8 text-white">
               <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-                For Facility Owners
+                For Location Owners
               </p>
               <h3 className="mt-2 text-xl font-bold text-white">
                 Your building is worth something to robotics teams.
@@ -369,7 +367,7 @@ export default function Home() {
                 href="/pilot-exchange"
                 className="mt-6 inline-block rounded-lg bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
               >
-                Join the Pilot Exchange
+                List your location
               </a>
             </div>
           </div>
@@ -395,7 +393,7 @@ export default function Home() {
             </a>
 
             <a
-              href="/evals"
+              href="/pilot-exchange-guide"
               className="group rounded-xl border border-zinc-200 bg-white p-6 transition-all hover:border-indigo-200 hover:shadow-md"
             >
               <div className="flex items-center gap-3">
@@ -403,8 +401,8 @@ export default function Home() {
                   <Shield className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-zinc-900">Pre-deploy benchmarks</p>
-                  <p className="text-sm text-zinc-500">Test before you ship to site</p>
+                  <p className="font-semibold text-zinc-900">Readiness scoring</p>
+                  <p className="text-sm text-zinc-500">Evaluate before you schedule pilots</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
@@ -420,7 +418,7 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="font-semibold text-zinc-900">Pilot Exchange</p>
-                  <p className="text-sm text-zinc-500">Match robots to real facilities</p>
+                  <p className="text-sm text-zinc-500">Capture, twin, adaptation, and demand in one marketplace</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>

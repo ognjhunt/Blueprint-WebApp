@@ -20,10 +20,10 @@ const budgetRanges: BudgetBucket[] = [
 ];
 
 const offerings: { value: HelpWithOption; label: string }[] = [
-  { value: "benchmark-packs", label: "Benchmark Packs - Reserved evaluation suites (no training leakage)" },
-  { value: "scene-library", label: "Scene Library - Certified SimReady USD scenes" },
-  { value: "dataset-packs", label: "Dataset Packs - Quality-scored episodes with metadata + filters" },
-  { value: "custom-capture", label: "Custom Run - New scenes/datasets built + certified for your use case" },
+  { value: "benchmark-packs", label: "Location Evaluation - Site-specific readiness scoring before deployment" },
+  { value: "scene-library", label: "Twin Marketplace Access - Existing location splats and metadata" },
+  { value: "dataset-packs", label: "Rendered Data Packs - Location-specific training and evaluation clips" },
+  { value: "custom-capture", label: "New Walkthrough Capture - Dispatch capture and build a fresh twin" },
 ];
 
 /**

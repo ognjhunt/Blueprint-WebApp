@@ -54,10 +54,10 @@ import type { UserData } from "@/lib/firebase";
 
 // Primary need options
 const PRIMARY_NEED_OPTIONS = [
-  { value: "benchmark-packs", label: "Benchmark & eval packs (scenes, tasks & harnesses)" },
-  { value: "scene-library", label: "SimReady scenes (USD environments)" },
-  { value: "dataset-packs", label: "Robotic policy trajectories & episodes" },
-  { value: "custom-capture", label: "Custom scene capture (on-site facility scan)" },
+  { value: "benchmark-packs", label: "Location readiness evaluation before live deployment" },
+  { value: "scene-library", label: "Twin marketplace access (existing location splats)" },
+  { value: "dataset-packs", label: "Rendered location video for training and evaluation" },
+  { value: "custom-capture", label: "New walkthrough capture and splat twin build" },
   { value: "other", label: "Other" },
 ] as const;
 

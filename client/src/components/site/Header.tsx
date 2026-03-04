@@ -13,10 +13,10 @@ import {
 
 const navLinks = [
   { href: "/how-it-works", label: "How It Works" },
+  { href: "/marketplace", label: "Twin Marketplace" },
   { href: "/solutions", label: "Solutions" },
   { href: "/pricing", label: "Pricing" },
   { href: "/pilot-exchange", label: "Pilot Exchange" },
-  { href: "/partners", label: "Partners" },
 ];
 
 export function Header() {
@@ -75,7 +75,7 @@ export function Header() {
             href="/contact"
             className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
           >
-            Get a Twin
+            Start a Capture
           </a>
           {!currentUser ? (
             <>
@@ -150,7 +150,7 @@ export function Header() {
               className="mt-2 rounded-full bg-slate-900 px-4 py-2 text-center text-white"
               onClick={() => setOpen(false)}
             >
-              Get a Twin
+              Start a Capture
             </a>
             {!currentUser ? (
               <>

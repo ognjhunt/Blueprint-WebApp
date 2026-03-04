@@ -15,13 +15,13 @@ export default function Solutions() {
           {/* Hero */}
           <div className="mb-20 space-y-6">
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Three ways to use our digital twins
+              Three ways to use Blueprint
             </h1>
 
             <p className="max-w-3xl text-lg text-slate-600">
-              We maintain Gaussian Splat twins of real commercial locations. You can
-              download raw twin assets, hire us for a managed fine-tuning cycle, or
-              subscribe for continuous updates as your facility changes.
+              We run one end-to-end service: walkthrough capture, splat reconstruction,
+              location-specific model adaptation, and exchange-based evaluation. Choose
+              self-serve assets, managed adaptation, or a continuous program.
             </p>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -50,8 +50,9 @@ export default function Solutions() {
                   1. Twin Asset Access (fastest start)
                 </h2>
                 <p className="mt-2 text-slate-600">
-                  Download Gaussian Splat files of real commercial facilities.
-                  Render your own training video and run fine-tuning in-house.
+                  Download Gaussian Splat files from existing captures or request new
+                  walkthrough capture. Render your own training/evaluation video and run
+                  fine-tuning in-house.
                 </p>
               </div>
 
@@ -241,8 +242,8 @@ export default function Solutions() {
                   desc: "Fine-tuning metrics, confidence scores, and recommended next steps for deployment."
                 },
                 {
-                  title: "Pre-deploy benchmark results (optional)",
-                  desc: "World-model-based evaluation of your adapted policy against the target facility twin."
+                  title: "Pre-deploy evaluation results (optional)",
+                  desc: "Site-specific scorecards showing how the adapted policy performs before a live pilot."
                 },
               ].map((item) => (
                 <div key={item.title} className="rounded-lg border border-slate-200 p-4 hover:border-slate-300 transition">

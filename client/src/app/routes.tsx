@@ -9,20 +9,12 @@ export type AppRoute = {
 };
 
 const Home = lazy(() => import("../pages/Home"));
-const WhySimulation = lazy(() => import("../pages/WhySimulation"));
 const Environments = lazy(() => import("../pages/Environments"));
 const BusinessSignUpFlow = lazy(() => import("../pages/BusinessSignUpFlow"));
 const OnboardingChecklist = lazy(() => import("../pages/OnboardingChecklist"));
 const EnvironmentDetail = lazy(() => import("../pages/EnvironmentDetail"));
 const Solutions = lazy(() => import("../pages/Solutions"));
 const Pricing = lazy(() => import("../pages/Pricing"));
-const Learn = lazy(() => import("../pages/Learn"));
-const Docs = lazy(() => import("../pages/Docs"));
-const Evals = lazy(() => import("../pages/Evals"));
-const BenchmarkDetail = lazy(() => import("../pages/BenchmarkDetail"));
-const RLTraining = lazy(() => import("../pages/RLTraining"));
-const CaseStudies = lazy(() => import("../pages/CaseStudies"));
-const Careers = lazy(() => import("../pages/Careers"));
 const Contact = lazy(() => import("../pages/Contact"));
 const HowItWorks = lazy(() => import("../pages/HowItWorks"));
 const PilotExchange = lazy(() => import("../pages/PilotExchange"));
@@ -41,7 +33,6 @@ const NotFound = lazy(() => import("../pages/NotFound"));
 
 export const appRoutes: AppRoute[] = [
   { path: "/", layout: "public", component: Home },
-  { path: "/why-simulation", layout: "public", component: WhySimulation },
   { path: "/marketplace", layout: "public", component: Environments },
   { path: "/marketplace/scenes", layout: "public", component: Environments },
   { path: "/marketplace/datasets", layout: "public", component: Environments },
@@ -60,14 +51,6 @@ export const appRoutes: AppRoute[] = [
   { path: "/environments/:slug", layout: "protected", component: EnvironmentDetail },
   { path: "/solutions", layout: "public", component: Solutions },
   { path: "/pricing", layout: "public", component: Pricing },
-  { path: "/learn", layout: "public", component: Learn },
-  { path: "/docs", layout: "public", component: Docs },
-  { path: "/evals", layout: "public", component: Evals },
-  { path: "/benchmarks", layout: "public", component: Evals },
-  { path: "/benchmarks/:slug", layout: "protected", component: BenchmarkDetail },
-  { path: "/rl-training", layout: "public", component: RLTraining },
-  { path: "/case-studies", layout: "public", component: CaseStudies },
-  { path: "/careers", layout: "public", component: Careers },
   { path: "/contact", layout: "public", component: Contact },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
   { path: "/pilot-exchange", layout: "public", component: PilotExchange },

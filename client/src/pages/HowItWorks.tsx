@@ -138,7 +138,7 @@ export default function HowItWorks() {
                   primaryHref="/contact"
                   primaryLabel="Schedule a scan"
                   secondaryHref="/marketplace"
-                  secondaryLabel="Browse environments"
+                  secondaryLabel="Browse location twins"
                 />
               </div>
 
@@ -351,7 +351,7 @@ export default function HowItWorks() {
                 href="/marketplace"
                 className="inline-flex items-center justify-center rounded-lg border border-zinc-700 px-6 py-3 text-sm font-semibold text-white hover:bg-zinc-800"
               >
-                Browse environments
+                Browse location twins
               </a>
             </div>
           </div>

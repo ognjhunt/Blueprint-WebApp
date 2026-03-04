@@ -1,12 +1,10 @@
 const footerLinks = [
   { label: "How It Works", href: "/how-it-works" },
+  { label: "Twin Marketplace", href: "/marketplace" },
   { label: "Solutions", href: "/solutions" },
   { label: "Pricing", href: "/pricing" },
   { label: "Pilot Exchange", href: "/pilot-exchange" },
-  { label: "Exchange Guide", href: "/pilot-exchange-guide" },
-  { label: "Partners", href: "/partners" },
   { label: "Contact", href: "/contact" },
-  { label: "Careers", href: "/careers" },
   { label: "Privacy", href: "/privacy" },
   { label: "Terms", href: "/terms" },
 ];
@@ -20,7 +18,7 @@ export function Footer() {
             Blueprint
           </a>
           <p className="text-sm text-slate-500">
-            Digital twins of real commercial locations for robot learning. Scan once, fine-tune any world model or VLA, and deploy with confidence.
+            We dispatch local walkthrough capture, reconstruct splat twins, fine-tune models to each location, and run pre-deployment evaluation through one exchange.
           </p>
         </div>
         <nav className="grid flex-1 grid-cols-2 gap-3 text-sm text-slate-600 sm:grid-cols-3">
@@ -34,7 +32,7 @@ export function Footer() {
       <div className="border-t border-slate-200 bg-white py-4">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p>© {new Date().getFullYear()} Blueprint, Inc. All rights reserved.</p>
-          <p>Digital Twin Adaptation is a service of Blueprint.</p>
+          <p>Capture-to-Adaptation Exchange is a service of Blueprint.</p>
         </div>
       </div>
     </footer>
