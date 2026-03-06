@@ -212,11 +212,14 @@ export default function Login() {
                   id="email"
                   name="email"
                   type="email"
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  inputMode="email"
                   value={formData.email}
                   onChange={handleInputChange}
                   onBlur={handleBlur}
                   placeholder="you@example.com"
-                  className={`w-full rounded-xl border bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 ${
+                  className={`h-11 w-full rounded-xl border bg-white pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 ${
                     errors.email && touched.email
                       ? "border-red-300 focus:border-red-500 focus:ring-red-500"
                       : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
@@ -244,11 +247,12 @@ export default function Login() {
                   id="password"
                   name="password"
                   type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
                   value={formData.password}
                   onChange={handleInputChange}
                   onBlur={handleBlur}
                   placeholder="••••••••"
-                  className={`w-full rounded-xl border bg-white py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 ${
+                  className={`h-11 w-full rounded-xl border bg-white pl-10 pr-12 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 ${
                     errors.password && touched.password
                       ? "border-red-300 focus:border-red-500 focus:ring-red-500"
                       : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
@@ -257,7 +261,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-0 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-r-xl text-slate-400 hover:text-slate-600"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
@@ -278,7 +282,7 @@ export default function Login() {
             <div className="text-right">
               <a
                 href="/forgot-password"
-                className="text-sm text-indigo-600 hover:text-indigo-500"
+                className="inline-flex min-h-11 items-center py-2 text-sm text-indigo-600 hover:text-indigo-500"
               >
                 Forgot password?
               </a>
@@ -317,7 +321,7 @@ export default function Login() {
           Don't have an account?{" "}
           <a
             href="/signup"
-            className="font-semibold text-indigo-600 hover:text-indigo-500"
+            className="inline-flex min-h-11 items-center font-semibold text-indigo-600 hover:text-indigo-500"
           >
             Sign up
           </a>

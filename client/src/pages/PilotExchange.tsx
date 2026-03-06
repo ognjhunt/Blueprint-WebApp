@@ -879,8 +879,8 @@ export default function PilotExchange() {
           setIsAccessDialogOpen(open);
         }}
       >
-        <DialogContent className="sm:max-w-3xl p-0 overflow-hidden bg-white">
-          <div className="p-6 sm:p-8 bg-zinc-900 text-white">
+        <DialogContent className="max-h-[calc(100vh-2rem)] w-[calc(100vw-1rem)] overflow-y-auto p-0 bg-white sm:max-h-[90vh] sm:max-w-3xl sm:overflow-hidden">
+          <div className="bg-zinc-900 p-6 pr-16 text-white sm:p-8">
             <DialogTitle className="text-2xl font-bold text-white">Deployment Marketplace Access</DialogTitle>
             <DialogDescription className="text-zinc-300 mt-2">
               Site operators pay $0. Robot teams pay only for usage.

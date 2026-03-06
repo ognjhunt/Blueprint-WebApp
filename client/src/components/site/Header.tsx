@@ -53,7 +53,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-        <a href="/" className="text-lg font-semibold tracking-tight">
+        <a href="/" className="inline-flex min-h-11 items-center text-lg font-semibold tracking-tight">
           Blueprint
         </a>
         <nav className="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">
@@ -123,7 +123,7 @@ export function Header() {
         </div>
         <button
           type="button"
-          className="inline-flex items-center rounded-md border border-slate-200 p-2 md:hidden"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-slate-200 p-0 md:hidden"
           onClick={() => setOpen((prev) => !prev)}
           aria-expanded={open}
           aria-label="Toggle navigation"
@@ -138,7 +138,7 @@ export function Header() {
               <a
                 key={link.href}
                 href={link.href}
-                className="py-1"
+                className="flex min-h-11 items-center rounded-lg px-2 py-2 transition hover:bg-slate-50"
                 onClick={() => setOpen(false)}
               >
                 {link.label}
@@ -146,7 +146,7 @@ export function Header() {
             ))}
             <a
               href="/contact"
-              className="mt-2 rounded-full bg-slate-900 px-4 py-2 text-center text-white"
+              className="mt-2 inline-flex min-h-11 items-center justify-center rounded-full bg-slate-900 px-4 py-2.5 text-center text-white"
               onClick={() => setOpen(false)}
             >
               Start a Capture
@@ -155,7 +155,7 @@ export function Header() {
               <>
                 <a
                   href="/login"
-                  className="rounded-full border border-slate-200 px-4 py-2 text-center text-slate-700"
+                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-slate-200 px-4 py-2.5 text-center text-slate-700"
                   onClick={() => setOpen(false)}
                 >
                   Log in
@@ -165,14 +165,14 @@ export function Header() {
               <>
                 <a
                   href="/settings"
-                  className="rounded-full border border-slate-200 px-4 py-2 text-center text-slate-700"
+                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-slate-200 px-4 py-2.5 text-center text-slate-700"
                   onClick={() => setOpen(false)}
                 >
                   Settings
                 </a>
                 <button
                   type="button"
-                  className="rounded-full border border-red-200 px-4 py-2 text-center text-red-600"
+                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-red-200 px-4 py-2.5 text-center text-red-600"
                   onClick={async () => {
                     await handleSignOut();
                     setOpen(false);

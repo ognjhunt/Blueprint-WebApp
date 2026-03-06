@@ -46,7 +46,7 @@ const heroHeadlineVariants: HeroHeadlineVariant[] = [
   },
   {
     id: "absolute-points",
-    headline: "Improve your real-world task success by up to +34 absolute points.",
+    headline: "Improve on-site task success by up to +34 points.",
   },
 ];
 
@@ -194,20 +194,20 @@ export default function Home() {
         <DotPattern />
 
         {/* --- Hero Section --- */}
-        <div className="relative pb-20 pt-16 sm:pt-24">
+        <div className="relative pb-16 pt-10 sm:pb-20 sm:pt-24">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+            <div className="grid gap-8 sm:gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-12">
               {/* Hero Content */}
-              <div className="space-y-8">
-                <div className="space-y-6">
+              <div className="space-y-6 sm:space-y-8">
+                <div className="space-y-4 sm:space-y-6">
                   <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
                     <Sparkles className="h-3 w-3" />
                     Digital Twins for Robots
                   </div>
-                  <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
+                  <h1 className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl">
                     {heroHeadlineVariant.headline}
                   </h1>
-                  <p className="max-w-xl text-lg leading-relaxed text-zinc-600">
+                  <p className="max-w-xl text-base leading-relaxed text-zinc-600 sm:text-lg">
                     Fine-tune any world model to your exact facility. We send people to record
                     walkthroughs of real sites, reconstruct those captures into splat twins, and
                     use that data to fine-tune and evaluate your model at the target location
@@ -222,7 +222,7 @@ export default function Home() {
                   secondaryLabel="Start a capture"
                 />
 
-                <div className="pt-4 opacity-80 grayscale transition-all duration-500 hover:opacity-100 hover:grayscale-0">
+                <div className="pt-2 opacity-80 grayscale transition-all duration-500 hover:opacity-100 hover:grayscale-0 sm:pt-4">
                   <LogoWall />
                 </div>
               </div>
