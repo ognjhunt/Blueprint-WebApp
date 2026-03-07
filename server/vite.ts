@@ -64,13 +64,18 @@ export function serveStatic(app: Express) {
     const hasExtension = path.extname(req.path) !== "";
     if (!hasExtension) {
       const cleanedPath = req.path.replace(/\/+$/, "") || "/";
-      const htmlPath =
+      const candidateHtmlPath =
         cleanedPath === "/"
           ? indexPath
           : path.resolve(distPath, cleanedPath.slice(1), "index.html");
 
-      if (fs.existsSync(htmlPath)) {
-        res.sendFile(htmlPath);
+      const relativeToDist = path.relative(distPath, candidateHtmlPath);
+      const isWithinDist =
+        relativeToDist === "index.html" ||
+        (!relativeToDist.startsWith("..") && !path.isAbsolute(relativeToDist));
+
+      if (isWithinDist && fs.existsSync(candidateHtmlPath)) {
+        res.sendFile(candidateHtmlPath);
         return;
       }
     }
