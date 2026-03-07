@@ -107,8 +107,14 @@ export default async function waitlistHandler(req: Request, res: Response) {
   }
 
   const emailValue = typeof email === "string" ? email.trim() : "";
+  const locationTypeValue = typeof locationType === "string" ? locationType.trim() : "";
+
   if (!emailValue || !isValidEmailAddress(emailValue)) {
     return res.status(400).json({ error: "Invalid email format" });
+  }
+
+  if (!locationTypeValue) {
+    return res.status(400).json({ error: "Invalid location type" });
   }
 
   const { key: idempotencyKey, ttlMs: idempotencyTtlMs } = buildIdempotencyKey({
@@ -116,7 +122,7 @@ export default async function waitlistHandler(req: Request, res: Response) {
     email: emailValue,
     payload: {
       email: emailValue,
-      locationType,
+      locationType: locationTypeValue,
     },
   });
 
@@ -127,7 +133,7 @@ export default async function waitlistHandler(req: Request, res: Response) {
 
   const to = process.env.WAITLIST_TO ?? "ops@tryblueprint.io";
   const subject = "New on-site capture waitlist submission";
-  const text = `Email: ${emailValue}\nLocation type: ${locationType}`;
+  const text = `Email: ${emailValue}\nLocation type: ${locationTypeValue}`;
 
   const { sent } = await sendEmail({ to, subject, text });
   const responseStatus = sent ? HTTP_STATUS.OK : HTTP_STATUS.ACCEPTED;
