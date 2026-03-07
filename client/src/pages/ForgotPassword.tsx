@@ -9,23 +9,16 @@ export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setErrorMessage(null);
     try {
       await sendPasswordResetEmail(auth, email);
-      setIsSubmitted(true);
-    } catch (error) {
-      const message =
-        error instanceof Error && error.message
-          ? error.message
-          : "We couldn't send a reset email. Please try again.";
-      setErrorMessage(message);
-      setIsSubmitted(false);
+    } catch {
+      // Use the same response for all outcomes to avoid account enumeration.
     } finally {
+      setIsSubmitted(true);
       setIsLoading(false);
     }
   };
@@ -73,7 +66,6 @@ export default function ForgotPassword() {
                 type="button"
                 onClick={() => {
                   setIsSubmitted(false);
-                  setErrorMessage(null);
                 }}
                 className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
               >
@@ -83,14 +75,6 @@ export default function ForgotPassword() {
           ) : (
             /* Form State */
             <form onSubmit={handleSubmit} className="space-y-4">
-              {errorMessage ? (
-                <div
-                  role="alert"
-                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-                >
-                  {errorMessage}
-                </div>
-              ) : null}
               <div>
                 <label
                   htmlFor="email"
