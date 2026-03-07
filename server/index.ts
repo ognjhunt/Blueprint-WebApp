@@ -18,34 +18,6 @@ const isProduction = process.env.NODE_ENV === "production";
 
 const createRateLimitStore = (prefix: string) => createRateLimitRedisStore(prefix);
 
-// Known crawler/bot User-Agents that should bypass rate limiting
-const CRAWLER_USER_AGENTS = [
-  "Googlebot",
-  "Bingbot",
-  "Slurp", // Yahoo
-  "DuckDuckBot",
-  "Baiduspider",
-  "YandexBot",
-  "facebookexternalhit",
-  "Twitterbot",
-  "LinkedInBot",
-  "GPTBot", // OpenAI
-  "ChatGPT-User", // OpenAI
-  "Claude-Web", // Anthropic
-  "Anthropic", // Anthropic
-  "PerplexityBot",
-  "Google-Extended", // Google AI
-  "CCBot", // Common Crawl
-  "Applebot",
-];
-
-const isCrawler = (userAgent: string | undefined): boolean => {
-  if (!userAgent) return false;
-  return CRAWLER_USER_AGENTS.some((bot) =>
-    userAgent.toLowerCase().includes(bot.toLowerCase())
-  );
-};
-
 const createRateLimiter = ({
   windowMs,
   limit,
@@ -65,8 +37,7 @@ const createRateLimiter = ({
     store: createRateLimitStore(prefix),
     skip: (req) =>
       req.method === "OPTIONS" ||
-      skipPaths.some((path) => req.path.startsWith(path)) ||
-      isCrawler(req.headers["user-agent"]),
+      skipPaths.some((path) => req.path.startsWith(path)),
     handler: (_req, res) => {
       res.status(429).json({ error: "Too many requests. Please try again later." });
     },
