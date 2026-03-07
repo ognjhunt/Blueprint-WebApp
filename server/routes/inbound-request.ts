@@ -25,6 +25,8 @@ const RATE_LIMIT_MAX_IP = 10; // Max 10 submissions per IP per window
 const RATE_LIMIT_MAX_EMAIL = 3; // Max 3 submissions per email per window
 const RATE_LIMIT_PREFIX = "rl:inbound:";
 
+const localRateLimitStore = new Map<string, { count: number; resetAt: number }>();
+
 const rateLimitRedisClient = getRateLimitRedisClient();
 
 const RATE_LIMIT_SCRIPT = `
@@ -79,11 +81,25 @@ async function checkRateLimit(
   key: string,
   maxCount: number
 ): Promise<{ allowed: boolean; remaining: number }> {
+  const checkLocalRateLimit = () => {
+    const now = Date.now();
+    const record = localRateLimitStore.get(key);
+
+    if (!record || record.resetAt <= now) {
+      localRateLimitStore.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+      return { allowed: true, remaining: maxCount - 1 };
+    }
+
+    record.count += 1;
+    const remaining = Math.max(maxCount - record.count, 0);
+    return { allowed: record.count <= maxCount, remaining };
+  };
+
   if (!rateLimitRedisClient) {
     if (process.env.NODE_ENV === "production") {
-      logger.warn("Redis rate limit client unavailable; allowing inbound request");
+      logger.warn("Redis rate limit client unavailable; using local inbound rate limit fallback");
     }
-    return { allowed: true, remaining: maxCount };
+    return checkLocalRateLimit();
   }
 
   try {
@@ -95,8 +111,8 @@ async function checkRateLimit(
     const remaining = Math.max(maxCount - current, 0);
     return { allowed: current <= maxCount, remaining };
   } catch (error) {
-    logger.warn({ error }, "Redis rate limit check failed; allowing inbound request");
-    return { allowed: true, remaining: maxCount };
+    logger.warn({ error }, "Redis rate limit check failed; using local inbound rate limit fallback");
+    return checkLocalRateLimit();
   }
 }
 
