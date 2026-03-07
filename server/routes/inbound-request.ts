@@ -1,4 +1,5 @@
 import { Request, Response, Router } from "express";
+import crypto from "crypto";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { HTTP_STATUS } from "../constants/http-status";
 import { sendEmail } from "../utils/email";
@@ -20,6 +21,7 @@ import type {
 const router = Router();
 
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const RATE_LIMIT_MAX_IP = 10; // Max 10 submissions per IP per window
 const RATE_LIMIT_MAX_EMAIL = 3; // Max 3 submissions per email per window
 const RATE_LIMIT_PREFIX = "rl:inbound:";
 
@@ -62,6 +64,13 @@ const DISPOSABLE_EMAIL_DOMAINS = [
   "10minutemail.com",
   "yopmail.com",
 ];
+
+/**
+ * Hash IP address for privacy in logs/rate-limit keys
+ */
+function hashIp(ip: string): string {
+  return crypto.createHash("sha256").update(ip).digest("hex").slice(0, 16);
+}
 
 /**
  * Check rate limit for a given key
@@ -276,6 +285,8 @@ function generateConfirmationEmailHtml(firstName: string): string {
  */
 router.post("/", async (req: Request, res: Response) => {
   const startTime = Date.now();
+  const clientIp = req.ip || req.socket.remoteAddress || "unknown";
+  const ipHash = hashIp(clientIp);
 
   try {
     const payload = req.body as InboundRequestPayload;
@@ -347,6 +358,20 @@ router.post("/", async (req: Request, res: Response) => {
     }
 
     // 5. Check rate limits
+    const ipRateLimit = await checkRateLimit(
+      `${RATE_LIMIT_PREFIX}ip:${ipHash}`,
+      RATE_LIMIT_MAX_IP
+    );
+    if (!ipRateLimit.allowed) {
+      logger.warn({ ipHash }, "IP rate limit exceeded");
+      return res.status(429).json({
+        ok: false,
+        requestId: payload.requestId,
+        status: "new",
+        message: "Too many requests. Please try again later.",
+      } satisfies SubmitInboundRequestResponse);
+    }
+
     const emailDomain = emailLower.split("@")[1];
     const emailRateLimit = await checkRateLimit(
       `${RATE_LIMIT_PREFIX}email:${emailDomain}`,
