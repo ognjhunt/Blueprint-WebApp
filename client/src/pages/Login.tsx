@@ -100,12 +100,8 @@ export default function Login() {
 
     try {
       await signIn(formData.email, formData.password);
-    } catch (error) {
-      setAuthError(
-        error instanceof Error
-          ? error.message
-          : "Authentication failed. Please try again.",
-      );
+    } catch {
+      setAuthError("Invalid email or password.");
     } finally {
       setIsLoading(false);
     }
