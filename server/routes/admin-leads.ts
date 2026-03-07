@@ -19,6 +19,16 @@ import type {
 
 const router = Router();
 
+const CSV_FORMULA_PREFIX = /^[=+\-@]/;
+
+function sanitizeCsvCell(value: unknown): string {
+  const normalized = String(value ?? "").replace(/\r?\n|\r/g, " ");
+  const formulaSafe = CSV_FORMULA_PREFIX.test(normalized)
+    ? `'${normalized}`
+    : normalized;
+  return `"${formulaSafe.replace(/"/g, '""')}"`;
+}
+
 // Admin email allowlist (in production, use Firebase Custom Claims)
 const ADMIN_EMAILS = [
   "ohstnhunt@gmail.com",
@@ -553,10 +563,10 @@ router.get("/export/csv", requireAdmin, async (req: Request, res: Response) => {
           decrypted.contact.roleTitle,
           decrypted.request.budgetBucket,
           decrypted.request.helpWith.join("; "),
-          (decrypted.request.details || "").replace(/"/g, '""'),
+          decrypted.request.details || "",
           decrypted.context.sourcePageUrl,
           decrypted.owner.email || "",
-        ].map((val) => `"${val}"`);
+        ].map((val) => sanitizeCsvCell(val));
       })
     );
 
