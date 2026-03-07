@@ -1,5 +1,14 @@
 import type { Request, Response } from "express";
 import Stripe from "stripe";
+import {
+  calculateTotalPrice,
+  marketplaceScenes,
+  premiumCapabilities,
+  syntheticDatasets,
+  trainingDatasets,
+  type ExclusivityType,
+  type LicenseTier,
+} from "../../../client/src/data/content";
 
 type PaymentSessionType = "onboarding" | "legacy-hourly" | "marketplace";
 
@@ -48,8 +57,48 @@ type CheckoutRequestBody = {
     exclusivity?: 'non-exclusive' | 'time-limited' | 'category' | 'semi-exclusive' | 'full-exclusive';
     basePrice?: number;
     addons?: string[];
+    dataTier?: "basic" | "standard" | "premium";
   };
 };
+
+const VALID_LICENSE_TIERS: ReadonlySet<LicenseTier> = new Set<LicenseTier>([
+  "research",
+  "commercial",
+  "enterprise",
+]);
+
+const VALID_EXCLUSIVITY_TYPES: ReadonlySet<ExclusivityType> = new Set<ExclusivityType>([
+  "non-exclusive",
+  "time-limited",
+  "category",
+  "semi-exclusive",
+  "full-exclusive",
+]);
+
+function findSceneBySku(sku: string) {
+  const normalizedSku = sku.trim();
+  return marketplaceScenes
+    .filter((scene) => normalizedSku === scene.slug || normalizedSku.startsWith(`${scene.slug}-`))
+    .sort((a, b) => b.slug.length - a.slug.length)[0];
+}
+
+function findDatasetBySku(sku: string) {
+  const normalizedSku = sku.trim();
+  return syntheticDatasets
+    .filter((dataset) => normalizedSku === dataset.slug || normalizedSku.startsWith(`${dataset.slug}-`))
+    .sort((a, b) => b.slug.length - a.slug.length)[0];
+}
+
+function findTrainingBySku(sku: string) {
+  const normalizedSku = sku.trim();
+  return trainingDatasets
+    .filter((training) => normalizedSku === training.slug || normalizedSku.startsWith(`${training.slug}-`))
+    .sort((a, b) => b.slug.length - a.slug.length)[0];
+}
+
+function roundToCurrency(value: number): number {
+  return Math.round(value * 100) / 100;
+}
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
 
@@ -119,7 +168,19 @@ export default async function handler(req: Request, res: Response) {
 
     if (sessionType === "marketplace") {
       const { marketplaceItem } = body;
-      const price = marketplaceItem?.price;
+
+      if (
+        !marketplaceItem?.title ||
+        typeof marketplaceItem.title !== "string" ||
+        !marketplaceItem.sku ||
+        typeof marketplaceItem.sku !== "string"
+      ) {
+        return res.status(400).json({
+          error: "A valid marketplace item title and SKU are required",
+        });
+      }
+
+      const requestedPrice = marketplaceItem?.price;
       const quantity =
         typeof marketplaceItem?.quantity === "number" &&
         Number.isFinite(marketplaceItem.quantity) &&
@@ -127,24 +188,96 @@ export default async function handler(req: Request, res: Response) {
           ? Math.floor(marketplaceItem.quantity)
           : 1;
 
-      if (
-        !marketplaceItem?.title ||
-        typeof marketplaceItem.title !== "string" ||
-        typeof price !== "number" ||
-        !Number.isFinite(price)
-      ) {
+      if (typeof requestedPrice !== "number" || !Number.isFinite(requestedPrice)) {
         return res.status(400).json({
-          error: "A valid marketplace item title and price are required",
+          error: "A valid marketplace item price is required",
         });
       }
 
       const sanitizedDescription = (marketplaceItem.description || "").slice(0, 500);
 
-      // Hybrid marketplace fields
-      const licenseTier = marketplaceItem.licenseTier || 'commercial';
-      const exclusivity = marketplaceItem.exclusivity || 'non-exclusive';
-      const basePrice = marketplaceItem.basePrice || price;
-      const addons = marketplaceItem.addons || [];
+      // Hybrid marketplace fields (strictly server-validated)
+      const licenseTier: LicenseTier = VALID_LICENSE_TIERS.has(marketplaceItem.licenseTier as LicenseTier)
+        ? (marketplaceItem.licenseTier as LicenseTier)
+        : "commercial";
+      const exclusivity: ExclusivityType = VALID_EXCLUSIVITY_TYPES.has(
+        marketplaceItem.exclusivity as ExclusivityType,
+      )
+        ? (marketplaceItem.exclusivity as ExclusivityType)
+        : "non-exclusive";
+
+      const requestedAddons = Array.isArray(marketplaceItem.addons)
+        ? marketplaceItem.addons.filter((addon): addon is string => typeof addon === "string")
+        : [];
+      const addonPriceMap = new Map(premiumCapabilities.map((addon) => [addon.slug, addon]));
+      const addons = requestedAddons.filter((addonSlug) => addonPriceMap.has(addonSlug));
+
+      const itemType = marketplaceItem.itemType;
+      let expectedBasePrice = 0;
+      let expectedQuantity = quantity;
+
+      if (itemType === "scene") {
+        const scene = findSceneBySku(marketplaceItem.sku);
+        if (!scene) {
+          return res.status(400).json({ error: "Unknown marketplace scene SKU" });
+        }
+
+        if (marketplaceItem.sku.includes("-scene-")) {
+          expectedBasePrice = scene.sceneOnlyPrice || Math.round(scene.price * 0.45);
+        } else if (marketplaceItem.sku.includes("-episodes-")) {
+          expectedBasePrice = scene.episodesOnlyPrice || Math.round(scene.price * 0.65);
+        } else if (marketplaceItem.sku.includes("-bundle-")) {
+          expectedBasePrice = scene.bundlePrice || scene.price;
+        } else {
+          expectedBasePrice = scene.price;
+        }
+
+        expectedQuantity = 1;
+      } else if (itemType === "dataset") {
+        const dataset = findDatasetBySku(marketplaceItem.sku);
+        if (!dataset) {
+          return res.status(400).json({ error: "Unknown marketplace dataset SKU" });
+        }
+
+        expectedBasePrice = dataset.pricePerScene;
+        expectedQuantity = dataset.sceneCount || 1;
+      } else if (itemType === "training") {
+        const training = findTrainingBySku(marketplaceItem.sku);
+        if (!training) {
+          return res.status(400).json({ error: "Unknown marketplace training SKU" });
+        }
+
+        const dataTier = marketplaceItem.dataTier;
+        if (dataTier === "basic" || marketplaceItem.sku.includes("-basic-")) {
+          expectedBasePrice = training.basicPrice || Math.round(training.price * 0.4);
+        } else if (dataTier === "premium" || marketplaceItem.sku.includes("-premium-")) {
+          expectedBasePrice = training.premiumPrice || Math.round(training.price * 1.5);
+        } else {
+          expectedBasePrice = training.standardPrice || training.price;
+        }
+
+        expectedQuantity = 1;
+      } else {
+        return res.status(400).json({ error: "Unknown marketplace item type" });
+      }
+
+      if (quantity !== expectedQuantity) {
+        return res.status(400).json({ error: "Invalid quantity for selected marketplace item" });
+      }
+
+      const addonTotal = addons.reduce((sum, addonSlug) => {
+        return sum + (addonPriceMap.get(addonSlug)?.price || 0);
+      }, 0);
+
+      const computedPrice = roundToCurrency(
+        calculateTotalPrice(expectedBasePrice, licenseTier, exclusivity) + addonTotal,
+      );
+
+      if (roundToCurrency(requestedPrice) !== computedPrice) {
+        return res.status(400).json({
+          error: "Invalid marketplace price for selected SKU and license options",
+        });
+      }
 
       // Build product description with license info
       const licenseLabels: Record<string, string> = {
@@ -184,22 +317,22 @@ export default async function handler(req: Request, res: Response) {
                   exclusivity,
                 },
               },
-              unit_amount: Math.round(price * 100),
+              unit_amount: Math.round(computedPrice * 100),
             },
             quantity,
           },
         ],
         metadata: {
           marketplaceSku: marketplaceItem.sku || "",
-          marketplaceItemType: marketplaceItem.itemType || "",
+          marketplaceItemType: itemType,
           marketplaceTitle: marketplaceItem.title,
           marketplaceDescription: sanitizedDescription,
-          marketplacePrice: price.toFixed(2),
+          marketplacePrice: computedPrice.toFixed(2),
           marketplaceQuantity: quantity.toString(),
           // Hybrid marketplace metadata
           licenseTier,
           exclusivity,
-          basePrice: basePrice.toFixed(2),
+          basePrice: expectedBasePrice.toFixed(2),
           addons: addons.join(','),
         },
         success_url: resolveUrl(
