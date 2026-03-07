@@ -24,6 +24,7 @@ const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const RATE_LIMIT_MAX_IP = 10; // Max 10 submissions per IP per window
 const RATE_LIMIT_MAX_EMAIL = 3; // Max 3 submissions per email per window
 const RATE_LIMIT_PREFIX = "rl:inbound:";
+const LOCAL_RATE_LIMIT_MAX_ENTRIES = 10_000;
 
 const localRateLimitStore = new Map<string, { count: number; resetAt: number }>();
 
@@ -81,8 +82,33 @@ async function checkRateLimit(
   key: string,
   maxCount: number
 ): Promise<{ allowed: boolean; remaining: number }> {
+  const pruneLocalRateLimitStore = (now: number) => {
+    for (const [storeKey, record] of localRateLimitStore.entries()) {
+      if (record.resetAt <= now) {
+        localRateLimitStore.delete(storeKey);
+      }
+    }
+
+    if (localRateLimitStore.size <= LOCAL_RATE_LIMIT_MAX_ENTRIES) {
+      return;
+    }
+
+    const entriesToDelete = localRateLimitStore.size - LOCAL_RATE_LIMIT_MAX_ENTRIES;
+    let deleted = 0;
+
+    for (const storeKey of localRateLimitStore.keys()) {
+      localRateLimitStore.delete(storeKey);
+      deleted += 1;
+
+      if (deleted >= entriesToDelete) {
+        break;
+      }
+    }
+  };
+
   const checkLocalRateLimit = () => {
     const now = Date.now();
+    pruneLocalRateLimitStore(now);
     const record = localRateLimitStore.get(key);
 
     if (!record || record.resetAt <= now) {
