@@ -1,16 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import Home from '@/pages/Home';
+import Home, { HERO_HEADLINES } from '@/pages/Home';
 
 describe('Home', () => {
   it('renders the hero messaging and primary CTAs', () => {
     render(<Home />);
 
-    expect(
-      screen.getByRole('heading', {
-        name: /Get your site ready for robot deployment\./i,
-      }),
-    ).toBeInTheDocument();
+    const heroHeading = screen.getByRole('heading', { level: 1 });
+
+    expect(HERO_HEADLINES).toContain(heroHeading.textContent);
     expect(
       screen.getAllByRole('link', { name: /See how it works/i }).some(
         (link) => link.getAttribute('href') === '/solutions',

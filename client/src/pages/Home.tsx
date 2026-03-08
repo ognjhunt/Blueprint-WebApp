@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { CTAButtons } from "@/components/site/CTAButtons";
 import { LogoWall } from "@/components/site/LogoWall";
 import { SEO } from "@/components/SEO";
@@ -99,6 +100,12 @@ const providerBullets = [
   "Share facility details and capture availability",
 ];
 
+export const HERO_HEADLINES = [
+  "Get your site ready for robot deployment.",
+  "1 walkthrough. 1 reusable site twin. Less guesswork before deployment.",
+  "Improve your real-world task success by up to +34 absolute points.",
+];
+
 // --- Component ---
 
 function DotPattern() {
@@ -125,6 +132,10 @@ function DotPattern() {
 }
 
 export default function Home() {
+  const [heroHeadline] = useState(
+    () => HERO_HEADLINES[Math.floor(Math.random() * HERO_HEADLINES.length)],
+  );
+
   return (
     <>
       <SEO
@@ -148,7 +159,7 @@ export default function Home() {
                     Deployment Readiness for Robot Teams
                   </div>
                   <h1 className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl">
-                    Get your site ready for robot deployment.
+                    {heroHeadline}
                   </h1>
                   <p className="max-w-xl text-base leading-relaxed text-zinc-600 sm:text-lg">
                     Blueprint coordinates walkthrough capture, delivers a reusable site twin,

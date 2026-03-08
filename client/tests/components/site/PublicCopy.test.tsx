@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
-import Home from "@/pages/Home";
+import Home, { HERO_HEADLINES } from "@/pages/Home";
 
 vi.mock("wouter", () => ({
   useLocation: () => ["/", vi.fn()],
@@ -27,9 +27,7 @@ describe("public service-first copy", () => {
     );
 
     expect(screen.getAllByRole("link", { name: /Request a Capture/i }).length).toBeGreaterThan(0);
-    expect(
-      screen.getByRole("heading", { name: /Get your site ready for robot deployment\./i }),
-    ).toBeInTheDocument();
+    expect(HERO_HEADLINES).toContain(screen.getByRole("heading", { level: 1 }).textContent);
     expect(container).toHaveTextContent(/site twin|digital twin/i);
     expect(container).toHaveTextContent(/deployment readiness|evaluate/i);
 
