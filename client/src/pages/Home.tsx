@@ -1,131 +1,102 @@
 import { CTAButtons } from "@/components/site/CTAButtons";
 import { LogoWall } from "@/components/site/LogoWall";
 import { SEO } from "@/components/SEO";
-import { useEffect, useState } from "react";
 import {
   ArrowRight,
-  BarChart3,
   CheckCircle2,
   Globe2,
   MapPin,
   ScanLine,
   Shield,
   Sparkles,
-  Terminal,
-  Zap,
 } from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 
 // --- Data ---
 
-type HeroHeadlineVariant = {
-  id: string;
-  headline: string;
-};
-
-const heroHeadlineVariants: HeroHeadlineVariant[] = [
-  {
-    id: "ship-day-one",
-    headline: "Ship robots that work on site, day one.",
-  },
-  {
-    id: "on-site",
-    headline: "Boost on-site task success by up to +34 points.",
-  },
-  {
-    id: "deployment-success",
-    headline: "Improve deployment success by up to +34 points.",
-  },
-  {
-    id: "absolute-points",
-    headline: "Improve on-site task success by up to +34 points.",
-  },
-];
-
 const offeringCards = [
   {
-    title: "Walkthrough Capture Network",
-    badge: "Capture Service",
+    title: "Walkthrough Capture",
+    badge: "Service",
     description:
-      "Send us the target address and we coordinate local walkthrough capture. We ingest the footage into our reconstruction pipeline and deliver a splat twin you can use immediately.",
+      "Tell us the site and Blueprint will coordinate the walkthrough capture.",
     bullets: [
-      "Coverage for warehouses, kitchens, retail stores, and factories",
-      "Capture QA and metadata contract so every upload is reconstruction-ready",
+      "Local capture coordinated by Blueprint",
+      "Built for warehouses, kitchens, retail, factories, offices, and labs",
     ],
-    ctaLabel: "Request a walkthrough",
+    ctaLabel: "Request a capture",
     ctaHref: "/contact?interest=capture",
     icon: <MapPin className="h-8 w-8 text-zinc-900" />,
   },
   {
-    title: "Site-Specific Fine-Tuning",
-    badge: "Core Service",
+    title: "Site Twin Delivery",
+    badge: "Deliverable",
     description:
-      "We render training and evaluation clips from your target twin, then post-train or fine-tune your world model/VLA for that location. You get adapter weights ready to deploy.",
+      "We turn the walkthrough into a reusable digital twin your team can review before stepping on site.",
     bullets: [
-      "Works with DreamDojo, Cosmos, OpenVLA, GR00T, and custom stacks",
-      "Adapter weights and readiness report delivered together",
+      "A clear view of the location for internal review",
+      "A reusable site twin for future evaluation and planning",
     ],
-    ctaLabel: "Learn how it works",
+    ctaLabel: "See how it works",
     ctaHref: "/how-it-works",
-    icon: <Zap className="h-8 w-8 text-zinc-900" />,
+    icon: <ScanLine className="h-8 w-8 text-zinc-900" />,
   },
   {
-    title: "Deployment Evaluation + Exchange",
-    badge: "Marketplace",
+    title: "Deployment Readiness",
+    badge: "Review",
     description:
-      "Run pre-deployment scorecards on the same location twin and transact through our marketplace. Capture providers, location owners, and robot teams coordinate in one system.",
+      "We help your team assess the location before a live pilot so you can move forward with fewer surprises.",
     bullets: [
-      "Location-specific scorecards before spending on live pilot operations",
-      "Exchange model for capture jobs, twin access, and adaptation cycles",
+      "Evaluate the site before spending on on-site work",
+      "Use the same location context across planning and review",
     ],
-    ctaLabel: "Open Deployment Marketplace",
+    ctaLabel: "Explore the marketplace",
     ctaHref: "/deployment-marketplace",
-    icon: <BarChart3 className="h-8 w-8 text-zinc-900" />,
+    icon: <Shield className="h-8 w-8 text-zinc-900" />,
   },
 ];
 
 const whyBlueprint = [
   {
-    title: "One walkthrough becomes a reusable location twin",
+    title: "Faster site intake",
     description:
-      "A short walkthrough is reconstructed into a Gaussian Splat with standardized metadata, then reused for rendering, adaptation, and evaluation across multiple robot programs.",
+      "You do not need to build a capture workflow from scratch. Blueprint coordinates the walkthrough and keeps the process moving.",
   },
   {
-    title: "Post-train on the exact place you deploy",
+    title: "Reusable location context",
     description:
-      "Base models stay generic by design. We fine-tune them on the target location twin so policies arrive with priors for that building's geometry, lighting, and workflow.",
+      "Your team gets a digital twin it can review, share, and return to as deployment plans take shape.",
   },
   {
-    title: "Exchange economics make each site productive",
+    title: "Fewer surprises before pilot launch",
     description:
-      "Location owners can list sites, capture operators can fulfill walkthrough jobs, and robotics teams can buy adaptation cycles. One capture can support repeated deployments.",
+      "The goal is simple: understand the site before a live pilot and make better go or no-go decisions.",
   },
 ];
 
-const dataMultiplierChart = [
-  { name: "iPhone Scan", minutes: 15 },
-  { name: "Gaussian Splat", minutes: 30 },
-  { name: "Rendered Video", minutes: 6000 },
-  { name: "Fine-Tune Cycles", minutes: 12000 },
+const whatYouGet = [
+  {
+    title: "Capture, coordinated",
+    description: "Blueprint handles walkthrough capture and keeps the intake process on track.",
+  },
+  {
+    title: "A reusable site twin",
+    description: "Your team gets a digital twin it can review before on-site work begins.",
+  },
+  {
+    title: "A readiness path",
+    description: "You get a practical next step for evaluation before a live rollout.",
+  },
 ];
 
 const labBullets = [
-  "Request a walkthrough capture or select an existing location twin",
-  "Receive splat assets plus rendered training and evaluation clips",
-  "Get location-adapted weights and a deployment readiness report",
+  "Request walkthrough capture for a target site",
+  "Review the site twin with your team",
+  "Decide whether to move forward with evaluation or a live pilot",
 ];
 
 const providerBullets = [
-  "List your facilities and capture availability for robotics teams",
-  "Earn revenue on recurring adaptation and re-capture cycles",
+  "List sites that may be useful to robot teams",
+  "Share facility details and capture availability",
 ];
 
 // --- Component ---
@@ -154,39 +125,11 @@ function DotPattern() {
 }
 
 export default function Home() {
-  const [heroHeadlineVariant, setHeroHeadlineVariant] = useState<HeroHeadlineVariant>(
-    heroHeadlineVariants[0]
-  );
-
-  useEffect(() => {
-    // Randomize on page entry (client-side only). Keep stable for the tab session.
-    const storageKey = "bp_home_hero_headline_variant_v1";
-
-    try {
-      const storedId = sessionStorage.getItem(storageKey);
-      const stored = heroHeadlineVariants.find((variant) => variant.id === storedId);
-
-      if (stored) {
-        setHeroHeadlineVariant(stored);
-        return;
-      }
-
-      const picked =
-        heroHeadlineVariants[Math.floor(Math.random() * heroHeadlineVariants.length)];
-      sessionStorage.setItem(storageKey, picked.id);
-      setHeroHeadlineVariant(picked);
-    } catch {
-      const picked =
-        heroHeadlineVariants[Math.floor(Math.random() * heroHeadlineVariants.length)];
-      setHeroHeadlineVariant(picked);
-    }
-  }, []);
-
   return (
     <>
       <SEO
-        title="Blueprint | Digital Twins for Robot Learning"
-        description="Digital twins of real commercial locations. Fine-tune any world model or VLA policy for site-specific deployment. One scan, hundreds of hours of training data."
+        title="Blueprint | Site Capture and Deployment Readiness for Robot Teams"
+        description="Blueprint coordinates walkthrough capture, delivers reusable digital twins, and helps robot teams evaluate locations before live deployment."
         canonical="/"
         image="https://tryblueprint.io/images/og-home.png"
       />
@@ -202,16 +145,14 @@ export default function Home() {
                 <div className="space-y-4 sm:space-y-6">
                   <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
                     <Sparkles className="h-3 w-3" />
-                    Digital Twins for Robots
+                    Deployment Readiness for Robot Teams
                   </div>
                   <h1 className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl">
-                    {heroHeadlineVariant.headline}
+                    Get your site ready for robot deployment.
                   </h1>
                   <p className="max-w-xl text-base leading-relaxed text-zinc-600 sm:text-lg">
-                    Fine-tune any world model to your exact facility. We send people to record
-                    walkthroughs of real sites, reconstruct those captures into splat twins, and
-                    use that data to fine-tune and evaluate your model at the target location
-                    before your robot goes live.
+                    Blueprint coordinates walkthrough capture, delivers a reusable site twin,
+                    and helps your team evaluate a location before a live deployment.
                   </p>
                 </div>
 
@@ -219,7 +160,7 @@ export default function Home() {
                   primaryHref="/solutions"
                   primaryLabel="See how it works"
                   secondaryHref="/contact"
-                  secondaryLabel="Start a capture"
+                  secondaryLabel="Request a capture"
                 />
 
                 <div className="pt-2 opacity-80 grayscale transition-all duration-500 hover:opacity-100 hover:grayscale-0 sm:pt-4">
@@ -234,14 +175,13 @@ export default function Home() {
                   <div className="overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50">
                     <img
                       src="/images/hero-digital-twin-v3.svg"
-                      alt="3D point cloud reconstruction of a warehouse with robot navigation and capture-to-deploy pipeline"
+                      alt="Illustration of a commercial site prepared for robot deployment review"
                       className="h-48 w-full object-cover"
                       loading="lazy"
                     />
                   </div>
                   <div className="mt-4 space-y-3">
-                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
-                      <Terminal className="h-4 w-4" />
+                    <div className="text-xs font-bold uppercase tracking-widest text-zinc-400">
                       Facility Types
                     </div>
                     <p className="text-sm text-zinc-600">
@@ -299,57 +239,32 @@ export default function Home() {
           </div>
         </section>
 
-        {/* --- Data Multiplier Chart --- */}
+        {/* --- What You Get --- */}
         <section className="border-y border-zinc-100 bg-zinc-50/50 py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="grid gap-12 lg:grid-cols-[1fr_1.2fr] lg:items-center">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 mb-4">
-                  <ScanLine className="h-3 w-3" />
-                  The Data Multiplier
-                </div>
-                <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
-                  15 minutes of scanning. 100+ hours of training video.
-                </h2>
-                <p className="mt-4 text-zinc-600">
-                  An iPhone scan of a facility produces a Gaussian Splat you can render from
-                  any viewpoint. World models like DreamDojo and Cosmos consume this video
-                  directly for fine-tuning. No 3D conversion, no physics engine.
-                </p>
-                <div className="mt-6 grid grid-cols-2 gap-4">
-                  <div className="rounded-lg bg-white p-4 ring-1 ring-zinc-200">
-                    <p className="text-2xl font-bold text-emerald-600">15 min</p>
-                    <p className="text-xs text-zinc-500">iPhone scan time</p>
-                  </div>
-                  <div className="rounded-lg bg-white p-4 ring-1 ring-zinc-200">
-                    <p className="text-2xl font-bold text-emerald-600">100+ hrs</p>
-                    <p className="text-xs text-zinc-500">Rendered training video</p>
-                  </div>
-                </div>
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 mb-4">
+                <ScanLine className="h-3 w-3" />
+                What You Get
               </div>
-
-              <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-                <p className="mb-4 text-xs font-bold uppercase tracking-wider text-zinc-400">
-                  Data Output by Pipeline Stage (minutes)
-                </p>
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={dataMultiplierChart} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis type="number" tick={{ fontSize: 12, fill: "#94a3b8" }} />
-                    <YAxis
-                      dataKey="name"
-                      type="category"
-                      width={110}
-                      tick={{ fontSize: 12, fill: "#64748b" }}
-                    />
-                    <Tooltip
-                      formatter={(value: number) => [`${value.toLocaleString()} min`, "Output"]}
-                      contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0" }}
-                    />
-                    <Bar dataKey="minutes" fill="#10b981" radius={[0, 6, 6, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
+                A simple service for getting a site deployment-ready.
+              </h2>
+              <p className="mt-4 text-zinc-600">
+                We keep it simple: capture the site, deliver a reusable twin, and help
+                your team decide what comes next before you go live.
+              </p>
+            </div>
+            <div className="mt-10 grid gap-4 md:grid-cols-3">
+              {whatYouGet.map((item) => (
+                <div
+                  key={item.title}
+                  className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
+                >
+                  <h3 className="font-semibold text-zinc-900">{item.title}</h3>
+                  <p className="mt-2 text-sm text-zinc-600">{item.description}</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -358,11 +273,10 @@ export default function Home() {
         <section className="border-y border-zinc-100 bg-zinc-50/50 py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-10">
-              <h2 className="text-2xl font-bold text-zinc-900">Why bother with site-specific fine-tuning?</h2>
+              <h2 className="text-2xl font-bold text-zinc-900">Why teams use Blueprint</h2>
               <p className="mt-2 text-zinc-600">
-                General-purpose world models are good, but they still make mistakes in
-                buildings they haven't seen. A quick fine-tuning pass on your facility
-                fixes most of those errors.
+                Blueprint gives robot teams a clearer picture of a site before they commit
+                time, travel, and pilot budget.
               </p>
             </div>
 
@@ -386,10 +300,10 @@ export default function Home() {
             {/* Robotics Team Persona */}
             <div className="rounded-2xl border border-zinc-200 bg-white p-8">
               <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                For Robotics Teams
+                For Robot Teams
               </p>
               <h3 className="mt-2 text-xl font-bold text-zinc-900">
-                Fine-tune your model. Deploy on-site.
+                Review the site before you send the robot.
               </h3>
               <ul className="mt-4 space-y-2">
                 {labBullets.map((item) => (
@@ -407,7 +321,7 @@ export default function Home() {
                 For Location Owners
               </p>
               <h3 className="mt-2 text-xl font-bold text-white">
-                Your building is worth something to robotics teams.
+                Make your site easier for robot teams to evaluate.
               </h3>
               <ul className="mt-4 space-y-2">
                 {providerBullets.map((item) => (
@@ -439,8 +353,8 @@ export default function Home() {
                   <ScanLine className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-zinc-900">Scan to adapt pipeline</p>
-                  <p className="text-sm text-zinc-500">iPhone scan to LoRA weights in days</p>
+                  <p className="font-semibold text-zinc-900">How the service works</p>
+                  <p className="text-sm text-zinc-500">From site request to review-ready twin</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
@@ -455,8 +369,8 @@ export default function Home() {
                   <Shield className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-zinc-900">Readiness scoring</p>
-                  <p className="text-sm text-zinc-500">Evaluate before you schedule pilots</p>
+                  <p className="font-semibold text-zinc-900">Readiness review</p>
+                  <p className="text-sm text-zinc-500">Check fit before you schedule a live pilot</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
@@ -471,8 +385,8 @@ export default function Home() {
                   <Globe2 className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-zinc-900">Deployment Marketplace</p>
-                  <p className="text-sm text-zinc-500">Capture, twin, adaptation, and demand in one marketplace</p>
+                  <p className="font-semibold text-zinc-900">Marketplace access</p>
+                  <p className="text-sm text-zinc-500">Browse sites, requests, and deployment opportunities</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
@@ -484,11 +398,11 @@ export default function Home() {
         <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
           <div className="rounded-2xl bg-zinc-900 p-8 text-center sm:p-12">
             <h2 className="text-2xl font-bold text-white sm:text-3xl">
-              Tell us the building. We'll adapt the model.
+              Tell us the site. We&apos;ll handle the rest.
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-zinc-400">
-              Share your target location and the model you're using. We'll scope
-              how fast we can get adapted weights to your robot.
+              Share the location and your deployment goal. We&apos;ll scope capture,
+              site-twin delivery, and the right next step for evaluation.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
               <a

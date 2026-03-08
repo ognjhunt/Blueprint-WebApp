@@ -21,25 +21,34 @@ describe("Header", () => {
     expect(screen.queryByRole("link", { name: /How It Works/i })).not.toBeInTheDocument();
   });
 
-  it("shows Deployment Marketplace in the top navigation", () => {
+  it("shows Marketplace in the top navigation", () => {
     render(<Header />);
 
-    const link = screen.getByRole("link", { name: /Deployment Marketplace/i });
+    const link = screen.getByRole("link", { name: /^Marketplace$/i });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "/deployment-marketplace");
   });
 
-  it("puts Deployment Marketplace first in the top navigation", () => {
+  it("puts Marketplace first in the top navigation", () => {
     render(<Header />);
 
     const nav = screen.getByRole("navigation");
     const navLinks = within(nav).getAllByRole("link");
-    expect(navLinks[0]).toHaveTextContent("Deployment Marketplace");
+    expect(navLinks[0]).toHaveTextContent("Marketplace");
   });
 
   it("does not show legacy partners nav link", () => {
     render(<Header />);
 
     expect(screen.queryByRole("link", { name: /Partners/i })).not.toBeInTheDocument();
+  });
+
+  it("uses Request a Capture as the primary CTA", () => {
+    render(<Header />);
+
+    expect(screen.getByRole("link", { name: /Request a Capture/i })).toHaveAttribute(
+      "href",
+      "/contact",
+    );
   });
 });
