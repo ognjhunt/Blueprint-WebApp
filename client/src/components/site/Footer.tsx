@@ -17,8 +17,8 @@ export function Footer() {
             Blueprint
           </a>
           <p className="text-sm text-slate-500">
-            Blueprint coordinates walkthrough capture, turns sites into reusable digital twins,
-            and helps humanoid teams evaluate deployments before going live.
+            Blueprint captures sites, hosts reusable twins, and turns them into readiness,
+            evaluation, and adaptation artifacts for robot teams.
           </p>
         </div>
         <nav className="grid flex-1 grid-cols-2 gap-3 text-sm text-slate-600 sm:grid-cols-3">
@@ -32,7 +32,7 @@ export function Footer() {
       <div className="border-t border-slate-200 bg-white py-4">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p>© {new Date().getFullYear()} Blueprint, Inc. All rights reserved.</p>
-          <p>Site capture and deployment readiness services for humanoid teams.</p>
+          <p>Hosted site twins, readiness packs, and adaptation artifacts for robot teams.</p>
         </div>
       </div>
     </footer>

@@ -2,40 +2,40 @@ import { SEO } from "@/components/SEO";
 import { CheckCircle2, Cpu, FileCheck2, Gauge, GitBranchPlus, Truck } from "lucide-react";
 
 const requiredInputs = [
-  "Policy package: model/version, runtime assumptions, and task policy interface",
-  "Task definitions: success criteria, abort conditions, and priority workflows",
-  "Constraints: kinematics, payload limits, sensor stack, and operating envelopes",
-  "Evaluation target: specific deployment site or facility profile to match",
+  "Deployment objective: target site, task/workcell, and what a pass actually means",
+  "Runtime contract: model/version, policy interface, and operating assumptions",
+  "Constraints: kinematics, payload limits, sensor stack, and safety envelope",
+  "Rights and next step: review only, adaptation data, or managed adaptation for a supported stack",
 ];
 
 const workflowSteps = [
   {
     title: "1. Submit deployment objective",
     description:
-      "Define the site, tasks, and confidence targets you need before any physical rollout.",
+      "Define the site, the workflow, and the decision your team needs before any physical rollout.",
   },
   {
-    title: "2. Twin match and scene prep",
+    title: "2. Twin license and readiness layer",
     description:
-      "Use an existing twin or request a new capture; Blueprint prepares render-ready facility views for humanoid training and evaluation.",
+      "Use an existing hosted twin or request a new capture; Blueprint prepares the facility context and default readiness pack first.",
   },
   {
-    title: "3. Adaptation and scorecard run",
+    title: "3. Add artifact depth only if needed",
     description:
-      "Run site-specific adaptation cycles and evaluate policies in the exchange workflow with standardized reporting.",
+      "Buy the adaptation data pack when your team needs task-scoped eval or training artifacts on top of the twin.",
   },
   {
-    title: "4. Go/no-go package",
+    title: "4. Use managed adaptation selectively",
     description:
-      "Receive performance deltas, failure clusters, and a readiness summary to support pilot planning.",
+      "Run managed adaptation only on supported stacks with a clear interface and an offline evaluation path before redeploy.",
   },
 ];
 
 const logisticsItems = [
-  "Versioned submissions so each evaluation run is traceable",
-  "Standard artifact bundle: metrics, clips, and reproducible run configuration",
-  "Contracting path for recurring evaluation and re-adaptation cycles",
-  "Optional handoff package for customer site and safety review teams",
+  "Versioned submissions so each artifact bundle is traceable",
+  "Hosted twin by default, with scoped access and usage rights",
+  "Clear separation between readiness pack, adaptation data, and managed adaptation",
+  "Drift refresh path once the site changes after the first deployment cycle",
 ];
 
 export default function ForRobotIntegrators() {
@@ -43,7 +43,7 @@ export default function ForRobotIntegrators() {
     <>
       <SEO
         title="For Humanoid Integrators & Teams | Blueprint"
-        description="Guide for humanoid integrators and deployment teams using Blueprint for site-specific adaptation, exchange evaluation, and pre-deployment readiness."
+        description="Guide for robot teams using Blueprint for hosted site twins, readiness packs, adaptation data, and managed adaptation on supported stacks."
         canonical="/for-robot-integrators"
       />
 
@@ -58,7 +58,7 @@ export default function ForRobotIntegrators() {
             </h1>
             <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
               If your team deploys humanoid policies into customer facilities, this page outlines
-              the practical inputs, exchange workflow, and logistics needed to qualify readiness
+              the practical inputs, product ladder, and logistics needed to qualify readiness
               before going live on site.
             </p>
           </div>
@@ -107,23 +107,23 @@ export default function ForRobotIntegrators() {
               <div className="rounded-lg bg-slate-50 p-4">
                 <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                   <Cpu className="h-4 w-4" />
-                  Adaptation target
+                  Default motion
                 </p>
-                <p className="mt-1 text-sm text-slate-600">Site-specific humanoid world model or VLA tuning.</p>
+                <p className="mt-1 text-sm text-slate-600">Hosted twin plus readiness pack first.</p>
               </div>
               <div className="rounded-lg bg-slate-50 p-4">
                 <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                   <Gauge className="h-4 w-4" />
-                  Qualification output
+                  Core upsell
                 </p>
-                <p className="mt-1 text-sm text-slate-600">Standardized pre-deployment scorecards.</p>
+                <p className="mt-1 text-sm text-slate-600">Adaptation data pack for eval and training artifacts.</p>
               </div>
               <div className="rounded-lg bg-slate-50 p-4">
                 <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                   <GitBranchPlus className="h-4 w-4" />
-                  Ongoing cycles
+                  Recurring layer
                 </p>
-                <p className="mt-1 text-sm text-slate-600">Re-adaptation when site conditions drift.</p>
+                <p className="mt-1 text-sm text-slate-600">Drift refresh when the site changes after deployment prep.</p>
               </div>
             </div>
           </section>

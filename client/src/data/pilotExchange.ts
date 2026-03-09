@@ -311,7 +311,7 @@ export const pilotExchangeFaq: PilotExchangeFaqItem[] = [
     id: "faq-01",
     question: "Is this simulation-only, or do you still test in the real world?",
     answer:
-      "Deployment Marketplace is pre-deployment simulation only. Our service scope ends before live deployment starts; real-world pilot execution and post-deployment data are handled directly between the location/site and robotics team.",
+      "Deployment Marketplace starts with pre-deployment qualification. The default scope is the hosted twin, readiness review, and evaluation layer; for approved programs, Blueprint can also support adaptation artifacts and later drift refresh tied to that twin.",
   },
   {
     id: "faq-02",
@@ -329,81 +329,81 @@ export const pilotExchangeFaq: PilotExchangeFaqItem[] = [
     id: "faq-04",
     question: "What does transfer confidence mean here?",
     answer:
-      "It is a pre-deployment confidence band based on calibrated simulation evidence. It is not a production guarantee, and live SAT/pilot-ramp validation plus any post-deployment data collection are handled by the site and robotics team.",
+      "It is a pre-deployment confidence band based on site-specific evidence from the hosted twin and evaluation layer. It is not a production guarantee, and live rollout decisions still need SAT, pilot controls, and stack-specific validation.",
   },
   {
     id: "faq-05",
     question: "Who pays for Deployment Marketplace?",
     answer:
-      "Location sites use the free default onboarding model with $0 upfront scan cost. Robotics teams pay for evaluation runs, scorecards, subscription access, and training usage.",
+      "Sites keep the $0 default onboarding path. Robot teams buy the level of artifact depth they need: readiness first, adaptation data second, and managed adaptation only when the stack supports it.",
   },
   {
     id: "faq-06",
     question: "Who owns the digital twin?",
     answer:
-      "Two options only: Free (default), where Blueprint owns and hosts the twin, or Private Twin Buyout, where the site pays for scan + hosting under private access terms.",
+      "Blueprint owns and hosts the twin by default, while customers receive licensed access and usage rights based on the product tier they buy. Private or higher-control terms are available for larger engagements.",
   },
 ];
 
 export const exchangeBusinessModelCards: ExchangeBusinessModelCard[] = [
   {
     id: "biz-01",
-    title: "Free Site Scan (Default)",
-    payer: "Location Site",
+    title: "Site Twin License",
+    payer: "Blueprint + Site Approval",
     pricing: "$0 upfront",
     description:
-      "Blueprint captures, calibrates, and hosts the default twin at no upfront scanning fee.",
+      "Blueprint captures, calibrates, and hosts the default twin so teams start from a reusable site asset instead of a one-off scan.",
   },
   {
     id: "biz-02",
-    title: "Pro Site Evaluation",
+    title: "Readiness Pack",
     payer: "Robotics Team",
-    pricing: "$4,900 per site cycle",
+    pricing: "Usage-based",
     description:
-      "Required purchase to submit policy evaluations, receive scorecards, and join anonymized leaderboards.",
+      "Default buying motion for robot teams that need task scope, scorecards, and a go / adapt / wait recommendation before a live pilot.",
   },
   {
     id: "biz-03",
-    title: "Robotics Team Subscription",
+    title: "Adaptation Data Pack",
     payer: "Robotics Team",
-    pricing: "$1,200 / month",
+    pricing: "Usage-based add-on",
     description:
-      "Recurring access for teams running continuous qualification cycles across multiple site twins.",
+      "Adds task-scoped render packs, evaluation scenarios, and site-conditioned training artifacts on top of the hosted twin.",
   },
   {
     id: "biz-04",
-    title: "Training Access",
+    title: "Managed Adaptation",
     payer: "Robotics Team",
-    pricing: "$2,400 / month",
+    pricing: "Custom for supported stacks",
     description:
-      "Monetized training rights on calibrated site twins, including replay scenarios and regression sweeps.",
+      "Premium service for teams that want Blueprint to run fine-tuning or post-training with an offline evaluation gate before redeploy.",
   },
 ];
 
 export const ownershipOptions: OwnershipOption[] = [
   {
     id: "owner-01",
-    name: "Free Twin (Default)",
+    name: "Hosted Twin (Default)",
     owner: "Blueprint",
     siteCost: "Free ($0 upfront)",
-    exchangeUsage: "Eligible for marketplace evaluations by approved teams.",
-    note: "Default onboarding path where Blueprint owns and operates the twin.",
+    exchangeUsage: "Licensed access and approved evaluation/adaptation rights by product tier.",
+    note: "Default path where Blueprint owns and operates the twin while customers buy scoped usage rights.",
   },
   {
     id: "owner-02",
-    name: "Private Twin Buyout (Paid)",
+    name: "Private Twin Terms (Paid)",
     owner: "Private access under site-specific terms",
     siteCost: "Paid scan + hosting (custom pricing)",
     exchangeUsage: "Limited to site-approved teams and terms.",
-    note: "Site buys out a private twin while Blueprint provides scan and hosting as a paid service.",
+    note: "Higher-control option for sites or teams that need private hosting or tighter access terms.",
   },
 ];
 
 export const monetizationMix: MonetizationMixPoint[] = [
-  { id: "mix-01", stream: "Eval + Scorecard", percent: 44 },
-  { id: "mix-02", stream: "Robotics Subscription", percent: 28 },
-  { id: "mix-03", stream: "Training Usage", percent: 22 },
-  { id: "mix-04", stream: "Private Buyout", percent: 6 },
+  { id: "mix-01", stream: "Readiness Pack", percent: 44 },
+  { id: "mix-02", stream: "Adaptation Data", percent: 28 },
+  { id: "mix-03", stream: "Managed Adaptation", percent: 22 },
+  { id: "mix-04", stream: "Private Terms", percent: 6 },
 ];
 
 export const trainingEvidencePoints: TrainingEvidencePoint[] = [

@@ -91,11 +91,12 @@ const POLICY_LIBRARY_STORAGE_KEY = "bp_pilot_exchange_policy_library_v3";
 
 type AccessQuote = {
   evaluationRun: { low: number; high: number };
-  fineTuneCycle: { low: number; high: number };
+  adaptationDataPack: { low: number; high: number };
+  managedAdaptation: { low: number; high: number };
   dataLicense: { low: number; high: number };
 };
 
-type AccessChoice = "evaluation" | "fine-tune" | "data-license";
+type AccessChoice = "evaluation" | "adaptation-data" | "managed-adaptation" | "data-license";
 
 const deploymentGapHighlights = [
   {
@@ -106,9 +107,9 @@ const deploymentGapHighlights = [
   },
   {
     id: "highlight-02",
-    title: "Capture and adaptation are different",
+    title: "The twin is the base asset",
     detail:
-      "A 3D twin gives geometry. Reliable transfer requires calibration of sensor noise, contact physics, timing, and workflow exceptions.",
+      "The hosted twin is useful on its own, but the real leverage comes from the readiness pack, eval harness, and adaptation artifacts built on top of it.",
   },
   {
     id: "highlight-03",
@@ -148,9 +149,9 @@ const adaptationModes = [
   },
   {
     id: "mode-02",
-    title: "Mode 2: Site-Specific Adaptation (Primary Service)",
+    title: "Mode 2: Site-Specific Adaptation (Add-On)",
     detail:
-      "We calibrate and adapt to the exact target facility so policies arrive with stronger priors for that specific deployment route and workflow.",
+      "Blueprint can generate site-specific eval and training artifacts for the exact target facility. Managed model adaptation is available only for supported stacks.",
   },
   {
     id: "mode-03",
@@ -290,7 +291,8 @@ function generateQuotedRange(
 function generateAccessQuote(): AccessQuote {
   return {
     evaluationRun: generateQuotedRange(750, 2500, 350, 1100, 50),
-    fineTuneCycle: generateQuotedRange(8000, 35000, 3000, 12000, 500),
+    adaptationDataPack: generateQuotedRange(5000, 22000, 2000, 8000, 500),
+    managedAdaptation: generateQuotedRange(8000, 35000, 3000, 12000, 500),
     dataLicense: generateQuotedRange(15000, 75000, 9000, 28000, 1000),
   };
 }
@@ -411,9 +413,11 @@ export default function PilotExchange() {
 
     if (typeof window === "undefined") return;
     const interest =
-      selectedAccessChoice === "fine-tune"
-        ? "fine-tune-cycle"
-        : "data-license";
+      selectedAccessChoice === "adaptation-data"
+        ? "adaptation-data-pack"
+        : selectedAccessChoice === "managed-adaptation"
+          ? "managed-adaptation"
+          : "data-license";
     window.location.href = `/contact?interest=${interest}&source=deployment-marketplace`;
   }, [accessTargetBriefId, openEvalDialog, selectedAccessChoice]);
 
@@ -890,7 +894,7 @@ export default function PilotExchange() {
           <div className="bg-zinc-900 p-6 pr-16 text-white sm:p-8">
             <DialogTitle className="text-2xl font-bold text-white">Deployment Marketplace Access</DialogTitle>
             <DialogDescription className="text-zinc-300 mt-2">
-              Site operators pay $0. Robot teams pay only for usage.
+              Site operators pay $0. Robot teams choose the artifact depth they need.
             </DialogDescription>
           </div>
 
@@ -930,26 +934,55 @@ export default function PilotExchange() {
 
               <button
                 type="button"
-                onClick={() => setSelectedAccessChoice("fine-tune")}
+                onClick={() => setSelectedAccessChoice("adaptation-data")}
                 className={`w-full rounded-xl border bg-white p-4 text-left transition ${
-                  selectedAccessChoice === "fine-tune"
+                  selectedAccessChoice === "adaptation-data"
                     ? "border-zinc-900 ring-2 ring-zinc-900/10"
                     : "border-zinc-200 hover:border-zinc-300"
                 }`}
-                aria-pressed={selectedAccessChoice === "fine-tune"}
+                aria-pressed={selectedAccessChoice === "adaptation-data"}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-zinc-900">Fine-Tune Cycles</p>
+                    <p className="text-sm font-semibold text-zinc-900">Adaptation Data Pack</p>
                     <p className="mt-1 text-2xl font-bold text-zinc-900">
-                      {formatUsd(accessQuote.fineTuneCycle.low)} - {formatUsd(accessQuote.fineTuneCycle.high)}{" "}
+                      {formatUsd(accessQuote.adaptationDataPack.low)} - {formatUsd(accessQuote.adaptationDataPack.high)}{" "}
+                      <span className="text-sm font-normal text-zinc-500">per pack</span>
+                    </p>
+                    <p className="mt-2 text-xs text-zinc-600">
+                      Best for teams that want site-conditioned eval and training artifacts but plan to train in-house.
+                    </p>
+                  </div>
+                  {selectedAccessChoice === "adaptation-data" ? (
+                    <span className="rounded-full bg-zinc-900 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+                      Selected
+                    </span>
+                  ) : null}
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedAccessChoice("managed-adaptation")}
+                className={`w-full rounded-xl border bg-white p-4 text-left transition ${
+                  selectedAccessChoice === "managed-adaptation"
+                    ? "border-zinc-900 ring-2 ring-zinc-900/10"
+                    : "border-zinc-200 hover:border-zinc-300"
+                }`}
+                aria-pressed={selectedAccessChoice === "managed-adaptation"}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-900">Managed Adaptation</p>
+                    <p className="mt-1 text-2xl font-bold text-zinc-900">
+                      {formatUsd(accessQuote.managedAdaptation.low)} - {formatUsd(accessQuote.managedAdaptation.high)}{" "}
                       <span className="text-sm font-normal text-zinc-500">per cycle</span>
                     </p>
                     <p className="mt-2 text-xs text-zinc-600">
-                      Best for teams that want Blueprint to deliver site-adapted weights.
+                      Premium path for supported stacks with a defined interface and offline evaluation gate.
                     </p>
                   </div>
-                  {selectedAccessChoice === "fine-tune" ? (
+                  {selectedAccessChoice === "managed-adaptation" ? (
                     <span className="rounded-full bg-zinc-900 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
                       Selected
                     </span>
@@ -993,7 +1026,8 @@ export default function PilotExchange() {
                 className="bg-zinc-900 text-white hover:bg-zinc-800"
               >
                 {selectedAccessChoice === "evaluation" && "Continue to Evaluation"}
-                {selectedAccessChoice === "fine-tune" && "Continue to Fine-Tune"}
+                {selectedAccessChoice === "adaptation-data" && "Continue to Adaptation Data"}
+                {selectedAccessChoice === "managed-adaptation" && "Continue to Managed Adaptation"}
                 {selectedAccessChoice === "data-license" && "Continue to Data License"}
               </Button>
               <a

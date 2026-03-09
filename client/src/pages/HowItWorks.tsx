@@ -37,21 +37,21 @@ function DotPattern() {
 
 const painPoints = [
   {
-    title: "Every facility is different",
+    title: "A raw scan is not enough",
     description:
-      "Warehouses, kitchens, retail floors, and factories each have unique layouts, lighting, and obstacles. A humanoid trained on generic environments will still hit conditions it has never seen.",
+      "A scan gives geometry. Teams still need task scope, evaluation context, and a clear read on where the site is likely to break the rollout.",
     icon: <Ruler className="h-6 w-6" />,
   },
   {
-    title: "General models don't transfer perfectly",
+    title: "Readiness comes before adaptation",
     description:
-      "A world model or VLA trained on broad data still makes mistakes in a specific building. Small differences in shelf height, aisle width, or ambient light add up to real humanoid failures on-site.",
+      "The first job is deciding whether the task and site are ready. Managed model updates only matter after that foundation is in place.",
     icon: <BrainCircuit className="h-6 w-6" />,
   },
   {
-    title: "Re-scanning is cheaper than re-deploying",
+    title: "The same twin should keep paying off",
     description:
-      "Sending a technician to fix a confused humanoid is expensive. A 15-minute iPhone scan that adapts the model before the humanoid ships is dramatically cheaper and faster.",
+      "Once Blueprint owns the hosted twin, it can support readiness reviews, eval packs, adaptation data, and later drift refreshes when the site changes.",
     icon: <Smartphone className="h-6 w-6" />,
   },
 ];
@@ -59,47 +59,47 @@ const painPoints = [
 const pipelineSteps = [
   {
     step: "01",
-    title: "Scan the facility",
+    title: "Scope the workflow and workcell",
     icon: <Smartphone className="h-5 w-5" />,
     description:
-      "A 15-minute iPhone scan captures a real commercial location -- warehouse, kitchen, retail store, or factory floor. We process the scan into a Gaussian Splat (a PLY file), a 3D representation of the space you can render from any angle.",
+      "We start with the actual task, route, handoff points, and constraints that matter. The capture plan is built around the work your team needs to prove, not around generic footage.",
   },
   {
     step: "02",
-    title: "Calibrate the twin",
+    title: "Capture and reconstruct the site",
     icon: <Ruler className="h-5 w-5" />,
     description:
-      "We check geometric accuracy, lighting fidelity, and real-world scale. Location metadata gets tagged: room dimensions, facility type, scan date. The result is a digital twin you can measure against the real building.",
+      "Blueprint coordinates the walkthrough, reconstructs the environment, and hosts a reusable site twin with the location metadata and review context needed for deployment planning.",
   },
   {
     step: "03",
-    title: "Render training video",
+    title: "Build the readiness and evaluation layer",
     icon: <Video className="h-5 w-5" />,
     description:
-      "The Gaussian Splat renders training video from novel camera viewpoints throughout the space -- hundreds of hours from a single scan. World models like DreamDojo and Cosmos consume this video directly. No physics engine or USD conversion required.",
+      "From the hosted twin, we generate the default artifact set: task/workcell scope, readiness review, scorecards, risk map, and the eval context teams need before a live pilot.",
   },
   {
     step: "04",
-    title: "Fine-tune your model",
+    title: "Optionally generate adaptation data",
     icon: <BrainCircuit className="h-5 w-5" />,
     description:
-      "We run site-specific fine-tuning against the rendered video. Your world model or Vision-Language-Action model (VLA) adapts to the exact layout, lighting, and geometry of the target facility. This is what we call Mode 2: the model learns this specific place.",
+      "Teams that need more can buy task-scoped render packs, evaluation scenarios, and site-conditioned training artifacts derived from the twin. This is the main upsell on top of the base readiness product.",
   },
   {
     step: "05",
-    title: "Deliver adapter weights",
+    title: "Run managed adaptation when the stack supports it",
     icon: <Send className="h-5 w-5" />,
     description:
-      "You receive LoRA adapter weights -- small, efficient model updates that can be transferred over the air. Your humanoid can load the site-specific weights before it arrives on-site, so it is already adapted to the facility on day one.",
+      "Managed fine-tuning or post-training is available for supported stacks only, after the interface, data rights, and offline evaluation path are defined. It is a premium path, not the default dependency.",
   },
 ];
 
 const deliverables = [
-  "Gaussian Splat (PLY) of the target facility",
-  "Location metadata: dimensions, facility type, scan date, and quality report",
-  "Rendered training video from novel viewpoints throughout the space",
-  "LoRA adapter weights fine-tuned to the specific site (small enough for OTA transfer)",
-  "Evaluation report: video-prediction accuracy and site-adaptation metrics",
+  "Hosted site twin with licensed access for review and planning",
+  "Task/workcell scoping plus location metadata and quality report",
+  "Readiness pack with scorecards, risk map, and go / adapt / wait recommendation",
+  "Task-scoped eval and training artifacts when adaptation data is requested",
+  "Optional managed adaptation and offline evaluation for supported stacks",
 ];
 
 export default function HowItWorks() {
@@ -107,7 +107,7 @@ export default function HowItWorks() {
     <>
       <SEO
         title="How It Works | Blueprint"
-        description="How Blueprint turns an iPhone scan into a site twin and prepares a humanoid model stack for a specific facility before live deployment."
+        description="How Blueprint turns a site walkthrough into a hosted twin, a readiness pack, and optional adaptation artifacts before live deployment."
         canonical="/how-it-works"
       />
 
@@ -122,15 +122,15 @@ export default function HowItWorks() {
                 <div className="space-y-6">
                   <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
                     <Sparkles className="h-3 w-3" />
-                    Humanoid Deployment Prep
+                    Site Readiness Workflow
                   </div>
                   <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
-                    Scan the facility. Prep the humanoid before the pilot.
+                    Capture the site once. Use it for readiness, evaluation, and adaptation.
                   </h1>
                   <p className="max-w-xl text-lg leading-relaxed text-zinc-600">
-                    Blueprint turns a 15-minute iPhone scan into a digital twin, then fine-tunes
-                    your world model or VLA to that exact facility. Your humanoid arrives with
-                    site-specific context before the pilot starts.
+                    Blueprint turns a walkthrough into a hosted site twin, a readiness pack, and
+                    optional adaptation artifacts. Managed model updates are available later for
+                    supported stacks, but they are not the starting point.
                   </p>
                 </div>
 
@@ -154,9 +154,9 @@ export default function HowItWorks() {
                         What we deliver
                       </p>
                       <p className="text-sm text-zinc-600">
-                        A digital twin of your facility plus LoRA adapter weights that
-                        fine-tune your model to the site. Small enough for over-the-air transfer
-                        to the humanoid.
+                        A hosted twin plus the artifact layer that sits on top of it: readiness
+                        outputs by default, adaptation data when needed, and managed adaptation
+                        only where the stack supports it.
                       </p>
                       <a
                         href="/contact"
@@ -172,17 +172,16 @@ export default function HowItWorks() {
           </div>
         </section>
 
-        {/* Why Site-Specific Fine-Tuning */}
+        {/* Why The Artifact Layer Matters */}
         <section className="border-y border-zinc-100 bg-zinc-50/50 py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-10 max-w-2xl">
               <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
-                Why site-specific fine-tuning matters
+                Why the artifact layer matters
               </h2>
               <p className="mt-4 text-zinc-600">
-                General-purpose humanoid models are a strong starting point, but real deployment
-                sites have details that generic training data cannot capture. A quick fine-tuning
-                pass on the target facility fixes many of those errors.
+                The twin matters because it gives teams a reusable site asset. The real product is
+                what Blueprint builds on top of it before rollout work starts.
               </p>
             </div>
 
@@ -210,12 +209,12 @@ export default function HowItWorks() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-12 max-w-2xl">
               <h2 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
-                From iPhone scan to a humanoid-ready site package
+                From site walkthrough to the right deployment artifact
               </h2>
               <p className="mt-4 text-lg text-zinc-600">
-                Five steps take you from a raw facility scan to a model that already knows the
-                building. The whole process is designed so you never have to build simulation
-                infrastructure yourself.
+                Five steps take you from a raw site walkthrough to the twin, the readiness layer,
+                and the optional adaptation path. The point is to get the right outputs without
+                forcing your team to build the whole pipeline internally.
               </p>
             </div>
 
@@ -258,9 +257,9 @@ export default function HowItWorks() {
                   the evaluation runs entirely on rendered video.
                 </p>
                 <p className="text-zinc-600">
-                  This approach is fast, scalable, and directly tied to the visual data the model was
-                  fine-tuned on. It tells you how well the model understands the specific facility
-                  before the humanoid ever arrives.
+                  This approach is fast, scalable, and directly tied to the site-conditioned
+                  artifacts we generate from the twin. It tells you how the model handles the
+                  specific facility before anyone commits to a live rollout.
                 </p>
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
@@ -300,9 +299,9 @@ export default function HowItWorks() {
                   What you receive
                 </h2>
                 <p className="text-zinc-600">
-                  Every engagement delivers the digital twin, the fine-tuned weights, and the
-                  evaluation data. Everything is packaged so your team can load the weights, verify
-                  the results, and deploy the humanoid with more confidence.
+                  Every engagement starts with the hosted twin and the default readiness layer.
+                  If your team wants more, Blueprint can add adaptation artifacts and, for
+                  supported stacks, managed adaptation with offline evaluation.
                 </p>
                 <a
                   href="/contact"
@@ -315,7 +314,7 @@ export default function HowItWorks() {
 
               <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-6">
                 <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">
-                  Included in every delivery
+                  Product ladder
                 </p>
                 <ul className="mt-5 space-y-3">
                   {deliverables.map((item) => (
@@ -325,6 +324,14 @@ export default function HowItWorks() {
                     </li>
                   ))}
                 </ul>
+                <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-4">
+                  <p className="text-sm font-semibold text-zinc-900">Managed adaptation is conditional.</p>
+                  <p className="mt-2 text-sm text-zinc-600">
+                    We only run fine-tuning or post-training when the stack is supported, the
+                    policy interface is clear, data rights are agreed, and there is an offline
+                    evaluation path before redeploy.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -334,11 +341,11 @@ export default function HowItWorks() {
         <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
           <div className="rounded-2xl bg-zinc-900 p-8 text-center sm:p-12">
             <h2 className="text-2xl font-bold text-white sm:text-3xl">
-              Prep your humanoid for the real facility before field spend begins.
+              Start with the site twin. Add the right artifact pack after that.
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-zinc-400">
-              Tell us the site and the model. We&apos;ll scan the building, create the digital twin,
-              and deliver adapter weights your humanoid can load before it ships.
+              Tell us the site and the workflow. We&apos;ll scope the hosted twin, the readiness
+              pack, and the right adaptation path before the pilot starts.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
               <a

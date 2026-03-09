@@ -29,114 +29,114 @@ const HOME_HERO_QUERY_PARAM = "hero";
 
 const offeringCards = [
   {
-    title: "Humanoid Site Intake",
-    badge: "Step 1",
+    title: "Site Twin License",
+    badge: "Layer 1",
     description:
-      "Tell us the facility and Blueprint will coordinate walkthrough capture around the exact workflow your humanoid needs to perform.",
+      "Blueprint captures the facility, reconstructs the site, and hosts a reusable twin your team can review before rollout work begins.",
     bullets: [
-      "Capture planned around aisles, stations, handoff points, and reach constraints",
-      "Built for warehouses, factories, retail backrooms, hospitality, and indoor service sites",
+      "Scoped around the exact workcell, route, and workflow you need to prove",
+      "Licensed access to the hosted twin, review views, and facility context by default",
     ],
-    ctaLabel: "Request a capture",
-    ctaHref: "/contact?interest=capture",
+    ctaLabel: "Request a site brief",
+    ctaHref: "/contact?interest=site-twin-license",
     icon: <MapPin className="h-8 w-8 text-zinc-900" />,
   },
   {
-    title: "Reusable Site Twin",
-    badge: "Step 2",
+    title: "Readiness Pack",
+    badge: "Default Pack",
     description:
-      "We turn the walkthrough into a reusable site twin your deployment, teleop, safety, and customer teams can review before anyone travels.",
+      "We turn the twin into a pre-pilot decision package so task, safety, integration, and environment issues show up early.",
     bullets: [
-      "A shared view of the site for internal review and customer planning",
-      "Reusable facility context for future evaluation and deployment prep",
+      "Task/workcell scoping, readiness scorecard, and a practical go / adapt / wait recommendation",
+      "Site-level risk map covering perception, navigation, and workflow mismatch",
     ],
-    ctaLabel: "See how it works",
+    ctaLabel: "See the workflow",
     ctaHref: "/how-it-works",
     icon: <ScanLine className="h-8 w-8 text-zinc-900" />,
   },
   {
-    title: "Pre-Pilot Readiness Review",
-    badge: "Step 3",
+    title: "Adaptation Data Pack",
+    badge: "Core Upsell",
     description:
-      "We help humanoid teams assess the location before a live pilot so site, safety, and workflow issues show up early.",
+      "For teams that want more than a scorecard, Blueprint generates the site-specific eval and training artifacts that sit on top of the twin.",
     bullets: [
-      "Screen the site before you commit travel, floor time, or pilot budget",
-      "Use the same facility context across planning, review, and customer sign-off",
+      "Task-scoped render packs, eval scenarios, and site-conditioned training data",
+      "Managed adaptation is available later for supported stacks, not required up front",
     ],
-    ctaLabel: "Explore the marketplace",
-    ctaHref: "/deployment-marketplace",
+    ctaLabel: "See pricing",
+    ctaHref: "/pricing",
     icon: <Shield className="h-8 w-8 text-zinc-900" />,
   },
 ];
 
 const whyBlueprint = [
   {
-    title: "Humanoid deployments break on site details",
+    title: "Most pilot risk shows up in the site, not the deck",
     description:
-      "A strong demo is not enough when aisle widths, handoff surfaces, clutter, and operator flow change from one facility to the next.",
+      "Task fit, operator flow, safety rules, and perception issues are easy to miss until the team is already spending time and money in the building.",
   },
   {
-    title: "One source of truth for the facility",
+    title: "The twin is the base asset, not the end product",
     description:
-      "Blueprint gives your deployment, operations, and customer teams the same site twin to review, annotate, and revisit as plans change.",
+      "The real value is what the twin unlocks: readiness packs, eval harnesses, adaptation data, and later drift refreshes when the site changes.",
   },
   {
-    title: "A better filter before field spend",
+    title: "You can buy evidence before you buy more pilot risk",
     description:
-      "You can catch readiness gaps before you spend on travel, safety prep, integration work, or a pilot that was never going to clear the site.",
+      "Blueprint helps teams decide whether to move forward, adapt the plan, or wait before travel, integration work, and floor-time commitments stack up.",
   },
 ];
 
 const whatYouGet = [
   {
-    title: "Walkthrough capture, coordinated",
-    description: "Blueprint handles site intake and keeps the capture process moving without adding more work to your team.",
+    title: "Hosted site twin",
+    description: "Blueprint coordinates capture, reconstruction, and default hosted access so the facility stays usable after the first review.",
   },
   {
-    title: "A site twin built for humanoid planning",
-    description: "Your team gets a reusable digital twin it can review before on-site work begins.",
+    title: "Readiness and eval artifacts",
+    description: "You get scorecards, scoped evaluation context, and the practical evidence needed to make a real pilot decision.",
   },
   {
-    title: "A readiness path before the pilot",
-    description: "You get a practical next step for qualification before a live rollout.",
+    title: "Adaptation data when needed",
+    description: "Teams that want more can buy site-conditioned training and evaluation artifacts without committing to managed adaptation on day one.",
   },
 ];
 
 const labBullets = [
-  "Capture the target workflow before your humanoid arrives on site",
-  "Review the site twin with deployment, teleop, safety, and customer teams",
-  "Decide whether the pilot is ready, needs adaptation, or should wait",
+  "Start with a hosted site twin and a readiness pack before the pilot budget is live",
+  "Add task-scoped eval or training artifacts if the team needs site-specific conditioning",
+  "Use managed adaptation later only when the stack and validation path are ready",
 ];
 
 const providerBullets = [
-  "List facilities that may be useful to humanoid teams",
-  "Share site details and capture availability before a pilot request shows up",
+  "List facilities that may be useful to robot teams and controlled pre-pilot reviews",
+  "Share site details, access rules, and refresh needs before a live pilot request shows up",
 ];
 
 export const HOME_HERO_VARIANTS: HomeHeroVariant[] = [
   {
     id: "humanoid-gap",
-    eyebrow: "Humanoid Deployment Readiness",
-    headline: "Close the pilot-to-production gap for humanoid deployments.",
+    eyebrow: "Site-Specific Deployment Readiness",
+    headline: "Turn real sites into deployment, evaluation, and adaptation artifacts.",
     body:
-      "Blueprint captures the real facility, builds a reusable site twin, and gives humanoid teams the site-specific evidence they need before field spend starts.",
-    supportingPoints: ["Humanoid-first", "Site-specific twins", "Pre-deployment review"],
+      "Blueprint captures the facility, hosts the twin, and gives robot teams the readiness packs and site-conditioned artifacts they need before field spend starts.",
+    supportingPoints: ["Hosted site twins", "Readiness packs", "Adaptation data"],
   },
   {
     id: "site-readiness",
-    eyebrow: "Humanoid Site Readiness",
-    headline: "Humanoid funding is surging. Site-ready deployments are still hard.",
+    eyebrow: "Pre-Pilot Qualification",
+    headline: "The site is where pilot plans usually get real.",
     body:
-      "Most teams do not stall on ambition. They stall on site variability, safety constraints, and workflow details that only show up in the real facility.",
-    supportingPoints: ["Walkthrough capture", "Facility context", "Readiness screening"],
+      "Most teams do not stall on ambition. They stall on task fit, safety constraints, and environment details that only show up in the actual facility.",
+    supportingPoints: ["Task fit", "Safety readiness", "Environment readiness"],
   },
   {
     id: "field-confidence",
-    eyebrow: "Humanoid Pilot Prep",
-    headline: "Know if a humanoid can work in this facility before you run the pilot.",
+    eyebrow: "Artifact Layer",
+    headline: "Buy the site-specific evidence before you buy more pilot risk.",
     body:
-      "Blueprint helps teams turn a target site into something they can review, share, and pressure-test before the robot, crew, and customer are all on the floor.",
-    supportingPoints: ["Less blind travel", "Fewer pilot surprises", "Clearer go/no-go calls"],
+      "Blueprint helps teams move from raw site capture to scorecards, eval packs, and training artifacts they can actually use before rollout.",
+    supportingPoints: ["Eval first", "Training data second", "Managed adaptation later"],
   },
 ];
 
@@ -211,8 +211,8 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | Site Capture and Deployment Readiness for Humanoid Teams"
-        description="Blueprint helps humanoid teams capture facilities, build reusable site twins, and evaluate deployment readiness before live pilots."
+        title="Blueprint | Hosted Site Twins, Readiness Packs, and Adaptation Artifacts"
+        description="Blueprint captures facilities, hosts reusable site twins, and turns them into readiness, evaluation, and adaptation artifacts before live pilots."
         canonical="/"
         image="https://tryblueprint.io/images/og-home.png"
       />
@@ -252,7 +252,7 @@ export default function Home() {
                   primaryHref="/solutions"
                   primaryLabel="See how it works"
                   secondaryHref="/contact"
-                  secondaryLabel="Request a capture"
+                  secondaryLabel="Request a site brief"
                 />
 
                 <div className="pt-2 opacity-80 grayscale transition-all duration-500 hover:opacity-100 hover:grayscale-0 sm:pt-4">
@@ -274,11 +274,11 @@ export default function Home() {
                   </div>
                   <div className="mt-4 space-y-3">
                     <div className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                      Humanoid Focus
+                      Artifact Layer
                     </div>
                     <p className="text-sm text-zinc-600">
-                      Indoor humanoid workflows across warehouses, factories, retail backrooms,
-                      hospitality, and other structured facilities.
+                      Hosted site twins for robot teams working across warehouses, factories,
+                      retail backrooms, hospitality, and other structured indoor sites.
                     </p>
                   </div>
                 </div>
@@ -343,11 +343,11 @@ export default function Home() {
                 What You Get
               </div>
               <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
-                A humanoid deployment workflow that starts before the humanoid ships.
+                A hosted twin plus the artifacts teams need before rollout.
               </h2>
               <p className="mt-4 text-zinc-600">
-                We keep it practical: capture the site, deliver a reusable twin, and help
-                your team decide what comes next before a live humanoid pilot.
+                The raw scan is only the start. Blueprint keeps the twin usable and turns it into
+                readiness, evaluation, and adaptation outputs your team can act on.
               </p>
             </div>
             <div className="mt-10 grid gap-4 md:grid-cols-3">
@@ -370,8 +370,8 @@ export default function Home() {
             <div className="mb-10">
               <h2 className="text-2xl font-bold text-zinc-900">Why teams use Blueprint</h2>
               <p className="mt-2 text-zinc-600">
-                Blueprint gives humanoid teams a clearer picture of the site before they
-                commit time, travel, safety prep, and pilot budget.
+                Blueprint gives robot teams a better way to judge task fit, safety readiness, and
+                environment risk before travel, integration work, and pilot spend start piling up.
               </p>
             </div>
 
@@ -398,7 +398,7 @@ export default function Home() {
                 For Humanoid Teams
               </p>
               <h3 className="mt-2 text-xl font-bold text-zinc-900">
-                Review the site before you send the humanoid.
+                Start with the twin. Add the right artifact pack after that.
               </h3>
               <ul className="mt-4 space-y-2">
                 {labBullets.map((item) => (
@@ -416,7 +416,7 @@ export default function Home() {
                 For Location Owners
               </p>
               <h3 className="mt-2 text-xl font-bold text-white">
-                Make your site easier for humanoid teams to evaluate.
+                Make your site easier for robot teams to qualify and revisit.
               </h3>
               <ul className="mt-4 space-y-2">
                 {providerBullets.map((item) => (
@@ -449,7 +449,7 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="font-semibold text-zinc-900">How the service works</p>
-                  <p className="text-sm text-zinc-500">From facility intake to humanoid-ready review</p>
+                  <p className="text-sm text-zinc-500">From site scope to hosted twin and artifact pack</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
@@ -465,7 +465,7 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="font-semibold text-zinc-900">Humanoid readiness review</p>
-                  <p className="text-sm text-zinc-500">Check site fit before you schedule a live pilot</p>
+                  <p className="text-sm text-zinc-500">Check task fit before you schedule a live pilot</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
@@ -481,7 +481,7 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="font-semibold text-zinc-900">Humanoid deployment marketplace</p>
-                  <p className="text-sm text-zinc-500">Browse sites, requests, and deployment opportunities</p>
+                  <p className="text-sm text-zinc-500">Browse twins, readiness packs, and evaluation opportunities</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
@@ -493,11 +493,11 @@ export default function Home() {
         <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
           <div className="rounded-2xl bg-zinc-900 p-8 text-center sm:p-12">
             <h2 className="text-2xl font-bold text-white sm:text-3xl">
-              Bring site evidence into your next humanoid deployment.
+              Bring the right site-specific artifacts into your next deployment.
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-zinc-400">
-              Share the facility and the workflow you want to prove. We&apos;ll scope
-              capture, site-twin delivery, and the right next step before the pilot starts.
+              Share the facility and the workflow you want to prove. We&apos;ll scope the twin,
+              the readiness pack, and the artifact path that makes sense before the pilot starts.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
               <a

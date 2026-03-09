@@ -35,7 +35,7 @@ export default function Contact() {
     <>
       <SEO
         title="Contact Us"
-        description="Get in touch with Blueprint to discuss site-specific digital twins, humanoid deployment readiness, and pre-pilot evaluation."
+        description="Get in touch with Blueprint to discuss hosted site twins, readiness packs, adaptation data, and managed adaptation for supported stacks."
         canonical="/contact"
       />
       <div className="relative min-h-screen overflow-hidden bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
@@ -48,11 +48,11 @@ export default function Contact() {
               Humanoid Deployment Intake
             </div>
             <h1 className="mt-6 text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl">
-              Tell us the site and the humanoid workflow you want to prove.
+              Tell us the site, the workflow, and the artifact layer you need.
             </h1>
             <p className="mt-6 text-lg leading-relaxed text-zinc-600">
-              Blueprint helps humanoid teams capture facilities, build reusable site twins, and
-              qualify deployment readiness before a live pilot starts.
+              Blueprint helps robot teams capture facilities, host reusable site twins, and turn
+              them into readiness packs, adaptation data, or managed adaptation on supported stacks.
             </p>
           </div>
 
@@ -76,7 +76,7 @@ export default function Contact() {
                     <h3 className="font-semibold text-zinc-900">Quick Response</h3>
                     <p className="mt-1 text-sm text-zinc-600">
                       Fill out the form and our team will get back to you within 24 hours
-                      to discuss how we can support your humanoid deployment program.
+                      to discuss the twin, the readiness pack, and the right next step for your deployment program.
                     </p>
                   </div>
                 </div>

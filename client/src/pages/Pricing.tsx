@@ -1,55 +1,90 @@
 import { SEO } from "@/components/SEO";
-import { CheckCircle2, CreditCard, FileSearch, RefreshCcw, ShieldCheck, Wallet } from "lucide-react";
+import {
+  CheckCircle2,
+  CreditCard,
+  FileSearch,
+  RefreshCcw,
+  ShieldCheck,
+  Wallet,
+} from "lucide-react";
 
 const chargeItems = [
   {
-    name: "Evaluation Runs",
-    unit: "Pay per run",
+    name: "Site Twin License",
+    unit: "Entry product",
     description:
-      "Run policy evaluations on a site twin and receive a standardized scorecard before any live deployment.",
+      "Blueprint captures, reconstructs, and hosts the site twin by default so teams start from a reusable facility asset instead of a one-off scan.",
     includes: [
-      "Scenario execution in the exchange workflow",
-      "Pass/fail metrics against agreed task criteria",
-      "Shareable pre-deployment scorecard output",
+      "Hosted twin access and review rights",
+      "Scoped facility context for planning and evaluation",
+      "Reusable base asset for future packs and refreshes",
     ],
-    ctaHref: "/contact?interest=evaluation-runs",
-    ctaLabel: "Get evaluation pricing",
+    ctaHref: "/contact?interest=site-twin-license",
+    ctaLabel: "Discuss twin access",
     icon: <FileSearch className="h-5 w-5 text-slate-700" />,
   },
   {
-    name: "Fine-Tune Cycles",
-    unit: "Pay per cycle",
+    name: "Readiness Pack",
+    unit: "Default core SKU",
     description:
-      "Blueprint runs site-specific fine-tuning or post-training and delivers updated weights for your target deployment site.",
+      "The default buying motion for robot teams: Blueprint turns the twin into a pre-pilot decision package before travel, floor time, and integration spend start.",
     includes: [
-      "Twin-based training data preparation",
-      "Site-specific adaptation cycle",
-      "Delivery report with performance deltas",
+      "Task/workcell scoping and readiness review",
+      "Pre-pilot scorecard, safety/integration prep, and risk map",
+      "Go / adapt / wait recommendation",
     ],
-    ctaHref: "/contact?interest=fine-tune-cycle",
-    ctaLabel: "Get fine-tune pricing",
+    ctaHref: "/contact?interest=readiness-pack",
+    ctaLabel: "Price the readiness pack",
     icon: <RefreshCcw className="h-5 w-5 text-slate-700" />,
   },
   {
-    name: "Data License",
-    unit: "Pay per site license",
+    name: "Adaptation Data Pack",
+    unit: "Primary upsell",
     description:
-      "If your team does post-training in-house, license the capture/twin data and train on your own stack.",
+      "For teams that want better site conditioning, Blueprint generates the eval and training artifacts that sit on top of the hosted twin.",
     includes: [
-      "Licensed access to capture-derived twin data",
-      "Defined usage rights for robot training workflows",
-      "Optional multi-site license packaging",
+      "Task-scoped render packs and scenario variants",
+      "Site-conditioned eval set and training-ready artifacts",
+      "Useful for teams training in-house or preparing for managed adaptation later",
     ],
-    ctaHref: "/contact?interest=data-license",
-    ctaLabel: "Get data license pricing",
+    ctaHref: "/contact?interest=adaptation-data-pack",
+    ctaLabel: "Price adaptation data",
     icon: <Wallet className="h-5 w-5 text-slate-700" />,
+  },
+  {
+    name: "Managed Adaptation",
+    unit: "Premium service",
+    description:
+      "Blueprint can run fine-tuning or post-training for supported stacks once the interface, data rights, and evaluation path are clear.",
+    includes: [
+      "Supported-stack model updates or post-training",
+      "Offline regression and evaluation report",
+      "Rollout recommendation for the updated artifact",
+    ],
+    ctaHref: "/contact?interest=managed-adaptation",
+    ctaLabel: "Check stack eligibility",
+    icon: <RefreshCcw className="h-5 w-5 text-slate-700" />,
+  },
+  {
+    name: "Drift Refresh",
+    unit: "Recurring extension",
+    description:
+      "When the site changes after the first engagement, Blueprint refreshes the twin and regenerates the affected readiness or adaptation artifacts.",
+    includes: [
+      "Changed-area recapture and site diff",
+      "Affected-task analysis and refreshed packs",
+      "Recurring value tied to the hosted twin",
+    ],
+    ctaHref: "/contact?interest=drift-refresh",
+    ctaLabel: "Plan a refresh cycle",
+    icon: <RefreshCcw className="h-5 w-5 text-slate-700" />,
   },
 ];
 
 const billingSteps = [
-  "Set your team budget and optional monthly cap.",
-  "Run evaluations, fine-tune cycles, or license data.",
-  "See usage clearly and pay only for what you used.",
+  "Start with the hosted twin and the default readiness pack.",
+  "Add adaptation data when the team needs more than a scorecard.",
+  "Use managed adaptation or drift refresh only when the stack and site justify it.",
 ];
 
 export default function Pricing() {
@@ -57,7 +92,7 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Site operators pay $0. Humanoid teams pay only for evaluations, fine-tuning cycles, or data licenses."
+        description="Blueprint sells a product ladder: hosted site twins, readiness packs, adaptation data, managed adaptation, and drift refresh."
         canonical="/pricing"
       />
 
@@ -65,11 +100,11 @@ export default function Pricing() {
         <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
           <header className="space-y-4 text-center">
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Sites are free. Humanoid teams pay only for usage.
+              A product ladder built on the hosted twin.
             </h1>
             <p className="mx-auto max-w-3xl text-lg text-slate-600">
-              Site operators never pay. Blueprint funds capture and owns the capture. Humanoid
-              teams pay only when they run evaluations, request fine-tuning, or license data.
+              Site operators still have a $0 default path. Robot teams buy the level of artifact
+              depth they need: readiness first, adaptation data second, managed adaptation third.
             </p>
           </header>
 
@@ -80,7 +115,7 @@ export default function Pricing() {
               </p>
               <p className="mt-2 text-2xl font-bold text-emerald-900">Site Operators: $0</p>
               <p className="mt-2 text-sm text-emerald-800">
-                No listing fee, no capture fee, no subscription.
+                No listing fee, no upfront capture fee, no default subscription.
               </p>
             </article>
 
@@ -88,14 +123,15 @@ export default function Pricing() {
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Who Pays
               </p>
-              <p className="mt-2 text-2xl font-bold text-slate-900">Humanoid Teams: Usage Only</p>
+              <p className="mt-2 text-2xl font-bold text-slate-900">Robot Teams: Product Ladder</p>
               <p className="mt-2 text-sm text-slate-600">
-                Pay only for `Evaluation Runs`, `Fine-Tune Cycles`, and `Data License`.
+                Start with the twin and readiness pack, then add adaptation data, managed
+                adaptation, or drift refresh when it makes sense.
               </p>
             </article>
           </section>
 
-          <section className="mt-10 grid gap-6 md:grid-cols-3">
+          <section className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {chargeItems.map((item) => (
               <article key={item.name} className="rounded-2xl border border-slate-200 bg-white p-6">
                 <div className="mb-4 inline-flex rounded-lg bg-slate-100 p-2">{item.icon}</div>
@@ -137,7 +173,8 @@ export default function Pricing() {
             </ol>
             <p className="mt-4 flex items-center gap-2 text-sm text-slate-600">
               <ShieldCheck className="h-4 w-4 text-slate-500" />
-              Need annual or multi-site terms? We can set a custom commitment.
+              Blueprint owns and hosts the capture by default; private or higher-control terms are
+              available for larger engagements.
             </p>
           </section>
         </div>

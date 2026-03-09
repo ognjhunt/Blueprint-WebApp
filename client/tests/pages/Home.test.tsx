@@ -11,7 +11,7 @@ describe('Home', () => {
 
     expect(HERO_HEADLINES).toContain(heroHeading.textContent);
     expect(
-      HOME_HERO_VARIANTS.some((variant) => screen.queryByText(variant.eyebrow) !== null),
+      HOME_HERO_VARIANTS.some((variant) => screen.queryAllByText(variant.eyebrow).length > 0),
     ).toBe(true);
     expect(
       screen.getAllByRole('link', { name: /See how it works/i }).some(
@@ -19,7 +19,7 @@ describe('Home', () => {
       ),
     ).toBe(true);
     expect(
-      screen.getAllByRole('link', { name: /Request a capture/i }).some(
+      screen.getAllByRole('link', { name: /Request a site brief/i }).some(
         (link) => link.getAttribute('href') === '/contact',
       ),
     ).toBe(true);
@@ -34,7 +34,7 @@ describe('Home', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole('heading', {
-        name: /A humanoid deployment workflow that starts before the humanoid ships\./i,
+        name: /A hosted twin plus the artifacts teams need before rollout\./i,
       }),
     ).toBeInTheDocument();
   });

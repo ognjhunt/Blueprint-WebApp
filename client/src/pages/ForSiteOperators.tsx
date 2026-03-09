@@ -5,7 +5,7 @@ const intakeChecklist = [
   "Site profile: facility type, square footage, operating hours, and known constraints",
   "Task list: which humanoid workflows you want evaluated before any live pilot",
   "Access plan: escort policy, restricted zones, and capture windows",
-  "Safety and legal: NDA, site permissions, and any customer privacy rules",
+  "Safety and legal: NDA, site permissions, privacy rules, and who can review the hosted twin",
 ];
 
 const processSteps = [
@@ -17,12 +17,12 @@ const processSteps = [
   {
     title: "2. Capture and reconstruction",
     description:
-      "Blueprint coordinates local walkthrough capture and turns the recording into a site-specific digital twin with structured metadata.",
+      "Blueprint coordinates local walkthrough capture and turns the recording into a hosted site twin with structured metadata and scoped access.",
   },
   {
     title: "3. Pre-deployment evaluation exchange",
     description:
-      "Qualified humanoid teams run simulation evaluations against your twin. You get standardized scorecards instead of one-off claims.",
+      "Qualified robot teams use the twin for readiness reviews, evaluations, and, when approved, deeper adaptation artifacts instead of one-off claims.",
   },
   {
     title: "4. Handoff and pilot readiness",
@@ -34,8 +34,9 @@ const processSteps = [
 const logisticsDetails = [
   "Scheduling: capture windows outside peak operations when needed",
   "Data governance: scope-limited twin access and approved evaluators only",
-  "Commercial model: one exchange workflow for capture, evaluation, and renewals",
-  "Refresh cadence: optional re-capture when layout or workflow changes",
+  "Ownership default: Blueprint owns and hosts the twin unless private terms are negotiated",
+  "Commercial model: one workflow for readiness, adaptation artifacts, and later refreshes",
+  "Refresh cadence: optional drift recapture when layout or workflow changes",
 ];
 
 export default function ForSiteOperators() {
@@ -43,7 +44,7 @@ export default function ForSiteOperators() {
     <>
       <SEO
         title="For Site Operators | Blueprint"
-        description="Guide for site operators running pre-deployment humanoid qualification with Blueprint: intake, capture, exchange evaluation, and pilot-readiness handoff."
+        description="Guide for site operators using Blueprint for hosted site twins, pre-deployment qualification, and later drift refresh when the site changes."
         canonical="/for-site-operators"
       />
 
@@ -59,7 +60,7 @@ export default function ForSiteOperators() {
             <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
               If you operate a warehouse, store, factory, or lab and want higher-confidence
               humanoid launches, this page outlines what Blueprint needs from your team and how the
-              exchange workflow moves from capture to pilot-ready decisions.
+              hosted twin moves from capture to pilot-ready decisions.
             </p>
           </div>
 
@@ -117,7 +118,7 @@ export default function ForSiteOperators() {
                   Evaluation scope
                 </p>
                 <p className="mt-1 text-sm text-slate-600">
-                  Pre-deployment simulation qualification, not live-site operations.
+                  Pre-deployment qualification first, with drift refresh available if the site changes later.
                 </p>
               </div>
             </div>
