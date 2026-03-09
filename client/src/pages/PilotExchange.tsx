@@ -92,63 +92,63 @@ const POLICY_LIBRARY_STORAGE_KEY = "bp_pilot_exchange_policy_library_v3";
 const deploymentGapHighlights = [
   {
     id: "highlight-01",
-    title: "Distribution shift is the killer",
+    title: "The site details matter",
     detail:
-      "Policies can perform well in lab conditions and still degrade in live facilities due to lighting, textures, clutter, and camera variation.",
+      "A team can look strong in the lab and still struggle once the real site shows up.",
   },
   {
     id: "highlight-02",
-    title: "The twin is the base asset",
+    title: "The brief is already scoped",
     detail:
-      "The hosted twin is useful on its own, but the real leverage comes from the readiness pack, eval harness, and adaptation artifacts built on top of it.",
+      "These opportunities start with a site and workflow that have already been reviewed.",
   },
   {
     id: "highlight-03",
-    title: "Scorecards reduce pilot waste",
+    title: "Clear scorecards save time",
     detail:
-      "Standardized pre-qualification catches mismatch early, before months of on-site pilot cost and disruption.",
+      "A simple scorecard catches mismatch before months of pilot cost and disruption.",
   },
 ];
 
 const exchangeClientSegments = [
   {
     id: "segment-01",
-    label: "Primary",
-    title: "Robot teams with a known site",
-    detail: "Teams with strong lab demos and a target facility that need site-proofed evidence before deployment contracts.",
+    label: "Best fit",
+    title: "Robot teams reviewing a qualified site",
+    detail: "Teams that want a cleaner read before they commit to travel, integration work, or a pilot.",
   },
   {
     id: "segment-02",
-    label: "Secondary",
-    title: "Operators opening pilot demand",
-    detail: "Sites that want comparable scorecards and a structured brief before allocating floor space and labor to pilots.",
+    label: "Second fit",
+    title: "Operators opening the right brief",
+    detail: "Sites that want the right teams reviewing a scoped workflow instead of random inbound interest.",
   },
   {
     id: "segment-03",
     label: "Channel",
     title: "Integrators and advisors",
-    detail: "System integrators who need an objective pre-pilot benchmark layer for client programs.",
+    detail: "Integrators who need a simple pre-pilot check before they commit more engineering work.",
   },
 ];
 
 const adaptationModes = [
   {
     id: "mode-01",
-    title: "Mode 1: Generalization Across Many Sites",
+    title: "Mode 1: Review only",
     detail:
-      "Large environment packs improve broad robustness across warehouses and retail sites, but do not encode one exact facility in detail.",
+      "Start by reviewing the qualified site and deciding whether it is worth a deeper check.",
   },
   {
     id: "mode-02",
-    title: "Mode 2: Site-Specific Adaptation (Add-On)",
+    title: "Mode 2: Site-specific data",
     detail:
-      "Blueprint can generate site-specific eval and training artifacts for the exact target facility. Managed model adaptation is available only for supported stacks.",
+      "If the site is close, Blueprint can generate the site-specific data needed for another pass.",
   },
   {
     id: "mode-03",
-    title: "Mode 3: Runtime Scene Conditioning (Emerging)",
+    title: "Mode 3: Managed tuning",
     detail:
-      "Models receive live scene context at inference. Promising direction, but less standardized than pre-deployment adaptation today.",
+      "For supported stacks, Blueprint can do the tuning work after qualification and offline checks.",
   },
 ];
 
@@ -407,7 +407,7 @@ export default function PilotExchange() {
 
   const handleEvalRunSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!selectedEvalBrief) return setPolicyStatus("error"), setPolicyMessage("Select a digital twin.");
+    if (!selectedEvalBrief) return setPolicyStatus("error"), setPolicyMessage("Select a qualified site.");
     if (!evalRunForm.interfaceContract.trim()) return setPolicyStatus("error"), setPolicyMessage("Document the interface contract.");
     if (!evalRunForm.fallbackStrategy.trim()) return setPolicyStatus("error"), setPolicyMessage("Define your fallback strategy.");
     if (!evalRunForm.assumedOperatingEnvelope.trim()) return setPolicyStatus("error"), setPolicyMessage("Declare the assumed envelope.");
@@ -485,8 +485,8 @@ export default function PilotExchange() {
   return (
     <>
       <SEO
-        title="Deployment Marketplace | Evaluate Humanoid Policies"
-        description="Humanoid-first marketplace for evaluating policies in high-fidelity digital twins before physical pilot deployments."
+        title="Qualified Opportunities | Blueprint"
+        description="Qualified site briefs that robot teams can review, evaluate, and respond to after site qualification."
         canonical="/deployment-marketplace"
       />
       <div className="relative min-h-screen bg-white text-zinc-900 font-sans selection:bg-zinc-200 selection:text-zinc-900">
@@ -497,7 +497,7 @@ export default function PilotExchange() {
           <div className="mx-auto max-w-6xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
             <div className="flex items-center gap-2 text-zinc-700">
               <Lock className="h-4 w-4" />
-              <span>Site operators pay $0. Robot teams pay only when they use something.</span>
+              <span>These sites and workflows have already been scoped by Blueprint.</span>
             </div>
             <a
               href="#pricing"
@@ -511,29 +511,27 @@ export default function PilotExchange() {
           {/* Hero */}
           <section className="mb-16 max-w-3xl">
             <div className="mb-3 inline-flex items-center rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-zinc-600">
-              Humanoid-first evaluation workflow
+              After site qualification
             </div>
             <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-zinc-950 mb-6">
-              Validate your humanoid policies before the live pilot.
+              Qualified opportunities for robot teams.
             </h1>
             <p className="text-lg text-zinc-600 mb-8 leading-relaxed">
-              Upload your humanoid policy packages and evaluate them against calibrated digital
-              twins of real-world environments. Get standardized scorecards and prove readiness
-              before spending on live pilots. Adjacent embodiments are supported where the site
-              and workflow fit.
+              These are sites and workflows Blueprint has already scoped. Robot teams can review
+              the brief, run a check, and respond with less guesswork.
             </p>
             <div className="flex flex-wrap items-center gap-4">
               <Button
                 onClick={() => openEvalDialog()}
                 className="bg-zinc-900 text-white hover:bg-zinc-800 px-6 py-5 text-sm font-medium"
               >
-                Run an Evaluation
+                Check a qualified site
               </Button>
               <a href="#pricing" className="text-sm font-medium text-zinc-900 hover:text-zinc-700 underline underline-offset-4 decoration-zinc-300">
                 See pricing
               </a>
               <a href="/deployment-marketplace-guide" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 underline underline-offset-4 decoration-zinc-300">
-                Read the beginner guide
+                See how qualification works
               </a>
             </div>
           </section>
@@ -543,21 +541,21 @@ export default function PilotExchange() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Simple pricing</p>
               <h2 className="mt-3 text-3xl font-bold tracking-tight text-zinc-950">Pay for the job you need.</h2>
               <p className="mt-3 text-base leading-7 text-zinc-600">
-                Most teams start with one test. If the robot is close, add site data. If you want us
-                to do the tuning work, buy managed adaptation.
+                This page starts after site qualification. Teams can begin with one check and add
+                more only if the site is a fit.
               </p>
             </div>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Sites</p>
-                <p className="mt-2 text-2xl font-bold text-emerald-950">$0</p>
-                <p className="mt-2 text-sm text-emerald-900">Operators can list a site without paying.</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Before this page</p>
+                <p className="mt-2 text-2xl font-bold text-emerald-950">Site qualification</p>
+                <p className="mt-2 text-sm text-emerald-900">Blueprint scopes the site and workflow before teams start buying checks.</p>
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-white p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Robot teams</p>
                 <p className="mt-2 text-2xl font-bold text-zinc-950">Pay per use</p>
-                <p className="mt-2 text-sm text-zinc-600">No subscription. Pick the one thing you need right now.</p>
+                <p className="mt-2 text-sm text-zinc-600">Pick the smallest next step: evaluation, site data, or managed tuning.</p>
               </div>
             </div>
 
@@ -591,7 +589,7 @@ export default function PilotExchange() {
                     <p className="mt-1 text-sm text-zinc-500">{option.unit}</p>
                     {option.id === "evaluation" ? (
                       <Button onClick={() => openEvalDialog()} className="mt-5 w-full bg-zinc-900 text-white hover:bg-zinc-800">
-                        Run an Evaluation
+                        Check this site
                       </Button>
                     ) : (
                       <a
@@ -624,36 +622,35 @@ export default function PilotExchange() {
 
           {/* Simple How-it-Works */}
           <section className="mb-16">
-            <h2 className="text-xl font-bold text-zinc-900 mb-6 border-b border-zinc-200 pb-2">How it works</h2>
+            <h2 className="text-xl font-bold text-zinc-900 mb-6 border-b border-zinc-200 pb-2">How this page works</h2>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
               <div>
                 <span className="block text-zinc-400 font-mono text-sm mb-2">01</span>
-                <h3 className="font-semibold text-zinc-900 mb-1">Select an Environment</h3>
-                <p className="text-sm text-zinc-600">Browse real-world site twins provided by operators.</p>
+                <h3 className="font-semibold text-zinc-900 mb-1">Review a qualified site</h3>
+                <p className="text-sm text-zinc-600">Start with a site and workflow Blueprint has already scoped.</p>
               </div>
               <div>
                 <span className="block text-zinc-400 font-mono text-sm mb-2">02</span>
-                <h3 className="font-semibold text-zinc-900 mb-1">Submit Your Policy</h3>
-                <p className="text-sm text-zinc-600">Provide an executable package (Docker, Checkpoint, API).</p>
+                <h3 className="font-semibold text-zinc-900 mb-1">Share your robot package</h3>
+                <p className="text-sm text-zinc-600">Provide the package you want checked on that site.</p>
               </div>
               <div>
                 <span className="block text-zinc-400 font-mono text-sm mb-2">03</span>
-                <h3 className="font-semibold text-zinc-900 mb-1">Simulated Evaluation</h3>
-                <p className="text-sm text-zinc-600">We run standard tasks, interventions, and edge cases.</p>
+                <h3 className="font-semibold text-zinc-900 mb-1">Run the check</h3>
+                <p className="text-sm text-zinc-600">Blueprint runs the agreed tasks, edge cases, and pass rules.</p>
               </div>
               <div>
                 <span className="block text-zinc-400 font-mono text-sm mb-2">04</span>
                 <h3 className="font-semibold text-zinc-900 mb-1">Get the Scorecard</h3>
-                <p className="text-sm text-zinc-600">Receive actionable readiness metrics and leaderboard ranking.</p>
+                <p className="text-sm text-zinc-600">Receive a clear scorecard and next-step recommendation.</p>
               </div>
             </div>
           </section>
 
           <section className="mb-16">
-            <h2 className="text-xl font-bold text-zinc-900 mb-6 border-b border-zinc-200 pb-2">Why teams use this first</h2>
+            <h2 className="text-xl font-bold text-zinc-900 mb-6 border-b border-zinc-200 pb-2">Why teams use qualified briefs</h2>
             <p className="text-sm text-zinc-600 mb-6">
-              The same pattern shows up in humanoid deployment programs: broad models are useful,
-              but performance jumps when you give the model the exact context of the job environment.
+              The point is simple: teams waste less time when the site has already been scoped and the workflow is already clear.
             </p>
             <div className="grid md:grid-cols-3 gap-4 mb-6">
               {deploymentGapHighlights.map((item) => (
@@ -693,8 +690,8 @@ export default function PilotExchange() {
           <section id="marketplace">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
               <div>
-                <h2 className="text-2xl font-bold text-zinc-900">Deployment Marketplace</h2>
-                <p className="text-sm text-zinc-600 mt-1">Explore available environments and active policy submissions.</p>
+                <h2 className="text-2xl font-bold text-zinc-900">Qualified opportunities</h2>
+                <p className="text-sm text-zinc-600 mt-1">Review qualified sites and team results.</p>
               </div>
               <Button
                 variant="outline"
@@ -702,7 +699,7 @@ export default function PilotExchange() {
                 className="bg-white text-zinc-800 border-zinc-300 md:w-auto w-full"
               >
                 <Filter className="w-4 h-4 mr-2" />
-                {showFilters ? "Hide Filters" : "Filter Results"}
+                {showFilters ? "Hide filters" : "Filter results"}
               </Button>
             </div>
 
@@ -712,22 +709,22 @@ export default function PilotExchange() {
                 <div className="relative col-span-1 lg:col-span-2">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                   <Input
-                    placeholder="Search by name, region, task..."
+                    placeholder="Search by site, region, or task..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-9 bg-white border-zinc-300 focus-visible:ring-zinc-900"
                   />
                 </div>
                 <select className="border border-zinc-300 rounded-md text-sm px-3 py-2 bg-white" value={locationFilter} onChange={(e) => setLocationFilter(e.target.value as any)}>
-                  <option value="all">All Locations</option>
+                  <option value="all">All site types</option>
                   {pilotLocationTypes.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                 </select>
                 <select className="border border-zinc-300 rounded-md text-sm px-3 py-2 bg-white" value={embodimentFilter} onChange={(e) => setEmbodimentFilter(e.target.value as any)}>
-                  <option value="all">All Embodiments</option>
+                  <option value="all">All robot types</option>
                   {pilotEmbodiments.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                 </select>
                 <select className="border border-zinc-300 rounded-md text-sm px-3 py-2 bg-white" value={timelineFilter} onChange={(e) => setTimelineFilter(e.target.value as any)}>
-                  <option value="all">All Timelines</option>
+                  <option value="all">All timelines</option>
                   {pilotTimelines.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                 </select>
               </div>
@@ -739,19 +736,19 @@ export default function PilotExchange() {
                   value="briefs" 
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-zinc-900 data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 py-3 text-sm font-medium text-zinc-500 data-[state=active]:text-zinc-900"
                 >
-                  Digital Twins (Environments)
+                  Qualified sites
                 </TabsTrigger>
                 <TabsTrigger 
                   value="policies" 
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-zinc-900 data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 py-3 text-sm font-medium text-zinc-500 data-[state=active]:text-zinc-900"
                 >
-                  Policy Submissions
+                  Team results
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="briefs" className="mt-6 space-y-4">
                 {filteredLocationBriefs.length === 0 ? (
-                  <div className="py-12 text-center text-zinc-500 border border-dashed border-zinc-300 rounded-lg">No environments match your criteria.</div>
+                  <div className="py-12 text-center text-zinc-500 border border-dashed border-zinc-300 rounded-lg">No qualified sites match your criteria.</div>
                 ) : (
                   filteredLocationBriefs.map((brief) => {
                     const leaderboard = leaderboardByBriefId.get(brief.id) ?? [];
@@ -803,7 +800,7 @@ export default function PilotExchange() {
                           <div className="flex flex-col justify-between bg-zinc-50 p-5 rounded-lg border border-zinc-100">
                             <div>
                               <div className="flex justify-between items-center mb-3">
-                                <span className="text-sm font-semibold text-zinc-900">Top Submissions</span>
+                                <span className="text-sm font-semibold text-zinc-900">Top teams</span>
                                 <span className="text-xs text-zinc-500">{leaderboard.length} total</span>
                               </div>
                               {leaderboard.length > 0 ? (
@@ -835,7 +832,7 @@ export default function PilotExchange() {
                               onClick={() => openEvalDialog(brief.id)}
                               className="w-full mt-6 bg-white text-zinc-900 border border-zinc-300 hover:bg-zinc-100"
                             >
-                              Run Evaluation Here
+                              Check this site
                             </Button>
                           </div>
                         </div>
@@ -847,7 +844,7 @@ export default function PilotExchange() {
 
               <TabsContent value="policies" className="mt-6 space-y-4">
                 {filteredPolicySubmissions.length === 0 ? (
-                  <div className="py-12 text-center text-zinc-500 border border-dashed border-zinc-300 rounded-lg">No submissions match your criteria.</div>
+                  <div className="py-12 text-center text-zinc-500 border border-dashed border-zinc-300 rounded-lg">No team results match your criteria.</div>
                 ) : (
                   <div className="grid md:grid-cols-2 gap-4">
                     {filteredPolicySubmissions.map((sub) => (
@@ -896,8 +893,8 @@ export default function PilotExchange() {
       <Dialog open={isPolicyDialogOpen} onOpenChange={setIsPolicyDialogOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-white p-0">
           <div className="p-6 sm:p-8 border-b border-zinc-100 bg-zinc-50 sticky top-0 z-10">
-            <DialogTitle className="text-xl font-bold">Run Policy Evaluation</DialogTitle>
-            <DialogDescription className="mt-1">Select an environment and provide your policy package for simulated testing.</DialogDescription>
+            <DialogTitle className="text-xl font-bold">Check a qualified site</DialogTitle>
+            <DialogDescription className="mt-1">Select a qualified site and provide your robot package for the next check.</DialogDescription>
           </div>
 
           <form onSubmit={handleEvalRunSubmit} className="p-6 sm:p-8 space-y-8">
@@ -905,7 +902,7 @@ export default function PilotExchange() {
             <section>
               <h3 className="text-sm font-bold text-zinc-900 uppercase tracking-wide mb-4 flex items-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-zinc-200 text-zinc-700 flex items-center justify-center text-xs">1</span>
-                Target Environment
+                Qualified site
               </h3>
               <select
                 required
@@ -913,7 +910,7 @@ export default function PilotExchange() {
                 onChange={(e) => setEvalRunForm((p) => ({ ...p, briefId: e.target.value }))}
                 className="w-full h-11 px-3 border border-zinc-300 rounded-md bg-white text-zinc-900 focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900"
               >
-                <option value="">Select a digital twin...</option>
+                <option value="">Select a qualified site...</option>
                 {locationBriefs.map((brief) => (
                   <option key={brief.id} value={brief.id}>
                     {brief.operatorAlias} — {brief.robotEmbodiment}
@@ -935,7 +932,7 @@ export default function PilotExchange() {
             <section>
               <h3 className="text-sm font-bold text-zinc-900 uppercase tracking-wide mb-4 flex items-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-zinc-200 text-zinc-700 flex items-center justify-center text-xs">2</span>
-                Robot Policy Package
+                Robot package
               </h3>
               
               <div className="flex gap-4 mb-4">
@@ -981,7 +978,7 @@ export default function PilotExchange() {
             <section>
               <h3 className="text-sm font-bold text-zinc-900 uppercase tracking-wide mb-4 flex items-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-zinc-200 text-zinc-700 flex items-center justify-center text-xs">3</span>
-                Technical Context
+                Technical details
               </h3>
               <div className="space-y-4">
                 <div>
@@ -1025,7 +1022,7 @@ export default function PilotExchange() {
                 </div>
               )}
               <Button type="submit" disabled={policyStatus === "loading"} className="w-full bg-zinc-900 text-white hover:bg-zinc-800 h-12 text-base font-semibold">
-                {policyStatus === "loading" ? "Submitting Evaluation..." : "Submit Evaluation"}
+                {policyStatus === "loading" ? "Submitting check..." : "Submit check"}
               </Button>
             </div>
           </form>

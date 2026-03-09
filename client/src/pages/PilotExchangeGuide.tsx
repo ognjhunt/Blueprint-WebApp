@@ -130,8 +130,8 @@ export default function PilotExchangeGuide() {
   return (
     <>
       <SEO
-        title="Deployment Marketplace Guide"
-        description="Beginner guide to how Deployment Marketplace pre-qualifies humanoid policies before a controlled on-site pilot ramp."
+        title="Qualified Opportunities Guide"
+        description="Beginner guide to how Blueprint qualifies sites before robot teams review and respond."
         canonical="/deployment-marketplace-guide"
       />
       <div className="relative min-h-screen bg-white text-zinc-900 font-sans selection:bg-zinc-200 selection:text-zinc-900">
@@ -144,17 +144,16 @@ export default function PilotExchangeGuide() {
               Beginner's Guide
             </div>
             <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 mb-6">
-              How the humanoid deployment workflow works
+              How qualified opportunities work
             </h1>
             <p className="text-lg text-zinc-600 leading-relaxed mb-8">
-              Deployment Marketplace is a pre-deployment qualification workflow built for humanoid
-              teams. We help teams test policies on calibrated digital twins before spending money
-              and time on physical, live pilots.
+              Blueprint qualifies the site and workflow first. Then robot teams can review a
+              clearer brief, run checks, and respond with less guesswork.
             </p>
             <div className="flex flex-wrap items-center gap-4">
               <a href="/deployment-marketplace">
                 <Button className="bg-zinc-900 text-white hover:bg-zinc-800 px-6 py-5 text-sm font-medium">
-                  Open Marketplace <ArrowRight className="ml-2 w-4 h-4" />
+                  Open Qualified Opportunities <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>
               </a>
               <a href="/contact" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 underline underline-offset-4 decoration-zinc-300">

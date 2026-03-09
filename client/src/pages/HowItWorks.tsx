@@ -107,7 +107,7 @@ export default function HowItWorks() {
     <>
       <SEO
         title="How It Works | Blueprint"
-        description="How Blueprint turns a site walkthrough into a hosted twin, a readiness pack, and optional adaptation artifacts before live deployment."
+        description="How Blueprint checks a site and task before a robot team commits to a pilot."
         canonical="/how-it-works"
       />
 
@@ -122,23 +122,22 @@ export default function HowItWorks() {
                 <div className="space-y-6">
                   <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
                     <Sparkles className="h-3 w-3" />
-                    Site Readiness Workflow
+                    Site Qualification
                   </div>
                   <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
-                    Capture the site once. Use it for readiness, evaluation, and adaptation.
+                    We check the site before the pilot starts.
                   </h1>
                   <p className="max-w-xl text-lg leading-relaxed text-zinc-600">
-                    Blueprint turns a walkthrough into a hosted site twin, a readiness pack, and
-                    optional adaptation artifacts. Managed model updates are available later for
-                    supported stacks, but they are not the starting point.
+                    Blueprint reviews the site, the task, and the main constraints first. If the
+                    site is a fit, teams can move into deeper evaluation and site-specific work.
                   </p>
                 </div>
 
                 <CTAButtons
                   primaryHref="/contact"
-                  primaryLabel="Schedule a scan"
-                  secondaryHref="/marketplace"
-                  secondaryLabel="Browse location twins"
+                  primaryLabel="Request site qualification"
+                  secondaryHref="/deployment-marketplace"
+                  secondaryLabel="View qualified opportunities"
                 />
               </div>
 
@@ -151,12 +150,11 @@ export default function HowItWorks() {
                     </div>
                     <div className="space-y-2">
                       <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                        What we deliver
+                        What you get
                       </p>
                       <p className="text-sm text-zinc-600">
-                        A hosted twin plus the artifact layer that sits on top of it: readiness
-                        outputs by default, adaptation data when needed, and managed adaptation
-                        only where the stack supports it.
+                        A clear read on the site first, then optional deeper work only when the
+                        next step makes sense.
                       </p>
                       <a
                         href="/contact"
@@ -177,11 +175,10 @@ export default function HowItWorks() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-10 max-w-2xl">
               <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
-                Why the artifact layer matters
+                Why this comes first
               </h2>
               <p className="mt-4 text-zinc-600">
-                The twin matters because it gives teams a reusable site asset. The real product is
-                what Blueprint builds on top of it before rollout work starts.
+                The goal is simple: understand the site before the team burns time and money in the building.
               </p>
             </div>
 

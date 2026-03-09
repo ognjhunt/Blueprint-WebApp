@@ -35,7 +35,7 @@ export default function Contact() {
     <>
       <SEO
         title="Contact Us"
-        description="Get in touch with Blueprint to discuss hosted site twins, readiness packs, adaptation data, and managed adaptation for supported stacks."
+        description="Get in touch with Blueprint to request site qualification and plan the next step for a robot deployment."
         canonical="/contact"
       />
       <div className="relative min-h-screen overflow-hidden bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
@@ -45,14 +45,14 @@ export default function Contact() {
           <div className="mb-12 max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600 backdrop-blur-sm">
               <MessageSquare className="h-3 w-3" />
-              Humanoid Deployment Intake
+              Site Qualification Intake
             </div>
             <h1 className="mt-6 text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl">
-              Tell us the site, the workflow, and the artifact layer you need.
+              Tell us the site, the task, and what you need checked.
             </h1>
             <p className="mt-6 text-lg leading-relaxed text-zinc-600">
-              Blueprint helps robot teams capture facilities, host reusable site twins, and turn
-              them into readiness packs, adaptation data, or managed adaptation on supported stacks.
+              Blueprint helps operators and robot teams get a clear read on a site before a live
+              pilot, then plan the right next step.
             </p>
           </div>
 
@@ -75,8 +75,8 @@ export default function Contact() {
                   <div>
                     <h3 className="font-semibold text-zinc-900">Quick Response</h3>
                     <p className="mt-1 text-sm text-zinc-600">
-                      Fill out the form and our team will get back to you within 24 hours
-                      to discuss the twin, the readiness pack, and the right next step for your deployment program.
+                      Fill out the form and our team will get back to you within 24 hours to talk
+                      through the site, the task, and the best next step.
                     </p>
                   </div>
                 </div>
@@ -129,7 +129,7 @@ export default function Contact() {
                       href="/deployment-marketplace"
                       className="group flex items-center gap-2 text-zinc-700 transition hover:text-indigo-600"
                     >
-                      <span>Deployment Marketplace</span>
+                      <span>Qualified Opportunities</span>
                       <span className="transition-transform group-hover:translate-x-0.5">→</span>
                     </a>
                   </li>

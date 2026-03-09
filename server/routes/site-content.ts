@@ -5,7 +5,7 @@ const router = Router();
 router.get("/", (_req: Request, res: Response) => {
   res.status(200).json({
     summary:
-      "Blueprint provides SimReady 3D environments, datasets, evaluation tooling, and marketplace content for robotics and AI teams.",
+      "Blueprint checks whether a site and task are ready for robots, then turns qualified demand into clear opportunities for the right teams.",
     pages: [
       {
         path: "/",
@@ -19,15 +19,15 @@ router.get("/", (_req: Request, res: Response) => {
       },
       {
         path: "/deployment-marketplace",
-        title: "Deployment Marketplace",
+        title: "Qualified Opportunities",
         description:
-          "Robotics-team marketplace for paid policy evaluation, scorecards, and training on calibrated site twins.",
+          "Qualified site briefs that robot teams can review, evaluate, and respond to after site qualification.",
       },
       {
         path: "/deployment-marketplace-guide",
-        title: "Deployment Marketplace Guide",
+        title: "Qualified Opportunities Guide",
         description:
-          "Beginner-friendly explainer of Deployment Marketplace stages, graphs, ownership options, and pre-deployment risk reduction workflow.",
+          "Beginner-friendly explainer of Blueprint's site qualification and qualified opportunities workflow.",
       },
       {
         path: "/docs",

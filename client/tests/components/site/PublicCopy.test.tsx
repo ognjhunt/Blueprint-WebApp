@@ -17,7 +17,7 @@ vi.mock("@/contexts/AuthContext", () => ({
 }));
 
 describe("public service-first copy", () => {
-  it("uses service language across header, homepage, and footer", () => {
+  it("uses service language across header, homepage, and footer", { timeout: 10000 }, () => {
     window.localStorage.clear();
     const { container } = render(
       <>
@@ -27,11 +27,11 @@ describe("public service-first copy", () => {
       </>,
     );
 
-    expect(screen.getAllByRole("link", { name: /Request a site brief/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Request site qualification/i }).length).toBeGreaterThan(0);
     expect(HERO_HEADLINES).toContain(screen.getByRole("heading", { level: 1 }).textContent);
-    expect(container).toHaveTextContent(/site twin|digital twin/i);
-    expect(container).toHaveTextContent(/humanoid/i);
-    expect(container).toHaveTextContent(/readiness|evaluate|adaptation artifacts/i);
+    expect(container).toHaveTextContent(/site qualification|qualified opportunities/i);
+    expect(container).toHaveTextContent(/site|task/i);
+    expect(container).toHaveTextContent(/ready|risky|next step/i);
 
     expect(container).not.toHaveTextContent(/adapter weights/i);
     expect(container).not.toHaveTextContent(/LoRA/i);

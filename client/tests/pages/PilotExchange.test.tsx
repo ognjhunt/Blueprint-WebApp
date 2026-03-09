@@ -34,7 +34,7 @@ function seedEvalAccess() {
 }
 
 function openEvalFlow() {
-  fireEvent.click(screen.getAllByRole("button", { name: /Run Evaluation Here/i })[0]);
+  fireEvent.click(screen.getAllByRole("button", { name: /Check this site/i })[0]);
 }
 
 function fillEvalForm() {
@@ -95,15 +95,15 @@ describe("PilotExchange", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders marketplace framing with paywall notice", () => {
+  it("renders qualified opportunities framing", () => {
     render(<PilotExchange />);
 
     expect(
-      screen.getByRole("heading", { name: /Deployment Marketplace/i }),
+      screen.getByRole("heading", { name: /Qualified opportunities for robot teams\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Site operators pay \$0\. Robot teams pay only when they use something\./i)).toBeInTheDocument();
+    expect(screen.getByText(/These sites and workflows have already been scoped by Blueprint\./i)).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /See Pricing/i })[0]).toHaveAttribute("href", "#pricing");
-    expect(screen.getByRole("link", { name: /Read the beginner guide/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /See how qualification works/i })).toHaveAttribute(
       "href",
       "/deployment-marketplace-guide",
     );
@@ -115,7 +115,7 @@ describe("PilotExchange", () => {
 
     expect(screen.getByText(/Southeast Grocery Network B/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Filter Results/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Filter results/i }));
     fireEvent.change(screen.getAllByRole("combobox")[0], {
       target: { value: "Healthcare" },
     });
@@ -123,29 +123,29 @@ describe("PilotExchange", () => {
     expect(screen.getByText(/Regional Healthcare Operator F/i)).toBeInTheDocument();
     expect(screen.queryByText(/Southeast Grocery Network B/i)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("tab", { name: /Policy Submissions/i }));
-    expect(screen.getByRole("tab", { name: /Policy Submissions/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: /Team results/i }));
+    expect(screen.getByRole("tab", { name: /Team results/i })).toBeInTheDocument();
   });
 
   it("shows pricing inline and opens evaluation directly", () => {
     render(<PilotExchange />);
 
     expect(screen.getByRole("heading", { name: /Pay for the job you need\./i })).toBeInTheDocument();
-    expect(screen.getByText(/Test your robot/i)).toBeInTheDocument();
-    expect(screen.getByText(/Get site data/i)).toBeInTheDocument();
-    expect(screen.getByText(/Let us tune it/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Evaluation$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Site data$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Managed tuning$/i })).toBeInTheDocument();
     expect(screen.getByText(/Private site terms are custom\./i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole("button", { name: /Run an Evaluation/i })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: /Check a qualified site/i })[0]);
 
-    expect(screen.getByRole("heading", { name: /Run Policy Evaluation/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Check a qualified site/i })).toBeInTheDocument();
     expect(analyticsEventsMock.pilotExchangeOpenPolicyForm).toHaveBeenCalledTimes(1);
   });
 
   it("shows anonymous leaderboard metrics in location briefs", () => {
     render(<PilotExchange />);
 
-    expect(screen.getAllByText(/Top Submissions/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Top teams/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Anon Team 014/i)).toBeInTheDocument();
     expect(screen.getByText(/87%/i)).toBeInTheDocument();
     expect(screen.getAllByText(/\(\+5%\)/i).length).toBeGreaterThan(0);
@@ -156,9 +156,9 @@ describe("PilotExchange", () => {
     render(<PilotExchange />);
 
     openEvalFlow();
-    fireEvent.click(screen.getByRole("button", { name: /Submit Evaluation/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Submit check/i }));
 
-    expect(await screen.findByText(/Select a digital twin\./i)).toBeInTheDocument();
+    expect(await screen.findByText(/Select a qualified site\./i)).toBeInTheDocument();
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
@@ -168,7 +168,7 @@ describe("PilotExchange", () => {
 
     openEvalFlow();
     fillEvalForm();
-    fireEvent.click(screen.getByRole("button", { name: /Submit Evaluation/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Submit check/i }));
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -195,7 +195,7 @@ describe("PilotExchange", () => {
 
     openEvalFlow();
     fillEvalForm();
-    fireEvent.click(screen.getByRole("button", { name: /Submit Evaluation/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Submit check/i }));
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(1);

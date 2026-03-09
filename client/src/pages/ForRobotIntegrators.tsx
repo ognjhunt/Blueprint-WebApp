@@ -2,10 +2,10 @@ import { SEO } from "@/components/SEO";
 import { CheckCircle2, Cpu, FileCheck2, Gauge, GitBranchPlus, Truck } from "lucide-react";
 
 const requiredInputs = [
-  "Deployment objective: target site, task/workcell, and what a pass actually means",
-  "Runtime contract: model/version, policy interface, and operating assumptions",
-  "Constraints: kinematics, payload limits, sensor stack, and safety envelope",
-  "Rights and next step: review only, adaptation data, or managed adaptation for a supported stack",
+  "Target site and task: what you want checked",
+  "Runtime contract: model/version, interface, and operating assumptions",
+  "Constraints: payload, sensor stack, and safety envelope",
+  "Next step: review only, site data, or managed tuning on a supported stack",
 ];
 
 const workflowSteps = [
@@ -15,27 +15,27 @@ const workflowSteps = [
       "Define the site, the workflow, and the decision your team needs before any physical rollout.",
   },
   {
-    title: "2. Twin license and readiness layer",
+    title: "2. Review the qualified site",
     description:
-      "Use an existing hosted twin or request a new capture; Blueprint prepares the facility context and default readiness pack first.",
+      "Use an existing site brief or request a new one; Blueprint prepares the site context and readiness call first.",
   },
   {
-    title: "3. Add artifact depth only if needed",
+    title: "3. Buy deeper checks only if needed",
     description:
-      "Buy the adaptation data pack when your team needs task-scoped eval or training artifacts on top of the twin.",
+      "Buy site data only when your team needs more proof for that exact site.",
   },
   {
-    title: "4. Use managed adaptation selectively",
+    title: "4. Use managed tuning selectively",
     description:
-      "Run managed adaptation only on supported stacks with a clear interface and an offline evaluation path before redeploy.",
+      "Run managed tuning only on supported stacks with a clear interface and offline evaluation path.",
   },
 ];
 
 const logisticsItems = [
-  "Versioned submissions so each artifact bundle is traceable",
-  "Hosted twin by default, with scoped access and usage rights",
-  "Clear separation between readiness pack, adaptation data, and managed adaptation",
-  "Drift refresh path once the site changes after the first deployment cycle",
+  "Versioned submissions so each package is traceable",
+  "Scoped access to the site brief and related materials",
+  "Clear separation between readiness, site data, and managed tuning",
+  "A refresh path if the site changes later",
 ];
 
 export default function ForRobotIntegrators() {
@@ -43,7 +43,7 @@ export default function ForRobotIntegrators() {
     <>
       <SEO
         title="For Humanoid Integrators & Teams | Blueprint"
-        description="Guide for robot teams using Blueprint for hosted site twins, readiness packs, adaptation data, and managed adaptation on supported stacks."
+        description="Guide for robot teams using Blueprint to review qualified sites and buy deeper checks only when the site is a fit."
         canonical="/for-robot-integrators"
       />
 
@@ -54,12 +54,11 @@ export default function ForRobotIntegrators() {
               For Humanoid Integrators & Teams
             </span>
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Pre-deployment guide for humanoid teams
+              Review qualified sites before the pilot
             </h1>
             <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
-              If your team deploys humanoid policies into customer facilities, this page outlines
-              the practical inputs, product ladder, and logistics for both cases: when you already
-              know the target site, and when an operator-side brief comes through Blueprint.
+              If your team deploys robots into customer facilities, Blueprint gives you a cleaner
+              site brief first, then lets you buy deeper checks only when they are useful.
             </p>
           </div>
 
@@ -109,21 +108,21 @@ export default function ForRobotIntegrators() {
                   <Cpu className="h-4 w-4" />
                   Default motion
                 </p>
-                <p className="mt-1 text-sm text-slate-600">Known-site or operator-matched twin plus readiness pack first.</p>
+                <p className="mt-1 text-sm text-slate-600">Start with the qualified site and readiness pack.</p>
               </div>
               <div className="rounded-lg bg-slate-50 p-4">
                 <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                   <Gauge className="h-4 w-4" />
                   Core upsell
                 </p>
-                <p className="mt-1 text-sm text-slate-600">Adaptation data pack for eval and training artifacts.</p>
+                <p className="mt-1 text-sm text-slate-600">Add site data if the team needs a deeper pass.</p>
               </div>
               <div className="rounded-lg bg-slate-50 p-4">
                 <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                   <GitBranchPlus className="h-4 w-4" />
                   Recurring layer
                 </p>
-                <p className="mt-1 text-sm text-slate-600">Drift refresh when the site changes after deployment prep.</p>
+                <p className="mt-1 text-sm text-slate-600">Refresh the brief if the site changes later.</p>
               </div>
             </div>
           </section>
@@ -133,13 +132,13 @@ export default function ForRobotIntegrators() {
               href="/deployment-marketplace"
               className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Start evaluation workflow
+              View qualified opportunities
             </a>
             <a
               href="/contact?interest=robot-team-brief"
               className="inline-flex items-center rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
             >
-              Share your humanoid deployment brief
+              Share your target site
             </a>
           </section>
         </div>

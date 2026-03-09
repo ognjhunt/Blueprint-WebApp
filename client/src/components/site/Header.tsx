@@ -12,9 +12,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const navLinks = [
-  { href: "/deployment-marketplace", label: "Marketplace" },
-  { href: "/for-site-operators", label: "For Site Operators" },
-  { href: "/for-robot-integrators", label: "For Humanoid Teams" },
+  { href: "/how-it-works", label: "Site Qualification" },
+  { href: "/for-site-operators", label: "For Sites" },
+  { href: "/for-robot-integrators", label: "For Robot Teams" },
   { href: "/pricing", label: "Pricing" },
 ];
 
@@ -74,7 +74,7 @@ export function Header() {
             href="/contact"
             className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
           >
-            Request a Site Brief
+            Request Site Qualification
           </a>
           {!currentUser ? (
             <>
@@ -149,7 +149,7 @@ export function Header() {
               className="mt-2 inline-flex min-h-11 items-center justify-center rounded-full bg-slate-900 px-4 py-2.5 text-center text-white"
               onClick={() => setOpen(false)}
             >
-              Request a Site Brief
+              Request Site Qualification
             </a>
             {!currentUser ? (
               <>

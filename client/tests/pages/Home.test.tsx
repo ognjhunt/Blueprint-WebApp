@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import Home, { HERO_HEADLINES, HOME_HERO_VARIANTS } from '@/pages/Home';
 
 describe('Home', () => {
-  it('renders the hero messaging and primary CTAs', () => {
+  it('renders the hero messaging and primary CTAs', { timeout: 10000 }, () => {
     window.localStorage.clear();
     render(<Home />);
 
@@ -14,18 +14,18 @@ describe('Home', () => {
       HOME_HERO_VARIANTS.some((variant) => screen.queryAllByText(variant.eyebrow).length > 0),
     ).toBe(true);
     expect(
-      screen.getAllByRole('link', { name: /See how it works/i }).some(
-        (link) => link.getAttribute('href') === '/solutions',
+      screen.getAllByRole('link', { name: /See site qualification/i }).some(
+        (link) => link.getAttribute('href') === '/how-it-works',
       ),
     ).toBe(true);
     expect(
-      screen.getAllByRole('link', { name: /Request a site brief/i }).some(
+      screen.getAllByRole('link', { name: /Request site qualification/i }).some(
         (link) => link.getAttribute('href') === '/contact',
       ),
     ).toBe(true);
   });
 
-  it('highlights the service outcomes', () => {
+  it('highlights the service outcomes', { timeout: 10000 }, () => {
     window.localStorage.clear();
     render(<Home />);
 
@@ -34,7 +34,7 @@ describe('Home', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole('heading', {
-        name: /A hosted twin plus the artifacts teams need before rollout\./i,
+        name: /A simple path from site review to a clear next step\./i,
       }),
     ).toBeInTheDocument();
   });

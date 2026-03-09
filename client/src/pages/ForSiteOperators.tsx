@@ -2,41 +2,41 @@ import { SEO } from "@/components/SEO";
 import { CheckCircle2, ClipboardList, Clock3, Handshake, ShieldCheck } from "lucide-react";
 
 const intakeChecklist = [
-  "Site profile: facility type, square footage, operating hours, and known constraints",
-  "Task list: which humanoid workflows you want evaluated before any live pilot",
+  "Basic site profile: facility type, size, hours, and known constraints",
+  "Task list: which workflows you want checked first",
   "Access plan: escort policy, restricted zones, and capture windows",
-  "Safety and legal: NDA, site permissions, privacy rules, and who can review the hosted twin",
+  "Review rules: privacy, permissions, and who can see the site materials",
 ];
 
 const processSteps = [
   {
     title: "1. Intake and scope alignment",
     description:
-      "We define the operational outcomes you care about, the pilot timeline, and which tasks should be qualified pre-deployment.",
+      "We define the site, the task, and what a good outcome looks like.",
   },
   {
-    title: "2. Capture and reconstruction",
+    title: "2. Site review",
     description:
-      "Blueprint coordinates local walkthrough capture and turns the recording into a hosted site twin with structured metadata and scoped access.",
+      "Blueprint reviews the site materials and builds the context needed for a real go or no-go call.",
   },
   {
-    title: "3. Pre-deployment evaluation exchange",
+    title: "3. Readiness decision",
     description:
-      "Qualified robot teams use the twin for readiness reviews, evaluations, and, when approved, deeper adaptation artifacts instead of one-off claims.",
+      "You get a simple answer: ready, risky, or not ready yet.",
   },
   {
-    title: "4. Handoff and pilot readiness",
+    title: "4. Qualified team access",
     description:
-      "You review scorecards, select candidates, and move forward with the teams that meet your thresholds for on-site readiness.",
+      "If the site is a fit, Blueprint can turn it into a brief the right robot teams can review.",
   },
 ];
 
 const logisticsDetails = [
-  "Scheduling: capture windows outside peak operations when needed",
-  "Data governance: scope-limited twin access and approved evaluators only",
-  "Ownership default: Blueprint owns and hosts the twin unless private terms are negotiated",
-  "Commercial model: one workflow for readiness, adaptation artifacts, and later refreshes",
-  "Refresh cadence: optional drift recapture when layout or workflow changes",
+  "Scheduling: choose a time that does not disrupt operations",
+  "Data governance: decide who can review the site materials",
+  "Scope: agree on the task, work area, and success bar up front",
+  "Next step: move forward, adjust the plan, or pause",
+  "Follow-up: open a qualified brief only if the site is a fit",
 ];
 
 export default function ForSiteOperators() {
@@ -44,7 +44,7 @@ export default function ForSiteOperators() {
     <>
       <SEO
         title="For Site Operators | Blueprint"
-        description="Guide for site operators using Blueprint for hosted site twins, pre-deployment qualification, and later drift refresh when the site changes."
+        description="Guide for site operators using Blueprint to check whether a site and workflow are ready for robots before a pilot."
         canonical="/for-site-operators"
       />
 
@@ -55,12 +55,11 @@ export default function ForSiteOperators() {
               For Site Operators
             </span>
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Pre-deployment qualification guide for deployment sites
+              Start with a simple site check
             </h1>
             <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
-              If you operate a warehouse, store, factory, or lab and want higher-confidence
-              humanoid launches, this page outlines what Blueprint needs from your team and how the
-              hosted twin moves from capture to a marketplace-ready pilot brief that robot teams can respond to.
+              If you run a warehouse, store, factory, or lab, Blueprint helps you check whether
+              the site and workflow are a good fit before you invite more pilot work.
             </p>
           </div>
 
@@ -118,7 +117,7 @@ export default function ForSiteOperators() {
                   Evaluation scope
                 </p>
                 <p className="mt-1 text-sm text-slate-600">
-                  Pre-deployment qualification first, with drift refresh available if the site changes later.
+                  We qualify the site first, then decide whether it should be shared with teams.
                 </p>
               </div>
             </div>
@@ -129,13 +128,13 @@ export default function ForSiteOperators() {
               href="/contact?interest=site-operator-guide"
               className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Plan a deployment-site brief
+              Request site qualification
             </a>
             <a
               href="/deployment-marketplace"
               className="inline-flex items-center rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
             >
-              Open Deployment Marketplace
+              View qualified opportunities
             </a>
           </section>
         </div>

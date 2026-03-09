@@ -1,8 +1,9 @@
 const footerLinks = [
-  { label: "For Site Operators", href: "/for-site-operators" },
-  { label: "For Humanoid Teams", href: "/for-robot-integrators" },
+  { label: "Site Qualification", href: "/how-it-works" },
+  { label: "For Sites", href: "/for-site-operators" },
+  { label: "For Robot Teams", href: "/for-robot-integrators" },
   { label: "Pricing", href: "/pricing" },
-  { label: "Marketplace", href: "/deployment-marketplace" },
+  { label: "Qualified Opportunities", href: "/deployment-marketplace" },
   { label: "Contact", href: "/contact" },
   { label: "Privacy", href: "/privacy" },
   { label: "Terms", href: "/terms" },
@@ -17,8 +18,8 @@ export function Footer() {
             Blueprint
           </a>
           <p className="text-sm text-slate-500">
-            Blueprint captures sites, hosts reusable twins, and turns them into readiness,
-            evaluation, and adaptation artifacts for robot teams.
+            Blueprint checks whether a site and task are ready for robots, then turns qualified
+            demand into clear opportunities for the right teams.
           </p>
         </div>
         <nav className="grid flex-1 grid-cols-2 gap-3 text-sm text-slate-600 sm:grid-cols-3">
@@ -32,7 +33,7 @@ export function Footer() {
       <div className="border-t border-slate-200 bg-white py-4">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p>© {new Date().getFullYear()} Blueprint, Inc. All rights reserved.</p>
-          <p>Hosted site twins, readiness packs, and adaptation artifacts for robot teams.</p>
+          <p>Site qualification first. Qualified opportunities second.</p>
         </div>
       </div>
     </footer>

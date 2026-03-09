@@ -169,13 +169,13 @@ export const REQUEST_PRIORITY_LABELS: Record<RequestPriority, string> = {
 
 // Help with labels for UI
 export const HELP_WITH_LABELS: Record<HelpWithOption, string> = {
-  "benchmark-packs": "Benchmark Packs",
-  "scene-library": "Scene Library",
-  "dataset-packs": "Dataset Packs",
-  "custom-capture": "Custom Scene",
-  "pilot-exchange-location-brief": "Deployment Marketplace: Location Brief",
-  "pilot-exchange-policy-submission": "Deployment Marketplace: Policy Submission",
-  "pilot-exchange-data-licensing": "Deployment Marketplace: Data Licensing",
+  "benchmark-packs": "Site Qualification",
+  "scene-library": "Qualified Opportunity Review",
+  "dataset-packs": "Site Data",
+  "custom-capture": "New Site Capture",
+  "pilot-exchange-location-brief": "Qualified Opportunity: Site Brief",
+  "pilot-exchange-policy-submission": "Qualified Opportunity: Team Submission",
+  "pilot-exchange-data-licensing": "Qualified Opportunity: Data Licensing",
 };
 
 // Budget bucket labels for UI

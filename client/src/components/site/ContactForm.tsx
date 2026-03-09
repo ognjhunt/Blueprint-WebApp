@@ -20,10 +20,10 @@ const budgetRanges: BudgetBucket[] = [
 ];
 
 const offerings: { value: HelpWithOption; label: string }[] = [
-  { value: "benchmark-packs", label: "Location Evaluation - Site-specific readiness scoring before deployment" },
-  { value: "scene-library", label: "Twin Marketplace Access - Existing location splats and metadata" },
-  { value: "dataset-packs", label: "Rendered Data Packs - Location-specific training and evaluation clips" },
-  { value: "custom-capture", label: "New Walkthrough Capture - Dispatch capture and build a fresh twin" },
+  { value: "benchmark-packs", label: "Site qualification" },
+  { value: "scene-library", label: "Qualified opportunity review" },
+  { value: "dataset-packs", label: "Site data for a robot team" },
+  { value: "custom-capture", label: "New site walkthrough capture" },
 ];
 
 /**

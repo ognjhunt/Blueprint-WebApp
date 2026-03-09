@@ -29,127 +29,127 @@ const HOME_HERO_QUERY_PARAM = "hero";
 
 const offeringCards = [
   {
-    title: "Site Twin License",
-    badge: "Layer 1",
+    title: "Site qualification",
+    badge: "Step 1",
     description:
-      "Blueprint captures the facility, reconstructs the site, and hosts a reusable twin your team can review before rollout work begins.",
+      "We review the site and the task before anyone spends time on a live pilot.",
     bullets: [
-      "Scoped around the exact workcell, route, and workflow you need to prove",
-      "Licensed access to the hosted twin, review views, and facility context by default",
+      "We scope the exact task, route, and work area",
+      "We flag the obvious blockers early",
     ],
-    ctaLabel: "Request a site brief",
-    ctaHref: "/contact?interest=site-twin-license",
+    ctaLabel: "Request site qualification",
+    ctaHref: "/contact?interest=benchmark-packs",
     icon: <MapPin className="h-8 w-8 text-zinc-900" />,
   },
   {
     title: "Readiness Pack",
-    badge: "Default Pack",
+    badge: "Step 2",
     description:
-      "We turn the twin into a pre-pilot decision package so task, safety, integration, and environment issues show up early.",
+      "You get a simple answer: ready, risky, or not ready yet.",
     bullets: [
-      "Task/workcell scoping, readiness scorecard, and a practical go / adapt / wait recommendation",
-      "Site-level risk map covering perception, navigation, and workflow mismatch",
+      "Clear task, safety, and site notes",
+      "A short recommendation your team can act on",
     ],
-    ctaLabel: "See the workflow",
+    ctaLabel: "See site qualification",
     ctaHref: "/how-it-works",
     icon: <ScanLine className="h-8 w-8 text-zinc-900" />,
   },
   {
-    title: "Adaptation Data Pack",
-    badge: "Core Upsell",
+    title: "Qualified opportunities",
+    badge: "Step 3",
     description:
-      "For teams that want more than a scorecard, Blueprint generates the site-specific eval and training artifacts that sit on top of the twin.",
+      "Once a site is qualified, the right robot teams can review it, respond, and buy deeper checks.",
     bullets: [
-      "Task-scoped render packs, eval scenarios, and site-conditioned training data",
-      "Managed adaptation is available later for supported stacks, not required up front",
+      "Operators get a clear brief instead of random inbound interest",
+      "Teams can add evaluation, site data, or managed tuning later",
     ],
-    ctaLabel: "See pricing",
-    ctaHref: "/pricing",
+    ctaLabel: "View qualified opportunities",
+    ctaHref: "/deployment-marketplace",
     icon: <Shield className="h-8 w-8 text-zinc-900" />,
   },
 ];
 
 const whyBlueprint = [
   {
-    title: "Most pilot risk shows up in the site, not the deck",
+    title: "The site is usually the real problem",
     description:
-      "Task fit, operator flow, safety rules, and perception issues are easy to miss until the team is already spending time and money in the building.",
+      "Most pilot problems come from the site, the task, and the workflow, not the slide deck.",
   },
   {
-    title: "The twin is the base asset, not the end product",
+    title: "You need a simple answer early",
     description:
-      "The real value is what the twin unlocks: readiness packs, eval harnesses, adaptation data, and later drift refreshes when the site changes.",
+      "Blueprint helps you decide whether to move forward, change the plan, or wait.",
   },
   {
-    title: "You can buy evidence before you buy more pilot risk",
+    title: "Matching works better after qualification",
     description:
-      "Blueprint helps teams decide whether to move forward, adapt the plan, or wait before travel, integration work, and floor-time commitments stack up.",
+      "A qualified brief is much easier for the right robot team to review and respond to.",
   },
 ];
 
 const whatYouGet = [
   {
-    title: "Hosted site twin",
-    description: "Blueprint coordinates capture, reconstruction, and default hosted access so the facility stays usable after the first review.",
+    title: "Site review",
+    description: "We look at the real site, the task, and the constraints that matter.",
   },
   {
-    title: "Readiness and eval artifacts",
-    description: "You get scorecards, scoped evaluation context, and the practical evidence needed to make a real pilot decision.",
+    title: "Readiness pack",
+    description: "You get a short decision package with the main risks and next steps.",
   },
   {
-    title: "Adaptation data when needed",
-    description: "Teams that want more can buy site-conditioned training and evaluation artifacts without committing to managed adaptation on day one.",
+    title: "Qualified brief",
+    description: "If the site is a fit, Blueprint can share a clear brief with the right teams.",
   },
 ];
 
 const routeToMarket = [
   {
-    title: "Robot team with a known site",
+    title: "A site starts the process",
     description:
-      "Bring Blueprint into a facility you already know. We run the twin, readiness, and artifact path around that exact site, usually as a more private or exclusive engagement.",
+      "An operator asks Blueprint to qualify a site and workflow before opening the door to robot teams.",
   },
   {
-    title: "Site operator opening pilot demand",
+    title: "A robot team brings us in",
     description:
-      "Use Blueprint to prepare the site, set constraints, and create a marketplace-ready brief that qualified robot teams can respond to.",
+      "A team with a target site uses Blueprint to get a cleaner read before pushing toward a pilot.",
   },
 ];
 
 const labBullets = [
-  "Start with a hosted site twin and a readiness pack before the pilot budget is live",
-  "Add task-scoped eval or training artifacts if the team needs site-specific conditioning",
-  "Use managed adaptation later only when the stack and validation path are ready",
+  "Review a qualified site before committing field time",
+  "Buy evaluation or site data only when the site is a fit",
+  "Use managed tuning later if the stack supports it",
 ];
 
 const providerBullets = [
-  "List facilities that may be useful to robot teams and controlled pre-pilot reviews",
-  "Share site details, access rules, and refresh needs before a live pilot request shows up",
+  "Start with a site and workflow review",
+  "Open the brief to the right teams only after qualification",
 ];
 
 export const HOME_HERO_VARIANTS: HomeHeroVariant[] = [
   {
     id: "humanoid-gap",
-    eyebrow: "Site-Specific Deployment Readiness",
-    headline: "Turn real sites into deployment, evaluation, and adaptation artifacts.",
+    eyebrow: "Site Qualification",
+    headline: "We check if a site is ready for robots.",
     body:
-      "Blueprint captures the facility, hosts the twin, and gives robot teams the readiness packs and site-conditioned artifacts they need before field spend starts.",
-    supportingPoints: ["Hosted site twins", "Readiness packs", "Adaptation data"],
+      "Blueprint reviews the site and the task, then tells you what is ready, what is risky, and what needs work first.",
+    supportingPoints: ["Review the site", "Score the task", "Decide next steps"],
   },
   {
     id: "site-readiness",
-    eyebrow: "Pre-Pilot Qualification",
-    headline: "The site is where pilot plans usually get real.",
+    eyebrow: "Before The Pilot",
+    headline: "Most deployment problems start at the site.",
     body:
-      "Most teams do not stall on ambition. They stall on task fit, safety constraints, and environment details that only show up in the actual facility.",
-    supportingPoints: ["Task fit", "Safety readiness", "Environment readiness"],
+      "The hard part is usually task fit, safety, and how the real site behaves day to day.",
+    supportingPoints: ["Task fit", "Safety", "Site conditions"],
   },
   {
     id: "field-confidence",
-    eyebrow: "Artifact Layer",
-    headline: "Buy the site-specific evidence before you buy more pilot risk.",
+    eyebrow: "Qualified Demand",
+    headline: "Qualified sites make matching much easier.",
     body:
-      "Blueprint helps teams move from raw site capture to scorecards, eval packs, and training artifacts they can actually use before rollout.",
-    supportingPoints: ["Eval first", "Training data second", "Managed adaptation later"],
+      "Once Blueprint has scoped the site and workflow, the right robot teams can review it and respond with less guesswork.",
+    supportingPoints: ["Qualified brief", "Team review", "Deeper checks later"],
   },
 ];
 
@@ -224,8 +224,8 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | Hosted Site Twins, Readiness Packs, and Adaptation Artifacts"
-        description="Blueprint captures facilities, hosts reusable site twins, and turns them into readiness, evaluation, and adaptation artifacts before live pilots."
+        title="Blueprint | Site Qualification For Robot Deployments"
+        description="Blueprint checks whether a site and task are ready for robots, then turns qualified demand into clear opportunities for the right teams."
         canonical="/"
         image="https://tryblueprint.io/images/og-home.png"
       />
@@ -262,10 +262,10 @@ export default function Home() {
                 </div>
 
                 <CTAButtons
-                  primaryHref="/solutions"
-                  primaryLabel="See how it works"
+                  primaryHref="/how-it-works"
+                  primaryLabel="See site qualification"
                   secondaryHref="/contact"
-                  secondaryLabel="Request a site brief"
+                  secondaryLabel="Request site qualification"
                 />
 
                 <div className="pt-2 opacity-80 grayscale transition-all duration-500 hover:opacity-100 hover:grayscale-0 sm:pt-4">
@@ -287,11 +287,11 @@ export default function Home() {
                   </div>
                   <div className="mt-4 space-y-3">
                     <div className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                      Artifact Layer
+                      What Blueprint Does
                     </div>
                     <p className="text-sm text-zinc-600">
-                      Hosted site twins for robot teams working across warehouses, factories,
-                      retail backrooms, hospitality, and other structured indoor sites.
+                      We review warehouses, factories, retail backrooms, hospitality sites, and
+                      other structured indoor spaces before teams commit to a pilot.
                     </p>
                   </div>
                 </div>
@@ -356,11 +356,11 @@ export default function Home() {
                 What You Get
               </div>
               <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
-                A hosted twin plus the artifacts teams need before rollout.
+                A simple path from site review to a clear next step.
               </h2>
               <p className="mt-4 text-zinc-600">
-                The raw scan is only the start. Blueprint keeps the twin usable and turns it into
-                readiness, evaluation, and adaptation outputs your team can act on.
+                First we review the site and task. Then we tell you whether to move forward,
+                adjust the plan, or wait.
               </p>
             </div>
             <div className="mt-10 grid gap-4 md:grid-cols-3">
@@ -379,14 +379,13 @@ export default function Home() {
 
         <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
-            <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
-              Two ways work comes into Blueprint
-            </h2>
-            <p className="mt-4 text-zinc-600">
-              The money still comes from robot teams, but demand can start from either side: a
-              robot team that already knows the site, or a site operator that wants pilots and
-              uses Blueprint to create a qualified marketplace brief.
-            </p>
+              <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
+                Two ways a project starts
+              </h2>
+              <p className="mt-4 text-zinc-600">
+                Sometimes the operator starts with a site they want reviewed. Sometimes a robot
+                team brings in a known site and asks for a cleaner read before a pilot.
+              </p>
           </div>
           <div className="mt-8 grid gap-6 md:grid-cols-2">
             {routeToMarket.map((item) => (
@@ -404,8 +403,8 @@ export default function Home() {
             <div className="mb-10">
               <h2 className="text-2xl font-bold text-zinc-900">Why teams use Blueprint</h2>
               <p className="mt-2 text-zinc-600">
-                Blueprint gives robot teams a better way to judge task fit, safety readiness, and
-                environment risk before travel, integration work, and pilot spend start piling up.
+                Blueprint helps teams understand the site before travel, integration work, and
+                pilot spend start piling up.
               </p>
             </div>
 
@@ -432,7 +431,7 @@ export default function Home() {
                 For Robot Teams
               </p>
               <h3 className="mt-2 text-xl font-bold text-zinc-900">
-                Start with the twin. Add the right artifact pack after that.
+                Start with the site check. Add deeper work only if it is worth it.
               </h3>
               <ul className="mt-4 space-y-2">
                 {labBullets.map((item) => (
@@ -450,7 +449,7 @@ export default function Home() {
                 For Site Operators
               </p>
               <h3 className="mt-2 text-xl font-bold text-white">
-                Make your site easier for robot teams to qualify and revisit.
+                Get a clear read on your site before you invite more pilot risk.
               </h3>
               <ul className="mt-4 space-y-2">
                 {providerBullets.map((item) => (
@@ -464,7 +463,7 @@ export default function Home() {
                 href="/deployment-marketplace"
                 className="mt-6 inline-block rounded-lg bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
               >
-                List your location
+                View qualified opportunities
               </a>
             </div>
           </div>
@@ -483,7 +482,7 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="font-semibold text-zinc-900">How the service works</p>
-                  <p className="text-sm text-zinc-500">From site scope to hosted twin and artifact pack</p>
+                  <p className="text-sm text-zinc-500">From site review to a clear next step</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
@@ -499,7 +498,7 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="font-semibold text-zinc-900">Humanoid readiness review</p>
-                  <p className="text-sm text-zinc-500">Check task fit before you schedule a live pilot</p>
+                  <p className="text-sm text-zinc-500">See what a simple qualification flow looks like</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
@@ -514,8 +513,8 @@ export default function Home() {
                   <Globe2 className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-zinc-900">Humanoid deployment marketplace</p>
-                  <p className="text-sm text-zinc-500">Browse twins, readiness packs, and evaluation opportunities</p>
+                  <p className="font-semibold text-zinc-900">Qualified opportunities</p>
+                  <p className="text-sm text-zinc-500">See the briefs teams can review after qualification</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>

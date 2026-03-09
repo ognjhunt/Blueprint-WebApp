@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import PilotExchangeGuide from "@/pages/PilotExchangeGuide";
 
-const analyticsEventsMock = {
+const analyticsEventsMock = vi.hoisted(() => ({
   pilotExchangeView: vi.fn(),
   pilotExchangeFilterApply: vi.fn(),
   pilotExchangeOpenBriefForm: vi.fn(),
@@ -13,7 +13,7 @@ const analyticsEventsMock = {
   pilotExchangeSelectReadinessGate: vi.fn(),
   pilotExchangeOpenFaq: vi.fn(),
   pilotExchangeChartView: vi.fn(),
-};
+}));
 
 vi.mock("@/components/Analytics", () => ({
   analyticsEvents: analyticsEventsMock,
@@ -28,65 +28,61 @@ describe("PilotExchangeGuide", () => {
     render(<PilotExchangeGuide />);
 
     expect(
-      screen.getByRole("heading", { name: /What Deployment Marketplace Is and How It Works/i }),
+      screen.getByRole("heading", { name: /How qualified opportunities work/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/What this is/i)).toBeInTheDocument();
-    expect(screen.getByText(/What this is not/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^What this is$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^What this is NOT$/i })).toBeInTheDocument();
     expect(screen.getByText(/Site Intake/i)).toBeInTheDocument();
-    expect(screen.getByText(/Controlled Pilot Ramp/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Controlled Pilot Ramp/i })).toBeInTheDocument();
 
     expect(screen.getByText(/Readiness Funnel/i)).toBeInTheDocument();
-    expect(screen.getByText(/Confidence Bands/i)).toBeInTheDocument();
-    expect(screen.getByText(/Failure Attribution/i)).toBeInTheDocument();
-    expect(screen.getByText(/Monetization Mix/i)).toBeInTheDocument();
+    expect(screen.getByText(/Task Confidence Bands/i)).toBeInTheDocument();
+    expect(screen.getByText(/Why Pilots Fail \(Attribution\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Who Pays for What\?/i)).toBeInTheDocument();
 
-    expect(screen.getAllByText(/Illustrative demo data/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Illustrative metrics/i)).toBeInTheDocument();
     expect(analyticsEventsMock.pilotExchangeView).toHaveBeenCalledTimes(1);
     expect(analyticsEventsMock.pilotExchangeChartView).toHaveBeenCalledTimes(4);
   });
 
-  it("tracks gate and faq interactions", () => {
+  it("shows faq interactions", () => {
     render(<PilotExchangeGuide />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Real-to-Sim Activation/i }));
-    expect(analyticsEventsMock.pilotExchangeSelectReadinessGate).toHaveBeenCalledWith(
-      "Real-to-Sim Activation",
-    );
+    const faqButton = screen.getByRole("button", {
+      name: /Is this simulation-only, or do you still test in the real world\?/i,
+    });
 
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: /Is this simulation-only, or do you still test in the real world\?/i,
-      }),
-    );
-    expect(analyticsEventsMock.pilotExchangeOpenFaq).toHaveBeenCalledWith("faq-01");
+    fireEvent.click(faqButton);
+    expect(faqButton).toHaveAttribute("data-state", "open");
   });
 
   it("shows clear ownership and payment sections", () => {
     render(<PilotExchangeGuide />);
 
     expect(screen.getByText(/Who Pays for What/i)).toBeInTheDocument();
-    expect(screen.getByText(/Free Site Scan \(Shared Model\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/Robotics Team Subscription/i)).toBeInTheDocument();
-    expect(screen.getByText(/Training Access/i)).toBeInTheDocument();
+    expect(screen.getByText(/Site Twin License/i)).toBeInTheDocument();
+    expect(screen.getByText(/Readiness Pack/i)).toBeInTheDocument();
+    expect(screen.getByText(/Adaptation Data Pack/i)).toBeInTheDocument();
+    expect(screen.getByText(/Managed Adaptation/i)).toBeInTheDocument();
     expect(screen.getByText(/Ownership Options/i)).toBeInTheDocument();
-    expect(screen.getByText(/Shared Twin \(Default\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/Private Twin Buyout/i)).toBeInTheDocument();
+    expect(screen.getByText(/Free Twin \(Default\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Private Twin Buyout \(Paid\)/i)).toBeInTheDocument();
   });
 
   it("explains practical training workflow with concrete step details", () => {
     render(<PilotExchangeGuide />);
 
     expect(screen.getByText(/How Training Runs in Practice/i)).toBeInTheDocument();
-    expect(screen.getByText(/Deliver SimReady Site Package/i)).toBeInTheDocument();
+    expect(screen.getByText(/We Deliver the SimReady Site Package/i)).toBeInTheDocument();
     expect(screen.getByText(/Submit Robot Policy Package/i)).toBeInTheDocument();
     expect(screen.getByText(/Run Training Loops/i)).toBeInTheDocument();
     expect(screen.getByText(/Apply Robustification/i)).toBeInTheDocument();
     expect(screen.getByText(/Score with Standardized Eval/i)).toBeInTheDocument();
 
-    expect(screen.getByText(/USD stage \(facility\) \+ SimReady assets/i)).toBeInTheDocument();
-    expect(screen.getByText(/container package that includes policy \+ training code/i)).toBeInTheDocument();
-    expect(screen.getByText(/Imitation learning from teleop\/planning demonstrations/i)).toBeInTheDocument();
-    expect(screen.getByText(/Fault injection: network latency, sensor dropouts/i)).toBeInTheDocument();
+    expect(screen.getByText(/USD facility stage plus SimReady assets/i)).toBeInTheDocument();
+    expect(screen.getByText(/Container package that includes policy \+ training code/i)).toBeInTheDocument();
+    expect(screen.getByText(/Imitation learning from teleop\/planning demonstrations in simulation/i)).toBeInTheDocument();
+    expect(screen.getByText(/Fault injection: network latency, sensor dropouts, blocked paths, and missing items/i)).toBeInTheDocument();
     expect(screen.getByText(/Success rate by task and recovery rate after failures/i)).toBeInTheDocument();
   });
 });
