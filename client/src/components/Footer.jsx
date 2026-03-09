@@ -119,24 +119,6 @@ export default function Footer() {
             <ul className="space-y-3">
               <li>
                 <a
-                  href="/why-simulation"
-                  className="text-slate-400 hover:text-white transition flex items-center"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2" />{" "}
-                  Why Simulation?
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/learn"
-                  className="text-slate-400 hover:text-white transition flex items-center"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2" />{" "}
-                  Getting Started
-                </a>
-              </li>
-              <li>
-                <a
                   href="/privacy"
                   className="text-slate-400 hover:text-white transition flex items-center"
                 >
@@ -151,6 +133,15 @@ export default function Footer() {
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2" />{" "}
                   Terms of Service
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/contact"
+                  className="text-slate-400 hover:text-white transition flex items-center"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2" />{" "}
+                  Contact
                 </a>
               </li>
             </ul>
@@ -183,4 +174,3 @@ export default function Footer() {
     </footer>
   );
 }
-

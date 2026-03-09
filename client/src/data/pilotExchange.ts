@@ -349,7 +349,7 @@ export const exchangeBusinessModelCards: ExchangeBusinessModelCard[] = [
   {
     id: "biz-01",
     title: "Site Twin License",
-    payer: "Blueprint + Site Approval",
+    payer: "Location Site",
     pricing: "$0 upfront",
     description:
       "Blueprint captures, calibrates, and hosts the default twin so teams start from a reusable site asset instead of a one-off scan.",
@@ -383,7 +383,7 @@ export const exchangeBusinessModelCards: ExchangeBusinessModelCard[] = [
 export const ownershipOptions: OwnershipOption[] = [
   {
     id: "owner-01",
-    name: "Hosted Twin (Default)",
+    name: "Free Twin (Default)",
     owner: "Blueprint",
     siteCost: "Free ($0 upfront)",
     exchangeUsage: "Licensed access and approved evaluation/adaptation rights by product tier.",
@@ -391,7 +391,7 @@ export const ownershipOptions: OwnershipOption[] = [
   },
   {
     id: "owner-02",
-    name: "Private Twin Terms (Paid)",
+    name: "Private Twin Buyout (Paid)",
     owner: "Private access under site-specific terms",
     siteCost: "Paid scan + hosting (custom pricing)",
     exchangeUsage: "Limited to site-approved teams and terms.",
@@ -400,10 +400,10 @@ export const ownershipOptions: OwnershipOption[] = [
 ];
 
 export const monetizationMix: MonetizationMixPoint[] = [
-  { id: "mix-01", stream: "Readiness Pack", percent: 44 },
-  { id: "mix-02", stream: "Adaptation Data", percent: 28 },
-  { id: "mix-03", stream: "Managed Adaptation", percent: 22 },
-  { id: "mix-04", stream: "Private Terms", percent: 6 },
+  { id: "mix-01", stream: "Eval + Scorecard", percent: 44 },
+  { id: "mix-02", stream: "Robotics Subscription", percent: 28 },
+  { id: "mix-03", stream: "Training Usage", percent: 22 },
+  { id: "mix-04", stream: "Private Buyout", percent: 6 },
 ];
 
 export const trainingEvidencePoints: TrainingEvidencePoint[] = [

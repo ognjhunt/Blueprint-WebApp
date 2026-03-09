@@ -74,9 +74,6 @@ export default function Nav({
   );
 
   const navLinks = [
-    { href: "/why-simulation", label: "Why Simulation?", badge: "New" },
-    { href: "/learn", label: "Getting Started", badge: "Learn" },
-    // Show these only if authenticated and not hidden
     ...(currentUser && !hideAuthenticatedFeatures
       ? [{ href: "/scanner-portal", label: "Scanner Portal" }]
       : []),

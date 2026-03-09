@@ -22,7 +22,6 @@ const Contact = lazy(() => import("../pages/Contact"));
 const HowItWorks = lazy(() => import("../pages/HowItWorks"));
 const PilotExchange = lazy(() => import("../pages/PilotExchange"));
 const PilotExchangeGuide = lazy(() => import("../pages/PilotExchangeGuide"));
-const PartnerProgram = lazy(() => import("../pages/PartnerProgram"));
 const Portal = lazy(() => import("../pages/Portal"));
 const Login = lazy(() => import("../pages/Login"));
 const ForgotPassword = lazy(() => import("../pages/ForgotPassword"));
@@ -40,6 +39,10 @@ const LegacyPilotExchangeRedirect = () => (
 
 const LegacyPilotExchangeGuideRedirect = () => (
   <MarketingRedirect to="/deployment-marketplace-guide" />
+);
+
+const LegacyPartnersRedirect = () => (
+  <MarketingRedirect to="/contact" />
 );
 
 export const appRoutes: AppRoute[] = [
@@ -70,7 +73,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/deployment-marketplace-guide", layout: "public", component: PilotExchangeGuide },
   { path: "/pilot-exchange", layout: "public", component: LegacyPilotExchangeRedirect },
   { path: "/pilot-exchange-guide", layout: "public", component: LegacyPilotExchangeGuideRedirect },
-  { path: "/partners", layout: "public", component: PartnerProgram },
+  { path: "/partners", layout: "public", component: LegacyPartnersRedirect },
   { path: "/portal", layout: "public", component: Portal },
   { path: "/login", layout: "public", component: Login },
   { path: "/signup", layout: "public", component: BusinessSignUpFlow },
