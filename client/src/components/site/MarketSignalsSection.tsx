@@ -29,23 +29,67 @@ const scaledRoboticsStats = [
   },
 ];
 
-const humanoidFundingBars = [
-  { year: "2024", value: 1.9, label: "$1.9B", width: "39%" },
-  { year: "2025 run rate", value: 4.9, label: "$4.9B", width: "100%" },
-];
-
-const mismatchStats = [
+const capitalScopeBars = [
   {
-    value: "$20.9B",
-    label: "projected 2025 robotics funding across US, European, and Israeli companies",
+    id: "fprime-slice",
+    label: "F-Prime general-purpose slice",
+    detail: "US, Europe, and Israel; humanoids plus robot-brain companies",
+    valueLabel: "$4.9B",
+    width: "35%",
   },
   {
-    value: "<100",
-    label: "companies Gartner expects to move humanoid proofs beyond experimentation by 2028",
+    id: "all-robotics-vc",
+    label: "Crunchbase robotics VC, 2025",
+    detail: "Broader robotics venture funding across humanoid and non-humanoid startups",
+    valueLabel: "~$14B",
+    width: "100%",
+  },
+];
+
+const flagshipRaises = [
+  {
+    company: "Figure",
+    value: ">$1B",
+    label: "Series C in September 2025",
+    sourceLabel: "Figure",
+    sourceHref: "https://www.figure.ai/news/series-c",
+  },
+  {
+    company: "Skild AI",
+    value: "$1.4B",
+    label: "Series C in January 2026",
+    sourceLabel: "Skild AI",
+    sourceHref: "https://www.skild.ai/blogs/series-c",
+  },
+  {
+    company: "Physical Intelligence",
+    value: "$1.1B",
+    label: "reported across November 2024 and November 2025 rounds",
+    sourceLabel: "CNBC + Bloomberg",
+    sourceHref:
+      "https://www.bloomberg.com/news/articles/2025-11-20/robotics-startup-physical-intelligence-valued-at-5-6-billion-in-new-funding",
+  },
+  {
+    company: "Apptronik",
+    value: "$935M",
+    label: "Series A total by February 2026",
+    sourceLabel: "Apptronik",
+    sourceHref: "https://apptronik.com/news-collection/apptronik-closes-over-935-million-series-a",
+  },
+];
+
+const deploymentStats = [
+  {
+    value: "~16k",
+    label: "global humanoid installations in 2025",
+  },
+  {
+    value: ">80%",
+    label: "of those installations were in China",
   },
   {
     value: "<20",
-    label: "companies Gartner expects to reach production deployments by 2028",
+    label: "companies Gartner expects in production by 2028",
   },
 ];
 
@@ -67,6 +111,14 @@ const sourceLinks = [
     href: "https://fprimecapital.com/wp-content/uploads/2025/10/State-of-Robotics-H1-2025.pdf",
   },
   {
+    label: "Crunchbase robotics funding",
+    href: "https://news.crunchbase.com/venture/beyond-ai-growing-startup-sectors-legal-robotics-defense/",
+  },
+  {
+    label: "Counterpoint via Robotics & Automation News",
+    href: "https://roboticsandautomationnews.com/2026/01/30/global-humanoid-robot-installations-reach-16000-units-as-commercial-deployments-accelerate/98422/",
+  },
+  {
     label: "Gartner Jan 21, 2026",
     href: "https://www.gartner.com/en/newsroom/press-releases/2026-01-21-gartner-predicts-fewer-than-20-companies-will-scale-humanoid-robots-for-manufacturing-and-supply-chain-to-production-stage-by-2028",
   },
@@ -81,7 +133,7 @@ type MarketSignalsSectionProps = {
 export function MarketSignalsSection({
   eyebrow = "Market Signal",
   title = "Robotics is scaled. Humanoid production still is not.",
-  description = "The data points are different, but the story is consistent: broad robotics already runs at industrial scale while humanoid capital is outrunning repeatable production deployments.",
+  description = "The data points are different, but the story is consistent: broad robotics already runs at industrial scale while humanoid and embodied-AI capital is outrunning repeatable production deployments.",
 }: MarketSignalsSectionProps) {
   return (
     <section className="border-y border-zinc-100 bg-zinc-50/60 py-16">
@@ -136,21 +188,21 @@ export function MarketSignalsSection({
                 <Bot className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-white">Humanoid capital is moving faster than deployments</p>
-                <p className="text-sm text-zinc-400">Funding growth is visible. Production rollout is still narrow.</p>
+                <p className="text-sm font-semibold text-white">Humanoids and robot-brain companies are pulling in real capital</p>
+                <p className="text-sm text-zinc-400">The narrow category was understating the wave. The deployment bottleneck is still real.</p>
               </div>
             </div>
 
             <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
               <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
-                General-purpose robotics funding
+                Funding scope matters
               </p>
               <div className="mt-4 space-y-4">
-                {humanoidFundingBars.map((bar) => (
-                  <div key={bar.year}>
-                    <div className="mb-1 flex items-center justify-between text-sm">
-                      <span className="text-zinc-300">{bar.year}</span>
-                      <span className="font-semibold text-white">{bar.label}</span>
+                {capitalScopeBars.map((bar) => (
+                  <div key={bar.id}>
+                    <div className="mb-1 flex items-center justify-between gap-4 text-sm">
+                      <span className="text-zinc-300">{bar.label}</span>
+                      <span className="font-semibold text-white">{bar.valueLabel}</span>
                     </div>
                     <div className="h-3 rounded-full bg-white/10">
                       <div
@@ -159,22 +211,70 @@ export function MarketSignalsSection({
                         aria-hidden="true"
                       />
                     </div>
+                    <p className="mt-1 text-xs leading-relaxed text-zinc-500">{bar.detail}</p>
                   </div>
                 ))}
               </div>
               <p className="mt-4 text-xs leading-relaxed text-zinc-400">
-                F-Prime shows general-purpose robotics funding rising from $1.9B in 2024 to a
-                $4.9B 2025 run rate.
+                F-Prime&apos;s $4.9B run rate is real, but it is a narrower category. Its own
+                definition includes humanoid form factors and foundational robot models. We do not
+                count broad platform capex from Tesla or NVIDIA here because the allocation is too
+                broad to label as direct humanoid spend.
               </p>
             </div>
 
-            <div className="mt-5 grid gap-4 sm:grid-cols-3">
-              {mismatchStats.map((stat) => (
-                <div key={stat.label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-2xl font-bold tracking-tight text-white">{stat.value}</p>
-                  <p className="mt-2 text-sm leading-relaxed text-zinc-300">{stat.label}</p>
-                </div>
-              ))}
+            <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
+                Flagship disclosed raises
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {flagshipRaises.map((raise) => (
+                  <div key={raise.company} className="rounded-2xl border border-white/10 bg-black/10 p-4">
+                    <p className="text-sm font-semibold text-white">{raise.company}</p>
+                    <p className="mt-1 text-2xl font-bold tracking-tight text-white">{raise.value}</p>
+                    <p className="mt-1 text-sm leading-relaxed text-zinc-300">{raise.label}</p>
+                    <a
+                      href={raise.sourceHref}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-zinc-400 hover:text-white"
+                    >
+                      {raise.sourceLabel}
+                      <ArrowUpRight className="h-3 w-3" />
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
+                Yet deployments are still narrow
+              </p>
+              <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                {deploymentStats.map((stat) => (
+                  <div key={stat.label} className="rounded-2xl border border-white/10 bg-black/10 p-4">
+                    <p className="text-2xl font-bold tracking-tight text-white">{stat.value}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-zinc-300">{stat.label}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-4 text-xs leading-relaxed text-zinc-400">
+                The 2025 installation estimate includes research, data collection, entertainment,
+                and early industrial use cases. It should not be read as 16,000 mature Western
+                factory rollouts.
+              </p>
+            </div>
+
+            <div className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
+              <p className="text-sm font-semibold text-white">
+                The actual positioning point
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-200">
+                Capital is not the limiting factor. The limiting factor is turning facility-specific
+                uncertainty into site-ready deployment evidence before the pilot burns time and
+                money.
+              </p>
             </div>
           </article>
         </div>
