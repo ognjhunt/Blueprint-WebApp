@@ -123,14 +123,14 @@ const exchangeClientSegments = [
   {
     id: "segment-01",
     label: "Primary",
-    title: "Humanoid teams stuck between demo and rollout",
-    detail: "Teams with strong lab demos that need site-proofed evidence before deployment contracts.",
+    title: "Robot teams with a known site",
+    detail: "Teams with strong lab demos and a target facility that need site-proofed evidence before deployment contracts.",
   },
   {
     id: "segment-02",
     label: "Secondary",
-    title: "Operators evaluating vendors",
-    detail: "Sites that want comparable scorecards before allocating floor space and labor to pilots.",
+    title: "Operators opening pilot demand",
+    detail: "Sites that want comparable scorecards and a structured brief before allocating floor space and labor to pilots.",
   },
   {
     id: "segment-03",
@@ -921,7 +921,7 @@ export default function PilotExchange() {
                       <span className="text-sm font-normal text-zinc-500">per run</span>
                     </p>
                     <p className="mt-2 text-xs text-zinc-600">
-                      Best for teams that need a readiness scorecard before pilot rollout.
+                      Best for teams that need a readiness scorecard before pilot rollout, whether the site came from their own pipeline or from Blueprint demand.
                     </p>
                   </div>
                   {selectedAccessChoice === "evaluation" ? (

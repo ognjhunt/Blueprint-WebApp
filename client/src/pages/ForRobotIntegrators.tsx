@@ -58,8 +58,8 @@ export default function ForRobotIntegrators() {
             </h1>
             <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
               If your team deploys humanoid policies into customer facilities, this page outlines
-              the practical inputs, product ladder, and logistics needed to qualify readiness
-              before going live on site.
+              the practical inputs, product ladder, and logistics for both cases: when you already
+              know the target site, and when an operator-side brief comes through Blueprint.
             </p>
           </div>
 
@@ -109,7 +109,7 @@ export default function ForRobotIntegrators() {
                   <Cpu className="h-4 w-4" />
                   Default motion
                 </p>
-                <p className="mt-1 text-sm text-slate-600">Hosted twin plus readiness pack first.</p>
+                <p className="mt-1 text-sm text-slate-600">Known-site or operator-matched twin plus readiness pack first.</p>
               </div>
               <div className="rounded-lg bg-slate-50 p-4">
                 <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">

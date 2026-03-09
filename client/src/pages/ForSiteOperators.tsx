@@ -60,7 +60,7 @@ export default function ForSiteOperators() {
             <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
               If you operate a warehouse, store, factory, or lab and want higher-confidence
               humanoid launches, this page outlines what Blueprint needs from your team and how the
-              hosted twin moves from capture to pilot-ready decisions.
+              hosted twin moves from capture to a marketplace-ready pilot brief that robot teams can respond to.
             </p>
           </div>
 

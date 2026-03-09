@@ -5,19 +5,19 @@ const sharedWorkflow = [
   {
     title: "Capture and twin creation",
     description:
-      "Local walkthrough capture is reconstructed into a site-specific digital twin with metadata both sides can reference during a humanoid deployment program.",
+      "Local walkthrough capture is reconstructed into a hosted site twin with metadata both sides can reference during a deployment program.",
     icon: <Route className="h-5 w-5 text-slate-700" />,
   },
   {
     title: "Pre-deployment qualification",
     description:
-      "Humanoid policies are evaluated against the twin before live rollout so decisions are based on measurable readiness.",
+      "Robot teams are evaluated against the twin before live rollout so decisions are based on measurable readiness.",
     icon: <ClipboardCheck className="h-5 w-5 text-slate-700" />,
   },
   {
     title: "Operational handoff",
     description:
-      "Teams align on scorecards, constraints, and next steps before moving into real-world pilot execution.",
+      "Teams align on scorecards, constraints, and next steps before moving into a site-specific engagement or an operator-led pilot search.",
     icon: <ShieldCheck className="h-5 w-5 text-slate-700" />,
   },
 ];
@@ -26,15 +26,15 @@ const roleCards = [
   {
     title: "For Site Operators",
     description:
-      "For operators of warehouses, stores, factories, and labs who need a clear pre-deployment process for humanoid adoption.",
+      "For operators of warehouses, stores, factories, and labs who want qualified pilot demand and a clearer pre-deployment process.",
     href: "/for-site-operators",
     cta: "Open site operator guide",
     icon: <Building2 className="h-6 w-6 text-slate-900" />,
   },
   {
-    title: "For Humanoid Teams",
+    title: "For Robot Teams",
     description:
-      "For humanoid integrators and deployment teams who need site-specific adaptation and standardized qualification artifacts.",
+      "For humanoid integrators and deployment teams who either already know the site or need operator demand coming through the marketplace.",
     href: "/for-robot-integrators",
     cta: "Open humanoid team guide",
     icon: <Bot className="h-6 w-6 text-slate-900" />,
@@ -56,9 +56,9 @@ export default function Solutions() {
               Solutions by role
             </h1>
             <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
-              Blueprint works as a pre-deployment qualification layer between deployment sites and
-              humanoid teams. Choose the guide that matches your role to see exact inputs,
-              workflow, logistics, and readiness outputs.
+              Blueprint sits between deployment sites and robot teams. Some engagements start with a
+              robot team that already has a target site. Others start with a site operator that
+              wants qualified pilot demand. Choose the guide that matches your role.
             </p>
           </div>
 

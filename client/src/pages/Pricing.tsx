@@ -105,6 +105,8 @@ export default function Pricing() {
             <p className="mx-auto max-w-3xl text-lg text-slate-600">
               Site operators still have a $0 default path. Robot teams buy the level of artifact
               depth they need: readiness first, adaptation data second, managed adaptation third.
+              That holds whether the team brings a known site or meets operator demand through the
+              marketplace.
             </p>
           </header>
 
@@ -115,7 +117,8 @@ export default function Pricing() {
               </p>
               <p className="mt-2 text-2xl font-bold text-emerald-900">Site Operators: $0</p>
               <p className="mt-2 text-sm text-emerald-800">
-                No listing fee, no upfront capture fee, no default subscription.
+                No listing fee, no upfront capture fee, no default subscription. The operator side
+                is meant to create qualified marketplace demand.
               </p>
             </article>
 
@@ -126,7 +129,8 @@ export default function Pricing() {
               <p className="mt-2 text-2xl font-bold text-slate-900">Robot Teams: Product Ladder</p>
               <p className="mt-2 text-sm text-slate-600">
                 Start with the twin and readiness pack, then add adaptation data, managed
-                adaptation, or drift refresh when it makes sense.
+                adaptation, or drift refresh when it makes sense, whether the team sourced the site
+                directly or through Blueprint.
               </p>
             </article>
           </section>

@@ -102,6 +102,19 @@ const whatYouGet = [
   },
 ];
 
+const routeToMarket = [
+  {
+    title: "Robot team with a known site",
+    description:
+      "Bring Blueprint into a facility you already know. We run the twin, readiness, and artifact path around that exact site, usually as a more private or exclusive engagement.",
+  },
+  {
+    title: "Site operator opening pilot demand",
+    description:
+      "Use Blueprint to prepare the site, set constraints, and create a marketplace-ready brief that qualified robot teams can respond to.",
+  },
+];
+
 const labBullets = [
   "Start with a hosted site twin and a readiness pack before the pilot budget is live",
   "Add task-scoped eval or training artifacts if the team needs site-specific conditioning",
@@ -364,6 +377,27 @@ export default function Home() {
           </div>
         </section>
 
+        <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
+              Two ways work comes into Blueprint
+            </h2>
+            <p className="mt-4 text-zinc-600">
+              The money still comes from robot teams, but demand can start from either side: a
+              robot team that already knows the site, or a site operator that wants pilots and
+              uses Blueprint to create a qualified marketplace brief.
+            </p>
+          </div>
+          <div className="mt-8 grid gap-6 md:grid-cols-2">
+            {routeToMarket.map((item) => (
+              <div key={item.title} className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+                <h3 className="font-semibold text-zinc-900">{item.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-600">{item.description}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* --- Why Blueprint --- */}
         <section className="border-y border-zinc-100 bg-zinc-50/50 py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -395,7 +429,7 @@ export default function Home() {
             {/* Robotics Team Persona */}
             <div className="rounded-2xl border border-zinc-200 bg-white p-8">
               <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                For Humanoid Teams
+                For Robot Teams
               </p>
               <h3 className="mt-2 text-xl font-bold text-zinc-900">
                 Start with the twin. Add the right artifact pack after that.
@@ -413,7 +447,7 @@ export default function Home() {
             {/* Facility Provider Persona */}
             <div className="rounded-2xl bg-zinc-900 p-8 text-white">
               <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-                For Location Owners
+                For Site Operators
               </p>
               <h3 className="mt-2 text-xl font-bold text-white">
                 Make your site easier for robot teams to qualify and revisit.
@@ -497,7 +531,8 @@ export default function Home() {
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-zinc-400">
               Share the facility and the workflow you want to prove. We&apos;ll scope the twin,
-              the readiness pack, and the artifact path that makes sense before the pilot starts.
+              the readiness pack, and the artifact path that makes sense whether you are bringing
+              a known site or opening the door to marketplace demand.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
               <a
