@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { SEO } from "@/components/SEO";
 import { analyticsEvents } from "@/components/Analytics";
+import { MarketSignalsSection } from "@/components/site/MarketSignalsSection";
 import {
   activationArtifacts,
   activationSignals,
@@ -130,7 +131,7 @@ export default function PilotExchangeGuide() {
     <>
       <SEO
         title="Deployment Marketplace Guide"
-        description="Beginner guide to how Deployment Marketplace pre-qualifies humanoid and robotics policies before controlled on-site pilot ramp."
+        description="Beginner guide to how Deployment Marketplace pre-qualifies humanoid policies before a controlled on-site pilot ramp."
         canonical="/deployment-marketplace-guide"
       />
       <div className="relative min-h-screen bg-white text-zinc-900 font-sans selection:bg-zinc-200 selection:text-zinc-900">
@@ -143,10 +144,12 @@ export default function PilotExchangeGuide() {
               Beginner's Guide
             </div>
             <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 mb-6">
-              How Deployment Marketplace Works
+              How the humanoid deployment workflow works
             </h1>
             <p className="text-lg text-zinc-600 leading-relaxed mb-8">
-              Deployment Marketplace is a pre-deployment qualification workflow. We help teams test robot policies on calibrated digital twins before spending money and time on physical, live pilots.
+              Deployment Marketplace is a pre-deployment qualification workflow built for humanoid
+              teams. We help teams test policies on calibrated digital twins before spending money
+              and time on physical, live pilots.
             </p>
             <div className="flex flex-wrap items-center gap-4">
               <a href="/deployment-marketplace">
@@ -159,6 +162,14 @@ export default function PilotExchangeGuide() {
               </a>
             </div>
           </section>
+
+          <div className="-mx-4 sm:-mx-6 lg:-mx-8">
+            <MarketSignalsSection
+              eyebrow="Why This Matters"
+              title="Why pre-deployment qualification matters more in humanoids"
+              description="Broad robotics already has scale. Humanoid programs are attracting capital faster than they are producing reliable, repeatable rollouts. That is why site-readiness work matters before the pilot budget is gone."
+            />
+          </div>
 
           {/* Is / Isn't Section */}
           <section className="mb-20 grid sm:grid-cols-2 gap-8 border-y border-zinc-200 py-12">

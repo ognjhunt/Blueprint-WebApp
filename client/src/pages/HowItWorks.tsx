@@ -39,19 +39,19 @@ const painPoints = [
   {
     title: "Every facility is different",
     description:
-      "Warehouses, kitchens, retail floors, and factories each have unique layouts, lighting, and obstacles. A model trained on generic environments will encounter conditions it has never seen.",
+      "Warehouses, kitchens, retail floors, and factories each have unique layouts, lighting, and obstacles. A humanoid trained on generic environments will still hit conditions it has never seen.",
     icon: <Ruler className="h-6 w-6" />,
   },
   {
     title: "General models don't transfer perfectly",
     description:
-      "A world model or VLA trained on broad data still makes mistakes in a specific building. Small differences in shelf height, aisle width, or ambient light add up to real failures on-site.",
+      "A world model or VLA trained on broad data still makes mistakes in a specific building. Small differences in shelf height, aisle width, or ambient light add up to real humanoid failures on-site.",
     icon: <BrainCircuit className="h-6 w-6" />,
   },
   {
     title: "Re-scanning is cheaper than re-deploying",
     description:
-      "Sending a technician to fix a confused robot is expensive. A 15-minute iPhone scan that adapts the model before the robot ships is dramatically cheaper and faster.",
+      "Sending a technician to fix a confused humanoid is expensive. A 15-minute iPhone scan that adapts the model before the humanoid ships is dramatically cheaper and faster.",
     icon: <Smartphone className="h-6 w-6" />,
   },
 ];
@@ -90,7 +90,7 @@ const pipelineSteps = [
     title: "Deliver adapter weights",
     icon: <Send className="h-5 w-5" />,
     description:
-      "You receive LoRA adapter weights -- small, efficient model updates that can be transferred over the air. Your robot can load the site-specific weights before it arrives on-site, so it is already adapted to the facility on day one.",
+      "You receive LoRA adapter weights -- small, efficient model updates that can be transferred over the air. Your humanoid can load the site-specific weights before it arrives on-site, so it is already adapted to the facility on day one.",
   },
 ];
 
@@ -107,7 +107,7 @@ export default function HowItWorks() {
     <>
       <SEO
         title="How It Works | Blueprint"
-        description="How Blueprint turns an iPhone scan into a digital twin and fine-tunes your world model to a specific facility. Adapter weights delivered over the air."
+        description="How Blueprint turns an iPhone scan into a site twin and prepares a humanoid model stack for a specific facility before live deployment."
         canonical="/how-it-works"
       />
 
@@ -122,15 +122,15 @@ export default function HowItWorks() {
                 <div className="space-y-6">
                   <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
                     <Sparkles className="h-3 w-3" />
-                    How It Works
+                    Humanoid Deployment Prep
                   </div>
                   <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
-                    Scan a building. Fine-tune a model. Deploy on day one.
+                    Scan the facility. Prep the humanoid before the pilot.
                   </h1>
                   <p className="max-w-xl text-lg leading-relaxed text-zinc-600">
                     Blueprint turns a 15-minute iPhone scan into a digital twin, then fine-tunes
-                    your world model or VLA to that exact facility. Your robot arrives already
-                    adapted to the site.
+                    your world model or VLA to that exact facility. Your humanoid arrives with
+                    site-specific context before the pilot starts.
                   </p>
                 </div>
 
@@ -156,7 +156,7 @@ export default function HowItWorks() {
                       <p className="text-sm text-zinc-600">
                         A digital twin of your facility plus LoRA adapter weights that
                         fine-tune your model to the site. Small enough for over-the-air transfer
-                        to the robot.
+                        to the humanoid.
                       </p>
                       <a
                         href="/contact"
@@ -180,9 +180,9 @@ export default function HowItWorks() {
                 Why site-specific fine-tuning matters
               </h2>
               <p className="mt-4 text-zinc-600">
-                General-purpose models are a strong starting point, but real deployment sites have
-                details that generic training data cannot capture. A quick fine-tuning pass on
-                the target facility fixes most of those errors.
+                General-purpose humanoid models are a strong starting point, but real deployment
+                sites have details that generic training data cannot capture. A quick fine-tuning
+                pass on the target facility fixes many of those errors.
               </p>
             </div>
 
@@ -210,7 +210,7 @@ export default function HowItWorks() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-12 max-w-2xl">
               <h2 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
-                From iPhone scan to adapted robot
+                From iPhone scan to a humanoid-ready site package
               </h2>
               <p className="mt-4 text-lg text-zinc-600">
                 Five steps take you from a raw facility scan to a model that already knows the
@@ -260,7 +260,7 @@ export default function HowItWorks() {
                 <p className="text-zinc-600">
                   This approach is fast, scalable, and directly tied to the visual data the model was
                   fine-tuned on. It tells you how well the model understands the specific facility
-                  before the robot ever arrives.
+                  before the humanoid ever arrives.
                 </p>
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
@@ -302,7 +302,7 @@ export default function HowItWorks() {
                 <p className="text-zinc-600">
                   Every engagement delivers the digital twin, the fine-tuned weights, and the
                   evaluation data. Everything is packaged so your team can load the weights, verify
-                  the results, and deploy with confidence.
+                  the results, and deploy the humanoid with more confidence.
                 </p>
                 <a
                   href="/contact"
@@ -334,11 +334,11 @@ export default function HowItWorks() {
         <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
           <div className="rounded-2xl bg-zinc-900 p-8 text-center sm:p-12">
             <h2 className="text-2xl font-bold text-white sm:text-3xl">
-              Adapt your model to any facility.
+              Prep your humanoid for the real facility before field spend begins.
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-zinc-400">
               Tell us the site and the model. We&apos;ll scan the building, create the digital twin,
-              and deliver adapter weights your robot can load before it ships.
+              and deliver adapter weights your humanoid can load before it ships.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
               <a

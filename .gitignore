@@ -21,3 +21,8 @@ WEBSITE.png
 generated-icon.png
 image.png
 temp_large_assets/
+
+# Local tooling and generated review artifacts
+.claude/
+attached_assets/playwright-smoke-20260306/
+firebase-debug.log

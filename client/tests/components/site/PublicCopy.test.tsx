@@ -18,6 +18,7 @@ vi.mock("@/contexts/AuthContext", () => ({
 
 describe("public service-first copy", () => {
   it("uses service language across header, homepage, and footer", () => {
+    window.localStorage.clear();
     const { container } = render(
       <>
         <Header />
@@ -29,6 +30,7 @@ describe("public service-first copy", () => {
     expect(screen.getAllByRole("link", { name: /Request a Capture/i }).length).toBeGreaterThan(0);
     expect(HERO_HEADLINES).toContain(screen.getByRole("heading", { level: 1 }).textContent);
     expect(container).toHaveTextContent(/site twin|digital twin/i);
+    expect(container).toHaveTextContent(/humanoid/i);
     expect(container).toHaveTextContent(/deployment readiness|evaluate/i);
 
     expect(container).not.toHaveTextContent(/adapter weights/i);

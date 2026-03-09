@@ -81,6 +81,9 @@ export function trackEvent(
 
 // Common event helpers
 export const analyticsEvents = {
+  homeHeroView: (variantId: string, source: string) =>
+    trackEvent("home_hero_view", { variant_id: variantId, source }),
+
   // Contact form events
   contactFormSubmit: (formType: string) =>
     trackEvent("contact_form_submit", { form_type: formType }),

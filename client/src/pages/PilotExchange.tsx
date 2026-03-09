@@ -122,7 +122,7 @@ const exchangeClientSegments = [
   {
     id: "segment-01",
     label: "Primary",
-    title: "Robotics teams in pilot gap",
+    title: "Humanoid teams stuck between demo and rollout",
     detail: "Teams with strong lab demos that need site-proofed evidence before deployment contracts.",
   },
   {
@@ -554,8 +554,8 @@ export default function PilotExchange() {
   return (
     <>
       <SEO
-        title="Deployment Marketplace | Evaluate Robotics Policies"
-        description="Marketplace for robotics teams to evaluate policies in high-fidelity digital twins before physical pilot deployments."
+        title="Deployment Marketplace | Evaluate Humanoid Policies"
+        description="Humanoid-first marketplace for evaluating policies in high-fidelity digital twins before physical pilot deployments."
         canonical="/deployment-marketplace"
       />
       <div className="relative min-h-screen bg-white text-zinc-900 font-sans selection:bg-zinc-200 selection:text-zinc-900">
@@ -566,7 +566,7 @@ export default function PilotExchange() {
           <div className="mx-auto max-w-6xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
             <div className="flex items-center gap-2 text-zinc-700">
               <Lock className="h-4 w-4" />
-              <span>Usage-based pricing for robot teams (site operators pay $0).</span>
+              <span>Usage-based pricing for humanoid teams (site operators pay $0).</span>
             </div>
             <Button
               variant="outline"
@@ -582,11 +582,17 @@ export default function PilotExchange() {
         <main className="mx-auto max-w-6xl px-4 pb-24 pt-16 sm:px-6 lg:px-8">
           {/* Hero */}
           <section className="mb-16 max-w-3xl">
+            <div className="mb-3 inline-flex items-center rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-zinc-600">
+              Humanoid-first evaluation workflow
+            </div>
             <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-zinc-950 mb-6">
-              Validate your robotics policies in digital reality.
+              Validate your humanoid policies before the live pilot.
             </h1>
             <p className="text-lg text-zinc-600 mb-8 leading-relaxed">
-              Upload your robot policy packages and evaluate them against calibrated digital twins of real-world environments. Get standardized scorecards and prove your system's readiness before spending on live pilots.
+              Upload your humanoid policy packages and evaluate them against calibrated digital
+              twins of real-world environments. Get standardized scorecards and prove readiness
+              before spending on live pilots. Adjacent embodiments are supported where the site
+              and workflow fit.
             </p>
             <div className="flex flex-wrap items-center gap-4">
               <Button
@@ -631,7 +637,8 @@ export default function PilotExchange() {
           <section className="mb-16">
             <h2 className="text-xl font-bold text-zinc-900 mb-6 border-b border-zinc-200 pb-2">Why teams use this first</h2>
             <p className="text-sm text-zinc-600 mb-6">
-              The same pattern shows up across AI systems: broad models are useful, but performance jumps when you give the model the exact context of the job environment.
+              The same pattern shows up in humanoid deployment programs: broad models are useful,
+              but performance jumps when you give the model the exact context of the job environment.
             </p>
             <div className="grid md:grid-cols-3 gap-4 mb-6">
               {deploymentGapHighlights.map((item) => (
@@ -701,7 +708,7 @@ export default function PilotExchange() {
                   {pilotLocationTypes.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                 </select>
                 <select className="border border-zinc-300 rounded-md text-sm px-3 py-2 bg-white" value={embodimentFilter} onChange={(e) => setEmbodimentFilter(e.target.value as any)}>
-                  <option value="all">All Robots</option>
+                  <option value="all">All Embodiments</option>
                   {pilotEmbodiments.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                 </select>
                 <select className="border border-zinc-300 rounded-md text-sm px-3 py-2 bg-white" value={timelineFilter} onChange={(e) => setTimelineFilter(e.target.value as any)}>

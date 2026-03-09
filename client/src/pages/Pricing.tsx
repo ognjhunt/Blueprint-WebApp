@@ -57,7 +57,7 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Site operators pay $0. Robot teams pay only for evaluations, fine-tuning cycles, or data licenses."
+        description="Site operators pay $0. Humanoid teams pay only for evaluations, fine-tuning cycles, or data licenses."
         canonical="/pricing"
       />
 
@@ -65,11 +65,11 @@ export default function Pricing() {
         <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
           <header className="space-y-4 text-center">
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Sites are free. Robot teams pay only for usage.
+              Sites are free. Humanoid teams pay only for usage.
             </h1>
             <p className="mx-auto max-w-3xl text-lg text-slate-600">
-              Site operators never pay. Blueprint funds capture and owns the capture. Robot teams
-              pay only when they run evaluations, request fine-tuning, or license data.
+              Site operators never pay. Blueprint funds capture and owns the capture. Humanoid
+              teams pay only when they run evaluations, request fine-tuning, or license data.
             </p>
           </header>
 
@@ -88,7 +88,7 @@ export default function Pricing() {
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Who Pays
               </p>
-              <p className="mt-2 text-2xl font-bold text-slate-900">Robot Teams: Usage Only</p>
+              <p className="mt-2 text-2xl font-bold text-slate-900">Humanoid Teams: Usage Only</p>
               <p className="mt-2 text-sm text-slate-600">
                 Pay only for `Evaluation Runs`, `Fine-Tune Cycles`, and `Data License`.
               </p>

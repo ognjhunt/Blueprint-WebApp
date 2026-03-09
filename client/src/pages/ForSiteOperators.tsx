@@ -3,7 +3,7 @@ import { CheckCircle2, ClipboardList, Clock3, Handshake, ShieldCheck } from "luc
 
 const intakeChecklist = [
   "Site profile: facility type, square footage, operating hours, and known constraints",
-  "Task list: what robot workflows you want evaluated before any live pilot",
+  "Task list: which humanoid workflows you want evaluated before any live pilot",
   "Access plan: escort policy, restricted zones, and capture windows",
   "Safety and legal: NDA, site permissions, and any customer privacy rules",
 ];
@@ -22,7 +22,7 @@ const processSteps = [
   {
     title: "3. Pre-deployment evaluation exchange",
     description:
-      "Qualified robot teams run simulation evaluations against your twin. You get standardized scorecards instead of one-off claims.",
+      "Qualified humanoid teams run simulation evaluations against your twin. You get standardized scorecards instead of one-off claims.",
   },
   {
     title: "4. Handoff and pilot readiness",
@@ -43,7 +43,7 @@ export default function ForSiteOperators() {
     <>
       <SEO
         title="For Site Operators | Blueprint"
-        description="Guide for site operators running pre-deployment robot qualification with Blueprint: intake, capture, exchange evaluation, and pilot-readiness handoff."
+        description="Guide for site operators running pre-deployment humanoid qualification with Blueprint: intake, capture, exchange evaluation, and pilot-readiness handoff."
         canonical="/for-site-operators"
       />
 
@@ -57,9 +57,9 @@ export default function ForSiteOperators() {
               Pre-deployment qualification guide for deployment sites
             </h1>
             <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
-              If you operate a warehouse, store, factory, or lab and want higher-confidence robot
-              launches, this page outlines what Blueprint needs from your team and how the exchange
-              workflow moves from capture to pilot-ready decisions.
+              If you operate a warehouse, store, factory, or lab and want higher-confidence
+              humanoid launches, this page outlines what Blueprint needs from your team and how the
+              exchange workflow moves from capture to pilot-ready decisions.
             </p>
           </div>
 

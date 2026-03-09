@@ -17,7 +17,7 @@ const workflowSteps = [
   {
     title: "2. Twin match and scene prep",
     description:
-      "Use an existing twin or request a new capture; Blueprint prepares render-ready views for training and evaluation.",
+      "Use an existing twin or request a new capture; Blueprint prepares render-ready facility views for humanoid training and evaluation.",
   },
   {
     title: "3. Adaptation and scorecard run",
@@ -42,8 +42,8 @@ export default function ForRobotIntegrators() {
   return (
     <>
       <SEO
-        title="For Robot Integrators & Teams | Blueprint"
-        description="Guide for robot integrators and autonomy teams using Blueprint for site-specific adaptation, exchange evaluation, and pre-deployment readiness."
+        title="For Humanoid Integrators & Teams | Blueprint"
+        description="Guide for humanoid integrators and deployment teams using Blueprint for site-specific adaptation, exchange evaluation, and pre-deployment readiness."
         canonical="/for-robot-integrators"
       />
 
@@ -51,15 +51,15 @@ export default function ForRobotIntegrators() {
         <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="space-y-6">
             <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-700">
-              For Robot Integrators & Teams
+              For Humanoid Integrators & Teams
             </span>
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Pre-deployment guide for robotics teams
+              Pre-deployment guide for humanoid teams
             </h1>
             <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
-              If your team deploys robot policies into customer facilities, this page outlines the
-              practical inputs, exchange workflow, and logistics needed to qualify readiness before
-              going live on site.
+              If your team deploys humanoid policies into customer facilities, this page outlines
+              the practical inputs, exchange workflow, and logistics needed to qualify readiness
+              before going live on site.
             </p>
           </div>
 
@@ -109,7 +109,7 @@ export default function ForRobotIntegrators() {
                   <Cpu className="h-4 w-4" />
                   Adaptation target
                 </p>
-                <p className="mt-1 text-sm text-slate-600">Site-specific world model or VLA tuning.</p>
+                <p className="mt-1 text-sm text-slate-600">Site-specific humanoid world model or VLA tuning.</p>
               </div>
               <div className="rounded-lg bg-slate-50 p-4">
                 <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
@@ -139,7 +139,7 @@ export default function ForRobotIntegrators() {
               href="/contact?interest=robot-team-brief"
               className="inline-flex items-center rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
             >
-              Share your deployment brief
+              Share your humanoid deployment brief
             </a>
           </section>
         </div>

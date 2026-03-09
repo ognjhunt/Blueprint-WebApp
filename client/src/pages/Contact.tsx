@@ -35,7 +35,7 @@ export default function Contact() {
     <>
       <SEO
         title="Contact Us"
-        description="Get in touch with Blueprint to discuss site-specific digital twins, fine-tuned world models, and LoRA adapter weights for robotic deployment."
+        description="Get in touch with Blueprint to discuss site-specific digital twins, humanoid deployment readiness, and pre-pilot evaluation."
         canonical="/contact"
       />
       <div className="relative min-h-screen overflow-hidden bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
@@ -45,15 +45,14 @@ export default function Contact() {
           <div className="mb-12 max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600 backdrop-blur-sm">
               <MessageSquare className="h-3 w-3" />
-              Get in Touch
+              Humanoid Deployment Intake
             </div>
             <h1 className="mt-6 text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl">
-              Tell us your target site. We&apos;ll deliver adapted weights.
+              Tell us the site and the humanoid workflow you want to prove.
             </h1>
             <p className="mt-6 text-lg leading-relaxed text-zinc-600">
-              Blueprint maintains digital twins of real commercial locations, fine-tunes world
-              models and VLAs per site, and delivers LoRA adapter weights ready for deployment
-              on your hardware.
+              Blueprint helps humanoid teams capture facilities, build reusable site twins, and
+              qualify deployment readiness before a live pilot starts.
             </p>
           </div>
 
@@ -77,7 +76,7 @@ export default function Contact() {
                     <h3 className="font-semibold text-zinc-900">Quick Response</h3>
                     <p className="mt-1 text-sm text-zinc-600">
                       Fill out the form and our team will get back to you within 24 hours
-                      to discuss how we can support your project.
+                      to discuss how we can support your humanoid deployment program.
                     </p>
                   </div>
                 </div>

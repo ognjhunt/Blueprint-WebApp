@@ -7,7 +7,7 @@ export default function PartnerProgram() {
     <>
       <SEO
         title="Founding Partner Program - Blueprint"
-        description="Join Blueprint's Founding Partner Program. Get early access to our digital twin network, shape the roadmap, and lock in founding partner pricing."
+        description="Join Blueprint's Founding Partner Program for humanoid deployment teams. Get early access to our digital twin network, shape the roadmap, and lock in founding partner pricing."
         canonical="/partners"
       />
       <div className="min-h-screen bg-white">
@@ -18,10 +18,12 @@ export default function PartnerProgram() {
               Founding Partner Program
             </p>
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Be a founding partner of our digital twin network
+              Be a founding partner of our humanoid deployment network
             </h1>
             <p className="text-lg text-slate-600">
-              Blueprint is building a library of digital twins of real commercial locations. Partners get early access, shape the roadmap, and lock in founding pricing.
+              Blueprint is building a library of digital twins for real commercial locations so
+              humanoid teams can qualify site readiness faster. Partners get early access, shape
+              the roadmap, and lock in founding pricing.
             </p>
           </div>
 
@@ -132,7 +134,7 @@ export default function PartnerProgram() {
               <div className="flex items-start gap-3">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-slate-900" />
                 <div>
-                  <p className="font-semibold text-slate-900">Teams training world models or VLAs for robot deployment</p>
+                  <p className="font-semibold text-slate-900">Teams training world models or VLAs for humanoid deployment</p>
                   <p className="text-sm text-slate-600">You're building or fine-tuning models that need site-specific adaptation before going live</p>
                 </div>
               </div>
@@ -140,8 +142,8 @@ export default function PartnerProgram() {
               <div className="flex items-start gap-3">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-slate-900" />
                 <div>
-                  <p className="font-semibold text-slate-900">Companies deploying robots to commercial facilities</p>
-                  <p className="text-sm text-slate-600">Warehouses, kitchens, retail, offices -- you need your policy to work in a specific real location</p>
+                  <p className="font-semibold text-slate-900">Companies deploying humanoids to commercial facilities</p>
+                  <p className="text-sm text-slate-600">Warehouses, kitchens, retail, and factories where the policy needs to work in one specific real location</p>
                 </div>
               </div>
 

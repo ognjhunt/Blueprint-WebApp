@@ -14,7 +14,7 @@ import {
 const navLinks = [
   { href: "/deployment-marketplace", label: "Marketplace" },
   { href: "/for-site-operators", label: "For Site Operators" },
-  { href: "/for-robot-integrators", label: "For Robot Teams" },
+  { href: "/for-robot-integrators", label: "For Humanoid Teams" },
   { href: "/pricing", label: "Pricing" },
 ];
 
