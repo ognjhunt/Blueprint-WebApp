@@ -13,7 +13,7 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Simple Blueprint pricing: site operators pay $0, robot teams pay per use for evaluation, site data, managed adaptation, or a data license."
+        description="Simple Blueprint pricing: site operators pay $0, robot teams pay per use for evaluation, site data, or managed adaptation."
         canonical="/pricing"
       />
 
@@ -50,8 +50,7 @@ export default function Pricing() {
               </p>
               <p className="mt-2 text-3xl font-bold text-slate-900">Pay per use</p>
               <p className="mt-2 text-sm text-slate-600">
-                No bundle to decode. Pick the one thing you need now: test, data, tuning, or a
-                yearly license.
+                No bundle to decode. Pick the one thing you need now: test, data, or tuning.
               </p>
             </article>
           </section>
@@ -118,6 +117,22 @@ export default function Pricing() {
           </section>
 
           <section className="mt-10 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+            <div className="mb-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Enterprise only
+              </p>
+              <h2 className="mt-2 text-xl font-bold text-slate-900">Private site terms are custom.</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                If a site needs private access, exclusivity, or longer internal-use rights, that is
+                a separate enterprise deal. It is not part of the standard pay-per-use path.
+              </p>
+              <a
+                href="/contact?interest=private-twin-buyout"
+                className="mt-4 inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+              >
+                Discuss private terms
+              </a>
+            </div>
             <p className="flex items-center gap-2 text-sm text-slate-600">
               <ShieldCheck className="h-4 w-4 text-slate-500" />
               Blueprint hosts the default site asset. Private or higher-control terms are available

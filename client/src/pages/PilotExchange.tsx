@@ -544,8 +544,7 @@ export default function PilotExchange() {
               <h2 className="mt-3 text-3xl font-bold tracking-tight text-zinc-950">Pay for the job you need.</h2>
               <p className="mt-3 text-base leading-7 text-zinc-600">
                 Most teams start with one test. If the robot is close, add site data. If you want us
-                to do the tuning work, buy managed adaptation. Only buy the license if you need ongoing
-                rights to the site data.
+                to do the tuning work, buy managed adaptation.
               </p>
             </div>
 
@@ -605,6 +604,21 @@ export default function PilotExchange() {
                   </div>
                 </div>
               ))}
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Enterprise only</p>
+              <h3 className="mt-2 text-xl font-bold text-zinc-950">Private site terms are custom.</h3>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-600">
+                If a site needs private access, exclusivity, or longer internal-use rights, that is a
+                separate enterprise deal. It is not part of the standard pay-per-use path.
+              </p>
+              <a
+                href="/contact?interest=private-twin-buyout&source=deployment-marketplace"
+                className="mt-5 inline-flex items-center justify-center rounded-lg border border-zinc-300 bg-zinc-50 px-4 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100"
+              >
+                Discuss private terms
+              </a>
             </div>
           </section>
 

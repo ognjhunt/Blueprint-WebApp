@@ -1,5 +1,5 @@
 export type SimplePricingOption = {
-  id: "evaluation" | "adaptation-data" | "managed-adaptation" | "data-license";
+  id: "evaluation" | "adaptation-data" | "managed-adaptation";
   step: string;
   name: string;
   internalName: string;
@@ -52,25 +52,10 @@ export const simplePricingOptions: SimplePricingOption[] = [
       "A recommendation on whether to redeploy",
     ],
   },
-  {
-    id: "data-license",
-    step: "Ongoing rights",
-    name: "License the site data",
-    internalName: "Data License",
-    price: "$45,000 - $68,000",
-    unit: "per site / year",
-    summary: "Use this when you need continuing rights to use the site data in your own pipeline.",
-    includes: [
-      "Licensed access to the site data",
-      "Good fit for teams training in-house",
-      "Annual rights for one site",
-    ],
-  },
 ];
 
 export function getPricingContactInterest(id: SimplePricingOption["id"]): string {
   if (id === "adaptation-data") return "adaptation-data-pack";
   if (id === "managed-adaptation") return "managed-adaptation";
-  if (id === "data-license") return "data-license";
   return "evaluation-run";
 }

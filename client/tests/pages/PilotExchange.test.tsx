@@ -134,7 +134,7 @@ describe("PilotExchange", () => {
     expect(screen.getByText(/Test your robot/i)).toBeInTheDocument();
     expect(screen.getByText(/Get site data/i)).toBeInTheDocument();
     expect(screen.getByText(/Let us tune it/i)).toBeInTheDocument();
-    expect(screen.getByText(/License the site data/i)).toBeInTheDocument();
+    expect(screen.getByText(/Private site terms are custom\./i)).toBeInTheDocument();
 
     fireEvent.click(screen.getAllByRole("button", { name: /Run an Evaluation/i })[0]);
 
