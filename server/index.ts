@@ -86,7 +86,7 @@ const cspDirectives = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' data: blob: https:",
   "font-src 'self' https://fonts.gstatic.com data:",
-  "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://chat.lindy.ai https://www.youtube-nocookie.com",
+  "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://chat.lindy.ai https://www.youtube-nocookie.com https://*.firebaseapp.com",
   "worker-src 'self' blob: https://cdnjs.cloudflare.com",
   "media-src 'self' blob: https:",
   `connect-src 'self' ${
@@ -145,8 +145,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// Global rate limiting
-app.use(globalLimiter);
+// Apply the baseline limiter to API-style routes without throttling public page loads.
+app.use("/api", globalLimiter);
+app.use("/v1", globalLimiter);
 
 // Apply limiter for Gemini endpoints (routes registered in routes.ts)
 app.use("/api/gemini", aiLimiter);
