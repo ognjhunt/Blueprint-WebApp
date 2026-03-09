@@ -43,7 +43,7 @@ export default function ForRobotIntegrators() {
     <>
       <SEO
         title="For Humanoid Integrators & Teams | Blueprint"
-        description="Guide for robot teams using Blueprint to review qualified sites and buy deeper checks only when the site is a fit."
+        description="Guide for robot teams using Blueprint to evaluate on qualified sites with a clear task brief, pass criteria, and next steps."
         canonical="/for-robot-integrators"
       />
 
@@ -54,11 +54,11 @@ export default function ForRobotIntegrators() {
               For Humanoid Integrators & Teams
             </span>
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Review qualified sites before the pilot
+              Evaluate on qualified sites, not cold leads.
             </h1>
             <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
-              If your team deploys robots into customer facilities, Blueprint gives you a cleaner
-              site brief first, then lets you buy deeper checks only when they are useful.
+              Blueprint gives robot teams a clear site brief, task thresholds, and next steps so
+              you can review, evaluate, and move faster toward a real pilot.
             </p>
           </div>
 

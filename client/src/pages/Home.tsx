@@ -128,28 +128,28 @@ const providerBullets = [
 
 export const HOME_HERO_VARIANTS: HomeHeroVariant[] = [
   {
-    id: "humanoid-gap",
-    eyebrow: "Site Qualification",
-    headline: "We check if a site is ready for robots.",
+    id: "platform",
+    eyebrow: "Deployment Readiness Platform",
+    headline: "The deployment readiness platform for physical AI.",
     body:
-      "Blueprint reviews the site and the task, then tells you what is ready, what is risky, and what needs work first.",
-    supportingPoints: ["Review the site", "Score the task", "Decide next steps"],
+      "Blueprint turns a real site into a deployable opportunity with a walkthrough, a clear task brief, pass criteria, and next steps for both sides.",
+    supportingPoints: ["Walkthrough", "Task brief", "Pass criteria"],
   },
   {
-    id: "site-readiness",
-    eyebrow: "Before The Pilot",
-    headline: "Most deployment problems start at the site.",
+    id: "sites-ready",
+    eyebrow: "Deployment Readiness Platform",
+    headline: "We help sites get ready for robot deployment.",
     body:
-      "The hard part is usually task fit, safety, and how the real site behaves day to day.",
-    supportingPoints: ["Task fit", "Safety", "Site conditions"],
+      "Then we help the right teams evaluate, respond, and move faster.",
+    supportingPoints: ["Site review", "Qualified teams", "Faster pilots"],
   },
   {
-    id: "field-confidence",
-    eyebrow: "Qualified Demand",
-    headline: "Qualified sites make matching much easier.",
+    id: "deployable-opportunity",
+    eyebrow: "Deployment Readiness Platform",
+    headline: "Blueprint turns a real site into a deployable opportunity.",
     body:
-      "Once Blueprint has scoped the site and workflow, the right robot teams can review it and respond with less guesswork.",
-    supportingPoints: ["Qualified brief", "Team review", "Deeper checks later"],
+      "We scope the task, define the bar, and help both sides move toward a real pilot.",
+    supportingPoints: ["Scope the task", "Define the bar", "Move to pilot"],
   },
 ];
 
@@ -225,7 +225,7 @@ export default function Home() {
     <>
       <SEO
         title="Blueprint | Site Qualification For Robot Deployments"
-        description="Blueprint checks whether a site and task are ready for robots, then turns qualified demand into clear opportunities for the right teams."
+        description="Blueprint is the deployment readiness platform for physical AI. We turn a real site into a deployable opportunity for operators and robot teams."
         canonical="/"
         image="https://tryblueprint.io/images/og-home.png"
       />
