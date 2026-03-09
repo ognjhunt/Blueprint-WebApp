@@ -35,7 +35,6 @@ function seedEvalAccess() {
 
 function openEvalFlow() {
   fireEvent.click(screen.getAllByRole("button", { name: /Run Evaluation Here/i })[0]);
-  fireEvent.click(screen.getByRole("button", { name: /Continue to Evaluation/i }));
 }
 
 function fillEvalForm() {
@@ -102,8 +101,8 @@ describe("PilotExchange", () => {
     expect(
       screen.getByRole("heading", { name: /Deployment Marketplace/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Usage-based pricing for humanoid teams/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /View Pricing/i })).toBeInTheDocument();
+    expect(screen.getByText(/Site operators pay \$0\. Robot teams pay only when they use something\./i)).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /See Pricing/i })[0]).toHaveAttribute("href", "#pricing");
     expect(screen.getByRole("link", { name: /Read the beginner guide/i })).toHaveAttribute(
       "href",
       "/deployment-marketplace-guide",
@@ -128,17 +127,19 @@ describe("PilotExchange", () => {
     expect(screen.getByRole("tab", { name: /Policy Submissions/i })).toBeInTheDocument();
   });
 
-  it("opens pricing dialog when evaluation access is locked", () => {
+  it("shows pricing inline and opens evaluation directly", () => {
     render(<PilotExchange />);
 
-    fireEvent.click(screen.getByRole("button", { name: /View Pricing/i }));
+    expect(screen.getByRole("heading", { name: /Pay for the job you need\./i })).toBeInTheDocument();
+    expect(screen.getByText(/Test your robot/i)).toBeInTheDocument();
+    expect(screen.getByText(/Get site data/i)).toBeInTheDocument();
+    expect(screen.getByText(/Let us tune it/i)).toBeInTheDocument();
+    expect(screen.getByText(/License the site data/i)).toBeInTheDocument();
 
-    expect(screen.getByRole("heading", { name: /Deployment Marketplace Access/i })).toBeInTheDocument();
-    expect(screen.getByText(/Evaluation Runs/i)).toBeInTheDocument();
-    expect(screen.getByText(/Adaptation Data Pack/i)).toBeInTheDocument();
-    expect(screen.getByText(/Managed Adaptation/i)).toBeInTheDocument();
-    expect(screen.getByText(/Data License \(Non-Exclusive\)/i)).toBeInTheDocument();
-    expect(analyticsEventsMock.pilotExchangeOpenPolicyForm).not.toHaveBeenCalled();
+    fireEvent.click(screen.getAllByRole("button", { name: /Run an Evaluation/i })[0]);
+
+    expect(screen.getByRole("heading", { name: /Run Policy Evaluation/i })).toBeInTheDocument();
+    expect(analyticsEventsMock.pilotExchangeOpenPolicyForm).toHaveBeenCalledTimes(1);
   });
 
   it("shows anonymous leaderboard metrics in location briefs", () => {

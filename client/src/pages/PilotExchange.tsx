@@ -11,6 +11,7 @@ import {
   pilotTimelines,
   policySubmissions,
 } from "@/data/pilotExchange";
+import { getPricingContactInterest, simplePricingOptions } from "@/data/simplePricing";
 import type {
   InboundRequestPayload,
   SubmitInboundRequestResponse,
@@ -33,7 +34,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
@@ -88,15 +88,6 @@ interface EvalRunFormState {
 }
 
 const POLICY_LIBRARY_STORAGE_KEY = "bp_pilot_exchange_policy_library_v3";
-
-type AccessQuote = {
-  evaluationRun: { low: number; high: number };
-  adaptationDataPack: { low: number; high: number };
-  managedAdaptation: { low: number; high: number };
-  dataLicense: { low: number; high: number };
-};
-
-type AccessChoice = "evaluation" | "adaptation-data" | "managed-adaptation" | "data-license";
 
 const deploymentGapHighlights = [
   {
@@ -266,41 +257,6 @@ function StatusIcon({ status }: { status: string }) {
   return <XCircle className="h-4 w-4 text-zinc-400" />;
 }
 
-function randomInteger(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function roundToStep(value: number, step: number): number {
-  return Math.round(value / step) * step;
-}
-
-function generateQuotedRange(
-  globalMin: number,
-  globalMax: number,
-  minWidth: number,
-  maxWidth: number,
-  step: number
-) {
-  const width = roundToStep(randomInteger(minWidth, maxWidth), step);
-  const lowMax = globalMax - width;
-  const low = roundToStep(randomInteger(globalMin, lowMax), step);
-  const high = Math.min(globalMax, low + width);
-  return { low, high };
-}
-
-function generateAccessQuote(): AccessQuote {
-  return {
-    evaluationRun: generateQuotedRange(750, 2500, 350, 1100, 50),
-    adaptationDataPack: generateQuotedRange(5000, 22000, 2000, 8000, 500),
-    managedAdaptation: generateQuotedRange(8000, 35000, 3000, 12000, 500),
-    dataLicense: generateQuotedRange(15000, 75000, 9000, 28000, 1000),
-  };
-}
-
-function formatUsd(value: number): string {
-  return `$${value.toLocaleString("en-US")}`;
-}
-
 export default function PilotExchange() {
   const [activeTab, setActiveTab] = useState<ExchangeTab>("briefs");
 
@@ -312,13 +268,9 @@ export default function PilotExchange() {
   const [showFilters, setShowFilters] = useState(false);
 
   const [isPolicyDialogOpen, setIsPolicyDialogOpen] = useState(false);
-  const [isAccessDialogOpen, setIsAccessDialogOpen] = useState(false);
 
   const [policyLibrary, setPolicyLibrary] = useState<SavedPolicyPackage[]>(() => readPolicyLibrary());
   const [evalRunForm, setEvalRunForm] = useState<EvalRunFormState>(defaultEvalRunFormState);
-  const [accessQuote, setAccessQuote] = useState<AccessQuote>(() => generateAccessQuote());
-  const [accessTargetBriefId, setAccessTargetBriefId] = useState("");
-  const [selectedAccessChoice, setSelectedAccessChoice] = useState<AccessChoice>("evaluation");
 
   const [policyStatus, setPolicyStatus] = useState<SubmissionStatus>("idle");
   const [policyMessage, setPolicyMessage] = useState("");
@@ -395,31 +347,6 @@ export default function PilotExchange() {
     },
     [policyLibrary]
   );
-
-  const openAccessDialog = useCallback((briefId?: string) => {
-    setAccessQuote(generateAccessQuote());
-    setAccessTargetBriefId(typeof briefId === "string" ? briefId : "");
-    setSelectedAccessChoice("evaluation");
-    setIsAccessDialogOpen(true);
-  }, []);
-
-  const continueWithAccessChoice = useCallback(() => {
-    if (selectedAccessChoice === "evaluation") {
-      const targetBriefId = accessTargetBriefId || undefined;
-      setIsAccessDialogOpen(false);
-      openEvalDialog(targetBriefId);
-      return;
-    }
-
-    if (typeof window === "undefined") return;
-    const interest =
-      selectedAccessChoice === "adaptation-data"
-        ? "adaptation-data-pack"
-        : selectedAccessChoice === "managed-adaptation"
-          ? "managed-adaptation"
-          : "data-license";
-    window.location.href = `/contact?interest=${interest}&source=deployment-marketplace`;
-  }, [accessTargetBriefId, openEvalDialog, selectedAccessChoice]);
 
   const emitFilterEvent = useCallback((type: string, value: string) => {
     analyticsEvents.pilotExchangeFilterApply(type, value || "all");
@@ -570,19 +497,16 @@ export default function PilotExchange() {
           <div className="mx-auto max-w-6xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
             <div className="flex items-center gap-2 text-zinc-700">
               <Lock className="h-4 w-4" />
-              <span>Usage-based pricing for humanoid teams (site operators pay $0).</span>
+              <span>Site operators pay $0. Robot teams pay only when they use something.</span>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => openAccessDialog()}
-              className="bg-white border-zinc-300 text-zinc-800 hover:bg-zinc-100"
+            <a
+              href="#pricing"
+              className="inline-flex items-center justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 transition hover:bg-zinc-100"
             >
-              View Pricing
-            </Button>
+              See Pricing
+            </a>
           </div>
         </div>
-
         <main className="mx-auto max-w-6xl px-4 pb-24 pt-16 sm:px-6 lg:px-8">
           {/* Hero */}
           <section className="mb-16 max-w-3xl">
@@ -600,14 +524,87 @@ export default function PilotExchange() {
             </p>
             <div className="flex flex-wrap items-center gap-4">
               <Button
-                onClick={() => openAccessDialog()}
+                onClick={() => openEvalDialog()}
                 className="bg-zinc-900 text-white hover:bg-zinc-800 px-6 py-5 text-sm font-medium"
               >
                 Run an Evaluation
               </Button>
+              <a href="#pricing" className="text-sm font-medium text-zinc-900 hover:text-zinc-700 underline underline-offset-4 decoration-zinc-300">
+                See pricing
+              </a>
               <a href="/deployment-marketplace-guide" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 underline underline-offset-4 decoration-zinc-300">
                 Read the beginner guide
               </a>
+            </div>
+          </section>
+
+          <section id="pricing" className="mb-16 rounded-[2rem] border border-zinc-200 bg-zinc-50 p-6 sm:p-8">
+            <div className="max-w-3xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Simple pricing</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-zinc-950">Pay for the job you need.</h2>
+              <p className="mt-3 text-base leading-7 text-zinc-600">
+                Most teams start with one test. If the robot is close, add site data. If you want us
+                to do the tuning work, buy managed adaptation. Only buy the license if you need ongoing
+                rights to the site data.
+              </p>
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Sites</p>
+                <p className="mt-2 text-2xl font-bold text-emerald-950">$0</p>
+                <p className="mt-2 text-sm text-emerald-900">Operators can list a site without paying.</p>
+              </div>
+              <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Robot teams</p>
+                <p className="mt-2 text-2xl font-bold text-zinc-950">Pay per use</p>
+                <p className="mt-2 text-sm text-zinc-600">No subscription. Pick the one thing you need right now.</p>
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-zinc-200 bg-white">
+              {simplePricingOptions.map((option, index) => (
+                <div
+                  key={option.id}
+                  className={`grid gap-5 p-5 lg:grid-cols-[1.2fr_0.8fr] lg:items-start ${
+                    index < simplePricingOptions.length - 1 ? "border-b border-zinc-200" : ""
+                  }`}
+                >
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">{option.step}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <h2 className="text-2xl font-bold text-zinc-950">{option.name}</h2>
+                      <span className="text-sm text-zinc-500">({option.internalName})</span>
+                    </div>
+                    <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600">{option.summary}</p>
+                    <ul className="mt-4 space-y-2">
+                      {option.includes.map((item) => (
+                        <li key={item} className="flex items-start gap-2 text-sm text-zinc-700">
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-zinc-900" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5">
+                    <p className="text-sm font-medium text-zinc-500">Price</p>
+                    <p className="mt-2 text-3xl font-bold text-zinc-950">{option.price}</p>
+                    <p className="mt-1 text-sm text-zinc-500">{option.unit}</p>
+                    {option.id === "evaluation" ? (
+                      <Button onClick={() => openEvalDialog()} className="mt-5 w-full bg-zinc-900 text-white hover:bg-zinc-800">
+                        Run an Evaluation
+                      </Button>
+                    ) : (
+                      <a
+                        href={`/contact?interest=${getPricingContactInterest(option.id)}&source=deployment-marketplace`}
+                        className="mt-5 inline-flex w-full items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100"
+                      >
+                        Talk to sales
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
 
@@ -820,8 +817,8 @@ export default function PilotExchange() {
                               )}
                             </div>
 
-                            <Button 
-                              onClick={() => openAccessDialog(brief.id)} 
+                            <Button
+                              onClick={() => openEvalDialog(brief.id)}
                               className="w-full mt-6 bg-white text-zinc-900 border border-zinc-300 hover:bg-zinc-100"
                             >
                               Run Evaluation Here
@@ -880,166 +877,6 @@ export default function PilotExchange() {
           </section>
         </main>
       </div>
-
-      {/* Access/Pricing Modal */}
-      <Dialog
-        open={isAccessDialogOpen}
-        onOpenChange={(open) => {
-          if (open) setAccessQuote(generateAccessQuote());
-          if (!open) setAccessTargetBriefId("");
-          setIsAccessDialogOpen(open);
-        }}
-      >
-        <DialogContent className="max-h-[calc(100vh-2rem)] w-[calc(100vw-1rem)] overflow-y-auto p-0 bg-white sm:max-h-[90vh] sm:max-w-3xl sm:overflow-hidden">
-          <div className="bg-zinc-900 p-6 pr-16 text-white sm:p-8">
-            <DialogTitle className="text-2xl font-bold text-white">Deployment Marketplace Access</DialogTitle>
-            <DialogDescription className="text-zinc-300 mt-2">
-              Site operators pay $0. Robot teams choose the artifact depth they need.
-            </DialogDescription>
-          </div>
-
-          <div className="p-6 sm:p-8 bg-zinc-50">
-            <p className="mb-4 text-sm text-zinc-600">
-              Choose what you want to do now, then continue.
-            </p>
-            <div className="space-y-3">
-              <button
-                type="button"
-                onClick={() => setSelectedAccessChoice("evaluation")}
-                className={`w-full rounded-xl border bg-white p-4 text-left transition ${
-                  selectedAccessChoice === "evaluation"
-                    ? "border-zinc-900 ring-2 ring-zinc-900/10"
-                    : "border-zinc-200 hover:border-zinc-300"
-                }`}
-                aria-pressed={selectedAccessChoice === "evaluation"}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-zinc-900">Evaluation Runs</p>
-                    <p className="mt-1 text-2xl font-bold text-zinc-900">
-                      {formatUsd(accessQuote.evaluationRun.low)} - {formatUsd(accessQuote.evaluationRun.high)}{" "}
-                      <span className="text-sm font-normal text-zinc-500">per run</span>
-                    </p>
-                    <p className="mt-2 text-xs text-zinc-600">
-                      Best for teams that need a readiness scorecard before pilot rollout, whether the site came from their own pipeline or from Blueprint demand.
-                    </p>
-                  </div>
-                  {selectedAccessChoice === "evaluation" ? (
-                    <span className="rounded-full bg-zinc-900 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
-                      Selected
-                    </span>
-                  ) : null}
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSelectedAccessChoice("adaptation-data")}
-                className={`w-full rounded-xl border bg-white p-4 text-left transition ${
-                  selectedAccessChoice === "adaptation-data"
-                    ? "border-zinc-900 ring-2 ring-zinc-900/10"
-                    : "border-zinc-200 hover:border-zinc-300"
-                }`}
-                aria-pressed={selectedAccessChoice === "adaptation-data"}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-zinc-900">Adaptation Data Pack</p>
-                    <p className="mt-1 text-2xl font-bold text-zinc-900">
-                      {formatUsd(accessQuote.adaptationDataPack.low)} - {formatUsd(accessQuote.adaptationDataPack.high)}{" "}
-                      <span className="text-sm font-normal text-zinc-500">per pack</span>
-                    </p>
-                    <p className="mt-2 text-xs text-zinc-600">
-                      Best for teams that want site-conditioned eval and training artifacts but plan to train in-house.
-                    </p>
-                  </div>
-                  {selectedAccessChoice === "adaptation-data" ? (
-                    <span className="rounded-full bg-zinc-900 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
-                      Selected
-                    </span>
-                  ) : null}
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSelectedAccessChoice("managed-adaptation")}
-                className={`w-full rounded-xl border bg-white p-4 text-left transition ${
-                  selectedAccessChoice === "managed-adaptation"
-                    ? "border-zinc-900 ring-2 ring-zinc-900/10"
-                    : "border-zinc-200 hover:border-zinc-300"
-                }`}
-                aria-pressed={selectedAccessChoice === "managed-adaptation"}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-zinc-900">Managed Adaptation</p>
-                    <p className="mt-1 text-2xl font-bold text-zinc-900">
-                      {formatUsd(accessQuote.managedAdaptation.low)} - {formatUsd(accessQuote.managedAdaptation.high)}{" "}
-                      <span className="text-sm font-normal text-zinc-500">per cycle</span>
-                    </p>
-                    <p className="mt-2 text-xs text-zinc-600">
-                      Premium path for supported stacks with a defined interface and offline evaluation gate.
-                    </p>
-                  </div>
-                  {selectedAccessChoice === "managed-adaptation" ? (
-                    <span className="rounded-full bg-zinc-900 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
-                      Selected
-                    </span>
-                  ) : null}
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSelectedAccessChoice("data-license")}
-                className={`w-full rounded-xl border bg-white p-4 text-left transition ${
-                  selectedAccessChoice === "data-license"
-                    ? "border-zinc-900 ring-2 ring-zinc-900/10"
-                    : "border-zinc-200 hover:border-zinc-300"
-                }`}
-                aria-pressed={selectedAccessChoice === "data-license"}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-zinc-900">Data License (Non-Exclusive)</p>
-                    <p className="mt-1 text-2xl font-bold text-zinc-900">
-                      {formatUsd(accessQuote.dataLicense.low)} - {formatUsd(accessQuote.dataLicense.high)}{" "}
-                      <span className="text-sm font-normal text-zinc-500">per site/year</span>
-                    </p>
-                    <p className="mt-2 text-xs text-zinc-600">
-                      Best for teams that train in-house and need licensed site data.
-                    </p>
-                  </div>
-                  {selectedAccessChoice === "data-license" ? (
-                    <span className="rounded-full bg-zinc-900 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
-                      Selected
-                    </span>
-                  ) : null}
-                </div>
-              </button>
-            </div>
-
-            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Button
-                onClick={continueWithAccessChoice}
-                className="bg-zinc-900 text-white hover:bg-zinc-800"
-              >
-                {selectedAccessChoice === "evaluation" && "Continue to Evaluation"}
-                {selectedAccessChoice === "adaptation-data" && "Continue to Adaptation Data"}
-                {selectedAccessChoice === "managed-adaptation" && "Continue to Managed Adaptation"}
-                {selectedAccessChoice === "data-license" && "Continue to Data License"}
-              </Button>
-              <a
-                href="/contact?interest=deployment-marketplace-pricing"
-                className="inline-flex items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100"
-              >
-                Request Exact Quote
-              </a>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Eval Submission Modal */}
       <Dialog open={isPolicyDialogOpen} onOpenChange={setIsPolicyDialogOpen}>

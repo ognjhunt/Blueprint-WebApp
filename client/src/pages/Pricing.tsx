@@ -1,90 +1,11 @@
 import { SEO } from "@/components/SEO";
-import {
-  CheckCircle2,
-  CreditCard,
-  FileSearch,
-  RefreshCcw,
-  ShieldCheck,
-  Wallet,
-} from "lucide-react";
-
-const chargeItems = [
-  {
-    name: "Site Twin License",
-    unit: "Entry product",
-    description:
-      "Blueprint captures, reconstructs, and hosts the site twin by default so teams start from a reusable facility asset instead of a one-off scan.",
-    includes: [
-      "Hosted twin access and review rights",
-      "Scoped facility context for planning and evaluation",
-      "Reusable base asset for future packs and refreshes",
-    ],
-    ctaHref: "/contact?interest=site-twin-license",
-    ctaLabel: "Discuss twin access",
-    icon: <FileSearch className="h-5 w-5 text-slate-700" />,
-  },
-  {
-    name: "Readiness Pack",
-    unit: "Default core SKU",
-    description:
-      "The default buying motion for robot teams: Blueprint turns the twin into a pre-pilot decision package before travel, floor time, and integration spend start.",
-    includes: [
-      "Task/workcell scoping and readiness review",
-      "Pre-pilot scorecard, safety/integration prep, and risk map",
-      "Go / adapt / wait recommendation",
-    ],
-    ctaHref: "/contact?interest=readiness-pack",
-    ctaLabel: "Price the readiness pack",
-    icon: <RefreshCcw className="h-5 w-5 text-slate-700" />,
-  },
-  {
-    name: "Adaptation Data Pack",
-    unit: "Primary upsell",
-    description:
-      "For teams that want better site conditioning, Blueprint generates the eval and training artifacts that sit on top of the hosted twin.",
-    includes: [
-      "Task-scoped render packs and scenario variants",
-      "Site-conditioned eval set and training-ready artifacts",
-      "Useful for teams training in-house or preparing for managed adaptation later",
-    ],
-    ctaHref: "/contact?interest=adaptation-data-pack",
-    ctaLabel: "Price adaptation data",
-    icon: <Wallet className="h-5 w-5 text-slate-700" />,
-  },
-  {
-    name: "Managed Adaptation",
-    unit: "Premium service",
-    description:
-      "Blueprint can run fine-tuning or post-training for supported stacks once the interface, data rights, and evaluation path are clear.",
-    includes: [
-      "Supported-stack model updates or post-training",
-      "Offline regression and evaluation report",
-      "Rollout recommendation for the updated artifact",
-    ],
-    ctaHref: "/contact?interest=managed-adaptation",
-    ctaLabel: "Check stack eligibility",
-    icon: <RefreshCcw className="h-5 w-5 text-slate-700" />,
-  },
-  {
-    name: "Drift Refresh",
-    unit: "Recurring extension",
-    description:
-      "When the site changes after the first engagement, Blueprint refreshes the twin and regenerates the affected readiness or adaptation artifacts.",
-    includes: [
-      "Changed-area recapture and site diff",
-      "Affected-task analysis and refreshed packs",
-      "Recurring value tied to the hosted twin",
-    ],
-    ctaHref: "/contact?interest=drift-refresh",
-    ctaLabel: "Plan a refresh cycle",
-    icon: <RefreshCcw className="h-5 w-5 text-slate-700" />,
-  },
-];
+import { getPricingContactInterest, simplePricingOptions } from "@/data/simplePricing";
+import { CheckCircle2, CreditCard, ShieldCheck } from "lucide-react";
 
 const billingSteps = [
-  "Start with the hosted twin and the default readiness pack.",
-  "Add adaptation data when the team needs more than a scorecard.",
-  "Use managed adaptation or drift refresh only when the stack and site justify it.",
+  "Start with one test.",
+  "Add site data only if you need to improve for that exact site.",
+  "Use managed adaptation only if you want Blueprint to do the tuning work.",
 ];
 
 export default function Pricing() {
@@ -92,78 +13,53 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Blueprint sells a product ladder: hosted site twins, readiness packs, adaptation data, managed adaptation, and drift refresh."
+        description="Simple Blueprint pricing: site operators pay $0, robot teams pay per use for evaluation, site data, managed adaptation, or a data license."
         canonical="/pricing"
       />
 
       <div className="min-h-screen bg-white">
         <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
-          <header className="space-y-4 text-center">
+          <header className="max-w-3xl space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Simple pricing
+            </p>
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              A product ladder built on the hosted twin.
+              Pay for the job you need.
             </h1>
-            <p className="mx-auto max-w-3xl text-lg text-slate-600">
-              Site operators still have a $0 default path. Robot teams buy the level of artifact
-              depth they need: readiness first, adaptation data second, managed adaptation third.
-              That holds whether the team brings a known site or meets operator demand through the
-              marketplace.
+            <p className="text-lg text-slate-600">
+              Site operators pay nothing to list a site. Robot teams pay per use. Most teams start
+              with one test, then add more only if they need it.
             </p>
           </header>
 
           <section className="mt-10 grid gap-4 md:grid-cols-2">
             <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
-              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
-                Who Pays
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
+                Sites
               </p>
-              <p className="mt-2 text-2xl font-bold text-emerald-900">Site Operators: $0</p>
-              <p className="mt-2 text-sm text-emerald-800">
-                No listing fee, no upfront capture fee, no default subscription. The operator side
-                is meant to create qualified marketplace demand.
+              <p className="mt-2 text-3xl font-bold text-emerald-950">$0</p>
+              <p className="mt-2 text-sm text-emerald-900">
+                No listing fee. No default subscription. Operators can open demand without paying
+                upfront.
               </p>
             </article>
 
             <article className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Who Pays
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Robot teams
               </p>
-              <p className="mt-2 text-2xl font-bold text-slate-900">Robot Teams: Product Ladder</p>
+              <p className="mt-2 text-3xl font-bold text-slate-900">Pay per use</p>
               <p className="mt-2 text-sm text-slate-600">
-                Start with the twin and readiness pack, then add adaptation data, managed
-                adaptation, or drift refresh when it makes sense, whether the team sourced the site
-                directly or through Blueprint.
+                No bundle to decode. Pick the one thing you need now: test, data, tuning, or a
+                yearly license.
               </p>
             </article>
           </section>
 
-          <section className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {chargeItems.map((item) => (
-              <article key={item.name} className="rounded-2xl border border-slate-200 bg-white p-6">
-                <div className="mb-4 inline-flex rounded-lg bg-slate-100 p-2">{item.icon}</div>
-                <h2 className="text-xl font-bold text-slate-900">{item.name}</h2>
-                <p className="mt-1 text-sm font-semibold text-slate-500">{item.unit}</p>
-                <p className="mt-3 text-sm leading-relaxed text-slate-600">{item.description}</p>
-                <ul className="mt-4 space-y-2">
-                  {item.includes.map((line) => (
-                    <li key={line} className="flex items-start gap-2 text-sm text-slate-700">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                      <span>{line}</span>
-                    </li>
-                  ))}
-                </ul>
-                <a
-                  href={item.ctaHref}
-                  className="mt-5 inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-                >
-                  {item.ctaLabel}
-                </a>
-              </article>
-            ))}
-          </section>
-
-          <section className="mt-10 rounded-2xl border border-slate-200 bg-slate-50 p-6">
-            <div className="mb-4 flex items-center gap-2">
+          <section className="mt-10 rounded-3xl border border-slate-200 bg-slate-50 p-6 sm:p-8">
+            <div className="mb-6 flex items-center gap-2">
               <CreditCard className="h-5 w-5 text-slate-700" />
-              <h2 className="text-2xl font-bold text-slate-900">Simple billing controls</h2>
+              <h2 className="text-2xl font-bold text-slate-900">How to think about it</h2>
             </div>
             <ol className="space-y-3">
               {billingSteps.map((step, index) => (
@@ -175,10 +71,57 @@ export default function Pricing() {
                 </li>
               ))}
             </ol>
-            <p className="mt-4 flex items-center gap-2 text-sm text-slate-600">
+          </section>
+
+          <section className="mt-10 space-y-4">
+            {simplePricingOptions.map((option) => (
+              <article
+                key={option.id}
+                className="grid gap-5 rounded-3xl border border-slate-200 bg-white p-6 lg:grid-cols-[1.15fr_0.85fr]"
+              >
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    {option.step}
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <h2 className="text-2xl font-bold text-slate-900">{option.name}</h2>
+                    <span className="text-sm text-slate-500">({option.internalName})</span>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">{option.summary}</p>
+                  <ul className="mt-4 space-y-2">
+                    {option.includes.map((item) => (
+                      <li key={item} className="flex items-start gap-2 text-sm text-slate-700">
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <p className="text-sm font-medium text-slate-500">Price</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">{option.price}</p>
+                  <p className="mt-1 text-sm text-slate-500">{option.unit}</p>
+                  <a
+                    href={
+                      option.id === "evaluation"
+                        ? "/deployment-marketplace"
+                        : `/contact?interest=${getPricingContactInterest(option.id)}`
+                    }
+                    className="mt-5 inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  >
+                    {option.id === "evaluation" ? "Run a test" : "Talk to sales"}
+                  </a>
+                </div>
+              </article>
+            ))}
+          </section>
+
+          <section className="mt-10 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+            <p className="flex items-center gap-2 text-sm text-slate-600">
               <ShieldCheck className="h-4 w-4 text-slate-500" />
-              Blueprint owns and hosts the capture by default; private or higher-control terms are
-              available for larger engagements.
+              Blueprint hosts the default site asset. Private or higher-control terms are available
+              when the engagement needs them.
             </p>
           </section>
         </div>
