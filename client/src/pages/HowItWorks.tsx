@@ -1,5 +1,4 @@
 import { CTAButtons } from "@/components/site/CTAButtons";
-import SceneSmithExplainerMedia from "@/components/sections/SceneSmithExplainerMedia";
 import { SEO } from "@/components/SEO";
 import {
   ArrowRight,
@@ -237,8 +236,6 @@ export default function HowItWorks() {
           </div>
         </section>
 
-        <SceneSmithExplainerMedia id="howItWorksSceneSmithMedia" />
-
         {/* Evaluation Approach */}
         <section className="border-y border-zinc-100 bg-zinc-50/50 py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -304,7 +301,7 @@ export default function HowItWorks() {
                   href="/contact"
                   className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-700"
                 >
-                  Schedule a scan
+                  Request site qualification
                   <ArrowRight className="h-4 w-4" />
                 </a>
               </div>
