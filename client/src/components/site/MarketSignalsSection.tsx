@@ -78,18 +78,43 @@ const flagshipRaises = [
   },
 ];
 
-const deploymentStats = [
+const westernCommercialEvidence = [
   {
-    value: "~16k",
-    label: "global humanoid installations in 2025",
+    company: "Figure + BMW",
+    value: "30k+",
+    label: "BMW X3 vehicles supported by Figure's published production case",
+    sourceLabel: "Figure at BMW",
+    sourceHref: "https://www.figure.ai/news/production-at-bmw",
   },
   {
-    value: ">80%",
-    label: "of those installations were in China",
+    company: "Agility + GXO",
+    value: "100k+",
+    label: "totes moved in Agility's commercial warehouse deployment",
+    sourceLabel: "Agility at GXO",
+    sourceHref: "https://www.agilityrobotics.com/content/digit-moves-over-100k-totes",
+  },
+  {
+    company: "Agility + TMMC",
+    value: "2026",
+    label: "commercial agreement signed after a successful pilot in Canada",
+    sourceLabel: "Agility + TMMC",
+    sourceHref:
+      "https://www.agilityrobotics.com/content/agility-robotics-announces-commercial-agreement-with-toyota-motor-manufacturing-canada",
+  },
+];
+
+const deploymentStats = [
+  {
+    value: "1st",
+    label: "formal commercial humanoid deployment claimed by GXO and Agility in June 2024",
   },
   {
     value: "<20",
     label: "companies Gartner expects in production by 2028",
+  },
+  {
+    value: "Few",
+    label: "public Western production cases with real operating evidence today",
   },
 ];
 
@@ -249,7 +274,38 @@ export function MarketSignalsSection({
 
             <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4">
               <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
-                Yet deployments are still narrow
+                Western commercial evidence, not global unit counts
+              </p>
+              <div className="mt-4 grid gap-3">
+                {westernCommercialEvidence.map((item) => (
+                  <div
+                    key={item.company}
+                    className="rounded-2xl border border-white/10 bg-black/10 p-4 sm:flex sm:items-start sm:justify-between sm:gap-6"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-white">{item.company}</p>
+                      <p className="mt-2 text-sm leading-relaxed text-zinc-300">{item.label}</p>
+                    </div>
+                    <div className="mt-3 shrink-0 sm:mt-0 sm:text-right">
+                      <p className="text-2xl font-bold tracking-tight text-white">{item.value}</p>
+                      <a
+                        href={item.sourceHref}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-zinc-400 hover:text-white"
+                      >
+                        {item.sourceLabel}
+                        <ArrowUpRight className="h-3 w-3" />
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
+                What that implies
               </p>
               <div className="mt-4 grid gap-4 sm:grid-cols-3">
                 {deploymentStats.map((stat) => (
@@ -260,9 +316,8 @@ export function MarketSignalsSection({
                 ))}
               </div>
               <p className="mt-4 text-xs leading-relaxed text-zinc-400">
-                The 2025 installation estimate includes research, data collection, entertainment,
-                and early industrial use cases. It should not be read as 16,000 mature Western
-                factory rollouts.
+                We intentionally removed the China-heavy global installation number here. This
+                section is focused on public U.S. and Western commercial deployment evidence only.
               </p>
             </div>
 
