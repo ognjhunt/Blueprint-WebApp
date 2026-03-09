@@ -46,43 +46,11 @@ const capitalScopeBars = [
   },
 ];
 
-const flagshipRaises = [
-  {
-    company: "Figure",
-    value: ">$1B",
-    label: "Series C in September 2025",
-    sourceLabel: "Figure",
-    sourceHref: "https://www.figure.ai/news/series-c",
-  },
-  {
-    company: "Skild AI",
-    value: "$1.4B",
-    label: "Series C in January 2026",
-    sourceLabel: "Skild AI",
-    sourceHref: "https://www.skild.ai/blogs/series-c",
-  },
-  {
-    company: "Physical Intelligence",
-    value: "$1.1B",
-    label: "reported across November 2024 and November 2025 rounds",
-    sourceLabel: "CNBC + Bloomberg",
-    sourceHref:
-      "https://www.bloomberg.com/news/articles/2025-11-20/robotics-startup-physical-intelligence-valued-at-5-6-billion-in-new-funding",
-  },
-  {
-    company: "Apptronik",
-    value: "$935M",
-    label: "Series A total by February 2026",
-    sourceLabel: "Apptronik",
-    sourceHref: "https://apptronik.com/news-collection/apptronik-closes-over-935-million-series-a",
-  },
-];
-
 const westernCommercialEvidence = [
   {
     company: "Figure + BMW",
     value: "30k+",
-    label: "BMW X3 vehicles supported by Figure's published production case",
+    label: "BMW X3 vehicles supported in Figure's published production case",
     sourceLabel: "Figure at BMW",
     sourceHref: "https://www.figure.ai/news/production-at-bmw",
   },
@@ -100,21 +68,6 @@ const westernCommercialEvidence = [
     sourceLabel: "Agility + TMMC",
     sourceHref:
       "https://www.agilityrobotics.com/content/agility-robotics-announces-commercial-agreement-with-toyota-motor-manufacturing-canada",
-  },
-];
-
-const deploymentStats = [
-  {
-    value: "1st",
-    label: "formal commercial humanoid deployment claimed by GXO and Agility in June 2024",
-  },
-  {
-    value: "<20",
-    label: "companies Gartner expects in production by 2028",
-  },
-  {
-    value: "Few",
-    label: "public Western production cases with real operating evidence today",
   },
 ];
 
@@ -241,40 +194,14 @@ export function MarketSignalsSection({
                 ))}
               </div>
               <p className="mt-4 text-xs leading-relaxed text-zinc-400">
-                F-Prime&apos;s $4.9B run rate is real, but it is a narrower category. Its own
-                definition includes humanoid form factors and foundational robot models. We do not
-                count broad platform capex from Tesla or NVIDIA here because the allocation is too
-                broad to label as direct humanoid spend.
+                The smaller number is the narrow F-Prime slice. The larger one is the broader 2025
+                robotics VC market.
               </p>
             </div>
 
             <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4">
               <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
-                Flagship disclosed raises
-              </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {flagshipRaises.map((raise) => (
-                  <div key={raise.company} className="rounded-2xl border border-white/10 bg-black/10 p-4">
-                    <p className="text-sm font-semibold text-white">{raise.company}</p>
-                    <p className="mt-1 text-2xl font-bold tracking-tight text-white">{raise.value}</p>
-                    <p className="mt-1 text-sm leading-relaxed text-zinc-300">{raise.label}</p>
-                    <a
-                      href={raise.sourceHref}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-zinc-400 hover:text-white"
-                    >
-                      {raise.sourceLabel}
-                      <ArrowUpRight className="h-3 w-3" />
-                    </a>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
-                Western commercial evidence, not global unit counts
+                Western commercial evidence
               </p>
               <div className="mt-4 grid gap-3">
                 {westernCommercialEvidence.map((item) => (
@@ -303,33 +230,30 @@ export function MarketSignalsSection({
               </div>
             </div>
 
-            <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
-                What that implies
-              </p>
-              <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                {deploymentStats.map((stat) => (
-                  <div key={stat.label} className="rounded-2xl border border-white/10 bg-black/10 p-4">
-                    <p className="text-2xl font-bold tracking-tight text-white">{stat.value}</p>
-                    <p className="mt-2 text-sm leading-relaxed text-zinc-300">{stat.label}</p>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-4 text-xs leading-relaxed text-zinc-400">
-                We intentionally removed the China-heavy global installation number here. This
-                section is focused on public U.S. and Western commercial deployment evidence only.
-              </p>
-            </div>
-
             <div className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
-              <p className="text-sm font-semibold text-white">
-                The actual positioning point
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-200">
-                Capital is not the limiting factor. The limiting factor is turning facility-specific
-                uncertainty into site-ready deployment evidence before the pilot burns time and
-                money.
-              </p>
+              <div className="sm:flex sm:items-start sm:justify-between sm:gap-6">
+                <div>
+                  <p className="text-sm font-semibold text-white">
+                    The takeaway
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-zinc-200">
+                    Capital is not the bottleneck. Converting pilots into site-ready Western
+                    deployments is.
+                  </p>
+                </div>
+                <div className="mt-3 shrink-0 sm:mt-0 sm:text-right">
+                  <p className="text-3xl font-bold tracking-tight text-white">&lt;20</p>
+                  <a
+                    href="https://www.gartner.com/en/newsroom/press-releases/2026-01-21-gartner-predicts-fewer-than-20-companies-will-scale-humanoid-robots-for-manufacturing-and-supply-chain-to-production-stage-by-2028"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-zinc-200 hover:text-white"
+                  >
+                    Gartner production forecast
+                    <ArrowUpRight className="h-3 w-3" />
+                  </a>
+                </div>
+              </div>
             </div>
           </article>
         </div>
