@@ -14,7 +14,6 @@ import { analyticsEvents } from "@/components/Analytics";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useMarketplacePersonalization } from "@/hooks/useMarketplacePersonalization";
-import { useOnboardingProgress } from "@/hooks/useOnboardingProgress";
 import { searchMarketplace } from "@/lib/marketplaceSearch";
 import type {
   MarketplaceSearchResponse,
@@ -253,14 +252,6 @@ export default function Environments() {
   // --- Personalization ---
   const { currentUser } = useAuth();
   const { personalization, dismissWelcomeBanner } = useMarketplacePersonalization();
-  const { markStepComplete } = useOnboardingProgress();
-
-  // Track marketplace exploration on mount
-  useEffect(() => {
-    if (currentUser?.uid) {
-      markStepComplete("exploreMarketplace").catch(console.error);
-    }
-  }, [currentUser?.uid, markStepComplete]);
 
   // Handle welcome banner dismiss
   const handleDismissWelcome = useCallback(() => {

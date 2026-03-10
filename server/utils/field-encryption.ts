@@ -80,7 +80,7 @@ async function wrapDataKey(dataKey: Buffer): Promise<{
     }
 
     return {
-      dek: toBase64(response.ciphertext),
+      dek: toBase64(Buffer.from(response.ciphertext as Uint8Array)),
       keyVersion: response.name || kmsKeyName,
       dekAlg: "kms",
     };
@@ -220,8 +220,34 @@ export async function encryptInboundRequestForStorage<
     },
     request: {
       budgetBucket: request.request.budgetBucket,
+      requestedLanes: request.request.requestedLanes,
       helpWith: request.request.helpWith,
       details: await encryptOptionalField(request.request.details ?? null),
+      buyerType: request.request.buyerType,
+      siteName: await encryptFieldValue(
+        request.request.siteName || request.contact.company || "Untitled site"
+      ),
+      siteLocation: await encryptFieldValue(
+        request.request.siteLocation || "Location pending"
+      ),
+      taskStatement: await encryptFieldValue(
+        request.request.taskStatement || "Task statement pending"
+      ),
+      workflowContext: await encryptOptionalField(
+        request.request.workflowContext ?? null
+      ),
+      operatingConstraints: await encryptOptionalField(
+        request.request.operatingConstraints ?? null
+      ),
+      privacySecurityConstraints: await encryptOptionalField(
+        request.request.privacySecurityConstraints ?? null
+      ),
+      knownBlockers: await encryptOptionalField(
+        request.request.knownBlockers ?? null
+      ),
+      targetRobotTeam: await encryptOptionalField(
+        request.request.targetRobotTeam ?? null
+      ),
     },
   };
 }
@@ -246,8 +272,36 @@ export async function decryptInboundRequestForAdmin<
     },
     request: {
       budgetBucket: request.request.budgetBucket,
+      requestedLanes: request.request.requestedLanes ?? [],
       helpWith: request.request.helpWith,
       details: await decryptOptionalField(request.request.details ?? null),
+      buyerType: request.request.buyerType ?? "site_operator",
+      siteName: request.request.siteName
+        ? await decryptFieldValue(request.request.siteName)
+        : request.contact.company
+        ? await decryptFieldValue(request.contact.company)
+        : "Legacy submission",
+      siteLocation: request.request.siteLocation
+        ? await decryptFieldValue(request.request.siteLocation)
+        : "Legacy location",
+      taskStatement: request.request.taskStatement
+        ? await decryptFieldValue(request.request.taskStatement)
+        : "Legacy submission requires manual scoping",
+      workflowContext: await decryptOptionalField(
+        request.request.workflowContext ?? null
+      ),
+      operatingConstraints: await decryptOptionalField(
+        request.request.operatingConstraints ?? null
+      ),
+      privacySecurityConstraints: await decryptOptionalField(
+        request.request.privacySecurityConstraints ?? null
+      ),
+      knownBlockers: await decryptOptionalField(
+        request.request.knownBlockers ?? null
+      ),
+      targetRobotTeam: await decryptOptionalField(
+        request.request.targetRobotTeam ?? null
+      ),
     },
   };
 }

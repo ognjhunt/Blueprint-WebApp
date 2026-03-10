@@ -1,18 +1,18 @@
-// useOnboardingProgress hook
-// Manages onboarding progress tracking and updates
-
 import { useCallback, useMemo } from "react";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { db, type UserData } from "@/lib/firebase";
+import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface OnboardingProgress {
   profileComplete: boolean;
-  exploreMarketplace: boolean;
-  createFirstOrder: boolean;
+  defineSiteSubmission: boolean;
+  completeIntakeReview: boolean;
+  reviewQualifiedOpportunities: boolean;
   inviteTeam: boolean;
   completedAt?: Date;
 }
+
+type ProgressStep = keyof Omit<OnboardingProgress, "completedAt">;
 
 interface UseOnboardingProgressReturn {
   progress: OnboardingProgress;
@@ -20,7 +20,7 @@ interface UseOnboardingProgressReturn {
   completedCount: number;
   totalSteps: number;
   currentStep: string;
-  markStepComplete: (step: keyof Omit<OnboardingProgress, "completedAt">) => Promise<void>;
+  markStepComplete: (step: ProgressStep) => Promise<void>;
   completeOnboarding: () => Promise<void>;
   getProgressPercentage: () => number;
 }
@@ -28,93 +28,72 @@ interface UseOnboardingProgressReturn {
 export function useOnboardingProgress(): UseOnboardingProgressReturn {
   const { userData, currentUser } = useAuth();
 
-  // Default progress if not available
-  const progress: OnboardingProgress = useMemo(() => {
-    return userData?.onboardingProgress || {
-      profileComplete: false,
-      exploreMarketplace: false,
-      createFirstOrder: false,
-      inviteTeam: false,
-    };
-  }, [userData?.onboardingProgress]);
+  const progress: OnboardingProgress = useMemo(
+    () =>
+      userData?.onboardingProgress || {
+        profileComplete: false,
+        defineSiteSubmission: false,
+        completeIntakeReview: false,
+        reviewQualifiedOpportunities: false,
+        inviteTeam: false,
+      },
+    [userData?.onboardingProgress]
+  );
 
-  // Calculate completion stats
   const completedCount = useMemo(() => {
     let count = 0;
-    if (progress.profileComplete) count++;
-    if (progress.exploreMarketplace) count++;
-    if (progress.createFirstOrder) count++;
-    if (progress.inviteTeam) count++;
+    if (progress.profileComplete) count += 1;
+    if (progress.defineSiteSubmission) count += 1;
+    if (progress.completeIntakeReview) count += 1;
+    if (progress.reviewQualifiedOpportunities) count += 1;
+    if (progress.inviteTeam) count += 1;
     return count;
   }, [progress]);
 
-  const totalSteps = 4;
+  const totalSteps = 5;
 
-  // Determine current step
   const currentStep = useMemo(() => {
     if (!progress.profileComplete) return "profile";
-    if (!progress.exploreMarketplace) return "explore";
-    if (!progress.createFirstOrder) return "order";
-    if (!progress.inviteTeam) return "team";
+    if (!progress.defineSiteSubmission) return "defineSiteSubmission";
+    if (!progress.completeIntakeReview) return "completeIntakeReview";
+    if (!progress.reviewQualifiedOpportunities) return "reviewQualifiedOpportunities";
+    if (!progress.inviteTeam) return "inviteTeam";
     return "completed";
   }, [progress]);
 
-  // Check if onboarding is complete (excluding optional inviteTeam)
-  const isComplete = useMemo(() => {
-    return (
+  const isComplete = useMemo(
+    () =>
       progress.profileComplete &&
-      progress.exploreMarketplace &&
-      progress.createFirstOrder
-    );
-  }, [progress]);
-
-  // Mark a specific step as complete
-  const markStepComplete = useCallback(
-    async (step: keyof Omit<OnboardingProgress, "completedAt">) => {
-      if (!currentUser?.uid) return;
-
-      try {
-        const updates: Record<string, any> = {
-          [`onboardingProgress.${step}`]: true,
-        };
-
-        // Track specific timestamps for analytics
-        if (step === "exploreMarketplace" && !userData?.firstMarketplaceVisit) {
-          updates.firstMarketplaceVisit = serverTimestamp();
-        }
-        if (step === "createFirstOrder" && !userData?.firstOrderAt) {
-          updates.firstOrderAt = serverTimestamp();
-        }
-
-        await updateDoc(doc(db, "users", currentUser.uid), updates);
-      } catch (error) {
-        console.error(`Failed to mark ${step} as complete:`, error);
-        throw error;
-      }
-    },
-    [currentUser?.uid, userData?.firstMarketplaceVisit, userData?.firstOrderAt]
+      progress.defineSiteSubmission &&
+      progress.completeIntakeReview,
+    [progress]
   );
 
-  // Complete the entire onboarding flow
+  const markStepComplete = useCallback(
+    async (step: ProgressStep) => {
+      if (!currentUser?.uid) return;
+
+      await updateDoc(doc(db, "users", currentUser.uid), {
+        [`onboardingProgress.${step}`]: true,
+      });
+    },
+    [currentUser?.uid]
+  );
+
   const completeOnboarding = useCallback(async () => {
     if (!currentUser?.uid) return;
 
-    try {
-      await updateDoc(doc(db, "users", currentUser.uid), {
-        finishedOnboarding: true,
-        onboardingStep: "completed",
-        "onboardingProgress.completedAt": serverTimestamp(),
-      });
-    } catch (error) {
-      console.error("Failed to complete onboarding:", error);
-      throw error;
-    }
+    await updateDoc(doc(db, "users", currentUser.uid), {
+      finishedOnboarding: true,
+      onboardingStep: "completed",
+      "onboardingProgress.completedAt": serverTimestamp(),
+    });
   }, [currentUser?.uid]);
 
-  // Calculate progress percentage
-  const getProgressPercentage = useCallback(() => {
-    return Math.round((completedCount / totalSteps) * 100);
-  }, [completedCount]);
+  const getProgressPercentage = useCallback(
+    () => Math.round((completedCount / totalSteps) * 100),
+    [completedCount]
+  );
 
   return {
     progress,

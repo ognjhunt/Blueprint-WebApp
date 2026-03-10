@@ -38,7 +38,7 @@ const offeringCards = [
       "We flag the obvious blockers early",
     ],
     ctaLabel: "Request site qualification",
-    ctaHref: "/contact?interest=benchmark-packs",
+    ctaHref: "/contact?interest=site-qualification",
     icon: <MapPin className="h-8 w-8 text-zinc-900" />,
   },
   {
@@ -64,7 +64,7 @@ const offeringCards = [
       "Teams can add evaluation, site data, or managed tuning later",
     ],
     ctaLabel: "View qualified opportunities",
-    ctaHref: "/deployment-marketplace",
+    ctaHref: "/qualified-opportunities",
     icon: <Shield className="h-8 w-8 text-zinc-900" />,
   },
 ];
@@ -460,7 +460,7 @@ export default function Home() {
                 ))}
               </ul>
               <a
-                href="/deployment-marketplace"
+                href="/qualified-opportunities"
                 className="mt-6 inline-block rounded-lg bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
               >
                 View qualified opportunities
@@ -489,7 +489,7 @@ export default function Home() {
             </a>
 
             <a
-              href="/deployment-marketplace-guide"
+              href="/qualified-opportunities-guide"
               className="group rounded-xl border border-zinc-200 bg-white p-6 transition-all hover:border-indigo-200 hover:shadow-md"
             >
               <div className="flex items-center gap-3">
@@ -505,7 +505,7 @@ export default function Home() {
             </a>
 
             <a
-              href="/deployment-marketplace"
+              href="/qualified-opportunities"
               className="group rounded-xl border border-zinc-200 bg-white p-6 transition-all hover:border-indigo-200 hover:shadow-md"
             >
               <div className="flex items-center gap-3">
@@ -531,7 +531,7 @@ export default function Home() {
             <p className="mx-auto mt-4 max-w-xl text-zinc-400">
               Share the facility and the workflow you want to prove. We&apos;ll scope the twin,
               the readiness pack, and the artifact path that makes sense whether you are bringing
-              a known site or opening the door to marketplace demand.
+              a known site or opening the door to qualified downstream demand.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
               <a

@@ -1,40 +1,32 @@
-// OnboardingChecklist - Minimalist onboarding checklist page
-// Based on SIGNUP_ONBOARDING_SPEC.md
-//
-// Shows progress after signup with checklist items:
-// 1. Profile complete (auto-done)
-// 2. Explore marketplace
-// 3. Create first order
-// 4. Invite team (optional)
-
 "use client";
 
-import React, { useEffect, useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useLocation } from "wouter";
-import { Button } from "@/components/ui/button";
+import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import {
-  CheckCircle2,
-  Circle,
   ArrowRight,
-  Store,
-  ShoppingCart,
+  Building2,
+  CheckCircle2,
+  ClipboardCheck,
+  FileSearch,
+  Shield,
   Users,
-  Sparkles,
 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { Button } from "@/components/ui/button";
 import { db } from "@/lib/firebase";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ChecklistItem {
   id: string;
   title: string;
   description: string;
-  icon: React.ElementType;
   completed: boolean;
-  primaryAction?: {
+  icon: React.ElementType;
+  action?: {
     label: string;
     href: string;
+    updateField?: string;
   };
   optional?: boolean;
 }
@@ -46,81 +38,54 @@ function ChecklistCard({
 }: {
   item: ChecklistItem;
   index: number;
-  onAction: (href: string) => void;
+  onAction: (item: ChecklistItem) => void;
 }) {
   const Icon = item.icon;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1 }}
-      className={`border rounded-xl p-4 transition-all ${
+      transition={{ delay: index * 0.08 }}
+      className={`rounded-xl border p-4 ${
         item.completed
-          ? "bg-emerald-50/50 border-emerald-200"
-          : "bg-white border-zinc-200 hover:border-zinc-300"
+          ? "border-emerald-200 bg-emerald-50/60"
+          : "border-zinc-200 bg-white"
       }`}
     >
       <div className="flex items-start gap-4">
-        {/* Status Icon */}
         <div
-          className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-            item.completed
-              ? "bg-emerald-500 text-white"
-              : "bg-zinc-100 text-zinc-400"
+          className={`flex h-9 w-9 items-center justify-center rounded-full ${
+            item.completed ? "bg-emerald-500 text-white" : "bg-zinc-100 text-zinc-500"
           }`}
         >
-          {item.completed ? (
-            <CheckCircle2 className="w-5 h-5" />
-          ) : (
-            <span className="text-sm font-medium">{index}</span>
-          )}
+          {item.completed ? <CheckCircle2 className="h-5 w-5" /> : <span>{index}</span>}
         </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3
-              className={`font-medium ${
-                item.completed ? "text-emerald-700" : "text-zinc-900"
-              }`}
-            >
-              {item.title}
-            </h3>
-            {item.optional && (
-              <span className="text-xs text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded">
+            <h3 className="font-medium text-zinc-900">{item.title}</h3>
+            {item.optional ? (
+              <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
                 Optional
               </span>
-            )}
+            ) : null}
           </div>
-          <p className="text-sm text-zinc-500 mt-0.5">{item.description}</p>
-
-          {/* Action Button */}
-          {item.primaryAction && !item.completed && (
+          <p className="mt-1 text-sm text-zinc-600">{item.description}</p>
+          {item.completed ? (
+            <p className="mt-2 text-sm text-emerald-700">Completed</p>
+          ) : item.action ? (
             <Button
-              onClick={() => onAction(item.primaryAction!.href)}
+              type="button"
               size="sm"
-              className="mt-3 bg-emerald-500 hover:bg-emerald-600 text-white"
+              className="mt-3"
+              onClick={() => onAction(item)}
             >
-              {item.primaryAction.label}
-              <ArrowRight className="w-4 h-4 ml-1" />
+              {item.action.label}
+              <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
-          )}
-
-          {item.completed && (
-            <p className="text-sm text-emerald-600 mt-2 flex items-center gap-1">
-              <CheckCircle2 className="w-4 h-4" />
-              Completed
-            </p>
-          )}
+          ) : null}
         </div>
-
-        {/* Item Icon */}
-        <Icon
-          className={`flex-shrink-0 w-5 h-5 ${
-            item.completed ? "text-emerald-400" : "text-zinc-300"
-          }`}
-        />
+        <Icon className={`h-5 w-5 ${item.completed ? "text-emerald-500" : "text-zinc-300"}`} />
       </div>
     </motion.div>
   );
@@ -130,190 +95,178 @@ export default function OnboardingChecklist() {
   const { userData, currentUser } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Get first name for greeting
-  const firstName = userData?.name?.split(" ")[0] || "there";
-
-  // Build checklist items based on user progress
-  const onboardingProgress = userData?.onboardingProgress || {
+  const progress = userData?.onboardingProgress || {
     profileComplete: true,
-    exploreMarketplace: false,
-    createFirstOrder: false,
+    defineSiteSubmission: Boolean(userData?.siteName && userData?.taskStatement),
+    completeIntakeReview: false,
+    reviewQualifiedOpportunities: false,
     inviteTeam: false,
   };
 
-  const checklistItems: ChecklistItem[] = [
-    {
-      id: "profile",
-      title: "Profile complete",
-      description: "You're all set up!",
-      icon: Sparkles,
-      completed: onboardingProgress.profileComplete,
-    },
-    {
-      id: "explore",
-      title: "Explore the marketplace",
-      description: "Browse datasets for your project",
-      icon: Store,
-      completed: onboardingProgress.exploreMarketplace,
-      primaryAction: {
-        label: "Start Exploring",
-        href: "/marketplace",
+  const checklistItems: ChecklistItem[] = useMemo(
+    () => [
+      {
+        id: "profile",
+        title: "Account profile complete",
+        description: "Your account exists and the intake owner is identified.",
+        completed: progress.profileComplete,
+        icon: Shield,
       },
-    },
-    {
-      id: "order",
-      title: "Create your first order",
-      description: "Request custom data or browse existing datasets",
-      icon: ShoppingCart,
-      completed: onboardingProgress.createFirstOrder,
-      primaryAction: {
-        label: "View Datasets",
-        href: "/marketplace",
+      {
+        id: "submission",
+        title: "Confirm the site submission",
+        description:
+          "Review the site, location, task, and constraints that Blueprint should use for qualification.",
+        completed: progress.defineSiteSubmission,
+        icon: Building2,
+        action: {
+          label: "Review intake",
+          href: "/contact",
+          updateField: "onboardingProgress.defineSiteSubmission",
+        },
       },
-    },
-    {
-      id: "team",
-      title: "Invite your team",
-      description: "Collaborate with teammates",
-      icon: Users,
-      completed: onboardingProgress.inviteTeam,
-      primaryAction: {
-        label: "Invite Team",
-        href: "/settings",
+      {
+        id: "review",
+        title: "Route the submission for review",
+        description:
+          "Open the intake form and send the site into the qualification queue with the latest details.",
+        completed: progress.completeIntakeReview,
+        icon: ClipboardCheck,
+        action: {
+          label: "Open submission form",
+          href: "/contact",
+          updateField: "onboardingProgress.completeIntakeReview",
+        },
       },
-      optional: true,
-    },
-  ];
+      {
+        id: "opportunities",
+        title: "Review qualified opportunities",
+        description:
+          "See what the downstream handoff looks like after a site clears qualification.",
+        completed: progress.reviewQualifiedOpportunities,
+        icon: FileSearch,
+        action: {
+          label: "Open qualified opportunities",
+          href: "/qualified-opportunities",
+          updateField: "onboardingProgress.reviewQualifiedOpportunities",
+        },
+        optional: true,
+      },
+      {
+        id: "team",
+        title: "Invite your team",
+        description: "Bring in teammates after the intake path is set.",
+        completed: progress.inviteTeam,
+        icon: Users,
+        action: {
+          label: "Open settings",
+          href: "/settings",
+        },
+        optional: true,
+      },
+    ],
+    [progress]
+  );
 
   const completedCount = checklistItems.filter((item) => item.completed).length;
-  const totalRequired = checklistItems.filter((item) => !item.optional).length;
 
-  // Handle action button click
   const handleAction = useCallback(
-    async (href: string) => {
-      // Track marketplace exploration
-      if (href === "/marketplace" && currentUser?.uid) {
-        try {
-          await updateDoc(doc(db, "users", currentUser.uid), {
-            "onboardingProgress.exploreMarketplace": true,
-            firstMarketplaceVisit: serverTimestamp(),
-          });
-        } catch (error) {
-          console.error("Failed to update onboarding progress:", error);
-        }
+    async (item: ChecklistItem) => {
+      if (currentUser?.uid && item.action?.updateField) {
+        await updateDoc(doc(db, "users", currentUser.uid), {
+          [item.action.updateField]: true,
+        });
       }
 
-      setLocation(href);
+      if (item.action) {
+        setLocation(item.action.href);
+      }
     },
     [currentUser?.uid, setLocation]
   );
 
-  // Handle skip to marketplace
-  const handleSkip = useCallback(async () => {
+  const handleFinish = useCallback(async () => {
     if (currentUser?.uid) {
-      try {
-        await updateDoc(doc(db, "users", currentUser.uid), {
-          finishedOnboarding: true,
-          onboardingStep: "completed",
-          "onboardingProgress.completedAt": serverTimestamp(),
-        });
-      } catch (error) {
-        console.error("Failed to complete onboarding:", error);
-      }
+      await updateDoc(doc(db, "users", currentUser.uid), {
+        finishedOnboarding: true,
+        onboardingStep: "completed",
+        "onboardingProgress.completedAt": serverTimestamp(),
+      });
     }
-    setLocation("/marketplace");
+
+    setLocation("/dashboard");
   }, [currentUser?.uid, setLocation]);
 
-  // Personalized message based on primary need
-  const getPersonalizedMessage = () => {
-    if (!userData?.primaryNeeds || userData.primaryNeeds.length === 0) return null;
-
-    const messages: Record<string, string> = {
-      "benchmark-packs": "Explore benchmark and eval packs tailored to your needs",
-      "scene-library": "Browse SimReady scenes that match your simulation goals",
-      "dataset-packs": "Find robotic policy trajectories and episodes for training",
-      "custom-capture": "Explore custom scene captures for your facilities",
-      other: "Let's get you started with the right data",
-    };
-
-    return messages[userData.primaryNeeds[0]] || null;
-  };
-
-  const personalizedMessage = getPersonalizedMessage();
+  const intakeSummary = [
+    { label: "Buyer type", value: userData?.buyerType === "robot_team" ? "Robot team" : "Site operator" },
+    { label: "Site", value: userData?.siteName || "Not set yet" },
+    { label: "Location", value: userData?.siteLocation || "Not set yet" },
+    { label: "Task", value: userData?.taskStatement || "Not set yet" },
+  ];
 
   return (
-    <main className="min-h-screen bg-white py-12 px-4">
-      <div className="max-w-lg mx-auto">
-          {/* Header */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-8"
-          >
-            <h1 className="text-2xl font-semibold text-zinc-900">
-              Welcome to Blueprint, {firstName}!
-            </h1>
-            {personalizedMessage && (
-              <p className="text-zinc-600 mt-2">{personalizedMessage}</p>
-            )}
-            {!personalizedMessage && (
-              <p className="text-zinc-600 mt-2">
-                Let's get you started in a few quick steps
-              </p>
-            )}
-          </motion.div>
+    <main className="min-h-screen bg-white px-4 py-12">
+      <div className="mx-auto max-w-4xl">
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-semibold text-zinc-950">
+            Qualification intake hub
+          </h1>
+          <p className="mt-2 text-zinc-600">
+            Confirm the submission, route it into review, and keep marketplace browsing secondary.
+          </p>
+        </div>
 
-          {/* Progress */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.1 }}
-            className="mb-6"
-          >
-            <div className="flex items-center justify-between text-sm text-zinc-500 mb-2">
-              <span>Your progress</span>
-              <span>
-                {completedCount} of {checklistItems.length} complete
-              </span>
-            </div>
-            <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{
-                  width: `${(completedCount / checklistItems.length) * 100}%`,
-                }}
-                transition={{ delay: 0.3, duration: 0.5 }}
-                className="h-full bg-emerald-500 rounded-full"
-              />
-            </div>
-          </motion.div>
-
-          {/* Checklist */}
-          <div className="space-y-3">
+        <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="space-y-4">
             {checklistItems.map((item, index) => (
               <ChecklistCard
                 key={item.id}
                 item={item}
-                index={index}
+                index={index + 1}
                 onAction={handleAction}
               />
             ))}
           </div>
 
-          {/* Skip Link */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="text-center mt-8"
-          >
-            <button
-              onClick={handleSkip}
-              className="text-sm text-zinc-500 hover:text-zinc-700 underline underline-offset-2"
-            >
-              Skip to Marketplace
-            </button>
-          </motion.div>
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-6">
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                Submission summary
+              </p>
+              <div className="mt-4 space-y-3">
+                {intakeSummary.map((item) => (
+                  <div key={item.label}>
+                    <p className="text-xs uppercase tracking-[0.14em] text-zinc-400">
+                      {item.label}
+                    </p>
+                    <p className="text-sm text-zinc-900">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+              <div className="mb-4 flex items-center justify-between text-sm text-zinc-500">
+                <span>Checklist progress</span>
+                <span>
+                  {completedCount} / {checklistItems.length}
+                </span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
+                <div
+                  className="h-full rounded-full bg-emerald-500"
+                  style={{ width: `${(completedCount / checklistItems.length) * 100}%` }}
+                />
+              </div>
+              <p className="mt-4 text-sm text-zinc-600">
+                Finish onboarding once the intake path is clear. You can still return here later.
+              </p>
+              <Button type="button" className="mt-4 w-full" onClick={handleFinish}>
+                Finish onboarding
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
   );

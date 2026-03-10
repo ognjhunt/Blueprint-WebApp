@@ -1,15 +1,13 @@
-Blueprint is a robotics data platform delivering SimReady 3D environments, datasets, evaluation tooling, and marketplace content to help teams train, validate, and deploy AI faster.
+Blueprint is a qualification-first platform for robot deployment readiness. It helps operators and robot teams submit a site, review evidence, qualify the workflow, and route qualified opportunities into the right follow-on lane.
 
 High-priority public URLs:
 - /
-- /marketplace
-- /docs
+- /how-it-works
+- /qualified-opportunities
+- /qualified-opportunities-guide
 - /pricing
-- /learn
-- /case-studies
 - /solutions
 - /contact
-- /careers
 - /privacy
 - /terms
 

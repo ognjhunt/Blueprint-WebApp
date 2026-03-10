@@ -63,7 +63,7 @@ export default function Pricing() {
                 <p className="mt-2 text-3xl font-bold text-emerald-950">Custom quote</p>
                 <p className="mt-1 text-sm text-emerald-800">per site or workflow</p>
                 <a
-                  href="/contact?interest=benchmark-packs"
+                  href="/contact?interest=site-qualification"
                   className="mt-5 inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
                   Request site qualification
@@ -133,7 +133,7 @@ export default function Pricing() {
                   <a
                     href={
                       option.id === "evaluation"
-                        ? "/deployment-marketplace"
+                        ? "/qualified-opportunities"
                         : `/contact?interest=${getPricingContactInterest(option.id)}`
                     }
                     className="mt-5 inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"

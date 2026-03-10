@@ -3,16 +3,24 @@ import type {
   BudgetBucket,
   HelpWithOption,
   RequestPriority,
+  RequestedLane,
+  BuyerType,
 } from "../types/inbound-request";
 
 interface SlackNotifyOptions {
   requestId: string;
+  siteSubmissionId: string;
   firstName: string;
   lastName: string;
   email: string;
   company: string;
   roleTitle: string;
+  buyerType: BuyerType;
+  siteName: string;
+  siteLocation: string;
+  taskStatement: string;
   budgetBucket: BudgetBucket;
+  requestedLanes: RequestedLane[];
   helpWith: HelpWithOption[];
   details?: string | null;
   priority: RequestPriority;
@@ -43,13 +51,24 @@ interface SlackBlock {
 }
 
 const HELP_WITH_LABELS: Record<HelpWithOption, string> = {
-  "benchmark-packs": "Benchmark Packs",
-  "scene-library": "Scene Library",
-  "dataset-packs": "Dataset Packs",
-  "custom-capture": "Custom Scene",
-  "pilot-exchange-location-brief": "Deployment Marketplace: Location Brief",
-  "pilot-exchange-policy-submission": "Deployment Marketplace: Policy Submission",
-  "pilot-exchange-data-licensing": "Deployment Marketplace: Data Licensing",
+  "benchmark-packs": "Qualification",
+  "scene-library": "Qualified Opportunity Review",
+  "dataset-packs": "Deeper Evaluation",
+  "custom-capture": "Capture Request",
+  "pilot-exchange-location-brief": "Qualified Opportunity Brief",
+  "pilot-exchange-policy-submission": "Team Submission",
+  "pilot-exchange-data-licensing": "Managed Tuning",
+};
+
+const REQUESTED_LANE_LABELS: Record<RequestedLane, string> = {
+  qualification: "Qualification",
+  deeper_evaluation: "Deeper Evaluation",
+  managed_tuning: "Managed Tuning",
+};
+
+const BUYER_TYPE_LABELS: Record<BuyerType, string> = {
+  site_operator: "Site Operator",
+  robot_team: "Robot Team",
 };
 
 const PRIORITY_EMOJI: Record<RequestPriority, string> = {
@@ -75,12 +94,18 @@ export async function notifySlackInboundRequest(
 
   const {
     requestId,
+    siteSubmissionId,
     firstName,
     lastName,
     email,
     company,
     roleTitle,
+    buyerType,
+    siteName,
+    siteLocation,
+    taskStatement,
     budgetBucket,
+    requestedLanes,
     helpWith,
     details,
     priority,
@@ -89,6 +114,9 @@ export async function notifySlackInboundRequest(
 
   const helpWithLabels = helpWith
     .map((h) => HELP_WITH_LABELS[h] || h)
+    .join(", ");
+  const requestedLaneLabels = requestedLanes
+    .map((lane) => REQUESTED_LANE_LABELS[lane] || lane)
     .join(", ");
 
   const priorityEmoji = PRIORITY_EMOJI[priority];
@@ -99,7 +127,7 @@ export async function notifySlackInboundRequest(
       type: "header",
       text: {
         type: "plain_text",
-        text: `${priorityEmoji} New Inbound Request from ${company}`,
+        text: `${priorityEmoji} New Site Submission from ${company}`,
         emoji: true,
       },
     },
@@ -124,6 +152,10 @@ export async function notifySlackInboundRequest(
         },
         {
           type: "mrkdwn",
+          text: `*Buyer Type:*\n${BUYER_TYPE_LABELS[buyerType]}`,
+        },
+        {
+          type: "mrkdwn",
           text: `*Budget:*\n${budgetBucket}`,
         },
         {
@@ -136,10 +168,27 @@ export async function notifySlackInboundRequest(
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `*Interested in:*\n${helpWithLabels}`,
+        text: `*Requested lanes:*\n${requestedLaneLabels}`,
+      },
+    },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*Site:*\n${siteName}\n*Location:*\n${siteLocation}\n*Task:*\n${taskStatement}`,
       },
     },
   ];
+
+  if (helpWithLabels) {
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*Legacy taxonomy mirror:*\n${helpWithLabels}`,
+      },
+    });
+  }
 
   // Add details section if provided
   if (details && details.trim()) {
@@ -203,13 +252,13 @@ export async function notifySlackInboundRequest(
     type: "section",
     text: {
       type: "mrkdwn",
-      text: `_Request ID: ${requestId}_`,
+      text: `_Submission ID: ${siteSubmissionId} · Request ID: ${requestId}_`,
     },
   });
 
   const payload = {
     blocks,
-    text: `New inbound request from ${firstName} ${lastName} at ${company}`, // Fallback text
+    text: `New site submission from ${firstName} ${lastName} at ${company}`,
   };
 
   try {

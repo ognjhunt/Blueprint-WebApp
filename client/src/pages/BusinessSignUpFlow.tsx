@@ -1,76 +1,65 @@
-// BusinessSignUpFlow - Multi-step business signup with context gathering
-// Based on SIGNUP_ONBOARDING_SPEC.md
-//
-// 3-step flow:
-// Step 1: Account Basics (organization name, email, password, OAuth)
-// Step 2: Business Context (name, title, phone, primary need, company size)
-// Step 3: Project Details (description, budget, referral source)
-
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import {
+  ArrowRight,
+  Building2,
+  CheckCircle2,
+  ChevronLeft,
+  Lock,
+  Mail,
+  MapPin,
+  Route,
+  Shield,
+  Target,
+  User,
+  Users,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Mail,
-  Lock,
-  Building2,
-  User,
-  Phone,
-  Briefcase,
-  ArrowRight,
-  ChevronLeft,
-  CheckCircle2,
-  Loader2,
-  Eye,
-  EyeOff,
-  Target,
-  Users,
-  FileText,
-  BarChart3,
-  Search,
-} from "lucide-react";
-import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
-import {
-  doc,
-  setDoc,
-  serverTimestamp,
-} from "firebase/firestore";
+import { Textarea } from "@/components/ui/textarea";
 import { db, signInWithGoogle } from "@/lib/firebase";
 import type { UserData } from "@/lib/firebase";
 
-// Primary need options
-const PRIMARY_NEED_OPTIONS = [
-  { value: "benchmark-packs", label: "Location readiness evaluation before live deployment" },
-  { value: "scene-library", label: "Twin marketplace access (existing location splats)" },
-  { value: "dataset-packs", label: "Rendered location video for training and evaluation" },
-  { value: "custom-capture", label: "New walkthrough capture and splat twin build" },
-  { value: "other", label: "Other" },
+const REQUESTED_LANES = [
+  {
+    value: "qualification",
+    label: "Qualification",
+    description: "Review the site, task, and blockers before anyone commits field time.",
+  },
+  {
+    value: "deeper_evaluation",
+    label: "Deeper evaluation",
+    description: "Request more technical review after the site clears basic qualification.",
+  },
+  {
+    value: "managed_tuning",
+    label: "Managed tuning",
+    description: "Flag possible stack-specific tuning work for later, only if the site earns it.",
+  },
 ] as const;
 
-// Company size options
-const COMPANY_SIZE_OPTIONS = [
-  { value: "1-10", label: "1-10" },
-  { value: "11-50", label: "11-50" },
-  { value: "51-200", label: "51-200" },
-  { value: "201-1000", label: "201-1000" },
-  { value: "1000+", label: "1000+" },
+const BUYER_TYPES = [
+  {
+    value: "site_operator",
+    label: "Site operator",
+    description: "I own the site, workflow, or deployment decision.",
+  },
+  {
+    value: "robot_team",
+    label: "Robot team",
+    description: "I already have a target site and need a cleaner qualification read.",
+  },
 ] as const;
 
-// Budget range options
+const COMPANY_SIZE_OPTIONS = ["1-10", "11-50", "51-200", "201-1000", "1000+"] as const;
 const BUDGET_RANGE_OPTIONS = [
   "<$50K",
   "$50K-$300K",
@@ -78,50 +67,71 @@ const BUDGET_RANGE_OPTIONS = [
   ">$1M",
   "Undecided/Unsure",
 ] as const;
-
-// Referral source options
 const REFERRAL_SOURCE_OPTIONS = [
-  { value: "google", label: "Search (Google, etc.)" },
+  { value: "google", label: "Search" },
   { value: "linkedin", label: "LinkedIn" },
   { value: "twitter", label: "Twitter/X" },
   { value: "referral", label: "Referral" },
-  { value: "event", label: "Event/Conference" },
+  { value: "event", label: "Event" },
   { value: "other", label: "Other" },
 ] as const;
 
-type PrimaryNeed = typeof PRIMARY_NEED_OPTIONS[number]["value"];
-type CompanySize = typeof COMPANY_SIZE_OPTIONS[number]["value"];
+type RequestedLane = typeof REQUESTED_LANES[number]["value"];
+type BuyerType = typeof BUYER_TYPES[number]["value"];
+type CompanySize = typeof COMPANY_SIZE_OPTIONS[number];
 type BudgetRange = typeof BUDGET_RANGE_OPTIONS[number];
 type ReferralSource = typeof REFERRAL_SOURCE_OPTIONS[number]["value"];
+type LegacyPrimaryNeed =
+  | "benchmark-packs"
+  | "scene-library"
+  | "dataset-packs"
+  | "custom-capture"
+  | "other";
 
-// Step indicator component
-function StepIndicator({ currentStep, totalSteps }: { currentStep: number; totalSteps: number }) {
+const LEGACY_PRIMARY_NEED_BY_LANE: Record<RequestedLane, LegacyPrimaryNeed> = {
+  qualification: "benchmark-packs",
+  deeper_evaluation: "dataset-packs",
+  managed_tuning: "scene-library",
+};
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function isValidPhone(value: string) {
+  if (!value.trim()) return true;
+  return value.replace(/\D/g, "").length >= 10;
+}
+
+function StepIndicator({
+  currentStep,
+  totalSteps,
+}: {
+  currentStep: number;
+  totalSteps: number;
+}) {
   return (
-    <div className="flex items-center gap-2 mb-6">
-      {Array.from({ length: totalSteps }, (_, i) => i + 1).map((stepNum) => (
-        <React.Fragment key={stepNum}>
+    <div className="mb-6 flex items-center gap-2">
+      {Array.from({ length: totalSteps }, (_, index) => index + 1).map((stepNumber) => (
+        <React.Fragment key={stepNumber}>
           <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all ${
-              stepNum < currentStep
+            className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
+              stepNumber < currentStep
                 ? "bg-emerald-500 text-white"
-                : stepNum === currentStep
-                ? "bg-emerald-500 text-white ring-4 ring-emerald-500/20"
+                : stepNumber === currentStep
+                ? "bg-emerald-500 text-white ring-4 ring-emerald-500/15"
                 : "bg-zinc-100 text-zinc-400"
             }`}
           >
-            {stepNum < currentStep ? (
-              <CheckCircle2 className="w-4 h-4" />
-            ) : (
-              stepNum
-            )}
+            {stepNumber < currentStep ? <CheckCircle2 className="h-4 w-4" /> : stepNumber}
           </div>
-          {stepNum < totalSteps && (
+          {stepNumber < totalSteps ? (
             <div
-              className={`flex-1 h-0.5 ${
-                stepNum < currentStep ? "bg-emerald-500" : "bg-zinc-200"
+              className={`h-0.5 flex-1 ${
+                stepNumber < currentStep ? "bg-emerald-500" : "bg-zinc-200"
               }`}
             />
-          )}
+          ) : null}
         </React.Fragment>
       ))}
       <span className="ml-2 text-sm text-zinc-500">
@@ -131,125 +141,120 @@ function StepIndicator({ currentStep, totalSteps }: { currentStep: number; total
   );
 }
 
-// Validation helpers
-function isValidEmail(val: string) {
-  const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return pattern.test(val);
-}
-
-function isValidPhone(phone: string) {
-  if (!phone) return true; // Optional field
-  const digits = phone.replace(/\D/g, "");
-  return digits.length >= 10;
-}
-
 export default function BusinessSignUpFlow() {
   const [, setLocation] = useLocation();
-
-  // Step machine
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Step 1: Account Basics
   const [organizationName, setOrganizationName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // Step 2: Business Context
   const [contactName, setContactName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [primaryNeeds, setPrimaryNeeds] = useState<PrimaryNeed[]>([]);
+  const [buyerType, setBuyerType] = useState<BuyerType>("site_operator");
+  const [requestedLanes, setRequestedLanes] = useState<RequestedLane[]>(["qualification"]);
   const [companySize, setCompanySize] = useState<CompanySize | "">("");
 
-  // Step 3: Project Details
-  const [projectDescription, setProjectDescription] = useState("");
+  const [siteName, setSiteName] = useState("");
+  const [siteLocation, setSiteLocation] = useState("");
+  const [taskStatement, setTaskStatement] = useState("");
+  const [workflowContext, setWorkflowContext] = useState("");
+  const [operatingConstraints, setOperatingConstraints] = useState("");
+  const [privacySecurityConstraints, setPrivacySecurityConstraints] = useState("");
+  const [knownBlockers, setKnownBlockers] = useState("");
+  const [targetRobotTeam, setTargetRobotTeam] = useState("");
   const [budgetRange, setBudgetRange] = useState<BudgetRange | "">("");
   const [referralSource, setReferralSource] = useState<ReferralSource | "">("");
 
-  // Step validations
-  const step1Valid =
-    organizationName.trim() !== "" &&
-    isValidEmail(email) &&
-    password.length >= 8 &&
-    password === confirmPassword;
+  const step1Valid = useMemo(
+    () =>
+      organizationName.trim().length > 0 &&
+      isValidEmail(email) &&
+      password.length >= 8 &&
+      password === confirmPassword,
+    [organizationName, email, password, confirmPassword]
+  );
 
-  const step2Valid =
-    contactName.trim() !== "" &&
-    isValidPhone(phoneNumber) &&
-    primaryNeeds.length > 0 &&
-    companySize !== "";
+  const step2Valid = useMemo(
+    () =>
+      contactName.trim().length > 0 &&
+      isValidPhone(phoneNumber) &&
+      requestedLanes.length > 0 &&
+      companySize !== "",
+    [contactName, phoneNumber, requestedLanes, companySize]
+  );
 
-  const step3Valid =
-    budgetRange !== "" &&
-    referralSource !== "";
+  const step3Valid = useMemo(
+    () =>
+      siteName.trim().length > 0 &&
+      siteLocation.trim().length > 0 &&
+      taskStatement.trim().length > 0 &&
+      budgetRange !== "" &&
+      referralSource !== "",
+    [siteName, siteLocation, taskStatement, budgetRange, referralSource]
+  );
 
   const handleNext = useCallback(() => {
     setErrorMessage("");
+
     if (step === 1 && !step1Valid) {
-      if (!organizationName.trim()) {
-        setErrorMessage("Please enter your organization name.");
-      } else if (!isValidEmail(email)) {
-        setErrorMessage("Please enter a valid email address.");
-      } else if (password.length < 8) {
-        setErrorMessage("Password must be at least 8 characters.");
-      } else if (password !== confirmPassword) {
-        setErrorMessage("Passwords do not match.");
-      }
+      if (!organizationName.trim()) setErrorMessage("Please enter your organization name.");
+      else if (!isValidEmail(email)) setErrorMessage("Please enter a valid work email.");
+      else if (password.length < 8) setErrorMessage("Password must be at least 8 characters.");
+      else setErrorMessage("Passwords do not match.");
       return;
     }
+
     if (step === 2 && !step2Valid) {
-      if (!contactName.trim()) {
-        setErrorMessage("Please enter your name.");
-      } else if (!isValidPhone(phoneNumber)) {
-        setErrorMessage("Please enter a valid phone number.");
-      } else if (primaryNeeds.length === 0) {
-        setErrorMessage("Please select at least one primary need.");
-      } else if (!companySize) {
-        setErrorMessage("Please select your company size.");
-      }
+      if (!contactName.trim()) setErrorMessage("Please enter your name.");
+      else if (!isValidPhone(phoneNumber)) setErrorMessage("Please enter a valid phone number.");
+      else if (requestedLanes.length === 0) setErrorMessage("Select at least one requested lane.");
+      else setErrorMessage("Please select your company size.");
       return;
     }
-    setStep((s) => Math.min(s + 1, 3));
-  }, [step, step1Valid, step2Valid, organizationName, email, password, confirmPassword, contactName, phoneNumber, primaryNeeds, companySize]);
+
+    setStep((current) => Math.min(current + 1, 3));
+  }, [step, step1Valid, step2Valid, organizationName, email, password, contactName, phoneNumber, requestedLanes]);
 
   const handleBack = useCallback(() => {
     setErrorMessage("");
-    setStep((s) => Math.max(s - 1, 1));
+    setStep((current) => Math.max(current - 1, 1));
+  }, []);
+
+  const toggleLane = useCallback((value: RequestedLane) => {
+    setRequestedLanes((current) =>
+      current.includes(value) ? current.filter((lane) => lane !== value) : [...current, value]
+    );
   }, []);
 
   const handleGoogleSignUp = useCallback(async () => {
     setIsSubmitting(true);
     setErrorMessage("");
+
     try {
       const user = await signInWithGoogle();
 
-      // Pre-fill name from Google profile
-      if (user.displayName) {
-        setContactName(user.displayName);
-      }
-      if (user.email) {
-        setEmail(user.email);
-      }
+      sessionStorage.setItem(
+        "googleAuthUser",
+        JSON.stringify({
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+        })
+      );
 
-      // For Google OAuth, we skip password but still need org name
-      // Store the user for later completion
-      sessionStorage.setItem("googleAuthUser", JSON.stringify({
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        photoURL: user.photoURL,
-      }));
+      if (user.displayName) setContactName(user.displayName);
+      if (user.email) setEmail(user.email);
 
-      // Move to step 2 for business context
       setStep(2);
     } catch (error: any) {
-      console.error("Google sign up error:", error);
-      setErrorMessage(error.message || "Failed to sign up with Google. Please try again.");
+      setErrorMessage(error.message || "Failed to sign up with Google.");
     } finally {
       setIsSubmitting(false);
     }
@@ -257,11 +262,11 @@ export default function BusinessSignUpFlow() {
 
   const handleSubmit = useCallback(async () => {
     if (!step3Valid) {
-      if (!budgetRange) {
-        setErrorMessage("Please select your project budget.");
-      } else if (!referralSource) {
-        setErrorMessage("Please tell us how you heard about us.");
-      }
+      if (!siteName.trim()) setErrorMessage("Please enter the site name.");
+      else if (!siteLocation.trim()) setErrorMessage("Please enter the site location.");
+      else if (!taskStatement.trim()) setErrorMessage("Please enter the task statement.");
+      else if (!budgetRange) setErrorMessage("Please select a budget range.");
+      else setErrorMessage("Please tell us how you heard about Blueprint.");
       return;
     }
 
@@ -270,36 +275,31 @@ export default function BusinessSignUpFlow() {
 
     try {
       const auth = getAuth();
+      const timestamp = serverTimestamp();
+
       let uid: string;
       let userEmail: string;
-      let displayName: string = contactName;
-      let photoURL: string = "";
+      let displayName = contactName;
+      let photoURL = "";
 
-      // Check if we have a Google auth user stored
-      const googleAuthUserStr = sessionStorage.getItem("googleAuthUser");
-      if (googleAuthUserStr) {
-        const googleAuthUser = JSON.parse(googleAuthUserStr);
-        uid = googleAuthUser.uid;
-        userEmail = googleAuthUser.email;
-        displayName = googleAuthUser.displayName || contactName;
-        photoURL = googleAuthUser.photoURL || "";
+      const googleAuthUser = sessionStorage.getItem("googleAuthUser");
+      if (googleAuthUser) {
+        const parsed = JSON.parse(googleAuthUser);
+        uid = parsed.uid;
+        userEmail = parsed.email;
+        displayName = parsed.displayName || contactName;
+        photoURL = parsed.photoURL || "";
         sessionStorage.removeItem("googleAuthUser");
       } else {
-        // Create Firebase user with email/password
-        const userCredential = await createUserWithEmailAndPassword(
-          auth,
-          email,
-          password
-        );
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         uid = userCredential.user.uid;
         userEmail = email;
       }
 
+      const primaryNeeds = requestedLanes.map((lane) => LEGACY_PRIMARY_NEED_BY_LANE[lane]);
       const username = contactName.toLowerCase().replace(/\s+/g, "_");
-      const timestamp = serverTimestamp();
 
-      // Create comprehensive user document with all signup data
-      const newUserData: Partial<UserData> & { createdDate: any; lastLoginAt: any; lastSessionDate: any } = {
+      const newUserData: any = {
         uid,
         email: userEmail,
         name: contactName,
@@ -309,17 +309,40 @@ export default function BusinessSignUpFlow() {
         organizationName,
         jobTitle: jobTitle || undefined,
         phoneNumber: phoneNumber || undefined,
-        deviceToken: "",
-        referralCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
-        createdDate: timestamp as any,
-        lastLoginAt: timestamp as any,
-        lastSessionDate: timestamp as any,
+        buyerType,
+        requestedLanes,
+        siteName,
+        siteLocation,
+        taskStatement,
+        workflowContext: workflowContext || undefined,
+        operatingConstraints: operatingConstraints || undefined,
+        privacySecurityConstraints: privacySecurityConstraints || undefined,
+        knownBlockers: knownBlockers || undefined,
+        targetRobotTeam: targetRobotTeam || undefined,
+        primaryNeeds,
+        companySize: companySize as CompanySize,
+        projectDescription: workflowContext || undefined,
+        budgetRange: budgetRange as BudgetRange,
+        referralSource: referralSource as ReferralSource,
+        createdDate: timestamp,
+        lastLoginAt: timestamp,
+        lastSessionDate: timestamp,
         numSessions: 1,
         uploadedContentCount: 0,
         collectedContentCount: 0,
         planType: "free",
         credits: 0,
         finishedOnboarding: false,
+        onboardingStep: "welcome",
+        onboardingProgress: {
+          profileComplete: true,
+          defineSiteSubmission: true,
+          completeIntakeReview: false,
+          reviewQualifiedOpportunities: false,
+          inviteTeam: false,
+        },
+        deviceToken: "",
+        referralCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
         hasEnteredNotes: false,
         hasEnteredInventory: false,
         hasEnteredCameraRoll: false,
@@ -355,556 +378,427 @@ export default function BusinessSignUpFlow() {
         deviceTypes: [],
         billingHistory: [],
         paymentMethods: [],
-
-        // Business signup fields
-        primaryNeeds: primaryNeeds as PrimaryNeed[],
-        companySize: companySize as CompanySize,
-        projectDescription: projectDescription || undefined,
-        budgetRange: budgetRange as BudgetRange,
-        referralSource: referralSource as ReferralSource,
-
-        // Onboarding state
-        onboardingStep: "welcome",
-        onboardingProgress: {
-          profileComplete: true,
-          exploreMarketplace: false,
-          createFirstOrder: false,
-          inviteTeam: false,
-        },
-
-        // Personalization metadata
-        recommendedCategories: [],
-        personalizedWelcomeShown: false,
       };
 
-      // Write to Firestore
       await setDoc(doc(db, "users", uid), newUserData);
-
-      console.log("[BusinessSignUp] User created successfully:", uid);
-
-      // Redirect to onboarding
       setLocation("/onboarding");
     } catch (error: any) {
-      console.error("Signup error:", error);
       if (error.code === "auth/email-already-in-use") {
-        setErrorMessage("An account with this email already exists. Please sign in instead.");
-      } else if (error.code === "auth/weak-password") {
-        setErrorMessage("Password is too weak. Please use a stronger password.");
+        setErrorMessage("An account with this email already exists.");
       } else {
-        setErrorMessage(error.message || "Failed to create account. Please try again.");
+        setErrorMessage(error.message || "Failed to create account.");
       }
     } finally {
       setIsSubmitting(false);
     }
   }, [
-    step3Valid,
     budgetRange,
-    referralSource,
-    email,
-    password,
-    organizationName,
-    contactName,
-    jobTitle,
-    phoneNumber,
-    primaryNeeds,
+    buyerType,
     companySize,
-    projectDescription,
+    contactName,
+    email,
+    jobTitle,
+    knownBlockers,
+    operatingConstraints,
+    organizationName,
+    password,
+    phoneNumber,
+    privacySecurityConstraints,
+    referralSource,
+    requestedLanes,
     setLocation,
+    siteLocation,
+    siteName,
+    step3Valid,
+    targetRobotTeam,
+    taskStatement,
+    workflowContext,
   ]);
 
-  // Animation variants
   const slideVariants = {
-    enter: (direction: number) => ({
-      x: direction > 0 ? 100 : -100,
-      opacity: 0,
-    }),
-    center: {
-      x: 0,
-      opacity: 1,
-    },
-    exit: (direction: number) => ({
-      x: direction < 0 ? 100 : -100,
-      opacity: 0,
-    }),
+    enter: { opacity: 0, x: 36 },
+    center: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: -36 },
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-zinc-50 to-white py-12 px-4">
-      <div className="max-w-md mx-auto">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-semibold text-zinc-900">
-              Welcome to Blueprint
-            </h1>
-            <p className="text-zinc-600 mt-2">
-              Create your business account
-            </p>
-          </div>
+    <main className="min-h-screen bg-gradient-to-b from-zinc-50 to-white px-4 py-12">
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-8 text-center">
+          <h1 className="text-2xl font-semibold text-zinc-900">Create your Blueprint account</h1>
+          <p className="mt-2 text-zinc-600">
+            Start with a site submission, not a marketplace browse.
+          </p>
+        </div>
 
-          {/* Step Indicator */}
-          <StepIndicator currentStep={step} totalSteps={3} />
+        <StepIndicator currentStep={step} totalSteps={3} />
 
-          {/* Form Card */}
-          <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 p-6">
-            <AnimatePresence mode="wait" custom={step}>
-              {/* Step 1: Account Basics */}
-              {step === 1 && (
-                <motion.div
-                  key="step1"
-                  custom={1}
-                  variants={slideVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={{ duration: 0.3 }}
-                >
-                  <h2 className="text-lg font-medium text-zinc-900 mb-4">
-                    Account Basics
-                  </h2>
-
-                  <div className="space-y-4">
-                    {/* Organization Name */}
-                    <div>
-                      <Label htmlFor="organizationName" className="text-sm font-medium text-zinc-700">
-                        Organization Name <span className="text-red-500">*</span>
-                      </Label>
-                      <div className="relative mt-1">
-                        <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                        <Input
-                          id="organizationName"
-                          type="text"
-                          placeholder="Acme Corp"
-                          value={organizationName}
-                          onChange={(e) => setOrganizationName(e.target.value)}
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Work Email */}
-                    <div>
-                      <Label htmlFor="email" className="text-sm font-medium text-zinc-700">
-                        Work Email <span className="text-red-500">*</span>
-                      </Label>
-                      <div className="relative mt-1">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                        <Input
-                          id="email"
-                          type="email"
-                          placeholder="you@company.com"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Password */}
-                    <div>
-                      <Label htmlFor="password" className="text-sm font-medium text-zinc-700">
-                        Password <span className="text-red-500">*</span>
-                      </Label>
-                      <div className="relative mt-1">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                        <Input
-                          id="password"
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Min. 8 characters"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className="pl-10 pr-10"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </button>
-                      </div>
-                      {password && password.length < 8 && (
-                        <p className="text-xs text-amber-600 mt-1">
-                          Password must be at least 8 characters
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Confirm Password */}
-                    <div>
-                      <Label htmlFor="confirmPassword" className="text-sm font-medium text-zinc-700">
-                        Confirm Password <span className="text-red-500">*</span>
-                      </Label>
-                      <div className="relative mt-1">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                        <Input
-                          id="confirmPassword"
-                          type={showConfirmPassword ? "text" : "password"}
-                          placeholder="Confirm your password"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          className="pl-10 pr-10"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
-                        >
-                          {showConfirmPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </button>
-                      </div>
-                      {confirmPassword && password !== confirmPassword && (
-                        <p className="text-xs text-red-500 mt-1">
-                          Passwords do not match
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* OAuth Divider */}
-                  <div className="relative my-6">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-zinc-200" />
-                    </div>
-                    <div className="relative flex justify-center text-sm">
-                      <span className="px-2 bg-white text-zinc-500">Or sign up with</span>
-                    </div>
-                  </div>
-
-                  {/* Google OAuth */}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleGoogleSignUp}
-                    disabled={isSubmitting}
-                    className="w-full flex items-center justify-center gap-2"
-                  >
-                    <svg className="w-5 h-5" viewBox="0 0 24 24">
-                      <path
-                        fill="currentColor"
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                      />
-                      <path
-                        fill="currentColor"
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                      />
-                      <path
-                        fill="currentColor"
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                      />
-                      <path
-                        fill="currentColor"
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                      />
-                    </svg>
-                    Continue with Google
-                  </Button>
-
-                  {/* Continue Button */}
-                  <Button
-                    onClick={handleNext}
-                    disabled={!step1Valid}
-                    className="w-full mt-4 bg-emerald-500 hover:bg-emerald-600 text-white"
-                  >
-                    Continue
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-
-                  {/* Sign In Link */}
-                  <p className="text-center text-sm text-zinc-500 mt-4">
-                    Already have an account?{" "}
-                    <a href="/login" className="text-emerald-600 hover:text-emerald-700 font-medium">
-                      Sign in
-                    </a>
-                  </p>
-                </motion.div>
-              )}
-
-              {/* Step 2: Business Context */}
-              {step === 2 && (
-                <motion.div
-                  key="step2"
-                  custom={1}
-                  variants={slideVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={{ duration: 0.3 }}
-                >
-                  <h2 className="text-lg font-medium text-zinc-900 mb-4">
-                    Tell us about your business
-                  </h2>
-
-                  <div className="space-y-4">
-                    {/* Your Name */}
-                    <div>
-                      <Label htmlFor="contactName" className="text-sm font-medium text-zinc-700">
-                        Your Name <span className="text-red-500">*</span>
-                      </Label>
-                      <div className="relative mt-1">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                        <Input
-                          id="contactName"
-                          type="text"
-                          placeholder="John Smith"
-                          value={contactName}
-                          onChange={(e) => setContactName(e.target.value)}
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Job Title */}
-                    <div>
-                      <Label htmlFor="jobTitle" className="text-sm font-medium text-zinc-700">
-                        Job Title
-                      </Label>
-                      <div className="relative mt-1">
-                        <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                        <Input
-                          id="jobTitle"
-                          type="text"
-                          placeholder="ML Engineer"
-                          value={jobTitle}
-                          onChange={(e) => setJobTitle(e.target.value)}
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Phone Number */}
-                    <div>
-                      <Label htmlFor="phoneNumber" className="text-sm font-medium text-zinc-700">
-                        Phone Number
-                      </Label>
-                      <div className="relative mt-1">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                        <Input
-                          id="phoneNumber"
-                          type="tel"
-                          placeholder="(555) 123-4567"
-                          value={phoneNumber}
-                          onChange={(e) => setPhoneNumber(e.target.value)}
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Primary Need - Multi-choice */}
-                    <div>
-                      <Label className="text-sm font-medium text-zinc-700 mb-2 block">
-                        What are your primary needs? Select all that apply.{" "}
-                        <span className="text-red-500">*</span>
-                      </Label>
-                      <div className="space-y-2">
-                        {PRIMARY_NEED_OPTIONS.map((option) => (
-                          <div key={option.value} className="flex items-center gap-3">
-                            <Checkbox
-                              id={`need-${option.value}`}
-                              checked={primaryNeeds.includes(option.value)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setPrimaryNeeds([...primaryNeeds, option.value]);
-                                } else {
-                                  setPrimaryNeeds(primaryNeeds.filter((n) => n !== option.value));
-                                }
-                              }}
-                              className="h-4 w-4"
-                            />
-                            <Label
-                              htmlFor={`need-${option.value}`}
-                              className="font-normal cursor-pointer text-sm text-zinc-700"
-                            >
-                              {option.label}
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Company Size */}
-                    <div>
-                      <Label className="text-sm font-medium text-zinc-700 mb-2 block">
-                        Company size <span className="text-red-500">*</span>
-                      </Label>
-                      <RadioGroup
-                        value={companySize}
-                        onValueChange={(v) => setCompanySize(v as CompanySize)}
-                        className="flex flex-wrap gap-2"
-                      >
-                        {COMPANY_SIZE_OPTIONS.map((option) => (
-                          <div key={option.value} className="flex items-center">
-                            <RadioGroupItem
-                              value={option.value}
-                              id={`size-${option.value}`}
-                              className="peer sr-only"
-                            />
-                            <Label
-                              htmlFor={`size-${option.value}`}
-                              className="px-3 py-2 rounded-lg border border-zinc-200 text-sm cursor-pointer transition-all peer-data-[state=checked]:border-emerald-500 peer-data-[state=checked]:bg-emerald-50 peer-data-[state=checked]:text-emerald-700 hover:border-zinc-300"
-                            >
-                              {option.label}
-                            </Label>
-                          </div>
-                        ))}
-                      </RadioGroup>
-                    </div>
-                  </div>
-
-                  {/* Navigation */}
-                  <div className="flex gap-3 mt-6">
-                    <Button
-                      variant="outline"
-                      onClick={handleBack}
-                      className="flex-1"
-                    >
-                      <ChevronLeft className="w-4 h-4 mr-1" />
-                      Back
-                    </Button>
-                    <Button
-                      onClick={handleNext}
-                      disabled={!step2Valid}
-                      className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white"
-                    >
-                      Continue
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Step 3: Project Details */}
-              {step === 3 && (
-                <motion.div
-                  key="step3"
-                  custom={1}
-                  variants={slideVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={{ duration: 0.3 }}
-                >
-                  <h2 className="text-lg font-medium text-zinc-900 mb-4">
-                    Help us personalize your experience
-                  </h2>
-
-                  <div className="space-y-4">
-                    {/* Project Description */}
-                    <div>
-                      <Label htmlFor="projectDescription" className="text-sm font-medium text-zinc-700">
-                        What brings you to Blueprint?
-                      </Label>
-                      <div className="relative mt-1">
-                        <FileText className="absolute left-3 top-3 h-4 w-4 text-zinc-400" />
-                        <Textarea
-                          id="projectDescription"
-                          placeholder="Tell us about your project or use case..."
-                          value={projectDescription}
-                          onChange={(e) => setProjectDescription(e.target.value)}
-                          className="pl-10 min-h-[80px] resize-none"
-                          rows={3}
-                        />
-                      </div>
-                      <p className="text-xs text-zinc-500 mt-1">
-                        Optional, but helps us show you relevant datasets
-                      </p>
-                    </div>
-
-                    {/* Project Budget */}
-                    <div>
-                      <Label htmlFor="budgetRange" className="text-sm font-medium text-zinc-700">
-                        Project budget <span className="text-red-500">*</span>
-                      </Label>
-                      <Select value={budgetRange} onValueChange={(v) => setBudgetRange(v as BudgetRange)}>
-                        <SelectTrigger className="mt-1">
-                          <div className="flex items-center gap-2">
-                            <BarChart3 className="h-4 w-4 text-zinc-400" />
-                            <SelectValue placeholder="Select project budget" />
-                          </div>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {BUDGET_RANGE_OPTIONS.map((option) => (
-                            <SelectItem key={option} value={option}>
-                              {option}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Referral Source */}
-                    <div>
-                      <Label htmlFor="referralSource" className="text-sm font-medium text-zinc-700">
-                        How did you hear about us? <span className="text-red-500">*</span>
-                      </Label>
-                      <Select value={referralSource} onValueChange={(v) => setReferralSource(v as ReferralSource)}>
-                        <SelectTrigger className="mt-1">
-                          <div className="flex items-center gap-2">
-                            <Search className="h-4 w-4 text-zinc-400" />
-                            <SelectValue placeholder="Select how you found us" />
-                          </div>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {REFERRAL_SOURCE_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* Navigation */}
-                  <div className="flex gap-3 mt-6">
-                    <Button
-                      variant="outline"
-                      onClick={handleBack}
-                      className="flex-1"
-                    >
-                      <ChevronLeft className="w-4 h-4 mr-1" />
-                      Back
-                    </Button>
-                    <Button
-                      onClick={handleSubmit}
-                      disabled={!step3Valid || isSubmitting}
-                      className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Creating account...
-                        </>
-                      ) : (
-                        <>
-                          Complete Signup
-                          <CheckCircle2 className="w-4 h-4 ml-2" />
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Error Message */}
-            {errorMessage && (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+          <AnimatePresence mode="wait">
+            {step === 1 ? (
               <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"
+                key="step-1"
+                initial="enter"
+                animate="center"
+                exit="exit"
+                variants={slideVariants}
+                transition={{ duration: 0.2 }}
               >
-                {errorMessage}
+                <h2 className="mb-4 text-lg font-medium text-zinc-900">Account basics</h2>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="organizationName">Organization name</Label>
+                    <div className="relative mt-1">
+                      <Building2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                      <Input
+                        id="organizationName"
+                        className="pl-10"
+                        placeholder="Acme Operations"
+                        value={organizationName}
+                        onChange={(event) => setOrganizationName(event.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="email">Work email</Label>
+                    <div className="relative mt-1">
+                      <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                      <Input
+                        id="email"
+                        type="email"
+                        className="pl-10"
+                        placeholder="you@company.com"
+                        value={email}
+                        onChange={(event) => setEmail(event.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative mt-1">
+                      <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        className="pl-10"
+                        placeholder="At least 8 characters"
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className="mt-2 text-sm text-zinc-500 hover:text-zinc-700"
+                      onClick={() => setShowPassword((current) => !current)}
+                    >
+                      {showPassword ? "Hide password" : "Show password"}
+                    </button>
+                  </div>
+                  <div>
+                    <Label htmlFor="confirmPassword">Confirm password</Label>
+                    <Input
+                      id="confirmPassword"
+                      type={showPassword ? "text" : "password"}
+                      className="mt-1"
+                      placeholder="Repeat password"
+                      value={confirmPassword}
+                      onChange={(event) => setConfirmPassword(event.target.value)}
+                    />
+                  </div>
+                  <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                    <p className="text-sm text-zinc-600">
+                      Prefer Google? Authenticate now, then finish the intake details on the next
+                      step.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="mt-3"
+                      onClick={handleGoogleSignUp}
+                      disabled={isSubmitting}
+                    >
+                      Continue with Google
+                    </Button>
+                  </div>
+                </div>
               </motion.div>
+            ) : null}
+
+            {step === 2 ? (
+              <motion.div
+                key="step-2"
+                initial="enter"
+                animate="center"
+                exit="exit"
+                variants={slideVariants}
+                transition={{ duration: 0.2 }}
+              >
+                <h2 className="mb-4 text-lg font-medium text-zinc-900">Who is submitting and why</h2>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="contactName">Your name</Label>
+                    <div className="relative mt-1">
+                      <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                      <Input
+                        id="contactName"
+                        className="pl-10"
+                        placeholder="Ada Lovelace"
+                        value={contactName}
+                        onChange={(event) => setContactName(event.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="jobTitle">Title</Label>
+                    <Input
+                      id="jobTitle"
+                      className="mt-1"
+                      placeholder="Operations Lead"
+                      value={jobTitle}
+                      onChange={(event) => setJobTitle(event.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="phoneNumber">Phone</Label>
+                    <Input
+                      id="phoneNumber"
+                      className="mt-1"
+                      placeholder="(555) 555-5555"
+                      value={phoneNumber}
+                      onChange={(event) => setPhoneNumber(event.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label>Buyer type</Label>
+                    <RadioGroup value={buyerType} onValueChange={(value) => setBuyerType(value as BuyerType)}>
+                      {BUYER_TYPES.map((option) => (
+                        <label
+                          key={option.value}
+                          className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-200 p-4"
+                        >
+                          <RadioGroupItem value={option.value} />
+                          <div>
+                            <div className="font-medium text-zinc-900">{option.label}</div>
+                            <p className="text-sm text-zinc-500">{option.description}</p>
+                          </div>
+                        </label>
+                      ))}
+                    </RadioGroup>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label>Requested lanes</Label>
+                    {REQUESTED_LANES.map((lane) => (
+                      <label
+                        key={lane.value}
+                        className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-200 p-4"
+                      >
+                        <Checkbox
+                          checked={requestedLanes.includes(lane.value)}
+                          onCheckedChange={() => toggleLane(lane.value)}
+                        />
+                        <div>
+                          <div className="font-medium text-zinc-900">{lane.label}</div>
+                          <p className="text-sm text-zinc-500">{lane.description}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="companySize">Company size</Label>
+                    <select
+                      id="companySize"
+                      className="mt-1 flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm"
+                      value={companySize}
+                      onChange={(event) => setCompanySize(event.target.value as CompanySize)}
+                    >
+                      <option value="">Select company size</option>
+                      {COMPANY_SIZE_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </motion.div>
+            ) : null}
+
+            {step === 3 ? (
+              <motion.div
+                key="step-3"
+                initial="enter"
+                animate="center"
+                exit="exit"
+                variants={slideVariants}
+                transition={{ duration: 0.2 }}
+              >
+                <h2 className="mb-4 text-lg font-medium text-zinc-900">Site submission details</h2>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="siteName">Site name</Label>
+                    <div className="relative mt-1">
+                      <Building2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                      <Input
+                        id="siteName"
+                        className="pl-10"
+                        placeholder="Durham fulfillment center"
+                        value={siteName}
+                        onChange={(event) => setSiteName(event.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="siteLocation">Site location</Label>
+                    <div className="relative mt-1">
+                      <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                      <Input
+                        id="siteLocation"
+                        className="pl-10"
+                        placeholder="Durham, NC"
+                        value={siteLocation}
+                        onChange={(event) => setSiteLocation(event.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="taskStatement">Task statement</Label>
+                    <div className="relative mt-1">
+                      <Target className="absolute left-3 top-3 h-4 w-4 text-zinc-400" />
+                      <Textarea
+                        id="taskStatement"
+                        className="min-h-24 pl-10"
+                        placeholder="What exact workflow should Blueprint qualify?"
+                        value={taskStatement}
+                        onChange={(event) => setTaskStatement(event.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="workflowContext">Workflow context</Label>
+                    <div className="relative mt-1">
+                      <Route className="absolute left-3 top-3 h-4 w-4 text-zinc-400" />
+                      <Textarea
+                        id="workflowContext"
+                        className="min-h-24 pl-10"
+                        placeholder="Describe handoffs, adjacent workflow, or zone boundaries."
+                        value={workflowContext}
+                        onChange={(event) => setWorkflowContext(event.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="operatingConstraints">Operating constraints</Label>
+                    <Textarea
+                      id="operatingConstraints"
+                      className="mt-1 min-h-20"
+                      placeholder="Hours, access windows, safety rules, bottlenecks."
+                      value={operatingConstraints}
+                      onChange={(event) => setOperatingConstraints(event.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="privacySecurityConstraints">Privacy and security constraints</Label>
+                    <Textarea
+                      id="privacySecurityConstraints"
+                      className="mt-1 min-h-20"
+                      placeholder="Restricted zones, camera restrictions, masked areas."
+                      value={privacySecurityConstraints}
+                      onChange={(event) => setPrivacySecurityConstraints(event.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="knownBlockers">Known blockers</Label>
+                    <Textarea
+                      id="knownBlockers"
+                      className="mt-1 min-h-20"
+                      placeholder="Call out obvious blockers or open questions."
+                      value={knownBlockers}
+                      onChange={(event) => setKnownBlockers(event.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="targetRobotTeam">Target robot team or embodiment</Label>
+                    <div className="relative mt-1">
+                      <Users className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                      <Input
+                        id="targetRobotTeam"
+                        className="pl-10"
+                        placeholder="Optional"
+                        value={targetRobotTeam}
+                        onChange={(event) => setTargetRobotTeam(event.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="budgetRange">Budget range</Label>
+                    <select
+                      id="budgetRange"
+                      className="mt-1 flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm"
+                      value={budgetRange}
+                      onChange={(event) => setBudgetRange(event.target.value as BudgetRange)}
+                    >
+                      <option value="">Select budget range</option>
+                      {BUDGET_RANGE_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="referralSource">How did you hear about Blueprint?</Label>
+                    <select
+                      id="referralSource"
+                      className="mt-1 flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm"
+                      value={referralSource}
+                      onChange={(event) => setReferralSource(event.target.value as ReferralSource)}
+                    >
+                      <option value="">Select one</option>
+                      {REFERRAL_SOURCE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+                    <div className="flex items-center gap-2 font-medium">
+                      <Shield className="h-4 w-4" />
+                      What happens after signup
+                    </div>
+                    <p className="mt-2">
+                      Blueprint routes you into the intake review hub, where you can confirm the
+                      submission and move the site toward qualification.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+
+          {errorMessage ? <p className="mt-4 text-sm text-red-600">{errorMessage}</p> : null}
+
+          <div className="mt-6 flex items-center justify-between">
+            <Button type="button" variant="ghost" onClick={handleBack} disabled={step === 1 || isSubmitting}>
+              <ChevronLeft className="mr-1 h-4 w-4" />
+              Back
+            </Button>
+
+            {step < 3 ? (
+              <Button type="button" onClick={handleNext} disabled={isSubmitting}>
+                Continue
+                <ArrowRight className="ml-1 h-4 w-4" />
+              </Button>
+            ) : (
+              <Button type="button" onClick={handleSubmit} disabled={isSubmitting}>
+                {isSubmitting ? "Creating account..." : "Create account"}
+              </Button>
             )}
           </div>
+        </div>
       </div>
     </main>
   );

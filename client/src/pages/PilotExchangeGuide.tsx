@@ -132,7 +132,7 @@ export default function PilotExchangeGuide() {
       <SEO
         title="Qualified Opportunities Guide"
         description="Beginner guide to how Blueprint qualifies sites before robot teams review and respond."
-        canonical="/deployment-marketplace-guide"
+        canonical="/qualified-opportunities-guide"
       />
       <div className="relative min-h-screen bg-white text-zinc-900 font-sans selection:bg-zinc-200 selection:text-zinc-900">
         <DotPattern />
@@ -151,7 +151,7 @@ export default function PilotExchangeGuide() {
               clearer brief, run checks, and respond with less guesswork.
             </p>
             <div className="flex flex-wrap items-center gap-4">
-              <a href="/deployment-marketplace">
+              <a href="/qualified-opportunities">
                 <Button className="bg-zinc-900 text-white hover:bg-zinc-800 px-6 py-5 text-sm font-medium">
                   Open Qualified Opportunities <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>
@@ -609,12 +609,12 @@ export default function PilotExchangeGuide() {
             <ShieldCheck className="w-12 h-12 text-white mx-auto mb-6 opacity-80" />
             <h2 className="text-3xl font-bold text-white mb-4">Ready to test your policy?</h2>
             <p className="max-w-xl mx-auto text-zinc-400 mb-8">
-              Use the exchange marketplace to purchase access, submit your robot policy package, and receive standardized evaluation scorecards.
+              Review qualified opportunities, submit your robot policy package, and receive standardized evaluation scorecards.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <a href="/deployment-marketplace">
+              <a href="/qualified-opportunities">
                 <Button className="w-full sm:w-auto rounded-md bg-white text-zinc-900 hover:bg-zinc-200 px-8 py-6 text-base font-bold">
-                  Open Marketplace
+                  Open Qualified Opportunities
                 </Button>
               </a>
               <a href="/contact">

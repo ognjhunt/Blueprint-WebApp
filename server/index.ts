@@ -300,8 +300,8 @@ app.use((req, res, next) => {
   });
 
   const legacyPublicRedirects = [
-    ["/pilot-exchange", "/deployment-marketplace"],
-    ["/pilot-exchange-guide", "/deployment-marketplace-guide"],
+    ["/pilot-exchange", "/qualified-opportunities"],
+    ["/pilot-exchange-guide", "/qualified-opportunities-guide"],
   ] as const;
 
   legacyPublicRedirects.forEach(([from, to]) => {

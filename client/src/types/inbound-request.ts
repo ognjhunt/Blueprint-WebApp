@@ -1,5 +1,5 @@
 /**
- * Client-side types for the inbound request lead management system
+ * Client-side types for the qualification-first submission and review system.
  */
 
 // Budget bucket options
@@ -10,7 +10,13 @@ export type BudgetBucket =
   | ">$1M"
   | "Undecided/Unsure";
 
-// Product interest options (what can we help with)
+export type BuyerType = "site_operator" | "robot_team";
+
+export type RequestedLane =
+  | "qualification"
+  | "deeper_evaluation"
+  | "managed_tuning";
+
 export type HelpWithOption =
   | "benchmark-packs"
   | "scene-library"
@@ -20,14 +26,23 @@ export type HelpWithOption =
   | "pilot-exchange-policy-submission"
   | "pilot-exchange-data-licensing";
 
-// Request status for lead tracking
-export type RequestStatus =
-  | "new"
-  | "triaging"
-  | "scheduled"
-  | "qualified"
-  | "disqualified"
-  | "closed";
+export type QualificationState =
+  | "submitted"
+  | "capture_requested"
+  | "qa_passed"
+  | "needs_more_evidence"
+  | "in_review"
+  | "qualified_ready"
+  | "qualified_risky"
+  | "not_ready_yet";
+
+export type OpportunityState =
+  | "not_applicable"
+  | "handoff_ready"
+  | "escalated_to_geometry"
+  | "escalated_to_validation";
+
+export type RequestStatus = QualificationState;
 
 // Priority levels
 export type RequestPriority = "low" | "normal" | "high";
@@ -60,7 +75,17 @@ export interface InboundRequestPayload {
   roleTitle: string;
   email: string;
   budgetBucket: BudgetBucket;
-  helpWith: HelpWithOption[];
+  requestedLanes?: RequestedLane[];
+  helpWith?: HelpWithOption[];
+  buyerType?: BuyerType;
+  siteName?: string;
+  siteLocation?: string;
+  taskStatement?: string;
+  workflowContext?: string;
+  operatingConstraints?: string;
+  privacySecurityConstraints?: string;
+  knownBlockers?: string;
+  targetRobotTeam?: string;
   details?: string;
   context: RequestContext;
   honeypot?: string; // Anti-bot honeypot field
@@ -70,6 +95,7 @@ export interface InboundRequestPayload {
 export interface SubmitInboundRequestResponse {
   ok: boolean;
   requestId: string;
+  siteSubmissionId?: string;
   status: RequestStatus;
   message?: string;
 }
@@ -83,8 +109,11 @@ export interface RequestOwner {
 // Admin dashboard list item
 export interface InboundRequestListItem {
   requestId: string;
+  site_submission_id: string;
   createdAt: string; // ISO string
   status: RequestStatus;
+  qualification_state: QualificationState;
+  opportunity_state: OpportunityState;
   priority: RequestPriority;
   contact: {
     firstName: string;
@@ -95,7 +124,12 @@ export interface InboundRequestListItem {
   };
   request: {
     budgetBucket: BudgetBucket;
+    requestedLanes: RequestedLane[];
     helpWith: HelpWithOption[];
+    buyerType: BuyerType;
+    siteName: string;
+    siteLocation: string;
+    taskStatement: string;
     details?: string | null;
   };
   owner: RequestOwner;
@@ -120,6 +154,13 @@ export interface InboundRequestDetail extends InboundRequestListItem {
     crmSyncedAt?: string | null;
   };
   notes?: RequestNote[];
+  request: InboundRequestListItem["request"] & {
+    workflowContext?: string | null;
+    operatingConstraints?: string | null;
+    privacySecurityConstraints?: string | null;
+    knownBlockers?: string | null;
+    targetRobotTeam?: string | null;
+  };
 }
 
 // Note attached to a request
@@ -134,7 +175,8 @@ export interface RequestNote {
 // Status update payload
 export interface UpdateRequestStatusPayload {
   requestId: string;
-  status: RequestStatus;
+  qualification_state: QualificationState;
+  opportunity_state?: OpportunityState;
   note?: string;
 }
 
@@ -152,12 +194,14 @@ export interface AddRequestNotePayload {
 
 // Status labels for UI
 export const REQUEST_STATUS_LABELS: Record<RequestStatus, string> = {
-  new: "New",
-  triaging: "Triaging",
-  scheduled: "Scheduled",
-  qualified: "Qualified",
-  disqualified: "Disqualified",
-  closed: "Closed",
+  submitted: "Submitted",
+  capture_requested: "Capture Requested",
+  qa_passed: "QA Passed",
+  needs_more_evidence: "Needs More Evidence",
+  in_review: "In Review",
+  qualified_ready: "Qualified Ready",
+  qualified_risky: "Qualified Risky",
+  not_ready_yet: "Not Ready Yet",
 };
 
 // Priority labels for UI
@@ -176,6 +220,24 @@ export const HELP_WITH_LABELS: Record<HelpWithOption, string> = {
   "pilot-exchange-location-brief": "Qualified Opportunity: Site Brief",
   "pilot-exchange-policy-submission": "Qualified Opportunity: Team Submission",
   "pilot-exchange-data-licensing": "Qualified Opportunity: Data Licensing",
+};
+
+export const REQUESTED_LANE_LABELS: Record<RequestedLane, string> = {
+  qualification: "Qualification",
+  deeper_evaluation: "Deeper Evaluation",
+  managed_tuning: "Managed Tuning",
+};
+
+export const BUYER_TYPE_LABELS: Record<BuyerType, string> = {
+  site_operator: "Site Operator",
+  robot_team: "Robot Team",
+};
+
+export const OPPORTUNITY_STATE_LABELS: Record<OpportunityState, string> = {
+  not_applicable: "Not Applicable",
+  handoff_ready: "Handoff Ready",
+  escalated_to_geometry: "Escalated to Geometry",
+  escalated_to_validation: "Escalated to Validation",
 };
 
 // Budget bucket labels for UI

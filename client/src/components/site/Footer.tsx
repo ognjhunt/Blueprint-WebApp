@@ -3,7 +3,7 @@ const footerLinks = [
   { label: "For Sites", href: "/for-site-operators" },
   { label: "For Robot Teams", href: "/for-robot-integrators" },
   { label: "Pricing", href: "/pricing" },
-  { label: "Qualified Opportunities", href: "/deployment-marketplace" },
+  { label: "Qualified Opportunities", href: "/qualified-opportunities" },
   { label: "Contact", href: "/contact" },
   { label: "Privacy", href: "/privacy" },
   { label: "Terms", href: "/terms" },

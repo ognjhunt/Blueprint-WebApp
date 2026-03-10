@@ -1,49 +1,44 @@
 # Blueprint: long-form overview
 
 ## Product overview
-Blueprint is a robotics data platform for creating, delivering, and validating simulation-ready assets. It provides SimReady 3D environments, datasets, and evaluation tooling so robotics teams can train, benchmark, and deploy AI systems with confidence. Blueprint also offers on-site capture and custom scene production to transform real locations into reusable digital twins for simulation.
+Blueprint is a qualification-first platform for robot deployment readiness. It starts with a site submission, guided evidence, task scoping, and a qualification decision before any deeper evaluation, geometry escalation, or managed tuning work begins.
 
 ## Positioning
-- **Robotics simulation data platform:** access a curated marketplace of scenes and datasets, run evaluations, and integrate assets into simulator workflows.
-- **Sim-to-real readiness:** assets are built for physics accuracy, semantic labeling, and task coverage so teams can train and validate policies with confidence.
-- **Custom scene production:** Blueprint can capture real locations and deliver tailored SimReady environments for specific tasks.
+- **Qualification-first workflow:** submit a site, task, and constraints, then move through evidence review and qualification before downstream work starts.
+- **Structured readiness decisions:** the default Blueprint output is a qualification read and routing decision, not a marketplace purchase or scene artifact.
+- **Qualified handoff:** once a site clears the right gates, robot teams can review a cleaner opportunity brief and request deeper work.
 
 ## Key capabilities
-- SimReady environments and datasets with semantic labels and physics-ready materials.
-- Marketplace discovery for scenes, training sets, and bundle packs.
-- Evaluation and analytics for data quality, policy benchmarking, and sim-to-real transfer.
-- On-site capture and custom scene production for robotics teams.
-- Integration-focused docs and guides for simulator pipelines.
+- Site intake, task scoping, and constraint capture.
+- Qualification review, capture QA, and readiness decisions.
+- Qualified opportunities for downstream robot-team review.
+- Optional deeper evaluation, geometry escalation, or managed tuning after qualification.
+- Secondary access to legacy marketplace and scene/data surfaces where still supported.
 
 ## Structured summaries of important pages
-- **Home (`/`)**: Top-level product narrative for Blueprint as a complete data platform for robotics AI. Highlights marketplace access, SimReady environment quality, and evaluation tooling.
-- **Marketplace (`/marketplace`)**: Browse scenes, training datasets, and bundles. Each item contains specs, coverage notes, and purchase paths for teams that need ready-to-train assets.
-- **Docs (`/docs`)**: Technical overview of the SimReady spec, semantics, and integration guidance for pipelines and simulators.
-- **Pricing (`/pricing`)**: Plan options for marketplace access, datasets, and services.
-- **Learn (`/learn`)**: Educational content on simulation, data quality, and best practices for robotics AI development.
-- **Case Studies (`/case-studies`)**: Examples of how teams use Blueprint environments to accelerate R&D and deployment.
-- **Solutions (`/solutions`)**: Use-case oriented summaries (e.g., manipulation, navigation, warehouse automation).
-- **Contact (`/contact`)**: Sales and partnership intake for marketplace procurement, custom scene work, and evaluation services.
-- **Careers (`/careers`)**: Hiring and contractor opportunities focused on simulation-ready asset creation and technical content.
+- **Home (`/`)**: Top-level product narrative for Blueprint as a qualification-first platform for robot deployment readiness.
+- **How It Works (`/how-it-works`)**: Explains intake, evidence review, readiness scoring, and the qualification-first path.
+- **Qualified Opportunities (`/qualified-opportunities`)**: Shows the downstream brief format robot teams can review after site qualification.
+- **Qualified Opportunities Guide (`/qualified-opportunities-guide`)**: Explains the qualification and handoff workflow in more detail.
+- **Pricing (`/pricing`)**: Start with site qualification, then add deeper evaluation or managed work only when justified.
+- **Solutions (`/solutions`)**: Use-case oriented summaries for robotics, autonomy, and AI evaluation workflows.
+- **Contact (`/contact`)**: Site submission intake for qualification, evidence review, and later-stage follow-on lanes.
 - **Privacy (`/privacy`)**: Privacy policy covering data collection, usage, and vendor relationships.
-- **Terms (`/terms`)**: Terms of service for Blueprint services and marketplace purchases.
+- **Terms (`/terms`)**: Terms of service for Blueprint services and later-stage project work.
 
-## FAQs (canonical)
-- **What is Blueprint?** A robotics data platform for building simulation-ready digital twins and datasets, delivering the assets, data, and tools needed to train and validate AI systems.
-- **How are assets delivered?** Through the Marketplace and custom capture projects, with standardized specs for simulation pipelines.
-- **Do you offer custom scenes?** Yes, teams can request on-site capture and custom SimReady environments.
-- **Who is Blueprint for?** Robotics teams, simulation engineers, and organizations building AI systems that need high-quality 3D environments and data.
-- **How do I get started?** Browse the Marketplace, review documentation, and contact the team for tailored datasets or services.
+## FAQs
+- **What is Blueprint?** A qualification-first platform that helps teams determine whether a real site and workflow are ready enough to justify deeper pursuit.
+- **What is the default output?** A qualification record and routing decision for the next lane.
+- **Who is Blueprint for?** Site operators and robot teams that need a structured readiness decision before a pilot.
+- **How do I get started?** Submit the site, task, and constraints through the intake flow and follow the qualification process.
 
 ## Canonical URLs
 - / (Home)
-- /marketplace
-- /docs
+- /how-it-works
+- /qualified-opportunities
+- /qualified-opportunities-guide
 - /pricing
-- /learn
-- /case-studies
 - /solutions
 - /contact
-- /careers
 - /privacy
 - /terms

@@ -34,15 +34,23 @@ const OffWaitlistSignUpFlow = lazy(() => import("../pages/OffWaitlistSignUpFlow"
 const NotFound = lazy(() => import("../pages/NotFound"));
 
 const LegacyPilotExchangeRedirect = () => (
-  <MarketingRedirect to="/deployment-marketplace" />
+  <MarketingRedirect to="/qualified-opportunities" />
 );
 
 const LegacyPilotExchangeGuideRedirect = () => (
-  <MarketingRedirect to="/deployment-marketplace-guide" />
+  <MarketingRedirect to="/qualified-opportunities-guide" />
 );
 
 const LegacyPartnersRedirect = () => (
   <MarketingRedirect to="/contact" />
+);
+
+const LegacyDeploymentMarketplaceRedirect = () => (
+  <MarketingRedirect to="/qualified-opportunities" />
+);
+
+const LegacyDeploymentMarketplaceGuideRedirect = () => (
+  <MarketingRedirect to="/qualified-opportunities-guide" />
 );
 
 export const appRoutes: AppRoute[] = [
@@ -69,8 +77,22 @@ export const appRoutes: AppRoute[] = [
   { path: "/pricing", layout: "public", component: Pricing },
   { path: "/contact", layout: "public", component: Contact },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
-  { path: "/deployment-marketplace", layout: "public", component: PilotExchange },
-  { path: "/deployment-marketplace-guide", layout: "public", component: PilotExchangeGuide },
+  { path: "/qualified-opportunities", layout: "public", component: PilotExchange },
+  {
+    path: "/qualified-opportunities-guide",
+    layout: "public",
+    component: PilotExchangeGuide,
+  },
+  {
+    path: "/deployment-marketplace",
+    layout: "public",
+    component: LegacyDeploymentMarketplaceRedirect,
+  },
+  {
+    path: "/deployment-marketplace-guide",
+    layout: "public",
+    component: LegacyDeploymentMarketplaceGuideRedirect,
+  },
   { path: "/pilot-exchange", layout: "public", component: LegacyPilotExchangeRedirect },
   { path: "/pilot-exchange-guide", layout: "public", component: LegacyPilotExchangeGuideRedirect },
   { path: "/partners", layout: "public", component: LegacyPartnersRedirect },
@@ -85,6 +107,8 @@ export const appRoutes: AppRoute[] = [
   { path: "/settings", layout: "public", component: Settings },
   { path: "/admin/leads", layout: "protected", component: AdminLeads },
   { path: "/admin/leads/:requestId", layout: "protected", component: AdminLeads },
+  { path: "/admin/submissions", layout: "protected", component: AdminLeads },
+  { path: "/admin/submissions/:requestId", layout: "protected", component: AdminLeads },
   { path: "/dashboard", layout: "protected", component: Dashboard },
   {
     path: "/off-waitlist-signup",

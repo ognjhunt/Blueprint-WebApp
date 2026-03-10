@@ -141,7 +141,19 @@ export interface UserData {
   credits: number;
   finishedOnboarding: boolean;
 
-  // Business signup fields
+  // Qualification-first intake fields
+  buyerType?: "site_operator" | "robot_team";
+  requestedLanes?: ("qualification" | "deeper_evaluation" | "managed_tuning")[];
+  siteName?: string;
+  siteLocation?: string;
+  taskStatement?: string;
+  workflowContext?: string;
+  operatingConstraints?: string;
+  privacySecurityConstraints?: string;
+  knownBlockers?: string;
+  targetRobotTeam?: string;
+
+  // Legacy marketplace-first signup fields retained for compatibility
   primaryNeeds?: ("benchmark-packs" | "scene-library" | "dataset-packs" | "custom-capture" | "other")[];
   companySize?: "1-10" | "11-50" | "51-200" | "201-1000" | "1000+";
   projectDescription?: string;
@@ -149,16 +161,17 @@ export interface UserData {
   referralSource?: "google" | "linkedin" | "twitter" | "referral" | "event" | "other";
 
   // Onboarding state
-  onboardingStep?: "welcome" | "explore" | "order" | "team" | "completed";
+  onboardingStep?: "welcome" | "intake" | "review" | "handoff" | "completed";
   onboardingProgress?: {
     profileComplete: boolean;
-    exploreMarketplace: boolean;
-    createFirstOrder: boolean;
+    defineSiteSubmission: boolean;
+    completeIntakeReview: boolean;
+    reviewQualifiedOpportunities: boolean;
     inviteTeam: boolean;
     completedAt?: Date;
   };
 
-  // Personalization metadata
+  // Compatibility metadata
   recommendedCategories?: string[];
   personalizedWelcomeShown?: boolean;
   firstMarketplaceVisit?: Date;

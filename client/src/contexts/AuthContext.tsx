@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (data: UserData | null): string => {
       const marketingDestination =
         (import.meta.env.VITE_MARKETING_DESTINATION as string | undefined)?.trim() ||
-        "/marketplace";
+        "/onboarding";
       let storedRedirect: string | null = null;
       try {
         storedRedirect = sessionStorage.getItem("redirectAfterAuth");
@@ -106,9 +106,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return "/onboarding";
       }
 
-      // If user hasn't finished main onboarding flow
+      // If user hasn't finished the intake-first onboarding flow
       if (data && data.finishedOnboarding !== true) {
-        return marketingDestination;
+        return "/onboarding";
       }
 
       return "/dashboard";

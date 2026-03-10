@@ -15,6 +15,10 @@ import type {
   UpdateRequestStatusPayload,
   AssignRequestOwnerPayload,
   AddRequestNotePayload,
+  QualificationState,
+  OpportunityState,
+  RequestedLane,
+  BuyerType,
 } from "../types/inbound-request";
 
 const router = Router();
@@ -34,6 +38,93 @@ const ADMIN_EMAILS = [
   "ohstnhunt@gmail.com",
   "ops@tryblueprint.io",
 ];
+
+const VALID_QUALIFICATION_STATES: QualificationState[] = [
+  "submitted",
+  "capture_requested",
+  "qa_passed",
+  "needs_more_evidence",
+  "in_review",
+  "qualified_ready",
+  "qualified_risky",
+  "not_ready_yet",
+];
+
+const VALID_OPPORTUNITY_STATES: OpportunityState[] = [
+  "not_applicable",
+  "handoff_ready",
+  "escalated_to_geometry",
+  "escalated_to_validation",
+];
+
+function legacyStatusToQualificationState(status?: string | null): QualificationState {
+  switch (status) {
+    case "triaging":
+      return "in_review";
+    case "scheduled":
+      return "capture_requested";
+    case "qualified":
+      return "qualified_ready";
+    case "disqualified":
+      return "not_ready_yet";
+    case "closed":
+      return "not_ready_yet";
+    default:
+      return "submitted";
+  }
+}
+
+function deriveOpportunityState(
+  qualificationState: QualificationState,
+  rawValue?: string | null
+): OpportunityState {
+  if (rawValue && VALID_OPPORTUNITY_STATES.includes(rawValue as OpportunityState)) {
+    return rawValue as OpportunityState;
+  }
+
+  if (qualificationState === "qualified_ready" || qualificationState === "qualified_risky") {
+    return "handoff_ready";
+  }
+
+  return "not_applicable";
+}
+
+function normalizeDecryptedRequest(decrypted: InboundRequest) {
+  const qualificationState =
+    decrypted.qualification_state &&
+    VALID_QUALIFICATION_STATES.includes(decrypted.qualification_state)
+      ? decrypted.qualification_state
+      : legacyStatusToQualificationState(decrypted.status);
+
+  const opportunityState = deriveOpportunityState(
+    qualificationState,
+    decrypted.opportunity_state
+  );
+
+  const requestedLanes: RequestedLane[] =
+    decrypted.request.requestedLanes && decrypted.request.requestedLanes.length > 0
+      ? decrypted.request.requestedLanes
+      : ["qualification"];
+
+  const buyerType: BuyerType = decrypted.request.buyerType ?? "site_operator";
+
+  return {
+    ...decrypted,
+    site_submission_id: decrypted.site_submission_id || decrypted.requestId,
+    status: qualificationState as RequestStatus,
+    qualification_state: qualificationState,
+    opportunity_state: opportunityState,
+    request: {
+      ...decrypted.request,
+      requestedLanes,
+      buyerType,
+      siteName: decrypted.request.siteName || "Legacy submission",
+      siteLocation: decrypted.request.siteLocation || "Legacy location",
+      taskStatement:
+        decrypted.request.taskStatement || "Legacy submission requires manual scoping",
+    },
+  };
+}
 
 /**
  * Middleware to check if user is admin
@@ -118,11 +209,16 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
     const leads = await Promise.all(
       snapshot.docs.map(async (doc) => {
         const data = doc.data() as InboundRequestStored;
-        const decrypted = await decryptInboundRequestForAdmin(data);
+        const decrypted = normalizeDecryptedRequest(
+          (await decryptInboundRequestForAdmin(data as any)) as InboundRequest
+        );
         return {
           requestId: decrypted.requestId,
+          site_submission_id: decrypted.site_submission_id,
           createdAt: decrypted.createdAt?.toDate?.()?.toISOString() || "",
           status: decrypted.status,
+          qualification_state: decrypted.qualification_state,
+          opportunity_state: decrypted.opportunity_state,
           priority: decrypted.priority,
           contact: {
             firstName: decrypted.contact.firstName,
@@ -132,7 +228,12 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
           },
           request: {
             budgetBucket: decrypted.request.budgetBucket,
+            requestedLanes: decrypted.request.requestedLanes,
             helpWith: decrypted.request.helpWith,
+            buyerType: decrypted.request.buyerType,
+            siteName: decrypted.request.siteName,
+            siteLocation: decrypted.request.siteLocation,
+            taskStatement: decrypted.request.taskStatement,
           },
           owner: decrypted.owner,
         } satisfies InboundRequestListItem;
@@ -177,7 +278,9 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
     }
 
     const data = doc.data() as InboundRequestStored;
-    const decrypted = await decryptInboundRequestForAdmin(data);
+    const decrypted = normalizeDecryptedRequest(
+      (await decryptInboundRequestForAdmin(data as any)) as InboundRequest
+    );
 
     // Get notes subcollection
     const notesSnapshot = await db
@@ -202,8 +305,11 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
 
     return res.json({
       requestId: decrypted.requestId,
+      site_submission_id: decrypted.site_submission_id,
       createdAt: decrypted.createdAt?.toDate?.()?.toISOString() || "",
       status: decrypted.status,
+      qualification_state: decrypted.qualification_state,
+      opportunity_state: decrypted.opportunity_state,
       priority: decrypted.priority,
       contact: {
         firstName: decrypted.contact.firstName,
@@ -214,7 +320,17 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
       },
       request: {
         budgetBucket: decrypted.request.budgetBucket,
+        requestedLanes: decrypted.request.requestedLanes,
         helpWith: decrypted.request.helpWith,
+        buyerType: decrypted.request.buyerType,
+        siteName: decrypted.request.siteName,
+        siteLocation: decrypted.request.siteLocation,
+        taskStatement: decrypted.request.taskStatement,
+        workflowContext: decrypted.request.workflowContext,
+        operatingConstraints: decrypted.request.operatingConstraints,
+        privacySecurityConstraints: decrypted.request.privacySecurityConstraints,
+        knownBlockers: decrypted.request.knownBlockers,
+        targetRobotTeam: decrypted.request.targetRobotTeam,
         details: decrypted.request.details,
       },
       owner: decrypted.owner,
@@ -243,7 +359,7 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
 
 /**
  * PATCH /api/admin/leads/:requestId/status
- * Update the status of a request
+ * Update the qualification/opportunity state of a submission
  */
 router.patch(
   "/:requestId/status",
@@ -255,20 +371,19 @@ router.patch(
       }
 
       const { requestId } = req.params;
-      const { status, note } = req.body as UpdateRequestStatusPayload;
-      const user = res.locals.firebaseUser;
+      const { qualification_state, opportunity_state, note } =
+        req.body as UpdateRequestStatusPayload;
+      const user = res.locals.firebaseUser!;
 
-      const validStatuses: RequestStatus[] = [
-        "new",
-        "triaging",
-        "scheduled",
-        "qualified",
-        "disqualified",
-        "closed",
-      ];
+      if (!VALID_QUALIFICATION_STATES.includes(qualification_state)) {
+        return res.status(400).json({ error: "Invalid qualification_state" });
+      }
 
-      if (!validStatuses.includes(status)) {
-        return res.status(400).json({ error: "Invalid status" });
+      if (
+        opportunity_state &&
+        !VALID_OPPORTUNITY_STATES.includes(opportunity_state)
+      ) {
+        return res.status(400).json({ error: "Invalid opportunity_state" });
       }
 
       const docRef = db.collection("inboundRequests").doc(requestId);
@@ -277,23 +392,33 @@ router.patch(
       if (!doc.exists) {
         return res.status(404).json({ error: "Request not found" });
       }
-      const previousStatus = (doc.data() as InboundRequest).status;
+      const previousData = normalizeDecryptedRequest(
+        (await decryptInboundRequestForAdmin(
+          doc.data() as InboundRequestStored
+        )) as InboundRequest
+      );
+      const nextOpportunityState =
+        opportunity_state ??
+        deriveOpportunityState(qualification_state, previousData.opportunity_state);
 
       // Update status
       await docRef.update({
-        status,
+        status: qualification_state,
+        qualification_state,
+        opportunity_state: nextOpportunityState,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      if (previousStatus !== status) {
+      if (previousData.status !== qualification_state) {
         await db
           .collection("stats")
           .doc("inboundRequests")
           .set(
             {
-              [`byStatus.${previousStatus}`]:
+              [`byStatus.${previousData.status}`]:
                 admin.firestore.FieldValue.increment(-1),
-              [`byStatus.${status}`]: admin.firestore.FieldValue.increment(1),
+              [`byStatus.${qualification_state}`]:
+                admin.firestore.FieldValue.increment(1),
               updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             },
             { merge: true }
@@ -303,7 +428,7 @@ router.patch(
       // Add note if provided
       if (note && note.trim()) {
         const encryptedContent = await encryptFieldValue(
-          `Status changed to "${status}": ${note.trim()}`
+          `Qualification state changed to "${qualification_state}" and opportunity state set to "${nextOpportunityState}": ${note.trim()}`
         );
         await docRef.collection("notes").add({
           content: encryptedContent,
@@ -313,9 +438,21 @@ router.patch(
         });
       }
 
-      logger.info({ requestId, status, by: user.email }, "Lead status updated");
+      logger.info(
+        {
+          requestId,
+          qualification_state,
+          opportunity_state: nextOpportunityState,
+          by: user.email,
+        },
+        "Submission state updated"
+      );
 
-      return res.json({ ok: true, status });
+      return res.json({
+        ok: true,
+        qualification_state,
+        opportunity_state: nextOpportunityState,
+      });
     } catch (error) {
       logger.error(
         { error, requestId: req.params.requestId },
@@ -341,7 +478,7 @@ router.patch(
 
       const { requestId } = req.params;
       const { owner } = req.body as AssignRequestOwnerPayload;
-      const user = res.locals.firebaseUser;
+      const user = res.locals.firebaseUser!;
 
       const docRef = db.collection("inboundRequests").doc(requestId);
       const doc = await docRef.get();
@@ -400,7 +537,7 @@ router.post(
 
       const { requestId } = req.params;
       const { content } = req.body as AddRequestNotePayload;
-      const user = res.locals.firebaseUser;
+      const user = res.locals.firebaseUser!;
 
       if (!content || !content.trim()) {
         return res.status(400).json({ error: "Note content is required" });
@@ -460,12 +597,14 @@ router.get("/stats/summary", requireAdmin, async (req: Request, res: Response) =
     const statsData = statsSnapshot.exists ? statsSnapshot.data() ?? {} : {};
 
     const statusCounts: Record<string, number> = {
-      new: statsData.byStatus?.new ?? 0,
-      triaging: statsData.byStatus?.triaging ?? 0,
-      scheduled: statsData.byStatus?.scheduled ?? 0,
-      qualified: statsData.byStatus?.qualified ?? 0,
-      disqualified: statsData.byStatus?.disqualified ?? 0,
-      closed: statsData.byStatus?.closed ?? 0,
+      submitted: statsData.byStatus?.submitted ?? 0,
+      capture_requested: statsData.byStatus?.capture_requested ?? 0,
+      qa_passed: statsData.byStatus?.qa_passed ?? 0,
+      needs_more_evidence: statsData.byStatus?.needs_more_evidence ?? 0,
+      in_review: statsData.byStatus?.in_review ?? 0,
+      qualified_ready: statsData.byStatus?.qualified_ready ?? 0,
+      qualified_risky: statsData.byStatus?.qualified_risky ?? 0,
+      not_ready_yet: statsData.byStatus?.not_ready_yet ?? 0,
     };
 
     const priorityCounts: Record<string, number> = {
@@ -532,16 +671,23 @@ router.get("/export/csv", requireAdmin, async (req: Request, res: Response) => {
     // Build CSV
     const headers = [
       "Request ID",
+      "Submission ID",
       "Created At",
-      "Status",
+      "Qualification State",
+      "Opportunity State",
       "Priority",
       "First Name",
       "Last Name",
       "Email",
       "Company",
       "Role",
+      "Buyer Type",
+      "Site Name",
+      "Site Location",
+      "Task Statement",
       "Budget",
-      "Products",
+      "Requested Lanes",
+      "Legacy Help With",
       "Details",
       "Source URL",
       "Owner Email",
@@ -550,18 +696,27 @@ router.get("/export/csv", requireAdmin, async (req: Request, res: Response) => {
     const rows = await Promise.all(
       snapshot.docs.map(async (doc) => {
         const data = doc.data() as InboundRequestStored;
-        const decrypted = await decryptInboundRequestForAdmin(data);
+        const decrypted = normalizeDecryptedRequest(
+          (await decryptInboundRequestForAdmin(data as any)) as InboundRequest
+        );
         return [
           decrypted.requestId,
+          decrypted.site_submission_id,
           decrypted.createdAt?.toDate?.()?.toISOString() || "",
-          decrypted.status,
+          decrypted.qualification_state,
+          decrypted.opportunity_state,
           decrypted.priority,
           decrypted.contact.firstName,
           decrypted.contact.lastName,
           decrypted.contact.email,
           decrypted.contact.company,
           decrypted.contact.roleTitle,
+          decrypted.request.buyerType,
+          decrypted.request.siteName,
+          decrypted.request.siteLocation,
+          decrypted.request.taskStatement,
           decrypted.request.budgetBucket,
+          decrypted.request.requestedLanes.join("; "),
           decrypted.request.helpWith.join("; "),
           decrypted.request.details || "",
           decrypted.context.sourcePageUrl,

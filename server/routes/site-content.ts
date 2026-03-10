@@ -10,21 +10,21 @@ router.get("/", (_req: Request, res: Response) => {
       {
         path: "/",
         title: "Home",
-        description: "Overview of Blueprint's robotics data platform and core value proposition.",
+        description: "Overview of Blueprint's qualification-first workflow for robot deployment readiness.",
       },
       {
         path: "/marketplace",
         title: "Marketplace",
-        description: "Discover curated 3D assets, datasets, and simulation-ready content.",
+        description: "Secondary legacy catalog of scenes and datasets. Not the primary product path.",
       },
       {
-        path: "/deployment-marketplace",
+        path: "/qualified-opportunities",
         title: "Qualified Opportunities",
         description:
           "Qualified site briefs that robot teams can review, evaluate, and respond to after site qualification.",
       },
       {
-        path: "/deployment-marketplace-guide",
+        path: "/qualified-opportunities-guide",
         title: "Qualified Opportunities Guide",
         description:
           "Beginner-friendly explainer of Blueprint's site qualification and qualified opportunities workflow.",

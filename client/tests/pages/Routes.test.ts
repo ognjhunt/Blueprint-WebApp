@@ -7,18 +7,20 @@ describe("Route registration", () => {
     const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
     const source = fs.readFileSync(routesPath, "utf-8");
 
+    expect(source).toContain('path: "/qualified-opportunities"');
+    expect(source).toContain('path: "/qualified-opportunities-guide"');
     expect(source).toContain('path: "/marketplace"');
     expect(source).toContain('path: "/how-it-works"');
     expect(source).toContain('path: "/solutions"');
     expect(source).toContain('path: "/pricing"');
-    expect(source).toContain('path: "/deployment-marketplace"');
-    expect(source).toContain('path: "/deployment-marketplace-guide"');
   });
 
   it("keeps legacy deployment-marketplace slugs as redirect aliases", () => {
     const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
     const source = fs.readFileSync(routesPath, "utf-8");
 
+    expect(source).toContain('path: "/deployment-marketplace"');
+    expect(source).toContain('path: "/deployment-marketplace-guide"');
     expect(source).toContain('path: "/pilot-exchange"');
     expect(source).toContain('path: "/pilot-exchange-guide"');
   });

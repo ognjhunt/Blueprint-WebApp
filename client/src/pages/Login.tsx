@@ -127,7 +127,7 @@ export default function Login() {
     <>
       <SEO
         title="Sign In"
-        description="Sign in to access your Blueprint account, downloads, and purchased scene and dataset packs."
+        description="Sign in to access your Blueprint account and continue your qualification intake or submission review."
         canonical="/login"
       />
       <div className="min-h-screen bg-white text-slate-900">

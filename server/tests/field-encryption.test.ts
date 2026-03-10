@@ -30,8 +30,11 @@ describe("field encryption", () => {
   it("stores inbound request contact fields as ciphertext", async () => {
     const inboundRequest: InboundRequest = {
       requestId: "req-123",
+      site_submission_id: "req-123",
       createdAt: null as unknown as FirebaseFirestore.Timestamp,
-      status: "new",
+      status: "submitted",
+      qualification_state: "submitted",
+      opportunity_state: "not_applicable",
       priority: "low",
       owner: { uid: null, email: null },
       contact: {
@@ -43,8 +46,18 @@ describe("field encryption", () => {
       },
       request: {
         budgetBucket: "$50K-$300K",
+        requestedLanes: ["qualification"],
         helpWith: ["custom-capture"],
         details: "Need detailed capture specs.",
+        buyerType: "site_operator",
+        siteName: "Analytical Engine Co - Durham",
+        siteLocation: "Durham, NC",
+        taskStatement: "Qualify a picking workflow for a mobile manipulator.",
+        workflowContext: "Pick from shelving and place into outbound totes.",
+        operatingConstraints: "Overnight only.",
+        privacySecurityConstraints: "Blur packaging labels.",
+        knownBlockers: "Narrow aisle at station 4.",
+        targetRobotTeam: "Optional robot team",
       },
       context: {
         sourcePageUrl: "https://example.com",

@@ -1,92 +1,71 @@
-import { useState, useEffect, useCallback } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Search,
-  Filter,
-  RefreshCw,
-  ChevronDown,
-  ChevronRight,
-  Mail,
-  Phone,
-  Calendar,
-  Clock,
   AlertCircle,
-  CheckCircle2,
-  XCircle,
+  ArrowUpRight,
   Building2,
-  User,
-  DollarSign,
-  Tag,
-  MessageSquare,
-  Download,
-  ExternalLink,
+  ClipboardList,
+  Filter,
+  Mail,
+  RefreshCw,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
 import type {
-  InboundRequestListItem,
   InboundRequestDetail,
-  RequestStatus,
+  InboundRequestListItem,
+  OpportunityState,
+  QualificationState,
   RequestPriority,
-  RequestNote,
-  REQUEST_STATUS_LABELS,
-  REQUEST_PRIORITY_LABELS,
-  HELP_WITH_LABELS,
-  BUDGET_BUCKET_LABELS,
+} from "@/types/inbound-request";
+import {
+  BUYER_TYPE_LABELS as buyerTypeLabels,
+  OPPORTUNITY_STATE_LABELS as opportunityStateLabels,
+  REQUESTED_LANE_LABELS as requestedLaneLabels,
+  REQUEST_PRIORITY_LABELS as priorityLabels,
+  REQUEST_STATUS_LABELS as statusLabels,
 } from "@/types/inbound-request";
 
-// Admin email allowlist (must match server)
 const ADMIN_EMAILS = ["ohstnhunt@gmail.com", "ops@tryblueprint.io"];
 
-const STATUS_LABELS: Record<RequestStatus, string> = {
-  new: "New",
-  triaging: "Triaging",
-  scheduled: "Scheduled",
-  qualified: "Qualified",
-  disqualified: "Disqualified",
-  closed: "Closed",
+const qualificationStates: QualificationState[] = [
+  "submitted",
+  "capture_requested",
+  "qa_passed",
+  "needs_more_evidence",
+  "in_review",
+  "qualified_ready",
+  "qualified_risky",
+  "not_ready_yet",
+];
+
+const opportunityStates: OpportunityState[] = [
+  "not_applicable",
+  "handoff_ready",
+  "escalated_to_geometry",
+  "escalated_to_validation",
+];
+
+const priorityColors: Record<RequestPriority, string> = {
+  low: "bg-zinc-100 text-zinc-700",
+  normal: "bg-blue-100 text-blue-700",
+  high: "bg-amber-100 text-amber-800",
 };
 
-const PRIORITY_LABELS: Record<RequestPriority, string> = {
-  low: "Low",
-  normal: "Normal",
-  high: "High",
-};
-
-const HELP_LABELS: Record<string, string> = {
-  "benchmark-packs": "Benchmark Packs",
-  "scene-library": "Scene Library",
-  "dataset-packs": "Dataset Packs",
-  "custom-capture": "Custom Scene",
-  "pilot-exchange-location-brief": "Deployment Marketplace: Location Brief",
-  "pilot-exchange-policy-submission": "Deployment Marketplace: Policy Submission",
-  "pilot-exchange-data-licensing": "Deployment Marketplace: Data Licensing",
-};
-
-const STATUS_COLORS: Record<RequestStatus, string> = {
-  new: "bg-blue-100 text-blue-700",
-  triaging: "bg-yellow-100 text-yellow-700",
-  scheduled: "bg-purple-100 text-purple-700",
-  qualified: "bg-green-100 text-green-700",
-  disqualified: "bg-red-100 text-red-700",
-  closed: "bg-zinc-100 text-zinc-700",
-};
-
-const PRIORITY_COLORS: Record<RequestPriority, string> = {
-  low: "bg-zinc-100 text-zinc-600",
-  normal: "bg-blue-100 text-blue-600",
-  high: "bg-red-100 text-red-600",
+const qualificationColors: Record<QualificationState, string> = {
+  submitted: "bg-zinc-100 text-zinc-700",
+  capture_requested: "bg-amber-100 text-amber-800",
+  qa_passed: "bg-sky-100 text-sky-800",
+  needs_more_evidence: "bg-orange-100 text-orange-800",
+  in_review: "bg-blue-100 text-blue-700",
+  qualified_ready: "bg-emerald-100 text-emerald-700",
+  qualified_risky: "bg-yellow-100 text-yellow-800",
+  not_ready_yet: "bg-rose-100 text-rose-700",
 };
 
 interface LeadsResponse {
   leads: InboundRequestListItem[];
-  pagination: {
-    total: number;
-    limit: number;
-    hasMore: boolean;
-    lastId: string | null;
-  };
 }
 
 interface StatsResponse {
@@ -96,691 +75,463 @@ interface StatsResponse {
   byPriority: Record<string, number>;
 }
 
+function formatDate(dateString: string) {
+  const date = new Date(dateString);
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export default function AdminLeads() {
   const { currentUser } = useAuth();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
-
-  // State
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<RequestStatus | "">("");
+  const [qualificationFilter, setQualificationFilter] = useState<QualificationState | "">("");
   const [priorityFilter, setPriorityFilter] = useState<RequestPriority | "">("");
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
-  const [newNote, setNewNote] = useState("");
+  const [note, setNote] = useState("");
 
-  // Check if user is admin
   const isAdmin = Boolean(currentUser?.email && ADMIN_EMAILS.includes(currentUser.email));
 
-  // Redirect non-admin users
   useEffect(() => {
     if (currentUser && !isAdmin) {
       setLocation("/");
     }
   }, [currentUser, isAdmin, setLocation]);
 
-  // Fetch leads
-  const {
-    data: leadsData,
-    isLoading: isLoadingLeads,
-    refetch: refetchLeads,
-  } = useQuery<LeadsResponse>({
-    queryKey: ["admin-leads", statusFilter, priorityFilter],
+  const leadsQuery = useQuery<LeadsResponse>({
+    queryKey: ["admin-submissions", qualificationFilter, priorityFilter],
+    enabled: isAdmin,
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (statusFilter) params.set("status", statusFilter);
+      if (qualificationFilter) params.set("status", qualificationFilter);
       if (priorityFilter) params.set("priority", priorityFilter);
-      params.set("limit", "50");
-
-      const res = await fetch(`/api/admin/leads?${params.toString()}`, {
+      const response = await fetch(`/api/admin/leads?${params.toString()}`, {
         headers: await withCsrfHeader({}),
       });
-
-      if (!res.ok) {
-        throw new Error("Failed to fetch leads");
-      }
-
-      return res.json();
+      if (!response.ok) throw new Error("Failed to fetch submissions");
+      return response.json();
     },
+  });
+
+  const statsQuery = useQuery<StatsResponse>({
+    queryKey: ["admin-submissions-stats"],
     enabled: isAdmin,
-    refetchInterval: 30000, // Refresh every 30 seconds
-  });
-
-  // Fetch stats
-  const { data: statsData } = useQuery<StatsResponse>({
-    queryKey: ["admin-leads-stats"],
     queryFn: async () => {
-      const res = await fetch("/api/admin/leads/stats/summary", {
+      const response = await fetch("/api/admin/leads/stats/summary", {
         headers: await withCsrfHeader({}),
       });
-
-      if (!res.ok) {
-        throw new Error("Failed to fetch stats");
-      }
-
-      return res.json();
+      if (!response.ok) throw new Error("Failed to fetch stats");
+      return response.json();
     },
-    enabled: isAdmin,
-    refetchInterval: 60000, // Refresh every minute
   });
 
-  // Fetch lead detail
-  const {
-    data: selectedLead,
-    isLoading: isLoadingDetail,
-  } = useQuery<InboundRequestDetail>({
-    queryKey: ["admin-lead-detail", selectedRequestId],
+  const detailQuery = useQuery<InboundRequestDetail>({
+    queryKey: ["admin-submission-detail", selectedRequestId],
+    enabled: isAdmin && !!selectedRequestId,
     queryFn: async () => {
-      const res = await fetch(`/api/admin/leads/${selectedRequestId}`, {
+      const response = await fetch(`/api/admin/leads/${selectedRequestId}`, {
         headers: await withCsrfHeader({}),
       });
-
-      if (!res.ok) {
-        throw new Error("Failed to fetch lead details");
-      }
-
-      return res.json();
+      if (!response.ok) throw new Error("Failed to fetch submission");
+      return response.json();
     },
-    enabled: !!selectedRequestId && isAdmin,
   });
 
-  // Update status mutation
-  const updateStatusMutation = useMutation({
+  const updateStateMutation = useMutation({
     mutationFn: async ({
       requestId,
-      status,
-      note,
+      qualificationState,
+      opportunityState,
+      note: mutationNote,
     }: {
       requestId: string;
-      status: RequestStatus;
+      qualificationState: QualificationState;
+      opportunityState: OpportunityState;
       note?: string;
     }) => {
-      const res = await fetch(`/api/admin/leads/${requestId}/status`, {
+      const response = await fetch(`/api/admin/leads/${requestId}/status`, {
         method: "PATCH",
         headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ status, note }),
+        body: JSON.stringify({
+          qualification_state: qualificationState,
+          opportunity_state: opportunityState,
+          note: mutationNote,
+        }),
       });
-
-      if (!res.ok) {
-        throw new Error("Failed to update status");
-      }
-
-      return res.json();
+      if (!response.ok) throw new Error("Failed to update submission");
+      return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-leads"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-lead-detail"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-leads-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-submissions"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-submissions-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-submission-detail"] });
+      setNote("");
     },
   });
 
-  // Add note mutation
   const addNoteMutation = useMutation({
-    mutationFn: async ({
-      requestId,
-      content,
-    }: {
-      requestId: string;
-      content: string;
-    }) => {
-      const res = await fetch(`/api/admin/leads/${requestId}/notes`, {
+    mutationFn: async ({ requestId, content }: { requestId: string; content: string }) => {
+      const response = await fetch(`/api/admin/leads/${requestId}/notes`, {
         method: "POST",
         headers: await withCsrfHeader({ "Content-Type": "application/json" }),
         body: JSON.stringify({ content }),
       });
-
-      if (!res.ok) {
-        throw new Error("Failed to add note");
-      }
-
-      return res.json();
+      if (!response.ok) throw new Error("Failed to add note");
+      return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-lead-detail"] });
-      setNewNote("");
+      queryClient.invalidateQueries({ queryKey: ["admin-submission-detail"] });
+      setNote("");
     },
   });
 
-  // Filter leads by search query
-  const filteredLeads = leadsData?.leads.filter((lead) => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      lead.contact.firstName.toLowerCase().includes(query) ||
-      lead.contact.lastName.toLowerCase().includes(query) ||
-      lead.contact.email.toLowerCase().includes(query) ||
-      lead.contact.company.toLowerCase().includes(query)
-    );
-  });
+  const selectedLead = detailQuery.data;
+  const leads = leadsQuery.data?.leads ?? [];
 
-  // Handle export
-  const handleExport = useCallback(async () => {
-    const params = new URLSearchParams();
-    if (statusFilter) params.set("status", statusFilter);
-
-    const res = await fetch(`/api/admin/leads/export/csv?${params.toString()}`, {
-      headers: await withCsrfHeader({}),
-    });
-
-    if (!res.ok) {
-      alert("Failed to export leads");
-      return;
-    }
-
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `leads-export-${new Date().toISOString().split("T")[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-  }, [statusFilter]);
-
-  // Format date
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffHours = diffMs / (1000 * 60 * 60);
-
-    if (diffHours < 1) {
-      const diffMins = Math.floor(diffMs / (1000 * 60));
-      return `${diffMins}m ago`;
-    }
-    if (diffHours < 24) {
-      return `${Math.floor(diffHours)}h ago`;
-    }
-    if (diffHours < 48) {
-      return "Yesterday";
-    }
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
-    });
-  };
-
-  // Check if lead is urgent (new and > 2 hours old)
-  const isUrgent = (lead: InboundRequestListItem) => {
-    if (lead.status !== "new") return false;
-    const createdAt = new Date(lead.createdAt);
-    const now = new Date();
-    const diffHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
-    return diffHours > 2;
-  };
+  const statCards = useMemo(
+    () => [
+      { label: "Total submissions", value: statsQuery.data?.total ?? 0 },
+      { label: "Last 24h", value: statsQuery.data?.newLast24h ?? 0 },
+      {
+        label: "Ready / risky",
+        value:
+          (statsQuery.data?.byStatus?.qualified_ready ?? 0) +
+          (statsQuery.data?.byStatus?.qualified_risky ?? 0),
+      },
+      { label: "Needs evidence", value: statsQuery.data?.byStatus?.needs_more_evidence ?? 0 },
+    ],
+    [statsQuery.data]
+  );
 
   if (!isAdmin) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <AlertCircle className="mx-auto h-12 w-12 text-red-500" />
-          <h2 className="mt-4 text-xl font-semibold text-zinc-900">
-            Access Denied
-          </h2>
-          <p className="mt-2 text-zinc-600">
-            You don't have permission to access this page.
-          </p>
+          <AlertCircle className="mx-auto h-10 w-10 text-red-500" />
+          <h1 className="mt-4 text-xl font-semibold text-zinc-900">Admin access required</h1>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50">
-      {/* Header */}
-      <div className="border-b border-zinc-200 bg-white px-6 py-4">
-        <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-zinc-50 px-4 py-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-zinc-900">Leads Inbox</h1>
-            <p className="mt-1 text-sm text-zinc-500">
-              Manage inbound requests and customer inquiries
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+              Admin Review Queue
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold text-zinc-950">Qualification submissions</h1>
+            <p className="mt-2 text-zinc-600">
+              Move submissions through qualification state and only activate opportunity state once a site clears review.
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => refetchLeads()}
-              className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Refresh
-            </button>
-            <button
-              onClick={handleExport}
-              className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-            >
-              <Download className="h-4 w-4" />
-              Export CSV
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => leadsQuery.refetch()}
+            className="inline-flex items-center rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700"
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </button>
         </div>
 
-        {/* Stats */}
-        {statsData && (
-          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <div className="rounded-lg border border-zinc-200 bg-white p-4">
-              <p className="text-sm text-zinc-500">Total Leads</p>
-              <p className="mt-1 text-2xl font-bold text-zinc-900">
-                {statsData.total}
-              </p>
+        <div className="mb-6 grid gap-4 md:grid-cols-4">
+          {statCards.map((card) => (
+            <div key={card.label} className="rounded-2xl border border-zinc-200 bg-white p-5">
+              <p className="text-sm text-zinc-500">{card.label}</p>
+              <p className="mt-2 text-3xl font-semibold text-zinc-950">{card.value}</p>
             </div>
-            <div className="rounded-lg border border-zinc-200 bg-white p-4">
-              <p className="text-sm text-zinc-500">New (24h)</p>
-              <p className="mt-1 text-2xl font-bold text-blue-600">
-                {statsData.newLast24h}
-              </p>
-            </div>
-            <div className="rounded-lg border border-zinc-200 bg-white p-4">
-              <p className="text-sm text-zinc-500">Needs Response</p>
-              <p className="mt-1 text-2xl font-bold text-yellow-600">
-                {statsData.byStatus.new + statsData.byStatus.triaging}
-              </p>
-            </div>
-            <div className="rounded-lg border border-zinc-200 bg-white p-4">
-              <p className="text-sm text-zinc-500">High Priority</p>
-              <p className="mt-1 text-2xl font-bold text-red-600">
-                {statsData.byPriority.high}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
 
-      <div className="flex">
-        {/* List Panel */}
-        <div className="w-full border-r border-zinc-200 bg-white lg:w-2/5">
-          {/* Filters */}
-          <div className="border-b border-zinc-200 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                <input
-                  type="text"
-                  placeholder="Search leads..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-200 bg-zinc-50 py-2 pl-10 pr-4 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                />
-              </div>
-              <select
-                value={statusFilter}
-                onChange={(e) =>
-                  setStatusFilter(e.target.value as RequestStatus | "")
-                }
-                className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              >
-                <option value="">All Status</option>
-                {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={priorityFilter}
-                onChange={(e) =>
-                  setPriorityFilter(e.target.value as RequestPriority | "")
-                }
-                className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              >
-                <option value="">All Priority</option>
-                {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 md:flex-row">
+          <div className="flex items-center gap-2 text-sm font-medium text-zinc-700">
+            <Filter className="h-4 w-4" />
+            Filters
           </div>
+          <select
+            className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+            value={qualificationFilter}
+            onChange={(event) => setQualificationFilter(event.target.value as QualificationState | "")}
+          >
+            <option value="">All qualification states</option>
+            {qualificationStates.map((state) => (
+              <option key={state} value={state}>
+                {statusLabels[state]}
+              </option>
+            ))}
+          </select>
+          <select
+            className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+            value={priorityFilter}
+            onChange={(event) => setPriorityFilter(event.target.value as RequestPriority | "")}
+          >
+            <option value="">All priorities</option>
+            {(["low", "normal", "high"] as RequestPriority[]).map((priority) => (
+              <option key={priority} value={priority}>
+                {priorityLabels[priority]}
+              </option>
+            ))}
+          </select>
+        </div>
 
-          {/* Lead List */}
-          <div className="divide-y divide-zinc-100 overflow-y-auto" style={{ maxHeight: "calc(100vh - 300px)" }}>
-            {isLoadingLeads ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+        <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+          <div className="space-y-3">
+            {leadsQuery.isLoading ? (
+              <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+                Loading submissions...
               </div>
-            ) : filteredLeads && filteredLeads.length > 0 ? (
-              filteredLeads.map((lead) => (
+            ) : leads.length === 0 ? (
+              <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+                No submissions match the current filters.
+              </div>
+            ) : (
+              leads.map((lead) => (
                 <button
                   key={lead.requestId}
+                  type="button"
                   onClick={() => setSelectedRequestId(lead.requestId)}
-                  className={`w-full p-4 text-left transition hover:bg-zinc-50 ${
-                    selectedRequestId === lead.requestId ? "bg-indigo-50" : ""
-                  } ${isUrgent(lead) ? "border-l-4 border-l-red-500" : ""}`}
+                  className={`w-full rounded-2xl border p-5 text-left ${
+                    selectedRequestId === lead.requestId
+                      ? "border-zinc-900 bg-white"
+                      : "border-zinc-200 bg-white"
+                  }`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-zinc-900">
-                          {lead.contact.firstName} {lead.contact.lastName}
-                        </span>
-                        {isUrgent(lead) && (
-                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                            Urgent
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-0.5 truncate text-sm text-zinc-600">
-                        {lead.contact.company}
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-zinc-900">{lead.request.siteName}</p>
+                      <p className="text-sm text-zinc-600">
+                        {lead.contact.company} · {lead.request.siteLocation}
                       </p>
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <span
-                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                            STATUS_COLORS[lead.status]
-                          }`}
-                        >
-                          {STATUS_LABELS[lead.status]}
-                        </span>
-                        <span
-                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                            PRIORITY_COLORS[lead.priority]
-                          }`}
-                        >
-                          {PRIORITY_LABELS[lead.priority]}
-                        </span>
-                        <span className="text-xs text-zinc-500">
-                          {lead.request.budgetBucket}
-                        </span>
-                      </div>
                     </div>
-                    <div className="ml-4 flex flex-col items-end">
-                      <span className="text-xs text-zinc-500">
-                        {formatDate(lead.createdAt)}
-                      </span>
-                      <ChevronRight className="mt-2 h-4 w-4 text-zinc-400" />
-                    </div>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-medium ${qualificationColors[lead.qualification_state]}`}
+                    >
+                      {statusLabels[lead.qualification_state]}
+                    </span>
                   </div>
+                  <p className="mt-3 text-sm text-zinc-600">{lead.request.taskStatement}</p>
+                  <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                    <span className={`rounded-full px-3 py-1 ${priorityColors[lead.priority]}`}>
+                      {priorityLabels[lead.priority]}
+                    </span>
+                    {lead.request.requestedLanes.map((lane) => (
+                      <span key={lane} className="rounded-full bg-zinc-100 px-3 py-1 text-zinc-700">
+                        {requestedLaneLabels[lane]}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-xs text-zinc-400">{formatDate(lead.createdAt)}</p>
                 </button>
               ))
-            ) : (
-              <div className="py-12 text-center text-zinc-500">
-                No leads found
-              </div>
             )}
           </div>
-        </div>
 
-        {/* Detail Panel */}
-        <div className="hidden flex-1 overflow-y-auto bg-zinc-50 lg:block" style={{ maxHeight: "calc(100vh - 180px)" }}>
-          {selectedRequestId && selectedLead ? (
-            <div className="p-6">
-              {/* Contact Info */}
-              <div className="rounded-xl border border-zinc-200 bg-white p-6">
-                <div className="flex items-start justify-between">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+            {selectedLead ? (
+              <div className="space-y-6">
+                <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-xl font-bold text-zinc-900">
-                      {selectedLead.contact.firstName} {selectedLead.contact.lastName}
-                    </h2>
-                    <p className="mt-1 text-zinc-600">
-                      {selectedLead.contact.roleTitle} at {selectedLead.contact.company}
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                      Submission {selectedLead.site_submission_id}
                     </p>
+                    <h2 className="mt-2 text-2xl font-semibold text-zinc-950">
+                      {selectedLead.request.siteName}
+                    </h2>
+                    <p className="mt-1 text-zinc-600">{selectedLead.request.siteLocation}</p>
                   </div>
-                  <div className="flex gap-2">
+                  <a
+                    href={selectedLead.context.sourcePageUrl}
+                    className="inline-flex items-center text-sm text-zinc-600 hover:text-zinc-900"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Source
+                    <ArrowUpRight className="ml-1 h-4 w-4" />
+                  </a>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-xl bg-zinc-50 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Contact</p>
+                    <p className="mt-2 font-medium text-zinc-900">
+                      {selectedLead.contact.firstName} {selectedLead.contact.lastName}
+                    </p>
+                    <p className="text-sm text-zinc-600">{selectedLead.contact.company}</p>
+                    <p className="text-sm text-zinc-600">{selectedLead.contact.roleTitle}</p>
                     <a
                       href={`mailto:${selectedLead.contact.email}`}
-                      className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                      className="mt-3 inline-flex items-center text-sm text-zinc-700 hover:text-zinc-900"
                     >
-                      <Mail className="h-4 w-4" />
-                      Email
+                      <Mail className="mr-2 h-4 w-4" />
+                      {selectedLead.contact.email}
                     </a>
-                    <a
-                      href="https://calendly.com/blueprintar/30min"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-                    >
-                      <Calendar className="h-4 w-4" />
-                      Schedule
-                    </a>
+                  </div>
+                  <div className="rounded-xl bg-zinc-50 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Submission facts</p>
+                    <div className="mt-2 space-y-2 text-sm text-zinc-700">
+                      <p>Buyer type: {buyerTypeLabels[selectedLead.request.buyerType]}</p>
+                      <p>Budget: {selectedLead.request.budgetBucket}</p>
+                      <p>Priority: {priorityLabels[selectedLead.priority]}</p>
+                      <p>Created: {formatDate(selectedLead.createdAt)}</p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="mt-6 grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3">
-                    <Mail className="h-5 w-5 text-zinc-400" />
-                    <div>
-                      <p className="text-xs text-zinc-500">Email</p>
-                      <a
-                        href={`mailto:${selectedLead.contact.email}`}
-                        className="text-sm text-indigo-600 hover:underline"
-                      >
-                        {selectedLead.contact.email}
-                      </a>
-                    </div>
+                <div className="rounded-xl border border-zinc-200 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Task statement</p>
+                  <p className="mt-2 text-sm text-zinc-800">{selectedLead.request.taskStatement}</p>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-xl border border-zinc-200 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Workflow context</p>
+                    <p className="mt-2 text-sm text-zinc-700">
+                      {selectedLead.request.workflowContext || "No workflow context supplied."}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Building2 className="h-5 w-5 text-zinc-400" />
-                    <div>
-                      <p className="text-xs text-zinc-500">Company</p>
-                      <p className="text-sm text-zinc-900">
-                        {selectedLead.contact.company}
-                      </p>
-                    </div>
+                  <div className="rounded-xl border border-zinc-200 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                      Operating constraints
+                    </p>
+                    <p className="mt-2 text-sm text-zinc-700">
+                      {selectedLead.request.operatingConstraints || "No operating constraints supplied."}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <DollarSign className="h-5 w-5 text-zinc-400" />
-                    <div>
-                      <p className="text-xs text-zinc-500">Budget</p>
-                      <p className="text-sm text-zinc-900">
-                        {selectedLead.request.budgetBucket}
-                      </p>
-                    </div>
+                  <div className="rounded-xl border border-zinc-200 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                      Privacy / security
+                    </p>
+                    <p className="mt-2 text-sm text-zinc-700">
+                      {selectedLead.request.privacySecurityConstraints ||
+                        "No privacy or security constraints supplied."}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Clock className="h-5 w-5 text-zinc-400" />
-                    <div>
-                      <p className="text-xs text-zinc-500">Submitted</p>
-                      <p className="text-sm text-zinc-900">
-                        {new Date(selectedLead.createdAt).toLocaleString()}
-                      </p>
-                    </div>
+                  <div className="rounded-xl border border-zinc-200 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Known blockers</p>
+                    <p className="mt-2 text-sm text-zinc-700">
+                      {selectedLead.request.knownBlockers || "No blockers supplied."}
+                    </p>
                   </div>
                 </div>
-              </div>
 
-              {/* Status & Priority */}
-              <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-6">
-                <h3 className="font-semibold text-zinc-900">Status & Priority</h3>
-                <div className="mt-4 flex gap-4">
-                  <div className="flex-1">
-                    <label className="text-xs text-zinc-500">Status</label>
+                <div className="rounded-xl border border-zinc-200 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Requested lanes</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {selectedLead.request.requestedLanes.map((lane) => (
+                      <span key={lane} className="rounded-full bg-zinc-100 px-3 py-1 text-sm text-zinc-700">
+                        {requestedLaneLabels[lane]}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-zinc-700">
+                      Qualification state
+                    </label>
                     <select
-                      value={selectedLead.status}
-                      onChange={(e) => {
-                        const note = window.prompt(
-                          "Add a note for this status change (optional):"
-                        );
-                        updateStatusMutation.mutate({
+                      className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                      value={selectedLead.qualification_state}
+                      onChange={(event) =>
+                        updateStateMutation.mutate({
                           requestId: selectedLead.requestId,
-                          status: e.target.value as RequestStatus,
+                          qualificationState: event.target.value as QualificationState,
+                          opportunityState: selectedLead.opportunity_state,
                           note: note || undefined,
-                        });
-                      }}
-                      className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        })
+                      }
                     >
-                      {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
+                      {qualificationStates.map((state) => (
+                        <option key={state} value={state}>
+                          {statusLabels[state]}
                         </option>
                       ))}
                     </select>
                   </div>
-                  <div className="flex-1">
-                    <label className="text-xs text-zinc-500">Priority</label>
-                    <div className="mt-1">
-                      <span
-                        className={`inline-flex rounded-full px-3 py-1.5 text-sm font-medium ${
-                          PRIORITY_COLORS[selectedLead.priority]
-                        }`}
-                      >
-                        {PRIORITY_LABELS[selectedLead.priority]}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Interests */}
-              <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-6">
-                <h3 className="font-semibold text-zinc-900">Interested In</h3>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {selectedLead.request.helpWith.map((item) => (
-                    <span
-                      key={item}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-700"
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-zinc-700">
+                      Opportunity state
+                    </label>
+                    <select
+                      className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                      value={selectedLead.opportunity_state}
+                      onChange={(event) =>
+                        updateStateMutation.mutate({
+                          requestId: selectedLead.requestId,
+                          qualificationState: selectedLead.qualification_state,
+                          opportunityState: event.target.value as OpportunityState,
+                          note: note || undefined,
+                        })
+                      }
                     >
-                      <Tag className="h-3.5 w-3.5" />
-                      {HELP_LABELS[item] || item}
-                    </span>
-                  ))}
-                </div>
-                {selectedLead.request.details && (
-                  <div className="mt-4 rounded-lg bg-zinc-50 p-4">
-                    <p className="text-xs text-zinc-500">Additional Details</p>
-                    <p className="mt-1 text-sm text-zinc-700">
-                      {selectedLead.request.details}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Context */}
-              <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-6">
-                <h3 className="font-semibold text-zinc-900">Source Context</h3>
-                <div className="mt-3 space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-zinc-500">Source Page</span>
-                    <a
-                      href={selectedLead.context.sourcePageUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-indigo-600 hover:underline"
-                    >
-                      {selectedLead.context.sourcePageUrl.slice(0, 40)}...
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
-                  {selectedLead.context.referrer && (
-                    <div className="flex justify-between">
-                      <span className="text-zinc-500">Referrer</span>
-                      <span className="text-zinc-900">
-                        {selectedLead.context.referrer}
-                      </span>
-                    </div>
-                  )}
-                  {selectedLead.context.utm.source && (
-                    <div className="flex justify-between">
-                      <span className="text-zinc-500">UTM Source</span>
-                      <span className="text-zinc-900">
-                        {selectedLead.context.utm.source}
-                      </span>
-                    </div>
-                  )}
-                  {selectedLead.context.utm.campaign && (
-                    <div className="flex justify-between">
-                      <span className="text-zinc-500">UTM Campaign</span>
-                      <span className="text-zinc-900">
-                        {selectedLead.context.utm.campaign}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Events */}
-              <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-6">
-                <h3 className="font-semibold text-zinc-900">Automations</h3>
-                <div className="mt-3 space-y-2">
-                  <div className="flex items-center gap-2">
-                    {selectedLead.events.confirmationEmailSentAt ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-zinc-300" />
-                    )}
-                    <span className="text-sm text-zinc-700">
-                      Confirmation email{" "}
-                      {selectedLead.events.confirmationEmailSentAt
-                        ? "sent"
-                        : "not sent"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {selectedLead.events.slackNotifiedAt ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-zinc-300" />
-                    )}
-                    <span className="text-sm text-zinc-700">
-                      Slack notification{" "}
-                      {selectedLead.events.slackNotifiedAt ? "sent" : "not sent"}
-                    </span>
+                      {opportunityStates.map((state) => (
+                        <option key={state} value={state}>
+                          {opportunityStateLabels[state]}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
-              </div>
 
-              {/* Notes */}
-              <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-6">
-                <h3 className="font-semibold text-zinc-900">Notes</h3>
-
-                {/* Add note form */}
-                <div className="mt-3">
+                <div className="rounded-xl border border-zinc-200 p-4">
+                  <label className="mb-1 block text-sm font-medium text-zinc-700">Add note</label>
                   <textarea
-                    value={newNote}
-                    onChange={(e) => setNewNote(e.target.value)}
-                    placeholder="Add a note..."
-                    rows={2}
-                    className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    className="min-h-24 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    value={note}
+                    onChange={(event) => setNote(event.target.value)}
+                    placeholder="Capture why the state changed or what evidence is still missing."
                   />
-                  <button
-                    onClick={() => {
-                      if (newNote.trim()) {
+                  <div className="mt-3 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() =>
                         addNoteMutation.mutate({
                           requestId: selectedLead.requestId,
-                          content: newNote.trim(),
-                        });
+                          content: note,
+                        })
                       }
-                    }}
-                    disabled={!newNote.trim() || addNoteMutation.isPending}
-                    className="mt-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {addNoteMutation.isPending ? "Adding..." : "Add Note"}
-                  </button>
+                      disabled={!note.trim()}
+                      className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                    >
+                      Save note
+                    </button>
+                    {updateStateMutation.isPending || addNoteMutation.isPending ? (
+                      <span className="text-sm text-zinc-500">Saving...</span>
+                    ) : null}
+                  </div>
                 </div>
 
-                {/* Notes list */}
-                {selectedLead.notes && selectedLead.notes.length > 0 && (
-                  <div className="mt-4 space-y-3">
-                    {selectedLead.notes.map((note) => (
-                      <div
-                        key={note.id}
-                        className="rounded-lg bg-zinc-50 p-3"
-                      >
-                        <p className="text-sm text-zinc-700">{note.content}</p>
-                        <p className="mt-2 text-xs text-zinc-500">
-                          {note.authorEmail} -{" "}
-                          {new Date(note.createdAt).toLocaleString()}
-                        </p>
-                      </div>
-                    ))}
+                <div className="rounded-xl border border-zinc-200 p-4">
+                  <p className="mb-3 text-xs uppercase tracking-[0.18em] text-zinc-400">Notes</p>
+                  <div className="space-y-3">
+                    {selectedLead.notes?.length ? (
+                      selectedLead.notes.map((entry) => (
+                        <div key={entry.id} className="rounded-lg bg-zinc-50 p-3 text-sm">
+                          <p className="text-zinc-800">{entry.content}</p>
+                          <p className="mt-2 text-xs text-zinc-400">{formatDate(entry.createdAt)}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-zinc-500">No notes yet.</p>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
-
-              {/* Request ID */}
-              <div className="mt-4 text-center">
-                <p className="text-xs text-zinc-400">
-                  Request ID: {selectedLead.requestId}
-                </p>
+            ) : (
+              <div className="flex min-h-[420px] flex-col items-center justify-center text-center text-zinc-500">
+                <ClipboardList className="mb-3 h-10 w-10" />
+                <p>Select a submission to review the intake and update its states.</p>
               </div>
-            </div>
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <div className="text-center text-zinc-500">
-                <MessageSquare className="mx-auto h-12 w-12 text-zinc-300" />
-                <p className="mt-4">Select a lead to view details</p>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>

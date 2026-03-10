@@ -384,7 +384,7 @@ export default function PilotExchange() {
         helpWith: [args.helpWith],
         details: JSON.stringify(args.details),
         context: {
-          sourcePageUrl: typeof window !== "undefined" ? window.location.href : "/deployment-marketplace",
+          sourcePageUrl: typeof window !== "undefined" ? window.location.href : "/qualified-opportunities",
           referrer: typeof document !== "undefined" ? document.referrer || undefined : undefined,
           utm: getUTMParams(),
           timezoneOffset: new Date().getTimezoneOffset(),
@@ -487,7 +487,7 @@ export default function PilotExchange() {
       <SEO
         title="Qualified Opportunities | Blueprint"
         description="Qualified site briefs that robot teams can review, evaluate, and respond to after site qualification."
-        canonical="/deployment-marketplace"
+        canonical="/qualified-opportunities"
       />
       <div className="relative min-h-screen bg-white text-zinc-900 font-sans selection:bg-zinc-200 selection:text-zinc-900">
         <DotPattern />
@@ -530,7 +530,7 @@ export default function PilotExchange() {
               <a href="#pricing" className="text-sm font-medium text-zinc-900 hover:text-zinc-700 underline underline-offset-4 decoration-zinc-300">
                 See pricing
               </a>
-              <a href="/deployment-marketplace-guide" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 underline underline-offset-4 decoration-zinc-300">
+              <a href="/qualified-opportunities-guide" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 underline underline-offset-4 decoration-zinc-300">
                 See how qualification works
               </a>
             </div>
@@ -593,7 +593,7 @@ export default function PilotExchange() {
                       </Button>
                     ) : (
                       <a
-                        href={`/contact?interest=${getPricingContactInterest(option.id)}&source=deployment-marketplace`}
+                        href={`/contact?interest=${getPricingContactInterest(option.id)}&source=qualified-opportunities`}
                         className="mt-5 inline-flex w-full items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100"
                       >
                         Talk to sales
@@ -612,7 +612,7 @@ export default function PilotExchange() {
                 separate enterprise deal. It is not part of the standard pay-per-use path.
               </p>
               <a
-                href="/contact?interest=private-twin-buyout&source=deployment-marketplace"
+                href="/contact?interest=private-twin-buyout&source=qualified-opportunities"
                 className="mt-5 inline-flex items-center justify-center rounded-lg border border-zinc-300 bg-zinc-50 px-4 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100"
               >
                 Discuss private terms
@@ -687,7 +687,7 @@ export default function PilotExchange() {
           </section>
 
           {/* Exchange Explorer */}
-          <section id="marketplace">
+          <section id="qualified-opportunities">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-zinc-900">Qualified opportunities</h2>

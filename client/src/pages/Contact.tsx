@@ -126,7 +126,7 @@ export default function Contact() {
                   </li>
                   <li>
                     <a
-                      href="/deployment-marketplace"
+                      href="/qualified-opportunities"
                       className="group flex items-center gap-2 text-zinc-700 transition hover:text-indigo-600"
                     >
                       <span>Qualified Opportunities</span>

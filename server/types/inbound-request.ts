@@ -1,7 +1,7 @@
 import type { EncryptableString } from "./field-encryption";
 
 /**
- * Types for the inbound request lead management system
+ * Types for the qualification-first submission and review system.
  */
 
 // Budget bucket options
@@ -12,7 +12,14 @@ export type BudgetBucket =
   | ">$1M"
   | "Undecided/Unsure";
 
-// Product interest options (what can we help with)
+export type BuyerType = "site_operator" | "robot_team";
+
+export type RequestedLane =
+  | "qualification"
+  | "deeper_evaluation"
+  | "managed_tuning";
+
+// Legacy compatibility aliases accepted on read and write during migration.
 export type HelpWithOption =
   | "benchmark-packs"
   | "scene-library"
@@ -22,14 +29,24 @@ export type HelpWithOption =
   | "pilot-exchange-policy-submission"
   | "pilot-exchange-data-licensing";
 
-// Request status for lead tracking
-export type RequestStatus =
-  | "new"
-  | "triaging"
-  | "scheduled"
-  | "qualified"
-  | "disqualified"
-  | "closed";
+export type QualificationState =
+  | "submitted"
+  | "capture_requested"
+  | "qa_passed"
+  | "needs_more_evidence"
+  | "in_review"
+  | "qualified_ready"
+  | "qualified_risky"
+  | "not_ready_yet";
+
+export type OpportunityState =
+  | "not_applicable"
+  | "handoff_ready"
+  | "escalated_to_geometry"
+  | "escalated_to_validation";
+
+// Request status is retained as a compatibility mirror of qualification state.
+export type RequestStatus = QualificationState;
 
 // Priority levels
 export type RequestPriority = "low" | "normal" | "high";
@@ -66,8 +83,18 @@ export interface ContactInfo {
 // The actual request details
 export interface RequestDetails {
   budgetBucket: BudgetBucket;
+  requestedLanes: RequestedLane[];
   helpWith: HelpWithOption[];
   details?: string | null;
+  buyerType: BuyerType;
+  siteName: string;
+  siteLocation: string;
+  taskStatement: string;
+  workflowContext?: string | null;
+  operatingConstraints?: string | null;
+  privacySecurityConstraints?: string | null;
+  knownBlockers?: string | null;
+  targetRobotTeam?: string | null;
 }
 
 // Owner assignment
@@ -94,8 +121,11 @@ export interface RequestEvents {
 // The full inbound request document stored in Firestore
 export interface InboundRequest {
   requestId: string;
+  site_submission_id: string;
   createdAt: FirebaseFirestore.Timestamp;
   status: RequestStatus;
+  qualification_state: QualificationState;
+  opportunity_state: OpportunityState;
   priority: RequestPriority;
   owner: RequestOwner;
   contact: ContactInfo;
@@ -118,8 +148,18 @@ export interface ContactInfoStored {
 
 export interface RequestDetailsStored {
   budgetBucket: BudgetBucket;
+  requestedLanes: RequestedLane[];
   helpWith: HelpWithOption[];
   details?: EncryptableString | null;
+  buyerType: BuyerType;
+  siteName: EncryptableString;
+  siteLocation: EncryptableString;
+  taskStatement: EncryptableString;
+  workflowContext?: EncryptableString | null;
+  operatingConstraints?: EncryptableString | null;
+  privacySecurityConstraints?: EncryptableString | null;
+  knownBlockers?: EncryptableString | null;
+  targetRobotTeam?: EncryptableString | null;
 }
 
 export interface InboundRequestStored
@@ -137,7 +177,17 @@ export interface InboundRequestPayload {
   roleTitle: string;
   email: string;
   budgetBucket: BudgetBucket;
-  helpWith: HelpWithOption[];
+  requestedLanes?: RequestedLane[];
+  helpWith?: HelpWithOption[];
+  buyerType?: BuyerType;
+  siteName?: string;
+  siteLocation?: string;
+  taskStatement?: string;
+  workflowContext?: string;
+  operatingConstraints?: string;
+  privacySecurityConstraints?: string;
+  knownBlockers?: string;
+  targetRobotTeam?: string;
   details?: string;
   context: {
     sourcePageUrl: string;
@@ -177,6 +227,7 @@ export interface LeadRoutingRule {
 export interface SubmitInboundRequestResponse {
   ok: boolean;
   requestId: string;
+  siteSubmissionId?: string;
   status: RequestStatus;
   message?: string;
 }
@@ -184,8 +235,11 @@ export interface SubmitInboundRequestResponse {
 // Admin dashboard list item (subset of full InboundRequest)
 export interface InboundRequestListItem {
   requestId: string;
+  site_submission_id: string;
   createdAt: string; // ISO string for client
   status: RequestStatus;
+  qualification_state: QualificationState;
+  opportunity_state: OpportunityState;
   priority: RequestPriority;
   contact: {
     firstName: string;
@@ -195,15 +249,20 @@ export interface InboundRequestListItem {
   };
   request: {
     budgetBucket: BudgetBucket;
+    requestedLanes: RequestedLane[];
     helpWith: HelpWithOption[];
+    buyerType: BuyerType;
+    siteName: string;
+    siteLocation: string;
+    taskStatement: string;
   };
   owner: RequestOwner;
 }
 
-// Status update payload
 export interface UpdateRequestStatusPayload {
   requestId: string;
-  status: RequestStatus;
+  qualification_state: QualificationState;
+  opportunity_state?: OpportunityState;
   note?: string;
 }
 

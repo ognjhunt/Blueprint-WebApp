@@ -15,6 +15,8 @@ import type {
   RequestStatus,
   BudgetBucket,
   HelpWithOption,
+  RequestedLane,
+  BuyerType,
   SubmitInboundRequestResponse,
 } from "../types/inbound-request";
 
@@ -57,6 +59,28 @@ const VALID_HELP_WITH: HelpWithOption[] = [
   "pilot-exchange-policy-submission",
   "pilot-exchange-data-licensing",
 ];
+
+const VALID_REQUESTED_LANES: RequestedLane[] = [
+  "qualification",
+  "deeper_evaluation",
+  "managed_tuning",
+];
+
+const LEGACY_HELP_WITH_TO_LANE: Record<HelpWithOption, RequestedLane> = {
+  "benchmark-packs": "qualification",
+  "scene-library": "deeper_evaluation",
+  "dataset-packs": "deeper_evaluation",
+  "custom-capture": "qualification",
+  "pilot-exchange-location-brief": "qualification",
+  "pilot-exchange-policy-submission": "deeper_evaluation",
+  "pilot-exchange-data-licensing": "managed_tuning",
+};
+
+const LANE_TO_LEGACY_HELP_WITH: Record<RequestedLane, HelpWithOption> = {
+  qualification: "benchmark-packs",
+  deeper_evaluation: "dataset-packs",
+  managed_tuning: "pilot-exchange-data-licensing",
+};
 
 // Known disposable email domains (extend as needed)
 const DISPOSABLE_EMAIL_DOMAINS = [
@@ -147,7 +171,7 @@ async function checkRateLimit(
  */
 function computePriority(
   budgetBucket: BudgetBucket,
-  helpWith: HelpWithOption[]
+  requestedLanes: RequestedLane[]
 ): RequestPriority {
   // High priority for large budgets
   if (budgetBucket === ">$1M" || budgetBucket === "$300K-$1M") {
@@ -156,8 +180,8 @@ function computePriority(
 
   // High priority for high-touch deployment discovery work
   if (
-    helpWith.includes("custom-capture") ||
-    helpWith.includes("pilot-exchange-location-brief")
+    requestedLanes.includes("managed_tuning") ||
+    requestedLanes.includes("deeper_evaluation")
   ) {
     return "high";
   }
@@ -167,12 +191,7 @@ function computePriority(
     return "normal";
   }
 
-  // Normal priority for exchange policy + data licensing requests
-  if (
-    helpWith.includes("pilot-exchange-policy-submission") ||
-    helpWith.includes("pilot-exchange-data-licensing") ||
-    helpWith.includes("benchmark-packs")
-  ) {
+  if (requestedLanes.includes("qualification")) {
     return "normal";
   }
 
@@ -184,14 +203,11 @@ function computePriority(
  * Compute initial owner based on product interests
  */
 function computeOwner(
-  helpWith: HelpWithOption[]
+  requestedLanes: RequestedLane[]
 ): { uid: string | null; email: string | null } {
-  // Route eval + deployment workflow requests to solutions team
   if (
-    helpWith.includes("custom-capture") ||
-    helpWith.includes("benchmark-packs") ||
-    helpWith.includes("pilot-exchange-location-brief") ||
-    helpWith.includes("pilot-exchange-policy-submission")
+    requestedLanes.includes("deeper_evaluation") ||
+    requestedLanes.includes("managed_tuning")
   ) {
     return {
       uid: null,
@@ -199,11 +215,59 @@ function computeOwner(
     };
   }
 
-  // Route scene/data catalog and licensing requests to sales/BD
   return {
     uid: null,
-    email: process.env.SALES_OWNER_EMAIL || "ops@tryblueprint.io",
+    email: process.env.INTAKE_OWNER_EMAIL || "ops@tryblueprint.io",
   };
+}
+
+function normalizeRequestedLanes(
+  requestedLanes?: RequestedLane[],
+  helpWith?: HelpWithOption[]
+): RequestedLane[] {
+  const normalized = new Set<RequestedLane>();
+
+  requestedLanes?.forEach((lane) => {
+    if (VALID_REQUESTED_LANES.includes(lane)) {
+      normalized.add(lane);
+    }
+  });
+
+  helpWith?.forEach((entry) => {
+    const mappedLane = LEGACY_HELP_WITH_TO_LANE[entry];
+    if (mappedLane) {
+      normalized.add(mappedLane);
+    }
+  });
+
+  if (normalized.size === 0) {
+    normalized.add("qualification");
+  }
+
+  return [...normalized];
+}
+
+function normalizeLegacyHelpWith(
+  requestedLanes: RequestedLane[],
+  helpWith?: HelpWithOption[]
+): HelpWithOption[] {
+  const normalized = new Set<HelpWithOption>();
+
+  helpWith?.forEach((entry) => {
+    if (VALID_HELP_WITH.includes(entry)) {
+      normalized.add(entry);
+    }
+  });
+
+  requestedLanes.forEach((lane) => {
+    normalized.add(LANE_TO_LEGACY_HELP_WITH[lane]);
+  });
+
+  return [...normalized];
+}
+
+function normalizeBuyerType(value?: BuyerType): BuyerType {
+  return value === "robot_team" ? "robot_team" : "site_operator";
 }
 
 /**
@@ -231,7 +295,7 @@ function generateConfirmationEmailHtml(firstName: string): string {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Thank You for Your Request - Blueprint</title>
+    <title>Blueprint submission received</title>
   </head>
   <body style="margin:0;padding:0;background-color:#f9fafb;color:#1f2937;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f9fafb;padding:32px 16px;">
@@ -247,18 +311,18 @@ function generateConfirmationEmailHtml(firstName: string): string {
             <!-- Content -->
             <tr>
               <td style="padding:40px 32px;">
-                <h2 style="margin:0 0 16px;font-size:24px;font-weight:600;color:#111827;">Thank you for your request, ${firstName}!</h2>
+                <h2 style="margin:0 0 16px;font-size:24px;font-weight:600;color:#111827;">Thanks, ${firstName}. Your site submission is in.</h2>
                 <p style="margin:0 0 24px;font-size:16px;line-height:1.6;color:#4b5563;">
-                  We've received your request and our team will get back to you within 24 hours to discuss how we can support your project.
+                  Blueprint has your intake details. We will review the site, task, and constraints and follow up with the right next step.
                 </p>
 
                 <!-- What happens next -->
                 <div style="background-color:#f3f4f6;border-radius:8px;padding:24px;margin-bottom:24px;">
                   <h3 style="margin:0 0 16px;font-size:16px;font-weight:600;color:#111827;">What happens next?</h3>
                   <ol style="margin:0;padding-left:20px;color:#4b5563;font-size:14px;line-height:1.8;">
-                    <li>Our team reviews your request and product needs</li>
-                    <li>We'll reach out to schedule a brief call to understand your requirements</li>
-                    <li>You'll receive a customized proposal based on your project scope</li>
+                    <li>We review the submission for scope, evidence needs, and qualification risk.</li>
+                    <li>If key evidence is missing, we ask for a more targeted capture pass.</li>
+                    <li>If the site is ready enough, we move it toward qualified handoff or deeper review.</li>
                   </ol>
                 </div>
 
@@ -270,18 +334,18 @@ function generateConfirmationEmailHtml(firstName: string): string {
 
                 <!-- Resources -->
                 <div style="border-top:1px solid #e5e7eb;padding-top:24px;">
-                  <h3 style="margin:0 0 16px;font-size:14px;font-weight:600;color:#111827;">In the meantime, explore our resources:</h3>
+                  <h3 style="margin:0 0 16px;font-size:14px;font-weight:600;color:#111827;">Useful links while we review:</h3>
                   <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                     <tr>
                       <td style="padding:8px 0;">
-                        <a href="https://tryblueprint.io/evals" style="color:#4f46e5;text-decoration:none;font-size:14px;">Evaluation Services</a>
-                        <span style="color:#9ca3af;font-size:14px;"> - Comprehensive benchmark suites</span>
+                        <a href="https://tryblueprint.io/how-it-works" style="color:#4f46e5;text-decoration:none;font-size:14px;">How qualification works</a>
+                        <span style="color:#9ca3af;font-size:14px;"> - Intake, evidence review, and qualification flow</span>
                       </td>
                     </tr>
                     <tr>
                       <td style="padding:8px 0;">
-                        <a href="https://tryblueprint.io/marketplace" style="color:#4f46e5;text-decoration:none;font-size:14px;">Scene Marketplace</a>
-                        <span style="color:#9ca3af;font-size:14px;"> - Browse SimReady environments</span>
+                        <a href="https://tryblueprint.io/qualified-opportunities" style="color:#4f46e5;text-decoration:none;font-size:14px;">Qualified opportunities</a>
+                        <span style="color:#9ca3af;font-size:14px;"> - What teams review after site qualification</span>
                       </td>
                     </tr>
                     <tr>
@@ -323,7 +387,7 @@ function generateConfirmationEmailHtml(firstName: string): string {
 
 /**
  * POST /api/inbound-request
- * Submit a new inbound request (lead)
+ * Submit a new qualification-first site submission
  */
 router.post("/", async (req: Request, res: Response) => {
   const startTime = Date.now();
@@ -340,11 +404,23 @@ router.post("/", async (req: Request, res: Response) => {
       return res.status(HTTP_STATUS.ACCEPTED).json({
         ok: true,
         requestId: payload.requestId || "fake-id",
-        status: "new",
+        status: "submitted",
       } satisfies SubmitInboundRequestResponse);
     }
 
     // 2. Validate required fields
+    const requestedLanes = normalizeRequestedLanes(
+      payload.requestedLanes,
+      payload.helpWith
+    );
+    const legacyHelpWith = normalizeLegacyHelpWith(
+      requestedLanes,
+      payload.helpWith
+    );
+    const buyerType = normalizeBuyerType(payload.buyerType);
+    const siteName = payload.siteName?.trim() || "";
+    const siteLocation = payload.siteLocation?.trim() || "";
+    const taskStatement = payload.taskStatement?.trim() || "";
     const missingFields: string[] = [];
     if (!payload.requestId) missingFields.push("requestId");
     if (!payload.firstName?.trim()) missingFields.push("firstName");
@@ -352,15 +428,15 @@ router.post("/", async (req: Request, res: Response) => {
     if (!payload.company?.trim()) missingFields.push("company");
     if (!payload.email?.trim()) missingFields.push("email");
     if (!payload.budgetBucket) missingFields.push("budgetBucket");
-    if (!payload.helpWith || payload.helpWith.length === 0) {
-      missingFields.push("helpWith");
-    }
+    if (!siteName) missingFields.push("siteName");
+    if (!siteLocation) missingFields.push("siteLocation");
+    if (!taskStatement) missingFields.push("taskStatement");
 
     if (missingFields.length > 0) {
       return res.status(400).json({
         ok: false,
         requestId: payload.requestId || "",
-        status: "new",
+        status: "submitted",
         message: `Missing required fields: ${missingFields.join(", ")}`,
       } satisfies SubmitInboundRequestResponse);
     }
@@ -372,7 +448,7 @@ router.post("/", async (req: Request, res: Response) => {
       return res.status(400).json({
         ok: false,
         requestId: payload.requestId,
-        status: "new",
+        status: "submitted",
         message: emailValidation.error,
       } satisfies SubmitInboundRequestResponse);
     }
@@ -382,19 +458,28 @@ router.post("/", async (req: Request, res: Response) => {
       return res.status(400).json({
         ok: false,
         requestId: payload.requestId,
-        status: "new",
+        status: "submitted",
         message: "Invalid budget bucket",
       } satisfies SubmitInboundRequestResponse);
     }
 
-    const invalidHelpWith = payload.helpWith.filter(
-      (h) => !VALID_HELP_WITH.includes(h)
-    );
+    const invalidRequestedLanes =
+      payload.requestedLanes?.filter((lane) => !VALID_REQUESTED_LANES.includes(lane)) ?? [];
+    if (invalidRequestedLanes.length > 0) {
+      return res.status(400).json({
+        ok: false,
+        requestId: payload.requestId,
+        status: "submitted",
+        message: `Invalid requestedLanes values: ${invalidRequestedLanes.join(", ")}`,
+      } satisfies SubmitInboundRequestResponse);
+    }
+
+    const invalidHelpWith = (payload.helpWith ?? []).filter((h) => !VALID_HELP_WITH.includes(h));
     if (invalidHelpWith.length > 0) {
       return res.status(400).json({
         ok: false,
         requestId: payload.requestId,
-        status: "new",
+        status: "submitted",
         message: `Invalid helpWith values: ${invalidHelpWith.join(", ")}`,
       } satisfies SubmitInboundRequestResponse);
     }
@@ -409,7 +494,7 @@ router.post("/", async (req: Request, res: Response) => {
       return res.status(429).json({
         ok: false,
         requestId: payload.requestId,
-        status: "new",
+        status: "submitted",
         message: "Too many requests. Please try again later.",
       } satisfies SubmitInboundRequestResponse);
     }
@@ -424,7 +509,7 @@ router.post("/", async (req: Request, res: Response) => {
       return res.status(429).json({
         ok: false,
         requestId: payload.requestId,
-        status: "new",
+        status: "submitted",
         message: "Too many requests from this email domain. Please try again later.",
       } satisfies SubmitInboundRequestResponse);
     }
@@ -435,7 +520,7 @@ router.post("/", async (req: Request, res: Response) => {
       return res.status(500).json({
         ok: false,
         requestId: payload.requestId,
-        status: "new",
+        status: "submitted",
         message: "Internal server error",
       } satisfies SubmitInboundRequestResponse);
     }
@@ -459,8 +544,8 @@ router.post("/", async (req: Request, res: Response) => {
     }
 
     // 7. Compute priority and owner
-    const priority = computePriority(payload.budgetBucket, payload.helpWith);
-    const owner = computeOwner(payload.helpWith);
+    const priority = computePriority(payload.budgetBucket, requestedLanes);
+    const owner = computeOwner(requestedLanes);
 
     // 8. Build the document
     const now = admin.firestore.FieldValue.serverTimestamp();
@@ -468,8 +553,11 @@ router.post("/", async (req: Request, res: Response) => {
       createdAt: FirebaseFirestore.FieldValue;
     } = {
       requestId: payload.requestId,
+      site_submission_id: payload.requestId,
       createdAt: now,
-      status: "new" as RequestStatus,
+      status: "submitted" as RequestStatus,
+      qualification_state: "submitted",
+      opportunity_state: "not_applicable",
       priority,
       owner,
       contact: {
@@ -481,8 +569,19 @@ router.post("/", async (req: Request, res: Response) => {
       },
       request: {
         budgetBucket: payload.budgetBucket,
-        helpWith: payload.helpWith,
+        requestedLanes,
+        helpWith: legacyHelpWith,
         details: payload.details?.trim() || null,
+        buyerType,
+        siteName,
+        siteLocation,
+        taskStatement,
+        workflowContext: payload.workflowContext?.trim() || null,
+        operatingConstraints: payload.operatingConstraints?.trim() || null,
+        privacySecurityConstraints:
+          payload.privacySecurityConstraints?.trim() || null,
+        knownBlockers: payload.knownBlockers?.trim() || null,
+        targetRobotTeam: payload.targetRobotTeam?.trim() || null,
       },
       context: {
         sourcePageUrl: payload.context?.sourcePageUrl || "",
@@ -510,7 +609,7 @@ router.post("/", async (req: Request, res: Response) => {
         crmSyncedAt: null,
       },
       debug: {
-        schemaVersion: 1,
+        schemaVersion: 2,
       },
     };
 
@@ -530,7 +629,7 @@ router.post("/", async (req: Request, res: Response) => {
       .set(
         {
           total: admin.firestore.FieldValue.increment(1),
-          [`byStatus.new`]: admin.firestore.FieldValue.increment(1),
+          [`byStatus.submitted`]: admin.firestore.FieldValue.increment(1),
           [`byPriority.${priority}`]: admin.firestore.FieldValue.increment(1),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
@@ -556,13 +655,19 @@ router.post("/", async (req: Request, res: Response) => {
         try {
           const slackResult = await notifySlackInboundRequest({
             requestId: payload.requestId,
+            siteSubmissionId: payload.requestId,
             firstName: payload.firstName.trim(),
             lastName: payload.lastName.trim(),
             email: emailLower,
             company: payload.company.trim(),
             roleTitle: payload.roleTitle?.trim() || "",
+            buyerType,
+            siteName: payload.siteName?.trim() || "",
+            siteLocation: payload.siteLocation?.trim() || "",
+            taskStatement: payload.taskStatement?.trim() || "",
             budgetBucket: payload.budgetBucket,
-            helpWith: payload.helpWith,
+            requestedLanes,
+            helpWith: legacyHelpWith,
             details: payload.details || null,
             priority,
             sourcePageUrl: payload.context?.sourcePageUrl || "",
@@ -598,16 +703,16 @@ router.post("/", async (req: Request, res: Response) => {
 Thank you for your request! We've received your submission and our team will get back to you within 24 hours to discuss how we can support your project.
 
 What happens next?
-1. Our team reviews your request and product needs
-2. We'll reach out to schedule a brief call to understand your requirements
-3. You'll receive a customized proposal based on your project scope
+1. We review the site, task, and constraints in your intake
+2. If key evidence is missing, we request a more targeted capture pass
+3. We route the site toward qualification, deeper evaluation, or managed tuning only if it clears the right gates
 
 Want to get started faster? Book a call now: https://calendly.com/blueprintar/30min
 
 In the meantime, explore our resources:
-- Evaluation Services: https://tryblueprint.io/evals
-- Scene Marketplace: https://tryblueprint.io/marketplace
-- Documentation: https://tryblueprint.io/docs
+- How qualification works: https://tryblueprint.io/how-it-works
+- Qualified opportunities: https://tryblueprint.io/qualified-opportunities
+- Contact the team: https://tryblueprint.io/contact
 
 Best,
 The Blueprint Team
@@ -645,17 +750,26 @@ Blueprint | 1005 Crete St, Durham, NC 27707`;
       (async () => {
         try {
           const to = process.env.CONTACT_TO ?? "ops@tryblueprint.io";
-          const subject = `[${priority.toUpperCase()}] New request from ${payload.company.trim()}`;
-          const text = `New inbound request received:
+          const subject = `[${priority.toUpperCase()}] New site submission from ${payload.company.trim()}`;
+          const text = `New site submission received:
 
 Name: ${payload.firstName.trim()} ${payload.lastName.trim()}
 Email: ${emailLower}
 Company: ${payload.company.trim()}
 Role: ${payload.roleTitle?.trim() || "Not specified"}
+Buyer type: ${buyerType}
+Site: ${payload.siteName?.trim()}
+Location: ${payload.siteLocation?.trim()}
+Task: ${payload.taskStatement?.trim()}
 Budget: ${payload.budgetBucket}
-Interested in: ${payload.helpWith.join(", ")}
+Requested lanes: ${requestedLanes.join(", ")}
 Priority: ${priority}
 
+${payload.workflowContext ? `Workflow context:\n${payload.workflowContext}\n` : ""}
+${payload.operatingConstraints ? `Operating constraints:\n${payload.operatingConstraints}\n` : ""}
+${payload.privacySecurityConstraints ? `Privacy/security constraints:\n${payload.privacySecurityConstraints}\n` : ""}
+${payload.knownBlockers ? `Known blockers:\n${payload.knownBlockers}\n` : ""}
+${payload.targetRobotTeam ? `Target robot team:\n${payload.targetRobotTeam}\n` : ""}
 ${payload.details ? `Details:\n${payload.details}\n` : ""}
 Source: ${payload.context?.sourcePageUrl || "Unknown"}
 
@@ -686,7 +800,8 @@ View in admin: ${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/$
     return res.status(HTTP_STATUS.CREATED).json({
       ok: true,
       requestId: payload.requestId,
-      status: "new",
+      siteSubmissionId: payload.requestId,
+      status: "submitted",
     } satisfies SubmitInboundRequestResponse);
   } catch (error) {
     logger.error(
@@ -696,7 +811,7 @@ View in admin: ${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/$
     return res.status(500).json({
       ok: false,
       requestId: req.body?.requestId || "",
-      status: "new",
+      status: "submitted",
       message: "An error occurred processing your request. Please try again.",
     } satisfies SubmitInboundRequestResponse);
   }

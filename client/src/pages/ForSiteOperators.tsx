@@ -125,13 +125,13 @@ export default function ForSiteOperators() {
 
           <section className="mt-10 flex flex-wrap gap-3">
             <a
-              href="/contact?interest=site-operator-guide"
+              href="/contact?interest=site-qualification"
               className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
               Request site qualification
             </a>
             <a
-              href="/deployment-marketplace"
+              href="/qualified-opportunities"
               className="inline-flex items-center rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
             >
               View qualified opportunities

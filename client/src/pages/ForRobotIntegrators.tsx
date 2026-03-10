@@ -129,13 +129,13 @@ export default function ForRobotIntegrators() {
 
           <section className="mt-10 flex flex-wrap gap-3">
             <a
-              href="/deployment-marketplace"
+              href="/qualified-opportunities"
               className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
               View qualified opportunities
             </a>
             <a
-              href="/contact?interest=robot-team-brief"
+              href="/contact?interest=deeper-evaluation"
               className="inline-flex items-center rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
             >
               Share your target site

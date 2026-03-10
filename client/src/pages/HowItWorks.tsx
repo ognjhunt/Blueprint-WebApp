@@ -135,7 +135,7 @@ export default function HowItWorks() {
                 <CTAButtons
                   primaryHref="/contact"
                   primaryLabel="Request site qualification"
-                  secondaryHref="/deployment-marketplace"
+                  secondaryHref="/qualified-opportunities"
                   secondaryLabel="View qualified opportunities"
                 />
               </div>
@@ -349,10 +349,10 @@ export default function HowItWorks() {
                 Schedule a scan
               </a>
               <a
-                href="/marketplace"
+                href="/qualified-opportunities"
                 className="inline-flex items-center justify-center rounded-lg border border-zinc-700 px-6 py-3 text-sm font-semibold text-white hover:bg-zinc-800"
               >
-                Browse location twins
+                View qualified opportunities
               </a>
             </div>
           </div>
