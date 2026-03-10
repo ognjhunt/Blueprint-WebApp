@@ -1,40 +1,76 @@
 import { ArrowUpRight, BarChart3 } from "lucide-react";
 
-const marketProofPoints = [
+type HumanoidEvidenceCard = {
+  tag: string;
+  title: string;
+  summary: string;
+  insight: string;
+  imageSrc: string;
+  imageAlt: string;
+  ctaLabel: string;
+  ctaHref: string;
+};
+
+const humanoidEvidenceCards: HumanoidEvidenceCard[] = [
   {
-    value: "542k",
-    label: "industrial robots installed in 2024",
-    sourceLabel: "IFR industrial robots",
-    sourceHref:
-      "https://ifr.org/ifr-press-releases/news/global-robot-demand-in-factories-doubles-over-10-years%20%20%20",
+    tag: "Home demo",
+    title: "Helix 02 can tidy a room without a person in the loop.",
+    summary:
+      "Figure's living-room demo shows real progress: navigation through clutter, mixed-object pickup, and handoffs inside one continuous task.",
+    insight:
+      "That matters. It still happens in a known room with a known goal. Most pilots break when the layout, safety rules, and pass bar stop being that clean.",
+    imageSrc: "/images/humanoids/figure-helix-02-living-room.jpg",
+    imageAlt: "Figure Helix 02 living room tidy demo thumbnail.",
+    ctaLabel: "Watch demo",
+    ctaHref: "https://www.figure.ai/news/helix-02-living-room-tidy",
   },
   {
-    value: "1M",
-    label: "Amazon robots deployed across 300+ facilities",
-    sourceLabel: "Amazon",
-    sourceHref: "https://www.aboutamazon.com/news/operations/amazon-million-robots-ai-foundation-model/",
+    tag: "Live workflow",
+    title: "Laundry is where capability starts to look operational.",
+    summary:
+      "Physical Intelligence and Weave chose a narrow job in a repeatable setting: moving, sorting, and handling laundry inside a business built around that flow.",
+    insight:
+      "That is the point. Constrained commercial spaces are where teams can learn what actually passes before they promise something more general.",
+    imageSrc: "/images/humanoids/pi-weave-laundry.png",
+    imageAlt: "Physical Intelligence and Weave laundromat workflow image.",
+    ctaLabel: "Read source",
+    ctaHref: "https://www.pi.website/blog/partner",
   },
   {
-    value: "<20",
-    label: "companies Gartner expects to reach humanoid production by 2028",
-    sourceLabel: "Gartner",
-    sourceHref:
+    tag: "Scale bottleneck",
+    title: "Scaled humanoid production is still a short list.",
+    summary:
+      "Gartner expects fewer than 20 companies to reach humanoid production for manufacturing and supply chain by 2028.",
+    insight:
+      "The question now is not whether the demos are real. It is whether a team can turn one real site into a task, a safety case, and a pilot they can repeat.",
+    imageSrc: "/images/humanoids/agility-digit-profile.jpg",
+    imageAlt: "Industrial humanoid robot profile image from Agility Robotics.",
+    ctaLabel: "Read source",
+    ctaHref:
       "https://www.gartner.com/en/newsroom/press-releases/2026-01-21-gartner-predicts-fewer-than-20-companies-will-scale-humanoid-robots-for-manufacturing-and-supply-chain-to-production-stage-by-2028",
   },
 ];
 
 const sourceLinks = [
   {
-    label: "IFR industrial robots",
-    href: "https://ifr.org/ifr-press-releases/news/global-robot-demand-in-factories-doubles-over-10-years%20%20%20",
+    label: "Figure Helix 02",
+    href: "https://www.figure.ai/news/helix-02-living-room-tidy",
   },
   {
-    label: "Amazon robotics",
-    href: "https://www.aboutamazon.com/news/operations/amazon-million-robots-ai-foundation-model/",
+    label: "PI x Weave",
+    href: "https://www.pi.website/blog/partner",
   },
   {
     label: "Gartner Jan 21, 2026",
     href: "https://www.gartner.com/en/newsroom/press-releases/2026-01-21-gartner-predicts-fewer-than-20-companies-will-scale-humanoid-robots-for-manufacturing-and-supply-chain-to-production-stage-by-2028",
+  },
+  {
+    label: "BMW x Figure pilot",
+    href: "https://www.bmwgroup.com/en/news/general/2024/Figure.html",
+  },
+  {
+    label: "Agility industrial deployments",
+    href: "https://agilityrobotics.com/",
   },
 ];
 
@@ -45,9 +81,9 @@ type MarketSignalsSectionProps = {
 };
 
 export function MarketSignalsSection({
-  eyebrow = "Market Signal",
-  title = "Robotics is real. Deployment readiness is still the bottleneck.",
-  description = "Robotics already runs at scale. Humanoid interest is rising fast, but repeatable deployments still depend on task fit, site readiness, safety, and clear pass criteria.",
+  eyebrow = "Capability Signal",
+  title = "Humanoids look good in controlled spaces. Deployment still breaks at the site.",
+  description = "The demos are real. Robots can now tidy rooms, handle laundry, and complete multi-step tasks in spaces built for them. The gap shows up when that same robot has to pass in a live site with different layouts, edge cases, safety rules, and a real success bar.",
 }: MarketSignalsSectionProps) {
   return (
     <section className="border-y border-zinc-100 bg-zinc-50/60 py-16">
@@ -65,20 +101,39 @@ export function MarketSignalsSection({
           </p>
         </div>
 
-        <div className="mt-10 grid gap-4 md:grid-cols-3">
-          {marketProofPoints.map((stat) => (
-            <article key={stat.label} className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <p className="text-3xl font-bold tracking-tight text-zinc-950">{stat.value}</p>
-              <p className="mt-3 text-sm leading-relaxed text-zinc-600">{stat.label}</p>
-              <a
-                href={stat.sourceHref}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-zinc-800"
-              >
-                {stat.sourceLabel}
-                <ArrowUpRight className="h-3 w-3" />
-              </a>
+        <div className="mt-10 grid gap-5 md:grid-cols-3">
+          {humanoidEvidenceCards.map((card) => (
+            <article
+              key={card.title}
+              className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm"
+            >
+              <div className="aspect-[4/3] overflow-hidden bg-zinc-200">
+                <img
+                  src={card.imageSrc}
+                  alt={card.imageAlt}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+              <div className="p-6">
+                <span className="inline-flex rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  {card.tag}
+                </span>
+                <h3 className="mt-4 text-xl font-bold tracking-tight text-zinc-950">
+                  {card.title}
+                </h3>
+                <p className="mt-3 text-sm leading-relaxed text-zinc-600">{card.summary}</p>
+                <p className="mt-3 text-sm leading-relaxed text-zinc-800">{card.insight}</p>
+                <a
+                  href={card.ctaHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-zinc-700 hover:text-zinc-950"
+                >
+                  {card.ctaLabel}
+                  <ArrowUpRight className="h-3 w-3" />
+                </a>
+              </div>
             </article>
           ))}
         </div>
@@ -86,8 +141,9 @@ export function MarketSignalsSection({
         <div className="mt-8 rounded-3xl border border-zinc-200 bg-zinc-950 p-6 text-white shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">The takeaway</p>
           <p className="mt-3 max-w-3xl text-base leading-relaxed text-zinc-200">
-            Demand is not the hard part. The hard part is turning a real site into a clear task,
-            a real bar, and a pilot the right team can actually pass.
+            If AI only worked on benchmark prompts, nobody would call that deployment. Humanoids
+            are ready for far more pilots than the market is running today, but only when the
+            site, task, and pass bar are defined up front.
           </p>
         </div>
 

@@ -30,6 +30,17 @@ describe("PilotExchangeGuide", () => {
     expect(
       screen.getByRole("heading", { name: /How qualified opportunities work/i }),
     ).toBeInTheDocument();
+    expect(screen.getByText(/Why This Matters/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: /Why pre-deployment qualification matters more in humanoids/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Broad robotics already has scale\. Humanoid programs are attracting capital faster than they are producing reliable, repeatable rollouts\./i,
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^What this is$/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^What this is NOT$/i })).toBeInTheDocument();
     expect(screen.getByText(/Site Intake/i)).toBeInTheDocument();
