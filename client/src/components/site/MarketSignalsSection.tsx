@@ -37,21 +37,105 @@ const humanoidEvidenceCards: HumanoidEvidenceCard[] = [
     ctaHref: "https://www.pi.website/blog/partner",
   },
   {
-    tag: "Scale bottleneck",
-    title: "Scaled humanoid production is still a short list.",
+    tag: "Volume signal",
+    title: "Humanoid volume is rising. Site readiness is not.",
     summary:
-      "Gartner expects fewer than 20 companies to reach humanoid production for manufacturing and supply chain by 2028.",
+      "Agility built RoboFab in Oregon. Figure is already working line-side at BMW in Spartanburg. Tesla says Optimus Gen 3 is its first design meant for mass production, with first production planned before the end of 2026.",
     insight:
-      "The question now is not whether the demos are real. It is whether a team can turn one real site into a task, a safety case, and a pilot they can repeat.",
+      "That shifts the bottleneck. More robots still means more live sites that need a task brief, a safety case, and a pass bar before anything scales cleanly.",
     imageSrc: "/images/humanoids/agility-digit-profile.jpg",
     imageAlt: "Industrial humanoid robot profile image from Agility Robotics.",
-    ctaLabel: "Read source",
-    ctaHref:
-      "https://www.gartner.com/en/newsroom/press-releases/2026-01-21-gartner-predicts-fewer-than-20-companies-will-scale-humanoid-robots-for-manufacturing-and-supply-chain-to-production-stage-by-2028",
+    ctaLabel: "Read Tesla update",
+    ctaHref: "https://ir.tesla.com/_flysystem/s3/sec/000162828026003837/tsla-20260128-gen.pdf",
   },
 ];
 
+const whyBlueprintExists = [
+  {
+    title: "The site is still the hard part",
+    description:
+      "A live facility adds layout drift, traffic, edge cases, and access rules that do not show up in a polished demo.",
+  },
+  {
+    title: "The task needs a real pass bar",
+    description:
+      "A pilot only means something if the workflow, handoffs, fallback path, and success threshold are defined up front.",
+  },
+  {
+    title: "More robots multiply deployment work",
+    description:
+      "As volume rises from pilots to thousands, the shortage is not just robots. It is qualified places to put them to work.",
+  },
+];
+
+type TrajectorySignal = {
+  year: string;
+  metric: string;
+  label: string;
+  detail: string;
+  heightClassName: string;
+  tone: "early" | "actual" | "forecast";
+};
+
+const trajectorySignals: TrajectorySignal[] = [
+  {
+    year: "2023",
+    metric: "RoboFab opens",
+    label: "US factory buildout starts",
+    detail:
+      "Agility opened RoboFab in Oregon, the first humanoid robot factory, with planned annual capacity up to 10,000 units.",
+    heightClassName: "h-10",
+    tone: "early",
+  },
+  {
+    year: "2024",
+    metric: "GXO + Digit",
+    label: "First multiyear rollout",
+    detail:
+      "GXO signed a multiyear agreement with Agility to deploy Digit across logistics operations in the United States.",
+    heightClassName: "h-16",
+    tone: "early",
+  },
+  {
+    year: "2025",
+    metric: "BMW Spartanburg",
+    label: "Line-side work in South Carolina",
+    detail:
+      "Figure said one robot supported production associated with about 30,000 vehicles over 12 months at BMW's Spartanburg plant.",
+    heightClassName: "h-28",
+    tone: "actual",
+  },
+  {
+    year: "2026E",
+    metric: "Tesla line start",
+    label: "First Optimus production planned",
+    detail:
+      "Tesla says its first Optimus production line is planned before the end of 2026.",
+    heightClassName: "h-40",
+    tone: "forecast",
+  },
+  {
+    year: "2028",
+    metric: "Short production list",
+    label: "Scale is still narrow",
+    detail:
+      "Gartner expects fewer than 20 companies to reach production stage for humanoids in manufacturing and supply chain by 2028.",
+    heightClassName: "h-56",
+    tone: "forecast",
+  },
+];
+
+const toneClassNames: Record<TrajectorySignal["tone"], string> = {
+  early: "border-zinc-300 bg-zinc-200",
+  actual: "border-emerald-500 bg-emerald-400",
+  forecast: "border-amber-500 border-dashed bg-amber-300",
+};
+
 const sourceLinks = [
+  {
+    label: "Agility RoboFab",
+    href: "https://www.agilityrobotics.com/content/opening-robofab-worlds-first-factory-for-humanoid-robots",
+  },
   {
     label: "Figure Helix 02",
     href: "https://www.figure.ai/news/helix-02-living-room-tidy",
@@ -61,16 +145,28 @@ const sourceLinks = [
     href: "https://www.pi.website/blog/partner",
   },
   {
-    label: "Gartner Jan 21, 2026",
-    href: "https://www.gartner.com/en/newsroom/press-releases/2026-01-21-gartner-predicts-fewer-than-20-companies-will-scale-humanoid-robots-for-manufacturing-and-supply-chain-to-production-stage-by-2028",
-  },
-  {
     label: "BMW x Figure pilot",
     href: "https://www.bmwgroup.com/en/news/general/2024/Figure.html",
   },
   {
-    label: "Agility industrial deployments",
-    href: "https://agilityrobotics.com/",
+    label: "Figure at BMW Spartanburg",
+    href: "https://www.figure.ai/news/production-at-bmw",
+  },
+  {
+    label: "Amazon tests Digit",
+    href: "https://www.aboutamazon.com/news/operations/amazon-introduces-new-robotics-solutions",
+  },
+  {
+    label: "GXO x Agility Digit rollout",
+    href: "https://investors.gxo.com/news-releases/news-release-details/gxo-signs-industry-first-multi-year-agreement-agility-robotics",
+  },
+  {
+    label: "Tesla Q4 2025 update",
+    href: "https://ir.tesla.com/_flysystem/s3/sec/000162828026003837/tsla-20260128-gen.pdf",
+  },
+  {
+    label: "Gartner Jan 21, 2026",
+    href: "https://www.gartner.com/en/newsroom/press-releases/2026-01-21-gartner-predicts-fewer-than-20-companies-will-scale-humanoid-robots-for-manufacturing-and-supply-chain-to-production-stage-by-2028",
   },
 ];
 
@@ -81,9 +177,9 @@ type MarketSignalsSectionProps = {
 };
 
 export function MarketSignalsSection({
-  eyebrow = "Capability Signal",
-  title = "Humanoids look good in controlled spaces. Deployment still breaks at the site.",
-  description = "The demos are real. Robots can now tidy rooms, handle laundry, and complete multi-step tasks in spaces built for them. The gap shows up when that same robot has to pass in a live site with different layouts, edge cases, safety rules, and a real success bar.",
+  eyebrow = "Why We Exist",
+  title = "Humanoid programs are scaling faster than sites are getting ready.",
+  description = "The demos are real. Production plans are getting real too. Deployment still breaks when a robot has to pass in a live site with different layouts, safety rules, and a real success bar. Blueprint exists to close that gap before pilot budget gets burned.",
 }: MarketSignalsSectionProps) {
   return (
     <section className="border-y border-zinc-100 bg-zinc-50/60 py-12 sm:py-16">
@@ -99,6 +195,97 @@ export function MarketSignalsSection({
           <p className="mt-4 text-base leading-relaxed text-zinc-600 sm:text-lg">
             {description}
           </p>
+        </div>
+
+        <div className="mt-8 grid gap-5 lg:grid-cols-[0.95fr_1.35fr]">
+          <article className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+              Why Blueprint exists
+            </p>
+            <h3 className="mt-3 text-2xl font-bold tracking-tight text-zinc-950">
+              Humanoids do not fail because the demo was fake.
+            </h3>
+            <p className="mt-3 text-sm leading-relaxed text-zinc-600">
+              They fail because live sites are variable and unforgiving. As volume rises from
+              pilots toward scale, the bottleneck shifts from robot capability to deployment
+              readiness.
+            </p>
+            <div className="mt-6 space-y-3">
+              {whyBlueprintExists.map((item) => (
+                <div
+                  key={item.title}
+                  className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
+                >
+                  <p className="text-sm font-semibold text-zinc-900">{item.title}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-zinc-600">{item.description}</p>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                  Market trajectory
+                </p>
+                <h3 className="mt-3 text-2xl font-bold tracking-tight text-zinc-950">
+                  Volume is going up fast. Deployment work does not disappear with it.
+                </h3>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                  Reported
+                </span>
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full border border-amber-500 bg-amber-300" />
+                  Forecast
+                </span>
+              </div>
+            </div>
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-600">
+              US signals point in the same direction: factory buildout, named rollouts, and
+              production plans are all moving forward. Each deployment still needs a site, a task,
+              and a safety case.
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+              Bar height is directional. The labels combine public milestones and forward-looking
+              production signals because clean audited deployment counts are still rare.
+            </p>
+
+            <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
+              {trajectorySignals.map((signal) => (
+                <div key={signal.year} className="flex flex-col">
+                  <div className="flex h-44 items-end rounded-3xl border border-zinc-200 bg-zinc-50 px-2 pb-2">
+                    <div
+                      className={`w-full rounded-2xl border ${signal.heightClassName} ${toneClassNames[signal.tone]}`}
+                    />
+                  </div>
+                  <p className="mt-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                    {signal.year}
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-zinc-950">{signal.metric}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-zinc-600">{signal.label}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {trajectorySignals.map((signal) => (
+                <div
+                  key={`${signal.year}-${signal.metric}`}
+                  className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                    {signal.year}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-zinc-900">{signal.metric}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-zinc-600">{signal.detail}</p>
+                </div>
+              ))}
+            </div>
+          </article>
         </div>
 
         <div className="mobile-snap-row mt-8 md:grid md:grid-cols-3 md:gap-5">
@@ -141,9 +328,9 @@ export function MarketSignalsSection({
         <div className="mt-8 rounded-3xl border border-zinc-200 bg-zinc-950 p-6 text-white shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">The takeaway</p>
           <p className="mt-3 max-w-3xl text-base leading-relaxed text-zinc-200">
-            If AI only worked on benchmark prompts, nobody would call that deployment. Humanoids
-            are ready for far more pilots than the market is running today, but only when the
-            site, task, and pass bar are defined up front.
+            Humanoid supply is starting to move. Deployment infrastructure is not. Blueprint exists
+            to qualify the site, define the task, and make the pass bar explicit before a robot
+            team burns time on a weak pilot.
           </p>
         </div>
 

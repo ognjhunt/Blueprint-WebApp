@@ -8,21 +8,38 @@ describe("MarketSignalsSection", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Humanoids look good in controlled spaces\. Deployment still breaks at the site\./i,
+        name: /Humanoid programs are scaling faster than sites are getting ready\./i,
       }),
     ).toBeInTheDocument();
+    expect(screen.getByText(/Why Blueprint exists/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: /Humanoids do not fail because the demo was fake\./i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Market trajectory/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/RoboFab opens/i)).toHaveLength(2);
+    expect(screen.getAllByText(/Tesla line start/i)).toHaveLength(2);
     expect(screen.getByText(/Home demo/i)).toBeInTheDocument();
     expect(screen.getByText(/Live workflow/i)).toBeInTheDocument();
-    expect(screen.getByText(/Scale bottleneck/i)).toBeInTheDocument();
+    expect(screen.getByText(/Volume signal/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Watch demo/i })).toHaveAttribute(
       "href",
       "https://www.figure.ai/news/helix-02-living-room-tidy",
     );
-    expect(screen.getAllByRole("link", { name: /Read source/i })).toHaveLength(2);
-    expect(screen.getByText(/If AI only worked on benchmark prompts/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /BMW x Figure pilot/i })).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: /Read source/i })).toHaveLength(1);
+    expect(screen.getByRole("link", { name: /Read Tesla update/i })).toHaveAttribute(
       "href",
-      "https://www.bmwgroup.com/en/news/general/2024/Figure.html",
+      "https://ir.tesla.com/_flysystem/s3/sec/000162828026003837/tsla-20260128-gen.pdf",
+    );
+    expect(screen.getByText(/Humanoid supply is starting to move\./i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Figure at BMW Spartanburg/i })).toHaveAttribute(
+      "href",
+      "https://www.figure.ai/news/production-at-bmw",
+    );
+    expect(screen.getByRole("link", { name: /Tesla Q4 2025 update/i })).toHaveAttribute(
+      "href",
+      "https://ir.tesla.com/_flysystem/s3/sec/000162828026003837/tsla-20260128-gen.pdf",
     );
   });
 
