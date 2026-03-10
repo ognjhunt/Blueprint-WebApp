@@ -104,7 +104,7 @@ export default function HowItWorks() {
       <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
         <DotPattern />
 
-        <section className="relative overflow-hidden pb-20 pt-16 sm:pt-24">
+        <section className="relative overflow-hidden pb-16 pt-14 sm:pb-20 sm:pt-24">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
               <div className="space-y-8">
@@ -160,7 +160,7 @@ export default function HowItWorks() {
           </div>
         </section>
 
-        <section className="border-y border-zinc-100 bg-zinc-50/50 py-16">
+        <section className="border-y border-zinc-100 bg-zinc-50/50 py-12 sm:py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-10 max-w-2xl">
               <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">Why start with the twin</h2>
@@ -170,11 +170,11 @@ export default function HowItWorks() {
               </p>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-3">
+            <div className="mobile-snap-row md:grid md:grid-cols-3 md:gap-6">
               {whyTwinFirst.map((item) => (
                 <div
                   key={item.title}
-                  className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
+                  className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6"
                 >
                   <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700">
                     {item.icon}
@@ -187,7 +187,7 @@ export default function HowItWorks() {
           </div>
         </section>
 
-        <section className="py-20">
+        <section className="py-14 sm:py-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-12 max-w-3xl">
               <h2 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
@@ -199,11 +199,11 @@ export default function HowItWorks() {
               </p>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="mobile-snap-row md:grid md:grid-cols-2 md:gap-6">
               {pipelineSteps.map((step) => (
                 <div
                   key={step.step}
-                  className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
+                  className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6"
                 >
                   <div className="flex items-center gap-3">
                     <p className="text-sm font-mono font-bold text-indigo-600">{step.step}</p>
@@ -219,7 +219,7 @@ export default function HowItWorks() {
           </div>
         </section>
 
-        <section className="border-y border-zinc-100 bg-zinc-50/50 py-16">
+        <section className="border-y border-zinc-100 bg-zinc-50/50 py-12 sm:py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
               <div className="space-y-5">

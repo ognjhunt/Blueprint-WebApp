@@ -120,7 +120,7 @@ export default function ReadinessPack() {
           </div>
         </section>
 
-        <section className="border-y border-zinc-100 bg-zinc-50/50 py-16">
+        <section className="border-y border-zinc-100 bg-zinc-50/50 py-12 sm:py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="max-w-3xl">
               <h2 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
@@ -132,11 +132,11 @@ export default function ReadinessPack() {
               </p>
             </div>
 
-            <div className="mt-10 grid gap-6 md:grid-cols-2">
+            <div className="mobile-snap-row mt-8 md:grid md:grid-cols-2 md:gap-6">
               {sampleSections.map((section) => (
                 <article
                   key={section.title}
-                  className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
+                  className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6"
                 >
                   <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700">
                     {section.icon}
@@ -149,7 +149,7 @@ export default function ReadinessPack() {
           </div>
         </section>
 
-        <section className="py-20">
+        <section className="py-14 sm:py-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
               <div className="space-y-5">

@@ -78,3 +78,36 @@
   transform: translateY(-2px);
 }
 
+@layer utilities {
+  .mobile-snap-row {
+    display: grid;
+    gap: 1rem;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(17.5rem, 86%);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding-bottom: 0.5rem;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-snap-row > * {
+    height: 100%;
+    scroll-snap-align: start;
+  }
+
+  .mobile-snap-row::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .mobile-snap-row {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+    overflow-x: visible;
+    padding-bottom: 0;
+    scroll-snap-type: none;
+  }
+}

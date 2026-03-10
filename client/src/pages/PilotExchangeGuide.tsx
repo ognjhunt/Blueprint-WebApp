@@ -137,7 +137,7 @@ export default function PilotExchangeGuide() {
       <div className="relative min-h-screen bg-white text-zinc-900 font-sans selection:bg-zinc-200 selection:text-zinc-900">
         <DotPattern />
 
-        <main className="mx-auto max-w-5xl px-4 pb-24 pt-16 sm:px-6 lg:px-8">
+        <main className="mx-auto max-w-5xl px-4 pb-20 pt-14 sm:px-6 sm:pb-24 sm:pt-16 lg:px-8">
           {/* Header Section */}
           <section className="mb-20 max-w-3xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-bold uppercase tracking-widest text-zinc-600 mb-6">
@@ -194,16 +194,16 @@ export default function PilotExchangeGuide() {
             </div>
           </section>
 
-          <section className="mb-24">
+          <section className="mb-20 sm:mb-24">
             <div className="max-w-3xl mb-8">
               <h2 className="text-3xl font-bold text-zinc-900 mb-3">The Core Deployment Gap</h2>
               <p className="text-zinc-600">
                 Deployment Marketplace exists to reduce the lab-to-site drop. These are related problems, but they are not the same step in the pipeline.
               </p>
             </div>
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="mobile-snap-row md:grid md:grid-cols-2 md:gap-6">
               {coreGapConcepts.map((item) => (
-                <div key={item.id} className="border border-zinc-200 rounded-2xl p-6 bg-white">
+                <div key={item.id} className="border border-zinc-200 rounded-2xl bg-white p-5 sm:p-6">
                   <h3 className="text-lg font-bold text-zinc-900 mb-2">{item.title}</h3>
                   <p className="text-sm text-zinc-600 mb-4">{item.summary}</p>
                   <p className="text-sm text-zinc-800 bg-zinc-50 border border-zinc-100 rounded-lg p-4">{item.detail}</p>
@@ -212,16 +212,16 @@ export default function PilotExchangeGuide() {
             </div>
           </section>
 
-          <section className="mb-24">
+          <section className="mb-20 sm:mb-24">
             <div className="max-w-3xl mb-8">
               <h2 className="text-3xl font-bold text-zinc-900 mb-3">Capture vs Adaptation</h2>
               <p className="text-zinc-600">
                 Site capture gives geometry. Site adaptation makes that geometry behave like the real facility for policy transfer.
               </p>
             </div>
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="mobile-snap-row md:grid md:grid-cols-2 md:gap-6">
               {sim2RealBridgeSteps.map((step) => (
-                <div key={step.id} className="border border-zinc-200 rounded-2xl p-6 bg-zinc-50/50">
+                <div key={step.id} className="border border-zinc-200 rounded-2xl bg-zinc-50/50 p-5 sm:p-6">
                   <h3 className="text-lg font-bold text-zinc-900 mb-2">{step.title}</h3>
                   <p className="text-sm text-zinc-600 mb-4">{step.summary}</p>
                   <ul className="space-y-2 mb-4">
@@ -242,15 +242,15 @@ export default function PilotExchangeGuide() {
           </section>
 
           {/* 7-Stage Process - Redesigned as a vertical timeline for easier reading */}
-          <section className="mb-24">
+          <section className="mb-20 sm:mb-24">
             <div className="max-w-2xl mb-10">
               <h2 className="text-3xl font-bold text-zinc-900 mb-3">The 7-Stage Readiness Flow</h2>
               <p className="text-zinc-600">Teams must move through these sequential gates before a controlled pilot ramp. There are no shortcuts.</p>
             </div>
 
-            <div className="space-y-6">
+            <div className="mobile-snap-row md:block md:space-y-6">
               {readinessGates.map((gate, index) => (
-                <div key={gate.id} className="group flex gap-6 sm:gap-8 bg-white border border-zinc-200 rounded-2xl p-6 sm:p-8 hover:border-zinc-300 transition-colors">
+                <div key={gate.id} className="group flex h-full gap-6 bg-white border border-zinc-200 rounded-2xl p-5 hover:border-zinc-300 transition-colors sm:gap-8 sm:p-8">
                   <div className="hidden sm:flex flex-col items-center">
                     <span className="flex items-center justify-center w-10 h-10 rounded-full bg-zinc-100 text-zinc-900 font-bold font-mono text-sm border border-zinc-200">
                       0{index + 1}
@@ -273,11 +273,11 @@ export default function PilotExchangeGuide() {
           </section>
 
           {/* Core Capabilities */}
-          <section className="mb-24">
+          <section className="mb-20 sm:mb-24">
             <h2 className="text-3xl font-bold text-zinc-900 mb-8">Under the Hood</h2>
             
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="border border-zinc-200 rounded-2xl p-8 bg-zinc-50/50">
+            <div className="mobile-snap-row md:grid md:grid-cols-2 md:gap-6">
+              <div className="border border-zinc-200 rounded-2xl bg-zinc-50/50 p-5 sm:p-8">
                 <h3 className="text-xl font-bold text-zinc-900 mb-3">Real-to-Sim Activation</h3>
                 <p className="text-sm text-zinc-600 mb-6">Simulation assets are useless without calibration. We align the twin to reality using log sets.</p>
                 
@@ -307,7 +307,7 @@ export default function PilotExchangeGuide() {
                 </div>
               </div>
 
-              <div className="border border-zinc-200 rounded-2xl p-8 bg-zinc-50/50">
+              <div className="border border-zinc-200 rounded-2xl bg-zinc-50/50 p-5 sm:p-8">
                 <h3 className="text-xl font-bold text-zinc-900 mb-3">Workflow Validation</h3>
                 <p className="text-sm text-zinc-600 mb-6">The hardest pilot failures usually stem from logic and operations, not just motion planning.</p>
                 
@@ -331,15 +331,15 @@ export default function PilotExchangeGuide() {
           </section>
 
           {/* Training Workflows */}
-          <section className="mb-24 border-t border-zinc-200 pt-16">
+          <section className="mb-20 border-t border-zinc-200 pt-12 sm:mb-24 sm:pt-16">
             <div className="max-w-2xl mb-10">
               <h2 className="text-3xl font-bold text-zinc-900 mb-3">Does Twin Training Actually Work?</h2>
               <p className="text-zinc-600">In published robotics studies, yes. The strongest gains appear when policies get deployment-context data, not only broad general pretraining.</p>
             </div>
 
-            <div className="grid sm:grid-cols-2 gap-4 mb-16">
+            <div className="mobile-snap-row sm:grid sm:grid-cols-2 sm:gap-4 mb-12 sm:mb-16">
               {trainingEvidencePoints.map((point) => (
-                <div key={point.id} className="bg-white border border-zinc-200 rounded-xl p-6">
+                <div key={point.id} className="bg-white border border-zinc-200 rounded-xl p-5 sm:p-6">
                   {point.sourceUrl ? (
                     <a
                       href={point.sourceUrl}
@@ -358,8 +358,8 @@ export default function PilotExchangeGuide() {
               ))}
             </div>
 
-            <div className="grid lg:grid-cols-[2fr_1fr] gap-6 mb-16">
-              <div className="bg-white border border-zinc-200 rounded-2xl p-6">
+            <div className="grid gap-6 mb-16 lg:grid-cols-[2fr_1fr]">
+              <div className="bg-white border border-zinc-200 rounded-2xl p-5 sm:p-6">
                 <h3 className="font-bold text-zinc-900 mb-6">Reported Success Lift vs Baselines</h3>
                 <ChartContainer config={researchDeltaChartConfig} className="h-64 w-full">
                   <BarChart data={researchDeltaPoints} margin={{ top: 12, right: 8, left: -20, bottom: 10 }}>
@@ -387,7 +387,7 @@ export default function PilotExchangeGuide() {
                 </p>
               </div>
 
-              <div className="space-y-4">
+              <div className="mobile-snap-row lg:block lg:space-y-4">
                 {correlationSignals.map((signal) => (
                   <div key={signal.id} className="bg-white border border-zinc-200 rounded-xl p-5">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-2">{signal.label}</p>
@@ -398,9 +398,9 @@ export default function PilotExchangeGuide() {
               </div>
             </div>
 
-            <div className="border border-zinc-200 rounded-2xl p-6 bg-zinc-50/60 mb-16">
+            <div className="border border-zinc-200 rounded-2xl p-5 bg-zinc-50/60 mb-16 sm:p-6">
               <h3 className="font-bold text-zinc-900 mb-4">What This Means for Deployment Marketplace</h3>
-              <div className="grid md:grid-cols-3 gap-4">
+              <div className="mobile-snap-row md:grid md:grid-cols-3 md:gap-4">
                 <div className="border border-zinc-200 rounded-lg p-4 bg-white">
                   <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-2">Mode 1</p>
                   <h4 className="font-semibold text-zinc-900 mb-2">Generalization Pack</h4>
@@ -419,9 +419,9 @@ export default function PilotExchangeGuide() {
               </div>
             </div>
 
-            <div className="border border-zinc-200 rounded-2xl p-6 bg-white mb-16">
+            <div className="border border-zinc-200 rounded-2xl p-5 bg-white mb-16 sm:p-6">
               <h3 className="font-bold text-zinc-900 mb-4">How Evaluation Changes by Policy Type</h3>
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="mobile-snap-row md:grid md:grid-cols-2 md:gap-4">
                 <div className="border border-zinc-200 rounded-lg p-4 bg-zinc-50">
                   <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-2">Video World Models</p>
                   <p className="text-sm text-zinc-600">
@@ -437,7 +437,7 @@ export default function PilotExchangeGuide() {
               </div>
             </div>
 
-            <div className="border border-zinc-200 rounded-2xl p-6 bg-white">
+            <div className="border border-zinc-200 rounded-2xl p-5 bg-white sm:p-6">
               <h3 className="font-bold text-zinc-900 mb-4">Research Sources</h3>
               <ul className="space-y-3">
                 {researchSourceLinks.map((source) => (
@@ -452,9 +452,9 @@ export default function PilotExchangeGuide() {
             </div>
 
             <h3 className="text-2xl font-bold text-zinc-900 mb-6">How Training Runs in Practice</h3>
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="mobile-snap-row md:grid md:grid-cols-3 md:gap-6">
               {trainingWorkflowSteps.map((step) => (
-                <div key={step.id} className="relative pl-6 sm:pl-0 border-l sm:border-l-0 sm:border-t border-zinc-200 pt-6">
+                <div key={step.id} className="relative border-l border-zinc-200 pl-6 pt-6 sm:border-l-0 sm:border-t sm:pl-0">
                   <div className="absolute left-0 top-0 sm:-top-3 -translate-x-[1px] sm:translate-x-0 w-3 h-3 rounded-full bg-zinc-900"></div>
                   <h4 className="text-lg font-bold text-zinc-900 mb-2">Step {step.step}: {step.title}</h4>
                   <p className="text-sm text-zinc-600 mb-4">{step.description}</p>
@@ -471,7 +471,7 @@ export default function PilotExchangeGuide() {
           </section>
 
           {/* Charts & Data */}
-          <section className="mb-24 bg-zinc-50 border border-zinc-200 rounded-3xl p-6 sm:p-10">
+          <section className="mb-20 rounded-3xl border border-zinc-200 bg-zinc-50 p-5 sm:mb-24 sm:p-10">
             <div className="max-w-2xl mb-10">
               <h2 className="text-3xl font-bold text-zinc-900 mb-3">Industry Insights</h2>
               <p className="text-zinc-600">Pre-qualification guidance based on aggregated network data. (Illustrative metrics).</p>
@@ -541,12 +541,12 @@ export default function PilotExchangeGuide() {
           </section>
 
           {/* Pricing & Business Model */}
-          <section className="mb-24">
+          <section className="mb-20 sm:mb-24">
             <h2 className="text-3xl font-bold text-zinc-900 mb-8">Who Pays for What?</h2>
             
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="mobile-snap-row md:grid md:grid-cols-2 lg:grid-cols-4 md:gap-4 mb-8">
               {exchangeBusinessModelCards.map((card) => (
-                <div key={card.id} className="border border-zinc-200 rounded-xl p-5 bg-white">
+                <div key={card.id} className="border border-zinc-200 rounded-xl bg-white p-5">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-2">Payer: {card.payer}</p>
                   <h3 className="font-bold text-zinc-900">{card.title}</h3>
                   <p className="font-mono text-sm font-semibold text-zinc-900 my-2">{card.pricing}</p>
@@ -555,10 +555,10 @@ export default function PilotExchangeGuide() {
               ))}
             </div>
 
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="mobile-snap-row md:grid md:grid-cols-2 md:gap-8">
               <div>
                 <h3 className="text-lg font-bold text-zinc-900 mb-4">Ownership Options</h3>
-                <div className="space-y-4">
+                <div className="mobile-snap-row md:block md:space-y-4">
                   {ownershipOptions.map((opt) => (
                     <div key={opt.id} className="border border-zinc-200 rounded-xl p-5 bg-zinc-50">
                       <h4 className="font-bold text-zinc-900">{opt.name}</h4>
@@ -570,7 +570,7 @@ export default function PilotExchangeGuide() {
               </div>
               <div>
                 <h3 className="text-lg font-bold text-zinc-900 mb-4">Training Pricing Lanes</h3>
-                <div className="space-y-4">
+                <div className="mobile-snap-row md:block md:space-y-4">
                   {trainingPricingLanes.map((lane) => (
                     <div key={lane.id} className="border border-zinc-200 rounded-xl p-5 bg-white">
                       <div className="flex justify-between items-start mb-2">

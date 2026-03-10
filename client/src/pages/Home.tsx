@@ -307,12 +307,12 @@ export default function Home() {
           </div>
         </div>
 
-        <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
-          <div className="grid gap-6 md:grid-cols-3">
+        <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6 sm:pb-20 lg:px-8">
+          <div className="mobile-snap-row md:grid md:grid-cols-3 md:gap-6">
             {offeringCards.map((offering) => (
               <article
                 key={offering.title}
-                className="group flex h-full flex-col gap-5 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-indigo-200 hover:shadow-md"
+                className="group flex h-full flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-indigo-200 hover:shadow-md sm:p-6"
               >
                 <div className="flex items-start justify-between">
                   <div className="rounded-xl bg-zinc-100 p-3 text-zinc-900 transition-colors group-hover:bg-indigo-50 group-hover:text-indigo-600">
@@ -353,7 +353,7 @@ export default function Home() {
 
         <MarketSignalsSection />
 
-        <section className="border-y border-zinc-100 bg-zinc-50/50 py-16">
+        <section className="border-y border-zinc-100 bg-zinc-50/50 py-12 sm:py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="max-w-3xl">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
@@ -368,11 +368,11 @@ export default function Home() {
                 and what the right robot team should evaluate next.
               </p>
             </div>
-            <div className="mt-10 grid gap-4 md:grid-cols-3">
+            <div className="mobile-snap-row mt-8 md:grid md:grid-cols-3 md:gap-4">
               {whatYouGet.map((item) => (
                 <div
                   key={item.title}
-                  className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
+                  className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6"
                 >
                   <h3 className="font-semibold text-zinc-900">{item.title}</h3>
                   <p className="mt-2 text-sm text-zinc-600">{item.description}</p>
@@ -382,7 +382,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
           <div className="max-w-3xl">
             <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">Two ways a project starts</h2>
             <p className="mt-4 text-zinc-600">
@@ -390,9 +390,9 @@ export default function Home() {
               team starts with a site they want to evaluate. Either way, the twin comes first.
             </p>
           </div>
-          <div className="mt-8 grid gap-6 md:grid-cols-2">
+          <div className="mobile-snap-row mt-8 md:grid md:grid-cols-2 md:gap-6">
             {routeToMarket.map((item) => (
-              <div key={item.title} className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <div key={item.title} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
                 <h3 className="font-semibold text-zinc-900">{item.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-zinc-600">{item.description}</p>
               </div>
@@ -400,7 +400,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="border-y border-zinc-100 bg-zinc-50/50 py-16">
+        <section className="border-y border-zinc-100 bg-zinc-50/50 py-12 sm:py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-10">
               <h2 className="text-2xl font-bold text-zinc-900">Why teams use Blueprint</h2>
@@ -410,11 +410,11 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-3">
+            <div className="mobile-snap-row md:grid md:grid-cols-3 md:gap-6">
               {whyBlueprint.map((item) => (
                 <div
                   key={item.title}
-                  className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-zinc-200"
+                  className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-zinc-200 sm:p-6"
                 >
                   <h3 className="font-bold text-zinc-900">{item.title}</h3>
                   <p className="mt-2 text-sm text-zinc-600">{item.description}</p>
@@ -424,9 +424,9 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="rounded-2xl border border-zinc-200 bg-white p-8">
+        <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+          <div className="mobile-snap-row md:grid md:grid-cols-2 md:gap-6">
+            <div className="rounded-2xl border border-zinc-200 bg-white p-6 sm:p-8">
               <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">
                 For Robot Teams
               </p>
@@ -449,7 +449,7 @@ export default function Home() {
               </a>
             </div>
 
-            <div className="rounded-2xl bg-zinc-900 p-8 text-white">
+            <div className="rounded-2xl bg-zinc-900 p-6 text-white sm:p-8">
               <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
                 For Site Operators
               </p>
@@ -474,11 +474,11 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
-          <div className="grid gap-4 md:grid-cols-3">
+        <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 sm:pb-20 lg:px-8">
+          <div className="mobile-snap-row md:grid md:grid-cols-3 md:gap-4">
             <a
               href="/how-it-works"
-              className="group rounded-xl border border-zinc-200 bg-white p-6 transition-all hover:border-indigo-200 hover:shadow-md"
+              className="group rounded-xl border border-zinc-200 bg-white p-5 transition-all hover:border-indigo-200 hover:shadow-md sm:p-6"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-emerald-50 p-2 text-emerald-600">
@@ -494,7 +494,7 @@ export default function Home() {
 
             <a
               href="/readiness-pack"
-              className="group rounded-xl border border-zinc-200 bg-white p-6 transition-all hover:border-indigo-200 hover:shadow-md"
+              className="group rounded-xl border border-zinc-200 bg-white p-5 transition-all hover:border-indigo-200 hover:shadow-md sm:p-6"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600">
@@ -510,7 +510,7 @@ export default function Home() {
 
             <a
               href="/for-robot-integrators"
-              className="group rounded-xl border border-zinc-200 bg-white p-6 transition-all hover:border-indigo-200 hover:shadow-md"
+              className="group rounded-xl border border-zinc-200 bg-white p-5 transition-all hover:border-indigo-200 hover:shadow-md sm:p-6"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-violet-50 p-2 text-violet-600">

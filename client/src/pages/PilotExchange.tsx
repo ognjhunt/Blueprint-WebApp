@@ -507,7 +507,7 @@ export default function PilotExchange() {
             </a>
           </div>
         </div>
-        <main className="mx-auto max-w-6xl px-4 pb-24 pt-16 sm:px-6 lg:px-8">
+        <main className="mx-auto max-w-6xl px-4 pb-20 pt-14 sm:px-6 sm:pb-24 sm:pt-16 lg:px-8">
           {/* Hero */}
           <section className="mb-16 max-w-3xl">
             <div className="mb-3 inline-flex items-center rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-zinc-600">
@@ -536,7 +536,7 @@ export default function PilotExchange() {
             </div>
           </section>
 
-          <section id="pricing" className="mb-16 rounded-[2rem] border border-zinc-200 bg-zinc-50 p-6 sm:p-8">
+          <section id="pricing" className="mb-16 rounded-[2rem] border border-zinc-200 bg-zinc-50 p-5 sm:p-8">
             <div className="max-w-3xl">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Simple pricing</p>
               <h2 className="mt-3 text-3xl font-bold tracking-tight text-zinc-950">Pay for the job you need.</h2>
@@ -559,12 +559,12 @@ export default function PilotExchange() {
               </div>
             </div>
 
-            <div className="mt-6 rounded-2xl border border-zinc-200 bg-white">
+            <div className="mobile-snap-row mt-6 md:rounded-2xl md:border md:border-zinc-200 md:bg-white">
               {simplePricingOptions.map((option, index) => (
                 <div
                   key={option.id}
-                  className={`grid gap-5 p-5 lg:grid-cols-[1.2fr_0.8fr] lg:items-start ${
-                    index < simplePricingOptions.length - 1 ? "border-b border-zinc-200" : ""
+                  className={`grid h-full gap-5 rounded-2xl border border-zinc-200 bg-white p-5 md:rounded-none md:border-0 lg:grid-cols-[1.2fr_0.8fr] lg:items-start ${
+                    index < simplePricingOptions.length - 1 ? "md:border-b md:border-zinc-200" : ""
                   }`}
                 >
                   <div>
@@ -622,7 +622,7 @@ export default function PilotExchange() {
           {/* Simple How-it-Works */}
           <section className="mb-16">
             <h2 className="text-xl font-bold text-zinc-900 mb-6 border-b border-zinc-200 pb-2">How this page works</h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="mobile-snap-row sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:gap-6">
               <div>
                 <span className="block text-zinc-400 font-mono text-sm mb-2">01</span>
                 <h3 className="font-semibold text-zinc-900 mb-1">Review a qualified site</h3>
@@ -651,15 +651,15 @@ export default function PilotExchange() {
             <p className="text-sm text-zinc-600 mb-6">
               The point is simple: teams waste less time when the site has already been scoped and the workflow is already clear.
             </p>
-            <div className="grid md:grid-cols-3 gap-4 mb-6">
+            <div className="mobile-snap-row md:grid md:grid-cols-3 md:gap-4 mb-6">
               {deploymentGapHighlights.map((item) => (
-                <div key={item.id} className="border border-zinc-200 rounded-xl p-5 bg-white">
+                <div key={item.id} className="border border-zinc-200 rounded-xl bg-white p-5">
                   <h3 className="font-semibold text-zinc-900 mb-2">{item.title}</h3>
                   <p className="text-sm text-zinc-600">{item.detail}</p>
                 </div>
               ))}
             </div>
-            <div className="grid md:grid-cols-3 gap-4 mb-6">
+            <div className="mobile-snap-row md:grid md:grid-cols-3 md:gap-4 mb-6">
               {adaptationModes.map((mode) => (
                 <div
                   key={mode.id}
@@ -674,7 +674,7 @@ export default function PilotExchange() {
                 </div>
               ))}
             </div>
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="mobile-snap-row md:grid md:grid-cols-3 md:gap-4">
               {exchangeClientSegments.map((segment) => (
                 <div key={segment.id} className="border border-zinc-200 rounded-xl p-5 bg-zinc-50">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-2">{segment.label}</p>
@@ -745,15 +745,15 @@ export default function PilotExchange() {
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="briefs" className="mt-6 space-y-4">
+              <TabsContent value="briefs" className="mobile-snap-row mt-6 md:block md:space-y-4">
                 {filteredLocationBriefs.length === 0 ? (
                   <div className="py-12 text-center text-zinc-500 border border-dashed border-zinc-300 rounded-lg">No qualified sites match your criteria.</div>
                 ) : (
                   filteredLocationBriefs.map((brief) => {
                     const leaderboard = leaderboardByBriefId.get(brief.id) ?? [];
                     return (
-                      <div key={brief.id} className="group border border-zinc-200 rounded-xl bg-white overflow-hidden hover:border-zinc-300 transition-colors">
-                        <div className="p-6 sm:p-8 grid md:grid-cols-[1fr_300px] gap-8">
+                      <div key={brief.id} className="group overflow-hidden rounded-xl border border-zinc-200 bg-white transition-colors hover:border-zinc-300">
+                        <div className="grid gap-6 p-5 sm:p-8 md:grid-cols-[1fr_300px] md:gap-8">
                           {/* Left Details */}
                           <div>
                             <div className="mb-5 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">
@@ -841,13 +841,13 @@ export default function PilotExchange() {
                 )}
               </TabsContent>
 
-              <TabsContent value="policies" className="mt-6 space-y-4">
+              <TabsContent value="policies" className="mt-6">
                 {filteredPolicySubmissions.length === 0 ? (
                   <div className="py-12 text-center text-zinc-500 border border-dashed border-zinc-300 rounded-lg">No team results match your criteria.</div>
                 ) : (
-                  <div className="grid md:grid-cols-2 gap-4">
+                  <div className="mobile-snap-row md:grid md:grid-cols-2 md:gap-4">
                     {filteredPolicySubmissions.map((sub) => (
-                      <div key={sub.id} className="border border-zinc-200 rounded-xl p-6 bg-white flex flex-col justify-between">
+                      <div key={sub.id} className="flex h-full flex-col justify-between rounded-xl border border-zinc-200 bg-white p-5 sm:p-6">
                         <div className="mb-4 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">
                           <img
                             src={sub.thumbnailUrl}

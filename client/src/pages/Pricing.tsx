@@ -19,7 +19,7 @@ export default function Pricing() {
       />
 
       <div className="min-h-screen bg-white">
-        <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-5xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
           <header className="max-w-3xl space-y-4">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
               Simple pricing
@@ -131,11 +131,11 @@ export default function Pricing() {
             </div>
           </section>
 
-          <section className="mt-6 space-y-4">
+          <section className="mobile-snap-row mt-6 md:block md:space-y-4">
             {simplePricingOptions.map((option) => (
               <article
                 key={option.id}
-                className="grid gap-5 rounded-3xl border border-slate-200 bg-white p-6 lg:grid-cols-[1.15fr_0.85fr]"
+                className="grid h-full gap-5 rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 lg:grid-cols-[1.15fr_0.85fr]"
               >
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">

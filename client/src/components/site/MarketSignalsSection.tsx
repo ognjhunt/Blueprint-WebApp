@@ -86,7 +86,7 @@ export function MarketSignalsSection({
   description = "The demos are real. Robots can now tidy rooms, handle laundry, and complete multi-step tasks in spaces built for them. The gap shows up when that same robot has to pass in a live site with different layouts, edge cases, safety rules, and a real success bar.",
 }: MarketSignalsSectionProps) {
   return (
-    <section className="border-y border-zinc-100 bg-zinc-50/60 py-16">
+    <section className="border-y border-zinc-100 bg-zinc-50/60 py-12 sm:py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl">
           <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-widest text-zinc-600">
@@ -101,7 +101,7 @@ export function MarketSignalsSection({
           </p>
         </div>
 
-        <div className="mt-10 grid gap-5 md:grid-cols-3">
+        <div className="mobile-snap-row mt-8 md:grid md:grid-cols-3 md:gap-5">
           {humanoidEvidenceCards.map((card) => (
             <article
               key={card.title}
@@ -115,7 +115,7 @@ export function MarketSignalsSection({
                   loading="lazy"
                 />
               </div>
-              <div className="p-6">
+              <div className="p-5 sm:p-6">
                 <span className="inline-flex rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
                   {card.tag}
                 </span>
