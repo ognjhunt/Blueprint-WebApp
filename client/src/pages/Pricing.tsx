@@ -3,9 +3,10 @@ import { getPricingContactInterest, simplePricingOptions } from "@/data/simplePr
 import { CheckCircle2, CreditCard, ShieldCheck } from "lucide-react";
 
 const billingSteps = [
-  "Start with site qualification.",
-  "If the site is a fit, teams can buy a deeper check.",
-  "Add site data or managed tuning only when needed.",
+  "Start with a Readiness Pack.",
+  "Open qualified sites to robot teams only after qualification.",
+  "Buy technical evaluation only when both sides are serious.",
+  "Use deployment prep or managed tuning only for selected programs.",
 ];
 
 export default function Pricing() {
@@ -13,7 +14,7 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Simple Blueprint pricing: start with site qualification, then add evaluation, site data, or managed tuning only when needed."
+        description="Blueprint pricing starts with a Readiness Pack, then moves into qualified opportunities, technical evaluation, and deployment prep only when needed."
         canonical="/pricing"
       />
 
@@ -24,49 +25,53 @@ export default function Pricing() {
               Simple pricing
             </p>
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Pay for the job you need.
+              Start with qualification. Add the next layer only when it matters.
             </h1>
             <p className="text-lg text-slate-600">
-              The first step is site qualification. If the site is a fit, robot teams can buy
-              deeper checks and site-specific work after that.
+              Blueprint is not priced like a generic marketplace. The first product is a
+              readiness decision. Everything else comes later, if the site is real and the team
+              is serious.
             </p>
           </header>
 
           <section className="mt-10 rounded-3xl border border-emerald-200 bg-emerald-50 p-6 sm:p-8">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
-              Start here
+              The ladder
             </p>
             <div className="mt-2 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
               <div>
-                <h2 className="text-3xl font-bold text-emerald-950">Site qualification</h2>
+                <h2 className="text-3xl font-bold text-emerald-950">Readiness first. Marketplace later.</h2>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-900">
-                  Blueprint reviews the site, the task, and the main constraints before anyone
-                  commits to a live pilot.
+                  The business model is simple. Site operators buy qualification. Robot teams pay
+                  for access to better opportunities, deeper checks, and later technical work only
+                  when a site deserves it.
                 </p>
                 <ul className="mt-4 space-y-2">
                   <li className="flex items-start gap-2 text-sm text-emerald-900">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
-                    <span>Task and workflow review</span>
+                    <span>Qualification gets site operators in</span>
                   </li>
                   <li className="flex items-start gap-2 text-sm text-emerald-900">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
-                    <span>Ready, risky, or not-ready recommendation</span>
+                    <span>Qualified opportunities monetize robot-team demand</span>
                   </li>
                   <li className="flex items-start gap-2 text-sm text-emerald-900">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
-                    <span>A brief that can be shared with the right teams</span>
+                    <span>Technical evaluation and deployment prep are premium follow-ons</span>
                   </li>
                 </ul>
               </div>
               <div className="rounded-2xl border border-emerald-200 bg-white p-5">
-                <p className="text-sm font-medium text-emerald-700">Price</p>
-                <p className="mt-2 text-3xl font-bold text-emerald-950">Custom quote</p>
-                <p className="mt-1 text-sm text-emerald-800">per site or workflow</p>
+                <p className="text-sm font-medium text-emerald-700">Revenue stack</p>
+                <p className="mt-2 text-xl font-bold text-emerald-950">Operator revenue first</p>
+                <p className="mt-2 text-sm text-emerald-800">
+                  Then exchange access, technical diligence, and later tuning or licensing.
+                </p>
                 <a
                   href="/contact?interest=site-qualification"
                   className="mt-5 inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Request site qualification
+                  Start with a Readiness Pack
                 </a>
               </div>
             </div>
@@ -75,7 +80,31 @@ export default function Pricing() {
           <section className="mt-10 rounded-3xl border border-slate-200 bg-slate-50 p-6 sm:p-8">
             <div className="mb-6 flex items-center gap-2">
               <CreditCard className="h-5 w-5 text-slate-700" />
-              <h2 className="text-2xl font-bold text-slate-900">How to think about it</h2>
+              <h2 className="text-2xl font-bold text-slate-900">Who pays?</h2>
+            </div>
+            <div className="mb-6 grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-emerald-200 bg-white p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
+                  Site operator pays
+                </p>
+                <p className="mt-2 text-2xl font-bold text-slate-900">Readiness Pack</p>
+                <p className="mt-2 text-sm text-slate-600">
+                  If you run the site, you pay first so everyone knows whether the site is worth
+                  pursuing.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-indigo-200 bg-white p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-700">
+                  Robot team pays
+                </p>
+                <p className="mt-2 text-2xl font-bold text-slate-900">
+                  Everything after qualification
+                </p>
+                <p className="mt-2 text-sm text-slate-600">
+                  If you want access, deeper checks, or managed work, your team pays for that next
+                  layer.
+                </p>
+              </div>
             </div>
             <ol className="space-y-3">
               {billingSteps.map((step, index) => (
@@ -92,11 +121,12 @@ export default function Pricing() {
           <section className="mt-10">
             <div className="max-w-3xl">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                After qualification
+                Four packages
               </p>
-              <h2 className="mt-2 text-3xl font-bold text-slate-900">Extra work for robot teams</h2>
+              <h2 className="mt-2 text-3xl font-bold text-slate-900">Extra work only after the site earns it.</h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Teams do not need to buy everything at once. Start with the smallest next step.
+                Keep the buying motion simple. Start with a readiness decision. Only add the next
+                layer when the site and the team are real.
               </p>
             </div>
           </section>
@@ -115,6 +145,9 @@ export default function Pricing() {
                     <h2 className="text-2xl font-bold text-slate-900">{option.name}</h2>
                     <span className="text-sm text-slate-500">({option.internalName})</span>
                   </div>
+                  <div className="mt-3 inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700">
+                    Who pays: {option.payer}
+                  </div>
                   <p className="mt-3 text-sm leading-6 text-slate-600">{option.summary}</p>
                   <ul className="mt-4 space-y-2">
                     {option.includes.map((item) => (
@@ -132,13 +165,13 @@ export default function Pricing() {
                   <p className="mt-1 text-sm text-slate-500">{option.unit}</p>
                   <a
                     href={
-                      option.id === "evaluation"
+                      option.id === "qualified-opportunity"
                         ? "/qualified-opportunities"
                         : `/contact?interest=${getPricingContactInterest(option.id)}`
                     }
                     className="mt-5 inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                   >
-                    {option.id === "evaluation" ? "View qualified opportunities" : "Talk to sales"}
+                    {option.id === "qualified-opportunity" ? "View qualified opportunities" : "Talk to sales"}
                   </a>
                 </div>
               </article>
@@ -152,8 +185,8 @@ export default function Pricing() {
               </p>
               <h2 className="mt-2 text-xl font-bold text-slate-900">Private site terms are custom.</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                If a site needs private access, exclusivity, or longer internal-use rights, that is
-                a separate enterprise deal.
+                If a site needs private access, exclusivity, licensing changes, or long-running
+                managed work, that becomes a separate enterprise deal.
               </p>
               <a
                 href="/contact?interest=deeper-evaluation"

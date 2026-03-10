@@ -27,43 +27,56 @@ const HOME_HERO_QUERY_PARAM = "hero";
 
 const offeringCards = [
   {
-    title: "Digital twin",
+    title: "Readiness Pack",
     badge: "Step 1",
     description:
-      "Blueprint turns a real site into a site-specific digital twin your team can actually use.",
+      "Start with the site, the task, and a clear readiness decision before anyone buys deeper work.",
     bullets: [
-      "We capture the real work area, route, and handoff points",
-      "You get one shared picture of what the site looks like",
+      "Low-friction qualification for site operators",
+      "A scoped brief and recommendation the team can use right away",
     ],
-    ctaLabel: "Request a site twin",
+    ctaLabel: "Start with qualification",
     ctaHref: "/contact?interest=site-qualification",
-    icon: <MapPinned className="h-8 w-8 text-zinc-900" />,
-  },
-  {
-    title: "Readiness Pack",
-    badge: "Step 2",
-    description:
-      "The twin becomes a clear report on feasibility, blockers, and what needs to happen next.",
-    bullets: [
-      "Simple read on what is possible and what is blocked",
-      "A short write-up your team can use right away",
-    ],
-    ctaLabel: "See the deliverable",
-    ctaHref: "/readiness-pack",
     icon: <FileText className="h-8 w-8 text-zinc-900" />,
   },
   {
-    title: "Robot-team evaluation",
+    title: "Qualified Opportunity",
+    badge: "Step 2",
+    description:
+      "Robot teams should review qualified site briefs, not random inbound opportunities.",
+    bullets: [
+      "Monetize better opportunities, not cold leads",
+      "Open the right sites to the right teams after qualification",
+    ],
+    ctaLabel: "View qualified opportunities",
+    ctaHref: "/qualified-opportunities",
+    icon: <MapPinned className="h-8 w-8 text-zinc-900" />,
+  },
+  {
+    title: "Technical Evaluation",
     badge: "Step 3",
     description:
-      "Robot teams can evaluate against the twin before anyone burns pilot budget in the building.",
+      "When both sides are serious, Blueprint adds deeper geometry-backed diligence for that exact site and team.",
     bullets: [
-      "Better fit checks before field time starts",
-      "A faster path to pilots and deployments when the site is real",
+      "Premium technical upsell once the site is real",
+      "A cleaner decision on whether to move toward deployment prep",
     ],
     ctaLabel: "For robot teams",
     ctaHref: "/for-robot-integrators",
     icon: <Bot className="h-8 w-8 text-zinc-900" />,
+  },
+  {
+    title: "Deployment Prep",
+    badge: "Step 4",
+    description:
+      "Only selected programs move into managed tuning, validation packages, and later data or licensing work.",
+    bullets: [
+      "Highest-touch enterprise layer",
+      "Scene, validation, tuning, and licensing when justified",
+    ],
+    ctaLabel: "See pricing",
+    ctaHref: "/pricing",
+    icon: <ScanLine className="h-8 w-8 text-zinc-900" />,
   },
 ];
 
@@ -74,29 +87,29 @@ const whyBlueprint = [
       "Most deployment trouble starts in the building. The twin makes the real constraints hard to ignore.",
   },
   {
-    title: "Operators need a clear feasibility read",
+    title: "Qualification is the front door",
     description:
-      "Blueprint shows what is possible, what is blocked, and what would need to change.",
+      "The first product is a clear readiness call, not a generic marketplace listing.",
   },
   {
-    title: "Robot teams need a real place to evaluate",
+    title: "The marketplace comes later",
     description:
-      "The twin gives teams a cleaner way to evaluate before they spend time on a live pilot.",
+      "Robot teams should pay for qualified opportunities and deeper checks only after a site is scoped.",
   },
 ];
 
 const whatYouGet = [
   {
-    title: "Site-specific digital twin",
-    description: "A usable view of the real site, task area, route, and handoff points.",
+    title: "Readiness Pack",
+    description: "A clear qualification record, blockers, and next-step recommendation.",
   },
   {
-    title: "Readiness and report",
-    description: "A clear write-up on feasibility, blockers, readiness, and next steps.",
+    title: "Qualified opportunity",
+    description: "A handoff-ready site brief that the right robot teams can actually review.",
   },
   {
-    title: "Robot-team evaluation path",
-    description: "A simple way for teams to review the site and decide whether to go deeper.",
+    title: "Technical and deployment lanes",
+    description: "Deeper evaluation, deployment prep, tuning, or licensing only when the site earns it.",
   },
 ];
 
@@ -104,12 +117,12 @@ const routeToMarket = [
   {
     title: "An operator starts with a site",
     description:
-      "Blueprint builds the twin so the operator can understand what is feasible before inviting more pilot work.",
+      "Blueprint qualifies the site first so the operator can understand whether the opportunity is worth opening up.",
   },
   {
-    title: "A robot team starts with a target site",
+    title: "A robot team starts with a qualified brief",
     description:
-      "Blueprint builds the twin so the team can evaluate the real site before pushing toward deployment.",
+      "Robot teams review a real, qualified site before buying deeper technical work or deployment prep.",
   },
 ];
 
@@ -130,24 +143,24 @@ export const HOME_HERO_VARIANTS: HomeHeroVariant[] = [
     eyebrow: "Deployment Readiness Platform",
     headline: "The deployment readiness platform for physical AI.",
     body:
-      "Blueprint turns a real site into a digital twin your team can use to see what is feasible, what is blocked, and what robot teams should evaluate next.",
-    supportingPoints: ["Site twin", "Feasibility", "Team evaluation"],
+      "Blueprint starts with qualification, turns good sites into qualified opportunities, and only then opens deeper evaluation, deployment prep, and later tuning work.",
+    supportingPoints: ["Qualification", "Qualified opportunities", "Technical evaluation"],
   },
   {
     id: "sites-ready",
     eyebrow: "Deployment Readiness Platform",
     headline: "We help sites get ready for robot deployment.",
     body:
-      "It starts with a site-specific digital twin, then a clear read on blockers, readiness, and the next step for the teams that fit.",
-    supportingPoints: ["Digital twin", "Blockers", "Next step"],
+      "It starts with a low-friction readiness pack, then a cleaner handoff to the right robot teams when the site is real.",
+    supportingPoints: ["Readiness pack", "Qualified brief", "Next step"],
   },
   {
     id: "deployable-opportunity",
     eyebrow: "Deployment Readiness Platform",
     headline: "Blueprint turns a real site into a deployable opportunity.",
     body:
-      "We build the twin first, use it to show what is and is not possible, and help robot teams evaluate before a pilot.",
-    supportingPoints: ["Build the twin", "Show feasibility", "Move to pilot"],
+      "We do not lead with a generic marketplace. We qualify the site first, open it to the right teams second, and sell deeper technical work only when it is justified.",
+    supportingPoints: ["Qualify first", "Open to teams", "Go deeper only when needed"],
   },
 ];
 

@@ -67,7 +67,7 @@ export default function ReadinessPack() {
     <>
       <SEO
         title="Readiness Pack | Blueprint"
-        description="See what a Blueprint site twin produces: a clear view of feasibility, blockers, readiness, and the next evaluation step."
+        description="See the default Blueprint product: a readiness pack that scopes the site, surfaces blockers, and tells the team what to do next."
         canonical="/readiness-pack"
       />
 
@@ -80,15 +80,15 @@ export default function ReadinessPack() {
               <div className="space-y-6">
                 <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
                   <FileText className="h-3 w-3" />
-                  Sample Deliverable
+                  Default Product
                 </div>
                 <h1 className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl">
-                  What you get from a Blueprint site twin
+                  The Readiness Pack is the first thing we sell.
                 </h1>
                 <p className="max-w-2xl text-lg leading-relaxed text-zinc-600">
-                  The twin is the core product. The readiness pack is the clear write-up that comes
-                  out of it. It shows what is feasible, what is blocked, and what a robot team
-                  should evaluate next.
+                  The goal is simple: turn a real site and task into a clear readiness decision.
+                  If the site is promising, that pack becomes the handoff into qualified
+                  opportunities and later technical work.
                 </p>
 
                 <CTAButtons
@@ -111,8 +111,8 @@ export default function ReadinessPack() {
                 <div className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
                   <p className="text-sm font-semibold text-zinc-900">Next step</p>
                   <p className="mt-2 text-sm text-zinc-600">
-                    Fix the dock turn, confirm aisle access rules, then open the twin for robot-team
-                    evaluation.
+                    Fix the dock turn, confirm aisle access rules, then open the qualified brief
+                    for robot-team review.
                   </p>
                 </div>
               </div>
@@ -127,8 +127,8 @@ export default function ReadinessPack() {
                 The deliverable is simple
               </h2>
               <p className="mt-4 text-zinc-600">
-                You are not buying a pile of media. You are buying a clearer picture of the site and
-                a better decision about what to do next.
+                You are not buying a pile of files. You are buying a qualification decision and a
+                better next step.
               </p>
             </div>
 
@@ -157,8 +157,8 @@ export default function ReadinessPack() {
                   What the pack covers
                 </h2>
                 <p className="text-zinc-600">
-                  This is the part operators use to understand feasibility and the part robot teams
-                  use to decide whether the site is worth a deeper look.
+                  Site operators use this to understand whether the site is worth pursuing. Robot
+                  teams use it to decide whether the site deserves deeper evaluation.
                 </p>
                 <a
                   href="/contact?interest=site-qualification"

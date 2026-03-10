@@ -35,21 +35,21 @@ function DotPattern() {
 
 const whyTwinFirst = [
   {
-    title: "The twin is the core product",
+    title: "Qualification is the first product",
     description:
-      "Blueprint starts by building a site-specific digital twin. Everything else comes out of that.",
+      "We start with a scoped site and task, then produce a readiness decision before offering deeper technical work.",
     icon: <MapPinned className="h-6 w-6" />,
   },
   {
-    title: "Operators get a clearer feasibility read",
+    title: "Qualified opportunities come next",
     description:
-      "The twin shows what is possible, what is blocked, and what still needs more proof.",
+      "Robot teams should review qualified site briefs, not random inbound leads or generic scene listings.",
     icon: <ScanLine className="h-6 w-6" />,
   },
   {
-    title: "Robot teams get a better evaluation path",
+    title: "The heavy work is selective",
     description:
-      "Teams can review the same twin before they spend money and time on a pilot.",
+      "Deeper evaluation, deployment prep, and managed tuning only happen when both sides are serious.",
     icon: <Bot className="h-6 w-6" />,
   },
 ];
@@ -60,36 +60,36 @@ const pipelineSteps = [
     title: "Scope the site and task",
     icon: <ScanLine className="h-5 w-5" />,
     description:
-      "We start with the actual workflow, work area, handoff points, and constraints that matter.",
+      "We start with the actual workflow, work area, handoff points, constraints, and success bar.",
   },
   {
     step: "02",
-    title: "Build the digital twin",
+    title: "Capture and qualify the site",
     icon: <MapPinned className="h-5 w-5" />,
     description:
-      "Blueprint captures the site and turns it into a digital twin the team can review and use.",
+      "Blueprint captures the evidence and turns it into a readiness pack with blockers, gaps, and a recommendation.",
   },
   {
     step: "03",
-    title: "Show feasibility and readiness",
+    title: "Open the qualified opportunity",
     icon: <FileText className="h-5 w-5" />,
     description:
-      "The twin becomes a clear report on blockers, readiness, and what needs to change or be checked next.",
+      "If the site is worth pursuing, the handoff becomes a better brief for robot teams and integrators.",
   },
   {
     step: "04",
-    title: "Let robot teams evaluate",
+    title: "Add deeper work only when needed",
     icon: <Bot className="h-5 w-5" />,
     description:
-      "If the site makes sense, robot teams use the twin to evaluate before anyone burns pilot budget.",
+      "Only selected sites move into technical evaluation, deployment prep, managed tuning, or later licensing work.",
   },
 ];
 
 const deliverables = [
   "A site-specific digital twin",
   "A scoped workflow and work area",
-  "A simple readiness pack with blockers and next steps",
-  "A better handoff for robot-team evaluation",
+  "A readiness pack with blockers and next steps",
+  "A qualified opportunity brief for robot-team review",
 ];
 
 export default function HowItWorks() {
@@ -97,7 +97,7 @@ export default function HowItWorks() {
     <>
       <SEO
         title="How It Works | Blueprint"
-        description="How Blueprint turns a real site into a digital twin, shows feasibility, and helps robot teams evaluate before a pilot."
+        description="How Blueprint moves from site intake to qualification, then into qualified opportunities, deeper evaluation, and later deployment work."
         canonical="/how-it-works"
       />
 
@@ -111,14 +111,15 @@ export default function HowItWorks() {
                 <div className="space-y-6">
                   <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
                     <Sparkles className="h-3 w-3" />
-                    Digital Twin For Deployment Readiness
+                    Qualification First
                   </div>
                   <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
-                    We turn a real site into a digital twin your team can use.
+                    We start with qualification, not a generic marketplace.
                   </h1>
                   <p className="max-w-2xl text-lg leading-relaxed text-zinc-600">
-                    Blueprint builds the twin first, uses it to show what is and is not feasible,
-                    and gives robot teams a way to evaluate before a pilot.
+                    Blueprint scopes the site, captures the evidence, returns a readiness decision,
+                    and only then opens qualified opportunities, deeper evaluation, and later
+                    deployment work.
                   </p>
                 </div>
 
@@ -142,8 +143,8 @@ export default function HowItWorks() {
                         What you get
                       </p>
                       <p className="text-sm text-zinc-600">
-                        A reusable site twin, a clear report back, and a better way for robot teams
-                        to evaluate before field work starts.
+                        A readiness pack first, a qualified handoff second, and premium technical
+                        work only when the site earns it.
                       </p>
                       <a
                         href="/readiness-pack"
@@ -164,8 +165,8 @@ export default function HowItWorks() {
             <div className="mb-10 max-w-2xl">
               <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">Why start with the twin</h2>
               <p className="mt-4 text-zinc-600">
-                The twin gives operators and robot teams the same view of the site before the pilot
-                gets expensive.
+                The ladder is simple: qualify first, open good sites to the right teams, then sell
+                the deeper technical work only when it matters.
               </p>
             </div>
 
@@ -193,8 +194,8 @@ export default function HowItWorks() {
                 The process is simple
               </h2>
               <p className="mt-4 text-lg text-zinc-600">
-                Start with the real site. Build the twin. Use it to understand feasibility. Then let
-                the right teams evaluate before the pilot.
+                Start with the real site and task. Return the readiness decision. Then let the
+                right teams decide whether to go deeper.
               </p>
             </div>
 
@@ -226,8 +227,8 @@ export default function HowItWorks() {
                   What you receive
                 </h2>
                 <p className="text-zinc-600">
-                  The report matters, but it is not the whole product. The real asset is the site
-                  twin and the clearer decisions that come from it.
+                  The report matters because it routes the next commercial step. Qualification is
+                  the product center. Exchange, evaluation, and tuning sit on top of it.
                 </p>
                 <a
                   href="/readiness-pack"
@@ -255,7 +256,7 @@ export default function HowItWorks() {
         <section className="mx-auto max-w-7xl px-4 pb-24 pt-20 sm:px-6 lg:px-8">
           <div className="rounded-2xl bg-zinc-900 p-8 text-center sm:p-12">
             <h2 className="text-2xl font-bold text-white sm:text-3xl">
-              Start with the site. We&apos;ll build the twin from there.
+              Start with the site. We&apos;ll tell you whether it is worth taking further.
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-zinc-400">
               Share the site and workflow. Blueprint will turn it into a digital twin, show what is

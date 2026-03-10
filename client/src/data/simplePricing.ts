@@ -1,60 +1,84 @@
 export type SimplePricingOption = {
-  id: "evaluation" | "adaptation-data" | "managed-adaptation";
+  id: "readiness-pack" | "qualified-opportunity" | "technical-evaluation" | "deployment-prep";
   step: string;
   name: string;
   internalName: string;
   price: string;
   unit: string;
+  payer: string;
   summary: string;
   includes: string[];
 };
 
 export const simplePricingOptions: SimplePricingOption[] = [
   {
-    id: "evaluation",
-    step: "After qualification",
-    name: "Evaluation",
-    internalName: "Evaluation Run",
-    price: "$1,450 - $2,350",
-    unit: "per run",
-    summary: "Use this when a qualified site is ready for a team check.",
+    id: "readiness-pack",
+    step: "Start here",
+    name: "Readiness Pack",
+    internalName: "Qualification",
+    price: "$1,500 - $4,000",
+    unit: "per site or workflow",
+    payer: "Site operator",
+    summary: "The default product. Start with the site, the task, and a clear readiness report.",
     includes: [
-      "A scored check on the qualified site",
-      "A short scorecard with the main gaps",
-      "A clear next step for the team",
+      "Site intake and workflow scoping",
+      "Capture request or captured evidence review",
+      "Qualification report with ready, risky, or not-ready call",
+      "Handoff-ready brief for later team review",
     ],
   },
   {
-    id: "adaptation-data",
-    step: "If needed",
-    name: "Site data",
-    internalName: "Adaptation Data Pack",
-    price: "$11,500 - $13,500",
-    unit: "per pack",
-    summary: "Use this when the team needs data from the exact site.",
+    id: "qualified-opportunity",
+    step: "Next layer",
+    name: "Qualified Opportunity",
+    internalName: "Exchange Access",
+    price: "$2,000 - $10,000",
+    unit: "per brief or subscription access",
+    payer: "Robot team / OEM / integrator",
+    summary: "Pay to review qualified site briefs instead of chasing cold leads.",
     includes: [
-      "Site-specific eval scenes",
-      "Training-ready data from the site",
-      "A faster path to the next check",
+      "Access to scoped site briefs",
+      "Task and constraint summary",
+      "Readiness pack and handoff review",
+      "A cleaner path into deeper evaluation",
     ],
   },
   {
-    id: "managed-adaptation",
-    step: "Hands-on help",
-    name: "Managed tuning",
-    internalName: "Managed Adaptation",
-    price: "$15,500 - $22,000",
-    unit: "per cycle",
-    summary: "Use this when you want Blueprint to handle the tuning work on a supported stack.",
+    id: "technical-evaluation",
+    step: "When both sides are serious",
+    name: "Technical Evaluation",
+    internalName: "Deeper Evaluation",
+    price: "$7,500 - $20,000",
+    unit: "per site",
+    payer: "Robot team / OEM / integrator",
+    summary: "Premium technical diligence for a specific robot, team, and site.",
     includes: [
-      "Blueprint runs the tuning work",
-      "Offline regression testing before rollout",
-      "A recommendation on whether to redeploy",
+      "Geometry-backed review when justified",
+      "Robot/team-specific fit checks",
+      "Stronger blocker and feasibility analysis",
+      "Decision on whether to proceed to deployment prep",
+    ],
+  },
+  {
+    id: "deployment-prep",
+    step: "Highest-touch lane",
+    name: "Deployment Prep / Managed Tuning",
+    internalName: "Managed Tuning",
+    price: "$20,000 - $100,000+",
+    unit: "scoped engagement",
+    payer: "Robot team / OEM / enterprise pilot budget",
+    summary: "Use this when the site is real, the stack is known, and the team wants Blueprint to do the heavy lifting.",
+    includes: [
+      "Advanced scene or validation package",
+      "Managed tuning on supported stacks",
+      "Offline evaluation gates before redeploy",
+      "Licensing, data, or private terms when needed",
     ],
   },
 ];
 
 export function getPricingContactInterest(id: SimplePricingOption["id"]): string {
-  if (id === "managed-adaptation") return "managed-tuning";
+  if (id === "readiness-pack") return "site-qualification";
+  if (id === "deployment-prep") return "managed-tuning";
   return "deeper-evaluation";
 }

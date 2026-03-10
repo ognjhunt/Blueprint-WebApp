@@ -541,21 +541,21 @@ export default function PilotExchange() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Simple pricing</p>
               <h2 className="mt-3 text-3xl font-bold tracking-tight text-zinc-950">Pay for the job you need.</h2>
               <p className="mt-3 text-base leading-7 text-zinc-600">
-                This page starts after site qualification. Teams can begin with one check and add
-                more only if the site is a fit.
+                This page starts after qualification. Robot teams pay for access to better
+                opportunities and only buy deeper work when the site is real.
               </p>
             </div>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Before this page</p>
-                <p className="mt-2 text-2xl font-bold text-emerald-950">Site qualification</p>
-                <p className="mt-2 text-sm text-emerald-900">Blueprint scopes the site and workflow before teams start buying checks.</p>
+                <p className="mt-2 text-2xl font-bold text-emerald-950">Readiness Pack</p>
+                <p className="mt-2 text-sm text-emerald-900">Site operators buy qualification first. This page opens only after a site has been scoped and reviewed.</p>
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-white p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Robot teams</p>
-                <p className="mt-2 text-2xl font-bold text-zinc-950">Pay per use</p>
-                <p className="mt-2 text-sm text-zinc-600">Pick the smallest next step: evaluation, site data, or managed tuning.</p>
+                <p className="mt-2 text-2xl font-bold text-zinc-950">Pay for the next layer</p>
+                <p className="mt-2 text-sm text-zinc-600">Start with the brief, then buy technical evaluation or deployment prep only when justified.</p>
               </div>
             </div>
 
@@ -587,9 +587,9 @@ export default function PilotExchange() {
                     <p className="text-sm font-medium text-zinc-500">Price</p>
                     <p className="mt-2 text-3xl font-bold text-zinc-950">{option.price}</p>
                     <p className="mt-1 text-sm text-zinc-500">{option.unit}</p>
-                    {option.id === "evaluation" ? (
+                    {option.id === "qualified-opportunity" ? (
                       <Button onClick={() => openEvalDialog()} className="mt-5 w-full bg-zinc-900 text-white hover:bg-zinc-800">
-                        Check this site
+                        Review this site
                       </Button>
                     ) : (
                       <a
@@ -608,8 +608,7 @@ export default function PilotExchange() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Enterprise only</p>
               <h3 className="mt-2 text-xl font-bold text-zinc-950">Private site terms are custom.</h3>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-600">
-                If a site needs private access, exclusivity, or longer internal-use rights, that is a
-                separate enterprise deal. It is not part of the standard pay-per-use path.
+                If a site needs private access, exclusivity, licensing changes, or longer managed work, that becomes a separate enterprise deal. It is not part of the standard exchange path.
               </p>
               <a
                 href="/contact?interest=deeper-evaluation&source=qualified-opportunities"

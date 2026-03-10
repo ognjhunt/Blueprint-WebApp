@@ -335,7 +335,7 @@ export const pilotExchangeFaq: PilotExchangeFaqItem[] = [
     id: "faq-05",
     question: "Who pays for Deployment Marketplace?",
     answer:
-      "Sites keep the $0 default onboarding path. Robot teams buy the level of artifact depth they need: readiness first, adaptation data second, and managed adaptation only when the stack supports it.",
+      "Site operators pay for qualification first. Robot teams buy access to qualified opportunities, deeper evaluation, and later managed work only when the site is real.",
   },
   {
     id: "faq-06",
@@ -348,35 +348,35 @@ export const pilotExchangeFaq: PilotExchangeFaqItem[] = [
 export const exchangeBusinessModelCards: ExchangeBusinessModelCard[] = [
   {
     id: "biz-01",
-    title: "Site Twin License",
+    title: "Readiness Pack",
     payer: "Location Site",
-    pricing: "$0 upfront",
+    pricing: "$1.5K-$4K per site",
     description:
-      "Blueprint captures, calibrates, and hosts the default twin so teams start from a reusable site asset instead of a one-off scan.",
+      "The first product: site intake, capture, qualification, and a handoff-ready readiness pack.",
   },
   {
     id: "biz-02",
-    title: "Readiness Pack",
+    title: "Qualified Opportunity",
     payer: "Robotics Team",
-    pricing: "Usage-based",
+    pricing: "$2K-$10K per brief or subscription",
     description:
-      "Default buying motion for robot teams that need task scope, scorecards, and a go / adapt / wait recommendation before a live pilot.",
+      "Robot teams pay to review qualified site briefs instead of chasing random leads.",
   },
   {
     id: "biz-03",
-    title: "Adaptation Data Pack",
+    title: "Technical Evaluation",
     payer: "Robotics Team",
-    pricing: "Usage-based add-on",
+    pricing: "$7.5K-$20K per site",
     description:
-      "Adds task-scoped render packs, evaluation scenarios, and site-conditioned training artifacts on top of the hosted twin.",
+      "Premium diligence for a specific robot, site, and workflow once both sides are serious.",
   },
   {
     id: "biz-04",
-    title: "Managed Adaptation",
+    title: "Deployment Prep / Managed Tuning",
     payer: "Robotics Team",
-    pricing: "Custom for supported stacks",
+    pricing: "$20K-$100K+ scoped",
     description:
-      "Premium service for teams that want Blueprint to run fine-tuning or post-training with an offline evaluation gate before redeploy.",
+      "Highest-touch lane for advanced validation, tuning, and later licensing on selected programs.",
   },
 ];
 
