@@ -5,12 +5,18 @@ const router = Router();
 router.get("/", (_req: Request, res: Response) => {
   res.status(200).json({
     summary:
-      "Blueprint checks whether a site and task are ready for robots, then turns qualified demand into clear opportunities for the right teams.",
+      "Blueprint turns a real site into a digital twin so operators can see what is feasible and robot teams can evaluate before pilots.",
     pages: [
       {
         path: "/",
         title: "Home",
-        description: "Overview of Blueprint's qualification-first workflow for robot deployment readiness.",
+        description: "Overview of Blueprint's digital twin workflow for deployment readiness.",
+      },
+      {
+        path: "/readiness-pack",
+        title: "Readiness Pack",
+        description:
+          "Sample deliverable showing what a Blueprint site twin produces: feasibility, blockers, readiness, and next steps.",
       },
       {
         path: "/marketplace",
@@ -21,7 +27,7 @@ router.get("/", (_req: Request, res: Response) => {
         path: "/qualified-opportunities",
         title: "Qualified Opportunities",
         description:
-          "Qualified site briefs that robot teams can review, evaluate, and respond to after site qualification.",
+          "Site briefs that robot teams can review and evaluate after Blueprint builds the twin and readiness picture.",
       },
       {
         path: "/qualified-opportunities-guide",
@@ -47,7 +53,7 @@ router.get("/", (_req: Request, res: Response) => {
       {
         path: "/contact",
         title: "Contact",
-        description: "Ways to reach the Blueprint team for sales and support.",
+        description: "Tell Blueprint about a site and workflow so the team can build the twin and plan the next step.",
       },
     ],
     safety: "This endpoint only returns public, non-sensitive summaries.",

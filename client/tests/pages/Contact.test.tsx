@@ -39,7 +39,7 @@ beforeEach(() => {
 });
 
 describe("Contact page", () => {
-  it("renders the qualification-first heading and helper cards", () => {
+  it("renders the twin-first heading and helper cards", () => {
     render(<Contact />);
 
     expect(
@@ -49,6 +49,10 @@ describe("Contact page", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Quick Response/i)).toBeInTheDocument();
     expect(screen.getByText(/Prefer email\?/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /See the deliverable/i })).toHaveAttribute(
+      "href",
+      "/readiness-pack"
+    );
   });
 
   it("submits the qualification intake when required fields are filled", async () => {

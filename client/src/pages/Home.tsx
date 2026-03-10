@@ -6,15 +6,13 @@ import { MarketSignalsSection } from "@/components/site/MarketSignalsSection";
 import { SEO } from "@/components/SEO";
 import {
   ArrowRight,
+  Bot,
   CheckCircle2,
-  Globe2,
-  MapPin,
+  FileText,
+  MapPinned,
   ScanLine,
-  Shield,
   Sparkles,
 } from "lucide-react";
-
-// --- Data ---
 
 type HomeHeroVariant = {
   id: string;
@@ -29,101 +27,101 @@ const HOME_HERO_QUERY_PARAM = "hero";
 
 const offeringCards = [
   {
-    title: "Site qualification",
+    title: "Digital twin",
     badge: "Step 1",
     description:
-      "We review the site and the task before anyone spends time on a live pilot.",
+      "Blueprint turns a real site into a site-specific digital twin your team can actually use.",
     bullets: [
-      "We scope the exact task, route, and work area",
-      "We flag the obvious blockers early",
+      "We capture the real work area, route, and handoff points",
+      "You get one shared picture of what the site looks like",
     ],
-    ctaLabel: "Request site qualification",
+    ctaLabel: "Request a site twin",
     ctaHref: "/contact?interest=site-qualification",
-    icon: <MapPin className="h-8 w-8 text-zinc-900" />,
+    icon: <MapPinned className="h-8 w-8 text-zinc-900" />,
   },
   {
     title: "Readiness Pack",
     badge: "Step 2",
     description:
-      "You get a simple answer: ready, risky, or not ready yet.",
+      "The twin becomes a clear report on feasibility, blockers, and what needs to happen next.",
     bullets: [
-      "Clear task, safety, and site notes",
-      "A short recommendation your team can act on",
+      "Simple read on what is possible and what is blocked",
+      "A short write-up your team can use right away",
     ],
-    ctaLabel: "See site qualification",
-    ctaHref: "/how-it-works",
-    icon: <ScanLine className="h-8 w-8 text-zinc-900" />,
+    ctaLabel: "See the deliverable",
+    ctaHref: "/readiness-pack",
+    icon: <FileText className="h-8 w-8 text-zinc-900" />,
   },
   {
-    title: "Qualified opportunities",
+    title: "Robot-team evaluation",
     badge: "Step 3",
     description:
-      "Once a site is qualified, the right robot teams can review it, respond, and buy deeper checks.",
+      "Robot teams can evaluate against the twin before anyone burns pilot budget in the building.",
     bullets: [
-      "Operators get a clear brief instead of random inbound interest",
-      "Teams can add evaluation, site data, or managed tuning later",
+      "Better fit checks before field time starts",
+      "A faster path to pilots and deployments when the site is real",
     ],
-    ctaLabel: "View qualified opportunities",
-    ctaHref: "/qualified-opportunities",
-    icon: <Shield className="h-8 w-8 text-zinc-900" />,
+    ctaLabel: "For robot teams",
+    ctaHref: "/for-robot-integrators",
+    icon: <Bot className="h-8 w-8 text-zinc-900" />,
   },
 ];
 
 const whyBlueprint = [
   {
-    title: "The site is usually the real problem",
+    title: "The site matters more than the pitch deck",
     description:
-      "Most pilot problems come from the site, the task, and the workflow, not the slide deck.",
+      "Most deployment trouble starts in the building. The twin makes the real constraints hard to ignore.",
   },
   {
-    title: "You need a simple answer early",
+    title: "Operators need a clear feasibility read",
     description:
-      "Blueprint helps you decide whether to move forward, change the plan, or wait.",
+      "Blueprint shows what is possible, what is blocked, and what would need to change.",
   },
   {
-    title: "Matching works better after qualification",
+    title: "Robot teams need a real place to evaluate",
     description:
-      "A qualified brief is much easier for the right robot team to review and respond to.",
+      "The twin gives teams a cleaner way to evaluate before they spend time on a live pilot.",
   },
 ];
 
 const whatYouGet = [
   {
-    title: "Site review",
-    description: "We look at the real site, the task, and the constraints that matter.",
+    title: "Site-specific digital twin",
+    description: "A usable view of the real site, task area, route, and handoff points.",
   },
   {
-    title: "Readiness pack",
-    description: "You get a short decision package with the main risks and next steps.",
+    title: "Readiness and report",
+    description: "A clear write-up on feasibility, blockers, readiness, and next steps.",
   },
   {
-    title: "Qualified brief",
-    description: "If the site is a fit, Blueprint can share a clear brief with the right teams.",
+    title: "Robot-team evaluation path",
+    description: "A simple way for teams to review the site and decide whether to go deeper.",
   },
 ];
 
 const routeToMarket = [
   {
-    title: "A site starts the process",
+    title: "An operator starts with a site",
     description:
-      "An operator asks Blueprint to qualify a site and workflow before opening the door to robot teams.",
+      "Blueprint builds the twin so the operator can understand what is feasible before inviting more pilot work.",
   },
   {
-    title: "A robot team brings us in",
+    title: "A robot team starts with a target site",
     description:
-      "A team with a target site uses Blueprint to get a cleaner read before pushing toward a pilot.",
+      "Blueprint builds the twin so the team can evaluate the real site before pushing toward deployment.",
   },
 ];
 
 const labBullets = [
-  "Review a qualified site before committing field time",
-  "Buy evaluation or site data only when the site is a fit",
-  "Use managed tuning later if the stack supports it",
+  "Evaluate against the twin before travel and field time",
+  "See blockers early instead of finding them during a pilot",
+  "Move faster when the site is ready for a real deployment",
 ];
 
 const providerBullets = [
-  "Start with a site and workflow review",
-  "Open the brief to the right teams only after qualification",
+  "See what is possible, blocked, and still unknown",
+  "Get a report back without losing the twin as the main asset",
 ];
 
 export const HOME_HERO_VARIANTS: HomeHeroVariant[] = [
@@ -132,24 +130,24 @@ export const HOME_HERO_VARIANTS: HomeHeroVariant[] = [
     eyebrow: "Deployment Readiness Platform",
     headline: "The deployment readiness platform for physical AI.",
     body:
-      "Blueprint turns a real site into a deployable opportunity with a walkthrough, a clear task brief, pass criteria, and next steps for both sides.",
-    supportingPoints: ["Walkthrough", "Task brief", "Pass criteria"],
+      "Blueprint turns a real site into a digital twin your team can use to see what is feasible, what is blocked, and what robot teams should evaluate next.",
+    supportingPoints: ["Site twin", "Feasibility", "Team evaluation"],
   },
   {
     id: "sites-ready",
     eyebrow: "Deployment Readiness Platform",
     headline: "We help sites get ready for robot deployment.",
     body:
-      "Then we help the right teams evaluate, respond, and move faster.",
-    supportingPoints: ["Site review", "Qualified teams", "Faster pilots"],
+      "It starts with a site-specific digital twin, then a clear read on blockers, readiness, and the next step for the teams that fit.",
+    supportingPoints: ["Digital twin", "Blockers", "Next step"],
   },
   {
     id: "deployable-opportunity",
     eyebrow: "Deployment Readiness Platform",
     headline: "Blueprint turns a real site into a deployable opportunity.",
     body:
-      "We scope the task, define the bar, and help both sides move toward a real pilot.",
-    supportingPoints: ["Scope the task", "Define the bar", "Move to pilot"],
+      "We build the twin first, use it to show what is and is not possible, and help robot teams evaluate before a pilot.",
+    supportingPoints: ["Build the twin", "Show feasibility", "Move to pilot"],
   },
 ];
 
@@ -189,8 +187,6 @@ function selectHomeHeroVariant(): { variant: HomeHeroVariant; source: string } {
   return { variant: randomVariant, source: "random" };
 }
 
-// --- Component ---
-
 function DotPattern() {
   return (
     <svg
@@ -224,19 +220,17 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | Site Qualification For Robot Deployments"
-        description="Blueprint is the deployment readiness platform for physical AI. We turn a real site into a deployable opportunity for operators and robot teams."
+        title="Blueprint | Digital Twins For Robot Deployments"
+        description="Blueprint turns a real site into a digital twin so operators can understand feasibility and robot teams can evaluate before pilots."
         canonical="/"
         image="https://tryblueprint.io/images/og-home.png"
       />
       <div className="relative min-h-screen overflow-hidden bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
         <DotPattern />
 
-        {/* --- Hero Section --- */}
         <div className="relative pb-16 pt-10 sm:pb-20 sm:pt-24">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid gap-8 sm:gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-12">
-              {/* Hero Content */}
               <div className="space-y-6 sm:space-y-8">
                 <div className="space-y-4 sm:space-y-6">
                   <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
@@ -263,9 +257,9 @@ export default function Home() {
 
                 <CTAButtons
                   primaryHref="/how-it-works"
-                  primaryLabel="See site qualification"
-                  secondaryHref="/contact"
-                  secondaryLabel="Request site qualification"
+                  primaryLabel="See how it works"
+                  secondaryHref="/contact?interest=site-qualification"
+                  secondaryLabel="Request a site twin"
                 />
 
                 <div className="pt-2 opacity-80 grayscale transition-all duration-500 hover:opacity-100 hover:grayscale-0 sm:pt-4">
@@ -273,14 +267,13 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Hero Visual */}
               <div className="relative">
                 <div className="absolute -inset-4 rounded-full bg-indigo-500/20 blur-3xl filter" />
                 <div className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white/80 p-6 shadow-xl backdrop-blur-md">
                   <div className="overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50">
                     <img
                       src="/images/hero-digital-twin-v3.svg"
-                      alt="Illustration of a commercial site prepared for humanoid deployment review"
+                      alt="Illustration of a commercial site prepared for robot deployment review"
                       className="h-48 w-full object-cover"
                       loading="lazy"
                     />
@@ -290,8 +283,9 @@ export default function Home() {
                       What Blueprint Does
                     </div>
                     <p className="text-sm text-zinc-600">
-                      We review warehouses, factories, retail backrooms, hospitality sites, and
-                      other structured indoor spaces before teams commit to a pilot.
+                      Blueprint is the system that turns a real site into a digital twin, uses that
+                      twin to show what is and is not feasible, and gives robot teams a way to
+                      evaluate before burning pilot budget.
                     </p>
                   </div>
                 </div>
@@ -300,7 +294,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* --- Offering Cards --- */}
         <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
           <div className="grid gap-6 md:grid-cols-3">
             {offeringCards.map((offering) => (
@@ -347,20 +340,19 @@ export default function Home() {
 
         <MarketSignalsSection />
 
-        {/* --- What You Get --- */}
         <section className="border-y border-zinc-100 bg-zinc-50/50 py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="max-w-3xl">
-              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 mb-4">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
                 <ScanLine className="h-3 w-3" />
                 What You Get
               </div>
               <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
-                A simple path from site review to a clear next step.
+                A simple path from site twin to a clear next step.
               </h2>
               <p className="mt-4 text-zinc-600">
-                First we review the site and task. Then we tell you whether to move forward,
-                adjust the plan, or wait.
+                First we build the twin. Then we use it to show feasibility, blockers, readiness,
+                and what the right robot team should evaluate next.
               </p>
             </div>
             <div className="mt-10 grid gap-4 md:grid-cols-3">
@@ -379,13 +371,11 @@ export default function Home() {
 
         <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
-              <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
-                Two ways a project starts
-              </h2>
-              <p className="mt-4 text-zinc-600">
-                Sometimes the operator starts with a site they want reviewed. Sometimes a robot
-                team brings in a known site and asks for a cleaner read before a pilot.
-              </p>
+            <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">Two ways a project starts</h2>
+            <p className="mt-4 text-zinc-600">
+              Sometimes the operator starts with a site they want to understand. Sometimes a robot
+              team starts with a site they want to evaluate. Either way, the twin comes first.
+            </p>
           </div>
           <div className="mt-8 grid gap-6 md:grid-cols-2">
             {routeToMarket.map((item) => (
@@ -397,14 +387,13 @@ export default function Home() {
           </div>
         </section>
 
-        {/* --- Why Blueprint --- */}
         <section className="border-y border-zinc-100 bg-zinc-50/50 py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-10">
               <h2 className="text-2xl font-bold text-zinc-900">Why teams use Blueprint</h2>
               <p className="mt-2 text-zinc-600">
-                Blueprint helps teams understand the site before travel, integration work, and
-                pilot spend start piling up.
+                The twin gives operators and robot teams the same view of the site before money and
+                time start disappearing into a pilot.
               </p>
             </div>
 
@@ -422,16 +411,14 @@ export default function Home() {
           </div>
         </section>
 
-        {/* --- Personas --- */}
         <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="grid gap-6 md:grid-cols-2">
-            {/* Robotics Team Persona */}
             <div className="rounded-2xl border border-zinc-200 bg-white p-8">
               <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">
                 For Robot Teams
               </p>
               <h3 className="mt-2 text-xl font-bold text-zinc-900">
-                Start with the site check. Add deeper work only if it is worth it.
+                Evaluate against the twin before you burn pilot budget.
               </h3>
               <ul className="mt-4 space-y-2">
                 {labBullets.map((item) => (
@@ -441,15 +428,20 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
+              <a
+                href="/for-robot-integrators"
+                className="mt-6 inline-flex rounded-lg border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-50"
+              >
+                For robot teams
+              </a>
             </div>
 
-            {/* Facility Provider Persona */}
             <div className="rounded-2xl bg-zinc-900 p-8 text-white">
               <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
                 For Site Operators
               </p>
               <h3 className="mt-2 text-xl font-bold text-white">
-                Get a clear read on your site before you invite more pilot risk.
+                See what is possible, what is blocked, and what needs to change.
               </h3>
               <ul className="mt-4 space-y-2">
                 {providerBullets.map((item) => (
@@ -460,16 +452,15 @@ export default function Home() {
                 ))}
               </ul>
               <a
-                href="/qualified-opportunities"
+                href="/readiness-pack"
                 className="mt-6 inline-block rounded-lg bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
               >
-                View qualified opportunities
+                See the Readiness Pack
               </a>
             </div>
           </div>
         </section>
 
-        {/* --- Feature Highlights (Teasers) --- */}
         <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
           <div className="grid gap-4 md:grid-cols-3">
             <a
@@ -481,40 +472,40 @@ export default function Home() {
                   <ScanLine className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-zinc-900">How the service works</p>
-                  <p className="text-sm text-zinc-500">From site review to a clear next step</p>
+                  <p className="font-semibold text-zinc-900">How it works</p>
+                  <p className="text-sm text-zinc-500">From site to twin to evaluation</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
             </a>
 
             <a
-              href="/qualified-opportunities-guide"
+              href="/readiness-pack"
               className="group rounded-xl border border-zinc-200 bg-white p-6 transition-all hover:border-indigo-200 hover:shadow-md"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600">
-                  <Shield className="h-5 w-5" />
+                  <FileText className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-zinc-900">Humanoid readiness review</p>
-                  <p className="text-sm text-zinc-500">See what a simple qualification flow looks like</p>
+                  <p className="font-semibold text-zinc-900">Readiness Pack</p>
+                  <p className="text-sm text-zinc-500">See the report that comes out of the twin</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
             </a>
 
             <a
-              href="/qualified-opportunities"
+              href="/for-robot-integrators"
               className="group rounded-xl border border-zinc-200 bg-white p-6 transition-all hover:border-indigo-200 hover:shadow-md"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-violet-50 p-2 text-violet-600">
-                  <Globe2 className="h-5 w-5" />
+                  <Bot className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-zinc-900">Qualified opportunities</p>
-                  <p className="text-sm text-zinc-500">See the briefs teams can review after qualification</p>
+                  <p className="font-semibold text-zinc-900">For robot teams</p>
+                  <p className="text-sm text-zinc-500">Use the twin to evaluate before a pilot</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
@@ -522,29 +513,27 @@ export default function Home() {
           </div>
         </section>
 
-        {/* --- Final CTA --- */}
         <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
           <div className="rounded-2xl bg-zinc-900 p-8 text-center sm:p-12">
             <h2 className="text-2xl font-bold text-white sm:text-3xl">
-              Bring the right site-specific artifacts into your next deployment.
+              Share the site and workflow. We&apos;ll build the twin from there.
             </h2>
-            <p className="mx-auto mt-4 max-w-xl text-zinc-400">
-              Share the facility and the workflow you want to prove. We&apos;ll scope the twin,
-              the readiness pack, and the artifact path that makes sense whether you are bringing
-              a known site or opening the door to qualified downstream demand.
+            <p className="mx-auto mt-4 max-w-2xl text-zinc-400">
+              Blueprint builds the digital twin, shows what is feasible, and gives the right robot
+              teams a better way to evaluate before the pilot starts.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
               <a
-                href="/solutions"
+                href="/contact?interest=site-qualification"
                 className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
               >
-                See Solutions
+                Request a site twin
               </a>
               <a
-                href="/contact"
+                href="/readiness-pack"
                 className="inline-flex items-center justify-center rounded-lg border border-zinc-700 px-6 py-3 text-sm font-semibold text-white hover:bg-zinc-800"
               >
-                Contact Sales
+                See the Readiness Pack
               </a>
             </div>
           </div>

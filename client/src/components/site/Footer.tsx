@@ -1,9 +1,9 @@
 const footerLinks = [
   { label: "Site Qualification", href: "/how-it-works" },
+  { label: "Readiness Pack", href: "/readiness-pack" },
   { label: "For Sites", href: "/for-site-operators" },
   { label: "For Robot Teams", href: "/for-robot-integrators" },
   { label: "Pricing", href: "/pricing" },
-  { label: "Qualified Opportunities", href: "/qualified-opportunities" },
   { label: "Contact", href: "/contact" },
   { label: "Privacy", href: "/privacy" },
   { label: "Terms", href: "/terms" },
@@ -18,8 +18,8 @@ export function Footer() {
             Blueprint
           </a>
           <p className="text-sm text-slate-500">
-            Blueprint checks whether a site and task are ready for robots, then turns qualified
-            demand into clear opportunities for the right teams.
+            Blueprint turns a real site into a digital twin so operators can see what is feasible
+            and robot teams can evaluate before pilots.
           </p>
         </div>
         <nav className="grid flex-1 grid-cols-2 gap-3 text-sm text-slate-600 sm:grid-cols-3">
@@ -33,7 +33,7 @@ export function Footer() {
       <div className="border-t border-slate-200 bg-white py-4">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p>© {new Date().getFullYear()} Blueprint, Inc. All rights reserved.</p>
-          <p>Site qualification first. Qualified opportunities second.</p>
+          <p>Site twin first. Readiness and evaluation built in.</p>
         </div>
       </div>
     </footer>

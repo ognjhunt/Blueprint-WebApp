@@ -55,7 +55,6 @@ export const simplePricingOptions: SimplePricingOption[] = [
 ];
 
 export function getPricingContactInterest(id: SimplePricingOption["id"]): string {
-  if (id === "adaptation-data") return "adaptation-data-pack";
-  if (id === "managed-adaptation") return "managed-adaptation";
-  return "evaluation-run";
+  if (id === "managed-adaptation") return "managed-tuning";
+  return "deeper-evaluation";
 }

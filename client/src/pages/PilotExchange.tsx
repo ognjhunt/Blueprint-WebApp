@@ -612,7 +612,7 @@ export default function PilotExchange() {
                 separate enterprise deal. It is not part of the standard pay-per-use path.
               </p>
               <a
-                href="/contact?interest=private-twin-buyout&source=qualified-opportunities"
+                href="/contact?interest=deeper-evaluation&source=qualified-opportunities"
                 className="mt-5 inline-flex items-center justify-center rounded-lg border border-zinc-300 bg-zinc-50 px-4 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100"
               >
                 Discuss private terms

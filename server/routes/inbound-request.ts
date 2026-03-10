@@ -1,5 +1,8 @@
 import { Request, Response, Router } from "express";
 import crypto from "crypto";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { HTTP_STATUS } from "../constants/http-status";
 import { sendEmail } from "../utils/email";
@@ -91,6 +94,11 @@ const DISPOSABLE_EMAIL_DOMAINS = [
   "10minutemail.com",
   "yopmail.com",
 ];
+
+const DEV_INBOUND_REQUEST_LOG = path.join(
+  os.tmpdir(),
+  "blueprint-dev-inbound-requests.jsonl"
+);
 
 /**
  * Hash IP address for privacy in logs/rate-limit keys
@@ -270,6 +278,14 @@ function normalizeBuyerType(value?: BuyerType): BuyerType {
   return value === "robot_team" ? "robot_team" : "site_operator";
 }
 
+function isProduction(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
+function writeDevInboundRequest(payload: Record<string, unknown>) {
+  fs.appendFileSync(DEV_INBOUND_REQUEST_LOG, `${JSON.stringify(payload)}\n`, "utf8");
+}
+
 /**
  * Validate email format and check for disposable domains
  */
@@ -338,20 +354,20 @@ function generateConfirmationEmailHtml(firstName: string): string {
                   <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                     <tr>
                       <td style="padding:8px 0;">
-                        <a href="https://tryblueprint.io/how-it-works" style="color:#4f46e5;text-decoration:none;font-size:14px;">How qualification works</a>
-                        <span style="color:#9ca3af;font-size:14px;"> - Intake, evidence review, and qualification flow</span>
+                        <a href="https://tryblueprint.io/how-it-works" style="color:#4f46e5;text-decoration:none;font-size:14px;">How it works</a>
+                        <span style="color:#9ca3af;font-size:14px;"> - From site to twin to readiness and evaluation</span>
                       </td>
                     </tr>
                     <tr>
                       <td style="padding:8px 0;">
-                        <a href="https://tryblueprint.io/qualified-opportunities" style="color:#4f46e5;text-decoration:none;font-size:14px;">Qualified opportunities</a>
-                        <span style="color:#9ca3af;font-size:14px;"> - What teams review after site qualification</span>
+                        <a href="https://tryblueprint.io/readiness-pack" style="color:#4f46e5;text-decoration:none;font-size:14px;">Readiness Pack</a>
+                        <span style="color:#9ca3af;font-size:14px;"> - What comes back from the site twin</span>
                       </td>
                     </tr>
                     <tr>
                       <td style="padding:8px 0;">
-                        <a href="https://tryblueprint.io/docs" style="color:#4f46e5;text-decoration:none;font-size:14px;">Documentation</a>
-                        <span style="color:#9ca3af;font-size:14px;"> - Technical guides and API docs</span>
+                        <a href="https://tryblueprint.io/for-robot-integrators" style="color:#4f46e5;text-decoration:none;font-size:14px;">For robot teams</a>
+                        <span style="color:#9ca3af;font-size:14px;"> - How teams evaluate against the twin</span>
                       </td>
                     </tr>
                   </table>
@@ -514,14 +530,76 @@ router.post("/", async (req: Request, res: Response) => {
       } satisfies SubmitInboundRequestResponse);
     }
 
-    // 6. Check idempotency - if requestId already exists, return success
+    // 6. Compute priority and owner
+    const priority = computePriority(payload.budgetBucket, requestedLanes);
+    const owner = computeOwner(requestedLanes);
+
     if (!db) {
-      logger.error("Firebase Admin SDK not initialized");
-      return res.status(500).json({
-        ok: false,
+      if (isProduction()) {
+        logger.error("Firebase Admin SDK not initialized");
+        return res.status(500).json({
+          ok: false,
+          requestId: payload.requestId,
+          status: "submitted",
+          message: "Internal server error",
+        } satisfies SubmitInboundRequestResponse);
+      }
+
+      writeDevInboundRequest({
         requestId: payload.requestId,
+        createdAt: new Date().toISOString(),
         status: "submitted",
-        message: "Internal server error",
+        priority,
+        owner,
+        contact: {
+          firstName: payload.firstName.trim(),
+          lastName: payload.lastName.trim(),
+          email: emailLower,
+          roleTitle: payload.roleTitle?.trim() || "",
+          company: payload.company.trim(),
+        },
+        request: {
+          budgetBucket: payload.budgetBucket,
+          requestedLanes,
+          helpWith: legacyHelpWith,
+          buyerType,
+          siteName,
+          siteLocation,
+          taskStatement,
+          workflowContext: payload.workflowContext?.trim() || null,
+          operatingConstraints: payload.operatingConstraints?.trim() || null,
+          privacySecurityConstraints:
+            payload.privacySecurityConstraints?.trim() || null,
+          knownBlockers: payload.knownBlockers?.trim() || null,
+          targetRobotTeam: payload.targetRobotTeam?.trim() || null,
+          details: payload.details?.trim() || null,
+        },
+        context: {
+          sourcePageUrl: payload.context?.sourcePageUrl || "",
+          referrer: payload.context?.referrer || null,
+          utm: payload.context?.utm || {},
+          userAgent: payload.context?.userAgent || req.get("user-agent") || null,
+          timezoneOffset: payload.context?.timezoneOffset ?? null,
+          locale: payload.context?.locale || null,
+          ipHash,
+        },
+        debug: {
+          mode: "dev_fallback",
+          logPath: DEV_INBOUND_REQUEST_LOG,
+        },
+      });
+
+      logger.warn(
+        { requestId: payload.requestId, logPath: DEV_INBOUND_REQUEST_LOG },
+        "Firebase Admin SDK not initialized; saved inbound request to dev fallback log"
+      );
+
+      return res.status(HTTP_STATUS.CREATED).json({
+        ok: true,
+        requestId: payload.requestId,
+        siteSubmissionId: payload.requestId,
+        status: "submitted",
+        message: "Development mode: request saved locally and notifications were skipped.",
       } satisfies SubmitInboundRequestResponse);
     }
 
@@ -543,11 +621,7 @@ router.post("/", async (req: Request, res: Response) => {
       } satisfies SubmitInboundRequestResponse);
     }
 
-    // 7. Compute priority and owner
-    const priority = computePriority(payload.budgetBucket, requestedLanes);
-    const owner = computeOwner(requestedLanes);
-
-    // 8. Build the document
+    // 7. Build the document
     const now = admin.firestore.FieldValue.serverTimestamp();
     const inboundRequest: Omit<InboundRequest, "createdAt"> & {
       createdAt: FirebaseFirestore.FieldValue;
@@ -617,7 +691,7 @@ router.post("/", async (req: Request, res: Response) => {
       inboundRequest
     );
 
-    // 9. Write to Firestore
+    // 8. Write to Firestore
     await db
       .collection("inboundRequests")
       .doc(payload.requestId)
@@ -646,7 +720,7 @@ router.post("/", async (req: Request, res: Response) => {
       "Inbound request created"
     );
 
-    // 10. Trigger async automations (don't block response)
+    // 9. Trigger async automations (don't block response)
     const automationPromises: Promise<void>[] = [];
 
     // Slack notification
@@ -700,19 +774,19 @@ router.post("/", async (req: Request, res: Response) => {
           );
           const confirmationText = `Hi ${payload.firstName.trim()},
 
-Thank you for your request! We've received your submission and our team will get back to you within 24 hours to discuss how we can support your project.
+Thank you for your request. We've received your submission and our team will get back to you within 24 hours.
 
 What happens next?
 1. We review the site, task, and constraints in your intake
-2. If key evidence is missing, we request a more targeted capture pass
-3. We route the site toward qualification, deeper evaluation, or managed tuning only if it clears the right gates
+2. We build the right plan for the site twin and flag any missing evidence
+3. We use that twin to show feasibility, readiness, and whether the site should move toward team evaluation
 
 Want to get started faster? Book a call now: https://calendly.com/blueprintar/30min
 
 In the meantime, explore our resources:
-- How qualification works: https://tryblueprint.io/how-it-works
-- Qualified opportunities: https://tryblueprint.io/qualified-opportunities
-- Contact the team: https://tryblueprint.io/contact
+- How it works: https://tryblueprint.io/how-it-works
+- Readiness Pack: https://tryblueprint.io/readiness-pack
+- For robot teams: https://tryblueprint.io/for-robot-integrators
 
 Best,
 The Blueprint Team
@@ -796,7 +870,7 @@ View in admin: ${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/$
       logger.error({ error }, "Error in automation promises");
     });
 
-    // 11. Return success
+    // 10. Return success
     return res.status(HTTP_STATUS.CREATED).json({
       ok: true,
       requestId: payload.requestId,

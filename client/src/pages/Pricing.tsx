@@ -156,7 +156,7 @@ export default function Pricing() {
                 a separate enterprise deal.
               </p>
               <a
-                href="/contact?interest=private-twin-buyout"
+                href="/contact?interest=deeper-evaluation"
                 className="mt-4 inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
               >
                 Discuss private terms

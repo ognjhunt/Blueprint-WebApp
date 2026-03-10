@@ -20,6 +20,7 @@ const ForRobotIntegrators = lazy(() => import("../pages/ForRobotIntegrators"));
 const Pricing = lazy(() => import("../pages/Pricing"));
 const Contact = lazy(() => import("../pages/Contact"));
 const HowItWorks = lazy(() => import("../pages/HowItWorks"));
+const ReadinessPack = lazy(() => import("../pages/ReadinessPack"));
 const PilotExchange = lazy(() => import("../pages/PilotExchange"));
 const PilotExchangeGuide = lazy(() => import("../pages/PilotExchangeGuide"));
 const Portal = lazy(() => import("../pages/Portal"));
@@ -77,6 +78,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/pricing", layout: "public", component: Pricing },
   { path: "/contact", layout: "public", component: Contact },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
+  { path: "/readiness-pack", layout: "public", component: ReadinessPack },
   { path: "/qualified-opportunities", layout: "public", component: PilotExchange },
   {
     path: "/qualified-opportunities-guide",

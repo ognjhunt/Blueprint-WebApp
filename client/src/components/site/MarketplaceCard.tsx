@@ -47,7 +47,7 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
   const description = item.description;
   const thumbnail = isDataset ? dataset!.heroImage : isTraining ? training!.heroImage : scene!.thumbnail;
   const tags = item.tags;
-  const exclusiveDatasetUrl = `/contact?interest=exclusive-dataset&product=${encodeURIComponent(slug)}`;
+  const exclusiveDatasetUrl = `/contact?interest=deeper-evaluation&product=${encodeURIComponent(slug)}`;
 
   const handleCheckout = useCallback(
     async (event?: MouseEvent<HTMLButtonElement>) => {

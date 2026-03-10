@@ -14,13 +14,13 @@ describe('Home', () => {
       HOME_HERO_VARIANTS.some((variant) => screen.queryAllByText(variant.eyebrow).length > 0),
     ).toBe(true);
     expect(
-      screen.getAllByRole('link', { name: /See site qualification/i }).some(
+      screen.getAllByRole('link', { name: /See how it works/i }).some(
         (link) => link.getAttribute('href') === '/how-it-works',
       ),
     ).toBe(true);
     expect(
-      screen.getAllByRole('link', { name: /Request site qualification/i }).some(
-        (link) => link.getAttribute('href') === '/contact',
+      screen.getAllByRole('link', { name: /Request a site twin/i }).some(
+        (link) => link.getAttribute('href') === '/contact?interest=site-qualification',
       ),
     ).toBe(true);
   });
@@ -34,7 +34,7 @@ describe('Home', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole('heading', {
-        name: /A simple path from site review to a clear next step\./i,
+        name: /A simple path from site twin to a clear next step\./i,
       }),
     ).toBeInTheDocument();
   });

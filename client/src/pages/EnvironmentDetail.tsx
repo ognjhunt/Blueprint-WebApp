@@ -314,7 +314,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     const bundlePrice = marketplaceScene!.bundlePrice || marketplaceScene!.price;
     const sceneOnlyPrice = marketplaceScene!.sceneOnlyPrice || Math.round(marketplaceScene!.price * 0.45);
     const episodesOnlyPrice = marketplaceScene!.episodesOnlyPrice || Math.round(marketplaceScene!.price * 0.65);
-    const exclusiveDatasetUrl = `/contact?interest=exclusive-dataset&product=${encodeURIComponent(marketplaceItem.slug)}`;
+    const exclusiveDatasetUrl = `/contact?interest=deeper-evaluation&product=${encodeURIComponent(marketplaceItem.slug)}`;
 
     // Calculate savings for bundle
     const separateTotal = sceneOnlyPrice + episodesOnlyPrice;
@@ -583,7 +583,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                   </a>
                   <a
                     className="block text-xs font-semibold text-emerald-700 hover:text-emerald-900 hover:underline pt-2 border-t border-emerald-200"
-                    href="/contact?interest=exclusive-dataset"
+                    href="/contact?interest=deeper-evaluation"
                   >
                     Request a custom dataset run →
                   </a>
@@ -915,7 +915,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
       day: "numeric",
       year: "numeric",
     }).format(new Date(trainingDataset.releaseDate));
-    const exclusiveDatasetUrl = `/contact?interest=exclusive-dataset&product=${encodeURIComponent(trainingDataset.slug)}`;
+    const exclusiveDatasetUrl = `/contact?interest=deeper-evaluation&product=${encodeURIComponent(trainingDataset.slug)}`;
 
     const trainingProductStructuredData = {
       "@context": "https://schema.org",

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearch } from "wouter";
 import { ArrowRight, Calendar, CheckCircle2, Clock, Mail } from "lucide-react";
 import { withCsrfHeader } from "@/lib/csrf";
+import { normalizeInterestToLane } from "@/lib/contactInterest";
 import { useAuth } from "@/contexts/AuthContext";
 import type {
   BudgetBucket,
@@ -69,19 +70,6 @@ function getUTMParams(): UTMParams {
 function getReferrer(): string | null {
   if (typeof document === "undefined") return null;
   return document.referrer || null;
-}
-
-function normalizeInterestToLane(interest: string): RequestedLane | null {
-  switch (interest) {
-    case "private-twin-buyout":
-    case "exclusive-dataset":
-      return "deeper_evaluation";
-    case "managed-tuning":
-      return "managed_tuning";
-    case "site-qualification":
-    default:
-      return interest ? "qualification" : null;
-  }
 }
 
 export function ContactForm() {

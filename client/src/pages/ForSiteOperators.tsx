@@ -12,22 +12,22 @@ const processSteps = [
   {
     title: "1. Intake and scope alignment",
     description:
-      "We define the site, the task, and what a good outcome looks like.",
+      "We define the site, the task, and what your team needs to understand first.",
   },
   {
-    title: "2. Site review",
+    title: "2. Build the site twin",
     description:
-      "Blueprint reviews the site materials and builds the context needed for a real go or no-go call.",
+      "Blueprint captures the site and turns it into a digital twin your team can review.",
   },
   {
-    title: "3. Readiness decision",
+    title: "3. Feasibility and readiness",
     description:
-      "You get a simple answer: ready, risky, or not ready yet.",
+      "You get a clear read on what is feasible, what is blocked, and what still needs work.",
   },
   {
-    title: "4. Qualified team access",
+    title: "4. Robot-team evaluation",
     description:
-      "If the site is a fit, Blueprint can turn it into a brief the right robot teams can review.",
+      "If the site is a fit, robot teams can evaluate against the twin before the pilot starts.",
   },
 ];
 
@@ -36,7 +36,7 @@ const logisticsDetails = [
   "Data governance: decide who can review the site materials",
   "Scope: agree on the task, work area, and success bar up front",
   "Next step: move forward, adjust the plan, or pause",
-  "Follow-up: open a qualified brief only if the site is a fit",
+  "Follow-up: open robot-team evaluation only if the site is a fit",
 ];
 
 export default function ForSiteOperators() {
@@ -44,7 +44,7 @@ export default function ForSiteOperators() {
     <>
       <SEO
         title="For Site Operators | Blueprint"
-        description="Guide for site operators using Blueprint to check whether a site and workflow are ready for robots before a pilot."
+        description="Guide for site operators using Blueprint to build a digital twin, understand feasibility, and get a readiness report before a pilot."
         canonical="/for-site-operators"
       />
 
@@ -58,8 +58,9 @@ export default function ForSiteOperators() {
               Start with a simple site check
             </h1>
             <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
-              If you run a warehouse, store, factory, or lab, Blueprint helps you check whether
-              the site and workflow are a good fit before you invite more pilot work.
+              If you run a warehouse, store, factory, or lab, Blueprint comes to the site, builds
+              the digital twin, and shows what is feasible, what is blocked, and what needs more
+              proof before a pilot.
             </p>
           </div>
 
@@ -114,10 +115,10 @@ export default function ForSiteOperators() {
               <div className="rounded-lg bg-slate-50 p-4">
                 <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                   <ShieldCheck className="h-4 w-4" />
-                  Evaluation scope
+                  What comes back
                 </p>
                 <p className="mt-1 text-sm text-slate-600">
-                  We qualify the site first, then decide whether it should be shared with teams.
+                  A twin, a report, and a clearer next step for your team.
                 </p>
               </div>
             </div>
@@ -128,13 +129,13 @@ export default function ForSiteOperators() {
               href="/contact?interest=site-qualification"
               className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Request site qualification
+              Request a site twin
             </a>
             <a
-              href="/qualified-opportunities"
+              href="/readiness-pack"
               className="inline-flex items-center rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
             >
-              View qualified opportunities
+              See the Readiness Pack
             </a>
           </section>
         </div>
