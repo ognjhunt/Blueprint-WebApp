@@ -31,6 +31,8 @@ const getLogLevel = (): string => {
   return "debug";
 };
 
+const isoTimestamp = () => `,"time":"${new Date().toISOString()}"`;
+
 // Create the logger instance
 export const logger = pino({
   level: getLogLevel(),
@@ -43,8 +45,7 @@ export const logger = pino({
     version: process.env.npm_package_version || "1.0.0",
     env: process.env.NODE_ENV || "development",
   },
-  // Add timestamp formatting
-  timestamp: pino.stdTimeFunctions.isoTime,
+  timestamp: isoTimestamp,
   // Format options for development
   ...(process.env.NODE_ENV !== "production" && {
     transport: {

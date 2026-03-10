@@ -17,12 +17,18 @@ if (!STRIPE_SECRET_KEY || stripeSecretIsPlaceholder) {
 
 export const stripeClient =
   STRIPE_SECRET_KEY && !stripeSecretIsPlaceholder
-    ? new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" })
+    ? new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-12-18.acacia" })
     : null;
 
 export const STRIPE_CONNECT_ACCOUNT_ID = process.env.STRIPE_CONNECT_ACCOUNT_ID?.trim();
 export const stripeConnectAccountConfigured =
   Boolean(STRIPE_CONNECT_ACCOUNT_ID) && !isPlaceholderValue(STRIPE_CONNECT_ACCOUNT_ID);
+
+export function getStripeConnectAccountId() {
+  return stripeConnectAccountConfigured && STRIPE_CONNECT_ACCOUNT_ID
+    ? STRIPE_CONNECT_ACCOUNT_ID
+    : null;
+}
 
 if (!stripeConnectAccountConfigured) {
   const message =

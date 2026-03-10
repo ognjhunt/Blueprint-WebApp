@@ -451,9 +451,13 @@ function applySort(
   }
 }
 
-let staticIndex: { candidates: Candidate[]; usedEmbeddings: boolean } | null =
-  null;
-let staticIndexPromise: Promise<void> | null = null;
+type StaticIndex = {
+  candidates: Candidate[];
+  usedEmbeddings: boolean;
+};
+
+let staticIndex: StaticIndex | null = null;
+let staticIndexPromise: Promise<StaticIndex> | null = null;
 
 export function __resetMarketplaceSearchCacheForTests() {
   staticIndex = null;
@@ -506,19 +510,25 @@ async function ensureStaticIndex(): Promise<{
         }
       }
 
-      staticIndex = { candidates, usedEmbeddings };
+      const nextStaticIndex: StaticIndex = { candidates, usedEmbeddings };
+      staticIndex = nextStaticIndex;
+      return nextStaticIndex;
     })();
   }
 
   const warnings: string[] = [];
-  await staticIndexPromise;
-  if (!staticIndex) {
+  const resolvedStaticIndex = staticIndex ?? (await staticIndexPromise);
+  if (!resolvedStaticIndex) {
     return { candidates: [], usedEmbeddings: false, warnings: ["Marketplace search index is not ready."] };
   }
-  if (!staticIndex.usedEmbeddings) {
+  if (!resolvedStaticIndex.usedEmbeddings) {
     warnings.push("Embeddings are not configured; using lexical search only.");
   }
-  return { candidates: staticIndex.candidates, usedEmbeddings: staticIndex.usedEmbeddings, warnings };
+  return {
+    candidates: resolvedStaticIndex.candidates,
+    usedEmbeddings: resolvedStaticIndex.usedEmbeddings,
+    warnings,
+  };
 }
 
 async function tryFirestoreVectorSearch(params: {
@@ -552,6 +562,7 @@ async function tryFirestoreVectorSearch(params: {
       const type = data.type === "training" ? ("training" as const) : ("scene" as const);
       const item = data.item as MarketplaceScene | TrainingDataset;
       const embedding = Array.isArray(data.embedding) && data.embedding.length ? (data.embedding as number[]) : null;
+      const docWithDistance = doc as { distance?: unknown };
       const searchDoc =
         typeof data.searchDoc === "string" && data.searchDoc.trim()
           ? data.searchDoc
@@ -561,8 +572,7 @@ async function tryFirestoreVectorSearch(params: {
         item,
         embedding,
         searchDoc,
-        // @ts-expect-error: Firestore vector search adds distance metadata
-        distance: typeof doc.distance === "number" ? (doc.distance as number) : null,
+        distance: typeof docWithDistance.distance === "number" ? docWithDistance.distance : null,
       };
     })
     .filter((cand: any) => cand?.item?.slug && cand.searchDoc);
@@ -673,4 +683,3 @@ export async function searchMarketplace(params: {
     warnings,
   };
 }
-

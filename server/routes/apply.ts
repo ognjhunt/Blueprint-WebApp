@@ -39,9 +39,16 @@ const upload = multer({
   fileFilter: resumeFileFilter,
 });
 
-type RequestWithFile = Request & { file?: Express.Multer.File };
+interface UploadedFile {
+  originalname: string;
+  mimetype: string;
+  buffer: Buffer;
+  size: number;
+}
 
-async function scanResumeFile(file: Express.Multer.File): Promise<void> {
+type RequestWithFile = Request & { file?: UploadedFile };
+
+async function scanResumeFile(file: UploadedFile): Promise<void> {
   const scanUrl = process.env.MALWARE_SCAN_URL;
 
   if (!scanUrl) {

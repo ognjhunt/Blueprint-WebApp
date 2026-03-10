@@ -2,14 +2,15 @@ import { Router, type Response } from "express";
 import type Stripe from "stripe";
 import { HTTP_STATUS } from "../constants/http-status";
 import {
-  STRIPE_CONNECT_ACCOUNT_ID,
   STRIPE_ONBOARDING_REFRESH_URL,
   STRIPE_ONBOARDING_RETURN_URL,
+  getStripeConnectAccountId,
   stripeConnectAccountConfigured,
   stripeClient,
 } from "../constants/stripe";
 
 const VALID_SCHEDULES = new Set(["daily", "weekly", "monthly", "manual"]);
+type OnboardingStatusCode = typeof HTTP_STATUS.OK | typeof HTTP_STATUS.CREATED;
 
 const router = Router();
 
@@ -30,24 +31,42 @@ function ensureStripeConfigured(res: Response) {
   return true;
 }
 
+function getStripeContext(res: Response) {
+  if (!ensureStripeConfigured(res) || !stripeClient) {
+    return null;
+  }
+
+  const accountId = getStripeConnectAccountId();
+  if (!accountId) {
+    res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({
+      error: "Stripe Connect account is not configured.",
+    });
+    return null;
+  }
+
+  return { stripe: stripeClient, accountId };
+}
+
 router.get("/account", async (_req, res) => {
   try {
-    if (!ensureStripeConfigured(res)) {
+    const stripeContext = getStripeContext(res);
+    if (!stripeContext) {
       return;
     }
-    const account = await stripeClient!.accounts.retrieve(STRIPE_CONNECT_ACCOUNT_ID);
+    const { stripe, accountId } = stripeContext;
+    const account = await stripe.accounts.retrieve(accountId);
 
-    const payouts = await stripeClient!.payouts.list(
+    const payouts = await stripe.payouts.list(
       { limit: 3 },
-      { stripeAccount: STRIPE_CONNECT_ACCOUNT_ID },
+      { stripeAccount: accountId },
     );
 
     const pendingPayout = payouts.data
       .filter((payout) => payout.status === "pending")
       .sort((a, b) => (a.arrival_date || a.created) - (b.arrival_date || b.created))[0];
 
-    const instantBalance = await stripeClient!.balance.retrieve(undefined, {
-      stripeAccount: STRIPE_CONNECT_ACCOUNT_ID,
+    const instantBalance = await stripe.balance.retrieve(undefined, {
+      stripeAccount: accountId,
     });
 
     const instantAvailable = instantBalance.instant_available ?? [];
@@ -77,8 +96,12 @@ router.get("/account", async (_req, res) => {
   }
 });
 
-async function createOnboardingLink(res: Response, statusCode = HTTP_STATUS.OK) {
-  if (!ensureStripeConfigured(res)) {
+async function createOnboardingLink(
+  res: Response,
+  statusCode: OnboardingStatusCode = HTTP_STATUS.OK,
+) {
+  const stripeContext = getStripeContext(res);
+  if (!stripeContext) {
     return res;
   }
 
@@ -88,8 +111,8 @@ async function createOnboardingLink(res: Response, statusCode = HTTP_STATUS.OK) 
     });
   }
 
-  const link = await stripeClient!.accountLinks.create({
-    account: STRIPE_CONNECT_ACCOUNT_ID,
+  const link = await stripeContext.stripe.accountLinks.create({
+    account: stripeContext.accountId,
     refresh_url: STRIPE_ONBOARDING_REFRESH_URL,
     return_url: STRIPE_ONBOARDING_RETURN_URL,
     type: "account_onboarding",
@@ -122,7 +145,8 @@ router.get("/account/onboarding_link", async (_req, res) => {
 
 router.put("/account/payout_schedule", async (req, res) => {
   try {
-    if (!ensureStripeConfigured(res)) {
+    const stripeContext = getStripeContext(res);
+    if (!stripeContext) {
       return;
     }
 
@@ -134,7 +158,7 @@ router.put("/account/payout_schedule", async (req, res) => {
       });
     }
 
-    await stripeClient!.accounts.update(STRIPE_CONNECT_ACCOUNT_ID, {
+    await stripeContext.stripe.accounts.update(stripeContext.accountId, {
       settings: {
         payouts: {
           schedule: {
@@ -154,7 +178,8 @@ router.put("/account/payout_schedule", async (req, res) => {
 
 router.post("/account/instant_payout", async (req, res) => {
   try {
-    if (!ensureStripeConfigured(res)) {
+    const stripeContext = getStripeContext(res);
+    if (!stripeContext) {
       return;
     }
 
@@ -166,13 +191,13 @@ router.post("/account/instant_payout", async (req, res) => {
       });
     }
 
-    const payout = await stripeClient!.payouts.create(
+    const payout = await stripeContext.stripe.payouts.create(
       {
         amount: Math.round(amount),
         currency: "usd",
         method: "instant",
       },
-      { stripeAccount: STRIPE_CONNECT_ACCOUNT_ID },
+      { stripeAccount: stripeContext.accountId },
     );
 
     return res.status(HTTP_STATUS.CREATED).json({
