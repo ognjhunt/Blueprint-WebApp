@@ -54,7 +54,7 @@ router.get("/", (_req: Request, res: Response) => {
         path: "/site-worlds",
         title: "Site Worlds",
         description:
-          "Concept page for hosted site-specific environments that robot teams can open by the session-hour.",
+          "Robot-team explainer for site asset packages and hosted evaluation sessions built from exact sites.",
       },
       {
         path: "/contact",

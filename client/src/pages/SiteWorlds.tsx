@@ -1,93 +1,35 @@
 import { SEO } from "@/components/SEO";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import { categoryFilters, siteWorldCards, type SiteCategory } from "@/data/siteWorlds";
-import { Braces, Cloud, Database, Filter, Play, ShieldCheck, TimerReset } from "lucide-react";
+import { Filter, Play, ScanLine } from "lucide-react";
 import { useMemo, useState } from "react";
 
-const workflowSteps = [
+const layerCards = [
   {
-    title: "1. Blueprint qualifies the site",
+    title: "Scene Package",
+    kicker: "First",
     description:
-      "A site enters the catalog only after the task lane, constraints, and pass bar are clear.",
-    icon: <ShieldCheck className="h-5 w-5 text-slate-700" />,
+      "License the site asset package when your team needs the captured evidence and site context for one real workflow area.",
+    bullets: [
+      "Walkthrough video and camera poses",
+      "Geometry or depth when available",
+      "Metadata, context, and license terms",
+    ],
+    icon: <ScanLine className="h-5 w-5 text-slate-700" />,
   },
   {
-    title: "2. The site world is hosted for sessions",
+    title: "Hosted Sessions",
+    kicker: "Second",
     description:
-      "Blueprint runs the environment, handles the runtime, and meters access by the hour.",
-    icon: <Cloud className="h-5 w-5 text-slate-700" />,
-  },
-  {
-    title: "3. Teams run and export",
-    description:
-      "Robot teams start a billed session, step policies through the environment, and export what they generate.",
-    icon: <Database className="h-5 w-5 text-slate-700" />,
+      "Use Blueprint-managed eval sessions when your team wants to test policies on that site without running the environment itself.",
+    bullets: [
+      "Managed site-specific eval runtime",
+      "Scenario variations and repeat runs",
+      "Exports for rollouts and metrics",
+    ],
+    icon: <Play className="h-5 w-5 text-slate-700" />,
   },
 ];
-
-const teamBenefits = [
-  "Start a billed session on any listed site world",
-  "Launch from standard task presets and eval starts",
-  "Export the rollout data your team generates",
-  "Reserve private capacity when a site matters enough",
-];
-
-const pricingLanes = [
-  {
-    title: "Open access",
-    price: "$16 to $29 / session-hour",
-    detail:
-      "Start a session immediately on any listed site world. Billing starts when the environment launches.",
-  },
-  {
-    title: "Export package",
-    price: "$450 / export job",
-    detail:
-      "Bundle episodes, summary metrics, and media into a clean export when your team wants to move results into its own stack.",
-  },
-  {
-    title: "Reserved capacity",
-    price: "$6,000 / month",
-    detail:
-      "Keep steady access on selected site worlds for longer runs, shared team access, and higher throughput.",
-  },
-];
-
-const runtimeNotes = [
-  {
-    title: "The base model is not the whole product",
-    description:
-      "Model labs can build the foundation layer. Teams still need a catalog, session runtime, metering, and export path.",
-  },
-  {
-    title: "Blueprint is the wrapper layer",
-    description:
-      "We host site-specific environments, keep them organized by site and task lane, and expose them in a form robot teams can actually use.",
-  },
-];
-
-const sdkSnippet = `session = blueprint.site_worlds.create(
-  site_id="sw-chi-01",
-  robot="humanoid_v2",
-  task="case_pick"
-)
-
-obs = session.reset()
-
-while not done:
-  action = policy(obs)
-  obs, reward, done, info = session.step(action)
-
-session.export(format="rlds")`;
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
 
 export default function SiteWorlds() {
   const [activeCategory, setActiveCategory] = useState<SiteCategory>("All");
@@ -103,74 +45,89 @@ export default function SiteWorlds() {
     <>
       <SEO
         title="Site Worlds | Blueprint"
-        description="Open site-specific hosted environments by the session-hour. Robot teams can run experiments, generate rollouts, and export the data they create."
+        description="Robot teams can review a site asset package first, then see how Blueprint-managed hosted eval sessions would work on that exact site."
         canonical="/site-worlds"
       />
 
       <div className="min-h-screen bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
-          <header className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-            <div className="space-y-5">
+        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
+          <header className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+            <div className="space-y-4">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Site Worlds
+                Site Worlds For Robot Teams
               </p>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Open site-specific robot environments by the hour.
+                Review the site asset, then the hosted eval layer.
               </h1>
-              <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
-                Blueprint turns site-specific worlds into hosted environments that robot teams can
-                actually use. Start a billed session. Run experiments. Generate rollouts. Export
-                the data your team creates.
+              <p className="max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
+                This page is for robot teams. Start with the site asset package for one real site,
+                then decide whether you want Blueprint-managed hosted sessions built from that same
+                site for evaluation and checkpoint comparison.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
-                  href="#catalog"
+                  href="#layers"
                   className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Browse site worlds
+                  See the layers
                 </a>
                 <a
-                  href="#runtime"
+                  href="#catalog"
                   className="inline-flex items-center rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
                 >
-                  See the runtime
+                  Browse sites
                 </a>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
-              <p className="text-sm font-semibold text-slate-900">What this service is</p>
-              <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                Foundation labs can build generic world models. Blueprint handles the site catalog,
-                session runtime, exports, and billing layer that makes those worlds usable by robot
-                teams.
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-5 sm:px-6">
+              <p className="text-sm font-semibold text-slate-900">How to read this page</p>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                Qualification is for site operators. This page starts after a site exists. Robot
+                teams can review the site package first, then see how hosted sessions would support
+                testing, comparison, and export on that exact site.
               </p>
-              <div className="mt-5 grid gap-3">
-                {runtimeNotes.map((note) => (
-                  <div key={note.title} className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <p className="text-sm font-semibold text-slate-900">{note.title}</p>
-                    <p className="mt-1 text-sm leading-relaxed text-slate-600">{note.description}</p>
-                  </div>
-                ))}
-              </div>
             </div>
           </header>
 
-          <section className="mt-12 rounded-3xl border border-slate-200 bg-slate-50 p-6 sm:p-8">
+          <section
+            id="layers"
+            className="mt-10 rounded-3xl border border-slate-200 bg-slate-50 px-5 py-6 sm:px-7 sm:py-7"
+          >
             <div className="max-w-3xl">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                How it works
+                Layer selector
               </p>
-              <h2 className="mt-2 text-3xl font-bold text-slate-900">
-                Three steps. No extra product theory.
+              <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
+                Two ways a robot team can use a site.
               </h2>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                Keep it simple. The Scene Package is the site asset. Hosted Sessions are the
+                managed eval layer built from that site. Hosted Sessions are useful for testing and
+                review, but they are not the raw scan, not a physics-certified sim, and not final
+                proof of deployment.
+              </p>
             </div>
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
-              {workflowSteps.map((step) => (
-                <article key={step.title} className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <div className="mb-3 inline-flex rounded-lg bg-slate-100 p-2">{step.icon}</div>
-                  <h3 className="font-semibold text-slate-900">{step.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-600">{step.description}</p>
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              {layerCards.map((layer) => (
+                <article
+                  key={layer.title}
+                  className="rounded-2xl border border-slate-200 bg-white px-5 py-5"
+                >
+                  <div className="mb-2 inline-flex rounded-lg bg-slate-100 p-2">{layer.icon}</div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    {layer.kicker}
+                  </p>
+                  <h3 className="mt-2 font-semibold text-slate-900">{layer.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600">{layer.description}</p>
+                  <ul className="mt-4 space-y-1.5">
+                    {layer.bullets.map((bullet) => (
+                      <li key={bullet} className="flex items-start gap-2 text-sm text-slate-700">
+                        <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
+                        <span>{bullet}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </article>
               ))}
             </div>
@@ -183,20 +140,19 @@ export default function SiteWorlds() {
                   Sample catalog
                 </p>
                 <h2 className="mt-2 text-3xl font-bold text-slate-900">
-                  Twelve site worlds a robot team could open today.
+                  Twelve sites a robot team could review right now.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Placeholder data, but a cleaner catalog. Each environment has a task lane, a
-                  site-specific thumbnail, a visible session rate, and a route that takes the team
-                  straight into a detail page.
+                  Each listing shows the site asset package first and the hosted eval layer second.
+                  Open a detail page to see the simple step-by-step testing flow.
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                {filteredSites.length} listed sites • billing starts at launch
+                {filteredSites.length} listed sites
               </div>
             </div>
 
-            <div className="mt-6 flex flex-wrap items-center gap-2">
+            <div className="mt-5 flex flex-wrap items-center gap-2">
               <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                 <Filter className="h-3.5 w-3.5" />
                 Filter
@@ -220,7 +176,7 @@ export default function SiteWorlds() {
               })}
             </div>
 
-            <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {filteredSites.map((site) => (
                 <article
                   key={site.id}
@@ -229,173 +185,60 @@ export default function SiteWorlds() {
                   <a href={`/site-worlds/${site.id}`} className="block">
                     <SiteWorldGraphic site={site} />
                   </a>
-                  <div className="p-5 sm:p-6">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                          {site.industry}
-                        </p>
-                        <h3 className="mt-3 text-xl font-bold tracking-tight text-slate-900">
-                          <a href={`/site-worlds/${site.id}`} className="hover:text-slate-700">
-                            {site.siteName}
+                  <div className="space-y-3 p-5 sm:p-6">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                        {site.industry}
+                      </p>
+                      <h3 className="mt-2 text-[1.85rem] font-bold leading-[1.02] tracking-tight text-slate-900">
+                        <a href={`/site-worlds/${site.id}`} className="hover:text-slate-700">
+                          {site.siteName}
+                        </a>
+                      </h3>
+                      <p className="mt-2 text-sm text-slate-600">{site.taskLane}</p>
+                      <p className="mt-1.5 text-sm text-slate-500">{site.bestFor}</p>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {site.packages.map((pkg) => (
+                        <div
+                          key={pkg.name}
+                          className={`rounded-2xl border p-4 ${
+                            pkg.emphasis === "recommended"
+                              ? "border-slate-300 bg-slate-50"
+                              : "border-slate-200 bg-white"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900">{pkg.name}</p>
+                              <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                                {pkg.summary}
+                              </p>
+                            </div>
+                            <span className="shrink-0 text-sm font-semibold text-slate-900">
+                              {pkg.priceLabel}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-[11px] uppercase tracking-[0.16em] text-slate-500">
+                            {pkg.payerLabel}
+                          </p>
+                          <a
+                            href={pkg.actionHref}
+                            className={`mt-3 inline-flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                              pkg.name === "Hosted Sessions"
+                                ? "bg-slate-900 text-white hover:bg-slate-800"
+                                : "border border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
+                            }`}
+                          >
+                            {pkg.actionLabel}
                           </a>
-                        </h3>
-                      </div>
-                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
-                        Starts now
-                      </span>
+                        </div>
+                      ))}
                     </div>
-
-                    <p className="mt-2 text-sm leading-relaxed text-slate-600">{site.taskLane}</p>
-
-                    <div className="mt-4 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="text-slate-500">Runtime</span>
-                        <span className="font-medium text-slate-900">{site.runtime}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="text-slate-500">Export</span>
-                        <span className="font-medium text-slate-900">{site.exportFormat}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="text-slate-500">Access</span>
-                        <span className="font-medium text-slate-900">
-                          {formatCurrency(site.hourlyRate)} / session-hour
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 grid gap-3">
-                      <a
-                        href={`/site-worlds/${site.id}?start=1`}
-                        className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                      >
-                        Start billed session
-                      </a>
-                      <a
-                        href={`/site-worlds/${site.id}`}
-                        className="inline-flex w-full items-center justify-center rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
-                      >
-                        View site world
-                      </a>
-                    </div>
-                    <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                      Starts now at {formatCurrency(site.hourlyRate)} per session-hour. Billing
-                      begins when the environment launches.
-                    </p>
                   </div>
                 </article>
               ))}
-            </div>
-          </section>
-
-          <section className="mt-12 grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-            <article className="rounded-3xl border border-slate-200 bg-white p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                What teams get
-              </p>
-              <h2 className="mt-2 text-2xl font-bold text-slate-900">
-                A simple access model for experimentation.
-              </h2>
-              <ul className="mt-5 space-y-3">
-                {teamBenefits.map((item) => (
-                  <li key={item} className="flex items-start gap-3 text-sm text-slate-700">
-                    <Play className="mt-0.5 h-4 w-4 shrink-0 text-slate-900" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </article>
-
-            <article id="runtime" className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
-              <div className="flex items-center gap-2">
-                <Braces className="h-5 w-5 text-slate-700" />
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Runtime shape
-                </p>
-              </div>
-              <h2 className="mt-2 text-2xl font-bold text-slate-900">
-                Teams should open a session, not manage raw checkpoints.
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-slate-600">
-                Blueprint hosts the environment and exposes it as a runtime. The team asks for a
-                site, steps actions through it, and exports results. That is easier to buy and
-                easier to use than shipping raw site-specific weights around.
-              </p>
-              <pre className="mt-5 overflow-x-auto rounded-2xl bg-slate-950 p-5 text-sm leading-6 text-slate-100">
-                <code>{sdkSnippet}</code>
-              </pre>
-            </article>
-          </section>
-
-          <section id="pricing" className="mt-12 rounded-3xl border border-slate-200 bg-slate-50 p-6 sm:p-8">
-            <div className="max-w-3xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Pricing shape
-              </p>
-              <h2 className="mt-2 text-3xl font-bold text-slate-900">
-                Public pricing can stay simple.
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-slate-600">
-                The cleanest model is usage-based access for listed site worlds, plus a clear
-                charge for exports and a reserved lane for heavier users.
-              </p>
-            </div>
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
-              {pricingLanes.map((lane) => (
-                <article key={lane.title} className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    {lane.title}
-                  </p>
-                  <p className="mt-2 text-2xl font-bold text-slate-900">{lane.price}</p>
-                  <p className="mt-3 text-sm leading-relaxed text-slate-600">{lane.detail}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section className="mt-12 rounded-3xl border border-slate-200 bg-white p-6 sm:p-8">
-            <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Why now
-                </p>
-                <h2 className="mt-2 text-3xl font-bold text-slate-900">
-                  Generic world models are getting better. Exact sites still matter.
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-slate-600">
-                  The model-builder field is still small, and most teams do not need another base
-                  model vendor. They need the service layer that turns a site-specific world into
-                  something they can open, meter, and export from. That is the job this page is
-                  describing.
-                </p>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                  <TimerReset className="h-4 w-4" />
-                  Practical note
-                </p>
-                <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                  Site worlds are useful for adaptation, experiment loops, and synthetic data
-                  generation. They still sit next to qualification and real validation, not above
-                  them.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-8 flex flex-wrap gap-3">
-              <a
-                href="#catalog"
-                className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                Browse example sites
-              </a>
-              <a
-                href="/contact?interest=site-worlds"
-                className="inline-flex items-center rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
-              >
-                Bring a site into the catalog
-              </a>
             </div>
           </section>
         </div>
