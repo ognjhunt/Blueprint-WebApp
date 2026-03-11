@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { analyticsEvents } from "@/components/Analytics";
 import { CTAButtons } from "@/components/site/CTAButtons";
+import { CurrentRobotStateSection } from "@/components/site/CurrentRobotStateSection";
 import { LogoWall } from "@/components/site/LogoWall";
-import { MarketSignalsSection } from "@/components/site/MarketSignalsSection";
 import { SEO } from "@/components/SEO";
 import {
   ArrowRight,
@@ -351,7 +351,7 @@ export default function Home() {
           </div>
         </section>
 
-        <MarketSignalsSection />
+        <CurrentRobotStateSection />
 
         <section className="border-y border-zinc-100 bg-zinc-50/50 py-12 sm:py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

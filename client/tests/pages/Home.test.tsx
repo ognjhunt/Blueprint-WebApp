@@ -37,5 +37,16 @@ describe('Home', () => {
         name: /A simple path from site intake to a clear next step\./i,
       }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', {
+        name: /Robots are getting good in known environments\./i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Market trajectory/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Humanoid programs are scaling faster than sites are getting ready\./i)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Figure Helix 02/i })).toHaveAttribute(
+      'href',
+      'https://www.figure.ai/news/helix-02-living-room-tidy',
+    );
   });
 });

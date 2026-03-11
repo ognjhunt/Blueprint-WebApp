@@ -1,5 +1,14 @@
 import { SEO } from "@/components/SEO";
-import { CheckCircle2, Cpu, FileCheck2, Gauge, GitBranchPlus, Truck } from "lucide-react";
+import {
+  ArrowUpRight,
+  CheckCircle2,
+  Cpu,
+  FileCheck2,
+  Gauge,
+  GitBranchPlus,
+  Sparkles,
+  Truck,
+} from "lucide-react";
 
 const requiredInputs = [
   "Target site and task: what you want checked",
@@ -38,11 +47,41 @@ const logisticsItems = [
   "A refresh path if the site changes later",
 ];
 
+const researchUpdates = [
+  {
+    title: "WoVR",
+    summary:
+      "WoVR is one of the clearest recent examples of a world model being used as the training environment for RL post-training.",
+    detail:
+      "The paper reports better real-robot manipulation results after training in the learned world instead of doing more robot interaction during that phase. Useful result. Still not a substitute for hard validation on contact-heavy tasks.",
+    href: "https://arxiv.org/abs/2602.13977",
+    ctaLabel: "Read WoVR",
+  },
+  {
+    title: "DreamZero",
+    summary:
+      "DreamZero makes the case that a small amount of play data can help a robot adapt faster to a new site or a new embodiment.",
+    detail:
+      "That is a practical shift for robot teams. You may not need a large set of careful task demos. You still need action data. Site video alone is usually not enough.",
+    href: "https://arxiv.org/abs/2602.15922",
+    ctaLabel: "Read DreamZero",
+  },
+  {
+    title: "VLA-RFT",
+    summary:
+      "VLA-RFT argues that reinforcement fine-tuning in a learned simulator is getting cheaper and easier to use.",
+    detail:
+      "The paper reports strong results with a short tuning run. The catch is that the simulator still comes from real robot interaction data. The world model does not appear out of thin air.",
+    href: "https://arxiv.org/abs/2510.00406",
+    ctaLabel: "Read VLA-RFT",
+  },
+];
+
 export default function ForRobotIntegrators() {
   return (
     <>
       <SEO
-        title="For Humanoid Integrators & Teams | Blueprint"
+        title="For Robot Teams | Blueprint"
         description="Guide for robot teams using Blueprint to evaluate on qualified sites with a clear task brief, pass criteria, and next steps."
         canonical="/for-robot-integrators"
       />
@@ -51,16 +90,59 @@ export default function ForRobotIntegrators() {
         <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="space-y-6">
             <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-700">
-              For Humanoid Integrators & Teams
+              For Robot Teams
             </span>
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
               Evaluate on qualified sites, not cold leads.
             </h1>
             <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
-              Blueprint gives robot teams a clear site brief, task thresholds, and next steps so
-              you can review, evaluate, and move faster toward a real pilot.
+              Blueprint gives robot teams a clear site brief, a pass bar, and a next step. That
+              makes it easier to review a real site before anyone burns field time.
             </p>
           </div>
+
+          <section className="mt-12 rounded-2xl border border-slate-200 bg-white p-6">
+            <div className="max-w-3xl">
+              <div className="mb-4 flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-slate-700" />
+                <h2 className="text-xl font-bold text-slate-900">What changed recently</h2>
+              </div>
+              <p className="text-sm leading-relaxed text-slate-600">
+                Robot teams have better tools for site adaptation than they did even a year ago.
+                The newer world-model papers do not remove the need for qualification or real
+                validation. They do make post-training and checkpoint selection more practical.
+              </p>
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              {researchUpdates.map((item) => (
+                <article key={item.title} className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                  <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.summary}</p>
+                  <p className="mt-3 text-sm leading-relaxed text-slate-700">{item.detail}</p>
+                  <a
+                    href={item.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-slate-900 hover:text-slate-700"
+                  >
+                    {item.ctaLabel}
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                  </a>
+                </article>
+              ))}
+            </div>
+
+            <div className="mt-6 rounded-xl bg-slate-900 p-5 text-white">
+              <p className="text-sm font-semibold">What this means in practice</p>
+              <p className="mt-2 text-sm leading-relaxed text-slate-200">
+                Site-specific world models are becoming useful for adaptation and policy
+                refinement. Passive site video can help with context, but it usually does not give
+                a robot enough to train from scratch. Blueprint still matters because qualification,
+                task definition, and pass criteria are separate from model training.
+              </p>
+            </div>
+          </section>
 
           <section className="mt-12 rounded-2xl border border-slate-200 bg-slate-50 p-6">
             <div className="mb-4 flex items-center gap-2">
