@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import SiteWorldDetail from "@/pages/SiteWorldDetail";
 
 describe("SiteWorldDetail", () => {
-  it("keeps the explainer secondary and uses direct hosted-session start CTas", () => {
+  it("keeps the explainer secondary and uses direct hosted-session start CTAs", () => {
     window.history.replaceState({}, "", "/site-worlds/sw-chi-01");
 
     render(<SiteWorldDetail params={{ slug: "sw-chi-01" }} />);
@@ -36,14 +36,6 @@ describe("SiteWorldDetail", () => {
     expect(sceneUrl.searchParams.get("interest")).toBe("data-licensing");
 
     const hostedLink = screen.getByRole("link", { name: /Start hosted session/i });
-    const hostedUrl = new URL(hostedLink.getAttribute("href")!, "https://example.com");
-    expect(hostedUrl.pathname).toBe("/contact");
-    expect(hostedUrl.searchParams.get("interest")).toBe("evaluation-package");
-    expect(hostedUrl.searchParams.get("buyerType")).toBe("robot_team");
-    expect(hostedUrl.searchParams.get("siteName")).toBe("Harborview Grocery Distribution Annex");
-    expect(hostedUrl.searchParams.get("siteLocation")).toBe("1847 W Fulton St, Chicago, IL 60612");
-    expect(hostedUrl.searchParams.get("targetRobotTeam")).toBe(
-      "Unitree G1 with head cam and wrist cam",
-    );
+    expect(hostedLink).toHaveAttribute("href", "/site-worlds/sw-chi-01/start");
   });
 });

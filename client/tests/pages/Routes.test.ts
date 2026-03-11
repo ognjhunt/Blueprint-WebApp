@@ -11,6 +11,8 @@ describe("Route registration", () => {
     expect(source).toContain('path: "/qualified-opportunities-guide"');
     expect(source).toContain('path: "/site-worlds"');
     expect(source).toContain('path: "/site-worlds/:slug"');
+    expect(source).toContain('path: "/site-worlds/:slug/start"');
+    expect(source).toContain('path: "/site-worlds/:slug/workspace"');
     expect(source).toContain('path: "/marketplace"');
     expect(source).toContain('path: "/how-it-works"');
     expect(source).toContain('path: "/readiness-pack"');

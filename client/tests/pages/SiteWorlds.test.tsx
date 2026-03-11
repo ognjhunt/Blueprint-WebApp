@@ -33,14 +33,6 @@ describe("SiteWorlds", () => {
     expect(sceneUrl.searchParams.get("siteName")).toBe("Harborview Grocery Distribution Annex");
 
     const hostedLinks = screen.getAllByRole("link", { name: /Start hosted session/i });
-    const hostedUrl = new URL(hostedLinks[0].getAttribute("href")!, "https://example.com");
-    expect(hostedUrl.pathname).toBe("/contact");
-    expect(hostedUrl.searchParams.get("interest")).toBe("evaluation-package");
-    expect(hostedUrl.searchParams.get("buyerType")).toBe("robot_team");
-    expect(hostedUrl.searchParams.get("source")).toBe("site-worlds");
-    expect(hostedUrl.searchParams.get("siteLocation")).toBe("1847 W Fulton St, Chicago, IL 60612");
-    expect(hostedUrl.searchParams.get("taskStatement")).toBe(
-      "Walk to shelf staging and pick the blue tote",
-    );
+    expect(hostedLinks[0]).toHaveAttribute("href", "/site-worlds/sw-chi-01/start");
   });
 });

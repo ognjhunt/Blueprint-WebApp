@@ -117,7 +117,7 @@ function buildPackages(config: PackageConfig): [SiteWorldPackage, SiteWorldPacka
       priceLabel: config.hostedRate,
       payerLabel: "Likely buyer: Robot team",
       actionLabel: "Start hosted session",
-      actionHref: buildContactHref("evaluation-package", config),
+      actionHref: `/site-worlds/${config.siteId}/start`,
       deliverables: [
         "Managed eval runtime",
         "Scenario variations",
