@@ -1,5 +1,5 @@
 import { Request, Response, Router } from "express";
-import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import admin, { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { HTTP_STATUS } from "../constants/http-status";
 import { logger } from "../logger";
 import {
@@ -17,9 +17,11 @@ import type {
   AddRequestNotePayload,
   QualificationState,
   OpportunityState,
+  PipelineAttachment,
   RequestedLane,
   BuyerType,
 } from "../types/inbound-request";
+import { parseGsUri, sceneDashboardSchema } from "../utils/pipeline-dashboard";
 
 const router = Router();
 
@@ -107,6 +109,7 @@ function normalizeDecryptedRequest(decrypted: InboundRequest) {
       : ["qualification"];
 
   const buyerType: BuyerType = decrypted.request.buyerType ?? "site_operator";
+  const pipeline = normalizePipelineAttachment(decrypted.pipeline);
 
   return {
     ...decrypted,
@@ -123,6 +126,23 @@ function normalizeDecryptedRequest(decrypted: InboundRequest) {
       taskStatement:
         decrypted.request.taskStatement || "Legacy submission requires manual scoping",
     },
+    pipeline,
+  };
+}
+
+function normalizePipelineAttachment(raw: unknown): PipelineAttachment | undefined {
+  if (!raw || typeof raw !== "object") {
+    return undefined;
+  }
+  const value = raw as Record<string, unknown>;
+  const artifacts = value.artifacts && typeof value.artifacts === "object" ? value.artifacts : {};
+  const syncedAt = value.synced_at as { toDate?: () => Date } | null | undefined;
+  return {
+    scene_id: String(value.scene_id || ""),
+    capture_id: String(value.capture_id || ""),
+    pipeline_prefix: String(value.pipeline_prefix || ""),
+    artifacts: { ...(artifacts as PipelineAttachment["artifacts"]) },
+    synced_at: syncedAt?.toDate?.()?.toISOString() || null,
   };
 }
 
@@ -236,6 +256,7 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
             taskStatement: decrypted.request.taskStatement,
           },
           owner: decrypted.owner,
+          pipeline: decrypted.pipeline,
         } satisfies InboundRequestListItem;
       })
     );
@@ -340,6 +361,7 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
         utm: decrypted.context.utm,
       },
       enrichment: decrypted.enrichment,
+      pipeline: decrypted.pipeline,
       events: {
         confirmationEmailSentAt:
           decrypted.events.confirmationEmailSentAt?.toDate?.()?.toISOString() ||
@@ -354,6 +376,67 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
   } catch (error) {
     logger.error({ error, requestId: req.params.requestId }, "Error fetching lead detail");
     return res.status(500).json({ error: "Failed to fetch lead details" });
+  }
+});
+
+router.get("/:requestId/pipeline/dashboard", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: "Database not available" });
+    }
+    if (!storageAdmin) {
+      return res.status(500).json({ error: "Storage not available" });
+    }
+
+    const { requestId } = req.params;
+    const doc = await db.collection("inboundRequests").doc(requestId).get();
+    if (!doc.exists) {
+      return res.status(404).json({ error: "Request not found" });
+    }
+
+    const data = doc.data() as InboundRequestStored;
+    const decrypted = normalizeDecryptedRequest(
+      (await decryptInboundRequestForAdmin(data as any)) as InboundRequest
+    );
+    const dashboardUri = decrypted.pipeline?.artifacts?.dashboard_summary_uri?.trim();
+    if (!dashboardUri) {
+      return res.status(404).json({ error: "Scene dashboard is not attached to this request" });
+    }
+
+    const { bucket, objectPath } = parseGsUri(dashboardUri);
+    let rawPayload = "";
+    try {
+      const [buffer] = await storageAdmin.bucket(bucket).file(objectPath).download();
+      rawPayload = buffer.toString("utf-8");
+    } catch (error) {
+      logger.error({ error, requestId, dashboardUri }, "Scene dashboard artifact missing");
+      return res.status(404).json({ error: "Scene dashboard artifact was not found" });
+    }
+
+    let parsedPayload: unknown;
+    try {
+      parsedPayload = JSON.parse(rawPayload);
+    } catch (error) {
+      logger.error({ error, requestId, dashboardUri }, "Scene dashboard artifact is not valid JSON");
+      return res.status(409).json({ error: "Scene dashboard artifact is malformed" });
+    }
+
+    const validation = sceneDashboardSchema.safeParse(parsedPayload);
+    if (!validation.success) {
+      logger.error(
+        { requestId, dashboardUri, issues: validation.error.issues },
+        "Scene dashboard artifact failed validation"
+      );
+      return res.status(409).json({ error: "Scene dashboard artifact failed validation" });
+    }
+
+    return res.json(validation.data);
+  } catch (error) {
+    logger.error(
+      { error, requestId: req.params.requestId },
+      "Error fetching scene dashboard"
+    );
+    return res.status(500).json({ error: "Failed to fetch scene dashboard" });
   }
 });
 

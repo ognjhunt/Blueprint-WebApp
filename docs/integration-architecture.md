@@ -197,6 +197,8 @@ The minimum artifacts the webapp should ingest back from `BlueprintCapturePipeli
 - `human_actions_required.json`
 - `agent_review_bundle.json`
 - `agent_readiness_memo.md`
+- `dashboard_summary.json` when a scene has Phase 2 task-run rollups
+- `scene_deployment_summary.md` when a scene has rollout planning rollups
 
 Recommended Firestore attachment block:
 
@@ -213,7 +215,9 @@ Recommended Firestore attachment block:
       "opportunity_handoff_uri": "gs://<bucket>/scenes/<scene_id>/captures/<capture_id>/pipeline/opportunity_handoff.json",
       "human_actions_required_uri": "gs://<bucket>/scenes/<scene_id>/captures/<capture_id>/pipeline/human_actions_required.json",
       "agent_review_bundle_uri": "gs://<bucket>/scenes/<scene_id>/captures/<capture_id>/pipeline/agent_review_bundle.json",
-      "agent_readiness_memo_uri": "gs://<bucket>/scenes/<scene_id>/captures/<capture_id>/pipeline/agent_readiness_memo.md"
+      "agent_readiness_memo_uri": "gs://<bucket>/scenes/<scene_id>/captures/<capture_id>/pipeline/agent_readiness_memo.md",
+      "dashboard_summary_uri": "gs://<bucket>/scenes/<scene_id>/captures/<capture_id>/pipeline/dashboard_summary.json",
+      "scene_deployment_summary_uri": "gs://<bucket>/scenes/<scene_id>/captures/<capture_id>/pipeline/scene_deployment_summary.md"
     }
   }
 }

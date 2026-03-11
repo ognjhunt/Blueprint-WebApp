@@ -6,6 +6,7 @@ import {
   ArrowUpRight,
   Building2,
   ClipboardList,
+  ExternalLink,
   Filter,
   Mail,
   RefreshCw,
@@ -18,6 +19,7 @@ import type {
   OpportunityState,
   QualificationState,
   RequestPriority,
+  SceneDashboardSummary,
 } from "@/types/inbound-request";
 import {
   BUYER_TYPE_LABELS as buyerTypeLabels,
@@ -62,6 +64,13 @@ const qualificationColors: Record<QualificationState, string> = {
   qualified_ready: "bg-emerald-100 text-emerald-700",
   qualified_risky: "bg-yellow-100 text-yellow-800",
   not_ready_yet: "bg-rose-100 text-rose-700",
+};
+
+const nextActionColors: Record<SceneDashboardSummary["categories"]["pick"]["tasks"][number]["next_action"], string> = {
+  "advance to human signoff": "bg-emerald-100 text-emerald-700",
+  recapture: "bg-orange-100 text-orange-800",
+  redesign: "bg-blue-100 text-blue-700",
+  defer: "bg-rose-100 text-rose-700",
 };
 
 interface LeadsResponse {
@@ -190,6 +199,24 @@ export default function AdminLeads() {
   });
 
   const selectedLead = detailQuery.data;
+  const sceneDashboardQuery = useQuery<SceneDashboardSummary>({
+    queryKey: [
+      "admin-submission-scene-dashboard",
+      selectedRequestId,
+      selectedLead?.pipeline?.artifacts?.dashboard_summary_uri,
+    ],
+    enabled:
+      isAdmin &&
+      !!selectedRequestId &&
+      !!selectedLead?.pipeline?.artifacts?.dashboard_summary_uri,
+    queryFn: async () => {
+      const response = await fetch(`/api/admin/leads/${selectedRequestId}/pipeline/dashboard`, {
+        headers: await withCsrfHeader({}),
+      });
+      if (!response.ok) throw new Error("Failed to fetch scene dashboard");
+      return response.json();
+    },
+  });
   const leads = leadsQuery.data?.leads ?? [];
 
   const statCards = useMemo(
@@ -508,6 +535,114 @@ export default function AdminLeads() {
                     ) : null}
                   </div>
                 </div>
+
+                {selectedLead.pipeline ? (
+                  <div className="rounded-xl border border-zinc-200 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Scene readiness</p>
+                        <p className="mt-2 text-sm text-zinc-700">
+                          Scene `{selectedLead.pipeline.scene_id}` · Capture `{selectedLead.pipeline.capture_id}`
+                        </p>
+                      </div>
+                      {selectedLead.pipeline.synced_at ? (
+                        <p className="text-xs text-zinc-400">
+                          Synced {formatDate(selectedLead.pipeline.synced_at)}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    {sceneDashboardQuery.isLoading ? (
+                      <p className="mt-4 text-sm text-zinc-500">Loading scene dashboard...</p>
+                    ) : sceneDashboardQuery.data ? (
+                      <div className="mt-4 space-y-4">
+                        <div className="grid gap-3 md:grid-cols-4">
+                          <div className="rounded-xl bg-zinc-50 p-3">
+                            <p className="text-xs uppercase tracking-[0.16em] text-zinc-400">Whole-home</p>
+                            <p className="mt-2 font-medium text-zinc-900">
+                              {sceneDashboardQuery.data.whole_home.status}
+                            </p>
+                          </div>
+                          <div className="rounded-xl bg-zinc-50 p-3">
+                            <p className="text-xs uppercase tracking-[0.16em] text-zinc-400">Ready now</p>
+                            <p className="mt-2 text-2xl font-semibold text-zinc-950">
+                              {sceneDashboardQuery.data.deployment_summary.ready_now}
+                            </p>
+                          </div>
+                          <div className="rounded-xl bg-zinc-50 p-3">
+                            <p className="text-xs uppercase tracking-[0.16em] text-zinc-400">Need redesign</p>
+                            <p className="mt-2 text-2xl font-semibold text-zinc-950">
+                              {sceneDashboardQuery.data.deployment_summary.needs_redesign}
+                            </p>
+                          </div>
+                          <div className="rounded-xl bg-zinc-50 p-3">
+                            <p className="text-xs uppercase tracking-[0.16em] text-zinc-400">Outside envelope</p>
+                            <p className="mt-2 text-2xl font-semibold text-zinc-950">
+                              {sceneDashboardQuery.data.deployment_summary.outside_robot_envelope}
+                            </p>
+                          </div>
+                        </div>
+
+                        {(["pick", "open_close", "navigate"] as const).map((category) => {
+                          const tasks = sceneDashboardQuery.data.categories[category].tasks;
+                          return (
+                            <div key={category} className="rounded-xl border border-zinc-200 p-4">
+                              <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">{category}</p>
+                              <div className="mt-3 space-y-3">
+                                {tasks.length ? (
+                                  tasks.map((task) => (
+                                    <div
+                                      key={`${category}-${task.capture_id}`}
+                                      className="rounded-lg bg-zinc-50 p-3"
+                                    >
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span
+                                          className={`rounded-full px-3 py-1 text-xs font-medium ${nextActionColors[task.next_action]}`}
+                                        >
+                                          {task.next_action}
+                                        </span>
+                                        <span className="text-xs text-zinc-400">{task.capture_id}</span>
+                                      </div>
+                                      <p className="mt-2 text-sm text-zinc-900">{task.task_text}</p>
+                                      <p className="mt-1 text-xs text-zinc-500">
+                                        Themes: {task.themes.join(", ") || "none"}
+                                      </p>
+                                      {task.memo_uri ? (
+                                        task.memo_uri.startsWith("http") ? (
+                                          <a
+                                            href={task.memo_uri}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="mt-2 inline-flex items-center text-xs text-zinc-700 hover:text-zinc-900"
+                                          >
+                                            Memo
+                                            <ExternalLink className="ml-1 h-3 w-3" />
+                                          </a>
+                                        ) : (
+                                          <p className="mt-2 text-xs text-zinc-500">Memo URI: {task.memo_uri}</p>
+                                        )
+                                      ) : null}
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-sm text-zinc-500">No tasks in this category.</p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : selectedLead.pipeline.artifacts.dashboard_summary_uri ? (
+                      <p className="mt-4 text-sm text-zinc-500">
+                        Scene dashboard could not be loaded.
+                      </p>
+                    ) : (
+                      <p className="mt-4 text-sm text-zinc-500">
+                        Pipeline attachment exists, but no scene dashboard has been emitted for this request yet.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
 
                 <div className="rounded-xl border border-zinc-200 p-4">
                   <p className="mb-3 text-xs uppercase tracking-[0.18em] text-zinc-400">Notes</p>

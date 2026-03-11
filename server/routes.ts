@@ -20,6 +20,7 @@ import siteContentRouter from "./routes/site-content";
 import inboundRequestRouter from "./routes/inbound-request";
 import adminLeadsRouter from "./routes/admin-leads";
 import marketplaceRouter from "./routes/marketplace";
+import internalPipelineRouter from "./routes/internal-pipeline";
 import verifyFirebaseToken from "./middleware/verifyFirebaseToken";
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
 
@@ -31,6 +32,7 @@ export function registerRoutes(app: Express) {
 
   // Public content summary for external tooling.
   app.use("/api/site-content", siteContentRouter);
+  app.use("/api/internal/pipeline", internalPipelineRouter);
 
   // API routes for Express
   app.get("/api/csrf", csrfCookieHandler);

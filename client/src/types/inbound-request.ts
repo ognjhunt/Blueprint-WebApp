@@ -106,6 +106,70 @@ export interface RequestOwner {
   email?: string | null;
 }
 
+export interface PipelineArtifacts {
+  readiness_decision_uri?: string | null;
+  readiness_report_uri?: string | null;
+  qualification_quality_report_uri?: string | null;
+  opportunity_handoff_uri?: string | null;
+  human_actions_required_uri?: string | null;
+  agent_review_bundle_uri?: string | null;
+  agent_readiness_memo_uri?: string | null;
+  dashboard_summary_uri?: string | null;
+  scene_deployment_summary_uri?: string | null;
+}
+
+export interface PipelineAttachment {
+  scene_id: string;
+  capture_id: string;
+  pipeline_prefix: string;
+  artifacts: PipelineArtifacts;
+  synced_at?: string | null;
+}
+
+export interface SceneDashboardTask {
+  task_text: string;
+  capture_id: string;
+  status: string;
+  next_action: "advance to human signoff" | "recapture" | "redesign" | "defer";
+  themes: string[];
+  memo_path: string;
+  memo_uri: string;
+}
+
+export interface SceneDashboardCategory {
+  counts: {
+    ready: number;
+    risky: number;
+    not_ready_yet: number;
+  };
+  tasks: SceneDashboardTask[];
+}
+
+export interface SceneDashboardSummary {
+  schema_version: "v1";
+  scene: string;
+  whole_home: {
+    capture_id: string;
+    status: string;
+    confidence: number | null;
+    memo_path: string;
+    memo_uri: string;
+  };
+  categories: {
+    pick: SceneDashboardCategory;
+    open_close: SceneDashboardCategory;
+    navigate: SceneDashboardCategory;
+  };
+  theme_counts: Record<string, number>;
+  action_counts: Record<string, number>;
+  deployment_summary: {
+    total_tasks: number;
+    ready_now: number;
+    needs_redesign: number;
+    outside_robot_envelope: number;
+  };
+}
+
 // Admin dashboard list item
 export interface InboundRequestListItem {
   requestId: string;
@@ -133,6 +197,7 @@ export interface InboundRequestListItem {
     details?: string | null;
   };
   owner: RequestOwner;
+  pipeline?: PipelineAttachment;
 }
 
 // Full request detail for admin view
@@ -154,6 +219,7 @@ export interface InboundRequestDetail extends InboundRequestListItem {
     crmSyncedAt?: string | null;
   };
   notes?: RequestNote[];
+  pipeline?: PipelineAttachment;
   request: InboundRequestListItem["request"] & {
     workflowContext?: string | null;
     operatingConstraints?: string | null;
