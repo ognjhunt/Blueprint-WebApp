@@ -22,6 +22,7 @@ Downstream note: passive site capture is useful context, but serious robot adapt
 - **How It Works (`/how-it-works`)**: Explains intake, evidence review, readiness scoring, and the qualification-first path.
 - **Qualified Opportunities (`/qualified-opportunities`)**: Shows the downstream brief format robot teams can review after site qualification.
 - **Qualified Opportunities Guide (`/qualified-opportunities-guide`)**: Explains the qualification and handoff workflow in more detail.
+- **Site Worlds (`/site-worlds`)**: Explains Blueprint as a hosted layer for site-specific environments that robot teams can open, run, and export from by the session-hour.
 - **Pricing (`/pricing`)**: Start with site qualification, then add deeper evaluation or managed work only when justified.
 - **Solutions (`/solutions`)**: Use-case oriented summaries for robotics, autonomy, and AI evaluation workflows.
 - **Contact (`/contact`)**: Site submission intake for qualification, evidence review, and later-stage follow-on lanes.
@@ -39,6 +40,7 @@ Downstream note: passive site capture is useful context, but serious robot adapt
 - /how-it-works
 - /qualified-opportunities
 - /qualified-opportunities-guide
+- /site-worlds
 - /pricing
 - /solutions
 - /contact

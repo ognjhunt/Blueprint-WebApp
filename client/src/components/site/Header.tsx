@@ -15,6 +15,7 @@ const navLinks = [
   { href: "/how-it-works", label: "Site Qualification" },
   { href: "/for-site-operators", label: "For Sites" },
   { href: "/for-robot-integrators", label: "For Robot Teams" },
+  { href: "/site-worlds", label: "Site Worlds" },
   { href: "/pricing", label: "Pricing" },
 ];
 

@@ -3,6 +3,7 @@ const footerLinks = [
   { label: "Readiness Pack", href: "/readiness-pack" },
   { label: "For Sites", href: "/for-site-operators" },
   { label: "For Robot Teams", href: "/for-robot-integrators" },
+  { label: "Site Worlds", href: "/site-worlds" },
   { label: "Pricing", href: "/pricing" },
   { label: "Contact", href: "/contact" },
   { label: "Privacy", href: "/privacy" },

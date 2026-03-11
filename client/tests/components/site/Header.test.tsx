@@ -43,6 +43,14 @@ describe("Header", () => {
     expect(screen.queryByRole("link", { name: /Partners/i })).not.toBeInTheDocument();
   });
 
+  it("shows Site Worlds in the top navigation", () => {
+    render(<Header />);
+
+    const link = screen.getByRole("link", { name: /^Site Worlds$/i });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", "/site-worlds");
+  });
+
   it("uses Request Site Qualification as the primary CTA", () => {
     render(<Header />);
 

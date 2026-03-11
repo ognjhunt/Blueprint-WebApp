@@ -51,6 +51,12 @@ router.get("/", (_req: Request, res: Response) => {
         description: "Use cases for robotics, autonomy, and AI evaluation workflows.",
       },
       {
+        path: "/site-worlds",
+        title: "Site Worlds",
+        description:
+          "Concept page for hosted site-specific environments that robot teams can open by the session-hour.",
+      },
+      {
         path: "/contact",
         title: "Contact",
         description: "Tell Blueprint about a site and workflow so the team can qualify it and plan the next step.",

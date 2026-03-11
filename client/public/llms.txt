@@ -5,6 +5,7 @@ High-priority public URLs:
 - /how-it-works
 - /qualified-opportunities
 - /qualified-opportunities-guide
+- /site-worlds
 - /pricing
 - /solutions
 - /contact
