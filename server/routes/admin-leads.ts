@@ -8,6 +8,7 @@ import {
   encryptFieldValue,
 } from "../utils/field-encryption";
 import type {
+  DerivedAssetsAttachment,
   InboundRequest,
   InboundRequestStored,
   RequestStatus,
@@ -110,6 +111,7 @@ function normalizeDecryptedRequest(decrypted: InboundRequest) {
 
   const buyerType: BuyerType = decrypted.request.buyerType ?? "site_operator";
   const pipeline = normalizePipelineAttachment(decrypted.pipeline);
+  const derivedAssets = normalizeDerivedAssets(decrypted.derived_assets);
 
   return {
     ...decrypted,
@@ -127,6 +129,7 @@ function normalizeDecryptedRequest(decrypted: InboundRequest) {
         decrypted.request.taskStatement || "Legacy submission requires manual scoping",
     },
     pipeline,
+    derived_assets: derivedAssets,
   };
 }
 
@@ -142,6 +145,18 @@ function normalizePipelineAttachment(raw: unknown): PipelineAttachment | undefin
     capture_id: String(value.capture_id || ""),
     pipeline_prefix: String(value.pipeline_prefix || ""),
     artifacts: { ...(artifacts as PipelineAttachment["artifacts"]) },
+    synced_at: syncedAt?.toDate?.()?.toISOString() || null,
+  };
+}
+
+function normalizeDerivedAssets(raw: unknown): DerivedAssetsAttachment | undefined {
+  if (!raw || typeof raw !== "object") {
+    return undefined;
+  }
+  const value = raw as Record<string, unknown>;
+  const syncedAt = value.synced_at as { toDate?: () => Date } | null | undefined;
+  return {
+    ...(value as DerivedAssetsAttachment),
     synced_at: syncedAt?.toDate?.()?.toISOString() || null,
   };
 }
@@ -257,6 +272,7 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
           },
           owner: decrypted.owner,
           pipeline: decrypted.pipeline,
+          derived_assets: decrypted.derived_assets,
         } satisfies InboundRequestListItem;
       })
     );

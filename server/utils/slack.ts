@@ -62,8 +62,10 @@ const HELP_WITH_LABELS: Record<HelpWithOption, string> = {
 
 const REQUESTED_LANE_LABELS: Record<RequestedLane, string> = {
   qualification: "Qualification",
+  preview_simulation: "Preview Simulation",
   deeper_evaluation: "Deeper Evaluation",
   managed_tuning: "Managed Tuning",
+  data_licensing: "Data Licensing",
 };
 
 const BUYER_TYPE_LABELS: Record<BuyerType, string> = {

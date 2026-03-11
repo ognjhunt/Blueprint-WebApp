@@ -32,6 +32,11 @@ const requestedLaneOptions: Array<{
     description: "Default intake and readiness review.",
   },
   {
+    value: "preview_simulation",
+    label: "Preview simulation",
+    description: "Create a scene-memory-backed preview when the capture and rights support it.",
+  },
+  {
     value: "deeper_evaluation",
     label: "Deeper evaluation",
     description: "Request additional review after qualification.",
@@ -40,6 +45,11 @@ const requestedLaneOptions: Array<{
     value: "managed_tuning",
     label: "Managed tuning",
     description: "Flag possible tuning work for later-stage follow-up.",
+  },
+  {
+    value: "data_licensing",
+    label: "Data licensing",
+    description: "Request packaged datasets or licensed derived assets after qualification.",
   },
 ];
 

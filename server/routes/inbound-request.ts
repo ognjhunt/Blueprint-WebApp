@@ -65,24 +65,28 @@ const VALID_HELP_WITH: HelpWithOption[] = [
 
 const VALID_REQUESTED_LANES: RequestedLane[] = [
   "qualification",
+  "preview_simulation",
   "deeper_evaluation",
   "managed_tuning",
+  "data_licensing",
 ];
 
 const LEGACY_HELP_WITH_TO_LANE: Record<HelpWithOption, RequestedLane> = {
   "benchmark-packs": "qualification",
-  "scene-library": "deeper_evaluation",
-  "dataset-packs": "deeper_evaluation",
+  "scene-library": "preview_simulation",
+  "dataset-packs": "data_licensing",
   "custom-capture": "qualification",
   "pilot-exchange-location-brief": "qualification",
   "pilot-exchange-policy-submission": "deeper_evaluation",
-  "pilot-exchange-data-licensing": "managed_tuning",
+  "pilot-exchange-data-licensing": "data_licensing",
 };
 
 const LANE_TO_LEGACY_HELP_WITH: Record<RequestedLane, HelpWithOption> = {
   qualification: "benchmark-packs",
-  deeper_evaluation: "dataset-packs",
+  preview_simulation: "scene-library",
+  deeper_evaluation: "pilot-exchange-policy-submission",
   managed_tuning: "pilot-exchange-data-licensing",
+  data_licensing: "dataset-packs",
 };
 
 // Known disposable email domains (extend as needed)
@@ -189,9 +193,14 @@ function computePriority(
   // High priority for high-touch deployment discovery work
   if (
     requestedLanes.includes("managed_tuning") ||
-    requestedLanes.includes("deeper_evaluation")
+    requestedLanes.includes("deeper_evaluation") ||
+    requestedLanes.includes("data_licensing")
   ) {
     return "high";
+  }
+
+  if (requestedLanes.includes("preview_simulation")) {
+    return "normal";
   }
 
   // Normal priority for medium budgets
@@ -215,7 +224,8 @@ function computeOwner(
 ): { uid: string | null; email: string | null } {
   if (
     requestedLanes.includes("deeper_evaluation") ||
-    requestedLanes.includes("managed_tuning")
+    requestedLanes.includes("managed_tuning") ||
+    requestedLanes.includes("data_licensing")
   ) {
     return {
       uid: null,
@@ -572,6 +582,10 @@ router.post("/", async (req: Request, res: Response) => {
             payload.privacySecurityConstraints?.trim() || null,
           knownBlockers: payload.knownBlockers?.trim() || null,
           targetRobotTeam: payload.targetRobotTeam?.trim() || null,
+          captureRights: payload.captureRights?.trim() || null,
+          derivedScenePermission: payload.derivedScenePermission?.trim() || null,
+          datasetLicensingPermission: payload.datasetLicensingPermission?.trim() || null,
+          payoutEligibility: payload.payoutEligibility?.trim() || null,
           details: payload.details?.trim() || null,
         },
         context: {
@@ -656,6 +670,10 @@ router.post("/", async (req: Request, res: Response) => {
           payload.privacySecurityConstraints?.trim() || null,
         knownBlockers: payload.knownBlockers?.trim() || null,
         targetRobotTeam: payload.targetRobotTeam?.trim() || null,
+        captureRights: payload.captureRights?.trim() || null,
+        derivedScenePermission: payload.derivedScenePermission?.trim() || null,
+        datasetLicensingPermission: payload.datasetLicensingPermission?.trim() || null,
+        payoutEligibility: payload.payoutEligibility?.trim() || null,
       },
       context: {
         sourcePageUrl: payload.context?.sourcePageUrl || "",

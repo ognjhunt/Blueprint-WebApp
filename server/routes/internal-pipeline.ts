@@ -2,6 +2,7 @@ import { Request, Response, Router } from "express";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import type {
+  DerivedAssetsAttachment,
   OpportunityState,
   PipelineAttachment,
   PipelineArtifacts,
@@ -26,6 +27,18 @@ function buildPipelineAttachment(body: Record<string, unknown>): PipelineAttachm
     capture_id: String(body.capture_id || ""),
     pipeline_prefix: String(body.pipeline_prefix || ""),
     artifacts: { ...(artifacts as PipelineArtifacts) },
+    synced_at: admin.firestore.FieldValue.serverTimestamp() as never,
+  };
+}
+
+function buildDerivedAssets(body: Record<string, unknown>): DerivedAssetsAttachment | undefined {
+  const derivedAssets =
+    body.derived_assets && typeof body.derived_assets === "object" ? body.derived_assets : null;
+  if (!derivedAssets) {
+    return undefined;
+  }
+  return {
+    ...(derivedAssets as DerivedAssetsAttachment),
     synced_at: admin.firestore.FieldValue.serverTimestamp() as never,
   };
 }
@@ -67,11 +80,13 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
     }
 
     const pipeline = buildPipelineAttachment(body);
+    const derivedAssets = buildDerivedAssets(body);
     await docRef.update({
       status: qualificationState,
       qualification_state: qualificationState,
       opportunity_state: opportunityState,
       pipeline,
+      ...(derivedAssets ? { derived_assets: derivedAssets } : {}),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
@@ -82,6 +97,7 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       qualification_state: qualificationState,
       opportunity_state: opportunityState,
       pipeline,
+      derived_assets: derivedAssets,
     });
   } catch (error) {
     logger.error({ error }, "Failed to attach pipeline metadata");

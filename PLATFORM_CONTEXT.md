@@ -16,6 +16,12 @@ This repo is one part of a three-repo system.
 
 This platform is qualification-first.
 
+Doctrine:
+
+- qualified opportunities are the first product
+- scene memory, preview simulation, evaluation packages, and licensed datasets sit on top
+- derived assets must not mutate qualification truth
+
 The webapp should be treated as the operating system around qualification records, not as a standalone marketplace first.
 
 ## What This Repo Owns
@@ -59,7 +65,7 @@ The correct product stack is:
 
 1. primary product: site qualification / readiness pack
 2. secondary product: qualified opportunity exchange for robot teams
-3. third product: deeper evaluation / geometry / simulation package
+3. third product: scene memory / preview simulation / evaluation package
 4. fourth product: training data / managed tuning / licensing
 
 That means the default product center in this repo should be:
@@ -75,6 +81,7 @@ Not:
 - managed tuning as the first product motion
 
 Marketplace and tuning features should sit on top of qualification, not replace it.
+The app should separately track derived scene/data asset states without letting them rewrite readiness state.
 
 Important read:
 

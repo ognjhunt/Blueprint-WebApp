@@ -19,11 +19,11 @@ describe("contact interest mapping", () => {
 
   it("keeps legacy aliases working", () => {
     expect(normalizeInterestToLane("evaluation-run")).toBe("deeper_evaluation");
-    expect(normalizeInterestToLane("adaptation-data-pack")).toBe("deeper_evaluation");
-    expect(normalizeInterestToLane("exclusive-dataset")).toBe("deeper_evaluation");
-    expect(normalizeInterestToLane("private-twin-buyout")).toBe("deeper_evaluation");
+    expect(normalizeInterestToLane("adaptation-data-pack")).toBe("data_licensing");
+    expect(normalizeInterestToLane("exclusive-dataset")).toBe("data_licensing");
+    expect(normalizeInterestToLane("private-twin-buyout")).toBe("preview_simulation");
     expect(normalizeInterestToLane("enterprise")).toBe("deeper_evaluation");
-    expect(normalizeInterestToLane("egocentric-video")).toBe("deeper_evaluation");
+    expect(normalizeInterestToLane("egocentric-video")).toBe("preview_simulation");
     expect(normalizeInterestToLane("managed-adaptation")).toBe("managed_tuning");
   });
 

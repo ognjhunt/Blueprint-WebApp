@@ -16,7 +16,8 @@ Blueprint is a three-repo system with one primary lifecycle:
 The key product rule is:
 
 - qualification is the default product
-- exchange, deeper evaluation, scene generation, and managed tuning are follow-on lanes
+- exchange, preview simulation, deeper evaluation, scene generation, and managed tuning are follow-on lanes
+- derived assets must be stored separately from qualification truth
 
 ## Repo Responsibilities
 
@@ -199,6 +200,8 @@ The minimum artifacts the webapp should ingest back from `BlueprintCapturePipeli
 - `agent_readiness_memo.md`
 - `dashboard_summary.json` when a scene has Phase 2 task-run rollups
 - `scene_deployment_summary.md` when a scene has rollout planning rollups
+- `scene_memory/scene_memory_manifest.json` when scene-memory prep is emitted
+- `preview_simulation/preview_simulation_manifest.json` when preview simulation is prepared
 
 Recommended Firestore attachment block:
 
@@ -217,8 +220,23 @@ Recommended Firestore attachment block:
       "agent_review_bundle_uri": "gs://<bucket>/scenes/<scene_id>/captures/<capture_id>/pipeline/agent_review_bundle.json",
       "agent_readiness_memo_uri": "gs://<bucket>/scenes/<scene_id>/captures/<capture_id>/pipeline/agent_readiness_memo.md",
       "dashboard_summary_uri": "gs://<bucket>/scenes/<scene_id>/captures/<capture_id>/pipeline/dashboard_summary.json",
-      "scene_deployment_summary_uri": "gs://<bucket>/scenes/<scene_id>/captures/<capture_id>/pipeline/scene_deployment_summary.md"
+      "scene_deployment_summary_uri": "gs://<bucket>/scenes/<scene_id>/captures/<capture_id>/pipeline/scene_deployment_summary.md",
+      "scene_memory_manifest_uri": "gs://<bucket>/scenes/<scene_id>/captures/<capture_id>/pipeline/scene_memory/scene_memory_manifest.json",
+      "preview_simulation_manifest_uri": "gs://<bucket>/scenes/<scene_id>/captures/<capture_id>/pipeline/preview_simulation/preview_simulation_manifest.json"
     }
+  }
+}
+```
+
+Recommended derived-assets block:
+
+```json
+{
+  "derived_assets": {
+    "scene_memory": {"status": "prep_ready", "manifest_uri": "gs://.../scene_memory/scene_memory_manifest.json"},
+    "preview_simulation": {"status": "prep_ready", "manifest_uri": "gs://.../preview_simulation/preview_simulation_manifest.json"},
+    "validation_package": {"status": "not_requested"},
+    "dataset_package": {"status": "not_requested"}
   }
 }
 ```

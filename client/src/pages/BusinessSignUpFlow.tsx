@@ -35,6 +35,11 @@ const REQUESTED_LANES = [
     description: "Review the site, task, and blockers before anyone commits field time.",
   },
   {
+    value: "preview_simulation",
+    label: "Preview simulation",
+    description: "Produce a scene-memory-backed preview after qualification when the capture supports it.",
+  },
+  {
     value: "deeper_evaluation",
     label: "Deeper evaluation",
     description: "Request more technical review after the site clears basic qualification.",
@@ -43,6 +48,11 @@ const REQUESTED_LANES = [
     value: "managed_tuning",
     label: "Managed tuning",
     description: "Flag possible stack-specific tuning work for later, only if the site earns it.",
+  },
+  {
+    value: "data_licensing",
+    label: "Data licensing",
+    description: "Package the capture and derived assets for licensed evaluation or dataset use later.",
   },
 ] as const;
 
@@ -90,8 +100,10 @@ type LegacyPrimaryNeed =
 
 const LEGACY_PRIMARY_NEED_BY_LANE: Record<RequestedLane, LegacyPrimaryNeed> = {
   qualification: "benchmark-packs",
+  preview_simulation: "scene-library",
   deeper_evaluation: "dataset-packs",
   managed_tuning: "scene-library",
+  data_licensing: "dataset-packs",
 };
 
 function isValidEmail(value: string) {

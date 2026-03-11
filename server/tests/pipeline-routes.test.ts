@@ -124,6 +124,12 @@ describe("pipeline integration routes", () => {
           artifacts: {
             dashboard_summary_uri: "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/dashboard_summary.json",
           },
+          derived_assets: {
+            scene_memory: {
+              status: "prep_ready",
+              manifest_uri: "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/scene_memory/scene_memory_manifest.json",
+            },
+          },
         }),
       });
 
@@ -132,6 +138,11 @@ describe("pipeline integration routes", () => {
         expect.objectContaining({
           qualification_state: "qualified_ready",
           opportunity_state: "handoff_ready",
+          derived_assets: expect.objectContaining({
+            scene_memory: expect.objectContaining({
+              status: "prep_ready",
+            }),
+          }),
           pipeline: expect.objectContaining({
             scene_id: "scene-1",
             capture_id: "cap-1",

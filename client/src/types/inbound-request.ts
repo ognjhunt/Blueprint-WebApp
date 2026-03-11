@@ -14,8 +14,10 @@ export type BuyerType = "site_operator" | "robot_team";
 
 export type RequestedLane =
   | "qualification"
+  | "preview_simulation"
   | "deeper_evaluation"
-  | "managed_tuning";
+  | "managed_tuning"
+  | "data_licensing";
 
 export type HelpWithOption =
   | "benchmark-packs"
@@ -86,6 +88,10 @@ export interface InboundRequestPayload {
   privacySecurityConstraints?: string;
   knownBlockers?: string;
   targetRobotTeam?: string;
+  captureRights?: string;
+  derivedScenePermission?: string;
+  datasetLicensingPermission?: string;
+  payoutEligibility?: string;
   details?: string;
   context: RequestContext;
   honeypot?: string; // Anti-bot honeypot field
@@ -116,6 +122,33 @@ export interface PipelineArtifacts {
   agent_readiness_memo_uri?: string | null;
   dashboard_summary_uri?: string | null;
   scene_deployment_summary_uri?: string | null;
+  scene_memory_manifest_uri?: string | null;
+  scene_memory_readiness_uri?: string | null;
+  conditioning_bundle_uri?: string | null;
+  preview_simulation_manifest_uri?: string | null;
+}
+
+export type DerivedAssetStatus =
+  | "not_requested"
+  | "prep_ready"
+  | "generating"
+  | "generated"
+  | "failed"
+  | "review_required";
+
+export interface DerivedAssetEntry {
+  status: DerivedAssetStatus;
+  manifest_uri?: string | null;
+  artifact_uri?: string | null;
+  updated_at?: string | null;
+}
+
+export interface DerivedAssetsAttachment {
+  scene_memory?: DerivedAssetEntry;
+  preview_simulation?: DerivedAssetEntry;
+  validation_package?: DerivedAssetEntry;
+  dataset_package?: DerivedAssetEntry;
+  synced_at?: string | null;
 }
 
 export interface PipelineAttachment {
@@ -198,6 +231,7 @@ export interface InboundRequestListItem {
   };
   owner: RequestOwner;
   pipeline?: PipelineAttachment;
+  derived_assets?: DerivedAssetsAttachment;
 }
 
 // Full request detail for admin view
@@ -220,12 +254,17 @@ export interface InboundRequestDetail extends InboundRequestListItem {
   };
   notes?: RequestNote[];
   pipeline?: PipelineAttachment;
+  derived_assets?: DerivedAssetsAttachment;
   request: InboundRequestListItem["request"] & {
     workflowContext?: string | null;
     operatingConstraints?: string | null;
     privacySecurityConstraints?: string | null;
     knownBlockers?: string | null;
     targetRobotTeam?: string | null;
+    captureRights?: string | null;
+    derivedScenePermission?: string | null;
+    datasetLicensingPermission?: string | null;
+    payoutEligibility?: string | null;
   };
 }
 
@@ -290,8 +329,10 @@ export const HELP_WITH_LABELS: Record<HelpWithOption, string> = {
 
 export const REQUESTED_LANE_LABELS: Record<RequestedLane, string> = {
   qualification: "Qualification",
+  preview_simulation: "Preview Simulation",
   deeper_evaluation: "Deeper Evaluation",
   managed_tuning: "Managed Tuning",
+  data_licensing: "Data Licensing",
 };
 
 export const BUYER_TYPE_LABELS: Record<BuyerType, string> = {

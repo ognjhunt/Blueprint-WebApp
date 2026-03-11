@@ -16,8 +16,10 @@ export type BuyerType = "site_operator" | "robot_team";
 
 export type RequestedLane =
   | "qualification"
+  | "preview_simulation"
   | "deeper_evaluation"
-  | "managed_tuning";
+  | "managed_tuning"
+  | "data_licensing";
 
 // Legacy compatibility aliases accepted on read and write during migration.
 export type HelpWithOption =
@@ -95,6 +97,10 @@ export interface RequestDetails {
   privacySecurityConstraints?: string | null;
   knownBlockers?: string | null;
   targetRobotTeam?: string | null;
+  captureRights?: string | null;
+  derivedScenePermission?: string | null;
+  datasetLicensingPermission?: string | null;
+  payoutEligibility?: string | null;
 }
 
 // Owner assignment
@@ -128,6 +134,33 @@ export interface PipelineArtifacts {
   agent_readiness_memo_uri?: string | null;
   dashboard_summary_uri?: string | null;
   scene_deployment_summary_uri?: string | null;
+  scene_memory_manifest_uri?: string | null;
+  scene_memory_readiness_uri?: string | null;
+  conditioning_bundle_uri?: string | null;
+  preview_simulation_manifest_uri?: string | null;
+}
+
+export type DerivedAssetStatus =
+  | "not_requested"
+  | "prep_ready"
+  | "generating"
+  | "generated"
+  | "failed"
+  | "review_required";
+
+export interface DerivedAssetEntry {
+  status: DerivedAssetStatus;
+  manifest_uri?: string | null;
+  artifact_uri?: string | null;
+  updated_at?: FirebaseFirestore.Timestamp | string | null;
+}
+
+export interface DerivedAssetsAttachment {
+  scene_memory?: DerivedAssetEntry;
+  preview_simulation?: DerivedAssetEntry;
+  validation_package?: DerivedAssetEntry;
+  dataset_package?: DerivedAssetEntry;
+  synced_at?: FirebaseFirestore.Timestamp | string | null;
 }
 
 export interface PipelineAttachment {
@@ -154,6 +187,7 @@ export interface InboundRequest {
   enrichment: EnrichmentData;
   events: RequestEvents;
   pipeline?: PipelineAttachment;
+  derived_assets?: DerivedAssetsAttachment;
   debug: {
     schemaVersion: number;
   };
@@ -181,6 +215,10 @@ export interface RequestDetailsStored {
   privacySecurityConstraints?: EncryptableString | null;
   knownBlockers?: EncryptableString | null;
   targetRobotTeam?: EncryptableString | null;
+  captureRights?: EncryptableString | null;
+  derivedScenePermission?: EncryptableString | null;
+  datasetLicensingPermission?: EncryptableString | null;
+  payoutEligibility?: EncryptableString | null;
 }
 
 export interface InboundRequestStored
@@ -209,6 +247,10 @@ export interface InboundRequestPayload {
   privacySecurityConstraints?: string;
   knownBlockers?: string;
   targetRobotTeam?: string;
+  captureRights?: string;
+  derivedScenePermission?: string;
+  datasetLicensingPermission?: string;
+  payoutEligibility?: string;
   details?: string;
   context: {
     sourcePageUrl: string;
@@ -323,6 +365,7 @@ export interface InboundRequestListItem {
   };
   owner: RequestOwner;
   pipeline?: PipelineAttachment;
+  derived_assets?: DerivedAssetsAttachment;
 }
 
 export interface UpdateRequestStatusPayload {

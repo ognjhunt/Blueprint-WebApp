@@ -143,7 +143,13 @@ export interface UserData {
 
   // Qualification-first intake fields
   buyerType?: "site_operator" | "robot_team";
-  requestedLanes?: ("qualification" | "deeper_evaluation" | "managed_tuning")[];
+  requestedLanes?: (
+    | "qualification"
+    | "preview_simulation"
+    | "deeper_evaluation"
+    | "managed_tuning"
+    | "data_licensing"
+  )[];
   siteName?: string;
   siteLocation?: string;
   taskStatement?: string;
@@ -152,6 +158,10 @@ export interface UserData {
   privacySecurityConstraints?: string;
   knownBlockers?: string;
   targetRobotTeam?: string;
+  captureRights?: string;
+  derivedScenePermission?: string;
+  datasetLicensingPermission?: string;
+  payoutEligibility?: string;
 
   // Legacy marketplace-first signup fields retained for compatibility
   primaryNeeds?: ("benchmark-packs" | "scene-library" | "dataset-packs" | "custom-capture" | "other")[];
