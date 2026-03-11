@@ -198,7 +198,7 @@ export default function PilotExchangeGuide() {
             <div className="max-w-3xl mb-8">
               <h2 className="text-3xl font-bold text-zinc-900 mb-3">The Core Deployment Gap</h2>
               <p className="text-zinc-600">
-                Deployment Marketplace exists to reduce the lab-to-site drop. These are related problems, but they are not the same step in the pipeline.
+                Qualified opportunity exchange exists to reduce the lab-to-site drop. These are related problems, but they are not the same step in the pipeline.
               </p>
             </div>
             <div className="mobile-snap-row md:grid md:grid-cols-2 md:gap-6">
@@ -216,7 +216,7 @@ export default function PilotExchangeGuide() {
             <div className="max-w-3xl mb-8">
               <h2 className="text-3xl font-bold text-zinc-900 mb-3">Capture vs Adaptation</h2>
               <p className="text-zinc-600">
-                Site capture gives geometry. Site adaptation makes that geometry behave like the real facility for policy transfer.
+                Site capture gives the base record. Site adaptation makes downstream assets behave more like the real facility for policy transfer.
               </p>
             </div>
             <div className="mobile-snap-row md:grid md:grid-cols-2 md:gap-6">
@@ -279,7 +279,7 @@ export default function PilotExchangeGuide() {
             <div className="mobile-snap-row md:grid md:grid-cols-2 md:gap-6">
               <div className="border border-zinc-200 rounded-2xl bg-zinc-50/50 p-5 sm:p-8">
                 <h3 className="text-xl font-bold text-zinc-900 mb-3">Real-to-Sim Activation</h3>
-                <p className="text-sm text-zinc-600 mb-6">Simulation assets are useless without calibration. We align the twin to reality using log sets.</p>
+                <p className="text-sm text-zinc-600 mb-6">Simulation assets are useless without calibration. We align the downstream package to reality using log sets.</p>
                 
                 <div className="space-y-6">
                   <div>
@@ -399,7 +399,7 @@ export default function PilotExchangeGuide() {
             </div>
 
             <div className="border border-zinc-200 rounded-2xl p-5 bg-zinc-50/60 mb-16 sm:p-6">
-              <h3 className="font-bold text-zinc-900 mb-4">What This Means for Deployment Marketplace</h3>
+              <h3 className="font-bold text-zinc-900 mb-4">What This Means for Qualified Opportunity Exchange</h3>
               <div className="mobile-snap-row md:grid md:grid-cols-3 md:gap-4">
                 <div className="border border-zinc-200 rounded-lg p-4 bg-white">
                   <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-2">Mode 1</p>
@@ -425,13 +425,13 @@ export default function PilotExchangeGuide() {
                 <div className="border border-zinc-200 rounded-lg p-4 bg-zinc-50">
                   <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-2">Video World Models</p>
                   <p className="text-sm text-zinc-600">
-                    Evaluation can run in pixel-space rollout loops (predicted future frames), which may not require full SimReady USD authoring for first-pass ranking.
+                    Evaluation can run in pixel-space rollout loops (predicted future frames), which may not require a full simulation package for first-pass ranking.
                   </p>
                 </div>
                 <div className="border border-zinc-200 rounded-lg p-4 bg-zinc-50">
                   <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-2">Physics-Critical Policies</p>
                   <p className="text-sm text-zinc-600">
-                    Contact-rich, safety-critical workflows still benefit from SimReady USD scenes for repeatable dynamics, integration checks, and SAT prep.
+                    Contact-rich, safety-critical workflows still benefit from a validated simulation package for repeatable dynamics, integration checks, and SAT prep.
                   </p>
                 </div>
               </div>
@@ -451,7 +451,7 @@ export default function PilotExchangeGuide() {
               </ul>
             </div>
 
-            <h3 className="text-2xl font-bold text-zinc-900 mb-6">How Training Runs in Practice</h3>
+            <h3 className="text-2xl font-bold text-zinc-900 mb-6">How Managed Evaluation Runs in Practice</h3>
             <div className="mobile-snap-row md:grid md:grid-cols-3 md:gap-6">
               {trainingWorkflowSteps.map((step) => (
                 <div key={step.id} className="relative border-l border-zinc-200 pl-6 pt-6 sm:border-l-0 sm:border-t sm:pl-0">

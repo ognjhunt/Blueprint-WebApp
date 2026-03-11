@@ -105,7 +105,7 @@ describe("PilotExchange", () => {
     expect(screen.getAllByRole("link", { name: /See Pricing/i })[0]).toHaveAttribute("href", "#pricing");
     expect(screen.getByRole("link", { name: /See how qualification works/i })).toHaveAttribute(
       "href",
-      "/deployment-marketplace-guide",
+      "/qualified-opportunities-guide",
     );
     expect(analyticsEventsMock.pilotExchangeView).toHaveBeenCalledTimes(1);
   });
@@ -131,9 +131,9 @@ describe("PilotExchange", () => {
     render(<PilotExchange />);
 
     expect(screen.getByRole("heading", { name: /Pay for the job you need\./i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Evaluation$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Site data$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Managed tuning$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Evaluation Package$/i })).toBeInTheDocument();
+    expect(screen.getByText(/simulation-backed review/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Deployment Prep \/ Managed Tuning/i })).toBeInTheDocument();
     expect(screen.getByText(/Private site terms are custom\./i)).toBeInTheDocument();
 
     fireEvent.click(screen.getAllByRole("button", { name: /Check a qualified site/i })[0]);

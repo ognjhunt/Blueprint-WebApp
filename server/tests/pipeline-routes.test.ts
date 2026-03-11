@@ -5,7 +5,10 @@ import { createServer } from "http";
 import type { Server } from "node:http";
 
 const state = vi.hoisted(() => ({
-  queryDocs: [] as Array<{ ref: { id: string; update: ReturnType<typeof vi.fn> } }>,
+  queryDocs: [] as Array<{
+    ref: { id: string; update: ReturnType<typeof vi.fn> };
+    data: () => Record<string, unknown>;
+  }>,
   docExists: true,
   docData: {} as Record<string, unknown>,
   storageText: "",
@@ -104,7 +107,31 @@ describe("pipeline integration routes", () => {
   it("upserts pipeline attachment metadata on the internal route", async () => {
     process.env.PIPELINE_SYNC_TOKEN = "secret";
     const update = vi.fn().mockResolvedValue(undefined);
-    state.queryDocs = [{ ref: { id: "req-1", update } }];
+    state.queryDocs = [
+      {
+        ref: { id: "req-1", update },
+        data: () => ({
+          requestId: "req-1",
+          status: "qualified_ready",
+          qualification_state: "qualified_ready",
+          opportunity_state: "handoff_ready",
+          derived_assets: {
+            preview_simulation: {
+              status: "generated",
+              manifest_uri: "gs://bucket/existing-preview.json",
+            },
+          },
+          pipeline: {
+            scene_id: "scene-0",
+            capture_id: "cap-0",
+            pipeline_prefix: "scenes/scene-0/captures/cap-0/pipeline",
+            artifacts: {
+              readiness_report_uri: "gs://bucket/existing-readiness.md",
+            },
+          },
+        }),
+      },
+    ];
     const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
 
     try {
@@ -119,8 +146,6 @@ describe("pipeline integration routes", () => {
           scene_id: "scene-1",
           capture_id: "cap-1",
           pipeline_prefix: "scenes/scene-1/captures/cap-1/pipeline",
-          qualification_state: "qualified_ready",
-          opportunity_state: "handoff_ready",
           artifacts: {
             dashboard_summary_uri: "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/dashboard_summary.json",
           },
@@ -136,9 +161,10 @@ describe("pipeline integration routes", () => {
       expect(response.status).toBe(200);
       expect(update).toHaveBeenCalledWith(
         expect.objectContaining({
-          qualification_state: "qualified_ready",
-          opportunity_state: "handoff_ready",
           derived_assets: expect.objectContaining({
+            preview_simulation: expect.objectContaining({
+              status: "generated",
+            }),
             scene_memory: expect.objectContaining({
               status: "prep_ready",
             }),
@@ -146,7 +172,65 @@ describe("pipeline integration routes", () => {
           pipeline: expect.objectContaining({
             scene_id: "scene-1",
             capture_id: "cap-1",
+            artifacts: expect.objectContaining({
+              readiness_report_uri: "gs://bucket/existing-readiness.md",
+              dashboard_summary_uri:
+                "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/dashboard_summary.json",
+            }),
           }),
+        })
+      );
+      expect(update).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          qualification_state: expect.anything(),
+        })
+      );
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("updates qualification truth only when authoritative_state_update is true", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "secret";
+    const update = vi.fn().mockResolvedValue(undefined);
+    state.queryDocs = [
+      {
+        ref: { id: "req-1", update },
+        data: () => ({
+          requestId: "req-1",
+          status: "submitted",
+          qualification_state: "submitted",
+          opportunity_state: "not_applicable",
+        }),
+      },
+    ];
+    const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
+
+    try {
+      const response = await fetch(`${baseUrl}/attachments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Blueprint-Pipeline-Token": "secret",
+        },
+        body: JSON.stringify({
+          site_submission_id: "req-1",
+          authoritative_state_update: true,
+          qualification_state: "qualified_ready",
+          opportunity_state: "handoff_ready",
+          artifacts: {
+            dashboard_summary_uri:
+              "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/dashboard_summary.json",
+          },
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "qualified_ready",
+          qualification_state: "qualified_ready",
+          opportunity_state: "handoff_ready",
         })
       );
     } finally {

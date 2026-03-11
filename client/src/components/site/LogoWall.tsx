@@ -1,7 +1,7 @@
 const placeholders = [
-  "Nvidia Omniverse",
-  "Isaac Sim",
-  "Isaac Lab",
+  "Robot stacks",
+  "Ops systems",
+  "Simulation tools",
 ];
 
 export function LogoWall() {

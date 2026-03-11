@@ -3,6 +3,11 @@ import { useSearch } from "wouter";
 import { ArrowRight, Calendar, CheckCircle2, Clock, Mail } from "lucide-react";
 import { withCsrfHeader } from "@/lib/csrf";
 import { normalizeInterestToLane } from "@/lib/contactInterest";
+import {
+  REQUESTED_LANE_DESCRIPTIONS,
+  REQUESTED_LANE_LABELS,
+  REQUESTED_LANES,
+} from "@/lib/requestTaxonomy";
 import { useAuth } from "@/contexts/AuthContext";
 import type {
   BudgetBucket,
@@ -21,37 +26,15 @@ const budgetRanges: BudgetBucket[] = [
   "Undecided/Unsure",
 ];
 
-const requestedLaneOptions: Array<{
+const requestedLaneOptions = REQUESTED_LANES.map((value) => ({
+  value,
+  label: REQUESTED_LANE_LABELS[value],
+  description: REQUESTED_LANE_DESCRIPTIONS[value],
+})) as Array<{
   value: RequestedLane;
   label: string;
   description: string;
-}> = [
-  {
-    value: "qualification",
-    label: "Qualification",
-    description: "Default intake and readiness review.",
-  },
-  {
-    value: "preview_simulation",
-    label: "Preview simulation",
-    description: "Create a scene-memory-backed preview when the capture and rights support it.",
-  },
-  {
-    value: "deeper_evaluation",
-    label: "Deeper evaluation",
-    description: "Request additional review after qualification.",
-  },
-  {
-    value: "managed_tuning",
-    label: "Managed tuning",
-    description: "Flag possible tuning work for later-stage follow-up.",
-  },
-  {
-    value: "data_licensing",
-    label: "Data licensing",
-    description: "Request packaged datasets or licensed derived assets after qualification.",
-  },
-];
+}>;
 
 function generateRequestId(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -295,7 +278,7 @@ export function ContactForm() {
               <div className="mt-0.5 rounded-full bg-indigo-100 p-1 text-indigo-600">
                 <Calendar className="h-3 w-3" />
               </div>
-              <p>Qualified sites move toward handoff, deeper evaluation, or a later managed-tuning lane.</p>
+              <p>Qualified sites move toward handoff, preview assets, evaluation packages, or later managed work.</p>
             </div>
           </div>
         </div>

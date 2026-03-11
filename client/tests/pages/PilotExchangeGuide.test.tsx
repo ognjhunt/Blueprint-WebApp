@@ -43,7 +43,7 @@ describe("PilotExchangeGuide", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^What this is$/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^What this is NOT$/i })).toBeInTheDocument();
-    expect(screen.getByText(/Site Intake/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Site Intake/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Controlled Pilot Ramp/i })).toBeInTheDocument();
 
     expect(screen.getByText(/Readiness Funnel/i)).toBeInTheDocument();
@@ -71,26 +71,26 @@ describe("PilotExchangeGuide", () => {
     render(<PilotExchangeGuide />);
 
     expect(screen.getByText(/Who Pays for What/i)).toBeInTheDocument();
-    expect(screen.getByText(/Site Twin License/i)).toBeInTheDocument();
-    expect(screen.getByText(/Readiness Pack/i)).toBeInTheDocument();
-    expect(screen.getByText(/Adaptation Data Pack/i)).toBeInTheDocument();
-    expect(screen.getByText(/Managed Adaptation/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hosted Record \(Default\)/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Readiness Pack/i })).toBeInTheDocument();
+    expect(screen.getByText(/Technical Evaluation/i)).toBeInTheDocument();
+    expect(screen.getByText(/Deployment Prep \/ Managed Tuning/i)).toBeInTheDocument();
     expect(screen.getByText(/Ownership Options/i)).toBeInTheDocument();
-    expect(screen.getByText(/Free Twin \(Default\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/Private Twin Buyout \(Paid\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hosted Record \(Default\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Private Access Terms \(Paid\)/i)).toBeInTheDocument();
   });
 
   it("explains practical training workflow with concrete step details", () => {
     render(<PilotExchangeGuide />);
 
-    expect(screen.getByText(/How Training Runs in Practice/i)).toBeInTheDocument();
-    expect(screen.getByText(/We Deliver the SimReady Site Package/i)).toBeInTheDocument();
+    expect(screen.getByText(/How Managed Evaluation Runs in Practice/i)).toBeInTheDocument();
+    expect(screen.getByText(/We Deliver the Evaluation Package/i)).toBeInTheDocument();
     expect(screen.getByText(/Submit Robot Policy Package/i)).toBeInTheDocument();
     expect(screen.getByText(/Run Training Loops/i)).toBeInTheDocument();
     expect(screen.getByText(/Apply Robustification/i)).toBeInTheDocument();
     expect(screen.getByText(/Score with Standardized Eval/i)).toBeInTheDocument();
 
-    expect(screen.getByText(/USD facility stage plus SimReady assets/i)).toBeInTheDocument();
+    expect(screen.getByText(/preview assets and downstream package/i)).toBeInTheDocument();
     expect(screen.getByText(/Container package that includes policy \+ training code/i)).toBeInTheDocument();
     expect(screen.getByText(/Imitation learning from teleop\/planning demonstrations in simulation/i)).toBeInTheDocument();
     expect(screen.getByText(/Fault injection: network latency, sensor dropouts, blocked paths, and missing items/i)).toBeInTheDocument();

@@ -27,34 +27,23 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { db, signInWithGoogle } from "@/lib/firebase";
 import type { UserData } from "@/lib/firebase";
+import {
+  REQUESTED_LANE_DESCRIPTIONS,
+  REQUESTED_LANE_LABELS,
+  REQUESTED_LANES as SHARED_REQUESTED_LANES,
+} from "@/lib/requestTaxonomy";
 
-const REQUESTED_LANES = [
-  {
-    value: "qualification",
-    label: "Qualification",
-    description: "Review the site, task, and blockers before anyone commits field time.",
-  },
-  {
-    value: "preview_simulation",
-    label: "Preview simulation",
-    description: "Produce a scene-memory-backed preview after qualification when the capture supports it.",
-  },
-  {
-    value: "deeper_evaluation",
-    label: "Deeper evaluation",
-    description: "Request more technical review after the site clears basic qualification.",
-  },
-  {
-    value: "managed_tuning",
-    label: "Managed tuning",
-    description: "Flag possible stack-specific tuning work for later, only if the site earns it.",
-  },
-  {
-    value: "data_licensing",
-    label: "Data licensing",
-    description: "Package the capture and derived assets for licensed evaluation or dataset use later.",
-  },
-] as const;
+type RequestedLane = (typeof SHARED_REQUESTED_LANES)[number];
+
+const REQUESTED_LANES: Array<{
+  value: RequestedLane;
+  label: string;
+  description: string;
+}> = SHARED_REQUESTED_LANES.map((value) => ({
+  value,
+  label: REQUESTED_LANE_LABELS[value],
+  description: REQUESTED_LANE_DESCRIPTIONS[value],
+}));
 
 const BUYER_TYPES = [
   {
@@ -86,7 +75,6 @@ const REFERRAL_SOURCE_OPTIONS = [
   { value: "other", label: "Other" },
 ] as const;
 
-type RequestedLane = typeof REQUESTED_LANES[number]["value"];
 type BuyerType = typeof BUYER_TYPES[number]["value"];
 type CompanySize = typeof COMPANY_SIZE_OPTIONS[number];
 type BudgetRange = typeof BUDGET_RANGE_OPTIONS[number];

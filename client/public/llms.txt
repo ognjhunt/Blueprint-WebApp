@@ -1,4 +1,4 @@
-Blueprint is a qualification-first platform for robot deployment readiness. It helps operators and robot teams submit a site, review evidence, qualify the workflow, and route qualified opportunities into the right follow-on lane.
+Blueprint is a qualification-first platform for robot deployment readiness. It helps operators and robot teams submit a site, review evidence, qualify the workflow, and route qualified opportunities into the right downstream lane.
 
 High-priority public URLs:
 - /

@@ -106,7 +106,7 @@ const howItWorksSteps = [
   {
     step: "2",
     title: "We render and evaluate",
-    desc: "We render evaluation video from your target site's digital twin and run your policy through it to predict real-world outcomes.",
+    desc: "We render evaluation video from your target site's qualified record and run your policy through it to estimate likely outcomes.",
     icon: <Video className="h-6 w-6" />,
   },
   {
@@ -191,7 +191,7 @@ export default function Evals() {
     <>
       <SEO
         title="Evaluations | Test Your Robot Policy"
-        description="Submit your robot policy for standardized evaluation. We test on reserved benchmark scenes with real-world tasks like pick & place, opening doors, and kitchen operations."
+        description="Submit your robot policy for standardized evaluation. Blueprint prepares the right evaluation package for the site and returns a non-authoritative scorecard."
         canonical="/evals"
       />
       <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-emerald-100 selection:text-emerald-900">
@@ -215,13 +215,13 @@ export default function Evals() {
               <p className="mx-auto max-w-2xl text-lg text-zinc-600">
                 We evaluate your policy two ways.{" "}
                 <strong>World-model evaluation</strong> (available now) feeds
-                video from our digital twins to your model and predicts
-                outcomes in pixels -- no physics engine needed. This is how
-                DreamDojo showed 0.995 Pearson correlation with real-world
-                results.{" "}
-                <strong>Physics-based sim evaluation</strong> (coming soon)
-                uses SimReady USD scenes with articulated assets for tasks
-                that need contact physics.
+                video from a site-matched preview package to your model and
+                estimates outcomes in pixels -- no physics engine needed. This is how
+                we generate an early, non-authoritative scorecard.{" "}
+                <strong>Physics-based simulation</strong> (coming soon)
+                uses a validated evaluation package for tasks
+                that need contact physics. This is support material for review,
+                not qualification truth.
               </p>
 
               <div className="flex flex-col gap-4 sm:flex-row sm:justify-center pt-4">
@@ -250,11 +250,11 @@ export default function Evals() {
                   <div className="mx-auto w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
                     <Eye className="h-6 w-6 text-emerald-600" />
                   </div>
-                  <h3 className="font-semibold text-zinc-900">Site-matched twins</h3>
+                  <h3 className="font-semibold text-zinc-900">Site-matched evaluation</h3>
                   <p className="text-sm text-zinc-600">
-                    We evaluate against digital twins of your actual deployment
-                    facility, not generic environments. Your results reflect real
-                    site conditions.
+                    We evaluate against a package prepared for your actual deployment
+                    facility, not generic environments. The output is a review aid,
+                    not a substitute for qualification or SAT.
                   </p>
                 </div>
                 <div className="text-center space-y-3">
@@ -276,7 +276,8 @@ export default function Evals() {
                   <p className="text-sm text-zinc-600">
                     Get detailed metrics, failure analysis, and a direct
                     comparison between your adapted and unadapted policies to
-                    see exactly what site-adaptation changes.
+                    see what changes next. These outputs support review; they do
+                    not rewrite the underlying qualification record.
                   </p>
                 </div>
               </div>
@@ -288,22 +289,22 @@ export default function Evals() {
                 <div className="space-y-4">
                   <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white px-3 py-1 text-xs font-bold uppercase tracking-wider text-indigo-600">
                     <Cpu className="h-3 w-3" />
-                    Physics-Based Evaluation &mdash; Coming Soon
+                    Physics-Based Simulation &mdash; Coming Soon
                   </div>
                   <h2 className="text-2xl font-bold text-zinc-900">
                     Contact-physics simulation for grasping and manipulation
                   </h2>
                   <p className="max-w-lg text-zinc-600">
                     For tasks that require contact physics -- grasping, pushing,
-                    and dexterous manipulation -- we're building traditional
-                    SimReady USD scenes with articulated assets. This approach is
-                    harder and slower than video-prediction, but it's important
-                    for evaluating physics-critical policies accurately.
+                    and dexterous manipulation -- we're building a validated
+                    simulation package for those workflows. This approach is
+                    harder and slower than video-prediction, but it helps with
+                    physics-critical reviews.
                   </p>
                   <div className="flex flex-wrap gap-4 text-sm">
                     <div className="flex items-center gap-2">
                       <Zap className="h-4 w-4 text-indigo-500" />
-                      <span className="text-zinc-700">SimReady USD scenes</span>
+                      <span className="text-zinc-700">Validated simulation package</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Zap className="h-4 w-4 text-indigo-500" />
@@ -311,7 +312,7 @@ export default function Evals() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Zap className="h-4 w-4 text-indigo-500" />
-                      <span className="text-zinc-700">Isaac Lab-Arena compatible</span>
+                      <span className="text-zinc-700">Policy-specific review setup</span>
                     </div>
                   </div>
                 </div>

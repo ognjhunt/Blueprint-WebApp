@@ -26,8 +26,8 @@ export interface ReadinessGate {
   id: string;
   title:
     | "Site Intake"
-    | "Digital Twin Capture"
-    | "SimReady Authoring"
+    | "Site Evidence Capture"
+    | "Preview Asset Prep"
     | "Real-to-Sim Activation"
     | "Standardized Eval Harness"
     | "Safety + SAT Prep"
@@ -160,7 +160,7 @@ export interface ExchangeBusinessModelCard {
 
 export interface OwnershipOption {
   id: string;
-  name: "Free Twin (Default)" | "Private Twin Buyout (Paid)";
+  name: "Hosted Record (Default)" | "Private Access Terms (Paid)";
   owner: string;
   siteCost: string;
   exchangeUsage: string;

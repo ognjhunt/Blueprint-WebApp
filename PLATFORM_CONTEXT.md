@@ -53,7 +53,7 @@ This repo should be treated as the workflow shell around qualification records, 
 - qualification artifacts
 - readiness decisions
 - opportunity handoffs
-- later geometry/evaluation artifacts when justified
+- later preview/evaluation artifacts when justified
 
 ### This repo
 
@@ -66,7 +66,7 @@ The correct product stack is:
 1. primary product: site qualification / readiness pack
 2. secondary product: qualified opportunity exchange for robot teams
 3. third product: scene memory / preview simulation / evaluation package
-4. fourth product: training data / managed tuning / licensing
+4. fourth product: scenario generation / managed tuning / licensing
 
 That means the default product center in this repo should be:
 
@@ -117,7 +117,7 @@ The intended lifecycle is:
 4. this repo ingests those outputs and updates request state
 5. admin review or automation updates state
 6. qualified records become handoff-ready opportunities
-7. only selected opportunities move into deeper evaluation, geometry, validation, or tuning
+7. only selected opportunities move into preview simulation, deeper evaluation, validation, or tuning
 
 ## Biggest Integration Gap
 

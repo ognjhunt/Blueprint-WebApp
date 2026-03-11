@@ -33,7 +33,7 @@ function DotPattern() {
   );
 }
 
-const whyTwinFirst = [
+const whyQualificationFirst = [
   {
     title: "Qualification is the first product",
     description:
@@ -86,7 +86,7 @@ const pipelineSteps = [
 ];
 
 const deliverables = [
-  "A site-specific digital twin",
+  "A qualification record tied to the site and workflow",
   "A scoped workflow and work area",
   "A readiness pack with blockers and next steps",
   "A qualified opportunity brief for robot-team review",
@@ -125,7 +125,7 @@ export default function HowItWorks() {
 
                 <CTAButtons
                   primaryHref="/contact?interest=site-qualification"
-                  primaryLabel="Request a site twin"
+                  primaryLabel="Request qualification"
                   secondaryHref="/readiness-pack"
                   secondaryLabel="See the Readiness Pack"
                 />
@@ -163,7 +163,7 @@ export default function HowItWorks() {
         <section className="border-y border-zinc-100 bg-zinc-50/50 py-12 sm:py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-10 max-w-2xl">
-              <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">Why start with the twin</h2>
+              <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">Why start with qualification</h2>
               <p className="mt-4 text-zinc-600">
                 The ladder is simple: qualify first, open good sites to the right teams, then sell
                 the deeper technical work only when it matters.
@@ -171,7 +171,7 @@ export default function HowItWorks() {
             </div>
 
             <div className="mobile-snap-row md:grid md:grid-cols-3 md:gap-6">
-              {whyTwinFirst.map((item) => (
+              {whyQualificationFirst.map((item) => (
                 <div
                   key={item.title}
                   className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6"
@@ -259,15 +259,15 @@ export default function HowItWorks() {
               Start with the site. We&apos;ll tell you whether it is worth taking further.
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-zinc-400">
-              Share the site and workflow. Blueprint will turn it into a digital twin, show what is
-              feasible, and help the right robot teams evaluate before the pilot starts.
+              Share the site and workflow. Blueprint will qualify it, show what is feasible, and
+              route the next step with less guesswork.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
               <a
                 href="/contact?interest=site-qualification"
                 className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
               >
-                Request a site twin
+                Request qualification
               </a>
               <a
                 href="/readiness-pack"

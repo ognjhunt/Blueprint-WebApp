@@ -35,7 +35,7 @@ export default function Contact() {
     <>
       <SEO
         title="Contact Us"
-        description="Get in touch with Blueprint to turn a real site into a digital twin and plan the next step for deployment."
+        description="Get in touch with Blueprint to qualify a site, scope the workflow, and plan the right next step."
         canonical="/contact"
       />
       <div className="relative min-h-screen overflow-hidden bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
@@ -44,14 +44,14 @@ export default function Contact() {
           <div className="mb-12 max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600 backdrop-blur-sm">
               <MessageSquare className="h-3 w-3" />
-              Site Twin Intake
+              Qualification Intake
             </div>
             <h1 className="mt-6 text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl">
               Tell us the site, the task, and what you need checked.
             </h1>
             <p className="mt-6 text-lg leading-relaxed text-zinc-600">
-              Blueprint turns a real site into a digital twin, shows what is and is not feasible,
-              and helps the right robot teams evaluate before a live pilot.
+              Blueprint reviews the site, task, and constraints first, then routes the right next
+              step for qualification, exchange, preview assets, or deeper evaluation.
             </p>
           </div>
 
@@ -72,7 +72,7 @@ export default function Contact() {
                     <h3 className="font-semibold text-zinc-900">Quick Response</h3>
                     <p className="mt-1 text-sm text-zinc-600">
                       Fill out the form and our team will get back to you within 24 hours to talk
-                      through the site, the twin, and the best next step.
+                      through the site, the qualification record, and the best next step.
                     </p>
                   </div>
                 </div>

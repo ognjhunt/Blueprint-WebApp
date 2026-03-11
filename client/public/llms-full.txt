@@ -1,19 +1,19 @@
 # Blueprint: long-form overview
 
 ## Product overview
-Blueprint is a qualification-first platform for robot deployment readiness. It starts with a site submission, guided evidence, task scoping, and a qualification decision before any deeper evaluation, geometry escalation, or managed tuning work begins.
+Blueprint is a qualification-first platform for robot deployment readiness. It starts with a site submission, guided evidence, task scoping, and a qualification decision before any preview asset, evaluation package, managed tuning, or licensing work begins.
 
 ## Positioning
 - **Qualification-first workflow:** submit a site, task, and constraints, then move through evidence review and qualification before downstream work starts.
 - **Structured readiness decisions:** the default Blueprint output is a qualification read and routing decision, not a marketplace purchase or scene artifact.
-- **Qualified handoff:** once a site clears the right gates, robot teams can review a cleaner opportunity brief and request deeper work.
+- **Qualified handoff:** once a site clears the right gates, robot teams can review a cleaner opportunity brief and request downstream work.
 
 ## Key capabilities
 - Site intake, task scoping, and constraint capture.
 - Qualification review, capture QA, and readiness decisions.
 - Qualified opportunities for downstream robot-team review.
-- Optional deeper evaluation, geometry escalation, or managed tuning after qualification.
-- Secondary access to legacy marketplace and scene/data surfaces where still supported.
+- Optional preview simulation, evaluation packages, managed tuning, or data licensing after qualification.
+- Secondary access to legacy marketplace and derived-asset catalog surfaces where still supported.
 
 ## Structured summaries of important pages
 - **Home (`/`)**: Top-level product narrative for Blueprint as a qualification-first platform for robot deployment readiness.

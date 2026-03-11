@@ -1,7 +1,14 @@
 import { Request, Response, Router } from "express";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import {
+  DERIVED_ASSET_KEYS,
+  DERIVED_ASSET_STATUSES,
+  OPPORTUNITY_STATES,
+  QUALIFICATION_STATES,
+} from "../../client/src/lib/requestTaxonomy";
 import { logger } from "../logger";
 import type {
+  DerivedAssetEntry,
   DerivedAssetsAttachment,
   OpportunityState,
   PipelineAttachment,
@@ -10,6 +17,20 @@ import type {
 } from "../types/inbound-request";
 
 const router = Router();
+
+function isQualificationState(value: string): value is QualificationState {
+  return (QUALIFICATION_STATES as readonly string[]).includes(value);
+}
+
+function isOpportunityState(value: string): value is OpportunityState {
+  return (OPPORTUNITY_STATES as readonly string[]).includes(value);
+}
+
+function isDerivedAssetStatus(
+  value: string
+): value is DerivedAssetEntry["status"] {
+  return (DERIVED_ASSET_STATUSES as readonly string[]).includes(value);
+}
 
 function requirePipelineToken(req: Request, res: Response, next: () => void) {
   const expected = (process.env.PIPELINE_SYNC_TOKEN || "").trim();
@@ -20,27 +41,63 @@ function requirePipelineToken(req: Request, res: Response, next: () => void) {
   next();
 }
 
-function buildPipelineAttachment(body: Record<string, unknown>): PipelineAttachment {
+function buildPipelineAttachment(
+  body: Record<string, unknown>,
+  current?: PipelineAttachment
+): PipelineAttachment {
   const artifacts = body.artifacts && typeof body.artifacts === "object" ? body.artifacts : {};
   return {
-    scene_id: String(body.scene_id || ""),
-    capture_id: String(body.capture_id || ""),
-    pipeline_prefix: String(body.pipeline_prefix || ""),
-    artifacts: { ...(artifacts as PipelineArtifacts) },
+    scene_id: String(body.scene_id || current?.scene_id || ""),
+    capture_id: String(body.capture_id || current?.capture_id || ""),
+    pipeline_prefix: String(body.pipeline_prefix || current?.pipeline_prefix || ""),
+    artifacts: {
+      ...(current?.artifacts || {}),
+      ...(artifacts as PipelineArtifacts),
+    },
     synced_at: admin.firestore.FieldValue.serverTimestamp() as never,
   };
 }
 
-function buildDerivedAssets(body: Record<string, unknown>): DerivedAssetsAttachment | undefined {
-  const derivedAssets =
-    body.derived_assets && typeof body.derived_assets === "object" ? body.derived_assets : null;
-  if (!derivedAssets) {
-    return undefined;
+function buildDerivedAssets(
+  body: Record<string, unknown>,
+  current?: DerivedAssetsAttachment
+): DerivedAssetsAttachment | undefined {
+  const derivedAssets = body.derived_assets;
+  if (!derivedAssets || typeof derivedAssets !== "object") {
+    return current;
   }
-  return {
-    ...(derivedAssets as DerivedAssetsAttachment),
-    synced_at: admin.firestore.FieldValue.serverTimestamp() as never,
+
+  const next: DerivedAssetsAttachment = {
+    ...(current || {}),
   };
+
+  for (const key of DERIVED_ASSET_KEYS) {
+    const rawEntry = (derivedAssets as Record<string, unknown>)[key];
+    if (rawEntry == null) {
+      continue;
+    }
+
+    if (typeof rawEntry !== "object") {
+      throw new Error(`derived_assets.${key} must be an object`);
+    }
+
+    const status = String((rawEntry as Record<string, unknown>).status || "").trim();
+    if (!isDerivedAssetStatus(status)) {
+      throw new Error(`derived_assets.${key}.status is invalid`);
+    }
+
+    const previousEntry = current?.[key];
+    const rawUpdatedAt = (rawEntry as Record<string, unknown>).updated_at;
+    next[key] = {
+      ...(previousEntry || {}),
+      ...(rawEntry as DerivedAssetEntry),
+      status,
+      ...(rawUpdatedAt !== undefined ? { updated_at: rawUpdatedAt as never } : {}),
+    };
+  }
+
+  next.synced_at = admin.firestore.FieldValue.serverTimestamp() as never;
+  return next;
 }
 
 router.post("/attachments", requirePipelineToken, async (req: Request, res: Response) => {
@@ -52,50 +109,84 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
     const body = (req.body ?? {}) as Record<string, unknown>;
     const siteSubmissionId = String(body.site_submission_id || "").trim();
     const requestId = String(body.request_id || "").trim();
-    const qualificationState = String(body.qualification_state || "").trim() as QualificationState;
-    const opportunityState = String(body.opportunity_state || "").trim() as OpportunityState;
+    const authoritativeStateUpdate = body.authoritative_state_update === true;
+    const qualificationState = String(body.qualification_state || "").trim();
+    const opportunityState = String(body.opportunity_state || "").trim();
 
     if (!siteSubmissionId && !requestId) {
       return res.status(400).json({ error: "site_submission_id or request_id is required" });
     }
 
     let docRef: FirebaseFirestore.DocumentReference | null = null;
+    let currentData: Record<string, unknown> | null = null;
     if (siteSubmissionId) {
       const snapshot = await db
         .collection("inboundRequests")
         .where("site_submission_id", "==", siteSubmissionId)
         .limit(1)
         .get();
-      docRef = snapshot.docs[0]?.ref ?? null;
+      const matchedDoc = snapshot.docs[0];
+      docRef = matchedDoc?.ref ?? null;
+      currentData = (matchedDoc?.data?.() as Record<string, unknown>) ?? null;
     }
     if (!docRef && requestId) {
       const fallbackRef = db.collection("inboundRequests").doc(requestId);
       const doc = await fallbackRef.get();
       if (doc.exists) {
         docRef = fallbackRef;
+        currentData = (doc.data() as Record<string, unknown>) ?? null;
       }
     }
     if (!docRef) {
       return res.status(404).json({ error: "Inbound request not found" });
     }
 
-    const pipeline = buildPipelineAttachment(body);
-    const derivedAssets = buildDerivedAssets(body);
-    await docRef.update({
-      status: qualificationState,
-      qualification_state: qualificationState,
-      opportunity_state: opportunityState,
+    if (authoritativeStateUpdate && !isQualificationState(qualificationState)) {
+      return res.status(400).json({ error: "Valid qualification_state is required" });
+    }
+
+    if (opportunityState && !isOpportunityState(opportunityState)) {
+      return res.status(400).json({ error: "Invalid opportunity_state" });
+    }
+
+    const pipeline = buildPipelineAttachment(body, currentData?.pipeline as PipelineAttachment);
+    const derivedAssets = buildDerivedAssets(
+      body,
+      currentData?.derived_assets as DerivedAssetsAttachment | undefined
+    );
+    const nextQualificationState = authoritativeStateUpdate
+      ? (qualificationState as QualificationState)
+      : String(
+          currentData?.qualification_state || currentData?.status || ""
+        ).trim();
+    const nextOpportunityState =
+      authoritativeStateUpdate && opportunityState
+        ? (opportunityState as OpportunityState)
+        : (String(currentData?.opportunity_state || "").trim() as OpportunityState);
+
+    const updatePayload: Record<string, unknown> = {
       pipeline,
-      ...(derivedAssets ? { derived_assets: derivedAssets } : {}),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    };
+
+    if (derivedAssets) {
+      updatePayload.derived_assets = derivedAssets;
+    }
+
+    if (authoritativeStateUpdate) {
+      updatePayload.status = nextQualificationState;
+      updatePayload.qualification_state = nextQualificationState;
+      updatePayload.opportunity_state = nextOpportunityState;
+    }
+
+    await docRef.update(updatePayload);
 
     return res.json({
       ok: true,
       requestId: docRef.id,
       site_submission_id: siteSubmissionId || requestId,
-      qualification_state: qualificationState,
-      opportunity_state: opportunityState,
+      qualification_state: nextQualificationState,
+      opportunity_state: nextOpportunityState,
       pipeline,
       derived_assets: derivedAssets,
     });

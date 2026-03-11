@@ -16,7 +16,7 @@ Blueprint is a three-repo system with one primary lifecycle:
 The key product rule is:
 
 - qualification is the default product
-- exchange, preview simulation, deeper evaluation, scene generation, and managed tuning are follow-on lanes
+- exchange, preview simulation, evaluation packages, scenario generation, and managed tuning are follow-on lanes
 - derived assets must be stored separately from qualification truth
 
 ## Repo Responsibilities
@@ -71,7 +71,7 @@ Primary role:
   - readiness decision
   - opportunity handoff
   - human actions required
-  - optional advanced-geometry/evaluation artifacts
+  - optional preview/evaluation artifacts
 
 ## Canonical Identity Mapping
 
@@ -121,7 +121,7 @@ Current opportunity states:
 
 - `not_applicable`
 - `handoff_ready`
-- `escalated_to_geometry`
+- `escalated_to_geometry` (legacy enum value; display as preview / asset prep)
 - `escalated_to_validation`
 
 ### Recommended state transitions
@@ -147,7 +147,7 @@ Current opportunity states:
 - `qualification_state = qualified_ready` or `qualified_risky`
 - `opportunity_state = handoff_ready`
 
-7. Site is promoted into geometry-backed work
+7. Site is promoted into preview or asset-prep work
 - `opportunity_state = escalated_to_geometry`
 
 8. Site is promoted into deeper validation
@@ -240,6 +240,12 @@ Recommended derived-assets block:
   }
 }
 ```
+
+Internal sync rule:
+
+- `pipeline` and `derived_assets` attachments are downstream metadata only
+- default attachment sync must preserve `status`, `qualification_state`, and `opportunity_state`
+- a pipeline caller may update qualification truth only when it explicitly sets an authoritative state-update flag
 
 ### Optional advanced-geometry attachment block
 

@@ -189,7 +189,7 @@ export default function Pricing() {
                 managed work, that becomes a separate enterprise deal.
               </p>
               <a
-                href="/contact?interest=deeper-evaluation"
+                href="/contact?interest=evaluation-package"
                 className="mt-4 inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
               >
                 Discuss private terms

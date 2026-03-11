@@ -734,12 +734,12 @@ export default function Environments() {
     if (tabType === "scenes") {
       return {
         badge: "Scene Library",
-        title: "Scene Library",
+        title: "Preview Asset Library",
         subtitle:
-          "SimReady scenes with validated colliders, articulation, and physics materials. Certified for contact-rich manipulation and shipped with provenance metadata.",
-        seoTitle: "Scene Library | Blueprint",
+          "Downstream preview assets and simulation packages for qualified programs. Use them when a site already has a clear record and needs more technical review.",
+        seoTitle: "Preview Asset Library | Blueprint",
         seoDescription:
-          "Browse certified SimReady scenes for robotics. Isaac-ready USD environments with collider QA, articulation, and documentation.",
+          "Browse downstream preview assets and simulation packages for qualified programs.",
         canonicalUrl: "https://tryblueprint.io/marketplace/scenes",
       };
     }
@@ -748,7 +748,7 @@ export default function Environments() {
         badge: "Dataset Packs",
         title: "Dataset Packs",
         subtitle:
-          "Quality-scored dataset packs with certified episodes, sensors, metadata, and filters. Plug into your training pipeline quickly.",
+          "Licensed dataset packages with episodes, metadata, and filters. Separate from preview simulation and evaluation work.",
         seoTitle: "Dataset Packs | Blueprint",
         seoDescription:
           "Explore quality-scored dataset packs for robotics. Certified episodes with metadata and filters, delivered in LeRobot-ready formats.",
@@ -757,12 +757,12 @@ export default function Environments() {
     }
     return {
       badge: "Marketplace",
-      title: "Scene Library & Dataset Packs",
+      title: "Derived Assets Library",
       subtitle:
-        "Certified scenes and quality-scored dataset packs for robot learning. Physics gates, episode QC, and provenance in every delivery.",
+        "Preview assets, evaluation packages, and dataset packs for qualified programs. This is a downstream catalog, not the default product path.",
       seoTitle: "Marketplace | Blueprint - Scene Library & Dataset Packs",
       seoDescription:
-        "Browse certified scenes and quality-scored dataset packs for robotics. Isaac-ready USD environments with QA artifacts and provenance metadata.",
+        "Browse downstream preview assets and dataset packs for qualified programs.",
       canonicalUrl: "https://tryblueprint.io/marketplace",
     };
   }, [tabType]);
@@ -972,7 +972,7 @@ export default function Environments() {
                 </div>
 
                 <a
-                  href="/contact?interest=deeper-evaluation"
+                  href="/contact?interest=evaluation-package"
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-900 px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-600"
                 >
                   Request a Custom Dataset

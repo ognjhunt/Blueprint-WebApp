@@ -46,14 +46,14 @@ export const simplePricingOptions: SimplePricingOption[] = [
   {
     id: "technical-evaluation",
     step: "When both sides are serious",
-    name: "Technical Evaluation",
-    internalName: "Deeper Evaluation",
+    name: "Evaluation Package",
+    internalName: "Evaluation Package",
     price: "$7,500 - $20,000",
     unit: "per site",
     payer: "Robot team / OEM / integrator",
     summary: "Premium technical diligence for a specific robot, team, and site.",
     includes: [
-      "Geometry-backed review when justified",
+      "Preview or simulation-backed review when justified",
       "Robot/team-specific fit checks",
       "Stronger blocker and feasibility analysis",
       "Decision on whether to proceed to deployment prep",
@@ -69,7 +69,7 @@ export const simplePricingOptions: SimplePricingOption[] = [
     payer: "Robot team / OEM / enterprise pilot budget",
     summary: "Use this when the site is real, the stack is known, and the team wants Blueprint to do the heavy lifting.",
     includes: [
-      "Advanced scene or validation package",
+      "Scenario generation or validation package",
       "Managed tuning on supported stacks",
       "Offline evaluation gates before redeploy",
       "Licensing, data, or private terms when needed",
@@ -80,5 +80,5 @@ export const simplePricingOptions: SimplePricingOption[] = [
 export function getPricingContactInterest(id: SimplePricingOption["id"]): string {
   if (id === "readiness-pack") return "site-qualification";
   if (id === "deployment-prep") return "managed-tuning";
-  return "deeper-evaluation";
+  return "evaluation-package";
 }

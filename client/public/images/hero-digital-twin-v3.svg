@@ -1,6 +1,6 @@
 <svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">Digital twin capture-to-deployment pipeline</title>
-  <desc id="desc">Visualization showing a real facility being reconstructed into a 3D digital twin with a robot navigating the environment.</desc>
+  <title id="title">Qualification capture-to-deployment pipeline</title>
+  <desc id="desc">Visualization showing a real facility moving through qualification, review, and downstream deployment prep.</desc>
 
   <defs>
     <linearGradient id="bgGrad" x1="0" y1="0" x2="1600" y2="900" gradientUnits="userSpaceOnUse">

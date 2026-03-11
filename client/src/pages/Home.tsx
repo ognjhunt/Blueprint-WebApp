@@ -56,7 +56,7 @@ const offeringCards = [
     title: "Technical Evaluation",
     badge: "Step 3",
     description:
-      "When both sides are serious, Blueprint adds deeper geometry-backed diligence for that exact site and team.",
+      "When both sides are serious, Blueprint adds deeper site-specific diligence for that exact site and team.",
     bullets: [
       "Premium technical upsell once the site is real",
       "A cleaner decision on whether to move toward deployment prep",
@@ -84,7 +84,7 @@ const whyBlueprint = [
   {
     title: "The site matters more than the pitch deck",
     description:
-      "Most deployment trouble starts in the building. The twin makes the real constraints hard to ignore.",
+      "Most deployment trouble starts in the building. A clean qualification record makes the real constraints hard to ignore.",
   },
   {
     title: "Qualification is the front door",
@@ -127,14 +127,14 @@ const routeToMarket = [
 ];
 
 const labBullets = [
-  "Evaluate against the twin before travel and field time",
+  "Review a qualified site before travel and field time",
   "See blockers early instead of finding them during a pilot",
   "Move faster when the site is ready for a real deployment",
 ];
 
 const providerBullets = [
   "See what is possible, blocked, and still unknown",
-  "Get a report back without losing the twin as the main asset",
+  "Get a readiness record first and add downstream assets only when needed",
 ];
 
 export const HOME_HERO_VARIANTS: HomeHeroVariant[] = [
@@ -233,8 +233,8 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | Digital Twins For Robot Deployments"
-        description="Blueprint turns a real site into a digital twin so operators can understand feasibility and robot teams can evaluate before pilots."
+        title="Blueprint | Qualification For Robot Deployments"
+        description="Blueprint qualifies real sites for robot deployment, routes the right opportunities, and prepares downstream evaluation assets only when needed."
         canonical="/"
         image="https://tryblueprint.io/images/og-home.png"
       />
@@ -272,7 +272,7 @@ export default function Home() {
                   primaryHref="/how-it-works"
                   primaryLabel="See how it works"
                   secondaryHref="/contact?interest=site-qualification"
-                  secondaryLabel="Request a site twin"
+                  secondaryLabel="Request qualification"
                 />
 
                 <div className="pt-2 opacity-80 grayscale transition-all duration-500 hover:opacity-100 hover:grayscale-0 sm:pt-4">
@@ -296,9 +296,9 @@ export default function Home() {
                       What Blueprint Does
                     </div>
                     <p className="text-sm text-zinc-600">
-                      Blueprint is the system that turns a real site into a digital twin, uses that
-                      twin to show what is and is not feasible, and gives robot teams a way to
-                      evaluate before burning pilot budget.
+                      Blueprint qualifies a real site, shows what is and is not feasible, and
+                      gives robot teams a cleaner way to review the opportunity before burning
+                      pilot budget.
                     </p>
                   </div>
                 </div>
@@ -361,11 +361,11 @@ export default function Home() {
                 What You Get
               </div>
               <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
-                A simple path from site twin to a clear next step.
+                A simple path from site intake to a clear next step.
               </h2>
               <p className="mt-4 text-zinc-600">
-                First we build the twin. Then we use it to show feasibility, blockers, readiness,
-                and what the right robot team should evaluate next.
+                First we qualify the site. Then we route the right next step, whether that is a
+                qualified opportunity, a preview asset, or a deeper evaluation package.
               </p>
             </div>
             <div className="mobile-snap-row mt-8 md:grid md:grid-cols-3 md:gap-4">
@@ -387,7 +387,7 @@ export default function Home() {
             <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">Two ways a project starts</h2>
             <p className="mt-4 text-zinc-600">
               Sometimes the operator starts with a site they want to understand. Sometimes a robot
-              team starts with a site they want to evaluate. Either way, the twin comes first.
+              team starts with a site they want to evaluate. Either way, qualification comes first.
             </p>
           </div>
           <div className="mobile-snap-row mt-8 md:grid md:grid-cols-2 md:gap-6">
@@ -405,8 +405,8 @@ export default function Home() {
             <div className="mb-10">
               <h2 className="text-2xl font-bold text-zinc-900">Why teams use Blueprint</h2>
               <p className="mt-2 text-zinc-600">
-                The twin gives operators and robot teams the same view of the site before money and
-                time start disappearing into a pilot.
+                The qualification record gives operators and robot teams the same view of the site
+                before money and time start disappearing into a pilot.
               </p>
             </div>
 
@@ -431,7 +431,7 @@ export default function Home() {
                 For Robot Teams
               </p>
               <h3 className="mt-2 text-xl font-bold text-zinc-900">
-                Evaluate against the twin before you burn pilot budget.
+                Review a qualified site before you burn pilot budget.
               </h3>
               <ul className="mt-4 space-y-2">
                 {labBullets.map((item) => (
@@ -486,7 +486,7 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="font-semibold text-zinc-900">How it works</p>
-                  <p className="text-sm text-zinc-500">From site to twin to evaluation</p>
+                  <p className="text-sm text-zinc-500">From site intake to qualification and routing</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
@@ -502,7 +502,7 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="font-semibold text-zinc-900">Readiness Pack</p>
-                  <p className="text-sm text-zinc-500">See the report that comes out of the twin</p>
+                  <p className="text-sm text-zinc-500">See the report that comes out of qualification</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
@@ -518,7 +518,7 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="font-semibold text-zinc-900">For robot teams</p>
-                  <p className="text-sm text-zinc-500">Use the twin to evaluate before a pilot</p>
+                  <p className="text-sm text-zinc-500">Review qualified opportunities before a pilot</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
@@ -529,18 +529,18 @@ export default function Home() {
         <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
           <div className="rounded-2xl bg-zinc-900 p-8 text-center sm:p-12">
             <h2 className="text-2xl font-bold text-white sm:text-3xl">
-              Share the site and workflow. We&apos;ll build the twin from there.
+              Share the site and workflow. We&apos;ll qualify it from there.
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-zinc-400">
-              Blueprint builds the digital twin, shows what is feasible, and gives the right robot
-              teams a better way to evaluate before the pilot starts.
+              Blueprint returns a readiness record first, then opens the right downstream lane only
+              when the site earns it.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
               <a
                 href="/contact?interest=site-qualification"
                 className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
               >
-                Request a site twin
+                Request qualification
               </a>
               <a
                 href="/readiness-pack"

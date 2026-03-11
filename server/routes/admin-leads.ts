@@ -7,6 +7,10 @@ import {
   decryptInboundRequestForAdmin,
   encryptFieldValue,
 } from "../utils/field-encryption";
+import {
+  OPPORTUNITY_STATES,
+  QUALIFICATION_STATES,
+} from "../../client/src/lib/requestTaxonomy";
 import type {
   DerivedAssetsAttachment,
   InboundRequest,
@@ -42,23 +46,9 @@ const ADMIN_EMAILS = [
   "ops@tryblueprint.io",
 ];
 
-const VALID_QUALIFICATION_STATES: QualificationState[] = [
-  "submitted",
-  "capture_requested",
-  "qa_passed",
-  "needs_more_evidence",
-  "in_review",
-  "qualified_ready",
-  "qualified_risky",
-  "not_ready_yet",
-];
+const VALID_QUALIFICATION_STATES: QualificationState[] = [...QUALIFICATION_STATES];
 
-const VALID_OPPORTUNITY_STATES: OpportunityState[] = [
-  "not_applicable",
-  "handoff_ready",
-  "escalated_to_geometry",
-  "escalated_to_validation",
-];
+const VALID_OPPORTUNITY_STATES: OpportunityState[] = [...OPPORTUNITY_STATES];
 
 function legacyStatusToQualificationState(status?: string | null): QualificationState {
   switch (status) {

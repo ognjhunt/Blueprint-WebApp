@@ -66,19 +66,19 @@ export const readinessGates: ReadinessGate[] = [
   },
   {
     id: "gate-02",
-    title: "Digital Twin Capture",
+    title: "Site Evidence Capture",
     description:
-      "Capture geometry, access points, and traffic bottlenecks from the real location.",
+      "Capture layout, access points, and traffic bottlenecks from the real location.",
     whyItMatters:
-      "A walkthrough twin provides spatial truth for early fit, reach, and path checks.",
+      "A clean evidence record supports early fit, reach, and path checks.",
   },
   {
     id: "gate-03",
-    title: "SimReady Authoring",
+    title: "Preview Asset Prep",
     description:
-      "Add physics semantics, collision layers, articulation, and machine-readable metadata.",
+      "Prepare the downstream metadata, semantics, and validation hooks needed for later evaluation work.",
     whyItMatters:
-      "SimReady improves fidelity, but it is still not enough without calibration.",
+      "Derived assets can help, but they still need calibration and operator review.",
   },
   {
     id: "gate-04",
@@ -127,21 +127,21 @@ export const coreGapConcepts: GapConcept[] = [
     id: "gap-02",
     title: "Environment-to-Model Gap (Site Adaptation)",
     summary:
-      "A 3D scan is only the starting point. The twin must be calibrated to site-specific sensing, contact behavior, and timing.",
+      "A captured site is only the starting point. Derived assets still need site-specific sensing, contact, and timing checks.",
     detail:
-      "Without activation, teams overfit to a clean virtual scene and underperform when real disturbances show up.",
+      "Without calibration, teams can overfit to a clean preview and underperform when real disturbances show up.",
   },
 ];
 
 export const sim2RealBridgeSteps: Sim2RealBridgeStep[] = [
   {
     id: "bridge-01",
-    title: "Step 1: Capture Site Geometry",
+    title: "Step 1: Capture Site Context",
     summary:
-      "Build the spatial scaffold from the real facility: structure, obstacles, traffic topology, and task zones.",
+      "Build the site context from the real facility: structure, obstacles, traffic topology, and task zones.",
     checklist: [
-      "Capture geometry, reach constraints, access points, and no-go zones.",
-      "Convert to simulation-ready assets with collisions and semantic labels.",
+      "Capture reach constraints, access points, no-go zones, and layout details.",
+      "Prepare downstream preview assets with collisions and semantic labels when needed.",
       "Validate static layout against the actual floor plan and operator walk-throughs.",
     ],
     example:
@@ -151,7 +151,7 @@ export const sim2RealBridgeSteps: Sim2RealBridgeStep[] = [
     id: "bridge-02",
     title: "Step 2: Activate Site Behavior",
     summary:
-      "Tune the twin to how the site actually behaves: lighting, contact physics, sensor noise, network jitter, and layout drift.",
+      "Tune the derived assets to how the site actually behaves: lighting, contact physics, sensor noise, network jitter, and layout drift.",
     checklist: [
       "Calibrate visual conditions for shift-specific lighting and glare.",
       "Tune friction/contact from short real-site motion and grasp traces.",
@@ -164,8 +164,8 @@ export const sim2RealBridgeSteps: Sim2RealBridgeStep[] = [
 
 export const readinessFunnel: ReadinessFunnelPoint[] = [
   { id: "f-01", stage: "Briefs Submitted", teams: 124 },
-  { id: "f-02", stage: "Twin Captured", teams: 102 },
-  { id: "f-03", stage: "SimReady Authored", teams: 88 },
+  { id: "f-02", stage: "Evidence Captured", teams: 102 },
+  { id: "f-03", stage: "Preview Assets Prepared", teams: 88 },
   { id: "f-04", stage: "Real-to-Sim Activated", teams: 67 },
   { id: "f-05", stage: "Harness Passed", teams: 49 },
   { id: "f-06", stage: "Safety + SAT Ready", teams: 32 },
@@ -245,7 +245,7 @@ export const activationArtifacts: ActivationArtifact[] = [
     id: "art-01",
     label: "Calibrated sim profile",
     description:
-      "Tuned dynamics and control parameters bound to the location twin.",
+      "Tuned dynamics and control parameters bound to the site record.",
   },
   {
     id: "art-02",
@@ -257,7 +257,7 @@ export const activationArtifacts: ActivationArtifact[] = [
     id: "art-03",
     label: "Randomization envelope",
     description:
-      "Stress ranges used to avoid overfitting to a single frozen twin snapshot.",
+      "Stress ranges used to avoid overfitting to a single frozen site snapshot.",
   },
   {
     id: "art-04",
@@ -311,7 +311,7 @@ export const pilotExchangeFaq: PilotExchangeFaqItem[] = [
     id: "faq-01",
     question: "Is this simulation-only, or do you still test in the real world?",
     answer:
-      "Deployment Marketplace starts with pre-deployment qualification. The default scope is the hosted twin, readiness review, and evaluation layer; for approved programs, Blueprint can also support adaptation artifacts and later drift refresh tied to that twin.",
+      "Qualified opportunity exchange starts with pre-deployment qualification. The default scope is the hosted record, readiness review, and evaluation layer; approved programs can also move into preview assets, managed tuning, and later refresh work.",
   },
   {
     id: "faq-02",
@@ -323,25 +323,25 @@ export const pilotExchangeFaq: PilotExchangeFaqItem[] = [
     id: "faq-03",
     question: "Do third parties help with testing and deployment readiness?",
     answer:
-      "Yes. Many teams use third-party integrators, safety assessors, and FAT/SAT witnesses. Deployment Marketplace can complement those workflows by standardizing pre-qualification artifacts.",
+      "Yes. Many teams use third-party integrators, safety assessors, and FAT/SAT witnesses. Blueprint complements those workflows by standardizing pre-qualification artifacts.",
   },
   {
     id: "faq-04",
     question: "What does transfer confidence mean here?",
     answer:
-      "It is a pre-deployment confidence band based on site-specific evidence from the hosted twin and evaluation layer. It is not a production guarantee, and live rollout decisions still need SAT, pilot controls, and stack-specific validation.",
+      "It is a pre-deployment confidence band based on site-specific evidence from the hosted record and evaluation layer. It is not a production guarantee, and live rollout decisions still need SAT, pilot controls, and stack-specific validation.",
   },
   {
     id: "faq-05",
-    question: "Who pays for Deployment Marketplace?",
+    question: "Who pays for qualified opportunity exchange?",
     answer:
       "Site operators pay for qualification first. Robot teams buy access to qualified opportunities, deeper evaluation, and later managed work only when the site is real.",
   },
   {
     id: "faq-06",
-    question: "Who owns the digital twin?",
+    question: "Who controls the site record and derived assets?",
     answer:
-      "Blueprint owns and hosts the twin by default, while customers receive licensed access and usage rights based on the product tier they buy. Private or higher-control terms are available for larger engagements.",
+      "Blueprint hosts the qualification record by default, while customers receive licensed access and usage rights for any approved derived assets. Private or higher-control terms are available for larger engagements.",
   },
 ];
 
@@ -383,15 +383,15 @@ export const exchangeBusinessModelCards: ExchangeBusinessModelCard[] = [
 export const ownershipOptions: OwnershipOption[] = [
   {
     id: "owner-01",
-    name: "Free Twin (Default)",
+    name: "Hosted Record (Default)",
     owner: "Blueprint",
     siteCost: "Free ($0 upfront)",
     exchangeUsage: "Licensed access and approved evaluation/adaptation rights by product tier.",
-    note: "Default path where Blueprint owns and operates the twin while customers buy scoped usage rights.",
+    note: "Default path where Blueprint hosts the record while customers buy scoped usage rights.",
   },
   {
     id: "owner-02",
-    name: "Private Twin Buyout (Paid)",
+    name: "Private Access Terms (Paid)",
     owner: "Private access under site-specific terms",
     siteCost: "Paid scan + hosting (custom pricing)",
     exchangeUsage: "Limited to site-approved teams and terms.",
@@ -542,13 +542,13 @@ export const trainingRequirements: TrainingRequirement[] = [
     id: "req-02",
     title: "Twin Fidelity Where It Matters",
     description:
-      "Semantics, affordances, contacts, and actuation-critical properties must be modeled, not just geometry.",
+      "Semantics, affordances, contacts, and actuation-critical properties must be modeled, not just layout.",
   },
   {
     id: "req-03",
     title: "Variation + Uncertainty Modeling",
     description:
-      "Domain randomization and site variants are needed so policies do not overfit to one static twin snapshot.",
+      "Domain randomization and site variants are needed so policies do not overfit to one static site snapshot.",
   },
 ];
 
@@ -556,11 +556,11 @@ export const trainingWorkflowSteps: TrainingWorkflowStep[] = [
   {
     id: "train-step-01",
     step: 1,
-    title: "We Deliver the SimReady Site Package",
+    title: "We Deliver the Evaluation Package",
     description:
-      "Our service team builds and delivers the complete package for the target site. We provide the USD scene, semantics, physics layers, sensor profiles, and task API endpoints; no external team needs to produce these artifacts.",
+      "Our service team builds and delivers the complete package for the target site. We provide preview assets, semantics, evaluation layers, sensor profiles, and task API endpoints; no external team needs to produce these artifacts.",
     checklist: [
-      "We deliver the USD facility stage plus SimReady assets like doors, drawers, carts, and shelves.",
+      "We deliver the preview assets and downstream package for the target site.",
       "We author physics materials, collisions, and semantic labels such as walkable, graspable, restricted, and dynamic.",
       "We configure sensor profiles, including camera/LiDAR placements and intrinsics/extrinsics where required.",
       "We define task API targets like pick item X, open door D, and walk to waypoint W.",
@@ -583,7 +583,7 @@ export const trainingWorkflowSteps: TrainingWorkflowStep[] = [
     step: 3,
     title: "Run Training Loops",
     description:
-      "Run imitation learning, RL fine-tuning, or hybrid warm-start + RL loops against the calibrated twin.",
+      "Run imitation learning, RL fine-tuning, or hybrid warm-start + RL loops against the calibrated package.",
     checklist: [
       "Imitation learning from teleop/planning demonstrations in simulation.",
       "RL fine-tuning loops with high-volume simulated rollouts.",

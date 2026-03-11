@@ -314,7 +314,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     const bundlePrice = marketplaceScene!.bundlePrice || marketplaceScene!.price;
     const sceneOnlyPrice = marketplaceScene!.sceneOnlyPrice || Math.round(marketplaceScene!.price * 0.45);
     const episodesOnlyPrice = marketplaceScene!.episodesOnlyPrice || Math.round(marketplaceScene!.price * 0.65);
-    const exclusiveDatasetUrl = `/contact?interest=deeper-evaluation&product=${encodeURIComponent(marketplaceItem.slug)}`;
+    const exclusiveDatasetUrl = `/contact?interest=evaluation-package&product=${encodeURIComponent(marketplaceItem.slug)}`;
 
     // Calculate savings for bundle
     const separateTotal = sceneOnlyPrice + episodesOnlyPrice;
@@ -456,7 +456,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm font-semibold text-zinc-900">Choose Your Package</p>
                 <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">
-                  {(marketplaceItem.policySlugs || []).slice(0, 1).join(" ") || "SimReady"}
+                  {(marketplaceItem.policySlugs || []).slice(0, 1).join(" ") || "Package"}
                 </span>
               </div>
 
@@ -579,11 +579,11 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                     href="/docs"
                     className="block text-xs font-medium text-emerald-700 hover:text-emerald-900 hover:underline"
                   >
-                    ✓ SimReady spec and deliverables
+                    ✓ Package spec and deliverables
                   </a>
                   <a
                     className="block text-xs font-semibold text-emerald-700 hover:text-emerald-900 hover:underline pt-2 border-t border-emerald-200"
-                    href="/contact?interest=deeper-evaluation"
+                    href="/contact?interest=evaluation-package"
                   >
                     Request a custom dataset run →
                   </a>
@@ -757,7 +757,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
                     </div>
                     <div className="flex items-center gap-2 text-xs text-zinc-600">
                       <Check className="h-3 w-3 text-emerald-500" />
-                      <span>USD format with physics metadata</span>
+                      <span>Simulation-ready format with metadata</span>
                     </div>
                   </>
                 )}
@@ -792,13 +792,13 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
 
             <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm space-y-3">
               <div className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
-                <Shield className="h-4 w-4" /> SimReady checklist
+                <Shield className="h-4 w-4" /> Package checklist
               </div>
               <ul className="space-y-1.5 text-xs text-zinc-600">
                 <li>• Validated articulation for doors, drawers, and mechanical limits.</li>
                 <li>• Semantic labels aligned with policies: {marketplaceItem.policySlugs.join(", ") || "customizable"}.</li>
                 <li>
-                  • Delivered formats: {deliverables.join(", ") || "USD / on request"}.
+                  • Delivered formats: {deliverables.join(", ") || "Available on request"}.
                 </li>
               </ul>
               <div className="flex flex-wrap gap-1.5">
@@ -915,7 +915,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
       day: "numeric",
       year: "numeric",
     }).format(new Date(trainingDataset.releaseDate));
-    const exclusiveDatasetUrl = `/contact?interest=deeper-evaluation&product=${encodeURIComponent(trainingDataset.slug)}`;
+    const exclusiveDatasetUrl = `/contact?interest=evaluation-package&product=${encodeURIComponent(trainingDataset.slug)}`;
 
     const trainingProductStructuredData = {
       "@context": "https://schema.org",

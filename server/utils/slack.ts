@@ -1,4 +1,8 @@
 import { logger } from "../logger";
+import {
+  HELP_WITH_LABELS,
+  REQUESTED_LANE_LABELS,
+} from "../../client/src/lib/requestTaxonomy";
 import type {
   BudgetBucket,
   HelpWithOption,
@@ -49,24 +53,6 @@ interface SlackBlock {
     action_id?: string;
   }>;
 }
-
-const HELP_WITH_LABELS: Record<HelpWithOption, string> = {
-  "benchmark-packs": "Qualification",
-  "scene-library": "Qualified Opportunity Review",
-  "dataset-packs": "Deeper Evaluation",
-  "custom-capture": "Capture Request",
-  "pilot-exchange-location-brief": "Qualified Opportunity Brief",
-  "pilot-exchange-policy-submission": "Team Submission",
-  "pilot-exchange-data-licensing": "Managed Tuning",
-};
-
-const REQUESTED_LANE_LABELS: Record<RequestedLane, string> = {
-  qualification: "Qualification",
-  preview_simulation: "Preview Simulation",
-  deeper_evaluation: "Deeper Evaluation",
-  managed_tuning: "Managed Tuning",
-  data_licensing: "Data Licensing",
-};
 
 const BUYER_TYPE_LABELS: Record<BuyerType, string> = {
   site_operator: "Site Operator",

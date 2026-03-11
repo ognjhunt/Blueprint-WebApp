@@ -19,7 +19,7 @@ describe('Home', () => {
       ),
     ).toBe(true);
     expect(
-      screen.getAllByRole('link', { name: /Request a site twin/i }).some(
+      screen.getAllByRole('link', { name: /Request qualification/i }).some(
         (link) => link.getAttribute('href') === '/contact?interest=site-qualification',
       ),
     ).toBe(true);
@@ -34,7 +34,7 @@ describe('Home', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole('heading', {
-        name: /A simple path from site twin to a clear next step\./i,
+        name: /A simple path from site intake to a clear next step\./i,
       }),
     ).toBeInTheDocument();
   });

@@ -3,15 +3,15 @@ import { ArrowRight, Building2, Bot, ClipboardCheck, Route, ShieldCheck } from "
 
 const sharedWorkflow = [
   {
-    title: "Capture and twin creation",
+    title: "Capture and qualification",
     description:
-      "Local walkthrough capture is reconstructed into a hosted site twin with metadata both sides can reference during a deployment program.",
+      "Local walkthrough capture becomes a hosted site record with metadata both sides can reference during a deployment program.",
     icon: <Route className="h-5 w-5 text-slate-700" />,
   },
   {
     title: "Pre-deployment qualification",
     description:
-      "Robot teams are evaluated against the twin before live rollout so decisions are based on measurable readiness.",
+      "Robot teams are evaluated against the qualified record before live rollout so decisions are based on measurable readiness.",
     icon: <ClipboardCheck className="h-5 w-5 text-slate-700" />,
   },
   {

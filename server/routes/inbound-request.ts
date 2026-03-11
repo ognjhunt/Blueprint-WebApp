@@ -11,6 +11,12 @@ import { logger } from "../logger";
 import { isValidEmailAddress } from "../utils/validation";
 import { getRateLimitRedisClient } from "../utils/rate-limit-redis";
 import { encryptInboundRequestForStorage } from "../utils/field-encryption";
+import {
+  HELP_WITH_OPTIONS,
+  LEGACY_HELP_WITH_TO_LANE,
+  LANE_TO_LEGACY_HELP_WITH,
+  REQUESTED_LANES,
+} from "../../client/src/lib/requestTaxonomy";
 import type {
   InboundRequestPayload,
   InboundRequest,
@@ -53,41 +59,9 @@ const VALID_BUDGET_BUCKETS: BudgetBucket[] = [
 ];
 
 // Valid helpWith options
-const VALID_HELP_WITH: HelpWithOption[] = [
-  "benchmark-packs",
-  "scene-library",
-  "dataset-packs",
-  "custom-capture",
-  "pilot-exchange-location-brief",
-  "pilot-exchange-policy-submission",
-  "pilot-exchange-data-licensing",
-];
+const VALID_HELP_WITH: HelpWithOption[] = [...HELP_WITH_OPTIONS];
 
-const VALID_REQUESTED_LANES: RequestedLane[] = [
-  "qualification",
-  "preview_simulation",
-  "deeper_evaluation",
-  "managed_tuning",
-  "data_licensing",
-];
-
-const LEGACY_HELP_WITH_TO_LANE: Record<HelpWithOption, RequestedLane> = {
-  "benchmark-packs": "qualification",
-  "scene-library": "preview_simulation",
-  "dataset-packs": "data_licensing",
-  "custom-capture": "qualification",
-  "pilot-exchange-location-brief": "qualification",
-  "pilot-exchange-policy-submission": "deeper_evaluation",
-  "pilot-exchange-data-licensing": "data_licensing",
-};
-
-const LANE_TO_LEGACY_HELP_WITH: Record<RequestedLane, HelpWithOption> = {
-  qualification: "benchmark-packs",
-  preview_simulation: "scene-library",
-  deeper_evaluation: "pilot-exchange-policy-submission",
-  managed_tuning: "pilot-exchange-data-licensing",
-  data_licensing: "dataset-packs",
-};
+const VALID_REQUESTED_LANES: RequestedLane[] = [...REQUESTED_LANES];
 
 // Known disposable email domains (extend as needed)
 const DISPOSABLE_EMAIL_DOMAINS = [
@@ -254,7 +228,7 @@ function normalizeRequestedLanes(
   helpWith?.forEach((entry) => {
     const mappedLane = LEGACY_HELP_WITH_TO_LANE[entry];
     if (mappedLane) {
-      normalized.add(mappedLane);
+      normalized.add(mappedLane as RequestedLane);
     }
   });
 
@@ -278,7 +252,7 @@ function normalizeLegacyHelpWith(
   });
 
   requestedLanes.forEach((lane) => {
-    normalized.add(LANE_TO_LEGACY_HELP_WITH[lane]);
+    normalized.add(LANE_TO_LEGACY_HELP_WITH[lane] as HelpWithOption);
   });
 
   return [...normalized];
@@ -365,19 +339,19 @@ function generateConfirmationEmailHtml(firstName: string): string {
                     <tr>
                       <td style="padding:8px 0;">
                         <a href="https://tryblueprint.io/how-it-works" style="color:#4f46e5;text-decoration:none;font-size:14px;">How it works</a>
-                        <span style="color:#9ca3af;font-size:14px;"> - From site to twin to readiness and evaluation</span>
+                        <span style="color:#9ca3af;font-size:14px;"> - From site intake to qualification, routing, and downstream review</span>
                       </td>
                     </tr>
                     <tr>
                       <td style="padding:8px 0;">
                         <a href="https://tryblueprint.io/readiness-pack" style="color:#4f46e5;text-decoration:none;font-size:14px;">Readiness Pack</a>
-                        <span style="color:#9ca3af;font-size:14px;"> - What comes back from the site twin</span>
+                        <span style="color:#9ca3af;font-size:14px;"> - What comes back from qualification</span>
                       </td>
                     </tr>
                     <tr>
                       <td style="padding:8px 0;">
                         <a href="https://tryblueprint.io/for-robot-integrators" style="color:#4f46e5;text-decoration:none;font-size:14px;">For robot teams</a>
-                        <span style="color:#9ca3af;font-size:14px;"> - How teams evaluate against the twin</span>
+                        <span style="color:#9ca3af;font-size:14px;"> - How teams review qualified opportunities</span>
                       </td>
                     </tr>
                   </table>
@@ -796,8 +770,8 @@ Thank you for your request. We've received your submission and our team will get
 
 What happens next?
 1. We review the site, task, and constraints in your intake
-2. We build the right plan for the site twin and flag any missing evidence
-3. We use that twin to show feasibility, readiness, and whether the site should move toward team evaluation
+2. We build the right qualification plan and flag any missing evidence
+3. We use the qualification record to show feasibility, readiness, and whether the site should move toward team evaluation
 
 Want to get started faster? Book a call now: https://calendly.com/blueprintar/30min
 

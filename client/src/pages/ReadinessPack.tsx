@@ -27,7 +27,7 @@ function DotPattern() {
 
 const sampleSections = [
   {
-    title: "Site twin overview",
+    title: "Site record overview",
     body:
       "A clean view of the work area, route, handoff points, and restricted zones so everyone starts from the same picture.",
     icon: <Map className="h-5 w-5" />,
@@ -47,7 +47,7 @@ const sampleSections = [
   {
     title: "Robot-team evaluation path",
     body:
-      "A simple handoff that lets robot teams evaluate against the twin before anyone burns field time or pilot budget.",
+      "A simple handoff that lets robot teams review the qualified brief before anyone burns field time or pilot budget.",
     icon: <ShieldCheck className="h-5 w-5" />,
   },
 ];
@@ -93,7 +93,7 @@ export default function ReadinessPack() {
 
                 <CTAButtons
                   primaryHref="/contact?interest=site-qualification"
-                  primaryLabel="Request a site twin"
+                  primaryLabel="Request qualification"
                   secondaryHref="/how-it-works"
                   secondaryLabel="How it works"
                 />
@@ -164,7 +164,7 @@ export default function ReadinessPack() {
                   href="/contact?interest=site-qualification"
                   className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-700"
                 >
-                  Request a site twin
+                  Request qualification
                   <ArrowRight className="h-4 w-4" />
                 </a>
               </div>

@@ -13,6 +13,10 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
+import {
+  OPPORTUNITY_STATES,
+  QUALIFICATION_STATES,
+} from "@/lib/requestTaxonomy";
 import type {
   InboundRequestDetail,
   InboundRequestListItem,
@@ -31,23 +35,9 @@ import {
 
 const ADMIN_EMAILS = ["ohstnhunt@gmail.com", "ops@tryblueprint.io"];
 
-const qualificationStates: QualificationState[] = [
-  "submitted",
-  "capture_requested",
-  "qa_passed",
-  "needs_more_evidence",
-  "in_review",
-  "qualified_ready",
-  "qualified_risky",
-  "not_ready_yet",
-];
+const qualificationStates: QualificationState[] = [...QUALIFICATION_STATES];
 
-const opportunityStates: OpportunityState[] = [
-  "not_applicable",
-  "handoff_ready",
-  "escalated_to_geometry",
-  "escalated_to_validation",
-];
+const opportunityStates: OpportunityState[] = [...OPPORTUNITY_STATES];
 
 const priorityColors: Record<RequestPriority, string> = {
   low: "bg-zinc-100 text-zinc-700",

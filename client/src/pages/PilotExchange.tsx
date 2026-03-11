@@ -608,10 +608,10 @@ export default function PilotExchange() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Enterprise only</p>
               <h3 className="mt-2 text-xl font-bold text-zinc-950">Private site terms are custom.</h3>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-600">
-                If a site needs private access, exclusivity, licensing changes, or longer managed work, that becomes a separate enterprise deal. It is not part of the standard exchange path.
+                If a site needs private access, exclusivity, data licensing changes, or longer managed work, that becomes a separate enterprise deal. It is not part of the standard exchange path.
               </p>
               <a
-                href="/contact?interest=deeper-evaluation&source=qualified-opportunities"
+                href="/contact?interest=evaluation-package&source=qualified-opportunities"
                 className="mt-5 inline-flex items-center justify-center rounded-lg border border-zinc-300 bg-zinc-50 px-4 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100"
               >
                 Discuss private terms
@@ -690,7 +690,7 @@ export default function PilotExchange() {
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-zinc-900">Qualified opportunities</h2>
-                <p className="text-sm text-zinc-600 mt-1">Review qualified sites and team results.</p>
+                <p className="text-sm text-zinc-600 mt-1">Review qualified sites and downstream team results.</p>
               </div>
               <Button
                 variant="outline"

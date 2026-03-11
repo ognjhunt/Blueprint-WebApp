@@ -135,7 +135,7 @@ export default function ForRobotIntegrators() {
               View qualified opportunities
             </a>
             <a
-              href="/contact?interest=deeper-evaluation"
+              href="/contact?interest=evaluation-package"
               className="inline-flex items-center rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
             >
               Share your target site

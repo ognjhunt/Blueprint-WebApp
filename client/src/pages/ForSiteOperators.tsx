@@ -15,9 +15,9 @@ const processSteps = [
       "We define the site, the task, and what your team needs to understand first.",
   },
   {
-    title: "2. Build the site twin",
+    title: "2. Build the qualification record",
     description:
-      "Blueprint captures the site and turns it into a digital twin your team can review.",
+      "Blueprint captures the site and turns it into a qualification record your team can review.",
   },
   {
     title: "3. Feasibility and readiness",
@@ -27,7 +27,7 @@ const processSteps = [
   {
     title: "4. Robot-team evaluation",
     description:
-      "If the site is a fit, robot teams can evaluate against the twin before the pilot starts.",
+      "If the site is a fit, robot teams can review the qualified brief before the pilot starts.",
   },
 ];
 
@@ -44,7 +44,7 @@ export default function ForSiteOperators() {
     <>
       <SEO
         title="For Site Operators | Blueprint"
-        description="Guide for site operators using Blueprint to build a digital twin, understand feasibility, and get a readiness report before a pilot."
+        description="Guide for site operators using Blueprint to qualify a site, understand feasibility, and get a readiness report before a pilot."
         canonical="/for-site-operators"
       />
 
@@ -59,8 +59,8 @@ export default function ForSiteOperators() {
             </h1>
             <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
               If you run a warehouse, store, factory, or lab, Blueprint comes to the site, builds
-              the digital twin, and shows what is feasible, what is blocked, and what needs more
-              proof before a pilot.
+              the qualification record, and shows what is feasible, what is blocked, and what
+              needs more proof before a pilot.
             </p>
           </div>
 
@@ -118,7 +118,7 @@ export default function ForSiteOperators() {
                   What comes back
                 </p>
                 <p className="mt-1 text-sm text-slate-600">
-                  A twin, a report, and a clearer next step for your team.
+                  A qualification record, a report, and a clearer next step for your team.
                 </p>
               </div>
             </div>
@@ -129,7 +129,7 @@ export default function ForSiteOperators() {
               href="/contact?interest=site-qualification"
               className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Request a site twin
+              Request qualification
             </a>
             <a
               href="/readiness-pack"

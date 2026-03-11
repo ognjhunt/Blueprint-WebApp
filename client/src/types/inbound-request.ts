@@ -1,6 +1,11 @@
 /**
  * Client-side types for the qualification-first submission and review system.
  */
+import {
+  HELP_WITH_LABELS as SHARED_HELP_WITH_LABELS,
+  OPPORTUNITY_STATE_LABELS as SHARED_OPPORTUNITY_STATE_LABELS,
+  REQUESTED_LANE_LABELS as SHARED_REQUESTED_LANE_LABELS,
+} from "@/lib/requestTaxonomy";
 
 // Budget bucket options
 export type BudgetBucket =
@@ -318,21 +323,11 @@ export const REQUEST_PRIORITY_LABELS: Record<RequestPriority, string> = {
 
 // Help with labels for UI
 export const HELP_WITH_LABELS: Record<HelpWithOption, string> = {
-  "benchmark-packs": "Site Qualification",
-  "scene-library": "Qualified Opportunity Review",
-  "dataset-packs": "Site Data",
-  "custom-capture": "New Site Capture",
-  "pilot-exchange-location-brief": "Qualified Opportunity: Site Brief",
-  "pilot-exchange-policy-submission": "Qualified Opportunity: Team Submission",
-  "pilot-exchange-data-licensing": "Qualified Opportunity: Data Licensing",
+  ...SHARED_HELP_WITH_LABELS,
 };
 
 export const REQUESTED_LANE_LABELS: Record<RequestedLane, string> = {
-  qualification: "Qualification",
-  preview_simulation: "Preview Simulation",
-  deeper_evaluation: "Deeper Evaluation",
-  managed_tuning: "Managed Tuning",
-  data_licensing: "Data Licensing",
+  ...SHARED_REQUESTED_LANE_LABELS,
 };
 
 export const BUYER_TYPE_LABELS: Record<BuyerType, string> = {
@@ -341,10 +336,7 @@ export const BUYER_TYPE_LABELS: Record<BuyerType, string> = {
 };
 
 export const OPPORTUNITY_STATE_LABELS: Record<OpportunityState, string> = {
-  not_applicable: "Not Applicable",
-  handoff_ready: "Handoff Ready",
-  escalated_to_geometry: "Escalated to Geometry",
-  escalated_to_validation: "Escalated to Validation",
+  ...SHARED_OPPORTUNITY_STATE_LABELS,
 };
 
 // Budget bucket labels for UI

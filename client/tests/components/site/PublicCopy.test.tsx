@@ -16,8 +16,8 @@ vi.mock("@/contexts/AuthContext", () => ({
   }),
 }));
 
-describe("public twin-first copy", () => {
-  it("uses twin language across header, homepage, and footer", { timeout: 10000 }, () => {
+describe("public qualification-first copy", () => {
+  it("uses qualification language across header, homepage, and footer", { timeout: 10000 }, () => {
     window.localStorage.clear();
     const { container } = render(
       <>
@@ -29,9 +29,10 @@ describe("public twin-first copy", () => {
 
     expect(screen.getAllByRole("link", { name: /Request site qualification/i }).length).toBeGreaterThan(0);
     expect(HERO_HEADLINES).toContain(screen.getByRole("heading", { level: 1 }).textContent);
-    expect(container).toHaveTextContent(/digital twin/i);
+    expect(container).toHaveTextContent(/qualification/i);
     expect(container).toHaveTextContent(/feasible|blocked|readiness/i);
     expect(container).toHaveTextContent(/robot teams?/i);
+    expect(container).not.toHaveTextContent(/digital twin/i);
 
     expect(container).not.toHaveTextContent(/adapter weights/i);
     expect(container).not.toHaveTextContent(/LoRA/i);

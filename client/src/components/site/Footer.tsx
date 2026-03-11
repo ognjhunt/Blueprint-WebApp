@@ -18,8 +18,8 @@ export function Footer() {
             Blueprint
           </a>
           <p className="text-sm text-slate-500">
-            Blueprint turns a real site into a digital twin so operators can see what is feasible
-            and robot teams can evaluate before pilots.
+            Blueprint qualifies real sites for robot deployment and opens downstream evaluation
+            work only when the record supports it.
           </p>
         </div>
         <nav className="grid flex-1 grid-cols-2 gap-3 text-sm text-slate-600 sm:grid-cols-3">
@@ -33,7 +33,7 @@ export function Footer() {
       <div className="border-t border-slate-200 bg-white py-4">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p>© {new Date().getFullYear()} Blueprint, Inc. All rights reserved.</p>
-          <p>Site twin first. Readiness and evaluation built in.</p>
+          <p>Qualification first. Evaluation and licensing follow when needed.</p>
         </div>
       </div>
     </footer>
