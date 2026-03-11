@@ -18,6 +18,7 @@ const Solutions = lazy(() => import("../pages/Solutions"));
 const ForSiteOperators = lazy(() => import("../pages/ForSiteOperators"));
 const ForRobotIntegrators = lazy(() => import("../pages/ForRobotIntegrators"));
 const SiteWorlds = lazy(() => import("../pages/SiteWorlds"));
+const SiteWorldDetail = lazy(() => import("../pages/SiteWorldDetail"));
 const Pricing = lazy(() => import("../pages/Pricing"));
 const Contact = lazy(() => import("../pages/Contact"));
 const HowItWorks = lazy(() => import("../pages/HowItWorks"));
@@ -77,6 +78,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/for-site-operators", layout: "public", component: ForSiteOperators },
   { path: "/for-robot-integrators", layout: "public", component: ForRobotIntegrators },
   { path: "/site-worlds", layout: "public", component: SiteWorlds },
+  { path: "/site-worlds/:slug", layout: "public", component: SiteWorldDetail },
   { path: "/pricing", layout: "public", component: Pricing },
   { path: "/contact", layout: "public", component: Contact },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
