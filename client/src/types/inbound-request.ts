@@ -41,6 +41,7 @@ export type QualificationState =
   | "in_review"
   | "qualified_ready"
   | "qualified_risky"
+  | "needs_refresh"
   | "not_ready_yet";
 
 export type OpportunityState =
@@ -134,6 +135,47 @@ export interface PipelineArtifacts {
   hosted_session_runtime_manifest_uri?: string | null;
   task_anchor_manifest_uri?: string | null;
   task_run_manifest_uri?: string | null;
+  site_normalization_package_uri?: string | null;
+  benchmark_suite_manifest_uri?: string | null;
+  compatibility_matrix_uri?: string | null;
+  recapture_diff_uri?: string | null;
+  launchable_export_bundle_uri?: string | null;
+}
+
+export interface RobotCapabilityEnvelope {
+  embodiment_type?: string | null;
+  minimum_path_width_m?: number | null;
+  maximum_reach_m?: number | null;
+  maximum_payload_kg?: number | null;
+  sensor_requirements?: string[];
+  controller_interface_assumptions?: string[];
+  safety_envelope?: string[];
+  facility_constraints?: string[];
+}
+
+export interface RightsAndComplianceSummary {
+  consent_scope?: string[];
+  export_entitlements?: string[];
+  customer_specific_sharing?: string[];
+  audit_trail_uri?: string | null;
+  retention_policy?: string | null;
+}
+
+export interface DeploymentReadinessSummary {
+  qualification_state?: QualificationState;
+  opportunity_state?: OpportunityState;
+  benchmark_coverage_status?: "missing" | "partial" | "ready" | null;
+  benchmark_task_count?: number | null;
+  export_readiness_status?: "missing" | "partial" | "ready" | null;
+  recapture_status?: "not_requested" | "no_prior_baseline" | "unchanged" | "changed" | "review_required" | null;
+  recapture_required?: boolean | null;
+  freshness_date?: string | null;
+  missing_evidence?: string[];
+  capability_envelope?: RobotCapabilityEnvelope;
+  rights_and_compliance?: RightsAndComplianceSummary;
+  exports_available?: string[];
+  task_categories?: string[];
+  runtime_label?: string | null;
 }
 
 export type DerivedAssetStatus =
@@ -165,6 +207,44 @@ export interface PipelineAttachment {
   pipeline_prefix: string;
   artifacts: PipelineArtifacts;
   synced_at?: string | null;
+}
+
+export interface PublicSiteWorldRecord {
+  id: string;
+  siteCode: string;
+  siteName: string;
+  siteAddress: string;
+  sceneId: string;
+  captureId: string;
+  siteSubmissionId: string;
+  pipelinePrefix: string;
+  category: string;
+  industry: string;
+  taskLane: string;
+  tone: string;
+  accent: string;
+  thumbnailKind: string;
+  summary: string;
+  bestFor: string;
+  startStates: string[];
+  runtime: string;
+  sampleRobot: string;
+  sampleTask: string;
+  samplePolicy: string;
+  scenarioVariants: string[];
+  exportArtifacts: string[];
+  packages: Array<{
+    name: string;
+    summary: string;
+    priceLabel: string;
+    payerLabel: string;
+    actionLabel: string;
+    actionHref: string;
+    deliverables: string[];
+    emphasis?: "default" | "recommended";
+  }>;
+  dataSource?: "static" | "pipeline";
+  deploymentReadiness?: DeploymentReadinessSummary;
 }
 
 export interface SceneDashboardTask {
@@ -314,6 +394,7 @@ export const REQUEST_STATUS_LABELS: Record<RequestStatus, string> = {
   in_review: "In Review",
   qualified_ready: "Qualified Ready",
   qualified_risky: "Qualified Risky",
+  needs_refresh: "Needs Refresh",
   not_ready_yet: "Not Ready Yet",
 };
 

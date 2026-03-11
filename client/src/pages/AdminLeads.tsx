@@ -53,6 +53,7 @@ const qualificationColors: Record<QualificationState, string> = {
   in_review: "bg-blue-100 text-blue-700",
   qualified_ready: "bg-emerald-100 text-emerald-700",
   qualified_risky: "bg-yellow-100 text-yellow-800",
+  needs_refresh: "bg-fuchsia-100 text-fuchsia-800",
   not_ready_yet: "bg-rose-100 text-rose-700",
 };
 

@@ -24,6 +24,7 @@ export const QUALIFICATION_STATES = [
   "in_review",
   "qualified_ready",
   "qualified_risky",
+  "needs_refresh",
   "not_ready_yet",
 ] as const;
 

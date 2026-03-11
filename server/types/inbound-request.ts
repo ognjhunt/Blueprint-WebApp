@@ -39,6 +39,7 @@ export type QualificationState =
   | "in_review"
   | "qualified_ready"
   | "qualified_risky"
+  | "needs_refresh"
   | "not_ready_yet";
 
 export type OpportunityState =
@@ -141,6 +142,47 @@ export interface PipelineArtifacts {
   hosted_session_runtime_manifest_uri?: string | null;
   task_anchor_manifest_uri?: string | null;
   task_run_manifest_uri?: string | null;
+  site_normalization_package_uri?: string | null;
+  benchmark_suite_manifest_uri?: string | null;
+  compatibility_matrix_uri?: string | null;
+  recapture_diff_uri?: string | null;
+  launchable_export_bundle_uri?: string | null;
+}
+
+export interface RobotCapabilityEnvelope {
+  embodiment_type?: string | null;
+  minimum_path_width_m?: number | null;
+  maximum_reach_m?: number | null;
+  maximum_payload_kg?: number | null;
+  sensor_requirements?: string[];
+  controller_interface_assumptions?: string[];
+  safety_envelope?: string[];
+  facility_constraints?: string[];
+}
+
+export interface RightsAndComplianceSummary {
+  consent_scope?: string[];
+  export_entitlements?: string[];
+  customer_specific_sharing?: string[];
+  audit_trail_uri?: string | null;
+  retention_policy?: string | null;
+}
+
+export interface DeploymentReadinessSummary {
+  qualification_state?: QualificationState;
+  opportunity_state?: OpportunityState;
+  benchmark_coverage_status?: "missing" | "partial" | "ready" | null;
+  benchmark_task_count?: number | null;
+  export_readiness_status?: "missing" | "partial" | "ready" | null;
+  recapture_status?: "not_requested" | "no_prior_baseline" | "unchanged" | "changed" | "review_required" | null;
+  recapture_required?: boolean | null;
+  freshness_date?: string | null;
+  missing_evidence?: string[];
+  capability_envelope?: RobotCapabilityEnvelope;
+  rights_and_compliance?: RightsAndComplianceSummary;
+  exports_available?: string[];
+  task_categories?: string[];
+  runtime_label?: string | null;
 }
 
 export type DerivedAssetStatus =
@@ -191,6 +233,7 @@ export interface InboundRequest {
   events: RequestEvents;
   pipeline?: PipelineAttachment;
   derived_assets?: DerivedAssetsAttachment;
+  deployment_readiness?: DeploymentReadinessSummary;
   debug: {
     schemaVersion: number;
   };

@@ -21,6 +21,7 @@ import inboundRequestRouter from "./routes/inbound-request";
 import adminLeadsRouter from "./routes/admin-leads";
 import marketplaceRouter from "./routes/marketplace";
 import internalPipelineRouter from "./routes/internal-pipeline";
+import siteWorldsRouter from "./routes/site-worlds";
 import siteWorldSessionsRouter from "./routes/site-world-sessions";
 import verifyFirebaseToken from "./middleware/verifyFirebaseToken";
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
@@ -34,6 +35,7 @@ export function registerRoutes(app: Express) {
   // Public content summary for external tooling.
   app.use("/api/site-content", siteContentRouter);
   app.use("/api/internal/pipeline", internalPipelineRouter);
+  app.use("/api/site-worlds", siteWorldsRouter);
 
   // API routes for Express
   app.get("/api/csrf", csrfCookieHandler);
@@ -73,12 +75,7 @@ export function registerRoutes(app: Express) {
     verifyFirebaseToken,
     adminLeadsRouter,
   );
-  app.use(
-    "/api/site-worlds/sessions",
-    csrfProtection,
-    verifyFirebaseToken,
-    siteWorldSessionsRouter,
-  );
+  app.use("/api/site-worlds/sessions", csrfProtection, verifyFirebaseToken, siteWorldSessionsRouter);
   app.post(
     "/api/upload-to-b2",
     csrfProtection,

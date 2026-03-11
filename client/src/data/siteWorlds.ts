@@ -1,3 +1,5 @@
+import type { DeploymentReadinessSummary } from "../types/inbound-request";
+
 export type SiteCategory =
   | "All"
   | "Retail"
@@ -59,6 +61,8 @@ export type SiteWorldCard = {
   scenarioVariants: string[];
   exportArtifacts: string[];
   packages: [SiteWorldPackage, SiteWorldPackage];
+  dataSource?: "static" | "pipeline";
+  deploymentReadiness?: DeploymentReadinessSummary;
 };
 
 type PackageConfig = {

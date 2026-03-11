@@ -1,6 +1,6 @@
-import { getSiteWorldById } from "../../client/src/data/siteWorlds";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import type { PipelineAttachment } from "../types/inbound-request";
+import { getPublicSiteWorldById } from "./site-worlds";
 
 export class HostedSessionRuntimeError extends Error {
   code: string;
@@ -64,7 +64,7 @@ function artifactUri(
 }
 
 export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedRuntimeResolution> {
-  const site = getSiteWorldById(siteWorldId);
+  const site = await getPublicSiteWorldById(siteWorldId);
   if (!site) {
     throw new HostedSessionRuntimeError("site_not_found", "Site world could not be found.");
   }

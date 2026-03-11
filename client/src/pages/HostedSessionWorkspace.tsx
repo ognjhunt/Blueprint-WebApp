@@ -14,6 +14,7 @@ import {
 import { SEO } from "@/components/SEO";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import { getSiteWorldById } from "@/data/siteWorlds";
+import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
 import { withCsrfHeader } from "@/lib/csrf";
 import { auth } from "@/lib/firebase";
 
@@ -34,7 +35,8 @@ function formatElapsed(seconds: number) {
 }
 
 export default function HostedSessionWorkspace({ params }: HostedSessionWorkspaceProps) {
-  const site = getSiteWorldById(params.slug);
+  const fallbackSite = getSiteWorldById(params.slug);
+  const [site, setSite] = useState(fallbackSite);
   const search = useSearch();
   const [, setLocation] = useLocation();
   const searchParams = useMemo(() => new URLSearchParams(search), [search]);
@@ -68,6 +70,24 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
 
   useEffect(() => {
     window.scrollTo(0, 0);
+  }, [params.slug]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchSiteWorldDetail(params.slug)
+      .then((item) => {
+        if (!cancelled) {
+          setSite(item as typeof fallbackSite);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSite(getSiteWorldById(params.slug));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [params.slug]);
 
   useEffect(() => {

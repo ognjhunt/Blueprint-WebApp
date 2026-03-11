@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, MapPin, Play, SlidersHorizontal } 
 import { SEO } from "@/components/SEO";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import { getSiteWorldById } from "@/data/siteWorlds";
+import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
 import { withCsrfHeader } from "@/lib/csrf";
 import { auth } from "@/lib/firebase";
 
@@ -14,7 +15,8 @@ interface HostedSessionSetupProps {
 }
 
 export default function HostedSessionSetup({ params }: HostedSessionSetupProps) {
-  const site = getSiteWorldById(params.slug);
+  const fallbackSite = getSiteWorldById(params.slug);
+  const [site, setSite] = useState(fallbackSite);
   const [, setLocation] = useLocation();
 
   const [robot, setRobot] = useState("");
@@ -28,6 +30,24 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
 
   useEffect(() => {
     window.scrollTo(0, 0);
+  }, [params.slug]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchSiteWorldDetail(params.slug)
+      .then((item) => {
+        if (!cancelled) {
+          setSite(item as typeof fallbackSite);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSite(getSiteWorldById(params.slug));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [params.slug]);
 
   useEffect(() => {

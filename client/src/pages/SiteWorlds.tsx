@@ -1,8 +1,9 @@
 import { SEO } from "@/components/SEO";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import { categoryFilters, siteWorldCards, type SiteCategory } from "@/data/siteWorlds";
+import { fetchSiteWorldCatalog } from "@/lib/siteWorldsApi";
 import { Filter, Play, ScanLine } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const layerCards = [
   {
@@ -33,13 +34,30 @@ const layerCards = [
 
 export default function SiteWorlds() {
   const [activeCategory, setActiveCategory] = useState<SiteCategory>("All");
+  const [catalog, setCatalog] = useState(siteWorldCards);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchSiteWorldCatalog()
+      .then((items) => {
+        if (!cancelled && items.length > 0) {
+          setCatalog(items as typeof siteWorldCards);
+        }
+      })
+      .catch(() => {
+        // Keep static fallback catalog if live inventory is unavailable.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filteredSites = useMemo(() => {
     if (activeCategory === "All") {
-      return siteWorldCards;
+      return catalog;
     }
-    return siteWorldCards.filter((site) => site.category === activeCategory);
-  }, [activeCategory]);
+    return catalog.filter((site) => site.category === activeCategory);
+  }, [activeCategory, catalog]);
 
   return (
     <>
@@ -201,6 +219,52 @@ export default function SiteWorlds() {
                     </div>
 
                     <div className="space-y-2.5">
+                      {site.deploymentReadiness ? (
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                            Deployment Readiness
+                          </p>
+                          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                            <div className="rounded-xl bg-white px-3 py-2">
+                              <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                                Status
+                              </p>
+                              <p className="mt-1 text-sm font-semibold text-slate-900">
+                                {String(site.deploymentReadiness.qualification_state || "unknown").replaceAll("_", " ")}
+                              </p>
+                            </div>
+                            <div className="rounded-xl bg-white px-3 py-2">
+                              <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                                Benchmarks
+                              </p>
+                              <p className="mt-1 text-sm font-semibold text-slate-900">
+                                {site.deploymentReadiness.benchmark_coverage_status || "missing"}
+                                {typeof site.deploymentReadiness.benchmark_task_count === "number"
+                                  ? ` · ${site.deploymentReadiness.benchmark_task_count} tasks`
+                                  : ""}
+                              </p>
+                            </div>
+                            <div className="rounded-xl bg-white px-3 py-2">
+                              <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                                Exports
+                              </p>
+                              <p className="mt-1 text-sm font-semibold text-slate-900">
+                                {site.deploymentReadiness.export_readiness_status || "missing"}
+                              </p>
+                            </div>
+                            <div className="rounded-xl bg-white px-3 py-2">
+                              <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                                Refresh
+                              </p>
+                              <p className="mt-1 text-sm font-semibold text-slate-900">
+                                {site.deploymentReadiness.recapture_required
+                                  ? "Needs refresh"
+                                  : site.deploymentReadiness.recapture_status || "Current"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
                       {site.packages.map((pkg) => (
                         <div
                           key={pkg.name}

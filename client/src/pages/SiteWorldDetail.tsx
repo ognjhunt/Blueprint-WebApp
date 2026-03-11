@@ -2,7 +2,9 @@ import { useEffect, useMemo } from "react";
 import { SEO } from "@/components/SEO";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import { getSiteWorldById, siteWorldCards } from "@/data/siteWorlds";
+import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
 import { ArrowLeft, Play, ScanLine } from "lucide-react";
+import { useState } from "react";
 
 interface SiteWorldDetailProps {
   params: {
@@ -51,10 +53,29 @@ interface SupportBlock {
 }
 
 export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
-  const site = getSiteWorldById(params.slug);
+  const fallbackSite = getSiteWorldById(params.slug);
+  const [site, setSite] = useState(fallbackSite);
 
   useEffect(() => {
     window.scrollTo(0, 0);
+  }, [params.slug]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchSiteWorldDetail(params.slug)
+      .then((item) => {
+        if (!cancelled) {
+          setSite(item as typeof fallbackSite);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSite(getSiteWorldById(params.slug));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [params.slug]);
 
   const relatedSites = useMemo(() => {
@@ -182,6 +203,73 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
           <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-5 sm:p-6">
             <SiteWorldGraphic site={site} />
           </section>
+
+          {site.deploymentReadiness ? (
+            <section className="mt-8 rounded-3xl border border-slate-200 bg-slate-950 px-5 py-6 text-slate-100 sm:px-7 sm:py-7">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                Deployment Readiness
+              </p>
+              <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+                  <p className="text-sm font-semibold text-white">Current site status</p>
+                  <p className="mt-2 text-2xl font-bold text-white">
+                    {String(site.deploymentReadiness.qualification_state || "unknown").replaceAll("_", " ")}
+                  </p>
+                  <p className="mt-2 text-sm text-slate-300">
+                    Benchmark coverage: {site.deploymentReadiness.benchmark_coverage_status || "missing"}
+                    {typeof site.deploymentReadiness.benchmark_task_count === "number"
+                      ? ` · ${site.deploymentReadiness.benchmark_task_count} tasks`
+                      : ""}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-300">
+                    Export readiness: {site.deploymentReadiness.export_readiness_status || "missing"}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-300">
+                    Refresh state: {site.deploymentReadiness.recapture_required ? "Needs refresh" : site.deploymentReadiness.recapture_status || "Current"}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+                  <p className="text-sm font-semibold text-white">Capability envelope</p>
+                  <ul className="mt-3 space-y-2 text-sm text-slate-300">
+                    <li>Embodiment: {site.deploymentReadiness.capability_envelope?.embodiment_type || "Not specified"}</li>
+                    <li>
+                      Minimum path width: {site.deploymentReadiness.capability_envelope?.minimum_path_width_m ?? "N/A"} m
+                    </li>
+                    <li>
+                      Maximum reach: {site.deploymentReadiness.capability_envelope?.maximum_reach_m ?? "N/A"} m
+                    </li>
+                    <li>
+                      Sensors: {(site.deploymentReadiness.capability_envelope?.sensor_requirements || []).join(", ") || "Not specified"}
+                    </li>
+                  </ul>
+                </div>
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+                  <p className="text-sm font-semibold text-white">Rights and compliance</p>
+                  <ul className="mt-3 space-y-2 text-sm text-slate-300">
+                    <li>
+                      Export entitlements: {(site.deploymentReadiness.rights_and_compliance?.export_entitlements || []).join(", ") || "Review required"}
+                    </li>
+                    <li>
+                      Consent scope: {(site.deploymentReadiness.rights_and_compliance?.consent_scope || []).join(", ") || "Review required"}
+                    </li>
+                    <li>
+                      Retention policy: {site.deploymentReadiness.rights_and_compliance?.retention_policy || "Not specified"}
+                    </li>
+                  </ul>
+                </div>
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+                  <p className="text-sm font-semibold text-white">Evidence gaps</p>
+                  <ul className="mt-3 space-y-2 text-sm text-slate-300">
+                    {(site.deploymentReadiness.missing_evidence || []).length > 0 ? (
+                      site.deploymentReadiness.missing_evidence?.map((item) => <li key={item}>{item}</li>)
+                    ) : (
+                      <li>No flagged evidence gaps on the current readiness package.</li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            </section>
+          ) : null}
 
           <section
             id="scene-package"
