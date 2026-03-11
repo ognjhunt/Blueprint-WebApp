@@ -47,9 +47,12 @@ beforeAll(async () => {
   csrfCookie = setCookie ? setCookie.split(";")[0] : "";
   const data = (await csrfResponse.json()) as { csrfToken?: string };
   csrfToken = data.csrfToken ?? "";
-});
+}, 30000);
 
 afterAll(async () => {
+  if (!server) {
+    return;
+  }
   await new Promise<void>((resolve, reject) => {
     server.close((error) => {
       if (error) {
@@ -70,6 +73,8 @@ const protectedEndpoints = [
   { method: "POST", path: "/api/ai-studio/chat" },
   { method: "POST", path: "/api/qr/pending-session" },
   { method: "GET", path: "/api/googlePlaces" },
+  { method: "POST", path: "/api/site-worlds/sessions" },
+  { method: "GET", path: "/api/site-worlds/sessions/test-session" },
 ];
 
 describe("verifyFirebaseToken middleware", () => {

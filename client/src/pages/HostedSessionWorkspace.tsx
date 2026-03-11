@@ -14,6 +14,8 @@ import {
 import { SEO } from "@/components/SEO";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import { getSiteWorldById } from "@/data/siteWorlds";
+import { withCsrfHeader } from "@/lib/csrf";
+import { auth } from "@/lib/firebase";
 
 interface HostedSessionWorkspaceProps {
   params: {
@@ -43,15 +45,61 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const scenario = searchParams.get("scenario")?.trim() || site?.scenarioVariants[0] || "";
   const outputs = searchParams.get("outputs")?.trim() || site?.exportArtifacts.join(", ") || "";
   const notes = searchParams.get("notes")?.trim() || "";
+  const sessionId = searchParams.get("sessionId")?.trim() || "";
 
   const [sessionStatus, setSessionStatus] = useState<"starting" | "live" | "stopped">("starting");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [latestEpisode, setLatestEpisode] = useState<Record<string, unknown> | null>(null);
+  const [batchSummary, setBatchSummary] = useState<Record<string, unknown> | null>(null);
+
+  const authorizedJsonFetch = async (url: string, options: RequestInit = {}) => {
+    const token = auth?.currentUser ? await auth.currentUser.getIdToken() : "";
+    const headers = options.method && options.method !== "GET"
+      ? await withCsrfHeader({ "Content-Type": "application/json" })
+      : {};
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...headers,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+  };
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [params.slug]);
 
   useEffect(() => {
+    if (sessionId) {
+      authorizedJsonFetch(`/api/site-worlds/sessions/${sessionId}`)
+        .then(async (response) => {
+          if (!response.ok) return null;
+          return response.json();
+        })
+        .then((payload) => {
+          if (!payload) return;
+          const status = String(payload.status || "starting").trim().toLowerCase();
+          if (status === "ready" || status === "running") {
+            setSessionStatus("live");
+          } else if (status === "stopped") {
+            setSessionStatus("stopped");
+          }
+          setLatestEpisode(
+            payload.latestEpisode && typeof payload.latestEpisode === "object"
+              ? payload.latestEpisode
+              : null,
+          );
+          setBatchSummary(
+            payload.batchSummary && typeof payload.batchSummary === "object"
+              ? payload.batchSummary
+              : null,
+          );
+        })
+        .catch(() => null);
+      return;
+    }
+
     const timeoutId = window.setTimeout(() => {
       setSessionStatus("live");
     }, 1200);
@@ -96,6 +144,47 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const statusLabel =
     sessionStatus === "live" ? "Live" : sessionStatus === "starting" ? "Starting" : "Stopped";
 
+  const handleReset = async () => {
+    if (!sessionId) return;
+    const response = await authorizedJsonFetch(`/api/site-worlds/sessions/${sessionId}/reset`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    if (!response.ok) return;
+    const payload = await response.json();
+    setLatestEpisode(payload.episode);
+    setSessionStatus("live");
+  };
+
+  const handleBatch = async () => {
+    if (!sessionId) return;
+    const response = await authorizedJsonFetch(`/api/site-worlds/sessions/${sessionId}/run-batch`, {
+      method: "POST",
+      body: JSON.stringify({ numEpisodes: 10, maxSteps: 6 }),
+    });
+    if (!response.ok) return;
+    const payload = await response.json();
+    setBatchSummary(payload.summary);
+  };
+
+  const handleExport = async () => {
+    if (!sessionId) return;
+    await authorizedJsonFetch(`/api/site-worlds/sessions/${sessionId}/export`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  };
+
+  const handleStop = async () => {
+    if (sessionId) {
+      await authorizedJsonFetch(`/api/site-worlds/sessions/${sessionId}/stop`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+    }
+    setSessionStatus("stopped");
+  };
+
   return (
     <>
       <SEO
@@ -137,7 +226,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
               </div>
               <button
                 type="button"
-                onClick={() => setSessionStatus("stopped")}
+                onClick={handleStop}
                 className="inline-flex items-center rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
                 <Square className="mr-2 h-4 w-4" />
@@ -208,21 +297,40 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                     Success rate
                   </p>
-                  <p className="mt-2 text-3xl font-bold text-slate-900">82%</p>
-                  <p className="mt-2 text-sm text-slate-500">10 episodes in the current scenario set</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">
+                    {batchSummary?.successRate
+                      ? `${Math.round(Number(batchSummary.successRate) * 100)}%`
+                      : "82%"}
+                  </p>
+                  <p className="mt-2 text-sm text-slate-500">
+                    {batchSummary?.numEpisodes
+                      ? `${batchSummary.numEpisodes} episodes in the current scenario set`
+                      : "10 episodes in the current scenario set"}
+                  </p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                     Failures
                   </p>
-                  <p className="mt-2 text-3xl font-bold text-slate-900">2</p>
-                  <p className="mt-2 text-sm text-slate-500">Most common issue: blocked handoff approach</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">
+                    {typeof batchSummary?.numFailure === "number"
+                      ? batchSummary.numFailure
+                      : 2}
+                  </p>
+                  <p className="mt-2 text-sm text-slate-500">
+                    {Array.isArray(batchSummary?.commonFailureModes) &&
+                    batchSummary.commonFailureModes.length
+                      ? `Most common issue: ${String(batchSummary.commonFailureModes[0])}`
+                      : "Most common issue: blocked handoff approach"}
+                  </p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                     Exports ready
                   </p>
-                  <p className="mt-2 text-3xl font-bold text-slate-900">4</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">
+                    {batchSummary ? 1 : 4}
+                  </p>
                   <p className="mt-2 text-sm text-slate-500">Video, metrics, traces, and summary bundle</p>
                 </div>
               </div>
@@ -236,7 +344,9 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                 <div className="mt-4 space-y-4">
                   <div>
                     <p className="text-sm font-medium text-slate-500">Task</p>
-                    <p className="mt-1 text-sm text-slate-900">{task}</p>
+                    <p className="mt-1 text-sm text-slate-900">
+                      {String(latestEpisode?.task || task)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-slate-500">Policy / checkpoint</p>
@@ -244,7 +354,9 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                   </div>
                   <div>
                     <p className="text-sm font-medium text-slate-500">Scenario variation</p>
-                    <p className="mt-1 text-sm text-slate-900">{scenario}</p>
+                    <p className="mt-1 text-sm text-slate-900">
+                      {String(latestEpisode?.scenario || scenario)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-slate-500">Outputs requested</p>
@@ -266,6 +378,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                 <div className="mt-4 grid gap-3">
                   <button
                     type="button"
+                    onClick={handleReset}
                     className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                   >
                     <RotateCcw className="mr-2 h-4 w-4" />
@@ -273,6 +386,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                   </button>
                   <button
                     type="button"
+                    onClick={handleBatch}
                     className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                   >
                     <BarChart3 className="mr-2 h-4 w-4" />
@@ -280,6 +394,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                   </button>
                   <button
                     type="button"
+                    onClick={handleExport}
                     className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                   >
                     <Download className="mr-2 h-4 w-4" />
@@ -302,7 +417,11 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                 </p>
                 <div className="mt-4 space-y-3">
                   {[
-                    "Episode 01: success after 42 steps",
+                    latestEpisode
+                      ? `Episode ${String(latestEpisode.episodeId || "current")}: ${String(
+                          latestEpisode.status || "ready",
+                        )} at step ${String(latestEpisode.stepIndex || 0)}`
+                      : "Episode 01: success after 42 steps",
                     "Episode 02: failure on blocked handoff path",
                     "Episode 03: success after lighting change",
                     "Episode 04: success with shifted start pose",

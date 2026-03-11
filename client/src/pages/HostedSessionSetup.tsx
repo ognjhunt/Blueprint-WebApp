@@ -4,6 +4,8 @@ import { ArrowLeft, ArrowRight, CheckCircle2, MapPin, Play, SlidersHorizontal } 
 import { SEO } from "@/components/SEO";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import { getSiteWorldById } from "@/data/siteWorlds";
+import { withCsrfHeader } from "@/lib/csrf";
+import { auth } from "@/lib/firebase";
 
 interface HostedSessionSetupProps {
   params: {
@@ -21,6 +23,8 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
   const [scenario, setScenario] = useState("");
   const [outputs, setOutputs] = useState("");
   const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -61,8 +65,11 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
     );
   }
 
-  const handleLaunch = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleLaunch = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    setSubmitting(true);
+    setErrorMessage("");
 
     const query = new URLSearchParams({
       robot,
@@ -73,7 +80,49 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
       notes,
     });
 
-    setLocation(`/site-worlds/${site.id}/workspace?${query.toString()}`);
+    try {
+      const token = auth?.currentUser ? await auth.currentUser.getIdToken() : "";
+      if (!token) {
+        throw new Error("Missing authenticated user");
+      }
+
+      const response = await fetch("/api/site-worlds/sessions", {
+        method: "POST",
+        headers: {
+          ...(await withCsrfHeader({ "Content-Type": "application/json" })),
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          siteWorldId: site.id,
+          robot,
+          policy: {
+            adapter_name: "mock",
+            model_name: policy,
+            device: "cpu",
+            requested_outputs: outputs,
+          },
+          task,
+          scenario,
+          notes,
+        }),
+      });
+
+      const payload = (await response.json()) as { workspaceUrl?: string; error?: string };
+      if (!response.ok || !payload.workspaceUrl) {
+        throw new Error(payload.error || "Unable to launch hosted session");
+      }
+      setLocation(payload.workspaceUrl);
+      return;
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? `${error.message}. Falling back to local workspace preview.`
+          : "Falling back to local workspace preview.",
+      );
+      setLocation(`/site-worlds/${site.id}/workspace?${query.toString()}`);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -227,12 +276,17 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                   />
                 </div>
 
+                {errorMessage ? (
+                  <p className="text-sm text-amber-700">{errorMessage}</p>
+                ) : null}
+
                 <div className="flex flex-wrap items-center gap-3 pt-2">
                   <button
                     type="submit"
+                    disabled={submitting}
                     className="inline-flex items-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                   >
-                    Launch session
+                    {submitting ? "Launching..." : "Launch session"}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </button>
                   <a

@@ -138,6 +138,9 @@ export interface PipelineArtifacts {
   scene_memory_readiness_uri?: string | null;
   conditioning_bundle_uri?: string | null;
   preview_simulation_manifest_uri?: string | null;
+  hosted_session_runtime_manifest_uri?: string | null;
+  task_anchor_manifest_uri?: string | null;
+  task_run_manifest_uri?: string | null;
 }
 
 export type DerivedAssetStatus =
