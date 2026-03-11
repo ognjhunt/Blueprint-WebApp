@@ -68,10 +68,11 @@ function getReferrer(): string | null {
 export function ContactForm() {
   const { currentUser, userData } = useAuth();
   const search = useSearch();
-  const interest = useMemo(
-    () => new URLSearchParams(search).get("interest")?.trim() ?? "",
-    [search]
-  );
+  const searchParams = useMemo(() => new URLSearchParams(search), [search]);
+  const interest = searchParams.get("interest")?.trim() ?? "";
+  const buyerTypeParam = searchParams.get("buyerType")?.trim() ?? "";
+  const interestLane = normalizeInterestToLane(interest);
+  const hostedMode = interestLane === "deeper_evaluation" && buyerTypeParam === "robot_team";
 
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -94,6 +95,16 @@ export function ContactForm() {
   const [targetRobotTeam, setTargetRobotTeam] = useState("");
   const [detailsMessage, setDetailsMessage] = useState("");
   const [honeypot, setHoneypot] = useState("");
+
+  const prefills = useMemo(
+    () => ({
+      siteName: searchParams.get("siteName")?.trim() ?? "",
+      siteLocation: searchParams.get("siteLocation")?.trim() ?? "",
+      taskStatement: searchParams.get("taskStatement")?.trim() ?? "",
+      targetRobotTeam: searchParams.get("targetRobotTeam")?.trim() ?? "",
+    }),
+    [searchParams],
+  );
 
   useEffect(() => {
     const displayName = userData?.name || currentUser?.displayName || "";
@@ -119,14 +130,22 @@ export function ContactForm() {
     }
     if (!knownBlockers && userData?.knownBlockers) setKnownBlockers(userData.knownBlockers);
     if (!targetRobotTeam && userData?.targetRobotTeam) setTargetRobotTeam(userData.targetRobotTeam);
-    if (!selectedBudget && userData?.budgetRange) setSelectedBudget(userData.budgetRange);
-    if (userData?.buyerType) setSelectedBuyerType(userData.buyerType);
-    if (userData?.requestedLanes?.length) setSelectedLanes(userData.requestedLanes);
+
+    if (!hostedMode && !selectedBudget && userData?.budgetRange) {
+      setSelectedBudget(userData.budgetRange);
+    }
+    if (!hostedMode && userData?.buyerType) {
+      setSelectedBuyerType(userData.buyerType);
+    }
+    if (!hostedMode && userData?.requestedLanes?.length) {
+      setSelectedLanes(userData.requestedLanes);
+    }
   }, [
     company,
     currentUser,
     email,
     firstName,
+    hostedMode,
     jobTitle,
     knownBlockers,
     lastName,
@@ -142,15 +161,27 @@ export function ContactForm() {
   ]);
 
   useEffect(() => {
-    const lane = normalizeInterestToLane(interest);
-    if (lane) {
-      setSelectedLanes((current) => (current.includes(lane) ? current : [...current, lane]));
+    if (hostedMode) {
+      setSelectedBuyerType("robot_team");
+      setSelectedLanes(["deeper_evaluation"]);
+      setSelectedBudget("Undecided/Unsure");
+      if (prefills.siteName) setSiteName(prefills.siteName);
+      if (prefills.siteLocation) setSiteLocation(prefills.siteLocation);
+      if (prefills.taskStatement) setTaskStatement(prefills.taskStatement);
+      if (prefills.targetRobotTeam) setTargetRobotTeam(prefills.targetRobotTeam);
+      return;
     }
-  }, [interest]);
+
+    if (interestLane) {
+      setSelectedLanes((current) =>
+        current.includes(interestLane) ? current : [...current, interestLane],
+      );
+    }
+  }, [hostedMode, interestLane, prefills]);
 
   const toggleLane = useCallback((lane: RequestedLane) => {
     setSelectedLanes((current) =>
-      current.includes(lane) ? current.filter((entry) => entry !== lane) : [...current, lane]
+      current.includes(lane) ? current.filter((entry) => entry !== lane) : [...current, lane],
     );
   }, []);
 
@@ -172,13 +203,17 @@ export function ContactForm() {
       return;
     }
 
-    if (!selectedBudget) {
+    const effectiveBudget = hostedMode ? "Undecided/Unsure" : selectedBudget;
+    const effectiveLanes = hostedMode ? (["deeper_evaluation"] as RequestedLane[]) : selectedLanes;
+    const effectiveBuyerType = hostedMode ? "robot_team" : selectedBuyerType;
+
+    if (!effectiveBudget) {
       setStatus("error");
       setMessage("Please select a project budget.");
       return;
     }
 
-    if (selectedLanes.length === 0) {
+    if (effectiveLanes.length === 0) {
       setStatus("error");
       setMessage("Please choose at least one requested lane.");
       return;
@@ -199,16 +234,18 @@ export function ContactForm() {
       company: company.trim(),
       roleTitle: jobTitle.trim(),
       email: email.trim().toLowerCase(),
-      budgetBucket: selectedBudget,
-      requestedLanes: selectedLanes,
-      buyerType: selectedBuyerType,
+      budgetBucket: effectiveBudget,
+      requestedLanes: effectiveLanes,
+      buyerType: effectiveBuyerType,
       siteName: siteName.trim(),
       siteLocation: siteLocation.trim(),
       taskStatement: taskStatement.trim(),
-      workflowContext: workflowContext.trim() || undefined,
-      operatingConstraints: operatingConstraints.trim() || undefined,
-      privacySecurityConstraints: privacySecurityConstraints.trim() || undefined,
-      knownBlockers: knownBlockers.trim() || undefined,
+      workflowContext: hostedMode ? undefined : workflowContext.trim() || undefined,
+      operatingConstraints: hostedMode ? undefined : operatingConstraints.trim() || undefined,
+      privacySecurityConstraints: hostedMode
+        ? undefined
+        : privacySecurityConstraints.trim() || undefined,
+      knownBlockers: hostedMode ? undefined : knownBlockers.trim() || undefined,
       targetRobotTeam: targetRobotTeam.trim() || undefined,
       details: detailsMessage.trim() || undefined,
       context: {
@@ -243,7 +280,7 @@ export function ContactForm() {
     } catch (error) {
       setStatus("error");
       setMessage(
-        error instanceof Error ? error.message : "Unable to submit intake. Please try again."
+        error instanceof Error ? error.message : "Unable to submit intake. Please try again.",
       );
     }
   };
@@ -254,10 +291,13 @@ export function ContactForm() {
         <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
           <CheckCircle2 className="h-8 w-8" />
         </div>
-        <h2 className="text-2xl font-bold text-zinc-900">Submission received</h2>
+        <h2 className="text-2xl font-bold text-zinc-900">
+          {hostedMode ? "Hosted session request received" : "Submission received"}
+        </h2>
         <p className="mt-4 text-zinc-600">
-          Blueprint now has the site, task, and constraints. We will review the submission and
-          follow up with the right next step.
+          {hostedMode
+            ? "Blueprint now has the site, task, and robot setup. We will follow up with the next step to get the hosted session moving."
+            : "Blueprint now has the site, task, and constraints. We will review the submission and follow up with the right next step."}
         </p>
         <div className="mt-8 rounded-xl bg-zinc-50 p-6 text-left">
           <h3 className="mb-4 text-sm font-semibold text-zinc-900">What happens next?</h3>
@@ -266,19 +306,31 @@ export function ContactForm() {
               <div className="mt-0.5 rounded-full bg-indigo-100 p-1 text-indigo-600">
                 <Clock className="h-3 w-3" />
               </div>
-              <p>We review scope, evidence quality, and the likely qualification path.</p>
+              <p>
+                {hostedMode
+                  ? "We confirm the site, robot embodiment, and the task you want to test."
+                  : "We review scope, evidence quality, and the likely qualification path."}
+              </p>
             </div>
             <div className="flex items-start gap-3">
               <div className="mt-0.5 rounded-full bg-indigo-100 p-1 text-indigo-600">
                 <Mail className="h-3 w-3" />
               </div>
-              <p>If evidence is missing, we request a tighter capture pass instead of guessing.</p>
+              <p>
+                {hostedMode
+                  ? "We align on the outputs you need back, such as videos, metrics, and failure cases."
+                  : "If evidence is missing, we request a tighter capture pass instead of guessing."}
+              </p>
             </div>
             <div className="flex items-start gap-3">
               <div className="mt-0.5 rounded-full bg-indigo-100 p-1 text-indigo-600">
                 <Calendar className="h-3 w-3" />
               </div>
-              <p>Qualified sites move toward handoff, preview assets, evaluation packages, or later managed work.</p>
+              <p>
+                {hostedMode
+                  ? "We return with the next step to launch or scope the hosted session."
+                  : "Qualified sites move toward handoff, preview assets, evaluation packages, or later managed work."}
+              </p>
             </div>
           </div>
         </div>
@@ -293,6 +345,13 @@ export function ContactForm() {
 
   return (
     <form className="space-y-6" onSubmit={handleSubmit}>
+      {hostedMode ? (
+        <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-sm text-zinc-700">
+          You are starting the hosted session setup for this site. Confirm the details below and
+          submit the request.
+        </div>
+      ) : null}
+
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium text-zinc-700">First name</label>
@@ -335,38 +394,42 @@ export function ContactForm() {
         </div>
       </div>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium text-zinc-700">Title</label>
-        <input
-          className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-          placeholder="Operations lead, robotics lead, integrator, etc."
-          value={jobTitle}
-          onChange={(event) => setJobTitle(event.target.value)}
-        />
-      </div>
-
-      <div>
-        <p className="mb-2 text-sm font-medium text-zinc-700">Buyer type</p>
-        <div className="grid gap-3 md:grid-cols-2">
-          {[
-            { value: "site_operator", label: "Site operator" },
-            { value: "robot_team", label: "Robot team" },
-          ].map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setSelectedBuyerType(option.value as BuyerType)}
-              className={`rounded-xl border px-4 py-3 text-left text-sm ${
-                selectedBuyerType === option.value
-                  ? "border-zinc-900 bg-zinc-900 text-white"
-                  : "border-zinc-200 bg-white text-zinc-700"
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
+      {!hostedMode ? (
+        <div>
+          <label className="mb-1 block text-sm font-medium text-zinc-700">Title</label>
+          <input
+            className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+            placeholder="Operations lead, robotics lead, integrator, etc."
+            value={jobTitle}
+            onChange={(event) => setJobTitle(event.target.value)}
+          />
         </div>
-      </div>
+      ) : null}
+
+      {!hostedMode ? (
+        <div>
+          <p className="mb-2 text-sm font-medium text-zinc-700">Buyer type</p>
+          <div className="grid gap-3 md:grid-cols-2">
+            {[
+              { value: "site_operator", label: "Site operator" },
+              { value: "robot_team", label: "Robot team" },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setSelectedBuyerType(option.value as BuyerType)}
+                className={`rounded-xl border px-4 py-3 text-left text-sm ${
+                  selectedBuyerType === option.value
+                    ? "border-zinc-900 bg-zinc-900 text-white"
+                    : "border-zinc-200 bg-white text-zinc-700"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
         <div>
@@ -393,116 +456,134 @@ export function ContactForm() {
         <label className="mb-1 block text-sm font-medium text-zinc-700">Task statement</label>
         <textarea
           className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-          placeholder="Describe the exact task Blueprint should qualify.*"
+          placeholder={
+            hostedMode
+              ? "Describe the task you want to test.*"
+              : "Describe the exact task Blueprint should qualify.*"
+          }
           value={taskStatement}
           onChange={(event) => setTaskStatement(event.target.value)}
         />
       </div>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium text-zinc-700">Workflow context</label>
-        <textarea
-          className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-          placeholder="Describe the workcell, adjacent workflow, handoffs, and zone boundaries."
-          value={workflowContext}
-          onChange={(event) => setWorkflowContext(event.target.value)}
-        />
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
+      {!hostedMode ? (
         <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-700">Operating constraints</label>
+          <label className="mb-1 block text-sm font-medium text-zinc-700">Workflow context</label>
           <textarea
             className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-            placeholder="Hours, access windows, floor conditions, safety rules."
-            value={operatingConstraints}
-            onChange={(event) => setOperatingConstraints(event.target.value)}
+            placeholder="Describe the workcell, adjacent workflow, handoffs, and zone boundaries."
+            value={workflowContext}
+            onChange={(event) => setWorkflowContext(event.target.value)}
           />
         </div>
+      ) : null}
+
+      {!hostedMode ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-zinc-700">
+              Operating constraints
+            </label>
+            <textarea
+              className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+              placeholder="Hours, access windows, floor conditions, safety rules."
+              value={operatingConstraints}
+              onChange={(event) => setOperatingConstraints(event.target.value)}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-zinc-700">
+              Privacy and security constraints
+            </label>
+            <textarea
+              className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+              placeholder="Restricted zones, camera limits, redactions."
+              value={privacySecurityConstraints}
+              onChange={(event) => setPrivacySecurityConstraints(event.target.value)}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      <div className={hostedMode ? "" : "grid gap-4 md:grid-cols-2"}>
+        {!hostedMode ? (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-zinc-700">Known blockers</label>
+            <textarea
+              className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+              placeholder="Known blockers, safety concerns, or scope gaps."
+              value={knownBlockers}
+              onChange={(event) => setKnownBlockers(event.target.value)}
+            />
+          </div>
+        ) : null}
         <div>
           <label className="mb-1 block text-sm font-medium text-zinc-700">
-            Privacy and security constraints
-          </label>
-          <textarea
-            className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-            placeholder="Restricted zones, camera limits, redactions."
-            value={privacySecurityConstraints}
-            onChange={(event) => setPrivacySecurityConstraints(event.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-700">Known blockers</label>
-          <textarea
-            className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-            placeholder="Known blockers, safety concerns, or scope gaps."
-            value={knownBlockers}
-            onChange={(event) => setKnownBlockers(event.target.value)}
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-700">
-            Target robot team or embodiment
+            {hostedMode ? "Target robot or embodiment" : "Target robot team or embodiment"}
           </label>
           <input
             className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-            placeholder="Optional"
+            placeholder={hostedMode ? "Robot, embodiment, or stack*" : "Optional"}
             value={targetRobotTeam}
             onChange={(event) => setTargetRobotTeam(event.target.value)}
           />
         </div>
       </div>
 
-      <div>
-        <p className="mb-2 text-sm font-medium text-zinc-700">Requested lanes</p>
-        <div className="space-y-3">
-          {requestedLaneOptions.map((lane) => (
-            <label
-              key={lane.value}
-              className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-200 px-4 py-3"
-            >
-              <input
-                type="checkbox"
-                checked={selectedLanes.includes(lane.value)}
-                onChange={() => toggleLane(lane.value)}
-                className="mt-1"
-              />
-              <span>
-                <span className="block text-sm font-medium text-zinc-900">{lane.label}</span>
-                <span className="block text-sm text-zinc-500">{lane.description}</span>
-              </span>
-            </label>
-          ))}
+      {!hostedMode ? (
+        <div>
+          <p className="mb-2 text-sm font-medium text-zinc-700">Requested lanes</p>
+          <div className="space-y-3">
+            {requestedLaneOptions.map((lane) => (
+              <label
+                key={lane.value}
+                className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-200 px-4 py-3"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedLanes.includes(lane.value)}
+                  onChange={() => toggleLane(lane.value)}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-zinc-900">{lane.label}</span>
+                  <span className="block text-sm text-zinc-500">{lane.description}</span>
+                </span>
+              </label>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : null}
+
+      {!hostedMode ? (
+        <div>
+          <p className="mb-2 text-sm font-medium text-zinc-700">Budget range</p>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+            {budgetRanges.map((budget) => (
+              <button
+                key={budget}
+                type="button"
+                onClick={() => setSelectedBudget(budget)}
+                className={`rounded-xl border px-3 py-3 text-sm ${
+                  selectedBudget === budget
+                    ? "border-zinc-900 bg-zinc-900 text-white"
+                    : "border-zinc-200 bg-white text-zinc-700"
+                }`}
+              >
+                {budget}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <div>
-        <p className="mb-2 text-sm font-medium text-zinc-700">Budget range</p>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-          {budgetRanges.map((budget) => (
-            <button
-              key={budget}
-              type="button"
-              onClick={() => setSelectedBudget(budget)}
-              className={`rounded-xl border px-3 py-3 text-sm ${
-                selectedBudget === budget
-                  ? "border-zinc-900 bg-zinc-900 text-white"
-                  : "border-zinc-200 bg-white text-zinc-700"
-              }`}
-            >
-              {budget}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <label className="mb-1 block text-sm font-medium text-zinc-700">Anything else we should know?</label>
+        <label className="mb-1 block text-sm font-medium text-zinc-700">
+          {hostedMode ? "Notes" : "Anything else we should know?"}
+        </label>
         <textarea
           className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-          placeholder="Add anything important for review."
+          placeholder={hostedMode ? "Policy, checkpoint, outputs, or other notes." : "Add anything important for review."}
           value={detailsMessage}
           onChange={(event) => setDetailsMessage(event.target.value)}
         />
@@ -526,7 +607,11 @@ export function ContactForm() {
         disabled={status === "loading"}
         className="inline-flex items-center rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:opacity-60"
       >
-        {status === "loading" ? "Submitting..." : "Submit site intake"}
+        {status === "loading"
+          ? "Submitting..."
+          : hostedMode
+            ? "Start hosted session"
+            : "Submit site intake"}
         <ArrowRight className="ml-2 h-4 w-4" />
       </button>
     </form>

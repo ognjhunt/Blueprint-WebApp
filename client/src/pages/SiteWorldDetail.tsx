@@ -13,43 +13,35 @@ interface SiteWorldDetailProps {
 const hostedSessionSteps = [
   {
     title: "Pick the site",
-    detail:
-      "Start with the exact site you want to evaluate so the whole run stays tied to one real place.",
+    detail: "Pick the exact site you want to test so the run stays tied to one real place.",
   },
   {
-    title: "Open a hosted session for that site",
-    detail:
-      "Blueprint brings up the managed eval environment built from that site so your team does not have to run the environment stack itself.",
+    title: "Start the hosted session",
+    detail: "Blueprint brings up the managed eval environment built from that site.",
   },
   {
     title: "Choose robot, sensors, task, policy/checkpoint, and scenario variation",
-    detail:
-      "Set the robot setup, what it should do, which policy you want to test, and which variation you want to run first.",
+    detail: "Choose the robot setup, the task, the policy, and the variation you want to run.",
   },
   {
     title: "Receive the starting observation",
-    detail:
-      "The session returns the first view of the site so the policy begins from a concrete starting point.",
+    detail: "The session returns the first view of the site so the policy has a starting point.",
   },
   {
     title: "Let the policy choose an action",
-    detail:
-      "Your policy reads that observation and decides what to do next, such as move, turn, lift, grasp, or stop.",
+    detail: "The policy decides what to do next, such as move, turn, lift, grasp, or stop.",
   },
   {
-    title: "Let the hosted world model produce the next observation",
-    detail:
-      "The hosted session rolls the site forward one step and returns what the robot would see after that action.",
+    title: "Get the next observation",
+    detail: "The hosted world model rolls the site forward one step and returns the next view.",
   },
   {
     title: "Repeat until success, failure, or timeout",
-    detail:
-      "Keep looping through observe, act, and update until the task ends or your run reaches the stop condition.",
+    detail: "Keep looping until the task succeeds, fails, or times out.",
   },
   {
     title: "Score the run, export results, and compare policies",
-    detail:
-      "Review the outcome, collect videos and metrics, then compare checkpoints or scenario variants side by side.",
+    detail: "Review the results, export the outputs, and compare checkpoints side by side.",
   },
 ];
 
@@ -101,7 +93,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
       ],
     },
     {
-      title: "What the session returns",
+      title: "What comes back",
       items: [
         `Starting observation from ${site.siteName}`,
         "Step-by-step observations as the run progresses",
@@ -147,6 +139,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
                 {site.siteName}
               </h1>
+              <p className="mt-3 text-base font-medium text-slate-500">{site.siteAddress}</p>
               <p className="mt-4 max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
                 {site.summary}
               </p>
@@ -180,8 +173,8 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 </a>
               </div>
               <p className="mt-4 text-sm leading-relaxed text-slate-600">
-                Qualification is for the site side. This page is the robot-team view: review the
-                site asset first, then the hosted eval option for the same site.
+                Qualification is for the site side. This page is the robot-team view: confirm the
+                site, then start the hosted session setup for that exact location.
               </p>
             </aside>
           </header>
@@ -236,10 +229,10 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   or downstream internal work.
                 </p>
                 <a
-                  href="/contact?interest=data-licensing"
+                  href={scenePackage.actionHref}
                   className="mt-5 inline-flex w-full items-center justify-center rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
                 >
-                  Request Scene Package
+                  {scenePackage.actionLabel}
                 </a>
               </div>
             </div>
@@ -300,10 +293,10 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   rollout outputs instead of handing you only the site package.
                 </p>
                 <a
-                  href="/contact?interest=evaluation-package"
+                  href={hostedSessions.actionHref}
                   className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Request Hosted Sessions
+                  {hostedSessions.actionLabel}
                 </a>
               </div>
             </div>
@@ -312,14 +305,13 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
           <section className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 px-5 py-6 sm:px-7 sm:py-7">
             <div className="max-w-3xl">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Step by step
+                Simple walkthrough
               </p>
               <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                How a robot team would use this
+                How this works
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                The simplest picture is a temporary hosted copy of one real site where your team
-                can test a policy loop, score it, and compare runs.
+                Think of this as a temporary cloud test room for one real site.
               </p>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -365,12 +357,10 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               Example run for {site.siteName}
             </h2>
             <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-200">
-              A team picks {site.siteName}, chooses {site.sampleRobot}, and sets the task to{" "}
-              {site.sampleTask.toLowerCase()}. They run {site.samplePolicy} against a few scenario
-              variations like {site.scenarioVariants.slice(0, 2).join(" and ").toLowerCase()}. The
-              hosted session returns the starting view, lets the policy act step by step, and then
-              gives the team rollout video, metrics, and failure cases so they can decide whether
-              the policy passes, needs work, or should move to a stricter next stage.
+              A team picks {site.siteName}, chooses {site.sampleRobot}, and tests{" "}
+              {site.samplePolicy} on the task to {site.sampleTask.toLowerCase()}. They run a few
+              variations like {site.scenarioVariants.slice(0, 2).join(" and ").toLowerCase()},
+              then review the rollout video, metrics, and failure cases.
             </p>
           </section>
 

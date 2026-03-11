@@ -38,6 +38,7 @@ export type SiteWorldCard = {
   id: string;
   siteCode: string;
   siteName: string;
+  siteAddress: string;
   category: Exclude<SiteCategory, "All">;
   industry: string;
   taskLane: string;
@@ -56,6 +57,16 @@ export type SiteWorldCard = {
   packages: [SiteWorldPackage, SiteWorldPackage];
 };
 
+type PackageConfig = {
+  siteId: string;
+  siteName: string;
+  siteAddress: string;
+  scenePrice: string;
+  hostedRate: string;
+  sampleTask: string;
+  sampleRobot: string;
+};
+
 export const categoryFilters: SiteCategory[] = [
   "All",
   "Retail",
@@ -66,19 +77,32 @@ export const categoryFilters: SiteCategory[] = [
   "Healthcare",
 ];
 
-function buildPackages(
-  siteId: string,
-  scenePrice: string,
-  hostedRate: string,
-): [SiteWorldPackage, SiteWorldPackage] {
+function buildContactHref(
+  interest: "evaluation-package" | "data-licensing",
+  config: Pick<PackageConfig, "siteName" | "siteAddress" | "sampleTask" | "sampleRobot">,
+) {
+  const params = new URLSearchParams({
+    interest,
+    buyerType: "robot_team",
+    source: "site-worlds",
+    siteName: config.siteName,
+    siteLocation: config.siteAddress,
+    taskStatement: config.sampleTask,
+    targetRobotTeam: config.sampleRobot,
+  });
+
+  return `/contact?${params.toString()}`;
+}
+
+function buildPackages(config: PackageConfig): [SiteWorldPackage, SiteWorldPackage] {
   return [
     {
       name: "Scene Package",
       summary: "License the site asset package for this exact workflow area.",
-      priceLabel: scenePrice,
+      priceLabel: config.scenePrice,
       payerLabel: "Likely buyer: Robot team",
-      actionLabel: "See package",
-      actionHref: `/site-worlds/${siteId}#scene-package`,
+      actionLabel: "Request scene package",
+      actionHref: buildContactHref("data-licensing", config),
       deliverables: [
         "Walkthrough video",
         "Camera poses and site metadata",
@@ -90,10 +114,10 @@ function buildPackages(
     {
       name: "Hosted Sessions",
       summary: "Use Blueprint-managed evaluation sessions built from this site.",
-      priceLabel: hostedRate,
+      priceLabel: config.hostedRate,
       payerLabel: "Likely buyer: Robot team",
-      actionLabel: "See hosted eval flow",
-      actionHref: `/site-worlds/${siteId}#hosted-sessions`,
+      actionLabel: "Start hosted session",
+      actionHref: buildContactHref("evaluation-package", config),
       deliverables: [
         "Managed eval runtime",
         "Scenario variations",
@@ -108,14 +132,16 @@ export const siteWorldCards: SiteWorldCard[] = [
   {
     id: "sw-chi-01",
     siteCode: "SW-CHI-01",
-    siteName: "Midwest Grocery Backroom",
+    siteName: "Harborview Grocery Distribution Annex",
+    siteAddress: "1847 W Fulton St, Chicago, IL 60612",
     category: "Retail",
     industry: "Retail backroom",
     taskLane: "Case pick and shelf replenishment",
     tone: "from-emerald-100 via-white to-emerald-50",
     accent: "#10b981",
     thumbnailKind: "grocery",
-    summary: "A backroom layout with dock access, aisle replenishment paths, and a short handoff into shelf staging.",
+    summary:
+      "A backroom layout with dock access, aisle replenishment paths, and a short handoff into shelf staging.",
     bestFor: "Shelf replenishment validation before a rollout.",
     startStates: ["Dock-side tote stack", "Open aisle replenishment lane", "Shelf staging handoff"],
     runtime: "Vision + wrist cams",
@@ -124,12 +150,21 @@ export const siteWorldCards: SiteWorldCard[] = [
     samplePolicy: "Checkpoint 148000",
     scenarioVariants: ["Normal lighting", "Dim backroom lighting", "Partial aisle clutter"],
     exportArtifacts: ["Rollout video", "Action trace", "Success labels", "Episode summary"],
-    packages: buildPackages("sw-chi-01", "$2,400", "$18 / session-hour"),
+    packages: buildPackages({
+      siteId: "sw-chi-01",
+      siteName: "Harborview Grocery Distribution Annex",
+      siteAddress: "1847 W Fulton St, Chicago, IL 60612",
+      scenePrice: "$2,400",
+      hostedRate: "$18 / session-hour",
+      sampleTask: "Walk to shelf staging and pick the blue tote",
+      sampleRobot: "Unitree G1 with head cam and wrist cam",
+    }),
   },
   {
     id: "sw-atl-02",
     siteCode: "SW-ATL-02",
-    siteName: "Atlanta Parcel Sort Lane",
+    siteName: "Peachtree Parcel Exchange South",
+    siteAddress: "2550 Lakewood Ave SW, Atlanta, GA 30315",
     category: "Logistics",
     industry: "Parcel logistics",
     taskLane: "Induct, handoff, and tote reset",
@@ -145,19 +180,29 @@ export const siteWorldCards: SiteWorldCard[] = [
     samplePolicy: "Lane policy v9",
     scenarioVariants: ["Single parcel", "Mixed parcel wave", "Late-lane congestion"],
     exportArtifacts: ["Per-step events", "Rollout video", "Lane timing summary", "Failure clips"],
-    packages: buildPackages("sw-atl-02", "$2,700", "$22 / session-hour"),
+    packages: buildPackages({
+      siteId: "sw-atl-02",
+      siteName: "Peachtree Parcel Exchange South",
+      siteAddress: "2550 Lakewood Ave SW, Atlanta, GA 30315",
+      scenePrice: "$2,700",
+      hostedRate: "$22 / session-hour",
+      sampleTask: "Induct a parcel, clear the lane, and reset the tote position",
+      sampleRobot: "Mobile manipulator with mast cam and overhead assist view",
+    }),
   },
   {
     id: "sw-phx-03",
     siteCode: "SW-PHX-03",
-    siteName: "Phoenix Line-Side Cart Feed",
+    siteName: "Sonoran Assembly Cart Bay",
+    siteAddress: "4025 E University Dr, Phoenix, AZ 85034",
     category: "Manufacturing",
     industry: "Light manufacturing",
     taskLane: "Cart fetch and station handoff",
     tone: "from-amber-100 via-white to-orange-50",
     accent: "#f59e0b",
     thumbnailKind: "lineSide",
-    summary: "A line-side lane with cart staging, station delivery, and return clearance in a tight envelope.",
+    summary:
+      "A line-side lane with cart staging, station delivery, and return clearance in a tight envelope.",
     bestFor: "Repeated line-side resupply loops.",
     startStates: ["Cart at inbound lane", "Station requesting resupply", "Clear return path"],
     runtime: "Vision + proprio",
@@ -166,12 +211,21 @@ export const siteWorldCards: SiteWorldCard[] = [
     samplePolicy: "Resupply checkpoint B",
     scenarioVariants: ["Clear lane", "Narrow return path", "Busy station handoff"],
     exportArtifacts: ["Sensor trace", "Rendered views", "Task outcomes", "Episode summary"],
-    packages: buildPackages("sw-phx-03", "$3,100", "$26 / session-hour"),
+    packages: buildPackages({
+      siteId: "sw-phx-03",
+      siteName: "Sonoran Assembly Cart Bay",
+      siteAddress: "4025 E University Dr, Phoenix, AZ 85034",
+      scenePrice: "$3,100",
+      hostedRate: "$26 / session-hour",
+      sampleTask: "Fetch the staged cart and deliver it to the resupply station",
+      sampleRobot: "Autonomous cart tug with front stereo pair",
+    }),
   },
   {
     id: "sw-dal-04",
     siteCode: "SW-DAL-04",
-    siteName: "Dallas Laundry Sort Floor",
+    siteName: "Trinity Linen Operations Hub",
+    siteAddress: "1410 Irving Blvd, Dallas, TX 75207",
     category: "Service",
     industry: "Service operations",
     taskLane: "Bag lift, sort, and station transfer",
@@ -187,19 +241,29 @@ export const siteWorldCards: SiteWorldCard[] = [
     samplePolicy: "Laundry sort v12",
     scenarioVariants: ["Normal floor", "Crowded intake", "Delayed outbound handoff"],
     exportArtifacts: ["Rollout video", "Pick and place trace", "Station timing", "Failure tags"],
-    packages: buildPackages("sw-dal-04", "$2,100", "$16 / session-hour"),
+    packages: buildPackages({
+      siteId: "sw-dal-04",
+      siteName: "Trinity Linen Operations Hub",
+      siteAddress: "1410 Irving Blvd, Dallas, TX 75207",
+      scenePrice: "$2,100",
+      hostedRate: "$16 / session-hour",
+      sampleTask: "Lift the intake bag, sort it, and transfer the load to outbound",
+      sampleRobot: "Humanoid with head cam and top-down supervisor view",
+    }),
   },
   {
     id: "sw-col-05",
     siteCode: "SW-COL-05",
-    siteName: "Cold-Chain Pick Module",
+    siteName: "Front Range Cold Storage Pod",
+    siteAddress: "1911 Groveport Rd, Columbus, OH 43207",
     category: "Cold Chain",
     industry: "Food distribution",
     taskLane: "Bin pick under temperature constraints",
     tone: "from-cyan-100 via-white to-cyan-50",
     accent: "#06b6d4",
     thumbnailKind: "coldChain",
-    summary: "A chilled pick room with an airlock handoff, insulated staging, and short route lengths.",
+    summary:
+      "A chilled pick room with an airlock handoff, insulated staging, and short route lengths.",
     bestFor: "Temperature-sensitive pick flows.",
     startStates: ["Airlock entry", "Cold pick bay", "Outbound insulated bin"],
     runtime: "Vision + thermal tags",
@@ -208,19 +272,29 @@ export const siteWorldCards: SiteWorldCard[] = [
     samplePolicy: "Cold-chain policy 3.4",
     scenarioVariants: ["Normal chill cycle", "Airlock delay", "Reordered outbound bins"],
     exportArtifacts: ["Thermal tags", "Episode log", "Video frames", "Timing metrics"],
-    packages: buildPackages("sw-col-05", "$3,200", "$24 / session-hour"),
+    packages: buildPackages({
+      siteId: "sw-col-05",
+      siteName: "Front Range Cold Storage Pod",
+      siteAddress: "1911 Groveport Rd, Columbus, OH 43207",
+      scenePrice: "$3,200",
+      hostedRate: "$24 / session-hour",
+      sampleTask: "Pick the target bin and hand it off without breaking the route timing",
+      sampleRobot: "Cold-room picker with arm camera and thermal state feed",
+    }),
   },
   {
     id: "sw-jer-06",
     siteCode: "SW-JER-06",
-    siteName: "Returns Triage Room",
+    siteName: "Meadowlands Returns Processing Suite",
+    siteAddress: "500 Duncan Ave, Jersey City, NJ 07306",
     category: "Service",
     industry: "E-commerce returns",
     taskLane: "Item triage and tote routing",
     tone: "from-rose-100 via-white to-rose-50",
     accent: "#fb7185",
     thumbnailKind: "returns",
-    summary: "A returns lane with intake, triage, and routing tables for fast judgment and tote movement.",
+    summary:
+      "A returns lane with intake, triage, and routing tables for fast judgment and tote movement.",
     bestFor: "Quick visual judgment and routing loops.",
     startStates: ["Single-item intake", "Mixed return batch", "Outbound route handoff"],
     runtime: "Vision + table cams",
@@ -229,12 +303,21 @@ export const siteWorldCards: SiteWorldCard[] = [
     samplePolicy: "Returns triage checkpoint 27",
     scenarioVariants: ["Single return", "Mixed batch", "Late route change"],
     exportArtifacts: ["Event log", "Video segment", "Routing outcome", "Error cases"],
-    packages: buildPackages("sw-jer-06", "$2,300", "$19 / session-hour"),
+    packages: buildPackages({
+      siteId: "sw-jer-06",
+      siteName: "Meadowlands Returns Processing Suite",
+      siteAddress: "500 Duncan Ave, Jersey City, NJ 07306",
+      scenePrice: "$2,300",
+      hostedRate: "$19 / session-hour",
+      sampleTask: "Triage the returned item and route it to the correct tote",
+      sampleRobot: "Stationary arm with table cams and barcode reader",
+    }),
   },
   {
     id: "sw-sjc-07",
     siteCode: "SW-SJC-07",
-    siteName: "Bay Micro-Fulfillment Grid",
+    siteName: "Bayview Micro-Fulfillment Center",
+    siteAddress: "1380 Oakland Rd, San Jose, CA 95112",
     category: "Retail",
     industry: "Micro-fulfillment",
     taskLane: "Aisle pick and tote transfer",
@@ -250,19 +333,29 @@ export const siteWorldCards: SiteWorldCard[] = [
     samplePolicy: "Grid pick v5",
     scenarioVariants: ["Single order", "Multi-order wave", "Blocked pack handoff"],
     exportArtifacts: ["Episode events", "Rendered video", "Aisle path summary", "Success rate"],
-    packages: buildPackages("sw-sjc-07", "$2,800", "$21 / session-hour"),
+    packages: buildPackages({
+      siteId: "sw-sjc-07",
+      siteName: "Bayview Micro-Fulfillment Center",
+      siteAddress: "1380 Oakland Rd, San Jose, CA 95112",
+      scenePrice: "$2,800",
+      hostedRate: "$21 / session-hour",
+      sampleTask: "Pick the order items and transfer the tote to pack",
+      sampleRobot: "AMR with shelf-facing camera and tote sensor",
+    }),
   },
   {
     id: "sw-bos-08",
     siteCode: "SW-BOS-08",
-    siteName: "Boston Pharmacy Refill Cell",
+    siteName: "Commonwealth Pharmacy Refill Center",
+    siteAddress: "71 Southampton St, Boston, MA 02118",
     category: "Healthcare",
     industry: "Pharmacy ops",
     taskLane: "Pick, verify, and bin refill transfer",
     tone: "from-indigo-100 via-white to-indigo-50",
     accent: "#6366f1",
     thumbnailKind: "pharmacy",
-    summary: "A pharmacy refill lane with shelf picks, verification, and secure bin handoff under audit constraints.",
+    summary:
+      "A pharmacy refill lane with shelf picks, verification, and secure bin handoff under audit constraints.",
     bestFor: "Structured, auditable refill workflows.",
     startStates: ["Shelf refill pick", "Barcode verify", "Secure bin transfer"],
     runtime: "Vision + barcode state",
@@ -271,19 +364,29 @@ export const siteWorldCards: SiteWorldCard[] = [
     samplePolicy: "Pharmacy refill policy 11",
     scenarioVariants: ["Standard refill", "Barcode read failure", "Secure bin almost full"],
     exportArtifacts: ["Audit log", "Barcode state", "Episode video", "Verifier output"],
-    packages: buildPackages("sw-bos-08", "$2,900", "$23 / session-hour"),
+    packages: buildPackages({
+      siteId: "sw-bos-08",
+      siteName: "Commonwealth Pharmacy Refill Center",
+      siteAddress: "71 Southampton St, Boston, MA 02118",
+      scenePrice: "$2,900",
+      hostedRate: "$23 / session-hour",
+      sampleTask: "Pick the refill item, verify it, and load the secure bin",
+      sampleRobot: "Dual-arm pharmacy assistant with wrist cam and barcode state",
+    }),
   },
   {
     id: "sw-det-09",
     siteCode: "SW-DET-09",
-    siteName: "Detroit Battery Pack Subassembly",
+    siteName: "Motor City Battery Staging Cell",
+    siteAddress: "7440 Lynch Rd, Detroit, MI 48234",
     category: "Manufacturing",
     industry: "Battery assembly",
     taskLane: "Part feed and fixture handoff",
     tone: "from-yellow-100 via-white to-yellow-50",
     accent: "#eab308",
     thumbnailKind: "battery",
-    summary: "A subassembly cell with parts feed, fixture positioning, and tightly bounded handoff stations.",
+    summary:
+      "A subassembly cell with parts feed, fixture positioning, and tightly bounded handoff stations.",
     bestFor: "Structured assembly handoffs.",
     startStates: ["Parts feed active", "Fixture aligned", "Buffer handoff ready"],
     runtime: "Vision + force traces",
@@ -292,12 +395,21 @@ export const siteWorldCards: SiteWorldCard[] = [
     samplePolicy: "Subassembly checkpoint 402",
     scenarioVariants: ["Nominal fixture", "Offset fixture", "Late buffer arrival"],
     exportArtifacts: ["Force trace", "Episode video", "Task outcome labels", "Failure review"],
-    packages: buildPackages("sw-det-09", "$3,400", "$29 / session-hour"),
+    packages: buildPackages({
+      siteId: "sw-det-09",
+      siteName: "Motor City Battery Staging Cell",
+      siteAddress: "7440 Lynch Rd, Detroit, MI 48234",
+      scenePrice: "$3,400",
+      hostedRate: "$29 / session-hour",
+      sampleTask: "Move the part feed into the fixture and complete the handoff",
+      sampleRobot: "Assembly arm with force trace stream and wrist camera",
+    }),
   },
   {
     id: "sw-ewr-10",
     siteCode: "SW-EWR-10",
-    siteName: "Newark Baggage Feed",
+    siteName: "Newark Terminal B Baggage Feed",
+    siteAddress: "3 Brewster Rd, Newark, NJ 07114",
     category: "Logistics",
     industry: "Airport handling",
     taskLane: "Bag feed, scan, and lane clear",
@@ -313,12 +425,21 @@ export const siteWorldCards: SiteWorldCard[] = [
     samplePolicy: "Baggage feed v6",
     scenarioVariants: ["Single bag", "Mixed baggage wave", "Lane recovery"],
     exportArtifacts: ["Scan events", "Rendered clip", "Per-lane timing", "Failure cases"],
-    packages: buildPackages("sw-ewr-10", "$3,000", "$25 / session-hour"),
+    packages: buildPackages({
+      siteId: "sw-ewr-10",
+      siteName: "Newark Terminal B Baggage Feed",
+      siteAddress: "3 Brewster Rd, Newark, NJ 07114",
+      scenePrice: "$3,000",
+      hostedRate: "$25 / session-hour",
+      sampleTask: "Scan the bag, route it correctly, and clear the lane",
+      sampleRobot: "Bag-handling arm with feed camera and scan event stream",
+    }),
   },
   {
     id: "sw-den-11",
     siteCode: "SW-DEN-11",
-    siteName: "Denver Hospital Supply Room",
+    siteName: "Cherry Creek Hospital Supply Annex",
+    siteAddress: "950 Josephine St, Denver, CO 80206",
     category: "Healthcare",
     industry: "Hospital supply",
     taskLane: "Restock, cart load, and room return",
@@ -334,19 +455,29 @@ export const siteWorldCards: SiteWorldCard[] = [
     samplePolicy: "Supply restock checkpoint 88",
     scenarioVariants: ["Normal route", "Dim corridor lighting", "Changed cart position"],
     exportArtifacts: ["Episode log", "Route video", "Restock metrics", "Failure clips"],
-    packages: buildPackages("sw-den-11", "$2,500", "$20 / session-hour"),
+    packages: buildPackages({
+      siteId: "sw-den-11",
+      siteName: "Cherry Creek Hospital Supply Annex",
+      siteAddress: "950 Josephine St, Denver, CO 80206",
+      scenePrice: "$2,500",
+      hostedRate: "$20 / session-hour",
+      sampleTask: "Load the cart, deliver to the room, and return through the clear corridor",
+      sampleRobot: "Hospital cart robot with head cam and map state feed",
+    }),
   },
   {
     id: "sw-sea-12",
     siteCode: "SW-SEA-12",
-    siteName: "Seattle Electronics Rework Bench",
+    siteName: "Soundside Electronics Rework Lab",
+    siteAddress: "2211 4th Ave S, Seattle, WA 98134",
     category: "Manufacturing",
     industry: "Electronics repair",
     taskLane: "Tray fetch and bench handoff",
     tone: "from-pink-100 via-white to-pink-50",
     accent: "#ec4899",
     thumbnailKind: "electronics",
-    summary: "A rework bench cell with tray fetch, bench-side part handoff, and test station transitions.",
+    summary:
+      "A rework bench cell with tray fetch, bench-side part handoff, and test station transitions.",
     bestFor: "Short-horizon bench-side handoffs.",
     startStates: ["Tray fetch", "Bench handoff", "Test queue"],
     runtime: "Vision + wrist cams",
@@ -355,7 +486,15 @@ export const siteWorldCards: SiteWorldCard[] = [
     samplePolicy: "Bench handoff policy R3",
     scenarioVariants: ["Nominal tray", "Shifted tray position", "Busy test queue"],
     exportArtifacts: ["Wrist camera feed", "Episode summary", "Handoff result", "Failure notes"],
-    packages: buildPackages("sw-sea-12", "$3,000", "$27 / session-hour"),
+    packages: buildPackages({
+      siteId: "sw-sea-12",
+      siteName: "Soundside Electronics Rework Lab",
+      siteAddress: "2211 4th Ave S, Seattle, WA 98134",
+      scenePrice: "$3,000",
+      hostedRate: "$27 / session-hour",
+      sampleTask: "Fetch the tray and hand the part to the rework bench",
+      sampleRobot: "Bench-side arm with wrist cams and tray state sensor",
+    }),
   },
 ];
 

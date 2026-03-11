@@ -3,17 +3,17 @@ import { describe, expect, it } from "vitest";
 import SiteWorlds from "@/pages/SiteWorlds";
 
 describe("SiteWorlds", () => {
-  it("renders the robot-team two-layer selector with scene package first", () => {
+  it("renders realistic deployment sites and direct hosted-session start links", () => {
     render(<SiteWorlds />);
 
     expect(
       screen.getByRole("heading", {
-        name: /Review the site asset, then the hosted eval layer\./i,
+        name: /Pick a site and start the hosted session setup\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /This page is for robot teams\. Start with the site asset package for one real site/i,
+        /Every card shows one potential deployment site, the site package behind it/i,
       ),
     ).toBeInTheDocument();
     expect(
@@ -21,19 +21,26 @@ describe("SiteWorlds", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText(/^Scene Package$/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/^Hosted Sessions$/i).length).toBeGreaterThan(0);
-    expect(
-      screen.getByRole("heading", {
-        name: /Twelve sites a robot team could review right now\./i,
-      }),
-    ).toBeInTheDocument();
     expect(screen.getByText(/Qualification is for site operators\./i)).toBeInTheDocument();
-    expect(screen.getByText(/Midwest Grocery Backroom/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Session live/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Harborview Grocery Distribution Annex/i)).toBeInTheDocument();
+    expect(screen.getByText(/1847 W Fulton St, Chicago, IL 60612/i)).toBeInTheDocument();
 
-    const sceneLinks = screen.getAllByRole("link", { name: /See package/i });
-    expect(sceneLinks[0]).toHaveAttribute("href", "/site-worlds/sw-chi-01#scene-package");
+    const sceneLinks = screen.getAllByRole("link", { name: /Request scene package/i });
+    const sceneUrl = new URL(sceneLinks[0].getAttribute("href")!, "https://example.com");
+    expect(sceneUrl.pathname).toBe("/contact");
+    expect(sceneUrl.searchParams.get("interest")).toBe("data-licensing");
+    expect(sceneUrl.searchParams.get("buyerType")).toBe("robot_team");
+    expect(sceneUrl.searchParams.get("siteName")).toBe("Harborview Grocery Distribution Annex");
 
-    const hostedLinks = screen.getAllByRole("link", { name: /See hosted eval flow/i });
-    expect(hostedLinks[0]).toHaveAttribute("href", "/site-worlds/sw-chi-01#hosted-sessions");
+    const hostedLinks = screen.getAllByRole("link", { name: /Start hosted session/i });
+    const hostedUrl = new URL(hostedLinks[0].getAttribute("href")!, "https://example.com");
+    expect(hostedUrl.pathname).toBe("/contact");
+    expect(hostedUrl.searchParams.get("interest")).toBe("evaluation-package");
+    expect(hostedUrl.searchParams.get("buyerType")).toBe("robot_team");
+    expect(hostedUrl.searchParams.get("source")).toBe("site-worlds");
+    expect(hostedUrl.searchParams.get("siteLocation")).toBe("1847 W Fulton St, Chicago, IL 60612");
+    expect(hostedUrl.searchParams.get("taskStatement")).toBe(
+      "Walk to shelf staging and pick the blue tote",
+    );
   });
 });

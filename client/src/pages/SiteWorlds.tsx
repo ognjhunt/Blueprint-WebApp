@@ -57,12 +57,12 @@ export default function SiteWorlds() {
                 Site Worlds For Robot Teams
               </p>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Review the site asset, then the hosted eval layer.
+                Pick a site and start the hosted session setup.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
-                This page is for robot teams. Start with the site asset package for one real site,
-                then decide whether you want Blueprint-managed hosted sessions built from that same
-                site for evaluation and checkpoint comparison.
+                This page is for robot teams. Every card shows one potential deployment site, the
+                site package behind it, and the direct path to start a hosted evaluation session
+                setup for that exact place.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -103,9 +103,8 @@ export default function SiteWorlds() {
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 Keep it simple. The Scene Package is the site asset. Hosted Sessions are the
-                managed eval layer built from that site. Hosted Sessions are useful for testing and
-                review, but they are not the raw scan, not a physics-certified sim, and not final
-                proof of deployment.
+                managed eval layer built from that site. Start the hosted session setup when your
+                team wants Blueprint to handle the environment and rollout outputs.
               </p>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -143,8 +142,9 @@ export default function SiteWorlds() {
                   Twelve sites a robot team could review right now.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Each listing shows the site asset package first and the hosted eval layer second.
-                  Open a detail page to see the simple step-by-step testing flow.
+                  Each listing shows the site asset package first and the direct hosted-session
+                  start path second. Open the detail page if you want the simple step-by-step
+                  explanation.
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
@@ -195,6 +195,7 @@ export default function SiteWorlds() {
                           {site.siteName}
                         </a>
                       </h3>
+                      <p className="mt-2 text-sm text-slate-500">{site.siteAddress}</p>
                       <p className="mt-2 text-sm text-slate-600">{site.taskLane}</p>
                       <p className="mt-1.5 text-sm text-slate-500">{site.bestFor}</p>
                     </div>
