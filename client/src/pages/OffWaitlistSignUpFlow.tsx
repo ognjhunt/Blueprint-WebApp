@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import DatePicker from "react-datepicker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import gridPatternUrl from "@/assets/grid-pattern.svg";
 import { loadStripe } from "@stripe/stripe-js";
 import { withCsrfHeader } from "@/lib/csrf";
 import {
@@ -1942,7 +1943,10 @@ type WaitlistValidationResponse = {
         <div className="absolute -top-32 -right-24 h-[45rem] w-[45rem] rounded-full blur-3xl opacity-40 bg-gradient-to-br from-emerald-500/20 via-cyan-500/20 to-sky-500/10" />
         <div className="absolute -bottom-32 -left-24 h-[40rem] w-[40rem] rounded-full blur-3xl opacity-30 bg-gradient-to-tr from-cyan-500/10 via-emerald-500/10 to-amber-400/10" />
       </div>
-      <div className="fixed inset-0 -z-10 opacity-[0.06] bg-[url('/images/grid-pattern.svg')] bg-repeat" />
+      <div
+        className="fixed inset-0 -z-10 bg-repeat opacity-[0.06]"
+        style={{ backgroundImage: `url(${gridPatternUrl})` }}
+      />
 
       {errorMessage && (
         <div className="fixed top-24 right-5 z-[9999] bg-rose-600 text-white px-4 py-3 rounded-xl shadow-2xl border border-white/10">

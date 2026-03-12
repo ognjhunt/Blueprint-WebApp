@@ -40,37 +40,44 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const sessionId = searchParams.get("sessionId")?.trim() || "";
   const previewPayload = useMemo<HostedSessionPreviewPayload | null>(() => {
     if (!searchParams.get("preview")) return null;
+    const previewSite = site || fallbackSite;
+    const previewRobotProfile =
+      parseJsonParam(
+        searchParams.get("robotProfile"),
+        previewSite?.robotProfiles[0] || previewSite?.sampleRobotProfile || null,
+      ) || null;
+    if (!previewRobotProfile) return null;
     return {
-      policyLabel: searchParams.get("policyLabel")?.trim() || fallbackSite?.samplePolicy || "",
-      robotProfile: parseJsonParam(searchParams.get("robotProfile"), fallbackSite?.sampleRobotProfile),
+      policyLabel: searchParams.get("policyLabel")?.trim() || previewSite?.samplePolicy || "",
+      robotProfile: previewRobotProfile,
       taskSelection: parseJsonParam(searchParams.get("taskSelection"), {
-        taskId: fallbackSite?.taskCatalog[0]?.id || "",
-        taskText: fallbackSite?.taskCatalog[0]?.taskText || fallbackSite?.sampleTask || "",
+        taskId: previewSite?.taskCatalog[0]?.id || "",
+        taskText: previewSite?.taskCatalog[0]?.taskText || previewSite?.sampleTask || "",
       }),
       runtimeConfig: parseJsonParam(searchParams.get("runtimeConfig"), {
-        scenarioId: fallbackSite?.scenarioCatalog[0]?.id || "",
-        startStateId: fallbackSite?.startStateCatalog[0]?.id || "",
+        scenarioId: previewSite?.scenarioCatalog[0]?.id || "",
+        startStateId: previewSite?.startStateCatalog[0]?.id || "",
         seed: null,
-        requestedBackend: fallbackSite?.defaultRuntimeBackend || "",
+        requestedBackend: previewSite?.defaultRuntimeBackend || "",
       }),
       requestedOutputs: parseJsonParam(
         searchParams.get("requestedOutputs"),
         REQUESTED_OUTPUT_DEFINITIONS.map((item) => item.id),
       ),
       siteModel: parseJsonParam(searchParams.get("siteModel"), {
-        siteWorldId: fallbackSite?.id || params.slug,
-        siteName: fallbackSite?.siteName || "",
-        siteAddress: fallbackSite?.siteAddress || "",
-        sceneId: fallbackSite?.sceneId || "",
-        captureId: fallbackSite?.captureId || "",
-        pipelinePrefix: fallbackSite?.pipelinePrefix || "",
-        availableScenarioVariants: fallbackSite?.scenarioVariants || [],
-        availableStartStates: fallbackSite?.startStates || [],
-        defaultRuntimeBackend: fallbackSite?.defaultRuntimeBackend || "",
-        availableRuntimeBackends: fallbackSite?.availableRuntimeBackends || [],
+        siteWorldId: previewSite?.id || params.slug,
+        siteName: previewSite?.siteName || "",
+        siteAddress: previewSite?.siteAddress || "",
+        sceneId: previewSite?.sceneId || "",
+        captureId: previewSite?.captureId || "",
+        pipelinePrefix: previewSite?.pipelinePrefix || "",
+        availableScenarioVariants: previewSite?.scenarioVariants || [],
+        availableStartStates: previewSite?.startStates || [],
+        defaultRuntimeBackend: previewSite?.defaultRuntimeBackend || "",
+        availableRuntimeBackends: previewSite?.availableRuntimeBackends || [],
       }),
     };
-  }, [fallbackSite, params.slug, searchParams]);
+  }, [fallbackSite, params.slug, searchParams, site]);
 
   const authorizedJsonFetch = async (url: string, options: RequestInit = {}) => {
     const token = auth?.currentUser ? await auth.currentUser.getIdToken() : "";

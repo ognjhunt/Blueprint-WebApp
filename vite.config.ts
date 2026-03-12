@@ -7,6 +7,13 @@ import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 const __dirname = import.meta.dirname;
 
+function packageNameFromId(id: string) {
+  const [, modulePath = ""] = id.split(/node_modules\//);
+  const [scopeOrName = "", maybeName = ""] = modulePath.split("/");
+  if (!scopeOrName) return null;
+  return scopeOrName.startsWith("@") ? `${scopeOrName}/${maybeName}` : scopeOrName;
+}
+
 export default defineConfig({
   plugins: [
     react(),
@@ -27,47 +34,60 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes("node_modules")) return;
-          if (
-            id.includes("three") ||
-            id.includes("three-stdlib")
-          ) {
+          const packageName = packageNameFromId(id);
+          if (!packageName) return;
+          if (packageName === "three" || packageName === "three-stdlib") {
             return "vendor-3d";
           }
-          if (id.includes("@googlemaps/js-api-loader")) {
+          if (packageName === "@googlemaps/js-api-loader") {
             return "vendor-google-maps";
           }
-          if (
-            id.includes("openai") ||
-            id.includes("@anthropic-ai") ||
-            id.includes("@google/generative-ai") ||
-            id.includes("@google-cloud/aiplatform") ||
-            id.includes("lumaai")
-          ) {
+          if (["openai", "@anthropic-ai/sdk", "@google/generative-ai", "@google-cloud/aiplatform", "lumaai"].includes(packageName)) {
             return "vendor-ai";
           }
-          if (id.includes("firebase") || id.includes("firebase-admin")) {
+          if (packageName === "firebase" || packageName === "firebase-admin") {
             return "vendor-firebase";
           }
-          if (id.includes("reactflow")) {
+          if (packageName === "reactflow") {
             return "vendor-flow";
           }
-          if (id.includes("@sentry")) {
+          if (packageName.startsWith("@sentry/")) {
             return "vendor-sentry";
           }
-          if (id.includes("framer-motion")) {
+          if (packageName === "framer-motion") {
             return "vendor-motion";
           }
-          if (id.includes("@radix-ui")) {
+          if (packageName.startsWith("@radix-ui/")) {
             return "vendor-radix";
           }
           if (
-            id.includes("@tanstack") ||
-            id.includes("react-dom") ||
-            id.includes("react/jsx-runtime")
+            packageName === "react" ||
+            packageName === "react-dom" ||
+            packageName === "scheduler" ||
+            packageName === "wouter" ||
+            packageName.startsWith("@tanstack/")
           ) {
             return "vendor-react";
           }
-          return "vendor";
+          if (
+            packageName === "react-datepicker" ||
+            packageName === "date-fns" ||
+            packageName === "react-transition-group"
+          ) {
+            return "vendor-react-datepicker";
+          }
+          if (
+            packageName === "recharts" ||
+            packageName === "react-smooth" ||
+            packageName === "lodash" ||
+            packageName === "victory-vendor" ||
+            packageName.startsWith("d3-")
+          ) {
+            return "vendor-recharts";
+          }
+          if (packageName === "lucide-react") {
+            return "vendor-icons";
+          }
         },
       },
     },

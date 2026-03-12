@@ -30,6 +30,7 @@ import {
   ArrowRight,
   Sparkles,
 } from "lucide-react";
+import gridPatternUrl from "@/assets/grid-pattern.svg";
 
 interface Flow {
   id: string;
@@ -144,7 +145,10 @@ export default function WorkflowHub() {
       <div className="relative overflow-hidden bg-gradient-to-r from-gray-900 via-indigo-950 to-gray-900">
         {/* Subtle animated gradient overlay */}
         <div className="absolute inset-0 opacity-20">
-          <div className="absolute inset-0 bg-[url('/images/grid-pattern.svg')] bg-repeat opacity-20"></div>
+          <div
+            className="absolute inset-0 bg-repeat opacity-20"
+            style={{ backgroundImage: `url(${gridPatternUrl})` }}
+          ></div>
           <motion.div
             className="absolute top-0 -right-[30%] w-[80%] h-[100%] rounded-full bg-gradient-to-r from-indigo-500/20 to-blue-500/20 blur-3xl"
             animate={{
