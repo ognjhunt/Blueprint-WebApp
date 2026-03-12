@@ -27,6 +27,37 @@ const LIVE_OPPORTUNITY_STATES = new Set<OpportunityState>([
 
 type ArtifactJson = Record<string, unknown> | null;
 
+function resolvePresentationWorldManifestUri(pipeline?: PipelineAttachment): string | null {
+  const explicit = String(pipeline?.artifacts.presentation_world_manifest_uri || "").trim();
+  if (explicit) {
+    return explicit;
+  }
+  const previewFallback = String(pipeline?.artifacts.preview_simulation_manifest_uri || "").trim();
+  return previewFallback || null;
+}
+
+function buildPresentationDemoReadiness(pipeline?: PipelineAttachment, launchable = false): SiteWorldCard["presentationDemoReadiness"] {
+  const blockers: string[] = [];
+  const presentationWorldManifestUri = resolvePresentationWorldManifestUri(pipeline);
+  if (!presentationWorldManifestUri) {
+    blockers.push("missing presentation package");
+  }
+  if (!String(pipeline?.artifacts.site_world_spec_uri || pipeline?.pipeline_prefix || "").trim()) {
+    blockers.push("missing runtime site-world spec");
+  }
+  if (!String(pipeline?.artifacts.site_world_registration_uri || pipeline?.pipeline_prefix || "").trim()) {
+    blockers.push("missing runtime registration");
+  }
+  if (!launchable) {
+    blockers.push("site not launchable yet");
+  }
+  return {
+    launchable: blockers.length === 0,
+    blockers,
+    presentationWorldManifestUri,
+  };
+}
+
 function deriveSampleRobotProfile(sampleRobot: string, runtime: string): SiteWorldCard["sampleRobotProfile"] {
   const normalized = `${sampleRobot} ${runtime}`.toLowerCase();
   const observationCameras: SiteWorldCard["sampleRobotProfile"]["observationCameras"] = [];
@@ -490,6 +521,11 @@ function buildStaticRecord(template: SiteWorldCard): SiteWorldCard {
     startStateCatalog: template.startStateCatalog || buildFallbackStartStateCatalog(template),
     robotProfiles: template.robotProfiles || [template.sampleRobotProfile],
     exportModes: template.exportModes || ["raw_bundle", "rlds_dataset"],
+    presentationDemoReadiness: template.presentationDemoReadiness || {
+      launchable: false,
+      blockers: ["missing presentation package", "site not launchable yet"],
+      presentationWorldManifestUri: null,
+    },
     dataSource: "static",
   };
 }
@@ -661,6 +697,10 @@ async function buildLiveRecord(
         launchable: Boolean(siteWorldHealth?.launchable ?? true),
       }
     : template?.runtimeManifest || buildFallbackRuntimeManifest(template || buildStaticRecord(siteWorldCards[0]));
+  const presentationDemoReadiness = buildPresentationDemoReadiness(
+    pipeline,
+    Boolean(siteWorldHealth?.launchable ?? runtimeManifest.launchable),
+  );
 
   return {
     ...(template || {
@@ -727,6 +767,7 @@ async function buildLiveRecord(
     robotProfiles,
     exportModes,
     packages,
+    presentationDemoReadiness,
     dataSource: "pipeline",
     deploymentReadiness: readiness,
   };

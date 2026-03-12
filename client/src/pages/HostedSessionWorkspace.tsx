@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useSearch } from "wouter";
-import { ArrowLeft, BarChart3, Camera, Clock3, Download, RotateCcw, Square } from "lucide-react";
+import {
+  ArrowLeft,
+  BarChart3,
+  Camera,
+  Clock3,
+  Download,
+  ExternalLink,
+  RotateCcw,
+  Square,
+  TriangleAlert,
+} from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import {
@@ -28,12 +38,54 @@ function formatElapsed(seconds: number) {
   return `${minutes}:${remainder}`;
 }
 
+function resolveWorkspaceStatus(record: HostedSessionRecord | null): "starting" | "live" | "stopped" | "error" {
+  if (!record) {
+    return "starting";
+  }
+  if (record.status === "failed" || record.presentationRuntime?.status === "failed") {
+    return "error";
+  }
+  if (record.status === "stopped" || record.presentationRuntime?.status === "stopped") {
+    return "stopped";
+  }
+  if (record.sessionMode === "presentation_demo") {
+    return record.presentationRuntime?.status === "live" ? "live" : "starting";
+  }
+  return record.status === "creating" ? "starting" : "live";
+}
+
+function MetadataLink({ href, label }: { href?: string | null; label: string }) {
+  if (!href) {
+    return (
+      <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-400">
+        {label}
+      </span>
+    );
+  }
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+    >
+      {label}
+      <ExternalLink className="ml-2 h-4 w-4" />
+    </a>
+  );
+}
+
 export default function HostedSessionWorkspace({ params }: HostedSessionWorkspaceProps) {
   const fallbackSite = getSiteWorldById(params.slug);
   const [site, setSite] = useState(fallbackSite);
   const [sessionRecord, setSessionRecord] = useState<HostedSessionRecord | null>(null);
-  const [sessionStatus, setSessionStatus] = useState<"starting" | "live" | "stopped">("starting");
+  const [sessionStatus, setSessionStatus] = useState<"starting" | "live" | "stopped" | "error">("starting");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [workspaceError, setWorkspaceError] = useState("");
+  const [uiBootstrapUrl, setUiBootstrapUrl] = useState("");
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [showIframeFallback, setShowIframeFallback] = useState(false);
   const search = useSearch();
   const [, setLocation] = useLocation();
   const searchParams = useMemo(() => new URLSearchParams(search), [search]);
@@ -113,36 +165,112 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   }, [params.slug]);
 
   useEffect(() => {
-    if (sessionId) {
-      authorizedJsonFetch(`/api/site-worlds/sessions/${sessionId}`)
-        .then(async (response) => {
-          if (!response.ok) return null;
-          return response.json();
-        })
-        .then((payload) => {
-          if (!payload) return;
-          const record = payload as HostedSessionRecord;
-          setSessionRecord(record);
-          const status = String(record.status || "starting").trim().toLowerCase();
-          setSessionStatus(status === "stopped" ? "stopped" : "live");
-        })
-        .catch(() => null);
+    if (!sessionId) {
+      if (previewPayload) {
+        setSessionStatus("live");
+      } else {
+        setSessionStatus("error");
+        setWorkspaceError("Hosted session ID is missing.");
+      }
       return;
     }
 
-    const timeoutId = window.setTimeout(() => {
-      setSessionStatus("live");
-    }, 600);
-    return () => window.clearTimeout(timeoutId);
-  }, [sessionId]);
+    let cancelled = false;
+    let timeoutId: number | null = null;
+
+    const poll = async () => {
+      try {
+        const response = await authorizedJsonFetch(`/api/site-worlds/sessions/${sessionId}`);
+        const payload = (await response.json().catch(() => null)) as HostedSessionRecord | { error?: string } | null;
+        if (!response.ok || !payload || !("sessionId" in payload)) {
+          throw new Error((payload && "error" in payload && payload.error) || "Unable to load hosted session");
+        }
+        if (cancelled) return;
+        setSessionRecord(payload);
+        setSessionStatus(resolveWorkspaceStatus(payload));
+        setWorkspaceError("");
+        const nextDelay =
+          resolveWorkspaceStatus(payload) === "starting"
+            ? 3000
+            : resolveWorkspaceStatus(payload) === "live"
+              ? 10000
+              : 0;
+        if (nextDelay > 0) {
+          timeoutId = window.setTimeout(poll, nextDelay);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setWorkspaceError(error instanceof Error ? error.message : "Unable to load hosted session");
+          setSessionStatus("error");
+        }
+      }
+    };
+
+    void poll();
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [previewPayload, sessionId]);
 
   useEffect(() => {
-    if (sessionStatus !== "live") return undefined;
-    const intervalId = window.setInterval(() => {
-      setElapsedSeconds((current) => current + 1);
-    }, 1000);
+    if (!sessionRecord?.startedAt || sessionStatus === "stopped" || sessionStatus === "error") {
+      return undefined;
+    }
+    const startedAtMs = new Date(String(sessionRecord.startedAt)).getTime();
+    const updateElapsed = () => {
+      if (Number.isFinite(startedAtMs)) {
+        setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000)));
+      }
+    };
+    updateElapsed();
+    const intervalId = window.setInterval(updateElapsed, 1000);
     return () => window.clearInterval(intervalId);
-  }, [sessionStatus]);
+  }, [sessionRecord?.startedAt, sessionStatus]);
+
+  useEffect(() => {
+    if (!sessionId || sessionRecord?.sessionMode !== "presentation_demo" || sessionStatus !== "live") {
+      return;
+    }
+    let cancelled = false;
+    setIframeLoaded(false);
+    setShowIframeFallback(false);
+    setUiBootstrapUrl("");
+
+    authorizedJsonFetch(`/api/site-worlds/sessions/${sessionId}/ui-access`)
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => null)) as { bootstrapUrl?: string; error?: string } | null;
+        if (!response.ok || !payload?.bootstrapUrl) {
+          throw new Error(payload?.error || "Unable to create embedded demo access");
+        }
+        if (!cancelled) {
+          setUiBootstrapUrl(payload.bootstrapUrl);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setShowIframeFallback(true);
+          setWorkspaceError(error instanceof Error ? error.message : "Unable to create embedded demo access");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, sessionRecord?.sessionMode, sessionStatus]);
+
+  useEffect(() => {
+    if (!uiBootstrapUrl || iframeLoaded || showIframeFallback) {
+      return undefined;
+    }
+    const timeoutId = window.setTimeout(() => {
+      setShowIframeFallback(true);
+    }, 8000);
+    return () => window.clearTimeout(timeoutId);
+  }, [iframeLoaded, showIframeFallback, uiBootstrapUrl]);
 
   if (!site) {
     return (
@@ -152,6 +280,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     );
   }
 
+  const sessionMode = sessionRecord?.sessionMode || "runtime_only";
   const taskSelection = sessionRecord?.taskSelection || previewPayload?.taskSelection || site.taskCatalog[0];
   const selectedTaskId = "id" in taskSelection ? taskSelection.id : taskSelection.taskId;
   const runtimeConfig = sessionRecord?.runtimeConfig || previewPayload?.runtimeConfig || {
@@ -245,7 +374,17 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       });
     }
     setSessionStatus("stopped");
-    setSessionRecord((current) => (current ? { ...current, status: "stopped" } : current));
+    setSessionRecord((current) =>
+      current
+        ? {
+            ...current,
+            status: "stopped",
+            presentationRuntime: current.presentationRuntime
+              ? { ...current.presentationRuntime, status: "stopped" }
+              : current.presentationRuntime,
+          }
+        : current,
+    );
   };
 
   const statusTone =
@@ -253,7 +392,9 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       ? "border-emerald-200 bg-emerald-50 text-emerald-700"
       : sessionStatus === "starting"
         ? "border-amber-200 bg-amber-50 text-amber-700"
-        : "border-slate-200 bg-slate-100 text-slate-600";
+        : sessionStatus === "error"
+          ? "border-rose-200 bg-rose-50 text-rose-700"
+          : "border-slate-200 bg-slate-100 text-slate-600";
 
   const generatedRows = [
     { label: "Task", value: taskSelection?.taskText || "Pending" },
@@ -274,6 +415,226 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     { label: "RLDS dataset", value: datasetRlds?.manifestUri || "Pending" },
     { label: "Requested outputs", value: requestedOutputs.map((item) => requestedOutputLabel(item)).join(", ") },
   ];
+
+  const presentationRuntime = sessionRecord?.presentationRuntime;
+  const canonicalPackageUri = sessionRecord?.siteModel?.sceneMemoryManifestUri || sessionRecord?.siteModel?.conditioningBundleUri || null;
+  const siteWorldHealthUri = sessionRecord?.siteModel?.siteWorldHealthUri || null;
+  const groundedGeometryUri = sessionRecord?.siteModel?.siteWorldSpecUri || null;
+  const openDemoUrl = uiBootstrapUrl || (presentationRuntime?.status === "live" ? `/api/site-worlds/sessions/${encodeURIComponent(sessionId)}/ui/` : "");
+
+  if (sessionMode === "presentation_demo") {
+    return (
+      <>
+        <SEO
+          title={`Hosted Session | ${site.siteName} | Blueprint`}
+          description={`Hosted session workspace for ${site.siteName}.`}
+          canonical={`/site-worlds/${site.id}/workspace`}
+        />
+
+        <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.06),_transparent_30%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)]">
+          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <a
+                  href={`/site-worlds/${site.id}/start`}
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 transition hover:text-slate-900"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to setup
+                </a>
+                <h1 className="mt-4 text-4xl font-bold tracking-tight text-slate-900">Hosted Session Workspace</h1>
+                <p className="mt-2 text-lg font-semibold text-slate-900">{site.siteName}</p>
+                <p className="mt-1 text-sm text-slate-500">{site.siteAddress}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className={`rounded-full border px-4 py-2 text-sm font-semibold ${statusTone}`}>
+                  Session status: {sessionStatus === "live" ? "Live" : sessionStatus === "starting" ? "Starting" : sessionStatus === "error" ? "Error" : "Stopped"}
+                </div>
+                <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+                  Provider: {presentationRuntime?.provider || "vast"}
+                </div>
+                <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+                  Backend: {sessionRecord?.runtime_backend_selected || site.defaultRuntimeBackend}
+                </div>
+                <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+                  Elapsed: {formatElapsed(elapsedSeconds)}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleStop}
+                  className="inline-flex items-center rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  <Square className="mr-2 h-4 w-4" />
+                  Stop session
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+              <section className="space-y-6">
+                <article className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Canonical grounded package</p>
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Scene ID</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">{site.sceneId}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Capture ID</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">{site.captureId}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Classification</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">{site.category}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Site-world status</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                        {site.deploymentReadiness?.qualification_state?.replaceAll("_", " ") || "qualified"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <MetadataLink href={canonicalPackageUri} label="View canonical package" />
+                    <MetadataLink href={siteWorldHealthUri} label="View site-world health" />
+                    <MetadataLink href={groundedGeometryUri} label="View grounded object geometry" />
+                  </div>
+                </article>
+
+                <article className="rounded-[28px] border border-amber-200 bg-amber-50 p-6 shadow-sm">
+                  <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-900">
+                    <TriangleAlert className="h-4 w-4" />
+                    Canonical vs Presentation
+                  </p>
+                  <div className="mt-4 space-y-3 text-sm text-amber-950">
+                    <p>This interactive demo is derived from the canonical grounded site package.</p>
+                    <p>Generated views or completions may not exactly match the original capture.</p>
+                    <p>Use canonical site-world artifacts for source-of-truth review.</p>
+                  </div>
+                </article>
+
+                <article className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Presentation demo</p>
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Runtime backend</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">{sessionRecord?.runtime_backend_selected || "neoverse"}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Session provider</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">{presentationRuntime?.provider || "vast"}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Session status</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">{presentationRuntime?.status || sessionRecord?.status || "creating"}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Instance</p>
+                      <p className="mt-1 break-all text-sm font-semibold text-slate-900">{presentationRuntime?.instanceId || "Pending"}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    {openDemoUrl ? (
+                      <a
+                        href={openDemoUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      >
+                        Open demo in new tab
+                        <ExternalLink className="ml-2 h-4 w-4" />
+                      </a>
+                    ) : null}
+                  </div>
+                </article>
+              </section>
+
+              <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Embedded NeoVerse UI</p>
+                    <h2 className="mt-2 text-2xl font-bold text-slate-900">Interactive demo</h2>
+                  </div>
+                </div>
+
+                {workspaceError ? (
+                  <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                    {workspaceError}
+                  </div>
+                ) : null}
+
+                {sessionStatus === "starting" ? (
+                  <div className="mt-5 flex min-h-[520px] items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+                    <div>
+                      <p className="text-lg font-semibold text-slate-900">NeoVerse is starting</p>
+                      <p className="mt-2 text-sm text-slate-600">
+                        Blueprint is provisioning the session shell and waiting for the embedded UI to become reachable.
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+
+                {sessionStatus === "error" ? (
+                  <div className="mt-5 flex min-h-[520px] items-center justify-center rounded-3xl border border-rose-200 bg-rose-50 p-8 text-center">
+                    <div>
+                      <p className="text-lg font-semibold text-rose-900">The presentation demo failed to start</p>
+                      <p className="mt-2 text-sm text-rose-700">
+                        {presentationRuntime?.errorMessage || "Blueprint could not bring the NeoVerse session online."}
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+
+                {sessionStatus === "stopped" ? (
+                  <div className="mt-5 flex min-h-[520px] items-center justify-center rounded-3xl border border-slate-200 bg-slate-50 p-8 text-center">
+                    <div>
+                      <p className="text-lg font-semibold text-slate-900">The session has ended</p>
+                      <p className="mt-2 text-sm text-slate-600">
+                        Start a new hosted session from the setup page if you need another interactive demo.
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+
+                {sessionStatus === "live" ? (
+                  <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50 p-3">
+                    {!showIframeFallback && uiBootstrapUrl ? (
+                      <iframe
+                        title="Embedded NeoVerse demo"
+                        src={uiBootstrapUrl}
+                        className="h-[720px] w-full rounded-2xl border border-slate-200 bg-white"
+                        onLoad={() => setIframeLoaded(true)}
+                      />
+                    ) : (
+                      <div className="flex h-[720px] items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
+                        <div>
+                          <p className="text-lg font-semibold text-slate-900">Embedded demo fallback</p>
+                          <p className="mt-2 text-sm text-slate-600">
+                            The iframe did not finish loading in time. Open the demo directly in a new tab instead.
+                          </p>
+                          {openDemoUrl ? (
+                            <a
+                              href={openDemoUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-4 inline-flex items-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                            >
+                              Open demo in new tab
+                              <ExternalLink className="ml-2 h-4 w-4" />
+                            </a>
+                          ) : null}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </section>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -300,7 +661,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <div className={`rounded-full border px-4 py-2 text-sm font-semibold ${statusTone}`}>
-                Session status: {sessionStatus === "live" ? "Live" : sessionStatus === "starting" ? "Starting" : "Stopped"}
+                Session status: {sessionStatus === "live" ? "Live" : sessionStatus === "starting" ? "Starting" : sessionStatus === "error" ? "Error" : "Stopped"}
               </div>
               <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
                 Backend: {sessionRecord?.runtime_backend_selected || site.defaultRuntimeBackend}
@@ -321,6 +682,12 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
               </button>
             </div>
           </div>
+
+          {workspaceError ? (
+            <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {workspaceError}
+            </div>
+          ) : null}
 
           <div className="mt-6 grid gap-4 lg:grid-cols-4">
             <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">

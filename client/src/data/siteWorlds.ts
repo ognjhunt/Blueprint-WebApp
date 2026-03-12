@@ -80,6 +80,11 @@ export type SiteWorldCard = {
   packages: [SiteWorldPackage, SiteWorldPackage];
   dataSource?: "static" | "pipeline";
   deploymentReadiness?: DeploymentReadinessSummary;
+  presentationDemoReadiness?: {
+    launchable: boolean;
+    blockers: string[];
+    presentationWorldManifestUri?: string | null;
+  };
 };
 
 type RawSiteWorldCard = Omit<

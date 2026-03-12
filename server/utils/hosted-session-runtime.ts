@@ -43,6 +43,9 @@ export interface HostedRuntimeResolution {
   websocketBaseUrl?: string | null;
   sceneMemoryManifestUri: string;
   conditioningBundleUri: string;
+  presentationWorldManifestUri?: string | null;
+  runtimeDemoManifestUri?: string | null;
+  presentationDemoBlockers: string[];
   priceLabel?: string | null;
 }
 
@@ -124,6 +127,16 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     artifacts.conditioning_bundle_uri,
     "scene_memory/conditioning_bundle.json",
   );
+  const presentationWorldManifestUri = String(
+    artifacts.presentation_world_manifest_uri || artifacts.preview_simulation_manifest_uri || "",
+  ).trim() || null;
+  const presentationDemoBlockers: string[] = [];
+  if (!presentationWorldManifestUri) {
+    presentationDemoBlockers.push("missing presentation package");
+  }
+  if (!(site.runtimeManifest?.launchable ?? true)) {
+    presentationDemoBlockers.push("site not launchable yet");
+  }
 
   if (!sceneMemoryManifestUri) {
     throw new HostedSessionRuntimeError(
@@ -188,6 +201,9 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     websocketBaseUrl: site.runtimeManifest?.websocketBaseUrl ?? null,
     sceneMemoryManifestUri,
     conditioningBundleUri,
+    presentationWorldManifestUri,
+    runtimeDemoManifestUri: presentationWorldManifestUri,
+    presentationDemoBlockers,
     priceLabel: site.packages[1]?.priceLabel ?? null,
   };
 }

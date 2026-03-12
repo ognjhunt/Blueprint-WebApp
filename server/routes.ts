@@ -22,7 +22,7 @@ import adminLeadsRouter from "./routes/admin-leads";
 import marketplaceRouter from "./routes/marketplace";
 import internalPipelineRouter from "./routes/internal-pipeline";
 import siteWorldsRouter from "./routes/site-worlds";
-import siteWorldSessionsRouter from "./routes/site-world-sessions";
+import siteWorldSessionsRouter, { publicSiteWorldSessionsRouter } from "./routes/site-world-sessions";
 import verifyFirebaseToken from "./middleware/verifyFirebaseToken";
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
 
@@ -36,6 +36,7 @@ export function registerRoutes(app: Express) {
   app.use("/api/site-content", siteContentRouter);
   app.use("/api/internal/pipeline", internalPipelineRouter);
   app.use("/api/site-worlds", siteWorldsRouter);
+  app.use("/api/site-worlds/sessions", publicSiteWorldSessionsRouter);
 
   // API routes for Express
   app.get("/api/csrf", csrfCookieHandler);

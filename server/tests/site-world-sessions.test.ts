@@ -21,6 +21,8 @@ const state = vi.hoisted(() => {
           "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/scene_memory/scene_memory_manifest.json",
         conditioning_bundle_uri:
           "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/scene_memory/conditioning_bundle.json",
+        preview_simulation_manifest_uri:
+          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/presentation/preview_simulation_manifest.json",
       },
     },
   };
@@ -71,6 +73,29 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
         };
       }
       if (name === "hostedSessions") {
+        const applyFilters = (entries: Array<[string, Record<string, unknown>]>, filters: Array<{ field: string; value: unknown }>) =>
+          entries.filter(([, payload]) =>
+            filters.every(({ field, value }) => {
+              const actual = field.split(".").reduce<unknown>((acc, part) => {
+                if (!acc || typeof acc !== "object") return undefined;
+                return (acc as Record<string, unknown>)[part];
+              }, payload);
+              return actual === value;
+            }),
+          );
+        const buildQuery = (filters: Array<{ field: string; value: unknown }>) => ({
+          where: (field: string, _operator: string, value: unknown) => buildQuery([...filters, { field, value }]),
+          limit: (count: number) => ({
+            get: async () => ({
+              docs: applyFilters(Array.from(state.hostedSessions.entries()), filters)
+                .slice(0, count)
+                .map(([id, payload]) => ({
+                  ref: { id },
+                  data: () => payload,
+                })),
+            }),
+          }),
+        });
         return {
           doc: (id: string) => ({
             set: async (payload: Record<string, unknown>) => {
@@ -87,6 +112,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
               data: () => state.hostedSessions.get(id),
             }),
           }),
+          where: (field: string, _operator: string, value: unknown) => buildQuery([{ field, value }]),
         };
       }
       throw new Error(`Unexpected collection: ${name}`);
@@ -200,10 +226,42 @@ vi.mock("../utils/hosted-session-orchestrator", () => ({
   sessionWorkDir: vi.fn((sessionId: string) => `/tmp/hosted/${sessionId}`),
 }));
 
+vi.mock("../utils/presentation-demo-runtime", () => ({
+  launchPresentationDemoRuntime: vi.fn(async ({ sessionId, proxyPath }: { sessionId: string; proxyPath: string }) => ({
+    provider: "vast",
+    status: "live",
+    uiBaseUrl: process.env.TEST_PRESENTATION_UI_BASE_URL || "https://neoverse.example/demo",
+    proxyPath,
+    instanceId: `vast-${sessionId}`,
+    startedAt: "2026-03-12T00:00:00Z",
+    expiresAt: "2026-03-12T02:00:00Z",
+    errorCode: null,
+    errorMessage: null,
+  })),
+  stopPresentationDemoRuntime: vi.fn(async ({ sessionId }: { sessionId: string }) => ({
+    provider: "vast",
+    status: "stopped",
+    instanceId: `vast-${sessionId}`,
+  })),
+  PresentationDemoRuntimeError: class PresentationDemoRuntimeError extends Error {
+    code: string;
+
+    constructor(code: string, message: string) {
+      super(message);
+      this.code = code;
+    }
+  },
+}));
+
 async function startServer(): Promise<{ server: Server; baseUrl: string }> {
-  const { default: router } = await import("../routes/site-world-sessions");
+  const { default: router, publicSiteWorldSessionsRouter } = await import("../routes/site-world-sessions");
   const app = express();
   app.use(express.json());
+  app.get(["/upstream-demo", "/upstream-demo/"], (_req, res) => {
+    res.setHeader("Content-Type", "text/html");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.send("<html>proxied demo</html>");
+  });
   app.use((_, res, next) => {
     res.locals.firebaseUser = {
       uid: "user-1",
@@ -212,6 +270,7 @@ async function startServer(): Promise<{ server: Server; baseUrl: string }> {
     };
     next();
   });
+  app.use("/", publicSiteWorldSessionsRouter);
   app.use("/", router);
   const server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, () => resolve()));
@@ -237,8 +296,10 @@ async function stopServer(server: Server) {
   });
 }
 
-afterEach(() => {
+afterEach(async () => {
   state.hostedSessions.clear();
+  const { resetHostedSessionRouteState } = await import("../routes/site-world-sessions");
+  resetHostedSessionRouteState();
 });
 
 describe("site world session routes", () => {
@@ -321,6 +382,158 @@ describe("site world session routes", () => {
       const stepPayload = (await step.json()) as Record<string, unknown>;
       expect((stepPayload.episode as Record<string, unknown>).stepIndex).toBe(1);
     } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("creates and reuses a presentation demo session", async () => {
+    const { server, baseUrl } = await startServer();
+    try {
+      const requestBody = {
+        siteWorldId: "sw-chi-01",
+        sessionMode: "presentation_demo",
+        runtimeUi: "neoverse_gradio",
+        robotProfileId: "other_sample",
+        taskId: "sw-chi-01-task-1",
+        scenarioId: "sw-chi-01-scenario-1",
+        startStateId: "sw-chi-01-start-1",
+      };
+      const create = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+      const createPayload = (await create.json()) as Record<string, unknown>;
+      expect(create.status).toBe(201);
+      expect(createPayload.status).toBe("creating");
+      expect(createPayload.uiReady).toBe(false);
+      expect(createPayload.uiMode).toBe("embedded");
+
+      const reuse = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+      const reusePayload = (await reuse.json()) as Record<string, unknown>;
+      expect([200, 201]).toContain(reuse.status);
+      expect(String(reusePayload.workspaceUrl || "")).toContain("/site-worlds/sw-chi-01/workspace?sessionId=");
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("blocks runtime-only controls on presentation demo sessions and stops them", async () => {
+    const { server, baseUrl } = await startServer();
+    try {
+      const create = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteWorldId: "sw-chi-01",
+          sessionMode: "presentation_demo",
+          runtimeUi: "neoverse_gradio",
+          robotProfileId: "other_sample",
+          taskId: "sw-chi-01-task-1",
+          scenarioId: "sw-chi-01-scenario-1",
+          startStateId: "sw-chi-01-start-1",
+        }),
+      });
+      const createPayload = (await create.json()) as { sessionId: string };
+      expect(create.status).toBe(201);
+
+      const reset = await fetch(`${baseUrl}/${createPayload.sessionId}/reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const resetPayload = (await reset.json()) as Record<string, unknown>;
+      expect(reset.status).toBe(409);
+      expect(resetPayload.code).toBe("session_mode_unsupported");
+
+      const stop = await fetch(`${baseUrl}/${createPayload.sessionId}/stop`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const stopPayload = (await stop.json()) as Record<string, unknown>;
+      expect(stop.status).toBe(200);
+      expect(stopPayload.status).toBe("stopped");
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("reports launch readiness blockers when the presentation package is missing", async () => {
+    const originalArtifacts = state.inboundRequestData.pipeline.artifacts;
+    state.inboundRequestData.pipeline.artifacts = {
+      ...originalArtifacts,
+      preview_simulation_manifest_uri: null,
+      presentation_world_manifest_uri: null,
+    };
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/launch-readiness?siteWorldId=sw-chi-01`);
+      const payload = (await response.json()) as Record<string, unknown>;
+      expect(response.status).toBe(200);
+      expect(payload.launchable).toBe(false);
+      expect(payload.blockers).toContain("missing presentation package");
+    } finally {
+      state.inboundRequestData.pipeline.artifacts = originalArtifacts;
+      await stopServer(server);
+    }
+  });
+
+  it("bootstraps UI access and proxies the embedded UI without frame headers", async () => {
+    const { server, baseUrl } = await startServer();
+    const originalBaseUrl = process.env.TEST_PRESENTATION_UI_BASE_URL;
+    process.env.TEST_PRESENTATION_UI_BASE_URL = `${baseUrl}/upstream-demo`;
+    try {
+      const create = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteWorldId: "sw-chi-01",
+          sessionMode: "presentation_demo",
+          runtimeUi: "neoverse_gradio",
+          robotProfileId: "other_sample",
+          taskId: "sw-chi-01-task-1",
+          scenarioId: "sw-chi-01-scenario-1",
+          startStateId: "sw-chi-01-start-1",
+        }),
+      });
+      const createPayload = (await create.json()) as { sessionId: string };
+      expect(create.status).toBe(201);
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const uiAccess = await fetch(`${baseUrl}/${createPayload.sessionId}/ui-access`);
+      const uiAccessPayload = (await uiAccess.json()) as { bootstrapUrl: string };
+      expect(uiAccess.status).toBe(200);
+
+      const invalidBootstrap = await fetch(
+        `${baseUrl}/${createPayload.sessionId}/ui/bootstrap?token=bad-token`,
+        { redirect: "manual" },
+      );
+      expect(invalidBootstrap.status).toBe(401);
+
+      const bootstrapPath = uiAccessPayload.bootstrapUrl.replace("/api/site-worlds/sessions", "");
+      const bootstrap = await fetch(`${baseUrl}${bootstrapPath}`, { redirect: "manual" });
+      expect(bootstrap.status).toBe(302);
+      const cookie = bootstrap.headers.get("set-cookie");
+      expect(cookie).toContain("bp_hosted_session_ui=");
+
+      const proxied = await fetch(`${baseUrl}/${createPayload.sessionId}/ui`, {
+        headers: { Cookie: String(cookie) },
+      });
+      expect(proxied.status).toBe(200);
+      expect(proxied.headers.get("x-frame-options")).toBeNull();
+      expect(await proxied.text()).toContain("proxied demo");
+    } finally {
+      if (originalBaseUrl == null) {
+        delete process.env.TEST_PRESENTATION_UI_BASE_URL;
+      } else {
+        process.env.TEST_PRESENTATION_UI_BASE_URL = originalBaseUrl;
+      }
       await stopServer(server);
     }
   });

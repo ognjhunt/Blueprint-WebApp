@@ -6,6 +6,10 @@ export type EmbodimentType =
   | "cart"
   | "other";
 
+export type HostedSessionMode = "presentation_demo" | "runtime_only";
+
+export type HostedSessionRuntimeUi = "neoverse_gradio" | null;
+
 export interface RobotObservationCamera {
   id: string;
   role: string;
@@ -105,10 +109,24 @@ export interface SiteModelSummary {
   websocketBaseUrl?: string | null;
   sceneMemoryManifestUri?: string | null;
   conditioningBundleUri?: string | null;
+  presentationWorldManifestUri?: string | null;
+  runtimeDemoManifestUri?: string | null;
   availableScenarioVariants: string[];
   availableStartStates: string[];
   defaultRuntimeBackend?: string | null;
   availableRuntimeBackends?: string[];
+}
+
+export interface PresentationRuntimeState {
+  provider: "vast";
+  status: "provisioning" | "starting" | "live" | "stopped" | "failed";
+  uiBaseUrl?: string | null;
+  proxyPath?: string | null;
+  instanceId?: string | null;
+  startedAt?: string | null;
+  expiresAt?: string | null;
+  errorCode?: string | null;
+  errorMessage?: string | null;
 }
 
 export interface GeneratedOutputStatus {
@@ -168,6 +186,8 @@ export interface HostedBatchSummary {
 
 export interface HostedSessionRecord {
   sessionId: string;
+  sessionMode: HostedSessionMode;
+  runtimeUi?: HostedSessionRuntimeUi;
   runtime_backend_selected: string;
   status: "creating" | "ready" | "running" | "stopped" | "failed";
   site: {
@@ -191,6 +211,9 @@ export interface HostedSessionRecord {
   task?: string;
   scenario?: string;
   notes?: string | null;
+  createdAt?: string | null;
+  startedAt?: string | null;
+  stoppedAt?: string | null;
   elapsedSeconds: number;
   latestEpisode?: HostedEpisodeSummary | null;
   batchSummary?: HostedBatchSummary | null;
@@ -205,6 +228,7 @@ export interface HostedSessionRecord {
     health_status?: string | null;
     last_heartbeat_at?: string | null;
   } | null;
+  presentationRuntime?: PresentationRuntimeState | null;
   metering: {
     sessionSeconds: number;
     billableHours: number;
@@ -223,6 +247,9 @@ export interface HostedSessionRecord {
 
 export interface CreateHostedSessionRequest {
   siteWorldId: string;
+  sessionMode?: HostedSessionMode;
+  runtimeUi?: HostedSessionRuntimeUi;
+  autoStartDemo?: boolean;
   robotProfileId: string;
   robotProfileOverride?: Partial<RobotProfile>;
   policy?: Record<string, unknown>;

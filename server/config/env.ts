@@ -19,6 +19,12 @@ const envSchema = z
     ALLOWED_ORIGINS: z.string().trim().optional(),
     API_BODY_LIMIT: z.string().trim().optional(),
     PIPELINE_SYNC_TOKEN: z.string().trim().min(1).optional(),
+    BLUEPRINT_SESSION_UI_TOKEN_SECRET: z.string().trim().optional(),
+    BLUEPRINT_PRESENTATION_DEMO_UI_BASE_URL: z.string().trim().url().optional(),
+    BLUEPRINT_PRESENTATION_DEMO_UI_BASE_URL_TEMPLATE: z.string().trim().optional(),
+    BLUEPRINT_PRESENTATION_DEMO_STOP_URL_TEMPLATE: z.string().trim().optional(),
+    BLUEPRINT_PRESENTATION_DEMO_TTL_SECONDS: z.coerce.number().int().positive().optional(),
+    BLUEPRINT_PRESENTATION_DEMO_STARTUP_DELAY_MS: z.coerce.number().int().nonnegative().optional(),
   })
   .passthrough();
 

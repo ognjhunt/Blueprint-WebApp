@@ -6,7 +6,6 @@ import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import {
   DEFAULT_RUNTIME_BACKEND,
   REQUESTED_OUTPUT_DEFINITIONS,
-  serializeJsonParam,
 } from "@/lib/hostedSession";
 import { getSiteWorldById } from "@/data/siteWorlds";
 import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
@@ -32,6 +31,13 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [launchReadiness, setLaunchReadiness] = useState<{
+    launchable: boolean;
+    entitled: boolean;
+    blockers: string[];
+    presentationWorldManifestUri?: string | null;
+  } | null>(null);
+  const [checkingReadiness, setCheckingReadiness] = useState(false);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -59,6 +65,60 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
     setScenarioId(site.scenarioCatalog[0]?.id || "");
     setStartStateId(site.startStateCatalog[0]?.id || "");
     setRequestedOutputs(REQUESTED_OUTPUT_DEFINITIONS.map((item) => item.id));
+  }, [site]);
+
+  useEffect(() => {
+    if (!site) return;
+    let cancelled = false;
+    setCheckingReadiness(true);
+
+    (async () => {
+      try {
+        const token = auth?.currentUser ? await auth.currentUser.getIdToken() : "";
+        if (!token) {
+          throw new Error("Missing authenticated user");
+        }
+        const response = await fetch(
+          `/api/site-worlds/sessions/launch-readiness?siteWorldId=${encodeURIComponent(site.id)}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        const payload = (await response.json()) as {
+          launchable?: boolean;
+          entitled?: boolean;
+          blockers?: string[];
+          error?: string;
+          presentationWorldManifestUri?: string | null;
+        };
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to verify launch readiness");
+        }
+        if (!cancelled) {
+          setLaunchReadiness({
+            launchable: Boolean(payload.launchable),
+            entitled: Boolean(payload.entitled),
+            blockers: Array.isArray(payload.blockers) ? payload.blockers : [],
+            presentationWorldManifestUri: payload.presentationWorldManifestUri || null,
+          });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setLaunchReadiness({
+            launchable: false,
+            entitled: false,
+            blockers: [error instanceof Error ? error.message : "Unable to verify launch readiness"],
+            presentationWorldManifestUri: null,
+          });
+        }
+      } finally {
+        if (!cancelled) {
+          setCheckingReadiness(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [site]);
 
   const selectedRobotProfile = useMemo(
@@ -95,6 +155,9 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
 
     const requestPayload: CreateHostedSessionRequest = {
       siteWorldId: site.id,
+      sessionMode: "presentation_demo",
+      runtimeUi: "neoverse_gradio",
+      autoStartDemo: true,
       robotProfileId,
       taskId,
       scenarioId,
@@ -103,35 +166,6 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
       exportModes: ["raw_bundle", "rlds_dataset"],
       notes,
     };
-
-    const previewQuery = new URLSearchParams({
-      preview: "1",
-      policyLabel: site.samplePolicy,
-      robotProfile: serializeJsonParam(selectedRobotProfile),
-      taskSelection: serializeJsonParam({
-        taskId: selectedTask?.id || taskId,
-        taskText: selectedTask?.taskText || "",
-      }),
-      runtimeConfig: serializeJsonParam({
-        scenarioId: selectedScenario?.id || scenarioId,
-        startStateId: selectedStartState?.id || startStateId,
-        seed: null,
-        requestedBackend: site.defaultRuntimeBackend || DEFAULT_RUNTIME_BACKEND,
-      }),
-      requestedOutputs: serializeJsonParam(requestedOutputs),
-      siteModel: serializeJsonParam({
-        siteWorldId: site.id,
-        siteName: site.siteName,
-        siteAddress: site.siteAddress,
-        sceneId: site.sceneId,
-        captureId: site.captureId,
-        pipelinePrefix: site.pipelinePrefix,
-        availableScenarioVariants: site.scenarioVariants,
-        availableStartStates: site.startStates,
-        defaultRuntimeBackend: site.defaultRuntimeBackend,
-        availableRuntimeBackends: site.availableRuntimeBackends,
-      }),
-    });
 
     try {
       const token = auth?.currentUser ? await auth.currentUser.getIdToken() : "";
@@ -152,16 +186,16 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
     } catch (error) {
       setErrorMessage(
         error instanceof Error
-          ? `${error.message}. Falling back to local workspace preview.`
-          : "Falling back to local workspace preview.",
+          ? error.message
+          : "Unable to launch hosted session.",
       );
-      setLocation(`/site-worlds/${site.id}/workspace?${previewQuery.toString()}`);
     } finally {
       setSubmitting(false);
     }
   };
 
   const cameraSummary = selectedRobotProfile.observationCameras.map((item) => item.role).join(", ");
+  const launchBlocked = checkingReadiness || !launchReadiness?.launchable;
 
   return (
     <>
@@ -214,6 +248,29 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                   ))}
                 </ul>
               </div>
+
+              <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950">
+                <p className="font-semibold">Presentation demo readiness</p>
+                <p className="mt-2">
+                  {checkingReadiness
+                    ? "Checking whether this site can launch an embedded NeoVerse demo."
+                    : launchReadiness?.launchable
+                      ? "This site is ready for an embedded NeoVerse demo session."
+                      : "This site cannot launch the embedded NeoVerse demo yet."}
+                </p>
+                {launchReadiness?.presentationWorldManifestUri ? (
+                  <p className="mt-2 break-all text-xs text-amber-900">
+                    Presentation package: {launchReadiness.presentationWorldManifestUri}
+                  </p>
+                ) : null}
+                {launchReadiness?.blockers?.length ? (
+                  <ul className="mt-3 space-y-2 text-xs text-amber-900">
+                    {launchReadiness.blockers.map((blocker) => (
+                      <li key={blocker}>• {blocker}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
             </section>
 
             <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
@@ -237,7 +294,8 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                       <p className="mt-1 text-sm text-slate-900">
                         Backend: {site.runtimeManifest?.defaultBackend || site.defaultRuntimeBackend} ·
                         Cameras: {site.runtimeManifest?.supportsCameraViews ? " yes" : " no"} ·
-                        Batch: {site.runtimeManifest?.supportsBatchRollout ? " yes" : " no"}
+                        Batch: {site.runtimeManifest?.supportsBatchRollout ? " yes" : " no"} ·
+                        Demo UI: {launchReadiness?.launchable ? " ready" : " blocked"}
                       </p>
                     </div>
                   </div>
@@ -378,10 +436,10 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
 
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || launchBlocked}
                   className="inline-flex items-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Launch session
+                  {submitting ? "Launching session..." : launchBlocked ? "Hosted demo not ready" : "Launch session"}
                 </button>
               </form>
             </section>

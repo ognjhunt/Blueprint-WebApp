@@ -5,6 +5,7 @@ import { createServer } from "http";
 import rateLimit from "express-rate-limit";
 
 import { registerRoutes } from "./routes";
+import { handleHostedSessionUiUpgrade } from "./routes/site-world-sessions";
 import { setupVite, serveStatic } from "./vite";
 import { attachRequestMeta, logger, generateTraceId, logSecurityEvent } from "./logger";
 import { incrementRequestCount, incrementErrorCount } from "./routes/health";
@@ -230,6 +231,13 @@ app.use((req, res, next) => {
 (async () => {
   registerRoutes(app);
   const server = createServer(app);
+  server.on("upgrade", (req, socket, head) => {
+    if ((req.url || "").startsWith("/api/site-worlds/sessions/")) {
+      void handleHostedSessionUiUpgrade(req, socket, head);
+      return;
+    }
+    socket.destroy();
+  });
 
   app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
