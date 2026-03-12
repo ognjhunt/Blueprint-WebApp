@@ -48,6 +48,26 @@ async function readJsonFromUri(uri?: string | null): Promise<Record<string, unkn
   }
 }
 
+export async function resolvePresentationDemoLaunchConfig(params: {
+  sessionId: string;
+  runtime: HostedRuntimeResolution;
+}) {
+  const manifest = await readJsonFromUri(
+    params.runtime.runtimeDemoManifestUri || params.runtime.presentationWorldManifestUri,
+  );
+  const uiBaseUrl = resolveUiBaseUrl(params.sessionId, params.runtime, manifest);
+  const instanceId =
+    String(manifest.instance_id || manifest.instanceId || "").trim() ||
+    `vast-${params.runtime.siteWorldId}-${params.sessionId.slice(0, 8)}`;
+
+  return {
+    manifest,
+    uiBaseUrl,
+    instanceId,
+    expiresAt: resolveExpiresAt(manifest),
+  };
+}
+
 function resolveUiBaseUrl(sessionId: string, runtime: HostedRuntimeResolution, manifest: Record<string, unknown>) {
   const templateValues = {
     sessionId,
@@ -86,8 +106,10 @@ export async function launchPresentationDemoRuntime(params: {
   runtime: HostedRuntimeResolution;
   proxyPath: string;
 }) {
-  const manifest = await readJsonFromUri(params.runtime.runtimeDemoManifestUri || params.runtime.presentationWorldManifestUri);
-  const uiBaseUrl = resolveUiBaseUrl(params.sessionId, params.runtime, manifest);
+  const { uiBaseUrl, instanceId, expiresAt } = await resolvePresentationDemoLaunchConfig({
+    sessionId: params.sessionId,
+    runtime: params.runtime,
+  });
   if (!uiBaseUrl) {
     throw new PresentationDemoRuntimeError(
       "presentation_ui_unconfigured",
@@ -101,9 +123,6 @@ export async function launchPresentationDemoRuntime(params: {
   }
 
   const startedAt = new Date().toISOString();
-  const instanceId =
-    String(manifest.instance_id || manifest.instanceId || "").trim() ||
-    `vast-${params.runtime.siteWorldId}-${params.sessionId.slice(0, 8)}`;
 
   const state: PresentationRuntimeState = {
     provider: "vast",
@@ -112,7 +131,7 @@ export async function launchPresentationDemoRuntime(params: {
     proxyPath: params.proxyPath,
     instanceId,
     startedAt,
-    expiresAt: resolveExpiresAt(manifest),
+    expiresAt,
     errorCode: null,
     errorMessage: null,
   };

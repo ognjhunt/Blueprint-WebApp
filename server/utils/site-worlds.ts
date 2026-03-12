@@ -526,6 +526,11 @@ function buildStaticRecord(template: SiteWorldCard): SiteWorldCard {
       blockers: ["missing presentation package", "site not launchable yet"],
       presentationWorldManifestUri: null,
     },
+    sceneMemoryManifestUri: null,
+    conditioningBundleUri: null,
+    siteWorldSpecUri: null,
+    siteWorldRegistrationUri: null,
+    siteWorldHealthUri: null,
     dataSource: "static",
   };
 }
@@ -701,6 +706,31 @@ async function buildLiveRecord(
     pipeline,
     Boolean(siteWorldHealth?.launchable ?? runtimeManifest.launchable),
   );
+  const sceneMemoryManifestUri = pipelineArtifactUri(
+    pipeline,
+    pipeline?.artifacts.scene_memory_manifest_uri,
+    "scene_memory/scene_memory_manifest.json",
+  );
+  const conditioningBundleUri = pipelineArtifactUri(
+    pipeline,
+    pipeline?.artifacts.conditioning_bundle_uri,
+    "scene_memory/conditioning_bundle.json",
+  );
+  const siteWorldSpecUri = pipelineArtifactUri(
+    pipeline,
+    pipeline?.artifacts.site_world_spec_uri,
+    "evaluation_prep/site_world_spec.json",
+  );
+  const siteWorldRegistrationUri = pipelineArtifactUri(
+    pipeline,
+    pipeline?.artifacts.site_world_registration_uri,
+    "evaluation_prep/site_world_registration.json",
+  );
+  const siteWorldHealthUri = pipelineArtifactUri(
+    pipeline,
+    pipeline?.artifacts.site_world_health_uri,
+    "evaluation_prep/site_world_health.json",
+  );
 
   return {
     ...(template || {
@@ -768,6 +798,11 @@ async function buildLiveRecord(
     exportModes,
     packages,
     presentationDemoReadiness,
+    sceneMemoryManifestUri,
+    conditioningBundleUri,
+    siteWorldSpecUri,
+    siteWorldRegistrationUri,
+    siteWorldHealthUri,
     dataSource: "pipeline",
     deploymentReadiness: readiness,
   };

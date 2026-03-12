@@ -268,6 +268,11 @@ export interface PublicSiteWorldRecord {
     blockers: string[];
     presentationWorldManifestUri?: string | null;
   };
+  sceneMemoryManifestUri?: string | null;
+  conditioningBundleUri?: string | null;
+  siteWorldSpecUri?: string | null;
+  siteWorldRegistrationUri?: string | null;
+  siteWorldHealthUri?: string | null;
 }
 
 export interface SceneDashboardTask {

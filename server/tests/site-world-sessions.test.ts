@@ -7,10 +7,125 @@ import type { Server } from "node:http";
 const state = vi.hoisted(() => {
   const hostedSessions = new Map<string, Record<string, unknown>>();
   const userData = { buyerType: "robot_team" };
+  const artifactPayloads = new Map<string, Record<string, unknown>>([
+    [
+      "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_spec.json",
+      {
+        task_catalog: [
+          {
+            id: "sw-chi-01-task-1",
+            task_id: "sw-chi-01-task-1",
+            task_text: "Walk to shelf staging and pick the blue tote",
+            task_category: "pick",
+          },
+        ],
+        start_state_catalog: [
+          {
+            id: "sw-chi-01-start-1",
+            name: "Dock-side tote stack",
+            task_id: "sw-chi-01-task-1",
+          },
+        ],
+        robot_profiles: [
+          {
+            id: "other_sample",
+            display_name: "Unitree G1 with head cam and wrist cam",
+            embodiment_type: "humanoid",
+            observation_cameras: [
+              { id: "head_rgb", role: "head", required: true, default_enabled: true },
+              { id: "wrist_rgb", role: "wrist", required: false, default_enabled: true },
+            ],
+          },
+        ],
+      },
+    ],
+    [
+      "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_registration.json",
+      {
+        site_world_id: "siteworld-1",
+        runtime_base_url: "http://runtime.local",
+        websocket_base_url: "ws://runtime.local",
+        scenario_catalog: [{ id: "sw-chi-01-scenario-1", name: "Normal lighting" }],
+        robot_profiles: [
+          {
+            id: "other_sample",
+            display_name: "Unitree G1 with head cam and wrist cam",
+            embodiment_type: "humanoid",
+            observation_cameras: [
+              { id: "head_rgb", role: "head", required: true, default_enabled: true },
+              { id: "wrist_rgb", role: "wrist", required: false, default_enabled: true },
+            ],
+          },
+        ],
+        runtime_capabilities: {
+          supports_step_rollout: true,
+          supports_batch_rollout: true,
+          supports_camera_views: true,
+          supports_stream: true,
+        },
+      },
+    ],
+    [
+      "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_health.json",
+      {
+        status: "healthy",
+        launchable: true,
+        blockers: [],
+      },
+    ],
+    [
+      "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/readiness_decision.json",
+      {
+        blockers: [],
+        blocker_categories: [],
+      },
+    ],
+    [
+      "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/human_actions_required.json",
+      {
+        required_actions: [],
+      },
+    ],
+    [
+      "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/presentation/preview_simulation_manifest.json",
+      {
+        ui_base_url: "https://neoverse.example/demo",
+      },
+    ],
+    [
+      "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/scene_memory/scene_memory_manifest.json",
+      {
+        scene_id: "scene-harborview-grocery-annex",
+      },
+    ],
+    [
+      "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/scene_memory/conditioning_bundle.json",
+      {
+        bundle: "conditioning",
+      },
+    ],
+  ]);
+  let lastCreateHostedSessionRunParams: Record<string, unknown> | null = null;
+  let presentationLaunchConfig = {
+    manifest: {},
+    uiBaseUrl: "https://neoverse.example/demo",
+    instanceId: "vast-config",
+    expiresAt: "2026-03-12T02:00:00Z",
+  };
   const inboundRequestData = {
+    qualification_state: "qualified_ready",
+    deployment_readiness: {
+      qualification_state: "qualified_ready",
+      missing_evidence: [],
+      recapture_required: false,
+    },
     pipeline: {
       pipeline_prefix: "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline",
       artifacts: {
+        readiness_decision_uri:
+          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/readiness_decision.json",
+        human_actions_required_uri:
+          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/human_actions_required.json",
         site_world_spec_uri:
           "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_spec.json",
         site_world_registration_uri:
@@ -26,7 +141,14 @@ const state = vi.hoisted(() => {
       },
     },
   };
-  return { hostedSessions, userData, inboundRequestData };
+  return {
+    hostedSessions,
+    userData,
+    inboundRequestData,
+    artifactPayloads,
+    lastCreateHostedSessionRunParams,
+    presentationLaunchConfig,
+  };
 });
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
@@ -118,20 +240,35 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
       throw new Error(`Unexpected collection: ${name}`);
     },
   },
-  storageAdmin: null,
+  storageAdmin: {
+    bucket: () => ({
+      file: (objectPath: string) => ({
+        download: async () => {
+          const payload = state.artifactPayloads.get(objectPath);
+          if (!payload) {
+            throw new Error(`Missing artifact: ${objectPath}`);
+          }
+          return [Buffer.from(JSON.stringify(payload), "utf-8")];
+        },
+      }),
+    }),
+  },
   authAdmin: null,
 }));
 
 vi.mock("../utils/hosted-session-orchestrator", () => ({
-  createHostedSessionRun: vi.fn(async ({ sessionId }: { sessionId: string }) => ({
+  createHostedSessionRun: vi.fn(async (params: { sessionId: string }) => {
+    state.lastCreateHostedSessionRunParams = params as unknown as Record<string, unknown>;
+    return {
     payload: {
       runtime_backend_selected: "neoverse",
       artifact_uris: {
-        session_state: `/tmp/hosted/${sessionId}/session_state.json`,
+        session_state: `/tmp/hosted/${params.sessionId}/session_state.json`,
       },
       dataset_artifacts: {},
     },
-  })),
+  };
+  }),
   loadHostedSessionRuntimeMetadata: vi.fn(async () => ({
     site_world_id: "siteworld-1",
     build_id: "build-1",
@@ -227,6 +364,7 @@ vi.mock("../utils/hosted-session-orchestrator", () => ({
 }));
 
 vi.mock("../utils/presentation-demo-runtime", () => ({
+  resolvePresentationDemoLaunchConfig: vi.fn(async () => state.presentationLaunchConfig),
   launchPresentationDemoRuntime: vi.fn(async ({ sessionId, proxyPath }: { sessionId: string; proxyPath: string }) => ({
     provider: "vast",
     status: "live",
@@ -298,6 +436,66 @@ async function stopServer(server: Server) {
 
 afterEach(async () => {
   state.hostedSessions.clear();
+  state.lastCreateHostedSessionRunParams = null;
+  state.presentationLaunchConfig = {
+    manifest: {},
+    uiBaseUrl: "https://neoverse.example/demo",
+    instanceId: "vast-config",
+    expiresAt: "2026-03-12T02:00:00Z",
+  };
+  state.inboundRequestData.qualification_state = "qualified_ready";
+  state.inboundRequestData.deployment_readiness = {
+    qualification_state: "qualified_ready",
+    missing_evidence: [],
+    recapture_required: false,
+  };
+  state.artifactPayloads.set(
+    "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_registration.json",
+    {
+      site_world_id: "siteworld-1",
+      runtime_base_url: "http://runtime.local",
+      websocket_base_url: "ws://runtime.local",
+      scenario_catalog: [{ id: "sw-chi-01-scenario-1", name: "Normal lighting" }],
+      robot_profiles: [
+        {
+          id: "other_sample",
+          display_name: "Unitree G1 with head cam and wrist cam",
+          embodiment_type: "humanoid",
+          observation_cameras: [
+            { id: "head_rgb", role: "head", required: true, default_enabled: true },
+            { id: "wrist_rgb", role: "wrist", required: false, default_enabled: true },
+          ],
+        },
+      ],
+      runtime_capabilities: {
+        supports_step_rollout: true,
+        supports_batch_rollout: true,
+        supports_camera_views: true,
+        supports_stream: true,
+      },
+    },
+  );
+  state.artifactPayloads.set(
+    "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_health.json",
+    {
+      status: "healthy",
+      launchable: true,
+      blockers: [],
+    },
+  );
+  state.artifactPayloads.set(
+    "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/readiness_decision.json",
+    {
+      blockers: [],
+      blocker_categories: [],
+    },
+  );
+  state.artifactPayloads.set(
+    "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/human_actions_required.json",
+    {
+      required_actions: [],
+    },
+  );
   const { resetHostedSessionRouteState } = await import("../routes/site-world-sessions");
   resetHostedSessionRouteState();
 });
@@ -476,9 +674,171 @@ describe("site world session routes", () => {
       const payload = (await response.json()) as Record<string, unknown>;
       expect(response.status).toBe(200);
       expect(payload.launchable).toBe(false);
-      expect(payload.blockers).toContain("missing presentation package");
+      expect(payload.blockers).toContain("This site is missing the presentation package required for embedded demos.");
     } finally {
       state.inboundRequestData.pipeline.artifacts = originalArtifacts;
+      await stopServer(server);
+    }
+  });
+
+  it("reports qualification and human-action blockers in launch readiness", async () => {
+    state.inboundRequestData.qualification_state = "not_ready_yet";
+    state.inboundRequestData.deployment_readiness = {
+      qualification_state: "not_ready_yet",
+      missing_evidence: ["operator walkthrough"],
+      recapture_required: true,
+    };
+    state.artifactPayloads.set(
+      "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/readiness_decision.json",
+      {
+        blocker_categories: ["blocked_path"],
+        blockers: ["Aisle egress is blocked for the target workflow."],
+      },
+    );
+    state.artifactPayloads.set(
+      "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/human_actions_required.json",
+      {
+        required_actions: ["Clear the blocked egress path and recapture the lane."],
+      },
+    );
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/launch-readiness?siteWorldId=sw-chi-01`);
+      const payload = (await response.json()) as Record<string, unknown>;
+      expect(response.status).toBe(200);
+      expect(payload.launchable).toBe(false);
+      expect(payload.blockers).toContain("This site is currently marked not ready yet for launch.");
+      expect((payload.runtime_only as Record<string, unknown>).blockers).toContain("This site is currently marked not ready yet for launch.");
+      expect((payload.runtime_only as Record<string, unknown>).blockers).toContain("Missing evidence: operator walkthrough");
+      expect((payload.runtime_only as Record<string, unknown>).blockers).toContain("Aisle egress is blocked for the target workflow.");
+      expect((payload.runtime_only as Record<string, unknown>).blockers).toContain("Clear the blocked egress path and recapture the lane.");
+      expect(payload.blockers).toContain("Missing evidence: operator walkthrough");
+      expect(payload.blockers).toContain("Aisle egress is blocked for the target workflow.");
+      expect(payload.blockers).toContain("Clear the blocked egress path and recapture the lane.");
+      expect((payload.presentation_demo as Record<string, unknown>).launchable).toBe(false);
+      expect((payload.runtime_only as Record<string, unknown>).launchable).toBe(false);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("returns runtime_handle_missing when runtime-only launch lacks a live handle", async () => {
+    state.artifactPayloads.set(
+      "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_registration.json",
+      {
+        site_world_id: "siteworld-1",
+        runtime_base_url: "",
+        websocket_base_url: "",
+        scenario_catalog: [{ id: "sw-chi-01-scenario-1", name: "Normal lighting" }],
+        runtime_capabilities: {
+          supports_step_rollout: true,
+          supports_batch_rollout: true,
+          supports_camera_views: true,
+          supports_stream: true,
+        },
+      },
+    );
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteWorldId: "sw-chi-01",
+          sessionMode: "runtime_only",
+          robotProfileId: "other_sample",
+          taskId: "sw-chi-01-task-1",
+          scenarioId: "sw-chi-01-scenario-1",
+          startStateId: "sw-chi-01-start-1",
+        }),
+      });
+      const payload = (await response.json()) as Record<string, unknown>;
+      expect(response.status).toBe(409);
+      expect(payload.code).toBe("runtime_handle_missing");
+      expect(payload.blockers).toContain("The site-world registration does not include a live runtime handle yet.");
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("reports presentation ui configuration blockers before creating a demo session", async () => {
+    state.presentationLaunchConfig = {
+      manifest: {},
+      uiBaseUrl: "",
+      instanceId: "vast-config",
+      expiresAt: "2026-03-12T02:00:00Z",
+    };
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteWorldId: "sw-chi-01",
+          sessionMode: "presentation_demo",
+          runtimeUi: "neoverse_gradio",
+          robotProfileId: "other_sample",
+          taskId: "sw-chi-01-task-1",
+          scenarioId: "sw-chi-01-scenario-1",
+          startStateId: "sw-chi-01-start-1",
+        }),
+      });
+      const payload = (await response.json()) as Record<string, unknown>;
+      expect(response.status).toBe(409);
+      expect(payload.code).toBe("presentation_ui_unconfigured");
+      expect(payload.blockers).toContain("Presentation demo UI base URL is not configured.");
+      expect(state.hostedSessions.size).toBe(0);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("forwards runtime session config to the runtime create call", async () => {
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteWorldId: "sw-chi-01",
+          sessionMode: "runtime_only",
+          robotProfileId: "other_sample",
+          taskId: "sw-chi-01-task-1",
+          scenarioId: "sw-chi-01-scenario-1",
+          startStateId: "sw-chi-01-start-1",
+          policy: { adapter: "pi0" },
+          robotProfileOverride: { displayName: "Override robot" },
+          runtimeSessionConfig: {
+            canonical_package_uri: "gs://bucket/custom/package.json",
+            canonical_package_version: "v2026.03.12",
+            prompt: "Use careful handoff behavior.",
+            trajectory: "shortest_safe_path",
+            presentation_model: "neoverse_v2",
+            debug_mode: true,
+            unsafe_allow_blocked_site_world: true,
+          },
+        }),
+      });
+      const payload = (await response.json()) as Record<string, unknown>;
+      expect(response.status).toBe(201);
+      expect(payload.status).toBe("ready");
+      expect((state.lastCreateHostedSessionRunParams as Record<string, unknown>).policy).toEqual({ adapter: "pi0" });
+      expect((state.lastCreateHostedSessionRunParams as Record<string, unknown>).robotProfileOverride).toEqual({
+        displayName: "Override robot",
+      });
+      expect((state.lastCreateHostedSessionRunParams as Record<string, unknown>).runtimeSessionConfig).toEqual({
+        canonical_package_uri: "gs://bucket/custom/package.json",
+        canonical_package_version: "v2026.03.12",
+        prompt: "Use careful handoff behavior.",
+        trajectory: "shortest_safe_path",
+        presentation_model: "neoverse_v2",
+        debug_mode: true,
+        unsafe_allow_blocked_site_world: true,
+      });
+    } finally {
       await stopServer(server);
     }
   });

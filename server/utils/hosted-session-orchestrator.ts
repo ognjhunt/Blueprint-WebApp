@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
+import type { HostedRuntimeSessionConfig } from "../types/hosted-session";
 import { parseGsUri } from "./pipeline-dashboard";
 import type { HostedRuntimeResolution } from "./hosted-session-runtime";
 
@@ -150,6 +151,7 @@ export async function createHostedSessionRun(params: {
   startStateId: string;
   exportModes: string[];
   notes?: string;
+  runtimeSessionConfig?: HostedRuntimeSessionConfig | null;
 }) {
   const handle = await resolveRuntimeHandle(params.runtime);
   const payload = await runtimeFetchJson(
@@ -161,9 +163,13 @@ export async function createHostedSessionRun(params: {
       body: JSON.stringify({
         session_id: params.sessionId,
         robot_profile_id: params.robotProfileId,
+        robot_profile_override: params.robotProfileOverride || null,
+        policy: params.policy || {},
         task_id: params.taskId,
         scenario_id: params.scenarioId,
         start_state_id: params.startStateId,
+        export_modes: params.exportModes,
+        runtime_session_config: params.runtimeSessionConfig || null,
         notes: params.notes || "",
       }),
     },

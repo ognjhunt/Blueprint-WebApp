@@ -96,6 +96,16 @@ export interface RuntimeConfig {
   requestedBackend?: string | null;
 }
 
+export interface HostedRuntimeSessionConfig {
+  canonical_package_uri?: string | null;
+  canonical_package_version?: string | null;
+  prompt?: string | null;
+  trajectory?: string | null;
+  presentation_model?: string | null;
+  debug_mode?: boolean;
+  unsafe_allow_blocked_site_world?: boolean;
+}
+
 export interface SiteModelSummary {
   siteWorldId: string;
   siteName: string;
@@ -208,6 +218,7 @@ export interface HostedSessionRecord {
   robot: string;
   policy: Record<string, unknown>;
   runtimeConfig?: RuntimeConfig | null;
+  runtimeSessionConfig?: HostedRuntimeSessionConfig | null;
   taskSelection?: TaskSelection | null;
   requestedOutputs?: string[];
   datasetArtifacts?: Record<string, unknown>;
@@ -263,6 +274,7 @@ export interface CreateHostedSessionRequest {
   taskId: string;
   scenarioId: string;
   startStateId: string;
+  runtimeSessionConfig?: HostedRuntimeSessionConfig | null;
   requestedOutputs?: string[];
   exportModes?: string[];
   notes?: string;

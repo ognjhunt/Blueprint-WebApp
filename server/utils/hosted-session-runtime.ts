@@ -1,5 +1,6 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import type { PipelineAttachment } from "../types/inbound-request";
+import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
+import type { DeploymentReadinessSummary, PipelineAttachment, QualificationState } from "../types/inbound-request";
 import type {
   RobotProfile,
   RuntimeManifestSummary,
@@ -8,6 +9,7 @@ import type {
   TaskCatalogEntry,
 } from "../types/hosted-session";
 import { getPublicSiteWorldById } from "./site-worlds";
+import { parseGsUri } from "./pipeline-dashboard";
 
 export class HostedSessionRuntimeError extends Error {
   code: string;
@@ -47,6 +49,10 @@ export interface HostedRuntimeResolution {
   runtimeDemoManifestUri?: string | null;
   presentationDemoBlockers: string[];
   priceLabel?: string | null;
+  qualificationState?: QualificationState | null;
+  deploymentReadiness?: DeploymentReadinessSummary | null;
+  readinessDecisionUri?: string | null;
+  humanActionsRequiredUri?: string | null;
 }
 
 async function resolveInboundRequestBySiteSubmissionId(siteSubmissionId: string) {
@@ -82,6 +88,32 @@ function artifactUri(
   }
   const bucket = process.env.FIREBASE_STORAGE_BUCKET || "blueprint-8c1ca.appspot.com";
   return `gs://${bucket}/${pipelinePrefix}/${fallbackRelative}`;
+}
+
+export async function readHostedRuntimeArtifactJson(uri?: string | null): Promise<Record<string, unknown> | null> {
+  const normalized = String(uri || "").trim();
+  if (!normalized) {
+    return null;
+  }
+
+  try {
+    if (normalized.startsWith("gs://")) {
+      if (!storageAdmin) {
+        return null;
+      }
+      const { bucket, objectPath } = parseGsUri(normalized);
+      const [buffer] = await storageAdmin.bucket(bucket).file(objectPath).download();
+      const payload = JSON.parse(buffer.toString("utf-8")) as Record<string, unknown>;
+      return payload && typeof payload === "object" ? payload : null;
+    }
+
+    const fs = await import("node:fs/promises");
+    const text = await fs.readFile(normalized, "utf-8");
+    const payload = JSON.parse(text) as Record<string, unknown>;
+    return payload && typeof payload === "object" ? payload : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedRuntimeResolution> {
@@ -205,5 +237,11 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     runtimeDemoManifestUri: presentationWorldManifestUri,
     presentationDemoBlockers,
     priceLabel: site.packages[1]?.priceLabel ?? null,
+    qualificationState:
+      String(inbound?.data?.qualification_state || site.deploymentReadiness?.qualification_state || "").trim() || null,
+    deploymentReadiness:
+      (inbound?.data?.deployment_readiness as DeploymentReadinessSummary | undefined) || site.deploymentReadiness || null,
+    readinessDecisionUri: String(artifacts.readiness_decision_uri || "").trim() || null,
+    humanActionsRequiredUri: String(artifacts.human_actions_required_uri || "").trim() || null,
   };
 }

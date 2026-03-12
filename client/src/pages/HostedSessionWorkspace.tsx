@@ -417,9 +417,16 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   ];
 
   const presentationRuntime = sessionRecord?.presentationRuntime;
-  const canonicalPackageUri = sessionRecord?.siteModel?.sceneMemoryManifestUri || sessionRecord?.siteModel?.conditioningBundleUri || null;
-  const siteWorldHealthUri = sessionRecord?.siteModel?.siteWorldHealthUri || null;
-  const groundedGeometryUri = sessionRecord?.siteModel?.siteWorldSpecUri || null;
+  const runtimeSessionConfig = sessionRecord?.runtimeSessionConfig || null;
+  const canonicalPackageUri =
+    runtimeSessionConfig?.canonical_package_uri ||
+    sessionRecord?.siteModel?.sceneMemoryManifestUri ||
+    site.sceneMemoryManifestUri ||
+    sessionRecord?.siteModel?.conditioningBundleUri ||
+    null;
+  const canonicalPackageVersion = runtimeSessionConfig?.canonical_package_version || null;
+  const siteWorldHealthUri = sessionRecord?.siteModel?.siteWorldHealthUri || site.siteWorldHealthUri || null;
+  const groundedGeometryUri = sessionRecord?.siteModel?.siteWorldSpecUri || site.siteWorldSpecUri || null;
   const openDemoUrl = uiBootstrapUrl || (presentationRuntime?.status === "live" ? `/api/site-worlds/sessions/${encodeURIComponent(sessionId)}/ui/` : "");
 
   if (sessionMode === "presentation_demo") {
@@ -492,6 +499,10 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                       <p className="mt-1 text-sm font-semibold text-slate-900">
                         {site.deploymentReadiness?.qualification_state?.replaceAll("_", " ") || "qualified"}
                       </p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-2">
+                      <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Canonical package version</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">{canonicalPackageVersion || "Unspecified"}</p>
                     </div>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-3">
@@ -803,6 +814,28 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     <p className="text-sm font-medium text-slate-500">VM instance</p>
                     <p className="mt-1 break-all text-sm text-slate-900">
                       {String(sessionRecord?.runtimeHandle?.vm_instance_id || "Unknown")}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-500">Canonical package</p>
+                    <p className="mt-1 break-all text-sm text-slate-900">
+                      {canonicalPackageUri || "Unspecified"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-500">Canonical package version</p>
+                    <p className="mt-1 text-sm text-slate-900">{canonicalPackageVersion || "Unspecified"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-500">Presentation model</p>
+                    <p className="mt-1 text-sm text-slate-900">
+                      {runtimeSessionConfig?.presentation_model || "Unspecified"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-500">Debug mode</p>
+                    <p className="mt-1 text-sm text-slate-900">
+                      {runtimeSessionConfig?.debug_mode ? "Enabled" : "Disabled"}
                     </p>
                   </div>
                 </div>

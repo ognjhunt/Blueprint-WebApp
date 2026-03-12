@@ -4,7 +4,6 @@ import { ArrowLeft, CheckCircle2, Cpu, MapPin, Play, ScanSearch, Settings2 } fro
 import { SEO } from "@/components/SEO";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import {
-  DEFAULT_RUNTIME_BACKEND,
   REQUESTED_OUTPUT_DEFINITIONS,
 } from "@/lib/hostedSession";
 import { getSiteWorldById } from "@/data/siteWorlds";
@@ -12,6 +11,29 @@ import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
 import { withCsrfHeader } from "@/lib/csrf";
 import { auth } from "@/lib/firebase";
 import type { CreateHostedSessionRequest } from "@/types/hostedSession";
+
+interface LaunchBlockerDetail {
+  code: string;
+  message: string;
+  source: "access" | "qualification" | "runtime" | "presentation_demo";
+}
+
+interface LaunchModeReadiness {
+  launchable: boolean;
+  blockers: string[];
+  blocker_details?: LaunchBlockerDetail[];
+  presentationWorldManifestUri?: string | null;
+}
+
+interface LaunchReadinessPayload {
+  launchable: boolean;
+  entitled: boolean;
+  blockers: string[];
+  blocker_details?: LaunchBlockerDetail[];
+  presentationWorldManifestUri?: string | null;
+  presentation_demo?: LaunchModeReadiness;
+  runtime_only?: LaunchModeReadiness;
+}
 
 interface HostedSessionSetupProps {
   params: {
@@ -31,12 +53,8 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [launchReadiness, setLaunchReadiness] = useState<{
-    launchable: boolean;
-    entitled: boolean;
-    blockers: string[];
-    presentationWorldManifestUri?: string | null;
-  } | null>(null);
+  const [launchErrorDetails, setLaunchErrorDetails] = useState<LaunchBlockerDetail[]>([]);
+  const [launchReadiness, setLaunchReadiness] = useState<LaunchReadinessPayload | null>(null);
   const [checkingReadiness, setCheckingReadiness] = useState(false);
 
   useEffect(() => {
@@ -82,23 +100,12 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
           `/api/site-worlds/sessions/launch-readiness?siteWorldId=${encodeURIComponent(site.id)}`,
           { headers: { Authorization: `Bearer ${token}` } },
         );
-        const payload = (await response.json()) as {
-          launchable?: boolean;
-          entitled?: boolean;
-          blockers?: string[];
-          error?: string;
-          presentationWorldManifestUri?: string | null;
-        };
+        const payload = (await response.json()) as LaunchReadinessPayload & { error?: string };
         if (!response.ok) {
           throw new Error(payload.error || "Unable to verify launch readiness");
         }
         if (!cancelled) {
-          setLaunchReadiness({
-            launchable: Boolean(payload.launchable),
-            entitled: Boolean(payload.entitled),
-            blockers: Array.isArray(payload.blockers) ? payload.blockers : [],
-            presentationWorldManifestUri: payload.presentationWorldManifestUri || null,
-          });
+          setLaunchReadiness(payload);
         }
       } catch (error) {
         if (!cancelled) {
@@ -106,7 +113,37 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
             launchable: false,
             entitled: false,
             blockers: [error instanceof Error ? error.message : "Unable to verify launch readiness"],
+            blocker_details: [
+              {
+                code: "launch_readiness_failed",
+                message: error instanceof Error ? error.message : "Unable to verify launch readiness",
+                source: "access",
+              },
+            ],
             presentationWorldManifestUri: null,
+            presentation_demo: {
+              launchable: false,
+              blockers: [error instanceof Error ? error.message : "Unable to verify launch readiness"],
+              blocker_details: [
+                {
+                  code: "launch_readiness_failed",
+                  message: error instanceof Error ? error.message : "Unable to verify launch readiness",
+                  source: "access",
+                },
+              ],
+              presentationWorldManifestUri: null,
+            },
+            runtime_only: {
+              launchable: false,
+              blockers: [error instanceof Error ? error.message : "Unable to verify launch readiness"],
+              blocker_details: [
+                {
+                  code: "launch_readiness_failed",
+                  message: error instanceof Error ? error.message : "Unable to verify launch readiness",
+                  source: "access",
+                },
+              ],
+            },
           });
         }
       } finally {
@@ -136,10 +173,6 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
     );
   }
 
-  const selectedTask = site.taskCatalog.find((item) => item.id === taskId) || site.taskCatalog[0];
-  const selectedScenario = site.scenarioCatalog.find((item) => item.id === scenarioId) || site.scenarioCatalog[0];
-  const selectedStartState = site.startStateCatalog.find((item) => item.id === startStateId) || site.startStateCatalog[0];
-
   const handleOutputToggle = (outputId: string) => {
     setRequestedOutputs((current) =>
       current.includes(outputId)
@@ -152,6 +185,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
     event.preventDefault();
     setSubmitting(true);
     setErrorMessage("");
+    setLaunchErrorDetails([]);
 
     const requestPayload: CreateHostedSessionRequest = {
       siteWorldId: site.id,
@@ -164,6 +198,15 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
       startStateId,
       requestedOutputs,
       exportModes: ["raw_bundle", "rlds_dataset"],
+      runtimeSessionConfig: {
+        canonical_package_uri: site.sceneMemoryManifestUri || null,
+        canonical_package_version: null,
+        prompt: null,
+        trajectory: null,
+        presentation_model: null,
+        debug_mode: false,
+        unsafe_allow_blocked_site_world: false,
+      },
       notes,
     };
 
@@ -178,9 +221,19 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
         },
         body: JSON.stringify(requestPayload),
       });
-      const payload = (await response.json()) as { workspaceUrl?: string; error?: string };
+      const payload = (await response.json()) as {
+        workspaceUrl?: string;
+        error?: string;
+        blockers?: string[];
+        blocker_details?: LaunchBlockerDetail[];
+      };
       if (!response.ok || !payload.workspaceUrl) {
-        throw new Error(payload.error || "Unable to launch hosted session");
+        setLaunchErrorDetails(Array.isArray(payload.blocker_details) ? payload.blocker_details : []);
+        throw new Error(
+          Array.isArray(payload.blockers) && payload.blockers.length > 0
+            ? payload.blockers.join(", ")
+            : payload.error || "Unable to launch hosted session",
+        );
       }
       setLocation(payload.workspaceUrl);
     } catch (error) {
@@ -195,7 +248,9 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
   };
 
   const cameraSummary = selectedRobotProfile.observationCameras.map((item) => item.role).join(", ");
-  const launchBlocked = checkingReadiness || !launchReadiness?.launchable;
+  const presentationReadiness = launchReadiness?.presentation_demo || null;
+  const runtimeReadiness = launchReadiness?.runtime_only || null;
+  const launchBlocked = checkingReadiness || !presentationReadiness?.launchable;
 
   return (
     <>
@@ -237,9 +292,9 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                 <p className="text-sm font-semibold">NeoVerse is the default hosted runtime.</p>
                 <ul className="mt-4 space-y-3 text-sm text-slate-300">
                   {[
-                    "The site model comes from the captured scene-memory bundle, not the robot profile.",
+                    "The canonical package comes from the captured scene-memory bundle, not the robot profile.",
                     "Robot, task, scenario, and start state are selected independently.",
-                    "The runtime handle comes from the registered site world on the GPU VM.",
+                    "Embedded demos and runtime sessions have separate launch requirements.",
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-3">
                       <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
@@ -250,23 +305,45 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
               </div>
 
               <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950">
-                <p className="font-semibold">Presentation demo readiness</p>
+                <p className="font-semibold">Embedded demo readiness</p>
                 <p className="mt-2">
                   {checkingReadiness
                     ? "Checking whether this site can launch an embedded NeoVerse demo."
-                    : launchReadiness?.launchable
+                    : presentationReadiness?.launchable
                       ? "This site is ready for an embedded NeoVerse demo session."
                       : "This site cannot launch the embedded NeoVerse demo yet."}
                 </p>
-                {launchReadiness?.presentationWorldManifestUri ? (
+                {presentationReadiness?.presentationWorldManifestUri ? (
                   <p className="mt-2 break-all text-xs text-amber-900">
-                    Presentation package: {launchReadiness.presentationWorldManifestUri}
+                    Presentation package: {presentationReadiness.presentationWorldManifestUri}
                   </p>
                 ) : null}
-                {launchReadiness?.blockers?.length ? (
+                {presentationReadiness?.blocker_details?.length ? (
                   <ul className="mt-3 space-y-2 text-xs text-amber-900">
-                    {launchReadiness.blockers.map((blocker) => (
-                      <li key={blocker}>• {blocker}</li>
+                    {presentationReadiness.blocker_details.map((blocker) => (
+                      <li key={`${blocker.code}-${blocker.message}`}>
+                        <span className="font-semibold">{blocker.source.replaceAll("_", " ")}:</span> {blocker.message}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-800">
+                <p className="font-semibold">Runtime session readiness</p>
+                <p className="mt-2">
+                  {checkingReadiness
+                    ? "Checking whether this site can launch a hosted runtime session."
+                    : runtimeReadiness?.launchable
+                      ? "This site is ready for a hosted runtime session."
+                      : "This site cannot launch a hosted runtime session yet."}
+                </p>
+                {runtimeReadiness?.blocker_details?.length ? (
+                  <ul className="mt-3 space-y-2 text-xs text-slate-700">
+                    {runtimeReadiness.blocker_details.map((blocker) => (
+                      <li key={`${blocker.code}-${blocker.message}`}>
+                        <span className="font-semibold">{blocker.source.replaceAll("_", " ")}:</span> {blocker.message}
+                      </li>
                     ))}
                   </ul>
                 ) : null}
@@ -295,7 +372,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                         Backend: {site.runtimeManifest?.defaultBackend || site.defaultRuntimeBackend} ·
                         Cameras: {site.runtimeManifest?.supportsCameraViews ? " yes" : " no"} ·
                         Batch: {site.runtimeManifest?.supportsBatchRollout ? " yes" : " no"} ·
-                        Demo UI: {launchReadiness?.launchable ? " ready" : " blocked"}
+                        Demo UI: {presentationReadiness?.launchable ? " ready" : " blocked"}
                       </p>
                     </div>
                   </div>
@@ -430,7 +507,16 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
 
                 {errorMessage ? (
                   <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                    {errorMessage}
+                    <p>{errorMessage}</p>
+                    {launchErrorDetails.length ? (
+                      <ul className="mt-3 space-y-2 text-xs text-rose-700">
+                        {launchErrorDetails.map((detail) => (
+                          <li key={`${detail.code}-${detail.message}`}>
+                            <span className="font-semibold">{detail.source.replaceAll("_", " ")}:</span> {detail.message}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </div>
                 ) : null}
 

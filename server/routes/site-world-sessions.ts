@@ -10,13 +10,15 @@ import type {
   HostedBatchSummary,
   HostedEpisodeSummary,
   HostedSessionMode,
+  HostedRuntimeSessionConfig,
   HostedSessionRecord,
 } from "../types/hosted-session";
 import { createHostedSessionUiToken, getHostedSessionUiCookieName, parseCookies, verifyHostedSessionUiToken } from "../utils/hosted-session-ui-auth";
-import { HostedSessionRuntimeError, resolveHostedRuntime } from "../utils/hosted-session-runtime";
+import { HostedSessionRuntimeError, readHostedRuntimeArtifactJson, resolveHostedRuntime } from "../utils/hosted-session-runtime";
 import {
   PresentationDemoRuntimeError,
   launchPresentationDemoRuntime,
+  resolvePresentationDemoLaunchConfig,
   stopPresentationDemoRuntime,
 } from "../utils/presentation-demo-runtime";
 import {
@@ -258,10 +260,286 @@ function buildSessionCreateResponse(record: HostedSessionRecord) {
     status: record.status,
     site: record.site,
     runtimeBackend: record.runtime_backend_selected,
-    launchable: true,
+    launchable:
+      record.sessionMode === "presentation_demo"
+        ? record.presentationRuntime?.status === "live"
+        : Boolean(record.runtimeHandle?.runtime_base_url || record.status === "ready"),
     uiReady: record.presentationRuntime?.status === "live",
     uiMode: record.sessionMode === "presentation_demo" ? "embedded" : "redirect",
     workspaceUrl: buildWorkspaceUrl(record.site.siteWorldId, record.sessionId),
+  };
+}
+
+type LaunchBlockerSource = "access" | "qualification" | "runtime" | "presentation_demo";
+
+interface LaunchBlockerDetail {
+  code: string;
+  message: string;
+  source: LaunchBlockerSource;
+}
+
+interface ModeLaunchReadiness {
+  launchable: boolean;
+  blockers: string[];
+  blocker_details: LaunchBlockerDetail[];
+  presentationWorldManifestUri?: string | null;
+}
+
+function addBlocker(details: LaunchBlockerDetail[], blocker: LaunchBlockerDetail) {
+  if (!details.some((item) => item.code === blocker.code && item.message === blocker.message && item.source === blocker.source)) {
+    details.push(blocker);
+  }
+}
+
+function stringsFromUnknown(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .flatMap((item) => {
+      if (typeof item === "string") {
+        return [item.trim()];
+      }
+      if (item && typeof item === "object") {
+        const payload = item as Record<string, unknown>;
+        return [String(payload.message || payload.reason || payload.category || payload.code || "").trim()];
+      }
+      return [];
+    })
+    .filter(Boolean);
+}
+
+function qualificationStateMessage(state: string) {
+  switch (state) {
+    case "not_ready_yet":
+      return "This site is currently marked not ready yet for launch.";
+    case "needs_more_evidence":
+      return "This site needs more evidence before launch.";
+    case "submitted":
+      return "This site has not completed qualification yet.";
+    case "capture_requested":
+      return "This site is still waiting on capture completion.";
+    case "qa_passed":
+      return "This site passed QA but has not completed qualification.";
+    case "in_review":
+      return "This site is still under qualification review.";
+    case "needs_refresh":
+      return "This site needs a refresh before launch.";
+    default:
+      return `This site is in qualification state ${state.replaceAll("_", " ")}.`;
+  }
+}
+
+function extractArtifactBlockers(
+  payload: Record<string, unknown> | null,
+  source: LaunchBlockerSource,
+  prefix: string,
+) {
+  const details: LaunchBlockerDetail[] = [];
+  if (!payload) {
+    return details;
+  }
+
+  const categories = [
+    ...stringsFromUnknown(payload.blocker_categories),
+    ...stringsFromUnknown(payload.blockerCategories),
+  ];
+  categories.forEach((category, index) => {
+    addBlocker(details, {
+      code: `${prefix}_category_${index + 1}`,
+      message: `${prefix.replaceAll("_", " ")} blocker: ${category}`,
+      source,
+    });
+  });
+
+  const messages = [
+    ...stringsFromUnknown(payload.blockers),
+    ...stringsFromUnknown(payload.reasons),
+    ...stringsFromUnknown(payload.actions),
+    ...stringsFromUnknown(payload.required_actions),
+    ...stringsFromUnknown(payload.pending_actions),
+  ];
+  messages.forEach((message, index) => {
+    addBlocker(details, {
+      code: `${prefix}_${index + 1}`,
+      message,
+      source,
+    });
+  });
+
+  return details;
+}
+
+async function buildQualificationBlockers(runtime: Awaited<ReturnType<typeof resolveHostedRuntime>>) {
+  const details: LaunchBlockerDetail[] = [];
+  const qualificationState = String(runtime.qualificationState || "").trim();
+  if (qualificationState && !["qualified_ready", "qualified_risky"].includes(qualificationState)) {
+    addBlocker(details, {
+      code: `qualification_${qualificationState}`,
+      message: qualificationStateMessage(qualificationState),
+      source: "qualification",
+    });
+  }
+
+  if (runtime.deploymentReadiness?.recapture_required) {
+    addBlocker(details, {
+      code: "qualification_recapture_required",
+      message: "This site requires recapture or refresh work before launch.",
+      source: "qualification",
+    });
+  }
+
+  (runtime.deploymentReadiness?.missing_evidence || []).forEach((item, index) => {
+    addBlocker(details, {
+      code: `qualification_missing_evidence_${index + 1}`,
+      message: `Missing evidence: ${item}`,
+      source: "qualification",
+    });
+  });
+
+  const [readinessDecision, humanActions] = await Promise.all([
+    readHostedRuntimeArtifactJson(runtime.readinessDecisionUri),
+    readHostedRuntimeArtifactJson(runtime.humanActionsRequiredUri),
+  ]);
+
+  extractArtifactBlockers(readinessDecision, "qualification", "readiness_decision").forEach((item) => addBlocker(details, item));
+  extractArtifactBlockers(humanActions, "qualification", "human_actions_required").forEach((item) => addBlocker(details, item));
+
+  return details;
+}
+
+async function buildPresentationDemoReadiness(params: {
+  runtime: Awaited<ReturnType<typeof resolveHostedRuntime>>;
+  accessBlockers: string[];
+}): Promise<ModeLaunchReadiness> {
+  const details = await buildQualificationBlockers(params.runtime);
+  params.accessBlockers.forEach((message, index) =>
+    addBlocker(details, { code: `access_${index + 1}`, message, source: "access" }),
+  );
+
+  if (!params.runtime.presentationWorldManifestUri) {
+    addBlocker(details, {
+      code: "missing_presentation_package",
+      message: "This site is missing the presentation package required for embedded demos.",
+      source: "presentation_demo",
+    });
+  }
+
+  const config = await resolvePresentationDemoLaunchConfig({
+    sessionId: "readiness-check",
+    runtime: params.runtime,
+  }).catch(() => null);
+  if (!config?.uiBaseUrl) {
+    addBlocker(details, {
+      code: "presentation_ui_unconfigured",
+      message: "Presentation demo UI base URL is not configured.",
+      source: "presentation_demo",
+    });
+  }
+
+  return {
+    launchable: details.length === 0,
+    blockers: details.map((item) => item.message),
+    blocker_details: details,
+    presentationWorldManifestUri: params.runtime.presentationWorldManifestUri ?? null,
+  };
+}
+
+async function buildRuntimeOnlyReadiness(params: {
+  runtime: Awaited<ReturnType<typeof resolveHostedRuntime>>;
+  accessBlockers: string[];
+  runtimeSessionConfig?: HostedRuntimeSessionConfig | null;
+}): Promise<ModeLaunchReadiness> {
+  const details = await buildQualificationBlockers(params.runtime);
+  params.accessBlockers.forEach((message, index) =>
+    addBlocker(details, { code: `access_${index + 1}`, message, source: "access" }),
+  );
+
+  const [siteWorldSpec, siteWorldRegistration, siteWorldHealth] = await Promise.all([
+    readHostedRuntimeArtifactJson(params.runtime.siteWorldSpecUri),
+    readHostedRuntimeArtifactJson(params.runtime.siteWorldRegistrationUri),
+    readHostedRuntimeArtifactJson(params.runtime.siteWorldHealthUri),
+  ]);
+
+  if (!siteWorldSpec) {
+    addBlocker(details, {
+      code: "missing_runtime_site_world_spec",
+      message: "This site is missing the site-world spec required for hosted runtime launch.",
+      source: "runtime",
+    });
+  }
+  if (!siteWorldRegistration) {
+    addBlocker(details, {
+      code: "missing_runtime_registration",
+      message: "This site is missing the site-world registration required for hosted runtime launch.",
+      source: "runtime",
+    });
+  }
+  if (!siteWorldHealth) {
+    addBlocker(details, {
+      code: "missing_runtime_health",
+      message: "This site is missing the site-world health record required for hosted runtime launch.",
+      source: "runtime",
+    });
+  }
+
+  const siteWorldId = String(siteWorldRegistration?.site_world_id || "").trim();
+  const runtimeBaseUrl = String(params.runtime.runtimeBaseUrl || siteWorldRegistration?.runtime_base_url || "").trim();
+  if (siteWorldRegistration && (!siteWorldId || !runtimeBaseUrl)) {
+    addBlocker(details, {
+      code: "runtime_handle_missing",
+      message: "The site-world registration does not include a live runtime handle yet.",
+      source: "runtime",
+    });
+  }
+
+  if (
+    siteWorldHealth?.launchable === false &&
+    params.runtimeSessionConfig?.unsafe_allow_blocked_site_world !== true
+  ) {
+    addBlocker(details, {
+      code: "runtime_unlaunchable",
+      message:
+        `The site-world runtime is not launchable: ${stringsFromUnknown(siteWorldHealth.blockers).join(", ") || "blocked"}`,
+      source: "runtime",
+    });
+  }
+
+  return {
+    launchable: details.length === 0,
+    blockers: details.map((item) => item.message),
+    blocker_details: details,
+    presentationWorldManifestUri: params.runtime.presentationWorldManifestUri ?? null,
+  };
+}
+
+async function buildLaunchReadiness(params: {
+  runtime: Awaited<ReturnType<typeof resolveHostedRuntime>>;
+  entitled: boolean;
+  accessBlockers: string[];
+  runtimeSessionConfig?: HostedRuntimeSessionConfig | null;
+}) {
+  const [presentationDemo, runtimeOnly] = await Promise.all([
+    buildPresentationDemoReadiness({
+      runtime: params.runtime,
+      accessBlockers: params.accessBlockers,
+    }),
+    buildRuntimeOnlyReadiness({
+      runtime: params.runtime,
+      accessBlockers: params.accessBlockers,
+      runtimeSessionConfig: params.runtimeSessionConfig,
+    }),
+  ]);
+
+  return {
+    entitled: params.entitled,
+    launchable: presentationDemo.launchable,
+    blockers: presentationDemo.blockers,
+    blocker_details: presentationDemo.blocker_details,
+    presentationWorldManifestUri: presentationDemo.presentationWorldManifestUri ?? null,
+    presentation_demo: presentationDemo,
+    runtime_only: runtimeOnly,
   };
 }
 
@@ -323,6 +601,25 @@ function normalizeRuntimeConfig(
     startStateId: String(body.startStateId),
     seed: null,
     requestedBackend: runtime.defaultRuntimeBackend,
+  };
+}
+
+function normalizeRuntimeSessionConfig(
+  body: CreateHostedSessionRequest,
+  runtime: Awaited<ReturnType<typeof resolveHostedRuntime>>,
+): HostedRuntimeSessionConfig {
+  const runtimeSessionConfig = body.runtimeSessionConfig || {};
+  const normalizeOptional = (value: unknown) => String(value || "").trim() || null;
+
+  return {
+    canonical_package_uri:
+      normalizeOptional(runtimeSessionConfig.canonical_package_uri) || runtime.sceneMemoryManifestUri,
+    canonical_package_version: normalizeOptional(runtimeSessionConfig.canonical_package_version),
+    prompt: normalizeOptional(runtimeSessionConfig.prompt),
+    trajectory: normalizeOptional(runtimeSessionConfig.trajectory),
+    presentation_model: normalizeOptional(runtimeSessionConfig.presentation_model),
+    debug_mode: runtimeSessionConfig.debug_mode === true,
+    unsafe_allow_blocked_site_world: runtimeSessionConfig.unsafe_allow_blocked_site_world === true,
   };
 }
 
@@ -487,6 +784,7 @@ async function createRuntimeOnlySession(params: {
     startStateId: params.body.startStateId,
     exportModes: params.record.requestedOutputs || ["raw_bundle", "rlds_dataset"],
     notes: params.record.notes ?? undefined,
+    runtimeSessionConfig: params.record.runtimeSessionConfig,
   });
   const runtimeMetadata = await loadHostedSessionRuntimeMetadata(workDir);
 
@@ -574,6 +872,7 @@ function createSessionRecord(params: {
 }) {
   const taskSelection = normalizeTaskSelection(params.body, params.runtime);
   const runtimeConfig = normalizeRuntimeConfig(params.body, params.runtime);
+  const runtimeSessionConfig = normalizeRuntimeSessionConfig(params.body, params.runtime);
   const robotProfile = normalizeRobotProfile(params.body, params.runtime);
   const sessionId = randomUUID();
   const sessionMode = normalizeSessionMode(params.body.sessionMode);
@@ -599,6 +898,7 @@ function createSessionRecord(params: {
     robot: robotProfile.displayName,
     policy: params.body.policy || {},
     runtimeConfig,
+    runtimeSessionConfig,
     taskSelection,
     requestedOutputs: normalizeRequestedOutputs(params.body),
     datasetArtifacts: {},
@@ -652,22 +952,6 @@ function sessionModeUnsupportedResponse(res: Response) {
     error: "This operation is not available for presentation-demo sessions.",
     code: "session_mode_unsupported",
   });
-}
-
-function buildLaunchReadiness(runtime: Awaited<ReturnType<typeof resolveHostedRuntime>>, entitled: boolean, extraBlockers: string[]) {
-  const blockers = [...runtime.presentationDemoBlockers, ...extraBlockers];
-  if (!runtime.siteWorldSpecUri) {
-    blockers.push("missing runtime site-world spec");
-  }
-  if (!runtime.siteWorldRegistrationUri) {
-    blockers.push("missing runtime registration");
-  }
-  return {
-    entitled,
-    launchable: blockers.length === 0,
-    blockers,
-    presentationWorldManifestUri: runtime.presentationWorldManifestUri ?? null,
-  };
 }
 
 function stripProxyResponseHeader(key: string) {
@@ -866,7 +1150,13 @@ protectedRouter.get("/launch-readiness", async (req, res) => {
     }
     const access = await getLaunchAccessState(req, res);
     const runtime = await resolveHostedRuntime(siteWorldId);
-    return res.json(buildLaunchReadiness(runtime, access.entitled, access.blockers));
+    return res.json(
+      await buildLaunchReadiness({
+        runtime,
+        entitled: access.entitled,
+        accessBlockers: access.blockers,
+      }),
+    );
   } catch (error) {
     const hostedError =
       error instanceof HostedSessionRuntimeError
@@ -898,11 +1188,25 @@ protectedRouter.post("/", async (req: Request, res: Response) => {
     }
 
     const runtime = await resolveHostedRuntime(String(body.siteWorldId));
-    if (sessionMode === "presentation_demo" && runtime.presentationDemoBlockers.length > 0) {
+    const runtimeSessionConfig = normalizeRuntimeSessionConfig(body, runtime);
+    const readiness = await buildLaunchReadiness({
+      runtime,
+      entitled: true,
+      accessBlockers: [],
+      runtimeSessionConfig,
+    });
+    const selectedReadiness =
+      sessionMode === "presentation_demo" ? readiness.presentation_demo : readiness.runtime_only;
+    if (!selectedReadiness.launchable) {
+      const primaryCode =
+        selectedReadiness.blocker_details.find((item) =>
+          sessionMode === "runtime_only" ? item.code === "runtime_handle_missing" : true,
+        )?.code || selectedReadiness.blocker_details[0]?.code || "session_not_launchable";
       return res.status(409).json({
-        error: runtime.presentationDemoBlockers.join(", "),
-        code: "presentation_demo_not_launchable",
-        blockers: runtime.presentationDemoBlockers,
+        error: selectedReadiness.blockers.join(", "),
+        code: primaryCode,
+        blockers: selectedReadiness.blockers,
+        blocker_details: selectedReadiness.blocker_details,
       });
     }
 
