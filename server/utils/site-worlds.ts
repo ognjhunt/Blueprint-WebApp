@@ -27,6 +27,150 @@ const LIVE_OPPORTUNITY_STATES = new Set<OpportunityState>([
 
 type ArtifactJson = Record<string, unknown> | null;
 
+function deriveSampleRobotProfile(sampleRobot: string, runtime: string): SiteWorldCard["sampleRobotProfile"] {
+  const normalized = `${sampleRobot} ${runtime}`.toLowerCase();
+  const observationCameras: SiteWorldCard["sampleRobotProfile"]["observationCameras"] = [];
+  if (normalized.includes("head")) observationCameras.push({ id: "head_rgb", role: "head", required: true, defaultEnabled: true });
+  if (normalized.includes("wrist")) observationCameras.push({ id: "wrist_rgb", role: "wrist", required: false, defaultEnabled: true });
+  if (normalized.includes("overhead")) observationCameras.push({ id: "overhead_rgb", role: "context", required: false, defaultEnabled: true });
+  if (normalized.includes("mast")) observationCameras.push({ id: "mast_rgb", role: "head", required: true, defaultEnabled: true });
+  if (normalized.includes("stereo")) observationCameras.push({ id: "stereo_rgb", role: "head", required: true, defaultEnabled: true });
+  if (normalized.includes("barcode")) observationCameras.push({ id: "barcode_stream", role: "context", required: false, defaultEnabled: true });
+  if (normalized.includes("thermal")) observationCameras.push({ id: "thermal_state", role: "context", required: false, defaultEnabled: true });
+  if (normalized.includes("map")) observationCameras.push({ id: "map_state", role: "context", required: false, defaultEnabled: true });
+  if (normalized.includes("vision")) observationCameras.push({ id: "site_context_rgb", role: "context", required: false, defaultEnabled: true });
+  const embodimentType = normalized.includes("humanoid")
+    ? "humanoid"
+    : normalized.includes("arm")
+      ? "fixed_arm"
+      : normalized.includes("cart")
+        ? "cart"
+        : normalized.includes("amr") || normalized.includes("mobile")
+          ? "mobile_manipulator"
+          : normalized.includes("tug")
+            ? "mobile_base"
+            : "other";
+
+  return {
+    id: `${embodimentType}_sample`,
+    displayName: sampleRobot,
+    embodimentType,
+    observationCameras: observationCameras.length > 0
+      ? observationCameras
+      : [{ id: "primary_rgb", role: "head", required: true, defaultEnabled: true }],
+    actionSpace: {
+      name: embodimentType === "fixed_arm" ? "joint_delta_gripper" : "ee_delta_pose_gripper",
+      dim: 7,
+      labels: ["x", "y", "z", "roll", "pitch", "yaw", "gripper"],
+    },
+    actionSpaceSummary: normalized.includes("arm")
+      ? "End-effector pose deltas plus gripper open/close."
+      : normalized.includes("humanoid")
+        ? "Base locomotion, torso reach, and hand state transitions."
+        : normalized.includes("cart") || normalized.includes("tug")
+          ? "Base motion, docking alignment, and handoff state changes."
+          : "Bounded robot action vector for site-conditioned rollout control.",
+    gripperSemantics: normalized.includes("arm") || normalized.includes("picker") || normalized.includes("assistant")
+      ? "Binary grasp / release state on the active manipulator."
+      : normalized.includes("humanoid")
+        ? "Task-level hand closure and release semantics."
+        : "No explicit gripper profile provided.",
+    baseSemantics: normalized.includes("cart")
+      || normalized.includes("tug")
+      || normalized.includes("amr")
+      || normalized.includes("mobile")
+      ? "Planar base translation with heading control for lane and aisle navigation."
+      : normalized.includes("humanoid")
+        ? "Footstep and body-pose control for approach and handoff alignment."
+        : "Stationary or task-local base semantics.",
+    urdfRef: null,
+    usdRef: null,
+    allowedPolicyAdapters: ["openvla_oft", "pi05", "dreamzero"],
+    defaultPolicyAdapter: "openvla_oft",
+  };
+}
+
+function buildFallbackRuntimeManifest(template: SiteWorldCard): SiteWorldCard["runtimeManifest"] {
+  return {
+    defaultBackend: template.defaultRuntimeBackend,
+    launchableBackends: template.availableRuntimeBackends,
+    exportModes: ["raw_bundle", "rlds_dataset"],
+    supportsStepRollout: true,
+    supportsBatchRollout: true,
+    supportsCameraViews: true,
+  };
+}
+
+function buildFallbackTaskCatalog(template: SiteWorldCard): SiteWorldCard["taskCatalog"] {
+  return [
+    {
+      id: `${template.id}-task-1`,
+      taskId: `${template.id}-task-1`,
+      taskText: template.sampleTask,
+      taskCategory: "generic",
+    },
+  ];
+}
+
+function buildFallbackScenarioCatalog(template: SiteWorldCard): SiteWorldCard["scenarioCatalog"] {
+  return template.scenarioVariants.map((name, index) => ({
+    id: `${template.id}-scenario-${index + 1}`,
+    name,
+    source: "static",
+  }));
+}
+
+function buildFallbackStartStateCatalog(template: SiteWorldCard): SiteWorldCard["startStateCatalog"] {
+  return template.startStates.map((name, index) => ({
+    id: `${template.id}-start-${index + 1}`,
+    name,
+    taskId: `${template.id}-task-1`,
+    source: "static",
+  }));
+}
+
+function normalizeRobotProfiles(value: unknown, fallback: SiteWorldCard["sampleRobotProfile"]): SiteWorldCard["robotProfiles"] {
+  if (!Array.isArray(value) || value.length === 0) {
+    return [fallback];
+  }
+  return value
+    .filter((item) => typeof item === "object" && item !== null)
+    .map((item) => {
+      const profile = item as Record<string, unknown>;
+      return {
+        id: String(profile.id || fallback.id || ""),
+        displayName: String(profile.display_name || profile.displayName || fallback.displayName),
+        embodimentType: String(profile.embodiment_type || profile.embodimentType || fallback.embodimentType) as SiteWorldCard["sampleRobotProfile"]["embodimentType"],
+        observationCameras: Array.isArray(profile.observation_cameras)
+          ? (profile.observation_cameras as Array<Record<string, unknown>>).map((camera) => ({
+              id: String(camera.id || ""),
+              role: String(camera.role || ""),
+              required: Boolean(camera.required),
+              defaultEnabled: Boolean(camera.default_enabled ?? camera.defaultEnabled),
+            }))
+          : fallback.observationCameras,
+        actionSpace: typeof profile.action_space === "object" && profile.action_space
+          ? {
+              name: String((profile.action_space as Record<string, unknown>).name || fallback.actionSpace.name),
+              dim: Number((profile.action_space as Record<string, unknown>).dim || fallback.actionSpace.dim),
+              labels: Array.isArray((profile.action_space as Record<string, unknown>).labels)
+                ? ((profile.action_space as Record<string, unknown>).labels as unknown[]).map((item) => String(item))
+                : fallback.actionSpace.labels,
+            }
+          : fallback.actionSpace,
+        actionSpaceSummary: fallback.actionSpaceSummary,
+        gripperSemantics: String(profile.gripper_semantics || profile.gripperSemantics || fallback.gripperSemantics || ""),
+        baseSemantics: String(profile.base_semantics || profile.baseSemantics || fallback.baseSemantics || ""),
+        urdfRef: profile.urdf_uri ? String(profile.urdf_uri) : fallback.urdfRef,
+        usdRef: profile.usd_uri ? String(profile.usd_uri) : fallback.usdRef,
+        allowedPolicyAdapters: Array.isArray(profile.allowed_policy_adapters)
+          ? (profile.allowed_policy_adapters as unknown[]).map((item) => String(item))
+          : fallback.allowedPolicyAdapters,
+        defaultPolicyAdapter: String(profile.default_policy_adapter || profile.defaultPolicyAdapter || fallback.defaultPolicyAdapter || ""),
+      };
+    });
+}
+
 function slugify(value: string): string {
   return value
     .trim()
@@ -334,6 +478,12 @@ function buildDeploymentReadiness({
 function buildStaticRecord(template: SiteWorldCard): SiteWorldCard {
   return {
     ...template,
+    runtimeManifest: template.runtimeManifest || buildFallbackRuntimeManifest(template),
+    taskCatalog: template.taskCatalog || buildFallbackTaskCatalog(template),
+    scenarioCatalog: template.scenarioCatalog || buildFallbackScenarioCatalog(template),
+    startStateCatalog: template.startStateCatalog || buildFallbackStartStateCatalog(template),
+    robotProfiles: template.robotProfiles || [template.sampleRobotProfile],
+    exportModes: template.exportModes || ["raw_bundle", "rlds_dataset"],
     dataSource: "static",
   };
 }
@@ -369,7 +519,14 @@ async function buildLiveRecord(
   const sampleTask = request.request.taskStatement || template?.sampleTask || "Review the qualified workflow";
   const sampleRobot = request.request.targetRobotTeam || template?.sampleRobot || "Robot team";
 
-  const [siteNormalization, benchmarkSuite, compatibilityMatrix, recaptureDiff, launchableExportBundle] =
+  const [
+    siteNormalization,
+    benchmarkSuite,
+    compatibilityMatrix,
+    recaptureDiff,
+    launchableExportBundle,
+    hostedRuntimeManifest,
+  ] =
     await Promise.all([
       readArtifactJson(
         pipelineArtifactUri(
@@ -406,6 +563,13 @@ async function buildLiveRecord(
           "evaluation_prep/launchable_export_bundle.json",
         ),
       ),
+      readArtifactJson(
+        pipelineArtifactUri(
+          pipeline,
+          pipeline?.artifacts.hosted_session_runtime_manifest_uri,
+          "evaluation_prep/hosted_session_runtime_manifest.json",
+        ),
+      ),
     ]);
 
   const readiness = buildDeploymentReadiness({
@@ -425,12 +589,52 @@ async function buildLiveRecord(
     template?.packages ||
     buildFallbackPackages(generatedId, siteName, siteAddress, sampleTask, sampleRobot);
 
-  const startStates = Array.isArray(benchmarkSuite?.default_start_states)
-    ? (benchmarkSuite?.default_start_states as unknown[]).map((item) => String(item)).filter(Boolean)
-    : template?.startStates || ["default_start_state"];
-  const scenarioVariants = Array.isArray(launchableExportBundle?.scenario_variants)
-    ? (launchableExportBundle?.scenario_variants as unknown[]).map((item) => String(item)).filter(Boolean)
-    : template?.scenarioVariants || ["default"];
+  const fallbackRobotProfile = template?.sampleRobotProfile || deriveSampleRobotProfile(sampleRobot, readiness.runtime_label);
+  const taskCatalog = Array.isArray(hostedRuntimeManifest?.task_catalog)
+    ? (hostedRuntimeManifest?.task_catalog as Array<Record<string, unknown>>).map((item) => ({
+        id: String(item.id || item.task_id || ""),
+        taskId: item.task_id ? String(item.task_id) : String(item.id || ""),
+        taskText: String(item.task_text || item.name || sampleTask),
+        taskCategory: item.task_category ? String(item.task_category) : "generic",
+      }))
+    : template?.taskCatalog || buildFallbackTaskCatalog(template || buildStaticRecord(siteWorldCards[0]));
+  const startStateCatalog = Array.isArray(hostedRuntimeManifest?.start_state_catalog)
+    ? (hostedRuntimeManifest?.start_state_catalog as Array<Record<string, unknown>>).map((item) => ({
+        id: String(item.id || ""),
+        name: String(item.name || "default_start_state"),
+        taskId: item.task_id ? String(item.task_id) : undefined,
+        source: item.source ? String(item.source) : undefined,
+      }))
+    : template?.startStateCatalog || buildFallbackStartStateCatalog(template || buildStaticRecord(siteWorldCards[0]));
+  const scenarioCatalog = Array.isArray(hostedRuntimeManifest?.scenario_catalog)
+    ? (hostedRuntimeManifest?.scenario_catalog as Array<Record<string, unknown>>).map((item) => ({
+        id: String(item.id || ""),
+        name: String(item.name || "default"),
+        source: item.source ? String(item.source) : undefined,
+      }))
+    : template?.scenarioCatalog || buildFallbackScenarioCatalog(template || buildStaticRecord(siteWorldCards[0]));
+  const robotProfiles = normalizeRobotProfiles(hostedRuntimeManifest?.robot_profiles, fallbackRobotProfile);
+  const startStates = startStateCatalog.map((item) => item.name).filter(Boolean);
+  const scenarioVariants = scenarioCatalog.map((item) => item.name).filter(Boolean);
+  const exportModes = Array.isArray(hostedRuntimeManifest?.export_defaults)
+    ? (hostedRuntimeManifest?.export_defaults as unknown[]).map((item) => String(item)).filter(Boolean)
+    : template?.exportModes || ["raw_bundle", "rlds_dataset"];
+  const runtimeCapabilities =
+    hostedRuntimeManifest && typeof hostedRuntimeManifest.runtime_capabilities === "object"
+      ? (hostedRuntimeManifest.runtime_capabilities as Record<string, unknown>)
+      : {};
+  const runtimeManifest = hostedRuntimeManifest
+    ? {
+        defaultBackend: String(hostedRuntimeManifest.default_backend || template?.defaultRuntimeBackend || "neoverse"),
+        launchableBackends: Array.isArray(hostedRuntimeManifest.launchable_backends)
+          ? (hostedRuntimeManifest.launchable_backends as unknown[]).map((item) => String(item))
+          : template?.availableRuntimeBackends || ["neoverse", "gen3c"],
+        exportModes,
+        supportsStepRollout: Boolean(hostedRuntimeManifest.supports_step_rollout ?? runtimeCapabilities.supports_step_rollout ?? true),
+        supportsBatchRollout: Boolean(hostedRuntimeManifest.supports_batch_rollout ?? runtimeCapabilities.supports_batch_rollout ?? true),
+        supportsCameraViews: Boolean(hostedRuntimeManifest.supports_camera_views ?? runtimeCapabilities.supports_camera_views ?? true),
+      }
+    : template?.runtimeManifest || buildFallbackRuntimeManifest(template || buildStaticRecord(siteWorldCards[0]));
 
   return {
     ...(template || {
@@ -444,10 +648,18 @@ async function buildLiveRecord(
       summary: "Qualified deployment-readiness record prepared from pipeline artifacts.",
       bestFor: "Teams reviewing exact-site readiness before a pilot.",
       runtime: readiness.runtime_label,
+      defaultRuntimeBackend: runtimeManifest.defaultBackend,
+      availableRuntimeBackends: runtimeManifest.launchableBackends,
       samplePolicy: "Submitted checkpoint",
       exportArtifacts: readiness.exports_available,
       startStates,
       scenarioVariants,
+      runtimeManifest,
+      taskCatalog,
+      scenarioCatalog,
+      startStateCatalog,
+      robotProfiles,
+      exportModes,
       packages,
       siteName,
       siteAddress,
@@ -457,6 +669,7 @@ async function buildLiveRecord(
       pipelinePrefix,
       taskLane: sampleTask,
       sampleRobot,
+      sampleRobotProfile: robotProfiles[0] || fallbackRobotProfile,
       sampleTask,
     }),
     id: generatedId,
@@ -473,11 +686,20 @@ async function buildLiveRecord(
       "Qualified site packaged for deployment-readiness review and downstream evaluation.",
     bestFor: template?.bestFor || "Deployment readiness review on one exact site.",
     runtime: readiness.runtime_label,
+    defaultRuntimeBackend: runtimeManifest.defaultBackend,
+    availableRuntimeBackends: runtimeManifest.launchableBackends,
     sampleRobot,
+    sampleRobotProfile: robotProfiles[0] || fallbackRobotProfile,
     sampleTask,
     startStates,
     scenarioVariants,
     exportArtifacts: readiness.exports_available.length > 0 ? readiness.exports_available : template?.exportArtifacts || [],
+    runtimeManifest,
+    taskCatalog,
+    scenarioCatalog,
+    startStateCatalog,
+    robotProfiles,
+    exportModes,
     packages,
     dataSource: "pipeline",
     deploymentReadiness: readiness,

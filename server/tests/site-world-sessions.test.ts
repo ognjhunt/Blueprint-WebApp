@@ -61,6 +61,13 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
               }),
             }),
           }),
+          orderBy: () => ({
+            limit: () => ({
+              get: async () => ({
+                docs: [],
+              }),
+            }),
+          }),
         };
       }
       if (name === "hostedSessions") {
@@ -96,31 +103,51 @@ vi.mock("../utils/hosted-session-orchestrator", () => ({
       artifact_uris: {
         session_state: `/tmp/hosted/${sessionId}/session_state.json`,
       },
+      dataset_artifacts: {},
     },
   })),
   resetHostedSessionRun: vi.fn(async () => ({
     episode: {
       episodeId: "episode-1",
-      taskId: "task-1",
+      taskId: "sw-chi-01-task-1",
       task: "Walk to shelf staging and pick the blue tote",
+      scenarioId: "sw-chi-01-scenario-1",
       scenario: "Normal lighting",
+      startStateId: "sw-chi-01-start-1",
       startState: "Dock-side tote stack",
       status: "ready",
       stepIndex: 0,
       done: false,
+      observation: {
+        frame_path: "/tmp/hosted/episode-1/head_rgb/frame_000.png",
+      },
+      observationCameras: [
+        { id: "head_rgb", role: "head", required: true, available: true },
+        { id: "wrist_rgb", role: "wrist", required: false, available: false },
+      ],
+      actionTrace: [],
     },
   })),
   stepHostedSessionRun: vi.fn(async () => ({
     episode: {
       episodeId: "episode-1",
-      taskId: "task-1",
+      taskId: "sw-chi-01-task-1",
       task: "Walk to shelf staging and pick the blue tote",
+      scenarioId: "sw-chi-01-scenario-1",
       scenario: "Normal lighting",
+      startStateId: "sw-chi-01-start-1",
       startState: "Dock-side tote stack",
       status: "running",
       stepIndex: 1,
       done: false,
       reward: 0.5,
+      observation: {
+        frame_path: "/tmp/hosted/episode-1/head_rgb/frame_001.png",
+      },
+      observationCameras: [
+        { id: "head_rgb", role: "head", required: true, available: true },
+      ],
+      actionTrace: [[0.1, 0, 0, 0, 0, 0, 1]],
     },
   })),
   runBatchHostedSessionRun: vi.fn(async () => ({
@@ -136,12 +163,24 @@ vi.mock("../utils/hosted-session-orchestrator", () => ({
     artifact_uris: {
       export_manifest: "/tmp/hosted/export_manifest.json",
     },
+    dataset_artifacts: {
+      rlds: {
+        manifestUri: "/tmp/hosted/rlds_manifest.json",
+      },
+    },
   })),
   stopHostedSessionRun: vi.fn(async () => ({ sessionId: "session-1", status: "stopped" })),
   exportHostedSessionRun: vi.fn(async () => ({
     exportId: "export-1",
     artifact_uris: {
       export_manifest: "/tmp/hosted/export_manifest.json",
+      raw_bundle: "/tmp/hosted/raw_bundle.json",
+      rlds_dataset: "/tmp/hosted/rlds_manifest.json",
+    },
+    dataset_artifacts: {
+      rlds: {
+        manifestUri: "/tmp/hosted/rlds_manifest.json",
+      },
     },
   })),
   sessionWorkDir: vi.fn((sessionId: string) => `/tmp/hosted/${sessionId}`),
@@ -197,17 +236,30 @@ describe("site world session routes", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           siteWorldId: "sw-chi-01",
-          robot: "Unitree G1 with head cam and wrist cam",
+          robotProfileId: "other_sample",
           policy: { adapter_name: "mock", model_name: "mock-policy" },
-          task: "Walk to shelf staging and pick the blue tote",
-          scenario: "Normal lighting",
+          taskId: "sw-chi-01-task-1",
+          scenarioId: "sw-chi-01-scenario-1",
+          startStateId: "sw-chi-01-start-1",
+          requestedOutputs: ["observation_frames", "action_trace", "export_bundle"],
+          exportModes: ["raw_bundle", "rlds_dataset"],
         }),
       });
-      expect(response.status).toBe(201);
       const payload = (await response.json()) as Record<string, unknown>;
+      if (response.status !== 201) {
+        throw new Error(JSON.stringify(payload));
+      }
+      expect(response.status).toBe(201);
       expect(payload.status).toBe("ready");
       expect(String(payload.runtimeBackend)).toBe("neoverse");
       expect(String(payload.workspaceUrl)).toContain("/site-worlds/sw-chi-01/workspace?sessionId=");
+      expect(state.hostedSessions.size).toBe(1);
+      const stored = state.hostedSessions.get(String(payload.sessionId)) as Record<string, unknown>;
+      expect((stored.siteModel as Record<string, unknown>).sceneId).toBe("scene-harborview-grocery-annex");
+      expect((stored.robotProfile as Record<string, unknown>).displayName).toBe(
+        "Unitree G1 with head cam and wrist cam",
+      );
+      expect((stored.runtimeConfig as Record<string, unknown>).startStateId).toBe("sw-chi-01-start-1");
     } finally {
       await stopServer(server);
     }
@@ -221,13 +273,22 @@ describe("site world session routes", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           siteWorldId: "sw-chi-01",
-          robot: "Unitree G1 with head cam and wrist cam",
+          robotProfileId: "other_sample",
           policy: { adapter_name: "mock", model_name: "mock-policy" },
-          task: "Walk to shelf staging and pick the blue tote",
-          scenario: "Normal lighting",
+          taskId: "sw-chi-01-task-1",
+          scenarioId: "sw-chi-01-scenario-1",
+          startStateId: "sw-chi-01-start-1",
+          requestedOutputs: ["observation_frames", "action_trace"],
+          exportModes: ["raw_bundle", "rlds_dataset"],
         }),
       });
-      const created = (await create.json()) as { sessionId: string };
+      const createPayload = (await create.json()) as Record<string, unknown>;
+      if (create.status !== 201) {
+        throw new Error(JSON.stringify(createPayload));
+      }
+      expect(create.status).toBe(201);
+      const created = createPayload as { sessionId: string };
+      expect(created.sessionId).toBeTruthy();
 
       const reset = await fetch(`${baseUrl}/${created.sessionId}/reset`, {
         method: "POST",
@@ -237,6 +298,7 @@ describe("site world session routes", () => {
       expect(reset.status).toBe(200);
       const resetPayload = (await reset.json()) as Record<string, unknown>;
       expect((resetPayload.episode as Record<string, unknown>).episodeId).toBe("episode-1");
+      expect((resetPayload.episode as Record<string, unknown>).startState).toBe("Dock-side tote stack");
 
       const step = await fetch(`${baseUrl}/${created.sessionId}/step`, {
         method: "POST",

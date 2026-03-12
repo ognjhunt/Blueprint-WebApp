@@ -1,22 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useSearch } from "wouter";
-import {
-  ArrowLeft,
-  BarChart3,
-  Camera,
-  Clock3,
-  Download,
-  PauseCircle,
-  Play,
-  RotateCcw,
-  Square,
-} from "lucide-react";
+import { ArrowLeft, BarChart3, Camera, Clock3, Download, RotateCcw, Square } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
+import {
+  isRenderableObservationPath,
+  parseJsonParam,
+  requestedOutputLabel,
+  REQUESTED_OUTPUT_DEFINITIONS,
+  type HostedSessionPreviewPayload,
+} from "@/lib/hostedSession";
 import { getSiteWorldById } from "@/data/siteWorlds";
 import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
 import { withCsrfHeader } from "@/lib/csrf";
 import { auth } from "@/lib/firebase";
+import type { HostedSessionRecord } from "@/types/hostedSession";
 
 interface HostedSessionWorkspaceProps {
   params: {
@@ -25,40 +23,61 @@ interface HostedSessionWorkspaceProps {
 }
 
 function formatElapsed(seconds: number) {
-  const minutes = Math.floor(seconds / 60)
-    .toString()
-    .padStart(2, "0");
-  const remainder = Math.floor(seconds % 60)
-    .toString()
-    .padStart(2, "0");
+  const minutes = Math.floor(seconds / 60).toString().padStart(2, "0");
+  const remainder = Math.floor(seconds % 60).toString().padStart(2, "0");
   return `${minutes}:${remainder}`;
 }
 
 export default function HostedSessionWorkspace({ params }: HostedSessionWorkspaceProps) {
   const fallbackSite = getSiteWorldById(params.slug);
   const [site, setSite] = useState(fallbackSite);
+  const [sessionRecord, setSessionRecord] = useState<HostedSessionRecord | null>(null);
+  const [sessionStatus, setSessionStatus] = useState<"starting" | "live" | "stopped">("starting");
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const search = useSearch();
   const [, setLocation] = useLocation();
   const searchParams = useMemo(() => new URLSearchParams(search), [search]);
-
-  const robot = searchParams.get("robot")?.trim() || site?.sampleRobot || "";
-  const policy = searchParams.get("policy")?.trim() || site?.samplePolicy || "";
-  const task = searchParams.get("task")?.trim() || site?.sampleTask || "";
-  const scenario = searchParams.get("scenario")?.trim() || site?.scenarioVariants[0] || "";
-  const outputs = searchParams.get("outputs")?.trim() || site?.exportArtifacts.join(", ") || "";
-  const notes = searchParams.get("notes")?.trim() || "";
   const sessionId = searchParams.get("sessionId")?.trim() || "";
-
-  const [sessionStatus, setSessionStatus] = useState<"starting" | "live" | "stopped">("starting");
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [latestEpisode, setLatestEpisode] = useState<Record<string, unknown> | null>(null);
-  const [batchSummary, setBatchSummary] = useState<Record<string, unknown> | null>(null);
+  const previewPayload = useMemo<HostedSessionPreviewPayload | null>(() => {
+    if (!searchParams.get("preview")) return null;
+    return {
+      policyLabel: searchParams.get("policyLabel")?.trim() || fallbackSite?.samplePolicy || "",
+      robotProfile: parseJsonParam(searchParams.get("robotProfile"), fallbackSite?.sampleRobotProfile),
+      taskSelection: parseJsonParam(searchParams.get("taskSelection"), {
+        taskId: fallbackSite?.taskCatalog[0]?.id || "",
+        taskText: fallbackSite?.taskCatalog[0]?.taskText || fallbackSite?.sampleTask || "",
+      }),
+      runtimeConfig: parseJsonParam(searchParams.get("runtimeConfig"), {
+        scenarioId: fallbackSite?.scenarioCatalog[0]?.id || "",
+        startStateId: fallbackSite?.startStateCatalog[0]?.id || "",
+        seed: null,
+        requestedBackend: fallbackSite?.defaultRuntimeBackend || "",
+      }),
+      requestedOutputs: parseJsonParam(
+        searchParams.get("requestedOutputs"),
+        REQUESTED_OUTPUT_DEFINITIONS.map((item) => item.id),
+      ),
+      siteModel: parseJsonParam(searchParams.get("siteModel"), {
+        siteWorldId: fallbackSite?.id || params.slug,
+        siteName: fallbackSite?.siteName || "",
+        siteAddress: fallbackSite?.siteAddress || "",
+        sceneId: fallbackSite?.sceneId || "",
+        captureId: fallbackSite?.captureId || "",
+        pipelinePrefix: fallbackSite?.pipelinePrefix || "",
+        availableScenarioVariants: fallbackSite?.scenarioVariants || [],
+        availableStartStates: fallbackSite?.startStates || [],
+        defaultRuntimeBackend: fallbackSite?.defaultRuntimeBackend || "",
+        availableRuntimeBackends: fallbackSite?.availableRuntimeBackends || [],
+      }),
+    };
+  }, [fallbackSite, params.slug, searchParams]);
 
   const authorizedJsonFetch = async (url: string, options: RequestInit = {}) => {
     const token = auth?.currentUser ? await auth.currentUser.getIdToken() : "";
-    const headers = options.method && options.method !== "GET"
-      ? await withCsrfHeader({ "Content-Type": "application/json" })
-      : {};
+    const headers =
+      options.method && options.method !== "GET"
+        ? await withCsrfHeader({ "Content-Type": "application/json" })
+        : {};
     return fetch(url, {
       ...options,
       headers: {
@@ -76,14 +95,10 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     let cancelled = false;
     fetchSiteWorldDetail(params.slug)
       .then((item) => {
-        if (!cancelled) {
-          setSite(item as typeof fallbackSite);
-        }
+        if (!cancelled) setSite(item as typeof fallbackSite);
       })
       .catch(() => {
-        if (!cancelled) {
-          setSite(getSiteWorldById(params.slug));
-        }
+        if (!cancelled) setSite(getSiteWorldById(params.slug));
       });
     return () => {
       cancelled = true;
@@ -99,22 +114,10 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
         })
         .then((payload) => {
           if (!payload) return;
-          const status = String(payload.status || "starting").trim().toLowerCase();
-          if (status === "ready" || status === "running") {
-            setSessionStatus("live");
-          } else if (status === "stopped") {
-            setSessionStatus("stopped");
-          }
-          setLatestEpisode(
-            payload.latestEpisode && typeof payload.latestEpisode === "object"
-              ? payload.latestEpisode
-              : null,
-          );
-          setBatchSummary(
-            payload.batchSummary && typeof payload.batchSummary === "object"
-              ? payload.batchSummary
-              : null,
-          );
+          const record = payload as HostedSessionRecord;
+          setSessionRecord(record);
+          const status = String(record.status || "starting").trim().toLowerCase();
+          setSessionStatus(status === "stopped" ? "stopped" : "live");
         })
         .catch(() => null);
       return;
@@ -122,18 +125,15 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
 
     const timeoutId = window.setTimeout(() => {
       setSessionStatus("live");
-    }, 1200);
-
+    }, 600);
     return () => window.clearTimeout(timeoutId);
-  }, []);
+  }, [sessionId]);
 
   useEffect(() => {
     if (sessionStatus !== "live") return undefined;
-
     const intervalId = window.setInterval(() => {
       setElapsedSeconds((current) => current + 1);
     }, 1000);
-
     return () => window.clearInterval(intervalId);
   }, [sessionStatus]);
 
@@ -141,38 +141,47 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     return (
       <div className="mx-auto max-w-5xl px-4 py-24 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-slate-900">Hosted session not found</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-          The hosted session workspace could not be loaded because the site could not be found.
-        </p>
-        <a
-          href="/site-worlds"
-          className="mt-6 inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-        >
-          Back to Site Worlds
-        </a>
       </div>
     );
   }
 
-  const statusTone =
-    sessionStatus === "live"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-      : sessionStatus === "starting"
-        ? "border-amber-200 bg-amber-50 text-amber-700"
-        : "border-slate-200 bg-slate-100 text-slate-600";
-
-  const statusLabel =
-    sessionStatus === "live" ? "Live" : sessionStatus === "starting" ? "Starting" : "Stopped";
+  const taskSelection = sessionRecord?.taskSelection || previewPayload?.taskSelection || site.taskCatalog[0];
+  const selectedTaskId = "id" in taskSelection ? taskSelection.id : taskSelection.taskId;
+  const runtimeConfig = sessionRecord?.runtimeConfig || previewPayload?.runtimeConfig || {
+    scenarioId: site.scenarioCatalog[0]?.id || "",
+    startStateId: site.startStateCatalog[0]?.id || "",
+    requestedBackend: site.defaultRuntimeBackend,
+  };
+  const scenario = site.scenarioCatalog.find((item) => item.id === runtimeConfig.scenarioId);
+  const startState = site.startStateCatalog.find((item) => item.id === runtimeConfig.startStateId);
+  const robotProfile =
+    sessionRecord?.robotProfile || previewPayload?.robotProfile || site.robotProfiles[0] || site.sampleRobotProfile;
+  const requestedOutputs =
+    sessionRecord?.requestedOutputs ||
+    previewPayload?.requestedOutputs ||
+    REQUESTED_OUTPUT_DEFINITIONS.map((item) => item.id);
+  const latestEpisode = sessionRecord?.latestEpisode || null;
+  const batchSummary = sessionRecord?.batchSummary || null;
+  const observation = latestEpisode?.observation as Record<string, unknown> | undefined;
+  const observationFramePath = String(observation?.frame_path || "").trim();
+  const renderableObservation = isRenderableObservationPath(observationFramePath);
+  const datasetRlds = sessionRecord?.datasetArtifacts?.rlds as
+    | { manifestUri?: string; trainJsonl?: string }
+    | undefined;
 
   const handleReset = async () => {
     if (!sessionId) return;
     const response = await authorizedJsonFetch(`/api/site-worlds/sessions/${sessionId}/reset`, {
       method: "POST",
-      body: JSON.stringify({}),
+      body: JSON.stringify({
+        taskId: selectedTaskId,
+        scenarioId: runtimeConfig.scenarioId,
+        startStateId: runtimeConfig.startStateId,
+      }),
     });
     if (!response.ok) return;
     const payload = await response.json();
-    setLatestEpisode(payload.episode);
+    setSessionRecord((current) => (current ? { ...current, latestEpisode: payload.episode, status: "running" } : current));
     setSessionStatus("live");
   };
 
@@ -180,19 +189,45 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     if (!sessionId) return;
     const response = await authorizedJsonFetch(`/api/site-worlds/sessions/${sessionId}/run-batch`, {
       method: "POST",
-      body: JSON.stringify({ numEpisodes: 10, maxSteps: 6 }),
+      body: JSON.stringify({
+        numEpisodes: 10,
+        maxSteps: 6,
+        taskId: selectedTaskId,
+        scenarioId: runtimeConfig.scenarioId,
+        startStateId: runtimeConfig.startStateId,
+      }),
     });
     if (!response.ok) return;
     const payload = await response.json();
-    setBatchSummary(payload.summary);
+    setSessionRecord((current) =>
+      current
+        ? {
+            ...current,
+            batchSummary: payload.summary,
+            artifactUris: payload.artifact_uris || current.artifactUris,
+            datasetArtifacts: payload.dataset_artifacts || current.datasetArtifacts,
+          }
+        : current,
+    );
   };
 
   const handleExport = async () => {
     if (!sessionId) return;
-    await authorizedJsonFetch(`/api/site-worlds/sessions/${sessionId}/export`, {
+    const response = await authorizedJsonFetch(`/api/site-worlds/sessions/${sessionId}/export`, {
       method: "POST",
       body: JSON.stringify({}),
     });
+    if (!response.ok) return;
+    const payload = await response.json();
+    setSessionRecord((current) =>
+      current
+        ? {
+            ...current,
+            artifactUris: payload.artifact_uris || current.artifactUris,
+            datasetArtifacts: payload.dataset_artifacts || current.datasetArtifacts,
+          }
+        : current,
+    );
   };
 
   const handleStop = async () => {
@@ -203,7 +238,35 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       });
     }
     setSessionStatus("stopped");
+    setSessionRecord((current) => (current ? { ...current, status: "stopped" } : current));
   };
+
+  const statusTone =
+    sessionStatus === "live"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+      : sessionStatus === "starting"
+        ? "border-amber-200 bg-amber-50 text-amber-700"
+        : "border-slate-200 bg-slate-100 text-slate-600";
+
+  const generatedRows = [
+    { label: "Task", value: taskSelection?.taskText || "Pending" },
+    { label: "Scenario", value: scenario?.name || "Pending" },
+    { label: "Start state", value: startState?.name || "Pending" },
+    { label: "Step count", value: String(latestEpisode?.stepIndex ?? 0) },
+    { label: "Reward / score", value: latestEpisode?.reward != null ? String(latestEpisode.reward) : "Pending" },
+    {
+      label: "Success / failure",
+      value:
+        latestEpisode?.success == null
+          ? "Pending"
+          : latestEpisode.success
+            ? "Success"
+            : latestEpisode.failureReason || "Failed",
+    },
+    { label: "Raw bundle", value: sessionRecord?.artifactUris?.raw_bundle || "Pending" },
+    { label: "RLDS dataset", value: datasetRlds?.manifestUri || "Pending" },
+    { label: "Requested outputs", value: requestedOutputs.map((item) => requestedOutputLabel(item)).join(", ") },
+  ];
 
   return (
     <>
@@ -224,22 +287,16 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                 <ArrowLeft className="h-4 w-4" />
                 Back to setup
               </a>
-              <h1 className="mt-4 text-4xl font-bold tracking-tight text-slate-900">
-                Hosted Session Workspace
-              </h1>
+              <h1 className="mt-4 text-4xl font-bold tracking-tight text-slate-900">Hosted Session Workspace</h1>
               <p className="mt-2 text-lg font-semibold text-slate-900">{site.siteName}</p>
               <p className="mt-1 text-sm text-slate-500">{site.siteAddress}</p>
             </div>
-
             <div className="flex flex-wrap items-center gap-3">
               <div className={`rounded-full border px-4 py-2 text-sm font-semibold ${statusTone}`}>
-                Session status: {statusLabel}
+                Session status: {sessionStatus === "live" ? "Live" : sessionStatus === "starting" ? "Starting" : "Stopped"}
               </div>
               <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
-                Robot: {robot}
-              </div>
-              <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
-                Scenario: {scenario}
+                Backend: {sessionRecord?.runtime_backend_selected || site.defaultRuntimeBackend}
               </div>
               <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
                 Elapsed: {formatElapsed(elapsedSeconds)}
@@ -255,58 +312,71 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
             </div>
           </div>
 
-          <div className="mt-8 grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
+          <div className="mt-6 grid gap-4 lg:grid-cols-4">
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Robot profile</p>
+              <p className="mt-3 text-sm font-semibold text-slate-900">{robotProfile.displayName}</p>
+              <p className="mt-1 text-sm text-slate-500">{robotProfile.embodimentType.replaceAll("_", " ")}</p>
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Task</p>
+              <p className="mt-3 text-sm font-semibold text-slate-900">{taskSelection?.taskText}</p>
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Scenario</p>
+              <p className="mt-3 text-sm font-semibold text-slate-900">{scenario?.name}</p>
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Start state</p>
+              <p className="mt-3 text-sm font-semibold text-slate-900">{startState?.name}</p>
+            </div>
+          </div>
+
+          <div className="mt-8 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
             <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    Live View
-                  </p>
-                  <h2 className="mt-2 text-2xl font-bold text-slate-900">Observation viewport</h2>
-                </div>
-                <div className="flex items-center gap-2">
-                  {[
-                    { label: "Live View", active: true },
-                    { label: "Episode Log", active: false },
-                    { label: "Metrics", active: false },
-                    { label: "Exports", active: false },
-                  ].map((tab) => (
-                    <button
-                      key={tab.label}
-                      type="button"
-                      className={`rounded-full px-4 py-2 text-sm font-medium ${
-                        tab.active
-                          ? "bg-slate-950 text-white"
-                          : "border border-slate-200 bg-white text-slate-600"
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Observation viewport</p>
+                  <h2 className="mt-2 text-2xl font-bold text-slate-900">Robot observation</h2>
                 </div>
               </div>
 
               <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                <SiteWorldGraphic site={site} />
+                {renderableObservation ? (
+                  <img
+                    src={observationFramePath}
+                    alt="Latest robot observation frame"
+                    className="h-[320px] w-full rounded-2xl object-cover"
+                  />
+                ) : (
+                  <div className="flex h-[320px] items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center">
+                    <div>
+                      <Camera className="mx-auto h-8 w-8 text-slate-400" />
+                      <p className="mt-3 text-sm font-semibold text-slate-900">Observation stored outside the browser runtime</p>
+                      <p className="mt-2 break-all text-xs text-slate-500">
+                        {observationFramePath || "The runtime has not returned a frame path yet."}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                      <Camera className="h-4 w-4" />
-                      Starting observation
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">
-                      Head camera, wrist camera, and site context initialize from the selected
-                      start state.
-                    </p>
+                    <p className="text-sm font-semibold text-slate-900">Observation cameras</p>
+                    <div className="mt-2 space-y-2 text-sm text-slate-600">
+                      {(latestEpisode?.observationCameras || robotProfile.observationCameras).map((camera) => (
+                        <div key={camera.id} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                          {camera.role} · {camera.available === false ? "unavailable" : "available"}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                      <Play className="h-4 w-4" />
-                      Current step
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">
-                      Policy action is rolled into the hosted world model and the next observation
-                      is returned.
+                    <p className="text-sm font-semibold text-slate-900">Action trace</p>
+                    <p className="mt-2 text-sm text-slate-600">
+                      {latestEpisode?.actionTrace?.length
+                        ? `${latestEpisode.actionTrace.length} actions recorded`
+                        : "No actions recorded yet"}
                     </p>
                   </div>
                 </div>
@@ -314,87 +384,55 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
 
               <div className="mt-6 grid gap-4 md:grid-cols-3">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    Success rate
-                  </p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Step count</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">{latestEpisode?.stepIndex ?? 0}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Reward</p>
                   <p className="mt-2 text-3xl font-bold text-slate-900">
-                    {batchSummary?.successRate
-                      ? `${Math.round(Number(batchSummary.successRate) * 100)}%`
-                      : "82%"}
-                  </p>
-                  <p className="mt-2 text-sm text-slate-500">
-                    {batchSummary?.numEpisodes
-                      ? `${batchSummary.numEpisodes} episodes in the current scenario set`
-                      : "10 episodes in the current scenario set"}
+                    {latestEpisode?.reward != null ? latestEpisode.reward : "0"}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    Failures
-                  </p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Batch success rate</p>
                   <p className="mt-2 text-3xl font-bold text-slate-900">
-                    {typeof batchSummary?.numFailure === "number"
-                      ? batchSummary.numFailure
-                      : 2}
+                    {batchSummary?.successRate != null ? `${Math.round(batchSummary.successRate * 100)}%` : "Pending"}
                   </p>
-                  <p className="mt-2 text-sm text-slate-500">
-                    {Array.isArray(batchSummary?.commonFailureModes) &&
-                    batchSummary.commonFailureModes.length
-                      ? `Most common issue: ${String(batchSummary.commonFailureModes[0])}`
-                      : "Most common issue: blocked handoff approach"}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    Exports ready
-                  </p>
-                  <p className="mt-2 text-3xl font-bold text-slate-900">
-                    {batchSummary ? 1 : 4}
-                  </p>
-                  <p className="mt-2 text-sm text-slate-500">Video, metrics, traces, and summary bundle</p>
                 </div>
               </div>
             </section>
 
             <section className="space-y-6">
               <article className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Run Context
-                </p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Run context</p>
                 <div className="mt-4 space-y-4">
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Task</p>
+                    <p className="text-sm font-medium text-slate-500">Action space</p>
+                    <p className="mt-1 text-sm text-slate-900">{robotProfile.actionSpaceSummary}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-500">Policy adapter</p>
                     <p className="mt-1 text-sm text-slate-900">
-                      {String(latestEpisode?.task || task)}
+                      {String(sessionRecord?.policy?.adapter_name || robotProfile.defaultPolicyAdapter || "n/a")}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Policy / checkpoint</p>
-                    <p className="mt-1 text-sm text-slate-900">{policy}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">Scenario variation</p>
+                    <p className="text-sm font-medium text-slate-500">Model reference</p>
                     <p className="mt-1 text-sm text-slate-900">
-                      {String(latestEpisode?.scenario || scenario)}
+                      {String(sessionRecord?.policy?.model_name || previewPayload?.policyLabel || site.samplePolicy || "Not provided")}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Outputs requested</p>
-                    <p className="mt-1 text-sm text-slate-900">{outputs}</p>
+                    <p className="text-sm font-medium text-slate-500">Checkpoint path</p>
+                    <p className="mt-1 break-all text-sm text-slate-900">
+                      {String(sessionRecord?.policy?.checkpoint_path || "Not provided")}
+                    </p>
                   </div>
-                  {notes ? (
-                    <div>
-                      <p className="text-sm font-medium text-slate-500">Notes</p>
-                      <p className="mt-1 text-sm text-slate-900">{notes}</p>
-                    </div>
-                  ) : null}
                 </div>
               </article>
 
               <article className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Controls
-                </p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Controls</p>
                 <div className="mt-4 grid gap-3">
                   <button
                     type="button"
@@ -420,37 +458,16 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     <Download className="mr-2 h-4 w-4" />
                     Export results
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setSessionStatus("starting")}
-                    className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                  >
-                    <PauseCircle className="mr-2 h-4 w-4" />
-                    Restart session state
-                  </button>
                 </div>
               </article>
 
               <article className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Episode Log
-                </p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Generated outputs</p>
                 <div className="mt-4 space-y-3">
-                  {[
-                    latestEpisode
-                      ? `Episode ${String(latestEpisode.episodeId || "current")}: ${String(
-                          latestEpisode.status || "ready",
-                        )} at step ${String(latestEpisode.stepIndex || 0)}`
-                      : "Episode 01: success after 42 steps",
-                    "Episode 02: failure on blocked handoff path",
-                    "Episode 03: success after lighting change",
-                    "Episode 04: success with shifted start pose",
-                  ].map((entry) => (
-                    <div
-                      key={entry}
-                      className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
-                    >
-                      {entry}
+                  {generatedRows.map((item) => (
+                    <div key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <p className="text-sm font-semibold text-slate-900">{item.label}</p>
+                      <p className="mt-1 break-all text-sm text-slate-700">{item.value}</p>
                     </div>
                   ))}
                 </div>
@@ -462,9 +479,11 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                   Session summary
                 </p>
                 <p className="mt-4 text-sm leading-6 text-slate-600">
-                  Use this workspace to review the current run, reset the episode, run a scenario
-                  batch, and export the outputs your team needs back.
+                  NeoVerse runs the site-conditioned rollout, the robot profile defines action and observation contracts, and exports are written as both raw session bundles and RLDS datasets.
                 </p>
+                <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                  <SiteWorldGraphic site={site} />
+                </div>
                 <button
                   type="button"
                   onClick={() => setLocation(`/site-worlds/${site.id}`)}

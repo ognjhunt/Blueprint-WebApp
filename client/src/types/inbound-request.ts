@@ -178,6 +178,14 @@ export interface DeploymentReadinessSummary {
   runtime_label?: string | null;
 }
 
+import type {
+  RobotProfile,
+  RuntimeManifestSummary,
+  ScenarioCatalogEntry,
+  StartStateCatalogEntry,
+  TaskCatalogEntry,
+} from "./hostedSession";
+
 export type DerivedAssetStatus =
   | "not_requested"
   | "prep_ready"
@@ -228,11 +236,20 @@ export interface PublicSiteWorldRecord {
   bestFor: string;
   startStates: string[];
   runtime: string;
+  defaultRuntimeBackend: string;
+  availableRuntimeBackends: string[];
   sampleRobot: string;
+  sampleRobotProfile: RobotProfile;
   sampleTask: string;
   samplePolicy: string;
   scenarioVariants: string[];
   exportArtifacts: string[];
+  runtimeManifest?: RuntimeManifestSummary;
+  taskCatalog: TaskCatalogEntry[];
+  scenarioCatalog: ScenarioCatalogEntry[];
+  startStateCatalog: StartStateCatalogEntry[];
+  robotProfiles: RobotProfile[];
+  exportModes: string[];
   packages: Array<{
     name: string;
     summary: string;

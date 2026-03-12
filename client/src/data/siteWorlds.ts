@@ -1,4 +1,12 @@
 import type { DeploymentReadinessSummary } from "../types/inbound-request";
+import type {
+  RobotObservationCamera,
+  RobotProfile,
+  RuntimeManifestSummary,
+  ScenarioCatalogEntry,
+  StartStateCatalogEntry,
+  TaskCatalogEntry,
+} from "@/types/hostedSession";
 
 export type SiteCategory =
   | "All"
@@ -55,15 +63,37 @@ export type SiteWorldCard = {
   bestFor: string;
   startStates: string[];
   runtime: string;
+  defaultRuntimeBackend: string;
+  availableRuntimeBackends: string[];
   sampleRobot: string;
+  sampleRobotProfile: RobotProfile;
   sampleTask: string;
   samplePolicy: string;
   scenarioVariants: string[];
   exportArtifacts: string[];
+  runtimeManifest: RuntimeManifestSummary;
+  taskCatalog: TaskCatalogEntry[];
+  scenarioCatalog: ScenarioCatalogEntry[];
+  startStateCatalog: StartStateCatalogEntry[];
+  robotProfiles: RobotProfile[];
+  exportModes: string[];
   packages: [SiteWorldPackage, SiteWorldPackage];
   dataSource?: "static" | "pipeline";
   deploymentReadiness?: DeploymentReadinessSummary;
 };
+
+type RawSiteWorldCard = Omit<
+  SiteWorldCard,
+  | "sampleRobotProfile"
+  | "defaultRuntimeBackend"
+  | "availableRuntimeBackends"
+  | "runtimeManifest"
+  | "taskCatalog"
+  | "scenarioCatalog"
+  | "startStateCatalog"
+  | "robotProfiles"
+  | "exportModes"
+>;
 
 type PackageConfig = {
   siteId: string;
@@ -84,6 +114,131 @@ export const categoryFilters: SiteCategory[] = [
   "Cold Chain",
   "Healthcare",
 ];
+
+function inferEmbodimentType(sampleRobot: string): RobotProfile["embodimentType"] {
+  const normalized = sampleRobot.toLowerCase();
+  if (normalized.includes("humanoid")) return "humanoid";
+  if (normalized.includes("arm")) return "fixed_arm";
+  if (normalized.includes("cart")) return "cart";
+  if (normalized.includes("amr") || normalized.includes("mobile")) return "mobile_manipulator";
+  if (normalized.includes("tug")) return "mobile_base";
+  return "other";
+}
+
+function inferObservationCameras(sampleRobot: string, runtime: string): RobotObservationCamera[] {
+  const normalized = `${sampleRobot} ${runtime}`.toLowerCase();
+  const cameras: RobotObservationCamera[] = [];
+  if (normalized.includes("head")) cameras.push({ id: "head_rgb", role: "head", required: true, defaultEnabled: true });
+  if (normalized.includes("wrist")) cameras.push({ id: "wrist_rgb", role: "wrist", required: false, defaultEnabled: true });
+  if (normalized.includes("overhead")) cameras.push({ id: "overhead_rgb", role: "context", required: false, defaultEnabled: true });
+  if (normalized.includes("mast")) cameras.push({ id: "mast_rgb", role: "head", required: true, defaultEnabled: true });
+  if (normalized.includes("stereo")) cameras.push({ id: "stereo_rgb", role: "head", required: true, defaultEnabled: true });
+  if (normalized.includes("barcode")) cameras.push({ id: "barcode_stream", role: "context", required: false, defaultEnabled: true });
+  if (normalized.includes("thermal")) cameras.push({ id: "thermal_state", role: "context", required: false, defaultEnabled: true });
+  if (normalized.includes("map")) cameras.push({ id: "map_state", role: "context", required: false, defaultEnabled: true });
+  if (normalized.includes("vision")) cameras.push({ id: "site_context_rgb", role: "context", required: false, defaultEnabled: true });
+  return cameras.length > 0
+    ? cameras
+    : [{ id: "primary_rgb", role: "head", required: true, defaultEnabled: true }];
+}
+
+function inferActionSpaceSummary(sampleRobot: string) {
+  const normalized = sampleRobot.toLowerCase();
+  if (normalized.includes("arm")) return "End-effector pose deltas plus gripper open/close.";
+  if (normalized.includes("humanoid")) return "Base locomotion, torso reach, and hand state transitions.";
+  if (normalized.includes("cart") || normalized.includes("tug")) {
+    return "Base motion, docking alignment, and handoff state changes.";
+  }
+  return "Bounded robot action vector for site-conditioned rollout control.";
+}
+
+function inferGripperSemantics(sampleRobot: string) {
+  const normalized = sampleRobot.toLowerCase();
+  if (normalized.includes("arm") || normalized.includes("picker") || normalized.includes("assistant")) {
+    return "Binary grasp / release state on the active manipulator.";
+  }
+  if (normalized.includes("humanoid")) {
+    return "Task-level hand closure and release semantics.";
+  }
+  return "No explicit gripper profile provided.";
+}
+
+function inferBaseSemantics(sampleRobot: string) {
+  const normalized = sampleRobot.toLowerCase();
+  if (normalized.includes("cart") || normalized.includes("tug") || normalized.includes("amr") || normalized.includes("mobile")) {
+    return "Planar base translation with heading control for lane and aisle navigation.";
+  }
+  if (normalized.includes("humanoid")) {
+    return "Footstep and body-pose control for approach and handoff alignment.";
+  }
+  return "Stationary or task-local base semantics.";
+}
+
+function buildSampleRobotProfile(sampleRobot: string, runtime: string): RobotProfile {
+  const embodimentType = inferEmbodimentType(sampleRobot);
+  return {
+    id: `${embodimentType}_sample`,
+    displayName: sampleRobot,
+    embodimentType,
+    observationCameras: inferObservationCameras(sampleRobot, runtime),
+    actionSpace: {
+      name: embodimentType === "fixed_arm" ? "joint_delta_gripper" : "ee_delta_pose_gripper",
+      dim: 7,
+      labels: ["x", "y", "z", "roll", "pitch", "yaw", "gripper"],
+    },
+    actionSpaceSummary: inferActionSpaceSummary(sampleRobot),
+    gripperSemantics: inferGripperSemantics(sampleRobot),
+    baseSemantics: inferBaseSemantics(sampleRobot),
+    urdfRef: null,
+    usdRef: null,
+    allowedPolicyAdapters: ["openvla_oft", "pi05", "dreamzero"],
+    defaultPolicyAdapter: "openvla_oft",
+  };
+}
+
+function withDerivedSessionDefaults(site: RawSiteWorldCard): SiteWorldCard {
+  const sampleRobotProfile = buildSampleRobotProfile(site.sampleRobot, site.runtime);
+  const taskCatalog: TaskCatalogEntry[] = [
+    {
+      id: `${site.id}-task-1`,
+      taskId: `${site.id}-task-1`,
+      taskText: site.sampleTask,
+      taskCategory: "generic",
+    },
+  ];
+  const scenarioCatalog: ScenarioCatalogEntry[] = site.scenarioVariants.map((variant, index) => ({
+    id: `${site.id}-scenario-${index + 1}`,
+    name: variant,
+    source: "static",
+  }));
+  const startStateCatalog: StartStateCatalogEntry[] = site.startStates.map((state, index) => ({
+    id: `${site.id}-start-${index + 1}`,
+    name: state,
+    taskId: taskCatalog[0].id,
+    source: "static",
+  }));
+  const robotProfiles = [sampleRobotProfile];
+  const exportModes = ["raw_bundle", "rlds_dataset"];
+  return {
+    ...site,
+    defaultRuntimeBackend: "neoverse",
+    availableRuntimeBackends: ["neoverse", "gen3c"],
+    sampleRobotProfile,
+    runtimeManifest: {
+      defaultBackend: "neoverse",
+      launchableBackends: ["neoverse", "gen3c"],
+      exportModes,
+      supportsStepRollout: true,
+      supportsBatchRollout: true,
+      supportsCameraViews: true,
+    },
+    taskCatalog,
+    scenarioCatalog,
+    startStateCatalog,
+    robotProfiles,
+    exportModes,
+  };
+}
 
 function buildContactHref(
   interest: "evaluation-package" | "data-licensing",
@@ -136,7 +291,7 @@ function buildPackages(config: PackageConfig): [SiteWorldPackage, SiteWorldPacka
   ];
 }
 
-export const siteWorldCards: SiteWorldCard[] = [
+const rawSiteWorldCards: RawSiteWorldCard[] = [
   {
     id: "sw-chi-01",
     siteCode: "SW-CHI-01",
@@ -553,6 +708,8 @@ export const siteWorldCards: SiteWorldCard[] = [
     }),
   },
 ];
+
+export const siteWorldCards: SiteWorldCard[] = rawSiteWorldCards.map(withDerivedSessionDefaults);
 
 export function getSiteWorldById(id: string) {
   return siteWorldCards.find((site) => site.id === id) ?? null;

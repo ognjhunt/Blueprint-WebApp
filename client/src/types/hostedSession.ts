@@ -1,10 +1,3 @@
-export type HostedSessionStatus =
-  | "creating"
-  | "ready"
-  | "running"
-  | "stopped"
-  | "failed";
-
 export type EmbodimentType =
   | "humanoid"
   | "mobile_manipulator"
@@ -84,6 +77,12 @@ export interface RuntimeConfig {
   requestedBackend?: string | null;
 }
 
+export interface RequestedOutputDefinition {
+  id: string;
+  label: string;
+  description: string;
+}
+
 export interface SiteModelSummary {
   siteWorldId: string;
   siteName: string;
@@ -119,16 +118,6 @@ export interface GeneratedOutputsSummary {
   actionTrace?: GeneratedOutputStatus | null;
   rolloutVideo?: GeneratedOutputStatus | null;
   exportBundle?: GeneratedOutputStatus | null;
-}
-
-export interface HostedSessionSiteRef {
-  siteWorldId: string;
-  siteName: string;
-  siteAddress: string;
-  scene_id: string;
-  capture_id: string;
-  site_submission_id: string;
-  pipeline_prefix: string;
 }
 
 export interface HostedEpisodeSummary {
@@ -168,28 +157,29 @@ export interface HostedBatchSummary {
 
 export interface HostedSessionRecord {
   sessionId: string;
-  site: HostedSessionSiteRef;
-  siteModel?: SiteModelSummary | null;
   runtime_backend_selected: string;
-  status: HostedSessionStatus;
+  status: "creating" | "ready" | "running" | "stopped" | "failed";
+  site: {
+    siteWorldId: string;
+    siteName: string;
+    siteAddress: string;
+    scene_id: string;
+    capture_id: string;
+    site_submission_id: string;
+    pipeline_prefix: string;
+  };
+  siteModel?: SiteModelSummary | null;
   robotProfile?: RobotProfile | null;
   robotProfileId?: string;
-  robot: string;
   policy: Record<string, unknown>;
   runtimeConfig?: RuntimeConfig | null;
   taskSelection?: TaskSelection | null;
   requestedOutputs?: string[];
   datasetArtifacts?: Record<string, unknown>;
-  task: string;
-  scenario: string;
+  robot?: string;
+  task?: string;
+  scenario?: string;
   notes?: string | null;
-  createdBy: {
-    uid: string;
-    email?: string | null;
-  };
-  createdAt: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
-  startedAt?: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string | null;
-  stoppedAt?: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string | null;
   elapsedSeconds: number;
   latestEpisode?: HostedEpisodeSummary | null;
   batchSummary?: HostedBatchSummary | null;

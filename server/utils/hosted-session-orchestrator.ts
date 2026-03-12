@@ -172,10 +172,13 @@ export async function createHostedSessionRun(params: {
   sessionId: string;
   workDir: string;
   runtime: HostedRuntimeResolution;
-  robot: string;
+  robotProfileId: string;
+  robotProfileOverride?: Record<string, unknown>;
   policy: Record<string, unknown>;
-  task: string;
-  scenario: string;
+  taskId: string;
+  scenarioId: string;
+  startStateId: string;
+  exportModes: string[];
   notes?: string;
 }) {
   await fs.mkdir(params.workDir, { recursive: true });
@@ -192,14 +195,20 @@ export async function createHostedSessionRun(params: {
       params.workDir,
       "--runtime-manifest",
       staged.runtimeManifestPath,
-      "--robot",
-      params.robot,
-      "--task",
-      params.task,
-      "--scenario",
-      params.scenario,
+      "--robot-profile-id",
+      params.robotProfileId,
+      "--task-id",
+      params.taskId,
+      "--scenario-id",
+      params.scenarioId,
+      "--start-state-id",
+      params.startStateId,
       "--policy-json",
       policyJson,
+      ...params.exportModes.flatMap((item) => ["--export-mode", item]),
+      ...(params.robotProfileOverride
+        ? ["--robot-profile-override-json", JSON.stringify(params.robotProfileOverride)]
+        : []),
       ...(params.notes ? ["--notes", params.notes] : []),
     ],
     validationRepoPath(),
@@ -212,8 +221,8 @@ export async function resetHostedSessionRun(params: {
   sessionId: string;
   workDir: string;
   taskId?: string;
-  scenario?: string;
-  startState?: string;
+  scenarioId?: string;
+  startStateId?: string;
   seed?: number;
 }) {
   return runValidationSessionCommand(
@@ -225,8 +234,8 @@ export async function resetHostedSessionRun(params: {
       "--session-work-dir",
       params.workDir,
       ...(params.taskId ? ["--task-id", params.taskId] : []),
-      ...(params.scenario ? ["--scenario", params.scenario] : []),
-      ...(params.startState ? ["--start-state", params.startState] : []),
+      ...(params.scenarioId ? ["--scenario-id", params.scenarioId] : []),
+      ...(params.startStateId ? ["--start-state-id", params.startStateId] : []),
       ...(params.seed !== undefined ? ["--seed", String(params.seed)] : []),
     ],
     validationRepoPath(),
@@ -262,7 +271,8 @@ export async function runBatchHostedSessionRun(params: {
   workDir: string;
   numEpisodes: number;
   taskId?: string;
-  scenario?: string;
+  scenarioId?: string;
+  startStateId?: string;
   seed?: number;
   maxSteps?: number;
 }) {
@@ -277,7 +287,8 @@ export async function runBatchHostedSessionRun(params: {
       "--num-episodes",
       String(params.numEpisodes),
       ...(params.taskId ? ["--task-id", params.taskId] : []),
-      ...(params.scenario ? ["--scenario", params.scenario] : []),
+      ...(params.scenarioId ? ["--scenario-id", params.scenarioId] : []),
+      ...(params.startStateId ? ["--start-state-id", params.startStateId] : []),
       ...(params.seed !== undefined ? ["--seed", String(params.seed)] : []),
       ...(params.maxSteps !== undefined ? ["--max-steps", String(params.maxSteps)] : []),
     ],

@@ -1,5 +1,12 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import type { PipelineAttachment } from "../types/inbound-request";
+import type {
+  RobotProfile,
+  RuntimeManifestSummary,
+  ScenarioCatalogEntry,
+  StartStateCatalogEntry,
+  TaskCatalogEntry,
+} from "../types/hosted-session";
 import { getPublicSiteWorldById } from "./site-worlds";
 
 export class HostedSessionRuntimeError extends Error {
@@ -19,6 +26,16 @@ export interface HostedRuntimeResolution {
   capture_id: string;
   site_submission_id: string;
   pipeline_prefix: string;
+  defaultRuntimeBackend: string;
+  availableRuntimeBackends: string[];
+  availableScenarioVariants: string[];
+  availableStartStates: string[];
+  runtimeManifest: RuntimeManifestSummary;
+  taskCatalog: TaskCatalogEntry[];
+  scenarioCatalog: ScenarioCatalogEntry[];
+  startStateCatalog: StartStateCatalogEntry[];
+  robotProfiles: RobotProfile[];
+  exportModes: string[];
   runtimeManifestUri: string;
   sceneMemoryManifestUri: string;
   conditioningBundleUri: string;
@@ -145,6 +162,23 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     capture_id: site.captureId,
     site_submission_id: site.siteSubmissionId,
     pipeline_prefix: pipelinePrefix,
+    defaultRuntimeBackend: site.defaultRuntimeBackend,
+    availableRuntimeBackends: site.availableRuntimeBackends,
+    availableScenarioVariants: site.scenarioVariants,
+    availableStartStates: site.startStates,
+    runtimeManifest: site.runtimeManifest || {
+      defaultBackend: site.defaultRuntimeBackend,
+      launchableBackends: site.availableRuntimeBackends,
+      exportModes: site.exportModes,
+      supportsStepRollout: true,
+      supportsBatchRollout: true,
+      supportsCameraViews: true,
+    },
+    taskCatalog: site.taskCatalog,
+    scenarioCatalog: site.scenarioCatalog,
+    startStateCatalog: site.startStateCatalog,
+    robotProfiles: site.robotProfiles,
+    exportModes: site.exportModes,
     runtimeManifestUri,
     sceneMemoryManifestUri,
     conditioningBundleUri,
