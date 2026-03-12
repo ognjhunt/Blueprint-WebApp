@@ -55,11 +55,34 @@ async function readTextFromUri(uri: string): Promise<string> {
   return fs.readFile(uri, "utf-8");
 }
 
+async function readBufferFromUri(uri: string): Promise<Buffer> {
+  if (uri.startsWith("gs://")) {
+    if (!storageAdmin) {
+      throw new HostedSessionOrchestratorError(
+        "artifact_download_unavailable",
+        "Storage is not configured, so hosted-session artifacts cannot be staged.",
+      );
+    }
+    const { bucket, objectPath } = parseGsUri(uri);
+    const [buffer] = await storageAdmin.bucket(bucket).file(objectPath).download();
+    return buffer;
+  }
+
+  return fs.readFile(uri);
+}
+
 async function stageJson(uri: string, outputPath: string) {
   const content = await readTextFromUri(uri);
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   await fs.writeFile(outputPath, content, "utf-8");
   return JSON.parse(content) as Record<string, unknown>;
+}
+
+async function stageBinary(uri: string, outputPath: string) {
+  const content = await readBufferFromUri(uri);
+  await fs.mkdir(path.dirname(outputPath), { recursive: true });
+  await fs.writeFile(outputPath, content);
+  return outputPath;
 }
 
 async function stageHostedRuntimeArtifacts(
@@ -85,7 +108,7 @@ async function stageHostedRuntimeArtifacts(
     runtime.sceneMemoryManifestUri,
     path.join(runtimeDir, "scene_memory_manifest.json"),
   );
-  await stageJson(
+  const conditioningBundle = await stageJson(
     runtime.conditioningBundleUri,
     path.join(runtimeDir, "conditioning_bundle.json"),
   );
@@ -98,6 +121,23 @@ async function stageHostedRuntimeArtifacts(
     } catch {
       // Optional artifact for v1.
     }
+  }
+
+  let conditioningInputPath: string | null = null;
+  const keyframeUri = String(conditioningBundle["keyframe_uri"] || "").trim();
+  const rawVideoUri = String(conditioningBundle["raw_video_uri"] || "").trim();
+  if (keyframeUri) {
+    const extension = path.extname(keyframeUri) || ".png";
+    conditioningInputPath = await stageBinary(
+      keyframeUri,
+      path.join(runtimeDir, `conditioning_keyframe${extension}`),
+    );
+  } else if (rawVideoUri) {
+    const extension = path.extname(rawVideoUri) || ".mp4";
+    conditioningInputPath = await stageBinary(
+      rawVideoUri,
+      path.join(runtimeDir, `conditioning_video${extension}`),
+    );
   }
 
   const adapterManifestUris =
@@ -125,6 +165,7 @@ async function stageHostedRuntimeArtifacts(
     hosted_session_runtime_manifest_uri: runtime.runtimeManifestUri,
     scene_memory_manifest_uri: path.join(runtimeDir, "scene_memory_manifest.json"),
     conditioning_bundle_uri: path.join(runtimeDir, "conditioning_bundle.json"),
+    conditioning_input_path: conditioningInputPath,
     preview_simulation_manifest_uri: runtime.previewSimulationManifestUri
       ? path.join(runtimeDir, "preview_simulation_manifest.json")
       : null,
