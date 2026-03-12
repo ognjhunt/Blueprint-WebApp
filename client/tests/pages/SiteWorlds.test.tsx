@@ -8,12 +8,12 @@ describe("SiteWorlds", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Pick a site and start the hosted session setup\./i,
+        name: /Test your robot on a real site before the field visit\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Every card shows one potential deployment site, the site package behind it/i,
+        /Built for robot vendors and systems integrators\./i,
       ),
     ).toBeInTheDocument();
     expect(
@@ -21,7 +21,10 @@ describe("SiteWorlds", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText(/^Scene Package$/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/^Hosted Sessions$/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Qualification is for site operators\./i)).toBeInTheDocument();
+    expect(screen.getByText(/These are robot-team pages\./i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/each site card shows its own self-serve hourly rate/i),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Harborview Grocery Distribution Annex/i)).toBeInTheDocument();
     expect(screen.getByText(/1847 W Fulton St, Chicago, IL 60612/i)).toBeInTheDocument();
 

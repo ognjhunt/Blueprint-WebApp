@@ -10,11 +10,11 @@ const layerCards = [
     title: "Scene Package",
     kicker: "First",
     description:
-      "License the site asset package when your team needs the captured evidence and site context for one real workflow area.",
+      "Take the captured site package when your team needs the evidence, layout context, and constraints for one real workflow area.",
     bullets: [
-      "Walkthrough video and camera poses",
-      "Geometry or depth when available",
-      "Metadata, context, and license terms",
+      "Walkthrough capture and camera poses",
+      "Geometry, depth, and context when available",
+      "Task-lane notes and license terms",
     ],
     icon: <ScanLine className="h-5 w-5 text-slate-700" />,
   },
@@ -22,11 +22,11 @@ const layerCards = [
     title: "Hosted Sessions",
     kicker: "Second",
     description:
-      "Use Blueprint-managed eval sessions when your team wants to test policies on that site without running the environment itself.",
+      "Open a hosted eval session when you want to test policies on that site now without building the runtime yourself.",
     bullets: [
-      "Managed site-specific eval runtime",
-      "Scenario variations and repeat runs",
-      "Exports for rollouts and metrics",
+      "Self-serve session hours on that site",
+      "Scenario variants for edge-case checks",
+      "Rollout exports, metrics, and policy comparison",
     ],
     icon: <Play className="h-5 w-5 text-slate-700" />,
   },
@@ -63,7 +63,7 @@ export default function SiteWorlds() {
     <>
       <SEO
         title="Site Worlds | Blueprint"
-        description="Robot teams can review a site asset package first, then see how Blueprint-managed hosted eval sessions would work on that exact site."
+        description="Robot teams and integrators can review a real site package, then open hosted evaluation time on that exact workflow."
         canonical="/site-worlds"
       />
 
@@ -75,12 +75,13 @@ export default function SiteWorlds() {
                 Site Worlds For Robot Teams
               </p>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Pick a site and start the hosted session setup.
+                Test your robot on a real site before the field visit.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
-                This page is for robot teams. Every card shows one potential deployment site, the
-                site package behind it, and the direct path to start a hosted evaluation session
-                setup for that exact place.
+                Built for robot vendors and systems integrators. Pick a site, review the capture
+                package, then open a hosted evaluation session for that exact workflow. The point
+                is to cut time to first test, compare checkpoints on repeatable conditions, and see
+                what breaks before anyone travels.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -101,9 +102,9 @@ export default function SiteWorlds() {
             <div className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-5 sm:px-6">
               <p className="text-sm font-semibold text-slate-900">How to read this page</p>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                Qualification is for site operators. This page starts after a site exists. Robot
-                teams can review the site package first, then see how hosted sessions would support
-                testing, comparison, and export on that exact site.
+                These are robot-team pages. The site has already been qualified. You can license
+                the site package, or open hosted eval time to check deployment fit, run
+                counterfactuals, and compare policies against the same task lane.
               </p>
             </div>
           </header>
@@ -120,9 +121,9 @@ export default function SiteWorlds() {
                 Two ways a robot team can use a site.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Keep it simple. The Scene Package is the site asset. Hosted Sessions are the
-                managed eval layer built from that site. Start the hosted session setup when your
-                team wants Blueprint to handle the environment and rollout outputs.
+                Start with the site package if you need the raw capture context. Open Hosted
+                Sessions when you want a Blueprint-run test room for repeatable policy evaluation,
+                scenario changes, and exportable results.
               </p>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -157,16 +158,16 @@ export default function SiteWorlds() {
                   Sample catalog
                 </p>
                 <h2 className="mt-2 text-3xl font-bold text-slate-900">
-                  Twelve sites a robot team could review right now.
+                  Sites your team could test against right now.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Each listing shows the site asset package first and the direct hosted-session
-                  start path second. Open the detail page if you want the simple step-by-step
-                  explanation.
+                  Each listing shows the site package first and the hosted eval meter second. Every
+                  site card has its own self-serve hourly rate. Open the detail page if you want
+                  the session workflow, the pricing context, and the direct launch path.
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                {filteredSites.length} listed sites
+                {filteredSites.length} listed sites · each site card shows its own self-serve hourly rate
               </div>
             </div>
 

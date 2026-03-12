@@ -62,9 +62,9 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
   const siteChecklist = useMemo(() => {
     if (!site) return [];
     return [
-      "Blueprint hosts the eval environment for this exact site.",
-      "You choose the robot, policy, task, and scenario set.",
-      "The workspace returns observations, metrics, and exports.",
+      "Fast way to test on this exact site before another field visit.",
+      "Use one task lane to compare checkpoints, vendors, or robot setups.",
+      "Get rollouts, traces, and summary metrics back from the workspace.",
     ];
   }, [site]);
 
@@ -149,7 +149,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
     <>
       <SEO
         title={`Start Hosted Session | ${site.siteName} | Blueprint`}
-        description={`Set up a hosted evaluation session for ${site.siteName}.`}
+        description={`Set up a site-specific hosted evaluation session for ${site.siteName}.`}
         canonical={`/site-worlds/${site.id}/start`}
       />
 
@@ -186,7 +186,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    Starting rate
+                    Self-serve starting rate
                   </p>
                   <p className="mt-2 text-xl font-bold text-slate-900">
                     {site.packages[1].priceLabel}
@@ -204,6 +204,10 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
 
               <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-950 p-5 text-slate-100">
                 <p className="text-sm font-semibold">You are setting up a hosted evaluation run.</p>
+                <p className="mt-2 text-sm text-slate-300">
+                  Listed rates on Site Worlds are for self-serve session time. If you need priority
+                  handling or heavier support, we scope that separately.
+                </p>
                 <ul className="mt-4 space-y-3 text-sm text-slate-300">
                   {siteChecklist.map((item) => (
                     <li key={item} className="flex items-start gap-3">
@@ -221,7 +225,8 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                 Launch Details
               </div>
               <p className="mt-4 text-sm leading-6 text-slate-600">
-                Confirm the core run settings below, then launch the hosted session workspace.
+                Confirm the core run settings below, then launch the hosted session workspace for
+                this site.
               </p>
 
               <form className="mt-6 space-y-5" onSubmit={handleLaunch}>

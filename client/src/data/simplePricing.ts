@@ -51,9 +51,11 @@ export const simplePricingOptions: SimplePricingOption[] = [
     price: "$7,500 - $20,000",
     unit: "per site",
     payer: "Robot team / OEM / integrator",
-    summary: "Premium technical diligence for a specific robot, team, and site.",
+    summary:
+      "Managed technical diligence for a specific robot, team, and site after self-serve hosted evals have narrowed the question.",
     includes: [
-      "Preview or simulation-backed review when justified",
+      "Priority or higher-touch hosted evaluation support when justified",
+      "Preview or simulation-backed review when the workflow needs it",
       "Robot/team-specific fit checks",
       "Stronger blocker and feasibility analysis",
       "Decision on whether to proceed to deployment prep",

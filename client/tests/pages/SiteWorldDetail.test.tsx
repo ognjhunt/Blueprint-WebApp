@@ -16,13 +16,14 @@ describe("SiteWorldDetail", () => {
       screen.getByRole("heading", { name: /Start with the site asset package\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Use the hosted eval layer built from the site\./i }),
+      screen.getByRole("heading", { name: /Open the hosted eval room for this site\./i }),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /How this works/i })).toBeInTheDocument();
     expect(screen.getByText(/Step 1/i)).toBeInTheDocument();
     expect(screen.getByText(/Pick the site/i)).toBeInTheDocument();
     expect(screen.getByText(/Step 8/i)).toBeInTheDocument();
     expect(screen.getByText(/Score the run, export results, and compare policies/i)).toBeInTheDocument();
+    expect(screen.getByText(/Self-serve starting rate/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What goes in/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What comes back/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What teams do with it/i })).toBeInTheDocument();

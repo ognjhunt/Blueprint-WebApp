@@ -5,8 +5,36 @@ import { CheckCircle2, CreditCard, ShieldCheck } from "lucide-react";
 const billingSteps = [
   "Start with a Readiness Pack.",
   "Open qualified sites to robot teams only after qualification.",
-  "Buy technical evaluation only when both sides are serious.",
+  "Use self-serve hosted session hours when you want to test on a real site now.",
+  "Buy managed evaluation only when both sides are serious.",
   "Use deployment prep or managed tuning only for selected programs.",
+];
+
+const hostedSessionBands = [
+  {
+    title: "Self-serve hosted session",
+    price: "$10 - $30",
+    unit: "per session-hour",
+    description:
+      "This is the meter for opening a site and testing now. Best for robot teams and integrators that already know the robot, task, and outputs they want. Each Site Worlds card carries its own exact self-serve rate inside this band.",
+    bullets: [
+      "Fast time to first test on a real site",
+      "Repeatable policy evaluation without another field visit",
+      "Checkpoint comparison and exportable rollout outputs",
+    ],
+  },
+  {
+    title: "Managed or priority session",
+    price: "$30 - $100",
+    unit: "per session-hour",
+    description:
+      "Use this when you need priority turnaround, custom scenario work, more operator support, or higher-fidelity handling than the self-serve lane. Final pricing is scoped per session inside this band.",
+    bullets: [
+      "Priority scheduling and hands-on support",
+      "Heavier scenario setup and deeper review",
+      "Better fit for high-stakes evals and tighter timelines",
+    ],
+  },
 ];
 
 export default function Pricing() {
@@ -14,7 +42,7 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Blueprint pricing starts with a Readiness Pack, then moves into qualified opportunities, technical evaluation, and deployment prep only when needed."
+        description="Blueprint pricing starts with qualification, then moves into qualified access, hosted evaluation time, and managed deployment work only when needed."
         canonical="/pricing"
       />
 
@@ -28,9 +56,9 @@ export default function Pricing() {
               Start with qualification. Add the next layer only when it matters.
             </h1>
             <p className="text-lg text-slate-600">
-              Blueprint is not priced like a generic marketplace. The first product is a
-              readiness decision. Everything else comes later, if the site is real and the team
-              is serious.
+              Blueprint is not priced like a generic marketplace. The first product is a readiness
+              decision. After that, robot teams and integrators can buy access, hosted eval time,
+              and higher-touch work only when the site is real and the question is worth answering.
             </p>
           </header>
 
@@ -43,8 +71,8 @@ export default function Pricing() {
                 <h2 className="text-3xl font-bold text-emerald-950">Readiness first. Marketplace later.</h2>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-900">
                   The business model is simple. Site operators buy qualification. Robot teams pay
-                  for access to better opportunities, deeper checks, and later technical work only
-                  when a site deserves it.
+                  for access to better opportunities, site-specific eval time, and later technical
+                  work only when a site deserves it.
                 </p>
                 <ul className="mt-4 space-y-2">
                   <li className="flex items-start gap-2 text-sm text-emerald-900">
@@ -57,7 +85,7 @@ export default function Pricing() {
                   </li>
                   <li className="flex items-start gap-2 text-sm text-emerald-900">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
-                    <span>Technical evaluation and deployment prep are premium follow-ons</span>
+                    <span>Hosted session hours and managed evaluation are premium follow-ons</span>
                   </li>
                 </ul>
               </div>
@@ -65,7 +93,7 @@ export default function Pricing() {
                 <p className="text-sm font-medium text-emerald-700">Revenue stack</p>
                 <p className="mt-2 text-xl font-bold text-emerald-950">Operator revenue first</p>
                 <p className="mt-2 text-sm text-emerald-800">
-                  Then exchange access, technical diligence, and later tuning or licensing.
+                  Then exchange access, hosted eval time, and later tuning or licensing.
                 </p>
                 <a
                   href="/contact?interest=site-qualification"
@@ -101,8 +129,8 @@ export default function Pricing() {
                   Everything after qualification
                 </p>
                 <p className="mt-2 text-sm text-slate-600">
-                  If you want access, deeper checks, or managed work, your team pays for that next
-                  layer.
+                  If you want access, hosted eval hours, deeper checks, or managed work, your team
+                  pays for that next layer.
                 </p>
               </div>
             </div>
@@ -116,6 +144,48 @@ export default function Pricing() {
                 </li>
               ))}
             </ol>
+          </section>
+
+          <section className="mt-10 rounded-3xl border border-slate-200 bg-white p-6 sm:p-8">
+            <div className="max-w-3xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Hosted evaluation session fee
+              </p>
+              <h2 className="mt-2 text-3xl font-bold text-slate-900">
+                The session meter starts when your team opens the site and tests.
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                This is the robot-team lane behind Site Worlds. It is priced like hosted eval time,
+                not like a perpetual software seat. Use it when you need a quick answer on a real
+                site, a repeatable benchmark, or a few counterfactual runs before spending another
+                day in the field.
+              </p>
+            </div>
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              {hostedSessionBands.map((band) => (
+                <article
+                  key={band.title}
+                  className="rounded-2xl border border-slate-200 bg-slate-50 p-5"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    {band.title}
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-end gap-2">
+                    <p className="text-3xl font-bold text-slate-900">{band.price}</p>
+                    <p className="pb-1 text-sm text-slate-500">{band.unit}</p>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">{band.description}</p>
+                  <ul className="mt-4 space-y-2">
+                    {band.bullets.map((bullet) => (
+                      <li key={bullet} className="flex items-start gap-2 text-sm text-slate-700">
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                        <span>{bullet}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
           </section>
 
           <section className="mt-10">

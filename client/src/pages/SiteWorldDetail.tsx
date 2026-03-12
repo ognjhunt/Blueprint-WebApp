@@ -138,7 +138,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
     <>
       <SEO
         title={`${site.siteName} | Site Worlds | Blueprint`}
-        description={`${site.siteName} shows the site asset package first and the hosted eval flow second so robot teams can understand how testing would work on that site.`}
+        description={`${site.siteName} shows the site package first and the hosted evaluation workflow second so robot teams can judge fit before a site visit.`}
         canonical={`/site-worlds/${site.id}`}
       />
 
@@ -194,8 +194,9 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 </a>
               </div>
               <p className="mt-4 text-sm leading-relaxed text-slate-600">
-                Qualification is for the site side. This page is the robot-team view: confirm the
-                site, then start the hosted session setup for that exact location.
+                Qualification happens on the site side. This page is the robot-team view: confirm
+                the site, then decide whether you want the package or hosted eval time on that
+                exact location.
               </p>
             </aside>
           </header>
@@ -287,8 +288,9 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   Start with the site asset package.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  This package gives your team the site-specific inputs for this workflow area. It
-                  is the asset layer, not the hosted eval layer.
+                  This gives your team the site-specific inputs for this workflow area. Use it when
+                  you want the capture package for internal review, integration work, or your own
+                  stack. It is the asset layer, not the hosted eval layer.
                 </p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   {scenePackage.deliverables.map((item) => (
@@ -339,12 +341,14 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             <div className="mt-3 grid gap-6 lg:grid-cols-[1fr_0.9fr]">
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                  Use the hosted eval layer built from the site.
+                  Open the hosted eval room for this site.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Hosted Sessions are for robot-team testing, checkpoint comparison, stress
-                  testing, and rollout review on this exact site. They are not the raw scan, not a
-                  physics-certified sim, and not final deployment proof.
+                  Hosted Sessions are for the practical questions robot teams actually ask: can
+                  this robot handle this lane, what fails first, and how do checkpoints compare on
+                  the same setup? Use them for repeatable evaluation and edge-case variations
+                  without another site visit. They are not the raw scan, not a physics-certified
+                  simulator, and not final deployment proof.
                 </p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   {hostedSessions.deliverables.map((item) => (
@@ -373,12 +377,12 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   {hostedSessions.payerLabel.replace("Likely buyer: ", "")}
                 </p>
                 <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Starting rate
+                  Self-serve starting rate
                 </p>
                 <p className="mt-2 text-2xl font-bold text-slate-900">{hostedSessions.priceLabel}</p>
                 <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                  Use this when your team wants Blueprint to host the eval environment and return
-                  rollout outputs instead of handing you only the site package.
+                  That rate is for self-serve hosted eval time. Managed, priority, or higher-touch
+                  sessions are scoped separately when the work needs more support or fidelity.
                 </p>
                 <a
                   href={hostedSessions.actionHref}
@@ -399,7 +403,8 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 How this works
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Think of this as a temporary cloud test room for one real site.
+                Think of this as a temporary cloud test room for one real site and one real robot
+                question.
               </p>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -447,8 +452,10 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-200">
               A team picks {site.siteName}, chooses {site.sampleRobot}, and tests{" "}
               {site.samplePolicy} on the task to {site.sampleTask.toLowerCase()}. They run a few
-              variations like {site.scenarioVariants.slice(0, 2).join(" and ").toLowerCase()},
-              then review the rollout video, metrics, and failure cases.
+              variations like {site.scenarioVariants.slice(0, 2).join(" and ").toLowerCase()} to
+              see whether the lane is viable, what breaks first, and whether the checkpoint is
+              ready for a real visit. Then they review the rollout video, metrics, and failure
+              cases.
             </p>
           </section>
 

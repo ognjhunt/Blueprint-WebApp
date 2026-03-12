@@ -20,6 +20,7 @@ describe("HostedSessionSetup", () => {
     expect(screen.getByText(/Harborview Grocery Distribution Annex/i)).toBeInTheDocument();
     expect(screen.getByText(/1847 W Fulton St, Chicago, IL 60612/i)).toBeInTheDocument();
     expect(screen.getByText(/You are setting up a hosted evaluation run\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Listed rates on Site Worlds are for self-serve session time\./i)).toBeInTheDocument();
     expect(screen.getByDisplayValue(/Unitree G1 with head cam and wrist cam/i)).toBeInTheDocument();
     expect(screen.getByDisplayValue(/Checkpoint 148000/i)).toBeInTheDocument();
 
