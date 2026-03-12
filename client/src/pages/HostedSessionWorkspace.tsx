@@ -306,6 +306,9 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                 Backend: {sessionRecord?.runtime_backend_selected || site.defaultRuntimeBackend}
               </div>
               <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+                Runtime health: {sessionRecord?.runtimeHandle?.health_status || site.runtimeManifest?.healthStatus || "unknown"}
+              </div>
+              <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
                 Elapsed: {formatElapsed(elapsedSeconds)}
               </div>
               <button
@@ -418,21 +421,21 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     <p className="mt-1 text-sm text-slate-900">{robotProfile.actionSpaceSummary}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Policy adapter</p>
+                    <p className="text-sm font-medium text-slate-500">Runtime endpoint</p>
                     <p className="mt-1 text-sm text-slate-900">
-                      {String(sessionRecord?.policy?.adapter_name || robotProfile.defaultPolicyAdapter || "n/a")}
+                      {String(sessionRecord?.runtimeHandle?.runtime_base_url || site.runtimeManifest?.runtimeBaseUrl || "Not connected")}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Model reference</p>
+                    <p className="text-sm font-medium text-slate-500">Build ID</p>
                     <p className="mt-1 text-sm text-slate-900">
-                      {String(sessionRecord?.policy?.model_name || previewPayload?.policyLabel || site.samplePolicy || "Not provided")}
+                      {String(sessionRecord?.runtimeHandle?.build_id || "Pending")}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Checkpoint path</p>
+                    <p className="text-sm font-medium text-slate-500">VM instance</p>
                     <p className="mt-1 break-all text-sm text-slate-900">
-                      {String(sessionRecord?.policy?.checkpoint_path || "Not provided")}
+                      {String(sessionRecord?.runtimeHandle?.vm_instance_id || "Unknown")}
                     </p>
                   </div>
                 </div>
@@ -486,7 +489,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                   Session summary
                 </p>
                 <p className="mt-4 text-sm leading-6 text-slate-600">
-                  NeoVerse runs the site-conditioned rollout, the robot profile defines action and observation contracts, and exports are written as both raw session bundles and RLDS datasets.
+                  NeoVerse runs the site-conditioned rollout on the GPU VM, the robot profile defines action and observation contracts, and the workspace proxies reset, step, render, and health directly to the runtime.
                 </p>
                 <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
                   <SiteWorldGraphic site={site} />

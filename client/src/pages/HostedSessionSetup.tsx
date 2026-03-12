@@ -25,9 +25,6 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
   const [site, setSite] = useState(fallbackSite);
   const [, setLocation] = useLocation();
   const [robotProfileId, setRobotProfileId] = useState("");
-  const [policyAdapter, setPolicyAdapter] = useState("openvla_oft");
-  const [modelName, setModelName] = useState("");
-  const [checkpointPath, setCheckpointPath] = useState("");
   const [taskId, setTaskId] = useState("");
   const [scenarioId, setScenarioId] = useState("");
   const [startStateId, setStartStateId] = useState("");
@@ -58,9 +55,6 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
     if (!site) return;
     const selectedRobot = site.robotProfiles[0] || site.sampleRobotProfile;
     setRobotProfileId(selectedRobot?.id || "");
-    setPolicyAdapter(selectedRobot?.defaultPolicyAdapter || "openvla_oft");
-    setModelName(site.samplePolicy);
-    setCheckpointPath("");
     setTaskId(site.taskCatalog[0]?.id || "");
     setScenarioId(site.scenarioCatalog[0]?.id || "");
     setStartStateId(site.startStateCatalog[0]?.id || "");
@@ -102,12 +96,6 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
     const requestPayload: CreateHostedSessionRequest = {
       siteWorldId: site.id,
       robotProfileId,
-      policy: {
-        adapter_name: policyAdapter,
-        model_name: modelName,
-        checkpoint_path: checkpointPath || undefined,
-        device: "cpu",
-      },
       taskId,
       scenarioId,
       startStateId,
@@ -118,7 +106,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
 
     const previewQuery = new URLSearchParams({
       preview: "1",
-      policyLabel: modelName,
+      policyLabel: site.samplePolicy,
       robotProfile: serializeJsonParam(selectedRobotProfile),
       taskSelection: serializeJsonParam({
         taskId: selectedTask?.id || taskId,
@@ -216,8 +204,8 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                 <ul className="mt-4 space-y-3 text-sm text-slate-300">
                   {[
                     "The site model comes from the captured scene-memory bundle, not the robot profile.",
-                    "Robot, policy, task, scenario, and start state are selected independently.",
-                    "Exports are fixed to raw bundle plus RLDS dataset.",
+                    "Robot, task, scenario, and start state are selected independently.",
+                    "The runtime handle comes from the registered site world on the GPU VM.",
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-3">
                       <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
@@ -258,7 +246,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                 <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
                   <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                     <Cpu className="h-4 w-4" />
-                    Robot Profile + Policy
+                    Robot Profile
                   </div>
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
                     <div className="md:col-span-2">
@@ -266,12 +254,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                       <select
                         className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900"
                         value={robotProfileId}
-                        onChange={(event) => {
-                          const nextId = event.target.value;
-                          const nextProfile = site.robotProfiles.find((item) => item.id === nextId);
-                          setRobotProfileId(nextId);
-                          setPolicyAdapter(nextProfile?.defaultPolicyAdapter || "openvla_oft");
-                        }}
+                        onChange={(event) => setRobotProfileId(event.target.value)}
                       >
                         {site.robotProfiles.map((profile) => (
                           <option key={profile.id} value={profile.id}>
@@ -279,37 +262,6 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                           </option>
                         ))}
                       </select>
-                    </div>
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium text-slate-700">Policy adapter</label>
-                      <select
-                        className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900"
-                        value={policyAdapter}
-                        onChange={(event) => setPolicyAdapter(event.target.value)}
-                      >
-                        {(selectedRobotProfile.allowedPolicyAdapters || ["openvla_oft"]).map((adapter) => (
-                          <option key={adapter} value={adapter}>
-                            {adapter}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium text-slate-700">Model reference</label>
-                      <input
-                        className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900"
-                        value={modelName}
-                        onChange={(event) => setModelName(event.target.value)}
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="mb-1.5 block text-sm font-medium text-slate-700">Checkpoint path</label>
-                      <input
-                        className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900"
-                        placeholder="/path/to/checkpoint"
-                        value={checkpointPath}
-                        onChange={(event) => setCheckpointPath(event.target.value)}
-                      />
                     </div>
                     <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-white p-4">
                       <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Robot contract</p>

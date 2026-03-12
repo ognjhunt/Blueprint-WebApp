@@ -63,14 +63,22 @@ export interface StartStateCatalogEntry {
   source?: string | null;
 }
 
-export interface RuntimeManifestSummary {
+export interface SiteWorldRuntimeSummary {
   defaultBackend: string;
+  runtimeBaseUrl?: string | null;
+  websocketBaseUrl?: string | null;
+  supportedCameras?: string[];
+  exportModes?: string[];
   launchableBackends: string[];
-  exportModes: string[];
   supportsStepRollout: boolean;
   supportsBatchRollout: boolean;
   supportsCameraViews: boolean;
+  supportsStream?: boolean;
+  healthStatus?: string | null;
+  launchable?: boolean;
 }
+
+export type RuntimeManifestSummary = SiteWorldRuntimeSummary;
 
 export interface TaskSelection {
   taskId: string;
@@ -91,10 +99,13 @@ export interface SiteModelSummary {
   sceneId: string;
   captureId: string;
   pipelinePrefix: string;
-  runtimeManifestUri?: string | null;
+  siteWorldSpecUri?: string | null;
+  siteWorldRegistrationUri?: string | null;
+  siteWorldHealthUri?: string | null;
+  runtimeBaseUrl?: string | null;
+  websocketBaseUrl?: string | null;
   sceneMemoryManifestUri?: string | null;
   conditioningBundleUri?: string | null;
-  previewSimulationManifestUri?: string | null;
   availableScenarioVariants: string[];
   availableStartStates: string[];
   defaultRuntimeBackend?: string | null;
@@ -194,18 +205,29 @@ export interface HostedSessionRecord {
   latestEpisode?: HostedEpisodeSummary | null;
   batchSummary?: HostedBatchSummary | null;
   artifactUris: Record<string, string>;
+  runtimeHandle?: {
+    site_world_id: string;
+    build_id?: string | null;
+    runtime_base_url?: string | null;
+    websocket_base_url?: string | null;
+    vm_instance_id?: string | null;
+    runtime_capabilities?: Record<string, unknown> | null;
+    health_status?: string | null;
+    last_heartbeat_at?: string | null;
+  } | null;
   metering: {
     sessionSeconds: number;
     billableHours: number;
     priceLabel?: string | null;
   };
   launchContext: {
-    hosted_session_runtime_manifest_uri: string;
-    task_anchor_manifest_uri: string;
-    task_run_manifest_uri: string;
+    site_world_spec_uri: string;
+    site_world_registration_uri: string;
+    site_world_health_uri: string;
+    runtime_base_url?: string | null;
+    websocket_base_url?: string | null;
     conditioning_bundle_uri: string;
     scene_memory_manifest_uri: string;
-    preview_simulation_manifest_uri?: string | null;
   };
 }
 
@@ -213,7 +235,7 @@ export interface CreateHostedSessionRequest {
   siteWorldId: string;
   robotProfileId: string;
   robotProfileOverride?: Partial<RobotProfile>;
-  policy: Record<string, unknown>;
+  policy?: Record<string, unknown>;
   taskId: string;
   scenarioId: string;
   startStateId: string;

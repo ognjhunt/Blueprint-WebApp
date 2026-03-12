@@ -93,11 +93,17 @@ function deriveSampleRobotProfile(sampleRobot: string, runtime: string): SiteWor
 function buildFallbackRuntimeManifest(template: SiteWorldCard): SiteWorldCard["runtimeManifest"] {
   return {
     defaultBackend: template.defaultRuntimeBackend,
+    runtimeBaseUrl: null,
+    websocketBaseUrl: null,
+    supportedCameras: template.sampleRobotProfile.observationCameras.map((item) => item.id),
     launchableBackends: template.availableRuntimeBackends,
     exportModes: ["raw_bundle", "rlds_dataset"],
     supportsStepRollout: true,
     supportsBatchRollout: true,
     supportsCameraViews: true,
+    supportsStream: false,
+    healthStatus: "unknown",
+    launchable: false,
   };
 }
 
@@ -370,7 +376,7 @@ function extractExports(launchableExportBundle: ArtifactJson, pipeline: Pipeline
   const exports: string[] = [];
   if (pipeline?.artifacts.scene_memory_manifest_uri) exports.push("scene_memory");
   if (pipeline?.artifacts.preview_simulation_manifest_uri) exports.push("preview_simulation");
-  if (pipeline?.artifacts.hosted_session_runtime_manifest_uri) exports.push("hosted_session_runtime");
+  if (pipeline?.artifacts.site_world_registration_uri || pipeline?.pipeline_prefix) exports.push("site_world_runtime");
   return exports;
 }
 
@@ -392,7 +398,7 @@ function deriveBenchmarkStatus(benchmarkSuite: ArtifactJson, pipeline: PipelineA
     };
   }
 
-  if (pipeline?.artifacts.task_anchor_manifest_uri || pipeline?.artifacts.task_run_manifest_uri) {
+  if (pipeline?.artifacts.site_world_spec_uri || pipeline?.pipeline_prefix) {
     return { status: "partial", taskCount: tasks.length, categories };
   }
 
@@ -462,7 +468,7 @@ function buildDeploymentReadiness({
     opportunity_state: opportunityState,
     benchmark_coverage_status: benchmark.status,
     benchmark_task_count: benchmark.taskCount,
-    export_readiness_status: exportsAvailable.length > 0 ? "ready" : pipeline?.artifacts.hosted_session_runtime_manifest_uri ? "partial" : "missing",
+    export_readiness_status: exportsAvailable.length > 0 ? "ready" : pipeline?.artifacts.site_world_registration_uri ? "partial" : "missing",
     recapture_status: recapture.status,
     recapture_required: recapture.required,
     freshness_date: timestampToIso(pipeline?.synced_at) || timestampToIso(request.createdAt) || null,
@@ -525,7 +531,9 @@ async function buildLiveRecord(
     compatibilityMatrix,
     recaptureDiff,
     launchableExportBundle,
-    hostedRuntimeManifest,
+    siteWorldSpec,
+    siteWorldRegistration,
+    siteWorldHealth,
   ] =
     await Promise.all([
       readArtifactJson(
@@ -566,8 +574,22 @@ async function buildLiveRecord(
       readArtifactJson(
         pipelineArtifactUri(
           pipeline,
-          pipeline?.artifacts.hosted_session_runtime_manifest_uri,
-          "evaluation_prep/hosted_session_runtime_manifest.json",
+          pipeline?.artifacts.site_world_spec_uri,
+          "evaluation_prep/site_world_spec.json",
+        ),
+      ),
+      readArtifactJson(
+        pipelineArtifactUri(
+          pipeline,
+          pipeline?.artifacts.site_world_registration_uri,
+          "evaluation_prep/site_world_registration.json",
+        ),
+      ),
+      readArtifactJson(
+        pipelineArtifactUri(
+          pipeline,
+          pipeline?.artifacts.site_world_health_uri,
+          "evaluation_prep/site_world_health.json",
         ),
       ),
     ]);
@@ -590,49 +612,53 @@ async function buildLiveRecord(
     buildFallbackPackages(generatedId, siteName, siteAddress, sampleTask, sampleRobot);
 
   const fallbackRobotProfile = template?.sampleRobotProfile || deriveSampleRobotProfile(sampleRobot, readiness.runtime_label);
-  const taskCatalog = Array.isArray(hostedRuntimeManifest?.task_catalog)
-    ? (hostedRuntimeManifest?.task_catalog as Array<Record<string, unknown>>).map((item) => ({
+  const taskCatalog = Array.isArray(siteWorldSpec?.task_catalog)
+    ? (siteWorldSpec?.task_catalog as Array<Record<string, unknown>>).map((item) => ({
         id: String(item.id || item.task_id || ""),
         taskId: item.task_id ? String(item.task_id) : String(item.id || ""),
         taskText: String(item.task_text || item.name || sampleTask),
         taskCategory: item.task_category ? String(item.task_category) : "generic",
       }))
     : template?.taskCatalog || buildFallbackTaskCatalog(template || buildStaticRecord(siteWorldCards[0]));
-  const startStateCatalog = Array.isArray(hostedRuntimeManifest?.start_state_catalog)
-    ? (hostedRuntimeManifest?.start_state_catalog as Array<Record<string, unknown>>).map((item) => ({
+  const startStateCatalog = Array.isArray(siteWorldSpec?.start_state_catalog)
+    ? (siteWorldSpec?.start_state_catalog as Array<Record<string, unknown>>).map((item) => ({
         id: String(item.id || ""),
         name: String(item.name || "default_start_state"),
         taskId: item.task_id ? String(item.task_id) : undefined,
         source: item.source ? String(item.source) : undefined,
       }))
     : template?.startStateCatalog || buildFallbackStartStateCatalog(template || buildStaticRecord(siteWorldCards[0]));
-  const scenarioCatalog = Array.isArray(hostedRuntimeManifest?.scenario_catalog)
-    ? (hostedRuntimeManifest?.scenario_catalog as Array<Record<string, unknown>>).map((item) => ({
+  const scenarioCatalog = Array.isArray(siteWorldRegistration?.scenario_catalog)
+    ? (siteWorldRegistration?.scenario_catalog as Array<Record<string, unknown>>).map((item) => ({
         id: String(item.id || ""),
         name: String(item.name || "default"),
         source: item.source ? String(item.source) : undefined,
       }))
     : template?.scenarioCatalog || buildFallbackScenarioCatalog(template || buildStaticRecord(siteWorldCards[0]));
-  const robotProfiles = normalizeRobotProfiles(hostedRuntimeManifest?.robot_profiles, fallbackRobotProfile);
+  const robotProfiles = normalizeRobotProfiles(siteWorldRegistration?.robot_profiles || siteWorldSpec?.robot_profiles, fallbackRobotProfile);
   const startStates = startStateCatalog.map((item) => item.name).filter(Boolean);
   const scenarioVariants = scenarioCatalog.map((item) => item.name).filter(Boolean);
-  const exportModes = Array.isArray(hostedRuntimeManifest?.export_defaults)
-    ? (hostedRuntimeManifest?.export_defaults as unknown[]).map((item) => String(item)).filter(Boolean)
-    : template?.exportModes || ["raw_bundle", "rlds_dataset"];
+  const exportModes = template?.exportModes || ["raw_bundle", "rlds_dataset"];
   const runtimeCapabilities =
-    hostedRuntimeManifest && typeof hostedRuntimeManifest.runtime_capabilities === "object"
-      ? (hostedRuntimeManifest.runtime_capabilities as Record<string, unknown>)
+    siteWorldRegistration && typeof siteWorldRegistration.runtime_capabilities === "object"
+      ? (siteWorldRegistration.runtime_capabilities as Record<string, unknown>)
       : {};
-  const runtimeManifest = hostedRuntimeManifest
+  const runtimeManifest = siteWorldRegistration
     ? {
-        defaultBackend: String(hostedRuntimeManifest.default_backend || template?.defaultRuntimeBackend || "neoverse"),
-        launchableBackends: Array.isArray(hostedRuntimeManifest.launchable_backends)
-          ? (hostedRuntimeManifest.launchable_backends as unknown[]).map((item) => String(item))
-          : template?.availableRuntimeBackends || ["neoverse", "gen3c"],
+        defaultBackend: "neoverse",
+        runtimeBaseUrl: String(siteWorldRegistration.runtime_base_url || ""),
+        websocketBaseUrl: String(siteWorldRegistration.websocket_base_url || ""),
+        supportedCameras: Array.isArray(siteWorldRegistration.supported_cameras)
+          ? (siteWorldRegistration.supported_cameras as unknown[]).map((item) => String(item))
+          : [],
         exportModes,
-        supportsStepRollout: Boolean(hostedRuntimeManifest.supports_step_rollout ?? runtimeCapabilities.supports_step_rollout ?? true),
-        supportsBatchRollout: Boolean(hostedRuntimeManifest.supports_batch_rollout ?? runtimeCapabilities.supports_batch_rollout ?? true),
-        supportsCameraViews: Boolean(hostedRuntimeManifest.supports_camera_views ?? runtimeCapabilities.supports_camera_views ?? true),
+        launchableBackends: ["neoverse"],
+        supportsStepRollout: Boolean(runtimeCapabilities.supports_step_rollout ?? true),
+        supportsBatchRollout: Boolean(runtimeCapabilities.supports_batch_rollout ?? true),
+        supportsCameraViews: Boolean(runtimeCapabilities.supports_camera_views ?? true),
+        supportsStream: Boolean(runtimeCapabilities.supports_stream ?? true),
+        healthStatus: String(siteWorldHealth?.status || "unknown"),
+        launchable: Boolean(siteWorldHealth?.launchable ?? true),
       }
     : template?.runtimeManifest || buildFallbackRuntimeManifest(template || buildStaticRecord(siteWorldCards[0]));
 

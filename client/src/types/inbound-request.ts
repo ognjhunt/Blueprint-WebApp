@@ -132,9 +132,9 @@ export interface PipelineArtifacts {
   scene_memory_readiness_uri?: string | null;
   conditioning_bundle_uri?: string | null;
   preview_simulation_manifest_uri?: string | null;
-  hosted_session_runtime_manifest_uri?: string | null;
-  task_anchor_manifest_uri?: string | null;
-  task_run_manifest_uri?: string | null;
+  site_world_spec_uri?: string | null;
+  site_world_registration_uri?: string | null;
+  site_world_health_uri?: string | null;
   site_normalization_package_uri?: string | null;
   benchmark_suite_manifest_uri?: string | null;
   compatibility_matrix_uri?: string | null;

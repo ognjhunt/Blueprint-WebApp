@@ -36,12 +36,13 @@ export interface HostedRuntimeResolution {
   startStateCatalog: StartStateCatalogEntry[];
   robotProfiles: RobotProfile[];
   exportModes: string[];
-  runtimeManifestUri: string;
+  siteWorldSpecUri: string;
+  siteWorldRegistrationUri: string;
+  siteWorldHealthUri: string;
+  runtimeBaseUrl?: string | null;
+  websocketBaseUrl?: string | null;
   sceneMemoryManifestUri: string;
   conditioningBundleUri: string;
-  previewSimulationManifestUri?: string | null;
-  taskAnchorManifestUri: string;
-  taskRunManifestUri: string;
   priceLabel?: string | null;
 }
 
@@ -98,10 +99,20 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     );
   }
 
-  const runtimeManifestUri = artifactUri(
+  const siteWorldSpecUri = artifactUri(
     pipelinePrefix,
-    artifacts.hosted_session_runtime_manifest_uri,
-    "evaluation_prep/hosted_session_runtime_manifest.json",
+    artifacts.site_world_spec_uri,
+    "evaluation_prep/site_world_spec.json",
+  );
+  const siteWorldRegistrationUri = artifactUri(
+    pipelinePrefix,
+    artifacts.site_world_registration_uri,
+    "evaluation_prep/site_world_registration.json",
+  );
+  const siteWorldHealthUri = artifactUri(
+    pipelinePrefix,
+    artifacts.site_world_health_uri,
+    "evaluation_prep/site_world_health.json",
   );
   const sceneMemoryManifestUri = artifactUri(
     pipelinePrefix,
@@ -112,21 +123,6 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     pipelinePrefix,
     artifacts.conditioning_bundle_uri,
     "scene_memory/conditioning_bundle.json",
-  );
-  const taskAnchorManifestUri = artifactUri(
-    pipelinePrefix,
-    artifacts.task_anchor_manifest_uri,
-    "evaluation_prep/task_anchor_manifest.json",
-  );
-  const taskRunManifestUri = artifactUri(
-    pipelinePrefix,
-    artifacts.task_run_manifest_uri,
-    "evaluation_prep/task_run_manifest.json",
-  );
-  const previewSimulationManifestUri = artifactUri(
-    pipelinePrefix,
-    artifacts.preview_simulation_manifest_uri,
-    "preview_simulation/preview_simulation_manifest.json",
   );
 
   if (!sceneMemoryManifestUri) {
@@ -141,16 +137,16 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
       "This site is missing the conditioning bundle required for hosted sessions.",
     );
   }
-  if (!taskAnchorManifestUri) {
+  if (!siteWorldSpecUri) {
     throw new HostedSessionRuntimeError(
-      "missing_task_anchor_manifest",
-      "This site is missing the task anchor manifest required for hosted sessions.",
+      "missing_site_world_spec",
+      "This site is missing the site-world spec required for hosted sessions.",
     );
   }
-  if (!taskRunManifestUri) {
+  if (!siteWorldRegistrationUri) {
     throw new HostedSessionRuntimeError(
-      "missing_task_anchor_manifest",
-      "This site is missing the task run manifest required for hosted sessions.",
+      "missing_site_world_registration",
+      "This site is missing the site-world registration required for hosted sessions.",
     );
   }
 
@@ -168,23 +164,30 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     availableStartStates: site.startStates,
     runtimeManifest: site.runtimeManifest || {
       defaultBackend: site.defaultRuntimeBackend,
+      runtimeBaseUrl: null,
+      websocketBaseUrl: null,
+      supportedCameras: site.robotProfiles.flatMap((profile) => profile.observationCameras.map((camera) => camera.id)),
       launchableBackends: site.availableRuntimeBackends,
       exportModes: site.exportModes,
       supportsStepRollout: true,
       supportsBatchRollout: true,
       supportsCameraViews: true,
+      supportsStream: true,
+      healthStatus: "unknown",
+      launchable: true,
     },
     taskCatalog: site.taskCatalog,
     scenarioCatalog: site.scenarioCatalog,
     startStateCatalog: site.startStateCatalog,
     robotProfiles: site.robotProfiles,
     exportModes: site.exportModes,
-    runtimeManifestUri,
+    siteWorldSpecUri,
+    siteWorldRegistrationUri,
+    siteWorldHealthUri,
+    runtimeBaseUrl: site.runtimeManifest?.runtimeBaseUrl ?? null,
+    websocketBaseUrl: site.runtimeManifest?.websocketBaseUrl ?? null,
     sceneMemoryManifestUri,
     conditioningBundleUri,
-    previewSimulationManifestUri,
-    taskAnchorManifestUri,
-    taskRunManifestUri,
     priceLabel: site.packages[1]?.priceLabel ?? null,
   };
 }

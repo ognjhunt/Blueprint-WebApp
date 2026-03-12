@@ -1,13 +1,9 @@
-import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { promisify } from "node:util";
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { parseGsUri } from "./pipeline-dashboard";
 import type { HostedRuntimeResolution } from "./hosted-session-runtime";
-
-const execFileAsync = promisify(execFile);
 
 export class HostedSessionOrchestratorError extends Error {
   code: string;
@@ -16,20 +12,6 @@ export class HostedSessionOrchestratorError extends Error {
     super(message);
     this.code = code;
   }
-}
-
-function validationRepoPath() {
-  return (
-    process.env.BLUEPRINT_VALIDATION_REPO_PATH ||
-    "/Users/nijelhunt_1/workspace/BlueprintValidation"
-  );
-}
-
-function validationConfigPath() {
-  return (
-    process.env.BLUEPRINT_VALIDATION_CONFIG_PATH ||
-    path.join(validationRepoPath(), "configs", "qualified_opportunity_validation.yaml")
-  );
 }
 
 function sessionWorkRoot() {
@@ -44,169 +26,116 @@ async function readTextFromUri(uri: string): Promise<string> {
     if (!storageAdmin) {
       throw new HostedSessionOrchestratorError(
         "artifact_download_unavailable",
-        "Storage is not configured, so hosted-session artifacts cannot be staged.",
+        "Storage is not configured, so site-world runtime artifacts cannot be resolved.",
       );
     }
     const { bucket, objectPath } = parseGsUri(uri);
     const [buffer] = await storageAdmin.bucket(bucket).file(objectPath).download();
     return buffer.toString("utf-8");
   }
-
   return fs.readFile(uri, "utf-8");
 }
 
-async function readBufferFromUri(uri: string): Promise<Buffer> {
-  if (uri.startsWith("gs://")) {
-    if (!storageAdmin) {
-      throw new HostedSessionOrchestratorError(
-        "artifact_download_unavailable",
-        "Storage is not configured, so hosted-session artifacts cannot be staged.",
-      );
-    }
-    const { bucket, objectPath } = parseGsUri(uri);
-    const [buffer] = await storageAdmin.bucket(bucket).file(objectPath).download();
-    return buffer;
-  }
-
-  return fs.readFile(uri);
+async function readJsonFromUri(uri: string): Promise<Record<string, unknown>> {
+  const payload = JSON.parse(await readTextFromUri(uri)) as Record<string, unknown>;
+  return payload && typeof payload === "object" ? payload : {};
 }
 
-async function stageJson(uri: string, outputPath: string) {
-  const content = await readTextFromUri(uri);
-  await fs.mkdir(path.dirname(outputPath), { recursive: true });
-  await fs.writeFile(outputPath, content, "utf-8");
-  return JSON.parse(content) as Record<string, unknown>;
+async function runtimeMetadataPath(workDir: string) {
+  await fs.mkdir(workDir, { recursive: true });
+  return path.join(workDir, "runtime_metadata.json");
 }
 
-async function stageBinary(uri: string, outputPath: string) {
-  const content = await readBufferFromUri(uri);
-  await fs.mkdir(path.dirname(outputPath), { recursive: true });
-  await fs.writeFile(outputPath, content);
-  return outputPath;
+async function writeRuntimeMetadata(workDir: string, payload: Record<string, unknown>) {
+  const metadataPath = await runtimeMetadataPath(workDir);
+  await fs.writeFile(metadataPath, JSON.stringify(payload, null, 2), "utf-8");
 }
 
-async function stageHostedRuntimeArtifacts(
-  workDir: string,
-  runtime: HostedRuntimeResolution,
-) {
-  const runtimeDir = path.join(workDir, "runtime");
-  await fs.mkdir(runtimeDir, { recursive: true });
+async function readRuntimeMetadata(workDir: string) {
+  const metadataPath = await runtimeMetadataPath(workDir);
+  const raw = await fs.readFile(metadataPath, "utf-8");
+  const payload = JSON.parse(raw) as Record<string, unknown>;
+  return payload && typeof payload === "object" ? payload : {};
+}
 
-  const runtimeManifest = await stageJson(
-    runtime.runtimeManifestUri,
-    path.join(runtimeDir, "hosted_session_runtime_manifest.source.json"),
-  );
-  const taskAnchor = await stageJson(
-    runtime.taskAnchorManifestUri,
-    path.join(runtimeDir, "task_anchor_manifest.json"),
-  );
-  const taskRun = await stageJson(
-    runtime.taskRunManifestUri,
-    path.join(runtimeDir, "task_run_manifest.json"),
-  );
-  await stageJson(
-    runtime.sceneMemoryManifestUri,
-    path.join(runtimeDir, "scene_memory_manifest.json"),
-  );
-  const conditioningBundle = await stageJson(
-    runtime.conditioningBundleUri,
-    path.join(runtimeDir, "conditioning_bundle.json"),
-  );
-  if (runtime.previewSimulationManifestUri) {
-    try {
-      await stageJson(
-        runtime.previewSimulationManifestUri,
-        path.join(runtimeDir, "preview_simulation_manifest.json"),
-      );
-    } catch {
-      // Optional artifact for v1.
-    }
-  }
-
-  let conditioningInputPath: string | null = null;
-  const keyframeUri = String(conditioningBundle["keyframe_uri"] || "").trim();
-  const rawVideoUri = String(conditioningBundle["raw_video_uri"] || "").trim();
-  if (keyframeUri) {
-    const extension = path.extname(keyframeUri) || ".png";
-    conditioningInputPath = await stageBinary(
-      keyframeUri,
-      path.join(runtimeDir, `conditioning_keyframe${extension}`),
-    );
-  } else if (rawVideoUri) {
-    const extension = path.extname(rawVideoUri) || ".mp4";
-    conditioningInputPath = await stageBinary(
-      rawVideoUri,
-      path.join(runtimeDir, `conditioning_video${extension}`),
+async function runtimeFetchJson(
+  baseUrl: string,
+  relativePath: string,
+  init?: RequestInit,
+): Promise<Record<string, unknown>> {
+  const response = await fetch(`${baseUrl}${relativePath}`, init);
+  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!response.ok) {
+    throw new HostedSessionOrchestratorError(
+      "runtime_proxy_failed",
+      String(payload.detail || payload.error || `Runtime request failed: ${response.status}`),
     );
   }
+  return payload;
+}
 
-  const adapterManifestUris =
-    runtimeManifest["adapter_manifest_uris"] &&
-    typeof runtimeManifest["adapter_manifest_uris"] === "object"
-      ? (runtimeManifest["adapter_manifest_uris"] as Record<string, unknown>)
-      : {};
-  const stagedAdapterManifestPaths: Record<string, string> = {};
-  for (const [backend, uri] of Object.entries(adapterManifestUris)) {
-    const text = String(uri || "").trim();
-    if (!text) {
-      continue;
-    }
-    const stagedPath = path.join(runtimeDir, "adapter_manifests", `${backend}.json`);
-    try {
-      await stageJson(text, stagedPath);
-      stagedAdapterManifestPaths[backend] = stagedPath;
-    } catch {
-      // Optional backend staging; if this fails, validation can still use manifest defaults.
-    }
+async function resolveRuntimeHandle(runtime: HostedRuntimeResolution) {
+  const registration = await readJsonFromUri(runtime.siteWorldRegistrationUri);
+  const health = (await readJsonFromUri(runtime.siteWorldHealthUri).catch(() => ({}))) as Record<string, unknown>;
+  const runtimeBaseUrl =
+    String(runtime.runtimeBaseUrl || registration.runtime_base_url || "").trim();
+  const websocketBaseUrl =
+    String(runtime.websocketBaseUrl || registration.websocket_base_url || "").trim();
+  const siteWorldId = String(registration.site_world_id || "").trim();
+  if (!runtimeBaseUrl || !siteWorldId) {
+    throw new HostedSessionOrchestratorError(
+      "runtime_handle_missing",
+      "The site-world registration does not include a reachable runtime handle.",
+    );
   }
-
-  const stagedRuntimeManifest = {
-    ...runtimeManifest,
-    hosted_session_runtime_manifest_uri: runtime.runtimeManifestUri,
-    scene_memory_manifest_uri: path.join(runtimeDir, "scene_memory_manifest.json"),
-    conditioning_bundle_uri: path.join(runtimeDir, "conditioning_bundle.json"),
-    conditioning_input_path: conditioningInputPath,
-    preview_simulation_manifest_uri: runtime.previewSimulationManifestUri
-      ? path.join(runtimeDir, "preview_simulation_manifest.json")
-      : null,
-    adapter_manifest_uris: stagedAdapterManifestPaths,
-    task_anchor_manifest_uri: path.join(runtimeDir, "task_anchor_manifest.json"),
-    task_run_manifest_uri: path.join(runtimeDir, "task_run_manifest.json"),
-    site_submission_id: runtime.site_submission_id,
-    scene_id: runtime.scene_id,
-    capture_id: runtime.capture_id,
-    pipeline_prefix: runtime.pipeline_prefix,
-    task_ids: Array.isArray(taskAnchor["tasks"])
-      ? taskAnchor["tasks"].map((task) => String((task as Record<string, unknown>).task_id || ""))
-      : [],
-    task_texts: Array.isArray(taskAnchor["tasks"])
-      ? taskAnchor["tasks"].map((task) => String((task as Record<string, unknown>).task_text || ""))
-      : [],
-    start_states:
-      (Array.isArray(runtimeManifest["start_states"]) && runtimeManifest["start_states"]) ||
-      (Array.isArray(taskRun["start_states"]) && taskRun["start_states"]) ||
-      ["default_start_state"],
-  };
-
-  const stagedPath = path.join(runtimeDir, "hosted_session_runtime_manifest.json");
-  await fs.writeFile(stagedPath, JSON.stringify(stagedRuntimeManifest, null, 2), "utf-8");
-
+  if (health.launchable === false) {
+    throw new HostedSessionOrchestratorError(
+      "runtime_unlaunchable",
+      `The site-world runtime is not launchable: ${String((health.blockers as string[] | undefined)?.join(", ") || "blocked")}`,
+    );
+  }
   return {
-    runtimeManifestPath: stagedPath,
-    taskAnchorManifestPath: path.join(runtimeDir, "task_anchor_manifest.json"),
-    taskRunManifestPath: path.join(runtimeDir, "task_run_manifest.json"),
+    registration,
+    health,
+    runtimeBaseUrl,
+    websocketBaseUrl: websocketBaseUrl || null,
+    siteWorldId,
   };
 }
 
-async function runValidationSessionCommand(args: string[], cwd: string) {
-  const repo = validationRepoPath();
-  const env = {
-    ...process.env,
-    PYTHONPATH: [path.join(repo, "src"), process.env.PYTHONPATH].filter(Boolean).join(path.delimiter),
+function normalizeEpisode(payload: Record<string, unknown>) {
+  const episode =
+    payload.episode && typeof payload.episode === "object"
+      ? (payload.episode as Record<string, unknown>)
+      : payload;
+  return {
+    episodeId: String(episode.episodeId || episode.episode_id || ""),
+    taskId: String(episode.taskId || episode.task_id || ""),
+    task: String(episode.task || ""),
+    scenarioId: String(episode.scenarioId || episode.scenario_id || ""),
+    scenario: String(episode.scenario || ""),
+    startStateId: String(episode.startStateId || episode.start_state_id || ""),
+    startState: String(episode.startState || episode.start_state || ""),
+    status: String(episode.status || "ready"),
+    stepIndex: Number(episode.stepIndex || episode.step_index || 0),
+    done: Boolean(episode.done),
+    reward:
+      typeof episode.reward === "number" && Number.isFinite(episode.reward)
+        ? episode.reward
+        : null,
+    success:
+      typeof episode.success === "boolean" ? episode.success : null,
+    failureReason: String(episode.failureReason || episode.failure_reason || "").trim() || null,
+    observation:
+      episode.observation && typeof episode.observation === "object"
+        ? (episode.observation as Record<string, unknown>)
+        : null,
+    observationCameras: Array.isArray(episode.observationCameras)
+      ? episode.observationCameras
+      : [],
+    actionTrace: Array.isArray(episode.actionTrace) ? episode.actionTrace : [],
+    artifactUris: {},
   };
-  const fullArgs = ["-m", "blueprint_validation.cli", "--config", validationConfigPath(), ...args];
-  const { stdout } = await execFileAsync("python3", fullArgs, { cwd, env });
-  return JSON.parse(stdout || "{}") as Record<string, unknown>;
 }
 
 export async function createHostedSessionRun(params: {
@@ -215,47 +144,52 @@ export async function createHostedSessionRun(params: {
   runtime: HostedRuntimeResolution;
   robotProfileId: string;
   robotProfileOverride?: Record<string, unknown>;
-  policy: Record<string, unknown>;
+  policy?: Record<string, unknown>;
   taskId: string;
   scenarioId: string;
   startStateId: string;
   exportModes: string[];
   notes?: string;
 }) {
-  await fs.mkdir(params.workDir, { recursive: true });
-  const staged = await stageHostedRuntimeArtifacts(params.workDir, params.runtime);
-  const policyJson = JSON.stringify(params.policy || {});
-
-  const payload = await runValidationSessionCommand(
-    [
-      "session",
-      "create",
-      "--session-id",
-      params.sessionId,
-      "--session-work-dir",
-      params.workDir,
-      "--runtime-manifest",
-      staged.runtimeManifestPath,
-      "--robot-profile-id",
-      params.robotProfileId,
-      "--task-id",
-      params.taskId,
-      "--scenario-id",
-      params.scenarioId,
-      "--start-state-id",
-      params.startStateId,
-      "--policy-json",
-      policyJson,
-      ...params.exportModes.flatMap((item) => ["--export-mode", item]),
-      ...(params.robotProfileOverride
-        ? ["--robot-profile-override-json", JSON.stringify(params.robotProfileOverride)]
-        : []),
-      ...(params.notes ? ["--notes", params.notes] : []),
-    ],
-    validationRepoPath(),
+  const handle = await resolveRuntimeHandle(params.runtime);
+  const payload = await runtimeFetchJson(
+    handle.runtimeBaseUrl,
+    `/v1/site-worlds/${encodeURIComponent(handle.siteWorldId)}/sessions`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_id: params.sessionId,
+        robot_profile_id: params.robotProfileId,
+        task_id: params.taskId,
+        scenario_id: params.scenarioId,
+        start_state_id: params.startStateId,
+        notes: params.notes || "",
+      }),
+    },
   );
-
-  return { payload, staged };
+  await writeRuntimeMetadata(params.workDir, {
+    runtime_base_url: handle.runtimeBaseUrl,
+    websocket_base_url: handle.websocketBaseUrl,
+    site_world_id: handle.siteWorldId,
+    build_id: payload.build_id || handle.registration.build_id || null,
+    vm_instance_id: handle.registration.vm_instance_id || null,
+    runtime_capabilities: payload.runtime_capabilities || handle.registration.runtime_capabilities || {},
+    health_status: String(handle.health.status || "healthy"),
+    last_heartbeat_at: handle.health.last_heartbeat_at ? String(handle.health.last_heartbeat_at) : null,
+  });
+  return {
+    payload: {
+      runtime_backend_selected: "neoverse",
+      runtime_session_id: payload.session_id,
+      runtime_session_metadata: {
+        site_world_id: handle.siteWorldId,
+        build_id: payload.build_id || handle.registration.build_id || null,
+      },
+      artifact_uris: {},
+      dataset_artifacts: {},
+    },
+  };
 }
 
 export async function resetHostedSessionRun(params: {
@@ -266,21 +200,26 @@ export async function resetHostedSessionRun(params: {
   startStateId?: string;
   seed?: number;
 }) {
-  return runValidationSessionCommand(
-    [
-      "session",
-      "reset",
-      "--session-id",
-      params.sessionId,
-      "--session-work-dir",
-      params.workDir,
-      ...(params.taskId ? ["--task-id", params.taskId] : []),
-      ...(params.scenarioId ? ["--scenario-id", params.scenarioId] : []),
-      ...(params.startStateId ? ["--start-state-id", params.startStateId] : []),
-      ...(params.seed !== undefined ? ["--seed", String(params.seed)] : []),
-    ],
-    validationRepoPath(),
+  void params.seed;
+  const metadata = await readRuntimeMetadata(params.workDir);
+  const runtimeBaseUrl = String(metadata.runtime_base_url || "").trim();
+  if (!runtimeBaseUrl) {
+    throw new HostedSessionOrchestratorError("runtime_handle_missing", "Missing runtime base URL.");
+  }
+  const payload = await runtimeFetchJson(
+    runtimeBaseUrl,
+    `/v1/sessions/${encodeURIComponent(params.sessionId)}/reset`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        task_id: params.taskId || null,
+        scenario_id: params.scenarioId || null,
+        start_state_id: params.startStateId || null,
+      }),
+    },
   );
+  return { episode: normalizeEpisode(payload) };
 }
 
 export async function stepHostedSessionRun(params: {
@@ -290,21 +229,23 @@ export async function stepHostedSessionRun(params: {
   action?: number[];
   autoPolicy?: boolean;
 }) {
-  return runValidationSessionCommand(
-    [
-      "session",
-      "step",
-      "--session-id",
-      params.sessionId,
-      "--session-work-dir",
-      params.workDir,
-      "--episode-id",
-      params.episodeId,
-      ...(params.autoPolicy === false ? ["--no-auto-policy"] : []),
-      ...(params.action?.length ? ["--action-json", JSON.stringify(params.action)] : []),
-    ],
-    validationRepoPath(),
+  void params.episodeId;
+  void params.autoPolicy;
+  const metadata = await readRuntimeMetadata(params.workDir);
+  const runtimeBaseUrl = String(metadata.runtime_base_url || "").trim();
+  if (!runtimeBaseUrl) {
+    throw new HostedSessionOrchestratorError("runtime_handle_missing", "Missing runtime base URL.");
+  }
+  const payload = await runtimeFetchJson(
+    runtimeBaseUrl,
+    `/v1/sessions/${encodeURIComponent(params.sessionId)}/step`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: Array.isArray(params.action) ? params.action : [0, 0, 0, 0, 0, 0, 1] }),
+    },
   );
+  return { episode: normalizeEpisode(payload) };
 }
 
 export async function runBatchHostedSessionRun(params: {
@@ -317,52 +258,105 @@ export async function runBatchHostedSessionRun(params: {
   seed?: number;
   maxSteps?: number;
 }) {
-  return runValidationSessionCommand(
-    [
-      "session",
-      "run-batch",
-      "--session-id",
-      params.sessionId,
-      "--session-work-dir",
-      params.workDir,
-      "--num-episodes",
-      String(params.numEpisodes),
-      ...(params.taskId ? ["--task-id", params.taskId] : []),
-      ...(params.scenarioId ? ["--scenario-id", params.scenarioId] : []),
-      ...(params.startStateId ? ["--start-state-id", params.startStateId] : []),
-      ...(params.seed !== undefined ? ["--seed", String(params.seed)] : []),
-      ...(params.maxSteps !== undefined ? ["--max-steps", String(params.maxSteps)] : []),
-    ],
-    validationRepoPath(),
-  );
+  void params.seed;
+  const assignments: Array<Record<string, unknown>> = [];
+  const failures = new Set<string>();
+  const maxSteps = Math.max(1, Number(params.maxSteps || 6));
+  for (let index = 0; index < params.numEpisodes; index += 1) {
+    const reset = await resetHostedSessionRun({
+      sessionId: params.sessionId,
+      workDir: params.workDir,
+      taskId: params.taskId,
+      scenarioId: params.scenarioId,
+      startStateId: params.startStateId,
+    });
+    let episode = reset.episode;
+    for (let stepIndex = 0; stepIndex < maxSteps && !episode.done; stepIndex += 1) {
+      const step = await stepHostedSessionRun({
+        sessionId: params.sessionId,
+        workDir: params.workDir,
+        episodeId: episode.episodeId,
+      });
+      episode = step.episode;
+    }
+    if (episode.failureReason) {
+      failures.add(String(episode.failureReason));
+    }
+    assignments.push({
+      episode_id: episode.episodeId,
+      rollout_index: index,
+      task_id: episode.taskId,
+      scenario_id: episode.scenarioId,
+      start_state_id: episode.startStateId,
+      success: Boolean(episode.success),
+      frame_path: (episode.observation as Record<string, unknown> | null)?.frame_path || "",
+    });
+  }
+  const numSuccess = assignments.filter((item) => item.success === true).length;
+  return {
+    summary: {
+      batchRunId: `batch-${params.sessionId}`,
+      status: "completed",
+      numEpisodes: params.numEpisodes,
+      numSuccess,
+      numFailure: params.numEpisodes - numSuccess,
+      successRate: Number((numSuccess / Math.max(params.numEpisodes, 1)).toFixed(4)),
+      commonFailureModes: Array.from(failures),
+    },
+    artifact_uris: {},
+    dataset_artifacts: {},
+  };
 }
 
 export async function stopHostedSessionRun(params: { sessionId: string; workDir: string }) {
-  return runValidationSessionCommand(
-    [
-      "session",
-      "stop",
-      "--session-id",
-      params.sessionId,
-      "--session-work-dir",
-      params.workDir,
-    ],
-    validationRepoPath(),
-  );
+  void params.workDir;
+  return { sessionId: params.sessionId, status: "stopped" };
 }
 
 export async function exportHostedSessionRun(params: { sessionId: string; workDir: string }) {
-  return runValidationSessionCommand(
-    [
-      "session",
-      "export",
-      "--session-id",
-      params.sessionId,
-      "--session-work-dir",
-      params.workDir,
-    ],
-    validationRepoPath(),
+  const metadata = await readRuntimeMetadata(params.workDir);
+  const exportDir = path.join(params.workDir, "exports");
+  await fs.mkdir(exportDir, { recursive: true });
+  const exportManifestPath = path.join(exportDir, "export_manifest.json");
+  const rawBundlePath = path.join(exportDir, "raw_bundle.json");
+  await fs.writeFile(
+    exportManifestPath,
+    JSON.stringify(
+      {
+        schema_version: "v1",
+        session_id: params.sessionId,
+        runtime_handle: metadata,
+      },
+      null,
+      2,
+    ),
+    "utf-8",
   );
+  await fs.writeFile(
+    rawBundlePath,
+    JSON.stringify(
+      {
+        schema_version: "v1",
+        session_id: params.sessionId,
+        exported_at: new Date().toISOString(),
+      },
+      null,
+      2,
+    ),
+    "utf-8",
+  );
+  return {
+    exportId: `export-${params.sessionId}`,
+    artifact_uris: {
+      export_manifest: exportManifestPath,
+      raw_bundle: rawBundlePath,
+    },
+    dataset_artifacts: {},
+  };
+}
+
+export async function loadHostedSessionRuntimeMetadata(workDir: string) {
+  return readRuntimeMetadata(workDir);
 }
 
 export function sessionWorkDir(sessionId: string) {

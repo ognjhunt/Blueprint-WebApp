@@ -11,6 +11,7 @@ import { HostedSessionRuntimeError, resolveHostedRuntime } from "../utils/hosted
 import {
   createHostedSessionRun,
   exportHostedSessionRun,
+  loadHostedSessionRuntimeMetadata,
   resetHostedSessionRun,
   runBatchHostedSessionRun,
   sessionWorkDir,
@@ -185,10 +186,13 @@ function buildSiteModelSummary(
     sceneId: runtime.scene_id,
     captureId: runtime.capture_id,
     pipelinePrefix: runtime.pipeline_prefix,
-    runtimeManifestUri: runtime.runtimeManifestUri,
+    siteWorldSpecUri: runtime.siteWorldSpecUri,
+    siteWorldRegistrationUri: runtime.siteWorldRegistrationUri,
+    siteWorldHealthUri: runtime.siteWorldHealthUri,
+    runtimeBaseUrl: runtime.runtimeBaseUrl ?? null,
+    websocketBaseUrl: runtime.websocketBaseUrl ?? null,
     sceneMemoryManifestUri: runtime.sceneMemoryManifestUri,
     conditioningBundleUri: runtime.conditioningBundleUri,
-    previewSimulationManifestUri: runtime.previewSimulationManifestUri ?? null,
     availableScenarioVariants: runtime.availableScenarioVariants,
     availableStartStates: runtime.availableStartStates,
     defaultRuntimeBackend: runtime.defaultRuntimeBackend,
@@ -197,6 +201,7 @@ function buildSiteModelSummary(
 }
 
 function normalizeEpisodeSummary(
+  sessionId: string,
   episodePayload: Record<string, unknown>,
 ): HostedSessionRecord["latestEpisode"] {
   const observation =
@@ -207,7 +212,10 @@ function normalizeEpisodeSummary(
     episodePayload.artifactUris && typeof episodePayload.artifactUris === "object"
       ? (episodePayload.artifactUris as Record<string, string>)
       : {};
-  const framePath = String(observation?.frame_path || "").trim();
+  const primaryCameraId =
+    String(observation?.primaryCameraId || episodePayload.primaryCameraId || "head_rgb").trim() || "head_rgb";
+  const framePath = `/api/site-worlds/sessions/${encodeURIComponent(sessionId)}/render?cameraId=${encodeURIComponent(primaryCameraId)}`;
+  const normalizedObservation = observation ? { ...observation, frame_path: framePath } : null;
   const frameCount = Array.isArray(episodePayload.frame_paths)
     ? episodePayload.frame_paths.length
     : framePath
@@ -232,7 +240,7 @@ function normalizeEpisodeSummary(
     success:
       typeof episodePayload.success === "boolean" ? episodePayload.success : null,
     failureReason: String(episodePayload.failureReason || "").trim() || null,
-    observation,
+    observation: normalizedObservation,
     observationSummary: {
       framePath: framePath || null,
       latestFramePath: framePath || null,
@@ -303,9 +311,9 @@ router.post("/", async (req: Request, res: Response) => {
   try {
     const user = await ensureLaunchAccess(req, res);
     const body = (req.body ?? {}) as CreateHostedSessionRequest;
-    if (!body.siteWorldId || !body.robotProfileId || !body.taskId || !body.scenarioId || !body.startStateId || !body.policy) {
+    if (!body.siteWorldId || !body.robotProfileId || !body.taskId || !body.scenarioId || !body.startStateId) {
       return res.status(400).json({
-        error: "siteWorldId, robotProfileId, taskId, scenarioId, startStateId, and policy are required",
+        error: "siteWorldId, robotProfileId, taskId, scenarioId, and startStateId are required",
       });
     }
 
@@ -352,18 +360,20 @@ router.post("/", async (req: Request, res: Response) => {
       latestEpisode: null,
       batchSummary: null,
       artifactUris: {},
+      runtimeHandle: null,
       metering: {
         sessionSeconds: 0,
         billableHours: 0,
         priceLabel: runtime.priceLabel ?? null,
       },
       launchContext: {
-        hosted_session_runtime_manifest_uri: runtime.runtimeManifestUri,
-        task_anchor_manifest_uri: runtime.taskAnchorManifestUri,
-        task_run_manifest_uri: runtime.taskRunManifestUri,
+        site_world_spec_uri: runtime.siteWorldSpecUri,
+        site_world_registration_uri: runtime.siteWorldRegistrationUri,
+        site_world_health_uri: runtime.siteWorldHealthUri,
+        runtime_base_url: runtime.runtimeBaseUrl ?? null,
+        websocket_base_url: runtime.websocketBaseUrl ?? null,
         conditioning_bundle_uri: runtime.conditioningBundleUri,
         scene_memory_manifest_uri: runtime.sceneMemoryManifestUri,
-        preview_simulation_manifest_uri: runtime.previewSimulationManifestUri ?? null,
       },
     };
 
@@ -381,6 +391,7 @@ router.post("/", async (req: Request, res: Response) => {
       exportModes: record.requestedOutputs || ["raw_bundle", "rlds_dataset"],
       notes: record.notes ?? undefined,
     });
+    const runtimeMetadata = await loadHostedSessionRuntimeMetadata(workDir);
 
     const runtimeBackend = String(createPayload.payload.runtime_backend_selected || "unknown");
     const artifactUris =
@@ -393,6 +404,19 @@ router.post("/", async (req: Request, res: Response) => {
       startedAt: nowTimestamp(),
       artifactUris,
       datasetArtifacts,
+      runtimeHandle: {
+        site_world_id: String(runtimeMetadata.site_world_id || ""),
+        build_id: runtimeMetadata.build_id ? String(runtimeMetadata.build_id) : null,
+        runtime_base_url: runtimeMetadata.runtime_base_url ? String(runtimeMetadata.runtime_base_url) : null,
+        websocket_base_url: runtimeMetadata.websocket_base_url ? String(runtimeMetadata.websocket_base_url) : null,
+        vm_instance_id: runtimeMetadata.vm_instance_id ? String(runtimeMetadata.vm_instance_id) : null,
+        runtime_capabilities:
+          runtimeMetadata.runtime_capabilities && typeof runtimeMetadata.runtime_capabilities === "object"
+            ? (runtimeMetadata.runtime_capabilities as Record<string, unknown>)
+            : null,
+        health_status: runtimeMetadata.health_status ? String(runtimeMetadata.health_status) : null,
+        last_heartbeat_at: runtimeMetadata.last_heartbeat_at ? String(runtimeMetadata.last_heartbeat_at) : null,
+      },
     });
 
     return res.status(201).json({
@@ -458,7 +482,7 @@ router.post("/:sessionId/reset", async (req, res) => {
       startStateId: startState,
       seed,
     });
-    const latestEpisode = normalizeEpisodeSummary(payload.episode as Record<string, unknown>);
+    const latestEpisode = normalizeEpisodeSummary(session.sessionId, payload.episode as Record<string, unknown>);
     await updateSession(session.sessionId, {
       latestEpisode,
       status: "running",
@@ -490,7 +514,7 @@ router.post("/:sessionId/step", async (req, res) => {
       action: Array.isArray(req.body?.action) ? req.body.action : undefined,
       autoPolicy: req.body?.autoPolicy !== false,
     });
-    const latestEpisode = normalizeEpisodeSummary(payload.episode as Record<string, unknown>);
+    const latestEpisode = normalizeEpisodeSummary(session.sessionId, payload.episode as Record<string, unknown>);
     await updateSession(session.sessionId, {
       latestEpisode,
     });
@@ -568,6 +592,27 @@ router.post("/:sessionId/stop", async (req, res) => {
   } catch (error) {
     return res.status(500).json({ error: error instanceof Error ? error.message : "Stop failed" });
   }
+});
+
+router.get("/:sessionId/render", async (req, res) => {
+  const session = await loadSession(String(req.params.sessionId || ""));
+  if (!session) {
+    return res.status(404).json({ error: "Hosted session not found" });
+  }
+  const runtimeBaseUrl = String(session.runtimeHandle?.runtime_base_url || "").trim();
+  if (!runtimeBaseUrl) {
+    return res.status(409).json({ error: "Runtime handle missing for hosted session" });
+  }
+  const cameraId = String(req.query.cameraId || req.query.camera_id || "head_rgb").trim() || "head_rgb";
+  const response = await fetch(
+    `${runtimeBaseUrl}/v1/sessions/${encodeURIComponent(session.sessionId)}/render?camera_id=${encodeURIComponent(cameraId)}`,
+  );
+  if (!response.ok) {
+    return res.status(response.status).json({ error: "Failed to proxy runtime render" });
+  }
+  const arrayBuffer = await response.arrayBuffer();
+  res.setHeader("Content-Type", response.headers.get("content-type") || "image/png");
+  return res.send(Buffer.from(arrayBuffer));
 });
 
 router.post("/:sessionId/export", async (req, res) => {

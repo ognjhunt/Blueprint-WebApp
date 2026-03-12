@@ -11,16 +11,16 @@ const state = vi.hoisted(() => {
     pipeline: {
       pipeline_prefix: "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline",
       artifacts: {
-        hosted_session_runtime_manifest_uri:
-          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/hosted_session_runtime_manifest.json",
+        site_world_spec_uri:
+          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_spec.json",
+        site_world_registration_uri:
+          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_registration.json",
+        site_world_health_uri:
+          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_health.json",
         scene_memory_manifest_uri:
           "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/scene_memory/scene_memory_manifest.json",
         conditioning_bundle_uri:
           "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/scene_memory/conditioning_bundle.json",
-        task_anchor_manifest_uri:
-          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/task_anchor_manifest.json",
-        task_run_manifest_uri:
-          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/task_run_manifest.json",
       },
     },
   };
@@ -105,6 +105,20 @@ vi.mock("../utils/hosted-session-orchestrator", () => ({
       },
       dataset_artifacts: {},
     },
+  })),
+  loadHostedSessionRuntimeMetadata: vi.fn(async () => ({
+    site_world_id: "siteworld-1",
+    build_id: "build-1",
+    runtime_base_url: "http://runtime.local",
+    websocket_base_url: "ws://runtime.local",
+    vm_instance_id: "vast-123",
+    runtime_capabilities: {
+      supports_step_rollout: true,
+      supports_batch_rollout: true,
+      supports_camera_views: true,
+    },
+    health_status: "healthy",
+    last_heartbeat_at: "2026-03-12T00:00:00Z",
   })),
   resetHostedSessionRun: vi.fn(async () => ({
     episode: {
@@ -237,7 +251,6 @@ describe("site world session routes", () => {
         body: JSON.stringify({
           siteWorldId: "sw-chi-01",
           robotProfileId: "other_sample",
-          policy: { adapter_name: "mock", model_name: "mock-policy" },
           taskId: "sw-chi-01-task-1",
           scenarioId: "sw-chi-01-scenario-1",
           startStateId: "sw-chi-01-start-1",
@@ -274,7 +287,6 @@ describe("site world session routes", () => {
         body: JSON.stringify({
           siteWorldId: "sw-chi-01",
           robotProfileId: "other_sample",
-          policy: { adapter_name: "mock", model_name: "mock-policy" },
           taskId: "sw-chi-01-task-1",
           scenarioId: "sw-chi-01-scenario-1",
           startStateId: "sw-chi-01-start-1",
