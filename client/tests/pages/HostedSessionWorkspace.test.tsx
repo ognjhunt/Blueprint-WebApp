@@ -194,6 +194,9 @@ beforeEach(() => {
 });
 
 describe("HostedSessionWorkspace", () => {
+  const findModeLabel = (label: string) =>
+    screen.findByText((_, element) => element?.textContent === `Mode: ${label}`);
+
   it("renders the interactive site-world viewer shell with explicit mode and artifact lanes", async () => {
     render(<HostedSessionWorkspace params={{ slug: "siteworld-f5fd54898cfb" }} />);
 
@@ -272,13 +275,66 @@ describe("HostedSessionWorkspace", () => {
       ).toBe(true);
     });
 
-    const image = await screen.findByRole("img", { name: /Latest robot observation frame/i });
-    expect(image.getAttribute("src")).toContain("cameraId=head_rgb");
-    expect(
-      fetchMock.mock.calls.some(([input]) =>
-        String(input).includes("/api/site-worlds/sessions/session-auto/render?cameraId=head_rgb"),
-      ),
-    ).toBe(true);
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(([input]) =>
+          String(input).includes("/api/site-worlds/sessions/session-auto/render?cameraId=head_rgb"),
+        ),
+      ).toBe(true);
+    });
+    await findModeLabel("Live Runtime");
+  });
+
+  it("auto-switches back to Live Runtime only after a real live frame is fetched", async () => {
+    mockSearch = "sessionId=session-live-flip";
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("/api/site-worlds/sessions/session-live-flip/render?cameraId=head_rgb")) {
+        return new Response("frame", { status: 200, headers: { "Content-Type": "image/png" } });
+      }
+      if (String(input).includes("/api/site-worlds/sessions/session-live-flip") && (!init?.method || init.method === "GET")) {
+        return new Response(
+          JSON.stringify(
+            buildRuntimeSession({
+              sessionId: "session-live-flip",
+              latestEpisode: {
+                episodeId: "episode-live",
+                taskId: "9483414B-8776-4F68-AC80-D3B3BA774A90",
+                task: "Media room",
+                scenarioId: "scenario_default",
+                scenario: "default",
+                startStateId: "start_default_start_state",
+                startState: "default_start_state",
+                status: "running",
+                stepIndex: 1,
+                done: false,
+                reward: 0.2,
+                observation: {
+                  frame_path: "/api/site-worlds/sessions/session-live-flip/render?cameraId=head_rgb",
+                  primaryCameraId: "head_rgb",
+                },
+                observationCameras: [{ id: "head_rgb", role: "head", required: true, defaultEnabled: true }],
+                actionTrace: [],
+                artifactUris: {},
+              },
+            }),
+          ),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(JSON.stringify({ error: "not found" }), { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<HostedSessionWorkspace params={{ slug: "siteworld-f5fd54898cfb" }} />);
+
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(([input]) =>
+          String(input).includes("/api/site-worlds/sessions/session-live-flip/render?cameraId=head_rgb"),
+        ),
+      ).toBe(true);
+    });
+    await findModeLabel("Live Runtime");
   });
 
   it("switches the render camera in live runtime mode", async () => {
@@ -329,8 +385,14 @@ describe("HostedSessionWorkspace", () => {
 
     render(<HostedSessionWorkspace params={{ slug: "siteworld-f5fd54898cfb" }} />);
 
-    const image = await screen.findByRole("img", { name: /Latest robot observation frame/i });
-    expect(image.getAttribute("src")).toContain("cameraId=head_rgb");
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(([input]) =>
+          String(input).includes("/api/site-worlds/sessions/session-camera/render?cameraId=head_rgb"),
+        ),
+      ).toBe(true);
+    });
+    await findModeLabel("Live Runtime");
 
     fireEvent.click(screen.getByRole("button", { name: /wrist/i }));
 

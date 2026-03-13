@@ -42,7 +42,7 @@ export function serializeJsonParam(value: unknown) {
 
 export function isRenderableObservationPath(framePath?: string | null) {
   const normalized = String(framePath || "").trim();
-  return /^(https?:\/\/|data:image\/|\/(api|assets|images|attached_assets)\/)/.test(normalized);
+  return /^(https?:\/\/|blob:|data:image\/|\/(api|assets|images|attached_assets)\/)/.test(normalized);
 }
 
 export function summarizeObservation(framePath?: string | null, frameCount = 0): ObservationSummary {

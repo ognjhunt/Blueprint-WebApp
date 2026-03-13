@@ -694,6 +694,12 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const hasVisibleObservation = Boolean(
     selectedObservationSrc && isRenderableObservationPath(selectedObservationSrc) && !observationLoadError,
   );
+  const hasGenuineLiveObservation = Boolean(
+    runtimeInteractive &&
+      liveObservationSrc &&
+      isRenderableObservationPath(liveObservationSrc) &&
+      !observationLoadError,
+  );
   const runtimeDiagnostic = sessionRecord?.latestRuntimeFailure || null;
   const runtimeDegraded = Boolean(runtimeDiagnostic && liveObservationSrc);
   const showRuntimeReferencePreview = !hasVisibleObservation && Boolean(runtimeReferenceImageUrl);
@@ -712,7 +718,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       : "Exploration assets unavailable";
   const runtimeModeState = runtimeDegraded
     ? { label: "Live Runtime: Degraded", tone: "amber" as const }
-    : hasVisibleObservation
+    : hasGenuineLiveObservation
       ? { label: "Live Runtime: Live", tone: "emerald" as const }
       : runtimeDiagnostic
         ? { label: "Live Runtime: Failed", tone: "rose" as const }
@@ -744,12 +750,12 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     if (userSelectedMode) {
       return;
     }
-    if (sessionMode === "presentation_demo" || (!hasVisibleObservation && artifactExplorerReady)) {
+    if (sessionMode === "presentation_demo" || (!hasGenuineLiveObservation && artifactExplorerReady)) {
       setActiveMode("presentation_world");
       return;
     }
     setActiveMode("live_runtime");
-  }, [artifactExplorerReady, hasVisibleObservation, sessionMode, userSelectedMode]);
+  }, [artifactExplorerReady, hasGenuineLiveObservation, sessionMode, userSelectedMode]);
 
   const applyRuntimeDiagnostic = (diagnostic?: HostedSessionRecord["latestRuntimeFailure"] | null, fallback?: string) => {
     setSessionRecord((current) =>
