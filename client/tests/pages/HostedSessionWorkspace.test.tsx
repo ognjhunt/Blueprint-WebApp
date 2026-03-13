@@ -40,15 +40,17 @@ describe("HostedSessionWorkspace", () => {
       await screen.findByRole("heading", { name: /Hosted Session Workspace/i }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/Harborview Grocery Distribution Annex/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Built World Model Demo/i)).toBeInTheDocument();
+    expect(screen.getByText(/world model you already built/i)).toBeInTheDocument();
     expect(screen.getByText(/Robot observation/i)).toBeInTheDocument();
     expect(screen.getByText(/Run context/i)).toBeInTheDocument();
     expect(screen.getByText(/Controls/i)).toBeInTheDocument();
     expect(screen.getByText(/Generated outputs/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Stop session/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Reset episode/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Run 10 episodes/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Export results/i })).toBeInTheDocument();
-    expect(screen.getByText(/Raw bundle/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Restart world model/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Run scripted demo batch/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Export demo package/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/Raw bundle/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/RLDS dataset/i).length).toBeGreaterThan(0);
   });
 
@@ -114,5 +116,93 @@ describe("HostedSessionWorkspace", () => {
       "href",
       "gs://bucket/canonical-package.json",
     );
+  });
+
+  it("prefers the remote runtime frame when the local frame path is not browser-renderable", async () => {
+    mockSearch = "sessionId=session-remote-frame";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input).includes("/api/site-worlds/sessions/session-remote-frame")) {
+          return new Response(
+            JSON.stringify({
+              sessionId: "session-remote-frame",
+              sessionMode: "runtime_only",
+              runtime_backend_selected: "neoverse",
+              status: "running",
+              site: {
+                siteWorldId: "sw-chi-01",
+                siteName: "Harborview Grocery Distribution Annex",
+                siteAddress: "1847 W Fulton St, Chicago, IL 60612",
+                scene_id: "scene-harborview-grocery-annex",
+                capture_id: "cap-harborview-grocery-annex-v1",
+                site_submission_id: "sw-chi-01",
+                pipeline_prefix: "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline",
+              },
+              policy: {},
+              requestedOutputs: [],
+              artifactUris: {
+                export_manifest: "/tmp/export_manifest.json",
+                raw_bundle: "/tmp/raw_bundle.json",
+              },
+              datasetArtifacts: {},
+              elapsedSeconds: 0,
+              metering: { sessionSeconds: 0, billableHours: 0 },
+              launchContext: {
+                site_world_spec_uri: "gs://bucket/spec.json",
+                site_world_registration_uri: "gs://bucket/registration.json",
+                site_world_health_uri: "gs://bucket/health.json",
+                conditioning_bundle_uri: "gs://bucket/conditioning.json",
+                scene_memory_manifest_uri: "gs://bucket/scene-memory.json",
+              },
+              latestEpisode: {
+                episodeId: "episode-1",
+                taskId: "task-1",
+                task: "Inspect media room",
+                scenarioId: "scenario-1",
+                scenario: "default",
+                startStateId: "start-1",
+                startState: "default",
+                status: "running",
+                stepIndex: 1,
+                done: false,
+                reward: 0.05,
+                actionTrace: [[0, 0, 0, 0, 0, 0, 0]],
+                observation: {
+                  frame_path: "/workspace/local/frame_001.png",
+                  remoteObservation: {
+                    frame_path: "http://runtime.example/frame_001.png",
+                    cameraFrames: [{ framePath: "http://runtime.example/frame_001.png" }],
+                  },
+                  runtimeMetadata: {
+                    quality_flags: {
+                      presentation_quality: "degraded",
+                      fallback_mode: "canonical_only",
+                    },
+                    protected_region_violations: [{ reason: "locked_region_modified" }],
+                  },
+                },
+                observationCameras: [{ id: "head_rgb", role: "head", required: true, defaultEnabled: true }],
+                artifactUris: {
+                  rollout_video: "http://runtime.example/rollout.mp4",
+                },
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        return new Response(JSON.stringify({ error: "not found" }), { status: 404 });
+      }),
+    );
+
+    render(<HostedSessionWorkspace params={{ slug: "sw-chi-01" }} />);
+
+    const image = await screen.findByRole("img", { name: /Latest robot observation frame/i });
+    expect(image).toHaveAttribute("src", "http://runtime.example/frame_001.png");
+    expect(screen.getByRole("link", { name: /Open rollout video/i })).toHaveAttribute(
+      "href",
+      "http://runtime.example/rollout.mp4",
+    );
+    expect(screen.getByText(/degraded/i)).toBeInTheDocument();
   });
 });

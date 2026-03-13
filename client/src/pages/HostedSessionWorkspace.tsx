@@ -76,6 +76,15 @@ function MetadataLink({ href, label }: { href?: string | null; label: string }) 
   );
 }
 
+function DetailPill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
 export default function HostedSessionWorkspace({ params }: HostedSessionWorkspaceProps) {
   const fallbackSite = getSiteWorldById(params.slug);
   const [site, setSite] = useState(fallbackSite);
@@ -300,10 +309,35 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const batchSummary = sessionRecord?.batchSummary || null;
   const observation = latestEpisode?.observation as Record<string, unknown> | undefined;
   const observationFramePath = String(observation?.frame_path || "").trim();
-  const renderableObservation = isRenderableObservationPath(observationFramePath);
+  const remoteObservation = (observation?.remoteObservation || null) as Record<string, unknown> | null;
+  const remoteObservationFramePath = String(
+    remoteObservation?.frame_path ||
+      ((Array.isArray(remoteObservation?.cameraFrames) ? remoteObservation?.cameraFrames[0] : null) as Record<string, unknown> | null)?.framePath ||
+      "",
+  ).trim();
+  const observationDisplayPath = isRenderableObservationPath(observationFramePath)
+    ? observationFramePath
+    : remoteObservationFramePath;
+  const renderableObservation = isRenderableObservationPath(observationDisplayPath);
   const datasetRlds = sessionRecord?.datasetArtifacts?.rlds as
     | { manifestUri?: string; trainJsonl?: string }
     | undefined;
+  const latestEpisodeArtifacts = latestEpisode?.artifactUris || {};
+  const qualityFlags = ((observation?.runtimeMetadata || null) as Record<string, unknown> | null)?.quality_flags as
+    | Record<string, unknown>
+    | undefined;
+  const protectedRegionViolations =
+    (((observation?.runtimeMetadata || null) as Record<string, unknown> | null)?.protected_region_violations as
+      | unknown[]
+      | undefined) || [];
+  const rolloutVideoPath = String(
+    latestEpisodeArtifacts.rollout_video ||
+      latestEpisodeArtifacts.rolloutVideo ||
+      latestEpisodeArtifacts.video_path ||
+      "",
+  ).trim();
+  const exportManifestPath = String(sessionRecord?.artifactUris?.export_manifest || "").trim();
+  const rawBundlePath = String(sessionRecord?.artifactUris?.raw_bundle || "").trim();
 
   const handleReset = async () => {
     if (!sessionId) return;
@@ -700,6 +734,42 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
             </div>
           ) : null}
 
+          <section className="mt-6 rounded-[32px] border border-slate-200 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(238,242,255,0.92))] p-6 shadow-sm">
+            <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr] xl:items-start">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Built World Model Demo</p>
+                <h2 className="mt-3 max-w-3xl text-3xl font-bold tracking-tight text-slate-950">
+                  This page is operating on the world model you already built, not asking NeoVerse to reconstruct it again.
+                </h2>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+                  The observation frame, rollout clip, and export bundle below all come from the successful production runtime session
+                  tied to this site-specific canonical package.
+                </p>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <DetailPill label="Canonical Version" value={canonicalPackageVersion || "Unspecified"} />
+                  <DetailPill label="Current Step" value={String(latestEpisode?.stepIndex ?? 0)} />
+                  <DetailPill label="Reward" value={latestEpisode?.reward != null ? String(latestEpisode.reward) : "0"} />
+                  <DetailPill label="Protected Regions" value={String(protectedRegionViolations.length)} />
+                </div>
+              </div>
+              <div className="rounded-3xl border border-slate-200 bg-slate-950 p-5 text-slate-100">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Demo Guarantees</p>
+                <ul className="mt-4 space-y-3 text-sm text-slate-300">
+                  {[
+                    "The runtime session is already live and authoritative.",
+                    "The robot contract, task, scenario, and start state are already bound.",
+                    "Exports and rollout media come from this exact session state.",
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-3">
+                      <span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </section>
+
           <div className="mt-6 grid gap-4 lg:grid-cols-4">
             <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Robot profile</p>
@@ -732,7 +802,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
               <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50 p-4">
                 {renderableObservation ? (
                   <img
-                    src={observationFramePath}
+                    src={observationDisplayPath}
                     alt="Latest robot observation frame"
                     className="h-[320px] w-full rounded-2xl object-cover"
                   />
@@ -742,11 +812,18 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                       <Camera className="mx-auto h-8 w-8 text-slate-400" />
                       <p className="mt-3 text-sm font-semibold text-slate-900">Observation stored outside the browser runtime</p>
                       <p className="mt-2 break-all text-xs text-slate-500">
-                        {observationFramePath || "The runtime has not returned a frame path yet."}
+                        {observationFramePath || remoteObservationFramePath || "The runtime has not returned a frame path yet."}
                       </p>
                     </div>
                   </div>
                 )}
+
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <MetadataLink href={observationDisplayPath || null} label="Open latest frame" />
+                  <MetadataLink href={rolloutVideoPath || null} label="Open rollout video" />
+                  <MetadataLink href={exportManifestPath || null} label="Open export manifest" />
+                  <MetadataLink href={rawBundlePath || null} label="Open raw bundle" />
+                </div>
 
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <div className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -760,11 +837,12 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     </div>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <p className="text-sm font-semibold text-slate-900">Action trace</p>
+                    <p className="text-sm font-semibold text-slate-900">Runtime quality state</p>
                     <p className="mt-2 text-sm text-slate-600">
-                      {latestEpisode?.actionTrace?.length
-                        ? `${latestEpisode.actionTrace.length} actions recorded`
-                        : "No actions recorded yet"}
+                      {String(qualityFlags?.presentation_quality || "unknown").replaceAll("_", " ")}
+                    </p>
+                    <p className="mt-2 text-xs text-slate-500">
+                      Fallback mode: {String(qualityFlags?.fallback_mode || "none").replaceAll("_", " ")}
                     </p>
                   </div>
                 </div>
@@ -850,7 +928,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                   >
                     <RotateCcw className="mr-2 h-4 w-4" />
-                    Reset episode
+                    Restart world model
                   </button>
                   <button
                     type="button"
@@ -858,7 +936,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                   >
                     <BarChart3 className="mr-2 h-4 w-4" />
-                    Run 10 episodes
+                    Run scripted demo batch
                   </button>
                   <button
                     type="button"
@@ -866,7 +944,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                   >
                     <Download className="mr-2 h-4 w-4" />
-                    Export results
+                    Export demo package
                   </button>
                 </div>
               </article>
