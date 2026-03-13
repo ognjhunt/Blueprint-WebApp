@@ -74,6 +74,14 @@ async function loadUserProfile(uid: string) {
 
 const PUBLIC_DEMO_SITE_WORLD_IDS = new Set(["siteworld-f5fd54898cfb"]);
 
+function isPublicDemoSiteWorldId(siteWorldId: string) {
+  return PUBLIC_DEMO_SITE_WORLD_IDS.has(String(siteWorldId || "").trim());
+}
+
+function isPublicDemoSession(session: HostedSessionRecord | null | undefined) {
+  return Boolean(session && isPublicDemoSiteWorldId(session.site.siteWorldId));
+}
+
 async function requestTargetSiteWorldId(req: Request): Promise<string> {
   const bodySiteWorldId = String(req.body?.siteWorldId || "").trim();
   if (bodySiteWorldId) {
@@ -96,7 +104,7 @@ async function requestTargetSiteWorldId(req: Request): Promise<string> {
 
 async function isPublicDemoLaunchRequest(req: Request) {
   const siteWorldId = await requestTargetSiteWorldId(req);
-  return PUBLIC_DEMO_SITE_WORLD_IDS.has(siteWorldId);
+  return isPublicDemoSiteWorldId(siteWorldId);
 }
 
 function currentFirebaseUser(res: Response) {
@@ -705,6 +713,7 @@ function buildSiteModelSummary(
 function normalizeEpisodeSummary(
   sessionId: string,
   episodePayload: Record<string, unknown>,
+  renderRouteBase = "/api/site-worlds/sessions",
 ): HostedSessionRecord["latestEpisode"] {
   const observation =
     episodePayload.observation && typeof episodePayload.observation === "object"
@@ -716,7 +725,7 @@ function normalizeEpisodeSummary(
       : {};
   const primaryCameraId =
     String(observation?.primaryCameraId || episodePayload.primaryCameraId || "head_rgb").trim() || "head_rgb";
-  const framePath = `/api/site-worlds/sessions/${encodeURIComponent(sessionId)}/render?cameraId=${encodeURIComponent(primaryCameraId)}`;
+  const framePath = `${renderRouteBase}/${encodeURIComponent(sessionId)}/render?cameraId=${encodeURIComponent(primaryCameraId)}`;
   const normalizedObservation = observation ? { ...observation, frame_path: framePath } : null;
   const frameCount = Array.isArray(episodePayload.frame_paths)
     ? episodePayload.frame_paths.length
@@ -807,6 +816,23 @@ function normalizeBatchSummary(
       label: "Export bundle",
     },
   };
+}
+
+async function proxyRuntimeRenderForSession(session: HostedSessionRecord, req: Request, res: Response) {
+  const runtimeBaseUrl = String(session.runtimeHandle?.runtime_base_url || "").trim();
+  if (!runtimeBaseUrl) {
+    return res.status(409).json({ error: "Runtime handle missing for hosted session" });
+  }
+  const cameraId = String(req.query.cameraId || req.query.camera_id || "head_rgb").trim() || "head_rgb";
+  const response = await fetch(
+    `${runtimeBaseUrl}/v1/sessions/${encodeURIComponent(session.sessionId)}/render?camera_id=${encodeURIComponent(cameraId)}`,
+  );
+  if (!response.ok) {
+    return res.status(response.status).json({ error: "Failed to proxy runtime render" });
+  }
+  const arrayBuffer = await response.arrayBuffer();
+  res.setHeader("Content-Type", response.headers.get("content-type") || "image/png");
+  return res.send(Buffer.from(arrayBuffer));
 }
 
 async function createRuntimeOnlySession(params: {
@@ -1184,6 +1210,314 @@ publicSiteWorldSessionsRouter.get("/:sessionId/ui/bootstrap", async (req, res) =
 
 publicSiteWorldSessionsRouter.all("/:sessionId/ui", proxyPresentationUiRequest);
 publicSiteWorldSessionsRouter.all("/:sessionId/ui/*", proxyPresentationUiRequest);
+
+publicSiteWorldSessionsRouter.get("/launch-readiness", async (req, res, next) => {
+  try {
+    const siteWorldId = String(req.query.siteWorldId || "").trim();
+    if (!isPublicDemoSiteWorldId(siteWorldId)) {
+      return next();
+    }
+    const runtime = await resolveHostedRuntime(siteWorldId);
+    return res.json(
+      await buildLaunchReadiness({
+        runtime,
+        entitled: true,
+        accessBlockers: [],
+      }),
+    );
+  } catch (error) {
+    const hostedError =
+      error instanceof HostedSessionRuntimeError
+        ? error
+        : new HostedSessionRuntimeError("launch_readiness_failed", error instanceof Error ? error.message : "Failed to resolve launch readiness.");
+    return res.status(hostedError.code === "site_not_found" ? 404 : 500).json({
+      error: hostedError.message,
+      code: hostedError.code,
+    });
+  }
+});
+
+publicSiteWorldSessionsRouter.post("/", async (req, res, next) => {
+  try {
+    const body = (req.body ?? {}) as CreateHostedSessionRequest;
+    if (!isPublicDemoSiteWorldId(String(body.siteWorldId || ""))) {
+      return next();
+    }
+    if (!body.siteWorldId || !body.robotProfileId || !body.taskId || !body.scenarioId || !body.startStateId) {
+      return res.status(400).json({
+        error: "siteWorldId, robotProfileId, taskId, scenarioId, and startStateId are required",
+      });
+    }
+
+    const runtime = await resolveHostedRuntime(String(body.siteWorldId));
+    const sessionMode = normalizeSessionMode(body.sessionMode);
+    const runtimeSessionConfig = normalizeRuntimeSessionConfig(body, runtime);
+    const readiness = await buildLaunchReadiness({
+      runtime,
+      entitled: true,
+      accessBlockers: [],
+      runtimeSessionConfig,
+    });
+    const selectedReadiness =
+      sessionMode === "presentation_demo" ? readiness.presentation_demo : readiness.runtime_only;
+    if (!selectedReadiness.launchable) {
+      const primaryCode =
+        selectedReadiness.blocker_details.find((item) =>
+          sessionMode === "runtime_only" ? item.code === "runtime_handle_missing" : true,
+        )?.code || selectedReadiness.blocker_details[0]?.code || "session_not_launchable";
+      return res.status(409).json({
+        error: selectedReadiness.blockers.join(", "),
+        code: primaryCode,
+        blockers: selectedReadiness.blockers,
+        blocker_details: selectedReadiness.blocker_details,
+      });
+    }
+
+    const record = createSessionRecord({
+      body,
+      runtime,
+      user: { uid: "public-demo-user", email: null },
+    });
+    await writeSession(record);
+
+    if (sessionMode === "presentation_demo") {
+      void launchPresentationDemoSession(record, runtime);
+      return res.status(201).json(buildSessionCreateResponse(record));
+    }
+
+    const finalizedRecord = await createRuntimeOnlySession({ body, runtime, record });
+    return res.status(201).json(buildSessionCreateResponse(finalizedRecord));
+  } catch (error) {
+    const hostedError =
+      error instanceof HostedSessionRuntimeError
+        ? error
+        : error instanceof Error
+          ? new HostedSessionRuntimeError("session_create_failed", error.message)
+          : new HostedSessionRuntimeError("session_create_failed", "Failed to create hosted session.");
+    const status =
+      hostedError.code.startsWith("missing") || hostedError.code.includes("not_launchable")
+        ? 409
+        : 500;
+    return res.status(status).json({ error: hostedError.message, code: hostedError.code });
+  }
+});
+
+publicSiteWorldSessionsRouter.get("/:sessionId", async (req, res, next) => {
+  const session = await loadHostedSession(String(req.params.sessionId || ""));
+  if (!session || !isPublicDemoSession(session)) {
+    return next();
+  }
+  return res.json(session);
+});
+
+publicSiteWorldSessionsRouter.post("/:sessionId/reset", async (req, res, next) => {
+  try {
+    const session = await loadHostedSession(String(req.params.sessionId || ""));
+    if (!session || !isPublicDemoSession(session)) {
+      return next();
+    }
+    if (sessionUsesPresentationDemo(session)) {
+      return sessionModeUnsupportedResponse(res);
+    }
+    const runtime = await resolveHostedRuntime(session.site.siteWorldId);
+    const startState = String(
+      req.body?.startStateId || session.runtimeConfig?.startStateId || runtime.startStateCatalog[0]?.id || "",
+    ).trim();
+    const scenario = String(
+      req.body?.scenarioId || session.runtimeConfig?.scenarioId || runtime.scenarioCatalog[0]?.id || "",
+    ).trim();
+    const seed =
+      typeof req.body?.seed === "number"
+        ? req.body.seed
+        : typeof session.runtimeConfig?.seed === "number"
+          ? session.runtimeConfig.seed
+          : undefined;
+    const payload = await resetHostedSessionRun({
+      sessionId: session.sessionId,
+      workDir: sessionWorkDir(session.sessionId),
+      taskId: req.body?.taskId || session.taskSelection?.taskId || undefined,
+      scenarioId: scenario,
+      startStateId: startState,
+      seed,
+    });
+    const latestEpisode = normalizeEpisodeSummary(
+      session.sessionId,
+      payload.episode as Record<string, unknown>,
+    );
+    await updateSession(session.sessionId, {
+      latestEpisode,
+      status: "running",
+      runtimeConfig: {
+        ...(session.runtimeConfig || {}),
+        scenarioId: scenario,
+        startStateId: startState,
+        seed: seed ?? null,
+        requestedBackend: session.runtime_backend_selected,
+      },
+    });
+    return res.json({ ...payload, episode: latestEpisode });
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : "Reset failed" });
+  }
+});
+
+publicSiteWorldSessionsRouter.post("/:sessionId/run-batch", async (req, res, next) => {
+  try {
+    const session = await loadHostedSession(String(req.params.sessionId || ""));
+    if (!session || !isPublicDemoSession(session)) {
+      return next();
+    }
+    if (sessionUsesPresentationDemo(session)) {
+      return sessionModeUnsupportedResponse(res);
+    }
+    const runtime = await resolveHostedRuntime(session.site.siteWorldId);
+    const payload = await runBatchHostedSessionRun({
+      sessionId: session.sessionId,
+      workDir: sessionWorkDir(session.sessionId),
+      numEpisodes: Number(req.body?.numEpisodes || 1),
+      taskId: req.body?.taskId || session.taskSelection?.taskId || undefined,
+      scenarioId: req.body?.scenarioId || session.runtimeConfig?.scenarioId || runtime.scenarioCatalog[0]?.id,
+      startStateId: req.body?.startStateId || session.runtimeConfig?.startStateId || runtime.startStateCatalog[0]?.id,
+      seed:
+        typeof req.body?.seed === "number"
+          ? req.body.seed
+          : typeof session.runtimeConfig?.seed === "number"
+            ? session.runtimeConfig.seed
+            : undefined,
+      maxSteps: req.body?.maxSteps,
+    });
+    const nextArtifactUris = {
+      ...session.artifactUris,
+      ...(payload.artifact_uris as Record<string, string> | undefined),
+    };
+    const batchSummary = normalizeBatchSummary(
+      (payload.summary as Record<string, unknown>) || {},
+      payload.artifact_uris as Record<string, string> | undefined,
+    );
+    await updateSession(session.sessionId, {
+      batchSummary,
+      artifactUris: nextArtifactUris,
+      datasetArtifacts: {
+        ...(session.datasetArtifacts || {}),
+        ...((payload.dataset_artifacts as Record<string, unknown> | undefined) || {}),
+      },
+    });
+    return res.json({
+      ...payload,
+      summary: batchSummary,
+      artifact_uris: nextArtifactUris,
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : "Batch run failed" });
+  }
+});
+
+publicSiteWorldSessionsRouter.post("/:sessionId/stop", async (req, res, next) => {
+  try {
+    const session = await loadHostedSession(String(req.params.sessionId || ""));
+    if (!session || !isPublicDemoSession(session)) {
+      return next();
+    }
+
+    if (sessionUsesPresentationDemo(session)) {
+      const payload = await stopPresentationDemoRuntime({
+        sessionId: session.sessionId,
+        presentationRuntime: session.presentationRuntime,
+      });
+      await updateSession(session.sessionId, {
+        status: "stopped",
+        stoppedAt: nowTimestamp(),
+        presentationRuntime: {
+          provider: "vast",
+          status: "stopped",
+          uiBaseUrl: session.presentationRuntime?.uiBaseUrl || null,
+          proxyPath: session.presentationRuntime?.proxyPath || null,
+          instanceId: session.presentationRuntime?.instanceId || null,
+          startedAt: session.presentationRuntime?.startedAt || null,
+          expiresAt: session.presentationRuntime?.expiresAt || null,
+          errorCode: null,
+          errorMessage: null,
+        },
+      });
+      return res.json(payload);
+    }
+
+    const payload = await stopHostedSessionRun({
+      sessionId: session.sessionId,
+      workDir: sessionWorkDir(session.sessionId),
+    });
+    await updateSession(session.sessionId, {
+      status: "stopped",
+      stoppedAt: nowTimestamp(),
+    });
+    return res.json(payload);
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : "Stop failed" });
+  }
+});
+
+publicSiteWorldSessionsRouter.get("/:sessionId/render", async (req, res, next) => {
+  const session = await loadHostedSession(String(req.params.sessionId || ""));
+  if (!session || !isPublicDemoSession(session)) {
+    return next();
+  }
+  return proxyRuntimeRenderForSession(session, req, res);
+});
+
+publicSiteWorldSessionsRouter.post("/:sessionId/export", async (req, res, next) => {
+  try {
+    const session = await loadHostedSession(String(req.params.sessionId || ""));
+    if (!session || !isPublicDemoSession(session)) {
+      return next();
+    }
+    if (sessionUsesPresentationDemo(session)) {
+      return sessionModeUnsupportedResponse(res);
+    }
+    const payload = await exportHostedSessionRun({
+      sessionId: session.sessionId,
+      workDir: sessionWorkDir(session.sessionId),
+    });
+    const nextArtifactUris = {
+      ...session.artifactUris,
+      ...(payload.artifact_uris as Record<string, string> | undefined),
+    };
+    const nextDatasetArtifacts = {
+      ...(session.datasetArtifacts || {}),
+      ...((payload.dataset_artifacts as Record<string, unknown> | undefined) || {}),
+    };
+    await updateSession(session.sessionId, {
+      artifactUris: nextArtifactUris,
+      datasetArtifacts: nextDatasetArtifacts,
+      batchSummary: session.batchSummary
+        ? {
+            ...session.batchSummary,
+            artifactManifestUri:
+              (payload.artifact_uris as Record<string, string> | undefined)?.export_manifest ||
+              session.batchSummary.artifactManifestUri ||
+              null,
+            exportBundle: {
+              available: Boolean(
+                (payload.artifact_uris as Record<string, string> | undefined)?.export_manifest ||
+                  session.batchSummary.exportBundle?.artifactUri,
+              ),
+              artifactUri:
+                (payload.artifact_uris as Record<string, string> | undefined)?.export_manifest ||
+                session.batchSummary.exportBundle?.artifactUri ||
+                null,
+              label: "Export bundle",
+            },
+          }
+        : session.batchSummary,
+    });
+    return res.json({
+      ...payload,
+      artifact_uris: nextArtifactUris,
+      dataset_artifacts: nextDatasetArtifacts,
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : "Export failed" });
+  }
+});
 
 protectedRouter.get("/launch-readiness", async (req, res) => {
   try {

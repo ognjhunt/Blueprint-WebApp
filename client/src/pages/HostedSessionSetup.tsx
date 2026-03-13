@@ -96,12 +96,13 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
     (async () => {
       try {
         const token = auth?.currentUser ? await auth.currentUser.getIdToken() : "";
-        if (!token) {
+        const usePublicDemoRoutes = PUBLIC_DEMO_SITE_WORLD_IDS.has(site.id);
+        if (!token && !usePublicDemoRoutes) {
           throw new Error("Missing authenticated user");
         }
         const response = await fetch(
-          `/api/site-worlds/sessions/launch-readiness?siteWorldId=${encodeURIComponent(site.id)}`,
-          { headers: { Authorization: `Bearer ${token}` } },
+          `${usePublicDemoRoutes ? "/api/site-worlds/sessions/launch-readiness" : "/api/site-worlds/sessions/launch-readiness"}?siteWorldId=${encodeURIComponent(site.id)}`,
+          { headers: token ? { Authorization: `Bearer ${token}` } : {} },
         );
         const payload = (await response.json()) as LaunchReadinessPayload & { error?: string };
         if (!response.ok) {
@@ -214,13 +215,16 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
 
     try {
       const token = auth?.currentUser ? await auth.currentUser.getIdToken() : "";
-      if (!token) throw new Error("Missing authenticated user");
+      const usePublicDemoRoutes = PUBLIC_DEMO_SITE_WORLD_IDS.has(site.id);
+      if (!token && !usePublicDemoRoutes) throw new Error("Missing authenticated user");
       const response = await fetch("/api/site-worlds/sessions", {
         method: "POST",
-        headers: {
-          ...(await withCsrfHeader({ "Content-Type": "application/json" })),
-          Authorization: `Bearer ${token}`,
-        },
+        headers: usePublicDemoRoutes
+          ? { "Content-Type": "application/json" }
+          : {
+              ...(await withCsrfHeader({ "Content-Type": "application/json" })),
+              Authorization: `Bearer ${token}`,
+            },
         body: JSON.stringify(requestPayload),
       });
       const payload = (await response.json()) as {
