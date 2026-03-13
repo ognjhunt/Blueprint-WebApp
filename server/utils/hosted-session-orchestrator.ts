@@ -420,6 +420,31 @@ export async function loadHostedSessionRuntimeMetadata(workDir: string) {
   return readRuntimeMetadata(workDir);
 }
 
+export async function persistHostedSessionRuntimeMetadata(
+  workDir: string,
+  payload: {
+    runtime_base_url: string;
+    websocket_base_url?: string | null;
+    site_world_id?: string | null;
+    build_id?: string | null;
+    vm_instance_id?: string | null;
+    runtime_capabilities?: Record<string, unknown> | null;
+    health_status?: string | null;
+    last_heartbeat_at?: string | null;
+  },
+) {
+  await writeRuntimeMetadata(workDir, {
+    runtime_base_url: payload.runtime_base_url,
+    websocket_base_url: payload.websocket_base_url || null,
+    site_world_id: payload.site_world_id || null,
+    build_id: payload.build_id || null,
+    vm_instance_id: payload.vm_instance_id || null,
+    runtime_capabilities: payload.runtime_capabilities || {},
+    health_status: payload.health_status || null,
+    last_heartbeat_at: payload.last_heartbeat_at || null,
+  });
+}
+
 export function sessionWorkDir(sessionId: string) {
   return path.join(sessionWorkRoot(), sessionId);
 }

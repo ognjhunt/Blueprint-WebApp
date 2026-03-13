@@ -25,6 +25,7 @@ import {
   createHostedSessionRun,
   exportHostedSessionRun,
   loadHostedSessionRuntimeMetadata,
+  persistHostedSessionRuntimeMetadata,
   resetHostedSessionRun,
   runBatchHostedSessionRun,
   sessionWorkDir,
@@ -838,6 +839,53 @@ async function proxyRuntimeRenderForSession(session: HostedSessionRecord, req: R
   return res.send(Buffer.from(arrayBuffer));
 }
 
+async function ensureRuntimeMetadataForSession(session: HostedSessionRecord) {
+  if (sessionUsesPresentationDemo(session)) {
+    return;
+  }
+
+  const runtimeBaseUrl = String(
+    session.runtimeHandle?.runtime_base_url ||
+      session.siteModel?.runtimeBaseUrl ||
+      session.launchContext.runtime_base_url ||
+      "",
+  ).trim();
+
+  if (!runtimeBaseUrl) {
+    throw new HostedSessionRuntimeError("runtime_handle_missing", "Missing runtime base URL for hosted session.");
+  }
+
+  const workDir = sessionWorkDir(session.sessionId);
+  try {
+    const metadata = await loadHostedSessionRuntimeMetadata(workDir);
+    if (String(metadata.runtime_base_url || "").trim()) {
+      return;
+    }
+  } catch {
+    // Rehydrate runtime metadata below.
+  }
+
+  await persistHostedSessionRuntimeMetadata(workDir, {
+    runtime_base_url: runtimeBaseUrl,
+    websocket_base_url:
+      String(
+        session.runtimeHandle?.websocket_base_url ||
+          session.siteModel?.websocketBaseUrl ||
+          session.launchContext.websocket_base_url ||
+          "",
+      ).trim() || null,
+    site_world_id: String(session.runtimeHandle?.site_world_id || session.site.siteWorldId || "").trim() || null,
+    build_id: String(session.runtimeHandle?.build_id || "").trim() || null,
+    vm_instance_id: String(session.runtimeHandle?.vm_instance_id || "").trim() || null,
+    runtime_capabilities:
+      session.runtimeHandle?.runtime_capabilities && typeof session.runtimeHandle.runtime_capabilities === "object"
+        ? session.runtimeHandle.runtime_capabilities
+        : {},
+    health_status: String(session.runtimeHandle?.health_status || "").trim() || null,
+    last_heartbeat_at: String(session.runtimeHandle?.last_heartbeat_at || "").trim() || null,
+  });
+}
+
 async function createRuntimeOnlySession(params: {
   body: CreateHostedSessionRequest;
   runtime: Awaited<ReturnType<typeof resolveHostedRuntime>>;
@@ -1322,6 +1370,7 @@ publicSiteWorldSessionsRouter.post("/:sessionId/reset", async (req, res, next) =
     if (sessionUsesPresentationDemo(session)) {
       return sessionModeUnsupportedResponse(res);
     }
+    await ensureRuntimeMetadataForSession(session);
     const runtime = await resolveHostedRuntime(session.site.siteWorldId);
     const startState = String(
       req.body?.startStateId || session.runtimeConfig?.startStateId || runtime.startStateCatalog[0]?.id || "",
@@ -1373,6 +1422,7 @@ publicSiteWorldSessionsRouter.post("/:sessionId/step", async (req, res, next) =>
     if (sessionUsesPresentationDemo(session)) {
       return sessionModeUnsupportedResponse(res);
     }
+    await ensureRuntimeMetadataForSession(session);
     const payload = await stepHostedSessionRun({
       sessionId: session.sessionId,
       workDir: sessionWorkDir(session.sessionId),
@@ -1399,6 +1449,7 @@ publicSiteWorldSessionsRouter.post("/:sessionId/run-batch", async (req, res, nex
     if (sessionUsesPresentationDemo(session)) {
       return sessionModeUnsupportedResponse(res);
     }
+    await ensureRuntimeMetadataForSession(session);
     const runtime = await resolveHostedRuntime(session.site.siteWorldId);
     const payload = await runBatchHostedSessionRun({
       sessionId: session.sessionId,
@@ -1502,6 +1553,7 @@ publicSiteWorldSessionsRouter.post("/:sessionId/export", async (req, res, next) 
     if (sessionUsesPresentationDemo(session)) {
       return sessionModeUnsupportedResponse(res);
     }
+    await ensureRuntimeMetadataForSession(session);
     const payload = await exportHostedSessionRun({
       sessionId: session.sessionId,
       workDir: sessionWorkDir(session.sessionId),
@@ -1695,6 +1747,7 @@ protectedRouter.post("/:sessionId/reset", async (req, res) => {
     if (sessionUsesPresentationDemo(session)) {
       return sessionModeUnsupportedResponse(res);
     }
+    await ensureRuntimeMetadataForSession(session);
     const runtime = await resolveHostedRuntime(session.site.siteWorldId);
     const startState = String(
       req.body?.startStateId || session.runtimeConfig?.startStateId || runtime.startStateCatalog[0]?.id || "",
@@ -1744,6 +1797,7 @@ protectedRouter.post("/:sessionId/step", async (req, res) => {
     if (sessionUsesPresentationDemo(session)) {
       return sessionModeUnsupportedResponse(res);
     }
+    await ensureRuntimeMetadataForSession(session);
     const payload = await stepHostedSessionRun({
       sessionId: session.sessionId,
       workDir: sessionWorkDir(session.sessionId),
@@ -1771,6 +1825,7 @@ protectedRouter.post("/:sessionId/run-batch", async (req, res) => {
     if (sessionUsesPresentationDemo(session)) {
       return sessionModeUnsupportedResponse(res);
     }
+    await ensureRuntimeMetadataForSession(session);
     const runtime = await resolveHostedRuntime(session.site.siteWorldId);
     const payload = await runBatchHostedSessionRun({
       sessionId: session.sessionId,
@@ -1890,6 +1945,7 @@ protectedRouter.post("/:sessionId/export", async (req, res) => {
     if (sessionUsesPresentationDemo(session)) {
       return sessionModeUnsupportedResponse(res);
     }
+    await ensureRuntimeMetadataForSession(session);
     const payload = await exportHostedSessionRun({
       sessionId: session.sessionId,
       workDir: sessionWorkDir(session.sessionId),

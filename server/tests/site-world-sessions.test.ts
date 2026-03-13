@@ -283,6 +283,7 @@ vi.mock("../utils/hosted-session-orchestrator", () => ({
     health_status: "healthy",
     last_heartbeat_at: "2026-03-12T00:00:00Z",
   })),
+  persistHostedSessionRuntimeMetadata: vi.fn(async () => undefined),
   resetHostedSessionRun: vi.fn(async () => ({
     episode: {
       episodeId: "episode-1",
@@ -580,6 +581,68 @@ describe("site world session routes", () => {
       const stepPayload = (await step.json()) as Record<string, unknown>;
       expect((stepPayload.episode as Record<string, unknown>).stepIndex).toBe(1);
     } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("rehydrates runtime metadata before reset when the workdir metadata is missing", async () => {
+    const orchestrator = await import("../utils/hosted-session-orchestrator");
+    const loadMetadataMock = vi.mocked(orchestrator.loadHostedSessionRuntimeMetadata);
+    const persistMetadataMock = vi.mocked(orchestrator.persistHostedSessionRuntimeMetadata);
+    loadMetadataMock
+      .mockResolvedValueOnce({
+        site_world_id: "siteworld-1",
+        build_id: "build-1",
+        runtime_base_url: "http://runtime.local",
+        websocket_base_url: "ws://runtime.local",
+        vm_instance_id: "vast-123",
+        runtime_capabilities: {
+          supports_step_rollout: true,
+          supports_batch_rollout: true,
+          supports_camera_views: true,
+        },
+        health_status: "healthy",
+        last_heartbeat_at: "2026-03-12T00:00:00Z",
+      })
+      .mockRejectedValueOnce(new Error("ENOENT"));
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const create = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteWorldId: "sw-chi-01",
+          robotProfileId: "other_sample",
+          taskId: "sw-chi-01-task-1",
+          scenarioId: "sw-chi-01-scenario-1",
+          startStateId: "sw-chi-01-start-1",
+          requestedOutputs: ["observation_frames"],
+          exportModes: ["raw_bundle"],
+        }),
+      });
+      const createPayload = (await create.json()) as Record<string, unknown>;
+      if (create.status !== 201) {
+        throw new Error(JSON.stringify(createPayload));
+      }
+
+      const created = createPayload as { sessionId: string };
+      const reset = await fetch(`${baseUrl}/${created.sessionId}/reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+
+      expect(reset.status).toBe(200);
+      expect(persistMetadataMock).toHaveBeenCalledWith(
+        expect.stringContaining(created.sessionId),
+        expect.objectContaining({
+          runtime_base_url: "http://runtime.local",
+        }),
+      );
+    } finally {
+      loadMetadataMock.mockReset();
+      persistMetadataMock.mockReset();
       await stopServer(server);
     }
   });
