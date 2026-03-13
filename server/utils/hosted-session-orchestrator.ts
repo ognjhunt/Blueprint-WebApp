@@ -76,13 +76,11 @@ async function runtimeFetchJson(
 }
 
 async function resolveRuntimeHandle(runtime: HostedRuntimeResolution) {
-  const registration = await readJsonFromUri(runtime.siteWorldRegistrationUri);
+  const registration = (await readJsonFromUri(runtime.siteWorldRegistrationUri).catch(() => ({}))) as Record<string, unknown>;
   const health = (await readJsonFromUri(runtime.siteWorldHealthUri).catch(() => ({}))) as Record<string, unknown>;
-  const runtimeBaseUrl =
-    String(runtime.runtimeBaseUrl || registration.runtime_base_url || "").trim();
-  const websocketBaseUrl =
-    String(runtime.websocketBaseUrl || registration.websocket_base_url || "").trim();
-  const siteWorldId = String(registration.site_world_id || "").trim();
+  const runtimeBaseUrl = String(runtime.runtimeBaseUrl || registration.runtime_base_url || "").trim();
+  const websocketBaseUrl = String(runtime.websocketBaseUrl || registration.websocket_base_url || "").trim();
+  const siteWorldId = String(registration.site_world_id || runtime.siteWorldId || "").trim();
   if (!runtimeBaseUrl || !siteWorldId) {
     throw new HostedSessionOrchestratorError(
       "runtime_handle_missing",
@@ -96,8 +94,16 @@ async function resolveRuntimeHandle(runtime: HostedRuntimeResolution) {
     );
   }
   return {
-    registration,
-    health,
+    registration: Object.keys(registration).length > 0 ? registration : {
+      site_world_id: siteWorldId,
+      runtime_base_url: runtimeBaseUrl,
+      websocket_base_url: websocketBaseUrl || null,
+    },
+    health: Object.keys(health).length > 0 ? health : {
+      launchable: true,
+      status: "healthy",
+      blockers: [],
+    },
     runtimeBaseUrl,
     websocketBaseUrl: websocketBaseUrl || null,
     siteWorldId,

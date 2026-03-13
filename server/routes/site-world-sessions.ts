@@ -72,6 +72,33 @@ async function loadUserProfile(uid: string) {
   return userDoc.data() as Record<string, unknown>;
 }
 
+const PUBLIC_DEMO_SITE_WORLD_IDS = new Set(["siteworld-f5fd54898cfb"]);
+
+async function requestTargetSiteWorldId(req: Request): Promise<string> {
+  const bodySiteWorldId = String(req.body?.siteWorldId || "").trim();
+  if (bodySiteWorldId) {
+    return bodySiteWorldId;
+  }
+
+  const querySiteWorldId = String(req.query.siteWorldId || "").trim();
+  if (querySiteWorldId) {
+    return querySiteWorldId;
+  }
+
+  const sessionId = String(req.params.sessionId || "").trim();
+  if (!sessionId) {
+    return "";
+  }
+
+  const session = await loadHostedSession(sessionId);
+  return String(session?.site?.siteWorldId || "").trim();
+}
+
+async function isPublicDemoLaunchRequest(req: Request) {
+  const siteWorldId = await requestTargetSiteWorldId(req);
+  return PUBLIC_DEMO_SITE_WORLD_IDS.has(siteWorldId);
+}
+
 function currentFirebaseUser(res: Response) {
   return res.locals.firebaseUser as
     | { uid?: string; email?: string; admin?: boolean }
@@ -82,6 +109,13 @@ async function ensureLaunchAccess(req: Request, res: Response) {
   void req;
   const firebaseUser = currentFirebaseUser(res);
   if (!firebaseUser?.uid) {
+    if (await isPublicDemoLaunchRequest(req)) {
+      return {
+        uid: "public-demo-user",
+        email: null,
+        entitled: true,
+      };
+    }
     throw new HostedSessionRuntimeError("unauthorized", "Missing authenticated user.");
   }
 
@@ -96,6 +130,13 @@ async function ensureLaunchAccess(req: Request, res: Response) {
   const profile = await loadUserProfile(firebaseUser.uid);
   const buyerType = String(profile?.buyerType || "").trim();
   if (buyerType !== "robot_team") {
+    if (await isPublicDemoLaunchRequest(req)) {
+      return {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email || null,
+        entitled: true,
+      };
+    }
     throw new HostedSessionRuntimeError(
       "forbidden",
       "Hosted sessions are only available to robot-team accounts.",
@@ -462,21 +503,21 @@ async function buildRuntimeOnlyReadiness(params: {
     readHostedRuntimeArtifactJson(params.runtime.siteWorldHealthUri),
   ]);
 
-  if (!siteWorldSpec) {
+  if (!siteWorldSpec && !params.runtime.allowBlockedSiteWorld) {
     addBlocker(details, {
       code: "missing_runtime_site_world_spec",
       message: "This site is missing the site-world spec required for hosted runtime launch.",
       source: "runtime",
     });
   }
-  if (!siteWorldRegistration) {
+  if (!siteWorldRegistration && !params.runtime.allowBlockedSiteWorld) {
     addBlocker(details, {
       code: "missing_runtime_registration",
       message: "This site is missing the site-world registration required for hosted runtime launch.",
       source: "runtime",
     });
   }
-  if (!siteWorldHealth) {
+  if (!siteWorldHealth && !params.runtime.allowBlockedSiteWorld) {
     addBlocker(details, {
       code: "missing_runtime_health",
       message: "This site is missing the site-world health record required for hosted runtime launch.",
