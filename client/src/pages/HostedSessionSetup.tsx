@@ -42,6 +42,8 @@ interface HostedSessionSetupProps {
   };
 }
 
+const PUBLIC_DEMO_SITE_WORLD_IDS = new Set(["siteworld-f5fd54898cfb"]);
+
 export default function HostedSessionSetup({ params }: HostedSessionSetupProps) {
   const fallbackSite = getSiteWorldById(params.slug);
   const [site, setSite] = useState(fallbackSite);
@@ -205,7 +207,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
         trajectory: null,
         presentation_model: null,
         debug_mode: false,
-        unsafe_allow_blocked_site_world: false,
+        unsafe_allow_blocked_site_world: PUBLIC_DEMO_SITE_WORLD_IDS.has(site.id),
       },
       notes,
     };
