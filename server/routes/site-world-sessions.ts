@@ -661,7 +661,8 @@ function normalizeRuntimeSessionConfig(
     trajectory: normalizeOptional(runtimeSessionConfig.trajectory),
     presentation_model: normalizeOptional(runtimeSessionConfig.presentation_model),
     debug_mode: runtimeSessionConfig.debug_mode === true,
-    unsafe_allow_blocked_site_world: runtimeSessionConfig.unsafe_allow_blocked_site_world === true,
+    unsafe_allow_blocked_site_world:
+      runtimeSessionConfig.unsafe_allow_blocked_site_world === true || runtime.allowBlockedSiteWorld === true,
   };
 }
 
