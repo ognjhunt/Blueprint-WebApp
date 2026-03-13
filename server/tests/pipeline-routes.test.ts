@@ -3,6 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import { createServer } from "http";
 import type { Server } from "node:http";
+import fs from "node:fs";
+import path from "node:path";
+
+import { parsePipelineAttachmentSyncPayload } from "../utils/pipelineAttachmentContract";
 
 const state = vi.hoisted(() => ({
   queryDocs: [] as Array<{
@@ -103,7 +107,20 @@ afterEach(() => {
   delete process.env.PIPELINE_SYNC_TOKEN;
 });
 
+const fixturePath = path.resolve(
+  import.meta.dirname,
+  "fixtures",
+  "pipeline-attachment-payload.json",
+);
+const pipelineAttachmentFixture = JSON.parse(
+  fs.readFileSync(fixturePath, "utf-8"),
+) as Record<string, unknown>;
+
 describe("pipeline integration routes", () => {
+  it("accepts the shared pipeline attachment payload fixture", () => {
+    expect(() => parsePipelineAttachmentSyncPayload(pipelineAttachmentFixture)).not.toThrow();
+  });
+
   it("upserts pipeline attachment metadata on the internal route", async () => {
     process.env.PIPELINE_SYNC_TOKEN = "secret";
     const update = vi.fn().mockResolvedValue(undefined);
@@ -142,19 +159,8 @@ describe("pipeline integration routes", () => {
           "X-Blueprint-Pipeline-Token": "secret",
         },
         body: JSON.stringify({
-          site_submission_id: "req-1",
-          scene_id: "scene-1",
-          capture_id: "cap-1",
-          pipeline_prefix: "scenes/scene-1/captures/cap-1/pipeline",
-          artifacts: {
-            dashboard_summary_uri: "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/dashboard_summary.json",
-          },
-          derived_assets: {
-            scene_memory: {
-              status: "prep_ready",
-              manifest_uri: "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/scene_memory/scene_memory_manifest.json",
-            },
-          },
+          ...pipelineAttachmentFixture,
+          authoritative_state_update: false,
         }),
       });
 
@@ -214,14 +220,7 @@ describe("pipeline integration routes", () => {
           "X-Blueprint-Pipeline-Token": "secret",
         },
         body: JSON.stringify({
-          site_submission_id: "req-1",
-          authoritative_state_update: true,
-          qualification_state: "qualified_ready",
-          opportunity_state: "handoff_ready",
-          artifacts: {
-            dashboard_summary_uri:
-              "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/dashboard_summary.json",
-          },
+          ...pipelineAttachmentFixture,
         }),
       });
 

@@ -7,6 +7,7 @@ import {
   QUALIFICATION_STATES,
 } from "../../client/src/lib/requestTaxonomy";
 import { logger } from "../logger";
+import { parsePipelineAttachmentSyncPayload } from "../utils/pipelineAttachmentContract";
 import type {
   DerivedAssetEntry,
   DerivedAssetsAttachment,
@@ -15,6 +16,7 @@ import type {
   PipelineArtifacts,
   QualificationState,
 } from "../types/inbound-request";
+import { ZodError } from "zod";
 
 const router = Router();
 
@@ -107,11 +109,12 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
     }
 
     const body = (req.body ?? {}) as Record<string, unknown>;
-    const siteSubmissionId = String(body.site_submission_id || "").trim();
-    const requestId = String(body.request_id || "").trim();
-    const authoritativeStateUpdate = body.authoritative_state_update === true;
-    const qualificationState = String(body.qualification_state || "").trim();
-    const opportunityState = String(body.opportunity_state || "").trim();
+    const parsedBody = parsePipelineAttachmentSyncPayload(body);
+    const siteSubmissionId = String(parsedBody.site_submission_id || "").trim();
+    const requestId = String(parsedBody.request_id || "").trim();
+    const authoritativeStateUpdate = parsedBody.authoritative_state_update === true;
+    const qualificationState = String(parsedBody.qualification_state || "").trim();
+    const opportunityState = String(parsedBody.opportunity_state || "").trim();
 
     if (!siteSubmissionId && !requestId) {
       return res.status(400).json({ error: "site_submission_id or request_id is required" });
@@ -149,9 +152,9 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       return res.status(400).json({ error: "Invalid opportunity_state" });
     }
 
-    const pipeline = buildPipelineAttachment(body, currentData?.pipeline as PipelineAttachment);
+    const pipeline = buildPipelineAttachment(parsedBody, currentData?.pipeline as PipelineAttachment);
     const derivedAssets = buildDerivedAssets(
-      body,
+      parsedBody,
       currentData?.derived_assets as DerivedAssetsAttachment | undefined
     );
     const nextQualificationState = authoritativeStateUpdate
@@ -191,6 +194,9 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       derived_assets: derivedAssets,
     });
   } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: "Invalid pipeline attachment payload" });
+    }
     logger.error({ error }, "Failed to attach pipeline metadata");
     return res.status(500).json({ error: "Failed to attach pipeline metadata" });
   }

@@ -3,6 +3,9 @@ import { render, screen } from '@testing-library/react';
 import Onboarding from '@/pages/Onboarding';
 
 const setLocationMock = vi.hoisted(() => vi.fn());
+const onAuthStateChangedMock = vi.hoisted(() =>
+  vi.fn(() => () => undefined),
+);
 
 vi.mock('wouter', () => ({
   useLocation: () => ['/onboarding', setLocationMock],
@@ -39,7 +42,10 @@ vi.mock('@/lib/csrf', () => ({
 }));
 
 vi.mock('firebase/auth', () => ({
-  getAuth: () => ({ currentUser: { uid: 'user-1', email: 'owner@example.com' } }),
+  getAuth: () => ({
+    currentUser: { uid: 'user-1', email: 'owner@example.com' },
+    onAuthStateChanged: onAuthStateChangedMock,
+  }),
   updateProfile: vi.fn(),
 }));
 
@@ -54,6 +60,7 @@ vi.mock('firebase/firestore', () => ({
 describe('Onboarding', () => {
   beforeEach(() => {
     setLocationMock.mockClear();
+    onAuthStateChangedMock.mockClear();
   });
 
   it('renders the organization onboarding step', () => {

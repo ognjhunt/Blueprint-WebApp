@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 import Nav from '@/components/Nav';
 
@@ -92,7 +92,7 @@ describe('Nav Component', () => {
     });
   });
 
-  it('calls logout and navigates home on sign out', () => {
+  it('calls logout and navigates home on sign out', async () => {
     useAuthMock.mockReturnValue({
       currentUser: { displayName: 'Jane Doe', email: 'jane@example.com' },
       userData: { name: 'Jane Doe' },
@@ -103,11 +103,13 @@ describe('Nav Component', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Sign out/i }));
 
-    expect(logoutMock).toHaveBeenCalled();
-    expect(toastMock).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Signed Out' }),
-    );
-    expect(setLocationMock).toHaveBeenCalledWith('/');
+    await waitFor(() => {
+      expect(logoutMock).toHaveBeenCalled();
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Signed Out' }),
+      );
+      expect(setLocationMock).toHaveBeenCalledWith('/');
+    });
   });
 
   it('shows the user menu when a currentUser exists', () => {
@@ -129,6 +131,7 @@ describe('Nav Component', () => {
     const toggleButton = screen.getByRole('button', { name: /Open menu/i });
     fireEvent.click(toggleButton);
 
-    expect(screen.getByText(/Why Simulation\?/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Close menu/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /Log in/i }).length).toBeGreaterThan(1);
   });
 });

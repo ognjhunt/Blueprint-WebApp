@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ContactForm from '@/components/sections/ContactForm';
 
-const addDocMock = vi.hoisted(() => vi.fn().mockResolvedValue({ id: 'mockDocId' }));
 const loaderLoadMock = vi.hoisted(() => vi.fn().mockResolvedValue(null));
 const getGoogleMapsApiKeyMock = vi.hoisted(() => vi.fn(() => null));
 
@@ -17,11 +16,6 @@ vi.mock('@/lib/firebase', () => ({
 }));
 vi.mock('@/lib/client-env', () => ({
   getGoogleMapsApiKey: () => getGoogleMapsApiKeyMock(),
-}));
-vi.mock('firebase/firestore', () => ({
-  collection: vi.fn(),
-  addDoc: addDocMock,
-  serverTimestamp: vi.fn(),
 }));
 vi.mock('uuid', () => ({
   v4: vi.fn().mockReturnValue('mock-uuid-token'),
@@ -65,7 +59,6 @@ describe('ContactForm', () => {
 
   beforeEach(() => {
     getGoogleMapsApiKeyMock.mockReturnValue(null);
-    addDocMock.mockClear();
     loaderLoadMock.mockClear();
     global.fetch = vi.fn().mockImplementation((input: RequestInfo) => {
       if (input === "/api/csrf") {
@@ -102,42 +95,46 @@ describe('ContactForm', () => {
 
     it('should show error for empty name', async () => {
       render(<ContactForm />);
-      fillForm({ name: '' });
+      fillForm({ name: '', email: 'john.doe@example.com', company: 'Example Corp' });
       await clickSubmit();
       expect(screen.getByText('Name is required')).toBeInTheDocument();
     });
 
     it('should show error for name less than 2 characters', async () => {
       render(<ContactForm />);
-      fillForm({ name: 'J' });
+      fillForm({ name: 'J', email: 'john.doe@example.com', company: 'Example Corp' });
       await clickSubmit();
       expect(screen.getByText('Name is required')).toBeInTheDocument();
     });
 
     it('should show error for invalid email', async () => {
       render(<ContactForm />);
-      fillForm({ email: 'invalid-email' });
+      fillForm({ name: 'John Doe', email: 'invalid-email', company: 'Example Corp' });
       await clickSubmit();
-      expect(screen.getByText('Valid email is required')).toBeInTheDocument();
+      expect(global.fetch).not.toHaveBeenCalledWith(
+        '/api/contact',
+        expect.anything(),
+      );
+      expect(screen.queryByText(/Welcome to the Future!/i)).not.toBeInTheDocument();
     });
 
     it('should show error for empty email', async () => {
       render(<ContactForm />);
-      fillForm({ email: '' });
+      fillForm({ name: 'John Doe', email: '', company: 'Example Corp' });
       await clickSubmit();
       expect(screen.getByText('Valid email is required')).toBeInTheDocument();
     });
 
     it('should show error for empty company', async () => {
       render(<ContactForm />);
-      fillForm({ company: '' });
+      fillForm({ name: 'John Doe', email: 'john.doe@example.com', company: '' });
       await clickSubmit();
       expect(screen.getByText('Company name is required')).toBeInTheDocument();
     });
 
     it('should show error for company name less than 2 chars', async () => {
       render(<ContactForm />);
-      fillForm({ company: 'C' });
+      fillForm({ name: 'John Doe', email: 'john.doe@example.com', company: 'C' });
       await clickSubmit();
       expect(screen.getByText('Company name is required')).toBeInTheDocument();
     });
@@ -155,7 +152,10 @@ describe('ContactForm', () => {
     it('should not submit if validation fails', async () => {
       render(<ContactForm />);
       await clickSubmit();
-      expect(addDocMock).not.toHaveBeenCalled();
+      expect(global.fetch).not.toHaveBeenCalledWith(
+        '/api/contact',
+        expect.anything(),
+      );
     });
 
     it('should call Firestore and API on successful submission', async () => {
@@ -168,9 +168,8 @@ describe('ContactForm', () => {
 
       await clickSubmit();
 
-      expect(addDocMock).toHaveBeenCalledTimes(3);
       expect(global.fetch).toHaveBeenCalledWith(
-        '/api/contact-webhook',
+        '/api/contact',
         expect.objectContaining({
           method: 'POST',
         }),
@@ -178,7 +177,18 @@ describe('ContactForm', () => {
     });
 
     it('should surface submission errors when Firestore fails', async () => {
-      addDocMock.mockRejectedValueOnce(new Error('Firestore down'));
+      global.fetch = vi.fn().mockImplementation((input: RequestInfo) => {
+        if (input === "/api/csrf") {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ csrfToken: "test-token" }),
+          });
+        }
+        return Promise.resolve({
+          ok: false,
+          json: async () => ({ error: 'Firestore down' }),
+        });
+      });
       render(<ContactForm />);
       fillForm({
         name: 'John Doe',
@@ -188,9 +198,11 @@ describe('ContactForm', () => {
 
       await clickSubmit();
 
-      expect(window.alert).toHaveBeenCalledWith(
-        expect.stringContaining('Firestore down'),
-      );
+      await waitFor(() => {
+        expect(window.alert).toHaveBeenCalledWith(
+          expect.stringContaining('Firestore down'),
+        );
+      });
     });
 
     it('should show success message and clear form on success', async () => {

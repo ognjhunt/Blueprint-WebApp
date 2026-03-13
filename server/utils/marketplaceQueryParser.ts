@@ -237,7 +237,7 @@ export function parseMarketplaceQuery(
   {
     // Examples: "quality > 0.8", "quality score above 80%", "quality >= .9"
     const match = lower.match(
-      /\bquality(?:\s*score)?\s*(?:>=|=>|>|at\s*least|above|over)\s*([0-9]+(?:\.[0-9]+)?|\.[0-9]+)\s*(%)?/,
+      /\bquality(?:\s*scores?)?\s*(?:>=|=>|>|at\s*least|above|over)\s*([0-9]+(?:\.[0-9]+)?|\.[0-9]+)\s*(%)?/,
     );
     if (match) {
       const rawNumber = match[1];
@@ -265,7 +265,7 @@ export function parseMarketplaceQuery(
   {
     // Examples: "10K demos", "10,000 trajectories", "50k episodes"
     const matches = lower.matchAll(
-      /\b([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+(?:\.[0-9]+)?|\.[0-9]+)\s*(k)?\s*(episodes?|demos?|trajector(?:y|ies))\b/g,
+      /\b([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+(?:\.[0-9]+)?|\.[0-9]+)\s*(k)?(?:\s+[a-z0-9-]+){0,4}\s+(episodes?|demos?|trajector(?:y|ies))\b/g,
     );
     let maxValue: number | null = null;
     for (const match of matches) {
@@ -368,4 +368,3 @@ export function parseMarketplaceQuery(
 
   return { hard, soft, chips, warnings };
 }
-

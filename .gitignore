@@ -26,3 +26,4 @@ temp_large_assets/
 .claude/
 attached_assets/playwright-smoke-20260306/
 firebase-debug.log
+coverage/

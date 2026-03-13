@@ -2,7 +2,16 @@ import fs from "node:fs";
 import path from "node:path";
 
 const BASE_URL = "https://tryblueprint.io";
-const BUILD_DATE = new Date().toISOString().slice(0, 10);
+const BUILD_DATE =
+  process.env.SITEMAP_LASTMOD_DATE || process.env.SOURCE_DATE_EPOCH
+    ? new Date(
+        Number.isFinite(Number(process.env.SOURCE_DATE_EPOCH))
+          ? Number(process.env.SOURCE_DATE_EPOCH) * 1000
+          : `${process.env.SITEMAP_LASTMOD_DATE}T00:00:00.000Z`,
+      )
+        .toISOString()
+        .slice(0, 10)
+    : "2026-03-13";
 
 const routes = [
   { path: "/", changefreq: "weekly", priority: 1.0 },
@@ -36,7 +45,8 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>\n` +
     .join("\n") +
   "\n</urlset>\n";
 
-const outputPath = path.resolve("client", "public", "sitemap.xml");
+const outputPath = path.resolve("dist", "public", "sitemap.xml");
+fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 fs.writeFileSync(outputPath, xml, "utf8");
 
 console.log(`Sitemap written to ${outputPath}`);
