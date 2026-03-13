@@ -8,15 +8,16 @@ describe("ForRobotIntegrators", () => {
 
     expect(screen.getByText(/^For Robot Teams$/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Use a site-specific world model before you commit field time\./i }),
+      screen.getByRole("heading", { name: /See the site before your robot does\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /What teams can do with it/i })).toBeInTheDocument();
+    expect(screen.getByText(/Blueprint turns a real site into a hosted world model/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /What robot teams use it for\./i })).toBeInTheDocument();
     expect(screen.getByText(/Test before travel/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Make site-specific data/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Share one hosted environment/i)).toBeInTheDocument();
-    expect(screen.getByText(/How to talk about it/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Simple positioning/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Clear boundaries/i })).toBeInTheDocument();
+    expect(screen.getByText(/Share one environment/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /What you get/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /What to expect/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Use the term world model if you want\./i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Browse site worlds/i })).toHaveAttribute(
       "href",
       "/site-worlds",

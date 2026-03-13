@@ -7,10 +7,10 @@ import { useEffect, useMemo, useState } from "react";
 
 const layerCards = [
   {
-    title: "Scene Package",
-    kicker: "First",
+    title: "Get the package",
+    kicker: "Option 1",
     description:
-      "Take the site-world package when your team wants the assets, evidence, and layout for one real workflow area.",
+      "Use this when your team wants the site package for internal review, integration work, or your own stack.",
     bullets: [
       "Walkthrough video and camera poses",
       "Geometry, depth, and site notes when available",
@@ -19,10 +19,10 @@ const layerCards = [
     icon: <ScanLine className="h-5 w-5 text-slate-700" />,
   },
   {
-    title: "Hosted Sessions",
-    kicker: "Second",
+    title: "Run it hosted",
+    kicker: "Option 2",
     description:
-      "Open a hosted session when you want to stream the world model, run tests, and export results without building the runtime yourself.",
+      "Use this when you want Blueprint to host the world model so your team can test, rerun, and export results right away.",
     bullets: [
       "Reset and rerun the same site",
       "Scenario changes for edge-case checks",
@@ -98,12 +98,12 @@ export default function SiteWorlds() {
                 Site Worlds For Robot Teams
               </p>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Site-specific world models for robot teams.
+                Test on the site before you go to the site.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
-                Each Site World is a robot-ready model of one real site and one real workflow.
-                Use it to test before travel, make site-specific data, compare releases on the same
-                setup, and run demos or operator practice on the exact site.
+                Each Site World is a hosted model of one real site and one real workflow. Use it
+                to check deployment fit, generate site-specific data, compare releases, and run
+                customer demos before the field visit.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -122,12 +122,21 @@ export default function SiteWorlds() {
             </div>
 
             <div className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-5 sm:px-6">
-              <p className="text-sm font-semibold text-slate-900">How to read this page</p>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                Each listing is one site-specific world model. Buy the package if you want the
-                assets. Start a hosted session if you want to stream it, run tests, and export
-                results.
-              </p>
+              <p className="text-sm font-semibold text-slate-900">What you get</p>
+              <ul className="mt-3 space-y-2 text-sm text-slate-600">
+                <li className="flex items-start gap-3">
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
+                  <span>A model of the exact site and workflow</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
+                  <span>A package you can buy or a hosted session you can run</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
+                  <span>Repeatable runs and exportable outputs</span>
+                </li>
+              </ul>
             </div>
           </header>
 
@@ -137,15 +146,14 @@ export default function SiteWorlds() {
           >
             <div className="max-w-3xl">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Layer selector
+                Access options
               </p>
               <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                Two ways a robot team can use one world model.
+                Choose how you want access.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Start with the package if you need the raw site inputs. Open Hosted Sessions when
-                you want Blueprint to run the world model for validation, repeatable tests, and
-                exportable results.
+                Some teams want the site package. Others want the hosted version so they can start
+                testing right away. Both options are tied to the same real place.
               </p>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -176,14 +184,14 @@ export default function SiteWorlds() {
           <section className="mt-8 rounded-3xl border border-slate-200 bg-white px-5 py-6 sm:px-7 sm:py-7">
             <div className="max-w-3xl">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                What teams use this for
+                Why teams buy this
               </p>
               <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                Four common reasons teams buy or stream a site world.
+                Common reasons robot teams use a Site World.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                This is not just a model to look at. It is meant to answer practical robot-team
-                questions about one real place.
+                These are practical reasons to use it before you commit travel, pilot time, or
+                customer time.
               </p>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -209,9 +217,8 @@ export default function SiteWorlds() {
                   Sites your team could test against right now.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Each listing shows the world-model package first and the hosted session option
-                  second. Every site card has its own self-serve rate. Open the detail page if you
-                  want the workflow, pricing context, and direct launch path.
+                  Open any site to see what the workflow looks like, what your team can buy, and
+                  how to start a hosted session.
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">

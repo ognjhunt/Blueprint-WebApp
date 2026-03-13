@@ -8,24 +8,24 @@ describe("SiteWorlds", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Site-specific world models for robot teams\./i,
+        name: /Test on the site before you go to the site\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Each Site World is a robot-ready model of one real site and one real workflow\./i,
+        /Each Site World is a hosted model of one real site and one real workflow\./i,
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Two ways a robot team can use one world model\./i }),
+      screen.getByRole("heading", { name: /Choose how you want access\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Four common reasons teams buy or stream a site world\./i }),
+      screen.getByRole("heading", { name: /Common reasons robot teams use a Site World\./i }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText(/^Scene Package$/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/^Hosted Sessions$/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Get the package/i)).toBeInTheDocument();
+    expect(screen.getByText(/Run it hosted/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/Each listing is one site-specific world model\./i),
+      screen.getByText(/A model of the exact site and workflow/i),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/each site card shows its own self-serve hourly rate/i),

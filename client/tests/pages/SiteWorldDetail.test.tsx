@@ -13,15 +13,15 @@ describe("SiteWorldDetail", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/1847 W Fulton St, Chicago, IL 60612/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Practical uses for this site-specific world model\./i }),
+      screen.getByRole("heading", { name: /What this site world is good for\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Start with the site-world package\./i }),
+      screen.getByRole("heading", { name: /Get the site package\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Stream this world model in a hosted test room\./i }),
+      screen.getByRole("heading", { name: /Run this site hosted\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /How this works/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /What a hosted session looks like/i })).toBeInTheDocument();
     expect(screen.getByText(/Step 1/i)).toBeInTheDocument();
     expect(screen.getByText(/Pick the site/i)).toBeInTheDocument();
     expect(screen.getByText(/Step 8/i)).toBeInTheDocument();

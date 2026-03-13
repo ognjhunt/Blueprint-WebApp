@@ -188,7 +188,8 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 {site.summary}
               </p>
               <p className="mt-3 text-sm text-slate-600">
-                Think of it as a site-specific world model you can either license or stream.
+                Use this site world to test deployment fit, generate site-specific data, compare
+                releases, and run remote demos before the real visit.
               </p>
               <p className="mt-2 text-sm text-slate-500">{site.bestFor}</p>
               <div className="mt-5 flex flex-wrap gap-3">
@@ -202,7 +203,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             </div>
 
             <aside className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-5 sm:px-6">
-              <p className="text-sm font-semibold text-slate-900">What this world model offers</p>
+              <p className="text-sm font-semibold text-slate-900">Choose your access</p>
               <div className="mt-4 space-y-2.5">
                 <a
                   href="#scene-package"
@@ -220,9 +221,8 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 </a>
               </div>
               <p className="mt-4 text-sm leading-relaxed text-slate-600">
-                Qualification happens on the site side. This page is the robot-team view: confirm
-                the site, then decide whether you want the package or hosted time on that exact
-                location.
+                Buy the package if your team wants the underlying site assets. Start a hosted
+                session if you want to test this site right away.
               </p>
             </aside>
           </header>
@@ -234,14 +234,14 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
           <section className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 px-5 py-6 sm:px-7 sm:py-7">
             <div className="max-w-3xl">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                What teams do with it
+                Why teams use this site
               </p>
               <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                Practical uses for this site-specific world model.
+                What this site world is good for.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Robot teams usually buy this to answer a real deployment question, not just to look
-                at a model.
+                Teams usually use this to answer a real deployment question before the expensive
+                part starts.
               </p>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -337,12 +337,11 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             <div className="mt-3 grid gap-6 lg:grid-cols-[1fr_0.9fr]">
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                  Start with the site-world package.
+                  Get the site package.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  This gives your team the site-specific world-model inputs for this workflow area.
-                  Use it when you want the package for internal review, integration work, or your
-                  own stack. It is the asset layer, not the hosted session layer.
+                  Use this when your team wants the site package for internal review, integration
+                  work, or your own tooling.
                 </p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   {scenePackage.deliverables.map((item) => (
@@ -393,14 +392,12 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             <div className="mt-3 grid gap-6 lg:grid-cols-[1fr_0.9fr]">
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                  Stream this world model in a hosted test room.
+                  Run this site hosted.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Hosted Sessions are for the practical questions robot teams actually ask: can
-                  this robot handle this lane, what fails first, and how do releases compare on the
-                  same setup? Use them for repeatable validation, site-specific data generation,
-                  and remote demos without another site visit. They are not final deployment proof
-                  and not a full contact-accurate manipulation simulator.
+                  Hosted Sessions are for the questions teams ask before a visit: can this robot
+                  handle the lane, what fails first, and how do releases compare on the same site?
+                  Use them for repeatable testing, site-specific data generation, and remote demos.
                 </p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   {hostedSessions.deliverables.map((item) => (
@@ -452,11 +449,11 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 Simple walkthrough
               </p>
               <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                How this works
+                What a hosted session looks like
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Think of this as a streamed world model for one real site and one real robot
-                question.
+                One site. One task. One robot question. Start the session, run the task, and
+                export the result.
               </p>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
