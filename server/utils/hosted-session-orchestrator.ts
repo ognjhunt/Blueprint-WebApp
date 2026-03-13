@@ -209,6 +209,24 @@ export async function createHostedSessionRun(params: {
         );
       }
     }
+    if (
+      error instanceof HostedSessionOrchestratorError &&
+      error.code === "runtime_proxy_failed" &&
+      /canonical_package_uri_mismatch/i.test(error.message)
+    ) {
+      const siteWorld = await runtimeFetchJson(
+        handle.runtimeBaseUrl,
+        `/v1/site-worlds/${encodeURIComponent(handle.siteWorldId)}`,
+      ).catch(() => null);
+      const expected = String(siteWorld?.canonical_package_uri || "").trim();
+      const actual = String(runtimeSessionConfig?.canonical_package_uri || "").trim();
+      if (expected || actual) {
+        throw new HostedSessionOrchestratorError(
+          "runtime_proxy_failed",
+          `canonical_package_uri_mismatch (expected: ${expected || "runtime default"}, received: ${actual || "runtime default"})`,
+        );
+      }
+    }
     throw error;
   }
   await writeRuntimeMetadata(params.workDir, {

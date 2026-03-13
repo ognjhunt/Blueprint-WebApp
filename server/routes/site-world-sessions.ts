@@ -664,7 +664,9 @@ function normalizeRuntimeSessionConfig(
 
   return {
     canonical_package_uri:
-      normalizeOptional(runtimeSessionConfig.canonical_package_uri) || (demoSiteWorld ? null : runtime.sceneMemoryManifestUri),
+      demoSiteWorld
+        ? null
+        : normalizeOptional(runtimeSessionConfig.canonical_package_uri) || runtime.sceneMemoryManifestUri,
     canonical_package_version: normalizeOptional(runtimeSessionConfig.canonical_package_version),
     prompt: normalizeOptional(runtimeSessionConfig.prompt),
     trajectory: normalizeOptional(runtimeSessionConfig.trajectory),
