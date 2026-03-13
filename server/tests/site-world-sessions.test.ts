@@ -373,6 +373,10 @@ vi.mock("../utils/hosted-session-orchestrator", () => ({
 }));
 
 vi.mock("../utils/presentation-demo-runtime", () => ({
+  resolvePresentationDemoUiBaseUrl: vi.fn((params: { manifest?: Record<string, unknown> }) => ({
+    url: String(params.manifest?.ui_base_url || ""),
+    source: params.manifest?.ui_base_url ? "manifest" : null,
+  })),
   resolvePresentationDemoLaunchConfig: vi.fn(async () => state.presentationLaunchConfig),
   launchPresentationDemoRuntime: vi.fn(async ({ sessionId, proxyPath }: { sessionId: string; proxyPath: string }) => ({
     provider: "vast",
@@ -769,6 +773,8 @@ describe("site world session routes", () => {
       const payload = (await response.json()) as Record<string, unknown>;
       expect(response.status).toBe(200);
       expect(payload.launchable).toBe(false);
+      expect(payload.status).toBe("presentation_assets_missing");
+      expect((payload.presentation_demo as Record<string, unknown>).status).toBe("presentation_assets_missing");
       expect(payload.blockers).toContain("This site is missing the presentation package required for embedded demos.");
     } finally {
       state.inboundRequestData.pipeline.artifacts = originalArtifacts;
@@ -898,6 +904,29 @@ describe("site world session routes", () => {
       expect(payload.code).toBe("presentation_ui_unconfigured");
       expect(payload.blockers).toContain("Presentation demo UI base URL is not configured.");
       expect(state.hostedSessions.size).toBe(0);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("classifies launch readiness as artifact-explorer-ready when manifests exist but no UI URL is configured", async () => {
+    state.presentationLaunchConfig = {
+      manifest: {},
+      uiBaseUrl: "",
+      instanceId: "vast-config",
+      expiresAt: "2026-03-12T02:00:00Z",
+    };
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/launch-readiness?siteWorldId=sw-chi-01`);
+      const payload = (await response.json()) as Record<string, unknown>;
+      expect(response.status).toBe(200);
+      expect(payload.status).toBe("presentation_ui_unconfigured");
+      expect((payload.presentation_demo as Record<string, unknown>).status).toBe("presentation_ui_unconfigured");
+      expect((payload.runtime_only as Record<string, unknown>).status).toBe("runtime_live_ready");
+      expect(payload.blockers).toContain("Presentation demo UI base URL is not configured.");
+      expect(payload.blockers).not.toContain("This site is missing the presentation package required for embedded demos.");
     } finally {
       await stopServer(server);
     }

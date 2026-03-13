@@ -15,6 +15,7 @@ import type {
   HostedSessionMode,
   HostedRuntimeSessionConfig,
   HostedSessionRecord,
+  PresentationDemoReadinessStatus,
   PresentationLaunchState,
 } from "../types/hosted-session";
 import { createHostedSessionUiToken, getHostedSessionUiCookieName, parseCookies, verifyHostedSessionUiToken } from "../utils/hosted-session-ui-auth";
@@ -326,6 +327,7 @@ function buildSessionCreateResponse(record: HostedSessionRecord) {
 }
 
 interface ModeLaunchReadiness {
+  status: PresentationDemoReadinessStatus | "runtime_live_ready" | "runtime_live_unavailable";
   launchable: boolean;
   blockers: string[];
   blocker_details: HostedSessionLaunchBlockerDetail[];
@@ -475,6 +477,10 @@ function buildPresentationLaunchState(params: {
   const liveViewer = params.presentationRuntime?.status === "live" && params.presentationRuntime?.uiBaseUrl;
   return {
     status: liveViewer ? "live_viewer" : blockerDetails.length > 0 ? "blocked" : "artifact_backed",
+    mode:
+      params.readiness?.status === "runtime_live_ready" || params.readiness?.status === "runtime_live_unavailable"
+        ? undefined
+        : params.readiness?.status,
     blockers,
     blockerDetails,
     presentationWorldManifestUri:
@@ -536,18 +542,40 @@ async function buildPresentationDemoReadiness(params: {
     readHostedRuntimeArtifactJson(params.runtime.presentationWorldManifestUri),
     readHostedRuntimeArtifactJson(params.runtime.runtimeDemoManifestUri),
   ]);
+  const presentationManifestRegistered =
+    params.runtime.presentationWorldManifestDeclared === true
+      ? true
+      : Boolean(params.runtime.presentationWorldManifestUri && presentationWorldManifest);
+  const runtimeDemoManifestRegistered =
+    params.runtime.runtimeDemoManifestDeclared === true
+      ? true
+      : Boolean(params.runtime.runtimeDemoManifestUri && runtimeDemoManifest);
 
-  if (!presentationWorldManifest) {
+  if (!presentationManifestRegistered) {
     addBlocker(details, {
       code: "missing_presentation_package",
       message: "This site is missing the presentation package required for embedded demos.",
       source: "presentation_demo",
     });
   }
-  if (!runtimeDemoManifest) {
+  if (!runtimeDemoManifestRegistered) {
     addBlocker(details, {
       code: "missing_runtime_demo_manifest",
       message: "This site is missing the runtime demo manifest required for live presentation launch.",
+      source: "presentation_demo",
+    });
+  }
+  if (presentationManifestRegistered && !presentationWorldManifest) {
+    addBlocker(details, {
+      code: "presentation_manifest_unreadable",
+      message: "Presentation artifacts are registered but could not be resolved on this host.",
+      source: "presentation_demo",
+    });
+  }
+  if (runtimeDemoManifestRegistered && !runtimeDemoManifest) {
+    addBlocker(details, {
+      code: "runtime_demo_manifest_unreadable",
+      message: "Runtime demo artifacts are registered but could not be resolved on this host.",
       source: "presentation_demo",
     });
   }
@@ -556,7 +584,7 @@ async function buildPresentationDemoReadiness(params: {
     sessionId: "readiness-check",
     runtime: params.runtime,
   }).catch(() => null);
-  if (!config?.uiBaseUrl) {
+  if (presentationManifestRegistered && runtimeDemoManifestRegistered && !config?.uiBaseUrl) {
     addBlocker(details, {
       code: "presentation_ui_unconfigured",
       message: "Presentation demo UI base URL is not configured.",
@@ -564,8 +592,16 @@ async function buildPresentationDemoReadiness(params: {
     });
   }
 
+  const status =
+    !presentationManifestRegistered || !runtimeDemoManifestRegistered
+      ? "presentation_assets_missing"
+      : config?.uiBaseUrl
+        ? "presentation_ui_live"
+        : "presentation_ui_unconfigured";
+
   return {
-    launchable: details.length === 0,
+    status,
+    launchable: status === "presentation_ui_live" && details.length === 0,
     blockers: details.map((item) => item.message),
     blocker_details: details,
     presentationWorldManifestUri: params.runtime.presentationWorldManifestUri ?? null,
@@ -636,6 +672,7 @@ async function buildRuntimeOnlyReadiness(params: {
   }
 
   return {
+    status: details.length === 0 ? "runtime_live_ready" : "runtime_live_unavailable",
     launchable: details.length === 0,
     blockers: details.map((item) => item.message),
     blocker_details: details,
@@ -664,6 +701,7 @@ async function buildLaunchReadiness(params: {
 
   return {
     entitled: params.entitled,
+    status: presentationDemo.status,
     launchable: presentationDemo.launchable,
     blockers: presentationDemo.blockers,
     blocker_details: presentationDemo.blocker_details,

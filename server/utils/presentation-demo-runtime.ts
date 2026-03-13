@@ -17,6 +17,36 @@ export class PresentationDemoRuntimeError extends Error {
   }
 }
 
+export function resolvePresentationDemoUiBaseUrl(params: {
+  sessionId: string;
+  siteWorldId: string;
+  sceneId: string;
+  captureId: string;
+  manifest: Record<string, unknown>;
+}) {
+  const templateValues = {
+    sessionId: params.sessionId,
+    siteWorldId: params.siteWorldId,
+    sceneId: params.sceneId,
+    captureId: params.captureId,
+  };
+  const manifestUrl = String(
+    params.manifest.ui_base_url || params.manifest.uiBaseUrl || params.manifest.public_ui_base_url || "",
+  ).trim();
+  if (manifestUrl) {
+    return { url: manifestUrl, source: "manifest" as const };
+  }
+  const template = String(process.env.BLUEPRINT_PRESENTATION_DEMO_UI_BASE_URL_TEMPLATE || "").trim();
+  if (template) {
+    return { url: renderTemplate(template, templateValues), source: "template" as const };
+  }
+  const directUrl = String(process.env.BLUEPRINT_PRESENTATION_DEMO_UI_BASE_URL || "").trim();
+  if (directUrl) {
+    return { url: directUrl, source: "direct_env" as const };
+  }
+  return { url: "", source: null };
+}
+
 function renderTemplate(template: string, values: Record<string, string>) {
   return Object.entries(values).reduce(
     (acc, [key, value]) => acc.replaceAll(`{${key}}`, value),
@@ -57,7 +87,13 @@ export async function resolvePresentationDemoLaunchConfig(params: {
   runtime: HostedRuntimeResolution;
 }) {
   const manifest = await readJsonFromUri(params.runtime.runtimeDemoManifestUri);
-  const uiResolution = resolveUiBaseUrl(params.sessionId, params.runtime, manifest);
+  const uiResolution = resolvePresentationDemoUiBaseUrl({
+    sessionId: params.sessionId,
+    siteWorldId: params.runtime.siteWorldId,
+    sceneId: params.runtime.scene_id,
+    captureId: params.runtime.capture_id,
+    manifest,
+  });
   const instanceId =
     String(manifest.instance_id || manifest.instanceId || "").trim() ||
     `vast-${params.runtime.siteWorldId}-${params.sessionId.slice(0, 8)}`;
@@ -69,30 +105,6 @@ export async function resolvePresentationDemoLaunchConfig(params: {
     instanceId,
     expiresAt: resolveExpiresAt(manifest),
   };
-}
-
-function resolveUiBaseUrl(sessionId: string, runtime: HostedRuntimeResolution, manifest: Record<string, unknown>) {
-  const templateValues = {
-    sessionId,
-    siteWorldId: runtime.siteWorldId,
-    sceneId: runtime.scene_id,
-    captureId: runtime.capture_id,
-  };
-  const manifestUrl = String(
-    manifest.ui_base_url || manifest.uiBaseUrl || manifest.public_ui_base_url || "",
-  ).trim();
-  if (manifestUrl) {
-    return { url: manifestUrl, source: "manifest" as const };
-  }
-  const template = String(process.env.BLUEPRINT_PRESENTATION_DEMO_UI_BASE_URL_TEMPLATE || "").trim();
-  if (template) {
-    return { url: renderTemplate(template, templateValues), source: "template" as const };
-  }
-  const directUrl = String(process.env.BLUEPRINT_PRESENTATION_DEMO_UI_BASE_URL || "").trim();
-  if (directUrl) {
-    return { url: directUrl, source: "direct_env" as const };
-  }
-  return { url: "", source: null };
 }
 
 function resolveExpiresAt(manifest: Record<string, unknown>) {

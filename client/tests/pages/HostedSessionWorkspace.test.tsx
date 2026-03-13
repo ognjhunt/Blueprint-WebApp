@@ -146,7 +146,7 @@ describe("HostedSessionWorkspace", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Live Runtime/i })).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Presentation World Human-facing site-world view/i }),
+      screen.getByRole("button", { name: /Explore Site-World/i }),
     ).toBeInTheDocument();
     expect(screen.getByText("Canonical Site-World")).toBeInTheDocument();
     expect(screen.getByText("Scene-Memory Conditioning Package")).toBeInTheDocument();
@@ -287,7 +287,7 @@ describe("HostedSessionWorkspace", () => {
     });
   });
 
-  it("shows a truthful presentation fallback when no embedded viewer is live", async () => {
+  it("shows an artifact-backed explorer when no private operator view is live", async () => {
     mockSearch = "sessionId=session-presentation";
     vi.stubGlobal(
       "fetch",
@@ -300,6 +300,7 @@ describe("HostedSessionWorkspace", () => {
             JSON.stringify(
               buildRuntimeSession({
                 sessionId: "session-presentation",
+                sessionMode: "presentation_demo",
                 latestEpisode: {
                   episodeId: "episode-2",
                   taskId: "9483414B-8776-4F68-AC80-D3B3BA774A90",
@@ -330,12 +331,11 @@ describe("HostedSessionWorkspace", () => {
 
     render(<HostedSessionWorkspace params={{ slug: "siteworld-f5fd54898cfb" }} />);
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: /Presentation World Human-facing site-world view/i }),
-    );
-
     expect(
-      await screen.findByText(/Embedded public presentation viewer is not configured for this walkthrough\./i),
+      await screen.findByText(/Non-generative at runtime/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/It does not create fresh geometry or hallucinate missing scene regions in the browser\./i),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Open presentation manifest/i })[0]).toHaveAttribute(
       "href",
@@ -344,6 +344,57 @@ describe("HostedSessionWorkspace", () => {
     expect(screen.getAllByRole("link", { name: /Open runtime demo manifest/i })[0]).toHaveAttribute(
       "href",
       expect.stringContaining("runtime_demo_manifest.json"),
+    );
+  });
+
+  it("surfaces the private operator view action only when a live bridge is configured", async () => {
+    mockSearch = "sessionId=session-operator";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).includes("/api/site-worlds/sessions/session-operator/ui-access")) {
+          return new Response(
+            JSON.stringify({ bootstrapUrl: "/api/site-worlds/sessions/session-operator/ui/bootstrap?token=test" }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (String(input).includes("/api/site-worlds/sessions/session-operator") && (!init?.method || init.method === "GET")) {
+          return new Response(
+            JSON.stringify(
+              buildRuntimeSession({
+                sessionId: "session-operator",
+                sessionMode: "presentation_demo",
+                presentationRuntime: {
+                  provider: "vast",
+                  status: "live",
+                  uiBaseUrl: "https://neoverse.example/operator",
+                  proxyPath: "/api/site-worlds/sessions/session-operator/ui/",
+                },
+                presentationLaunchState: {
+                  status: "live_viewer",
+                  mode: "presentation_ui_live",
+                  blockers: [],
+                  blockerDetails: [],
+                  presentationWorldManifestUri:
+                    "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/presentation_world/presentation_world_manifest.json",
+                  runtimeDemoManifestUri:
+                    "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/presentation_world/runtime_demo_manifest.json",
+                  uiBaseUrl: "https://neoverse.example/operator",
+                },
+              }),
+            ),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        return new Response(JSON.stringify({ error: "not found" }), { status: 404 });
+      }),
+    );
+
+    render(<HostedSessionWorkspace params={{ slug: "siteworld-f5fd54898cfb" }} />);
+
+    expect(await screen.findByRole("link", { name: /Open private operator view/i })).toHaveAttribute(
+      "href",
+      expect.stringContaining("/api/site-worlds/sessions/session-operator/ui/bootstrap"),
     );
   });
 });

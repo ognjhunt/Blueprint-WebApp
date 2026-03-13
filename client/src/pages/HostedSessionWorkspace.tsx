@@ -4,12 +4,13 @@ import {
   ArrowLeft,
   BarChart3,
   Camera,
-  Clock3,
+  Compass,
   Download,
   ExternalLink,
+  Layers3,
+  MonitorPlay,
   RotateCcw,
   Square,
-  TriangleAlert,
 } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
@@ -25,6 +26,7 @@ import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
 import { withCsrfHeader } from "@/lib/csrf";
 import { auth } from "@/lib/firebase";
 import type {
+  ArtifactExplorerView,
   HostedSessionMode,
   HostedSessionRecord,
   RobotObservationCamera,
@@ -189,6 +191,42 @@ function ModeStateBadge(props: { label: string; tone: "emerald" | "amber" | "ros
   );
 }
 
+function ExplorerViewButton(props: {
+  view: ArtifactExplorerView;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={props.onClick}
+      className={`rounded-[22px] border px-4 py-4 text-left transition ${
+        props.active
+          ? "border-slate-950 bg-slate-950 text-white shadow-sm"
+          : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold">{props.view.title}</p>
+          <p className={`mt-2 text-sm leading-6 ${props.active ? "text-slate-200" : "text-slate-500"}`}>
+            {props.view.description}
+          </p>
+        </div>
+        {props.view.badge ? (
+          <span
+            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${
+              props.active ? "bg-white/15 text-slate-100" : "bg-slate-100 text-slate-500"
+            }`}
+          >
+            {props.view.badge}
+          </span>
+        ) : null}
+      </div>
+    </button>
+  );
+}
+
 function DiagnosticPanel(props: {
   title: string;
   diagnostic?: HostedSessionRecord["latestRuntimeFailure"] | null;
@@ -272,9 +310,9 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const [workspaceError, setWorkspaceError] = useState("");
   const [controlError, setControlError] = useState("");
   const [uiBootstrapUrl, setUiBootstrapUrl] = useState("");
-  const [iframeLoaded, setIframeLoaded] = useState(false);
-  const [showIframeFallback, setShowIframeFallback] = useState(false);
   const [activeMode, setActiveMode] = useState<WorkspaceViewMode>("live_runtime");
+  const [userSelectedMode, setUserSelectedMode] = useState(false);
+  const [selectedExplorerViewId, setSelectedExplorerViewId] = useState("");
   const [selectedCameraId, setSelectedCameraId] = useState("");
   const [runtimeBusyLabel, setRuntimeBusyLabel] = useState("");
   const [autoBootstrapState, setAutoBootstrapState] = useState<BootstrapState>("idle");
@@ -437,8 +475,6 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       return;
     }
     let cancelled = false;
-    setIframeLoaded(false);
-    setShowIframeFallback(false);
     setUiBootstrapUrl("");
 
     authorizedJsonFetch(`/api/site-worlds/sessions/${sessionId}/ui-access`)
@@ -453,7 +489,6 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       })
       .catch((error) => {
         if (!cancelled) {
-          setShowIframeFallback(true);
           setWorkspaceError(error instanceof Error ? error.message : "Unable to create embedded demo access");
         }
       });
@@ -462,16 +497,6 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       cancelled = true;
     };
   }, [activeMode, sessionId, sessionRecord?.presentationRuntime?.status, sessionStatus]);
-
-  useEffect(() => {
-    if (!uiBootstrapUrl || iframeLoaded || showIframeFallback || activeMode !== "presentation_world") {
-      return undefined;
-    }
-    const timeoutId = window.setTimeout(() => {
-      setShowIframeFallback(true);
-    }, 8000);
-    return () => window.clearTimeout(timeoutId);
-  }, [activeMode, iframeLoaded, showIframeFallback, uiBootstrapUrl]);
 
   useEffect(() => {
     setAutoBootstrapState("idle");
@@ -485,6 +510,9 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     });
     setLastLiveRenderContext(null);
     setControlError("");
+    setUiBootstrapUrl("");
+    setUserSelectedMode(false);
+    setSelectedExplorerViewId("");
   }, [sessionId]);
 
   useEffect(() => {
@@ -578,12 +606,9 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     null;
   const presentationLaunchState = sessionRecord?.presentationLaunchState || null;
   const runtimeReferenceImageUrl = site?.runtimeReferenceImageUrl || null;
-  const presentationReferenceImageUrl = site?.presentationReferenceImageUrl || null;
-  const openDemoUrl =
-    uiBootstrapUrl ||
-    (sessionRecord?.presentationRuntime?.status === "live"
-      ? `/api/site-worlds/sessions/${encodeURIComponent(sessionId)}/ui/`
-      : "");
+  const artifactExplorer = sessionRecord?.siteModel?.artifactExplorer || site?.artifactExplorer || null;
+  const artifactExplorerViews = (artifactExplorer?.views || []).filter((item) => item.available);
+  const openDemoUrl = uiBootstrapUrl || "";
   const runtimeInteractive =
     Boolean(sessionId) &&
     sessionMode !== "presentation_demo" &&
@@ -611,8 +636,14 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       .trim();
 
   useEffect(() => {
-    setActiveMode(sessionMode === "presentation_demo" ? "presentation_world" : "live_runtime");
-  }, [sessionMode]);
+    if (artifactExplorerViews.length === 0) {
+      setSelectedExplorerViewId("");
+      return;
+    }
+    setSelectedExplorerViewId((current) =>
+      current && artifactExplorerViews.some((item) => item.id === current) ? current : artifactExplorerViews[0].id,
+    );
+  }, [artifactExplorerViews]);
 
   useEffect(() => {
     if (cameraOptions.length === 0) {
@@ -648,12 +679,14 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const runtimeDiagnostic = sessionRecord?.latestRuntimeFailure || null;
   const runtimeDegraded = Boolean(runtimeDiagnostic && liveObservationSrc);
   const showRuntimeReferencePreview = !hasVisibleObservation && Boolean(runtimeReferenceImageUrl);
-  const showPresentationReferencePreview = Boolean(presentationReferenceImageUrl);
+  const artifactExplorerReady = artifactExplorer?.status === "ready" || artifactExplorer?.status === "partial";
+  const selectedExplorerView =
+    artifactExplorerViews.find((item) => item.id === selectedExplorerViewId) || artifactExplorerViews[0] || null;
   const presentationAvailabilityLabel = presentationInteractive
-    ? "Embedded presentation viewer live"
-    : presentationLaunchState?.status === "blocked"
-      ? "Presentation viewer blocked"
-      : "Artifact-backed presentation fallback";
+    ? "Private operator view live"
+    : artifactExplorerReady
+      ? "Artifact-backed exploration ready"
+      : "Exploration assets unavailable";
   const runtimeModeState = runtimeDegraded
     ? { label: "Live Runtime: Degraded", tone: "amber" as const }
     : hasVisibleObservation
@@ -662,10 +695,10 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
         ? { label: "Live Runtime: Failed", tone: "rose" as const }
         : { label: "Live Runtime: Ready", tone: "slate" as const };
   const presentationModeState = presentationInteractive
-    ? { label: "Presentation World: Live viewer", tone: "emerald" as const }
-    : presentationLaunchState?.status === "blocked"
-      ? { label: "Presentation World: Blocked", tone: "rose" as const }
-      : { label: "Presentation World: Artifact-backed", tone: "amber" as const };
+    ? { label: "Explore Site-World: Operator view live", tone: "emerald" as const }
+    : artifactExplorerReady
+      ? { label: "Explore Site-World: Artifact-backed", tone: "amber" as const }
+      : { label: "Explore Site-World: Missing", tone: "rose" as const };
   const generatedRows = [
     { label: "Task", value: taskSelection?.taskText || "Pending" },
     { label: "Scenario", value: scenario?.name || "Pending" },
@@ -683,6 +716,17 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     },
     { label: "Requested outputs", value: requestedOutputs.map((item) => requestedOutputLabel(item)).join(", ") },
   ];
+
+  useEffect(() => {
+    if (userSelectedMode) {
+      return;
+    }
+    if (sessionMode === "presentation_demo" || (!hasVisibleObservation && artifactExplorerReady)) {
+      setActiveMode("presentation_world");
+      return;
+    }
+    setActiveMode("live_runtime");
+  }, [artifactExplorerReady, hasVisibleObservation, sessionMode, userSelectedMode]);
 
   const applyRuntimeDiagnostic = (diagnostic?: HostedSessionRecord["latestRuntimeFailure"] | null, fallback?: string) => {
     setSessionRecord((current) =>
@@ -1069,7 +1113,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                 Backend: {sessionRecord?.runtime_backend_selected || site.defaultRuntimeBackend}
               </div>
               <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
-                Mode: {activeMode === "live_runtime" ? "Live Runtime" : "Presentation World"}
+                Mode: {activeMode === "live_runtime" ? "Live Runtime" : "Explore Site-World"}
               </div>
               <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
                 Elapsed: {formatElapsed(elapsedSeconds)}
@@ -1107,17 +1151,18 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Built World Model Demo</p>
                 <h2 className="mt-3 max-w-3xl text-3xl font-bold tracking-tight text-slate-950">
-                  The runtime-backed site-world is already built. This page lets a human inspect it through two lenses.
+                  The site-world is already built. This page now optimizes for dependable exploration first, live runtime second.
                 </h2>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-                  `Live Runtime` stays grounded in the real session outputs. `Presentation World` surfaces the customer-facing
-                  representation truthfully, using embedded UI only when a stable public viewer is actually available.
+                  `Explore Site-World` is the default customer-facing path when live runtime frames are unavailable.
+                  `Live Runtime` stays grounded in the real session outputs, and the private operator bridge only appears when
+                  a real internal NeoVerse UI is actually live.
                 </p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   <DetailPill label="Canonical Version" value={canonicalPackageVersion || "Unspecified"} />
                   <DetailPill label="Runtime Step" value={String(latestEpisode?.stepIndex ?? 0)} />
                   <DetailPill label="Reward" value={latestEpisode?.reward != null ? String(latestEpisode.reward) : "0"} />
-                  <DetailPill label="Presentation Mode" value={presentationAvailabilityLabel} />
+                  <DetailPill label="Exploration Mode" value={presentationAvailabilityLabel} />
                 </div>
               </div>
 
@@ -1127,13 +1172,19 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     title="Live Runtime"
                     description="Robot-session controls, camera switching, first-frame bootstrapping, and runtime outputs."
                     active={activeMode === "live_runtime"}
-                    onClick={() => setActiveMode("live_runtime")}
+                    onClick={() => {
+                      setUserSelectedMode(true);
+                      setActiveMode("live_runtime");
+                    }}
                   />
                   <ModeToggleButton
-                    title="Presentation World"
-                    description="Human-facing site-world view with embedded viewer when live, otherwise manifest-backed fallback."
+                    title="Explore Site-World"
+                    description="Artifact-backed exploration first, with a private operator bridge only when a live internal UI exists."
                     active={activeMode === "presentation_world"}
-                    onClick={() => setActiveMode("presentation_world")}
+                    onClick={() => {
+                      setUserSelectedMode(true);
+                      setActiveMode("presentation_world");
+                    }}
                   />
                 </div>
                 <div className="rounded-3xl border border-slate-200 bg-slate-950 p-5 text-slate-100">
@@ -1267,7 +1318,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                           <p className="mt-2 text-sm leading-6 text-slate-600">
                             {runtimeInteractive
                               ? "This workspace never leaves you with a dead observation box. Reset the session, run one step, or use the scripted walkthrough to fetch the first visible frame."
-                              : "This session was launched as a presentation-only demo. Switch to Presentation World to inspect the derived site representation instead."}
+                              : "This session was launched as a presentation-only demo. Switch to Explore Site-World to inspect the saved derived representation instead."}
                           </p>
                           <div className="mt-4 flex flex-wrap justify-center gap-3">
                             <button
@@ -1295,10 +1346,13 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                             </button>
                             <button
                               type="button"
-                              onClick={() => setActiveMode("presentation_world")}
+                              onClick={() => {
+                                setUserSelectedMode(true);
+                                setActiveMode("presentation_world");
+                              }}
                               className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                             >
-                              Open Presentation World
+                              Open Explore Site-World
                             </button>
                           </div>
                         </div>
@@ -1493,8 +1547,8 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                 <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Presentation World</p>
-                      <h2 className="mt-2 text-2xl font-bold text-slate-900">Customer-facing site representation</h2>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Explore Site-World</p>
+                      <h2 className="mt-2 text-2xl font-bold text-slate-900">Artifact-backed exploration workspace</h2>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
                       <ModeStateBadge label={presentationModeState.label} tone={presentationModeState.tone} />
@@ -1504,86 +1558,172 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     </div>
                   </div>
 
-                  <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50 p-3">
-                    {presentationInteractive && !showIframeFallback && uiBootstrapUrl ? (
-                      <iframe
-                        title="Embedded NeoVerse demo"
-                        src={uiBootstrapUrl}
-                        className="h-[720px] w-full rounded-2xl border border-slate-200 bg-white"
-                        onLoad={() => setIframeLoaded(true)}
-                      />
-                    ) : (
-                      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6">
-                        {showPresentationReferencePreview ? (
-                          <img
-                            src={presentationReferenceImageUrl || ""}
-                            alt="Presentation world reference preview"
-                            className="h-[420px] w-full rounded-2xl object-cover"
-                          />
+                  <div className="mt-5 grid gap-5 xl:grid-cols-[1.18fr_0.82fr]">
+                    <div className="rounded-[28px] border border-slate-200 bg-[linear-gradient(180deg,rgba(255,248,237,0.84),rgba(255,255,255,0.98))] p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Primary Explorer</p>
+                          <p className="mt-2 text-sm text-slate-600">
+                            Switch between the saved exploration viewpoints. These are already-produced artifacts, not live inference in the browser.
+                          </p>
+                        </div>
+                        {selectedExplorerView?.badge ? (
+                          <span className="rounded-full bg-slate-950 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white">
+                            {selectedExplorerView.badge}
+                          </span>
                         ) : null}
-                        <div className="mx-auto mt-6 max-w-xl text-center">
-                          <TriangleAlert className="mx-auto h-8 w-8 text-amber-600" />
-                          <p className="mt-4 text-lg font-semibold text-slate-900">
-                            Embedded public presentation viewer is not configured for this walkthrough.
-                          </p>
-                          <p className="mt-3 text-sm leading-6 text-slate-600">
-                            The underlying presentation world exists, but this workspace falls back to manifest-backed
-                            presentation artifacts unless a stable public viewer URL is live. This keeps the page truthful
-                            instead of shipping a dead iframe.
-                          </p>
-                          {presentationLaunchState?.blockers?.[0] ? (
-                            <p className="mt-3 text-sm leading-6 text-rose-700">
-                              Live viewer blocker: {presentationLaunchState.blockers[0]}
+                      </div>
+                      <div className="mt-4 rounded-[24px] border border-slate-200 bg-white p-3">
+                        {selectedExplorerView?.imageUrl ? (
+                          <img
+                            src={selectedExplorerView.imageUrl}
+                            alt={selectedExplorerView.title}
+                            className="h-[440px] w-full rounded-[20px] object-cover"
+                          />
+                        ) : (
+                          <div className="rounded-[20px] border border-dashed border-slate-300 bg-slate-50 p-4">
+                            <SiteWorldGraphic site={site} />
+                          </div>
+                        )}
+                        <div className="mt-4 grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
+                          <div>
+                            <p className="text-lg font-semibold text-slate-950">
+                              {selectedExplorerView?.title || artifactExplorer?.headline || "Artifact explorer unavailable"}
                             </p>
-                          ) : null}
-                          <p className="mt-3 text-sm leading-6 text-slate-600">
-                            {showPresentationReferencePreview
-                              ? "The image above is a captured reference view from the saved NeoVerse presentation session."
-                              : "No in-page presentation capture is bundled for this site yet."}
-                          </p>
-                          <div className="mt-5 flex flex-wrap justify-center gap-3">
-                            {openDemoUrl ? <MetadataLink href={openDemoUrl} label="Open live presentation viewer" /> : null}
-                            <MetadataLink href={presentationWorldManifestUri} label="Open presentation manifest" />
-                            <MetadataLink href={runtimeDemoManifestUri} label="Open runtime demo manifest" />
+                            <p className="mt-2 text-sm leading-6 text-slate-600">
+                              {selectedExplorerView?.description || artifactExplorer?.summary || "This site does not expose enough bundled exploration artifacts yet."}
+                            </p>
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <DetailPill
+                              label="Derivation mode"
+                              value={humanizeValue(artifactExplorer?.derivationMode, "artifact backed")}
+                            />
+                            <DetailPill
+                              label="Presentation status"
+                              value={humanizeValue(artifactExplorer?.presentationStatus, "saved output")}
+                            />
                           </div>
                         </div>
                       </div>
-                    )}
+                    </div>
+
+                    <div className="space-y-5">
+                      <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+                        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          <Compass className="h-4 w-4" />
+                          Exploration Waypoints
+                        </p>
+                        <div className="mt-4 grid gap-3">
+                          {artifactExplorerViews.length > 0 ? (
+                            artifactExplorerViews.map((view) => (
+                              <ExplorerViewButton
+                                key={view.id}
+                                view={view}
+                                active={selectedExplorerView?.id === view.id}
+                                onClick={() => setSelectedExplorerViewId(view.id)}
+                              />
+                            ))
+                          ) : (
+                            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-600">
+                              No bundled exploration viewpoints are available for this site yet.
+                            </div>
+                          )}
+                        </div>
+                      </article>
+
+                      <article className="rounded-[28px] border border-slate-200 bg-slate-950 p-5 text-slate-100 shadow-sm">
+                        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                          <MonitorPlay className="h-4 w-4" />
+                          Private Operator View
+                        </p>
+                        <p className="mt-4 text-lg font-semibold">
+                          {presentationInteractive ? "Internal NeoVerse bridge is live" : artifactExplorer?.operatorView.label || "Internal bridge unavailable"}
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-slate-300">
+                          {presentationInteractive
+                            ? "Use this only for internal movement and debugging. It is a real proxied operator UI, not the public product surface."
+                            : artifactExplorer?.operatorView.description || "The operator bridge only appears when a stable internal UI URL is configured."}
+                        </p>
+                        {presentationLaunchState?.blockers?.[0] ? (
+                          <p className="mt-3 text-sm leading-6 text-amber-300">
+                            Operator-view status: {presentationLaunchState.blockers[0]}
+                          </p>
+                        ) : null}
+                        <div className="mt-5 flex flex-wrap gap-3">
+                          {openDemoUrl ? <MetadataLink href={openDemoUrl} label="Open private operator view" /> : null}
+                          <MetadataLink href={presentationWorldManifestUri} label="Open presentation manifest" />
+                          <MetadataLink href={runtimeDemoManifestUri} label="Open runtime demo manifest" />
+                        </div>
+                      </article>
+                    </div>
                   </div>
 
-                  <div className="mt-6 grid gap-4 md:grid-cols-3">
+                  <div className="mt-6 grid gap-4 md:grid-cols-4">
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Presentation source</p>
-                      <p className="mt-2 text-sm font-semibold text-slate-900">
-                        {presentationInteractive ? "Embedded NeoVerse session" : "Presentation-world artifacts"}
-                      </p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Explorer source</p>
+                      <p className="mt-2 text-sm font-semibold text-slate-900">Saved world-model artifacts</p>
                     </div>
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Canonical truth</p>
                       <p className="mt-2 text-sm font-semibold text-slate-900">Grounding first, provenance required</p>
                     </div>
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Interactivity envelope</p>
-                      <p className="mt-2 text-sm font-semibold text-slate-900">Scene inspection, camera paths, prompt-driven variants</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Browser behavior</p>
+                      <p className="mt-2 text-sm font-semibold text-slate-900">Non-generative at runtime</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Operator bridge</p>
+                      <p className="mt-2 text-sm font-semibold text-slate-900">
+                        {presentationInteractive ? "Live internal UI" : "Only when configured"}
+                      </p>
                     </div>
                   </div>
                 </section>
 
                 <section className="space-y-6">
                   <article className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Presentation Inputs</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Explorer Sources</p>
+                    <div className="mt-4 space-y-4">
+                      {(artifactExplorer?.sources || []).length > 0 ? (
+                        <>
+                          {(artifactExplorer?.sources || []).map((source) => (
+                            <div key={source.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                              <p className="text-sm font-medium text-slate-500">{source.label}</p>
+                              <p className="mt-1 break-all text-sm text-slate-900">{source.uri || "Unavailable"}</p>
+                              {source.detail ? <p className="mt-2 text-sm text-slate-600">{source.detail}</p> : null}
+                            </div>
+                          ))}
+                        </>
+                      ) : (
+                        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-600">
+                          No normalized explorer sources are available yet.
+                        </div>
+                      )}
+                    </div>
+                  </article>
+
+                  <article className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Exploration Notes</p>
                     <div className="mt-4 space-y-4">
                       <div>
-                        <p className="text-sm font-medium text-slate-500">Canonical package</p>
-                        <p className="mt-1 break-all text-sm text-slate-900">{canonicalPackageUri || "Unspecified"}</p>
+                        <p className="text-sm font-medium text-slate-500">What this mode is</p>
+                        <p className="mt-1 text-sm text-slate-900">
+                          A dependable explorer over saved world-model outputs and bundled validation frames.
+                        </p>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-slate-500">Scene-memory manifest</p>
-                        <p className="mt-1 break-all text-sm text-slate-900">{sceneMemoryManifestUri || "Unavailable"}</p>
+                        <p className="text-sm font-medium text-slate-500">What this mode is not</p>
+                        <p className="mt-1 text-sm text-slate-900">
+                          It does not create fresh geometry or hallucinate missing scene regions in the browser.
+                        </p>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-slate-500">Conditioning bundle</p>
-                        <p className="mt-1 break-all text-sm text-slate-900">{conditioningBundleUri || "Unavailable"}</p>
+                        <p className="text-sm font-medium text-slate-500">Derived presentation caveat</p>
+                        <p className="mt-1 text-sm text-slate-900">
+                          If a saved presentation artifact already contains inferred or completed regions, you will see those
+                          upstream-derived outputs here, but nothing new is generated client-side.
+                        </p>
                       </div>
                       <div className="flex flex-wrap gap-3">
                         <MetadataLink href={canonicalPackageUri} label="View canonical package" />
@@ -1594,38 +1734,13 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                   </article>
 
                   <article className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Presentation Outputs</p>
-                    <div className="mt-4 space-y-4">
-                      <div>
-                        <p className="text-sm font-medium text-slate-500">Presentation manifest</p>
-                        <p className="mt-1 break-all text-sm text-slate-900">{presentationWorldManifestUri || "Unavailable"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-slate-500">Runtime demo manifest</p>
-                        <p className="mt-1 break-all text-sm text-slate-900">{runtimeDemoManifestUri || "Unavailable"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-slate-500">Presentation note</p>
-                        <p className="mt-1 text-sm text-slate-900">
-                          Derived presentation media is customer-facing and may differ from the canonical site-world. Use
-                          the canonical package for source-of-truth review.
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-3">
-                        <MetadataLink href={presentationWorldManifestUri} label="Open presentation manifest" />
-                        <MetadataLink href={runtimeDemoManifestUri} label="Open runtime demo manifest" />
-                      </div>
-                    </div>
-                  </article>
-
-                  <article className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
                     <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                      <Clock3 className="h-4 w-4" />
-                      Site-World Summary
+                      <Layers3 className="h-4 w-4" />
+                      Site-World Topology
                     </p>
                     <p className="mt-4 text-sm leading-6 text-slate-600">
-                      NeoVerse can support trajectory presets, custom trajectories, preview renders, and scene inspection,
-                      but this demo only exposes those capabilities here when the public presentation viewer is actually live.
+                      The topology graphic stays anchored to the same site record while the artifact viewer swaps the saved
+                      viewpoints. Use it as the stable map while moving through the saved outputs.
                     </p>
                     <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
                       <SiteWorldGraphic site={site} />

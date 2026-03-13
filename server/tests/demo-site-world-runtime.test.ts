@@ -29,6 +29,8 @@ describe("demo site-world runtime fallback", () => {
     expect(serverRecord).not.toBeNull();
     expect(serverRecord?.sceneMemoryManifestUri).toContain("scene_memory_manifest.json");
     expect(serverRecord?.siteWorldRegistrationUri).toContain("site_world_registration.json");
+    expect(serverRecord?.artifactExplorer?.status).toBe("ready");
+    expect((serverRecord?.artifactExplorer?.views || []).length).toBeGreaterThan(0);
   });
 
   it("resolves hosted runtime with the demo launch override", async () => {
@@ -65,7 +67,10 @@ describe("demo site-world runtime fallback", () => {
       );
       const payload = await response.json();
       expect(response.status).toBe(200);
+      expect(payload.status).toBe("presentation_assets_missing");
       expect(payload.runtime_only.launchable).toBe(true);
+      expect(payload.runtime_only.status).toBe("runtime_live_ready");
+      expect(payload.presentation_demo.status).toBe("presentation_assets_missing");
       expect(payload.runtime_only.blockers).not.toContain(
         "Hosted sessions are only available to robot-team accounts.",
       );

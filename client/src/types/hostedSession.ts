@@ -121,6 +121,7 @@ export interface SiteModelSummary {
   conditioningBundleUri?: string | null;
   presentationWorldManifestUri?: string | null;
   runtimeDemoManifestUri?: string | null;
+  artifactExplorer?: ArtifactExplorerSummary | null;
   availableScenarioVariants: string[];
   availableStartStates: string[];
   defaultRuntimeBackend?: string | null;
@@ -161,8 +162,51 @@ export interface HostedSessionLaunchBlockerDetail {
   source: HostedSessionLaunchBlockerSource;
 }
 
+export type PresentationDemoReadinessStatus =
+  | "artifact_explorer_ready"
+  | "presentation_ui_unconfigured"
+  | "presentation_ui_live"
+  | "presentation_assets_missing";
+
+export interface ArtifactExplorerView {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl?: string | null;
+  sourceUri?: string | null;
+  badge?: string | null;
+  cameraId?: string | null;
+  available: boolean;
+}
+
+export interface ArtifactExplorerSourceLink {
+  id: string;
+  label: string;
+  uri?: string | null;
+  detail?: string | null;
+}
+
+export interface ArtifactExplorerSummary {
+  status: "ready" | "partial" | "missing";
+  headline: string;
+  summary: string;
+  derivationMode?: string | null;
+  canonicalPackageVersion?: string | null;
+  presentationStatus?: string | null;
+  views: ArtifactExplorerView[];
+  sources: ArtifactExplorerSourceLink[];
+  operatorView: {
+    available: boolean;
+    live: boolean;
+    uiBaseUrl?: string | null;
+    label: string;
+    description: string;
+  };
+}
+
 export interface PresentationLaunchState {
   status: "live_viewer" | "artifact_backed" | "blocked";
+  mode?: PresentationDemoReadinessStatus;
   blockers: string[];
   blockerDetails: HostedSessionLaunchBlockerDetail[];
   presentationWorldManifestUri?: string | null;

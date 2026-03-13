@@ -48,6 +48,8 @@ export interface HostedRuntimeResolution {
   conditioningBundleUri: string;
   presentationWorldManifestUri?: string | null;
   runtimeDemoManifestUri?: string | null;
+  presentationWorldManifestDeclared?: boolean;
+  runtimeDemoManifestDeclared?: boolean;
   presentationDemoBlockers: string[];
   priceLabel?: string | null;
   qualificationState?: QualificationState | null;
@@ -196,6 +198,8 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     artifacts.runtime_demo_manifest_uri,
     "presentation_world/runtime_demo_manifest.json",
   );
+  const presentationWorldManifestDeclared = Boolean(String(artifacts.presentation_world_manifest_uri || "").trim());
+  const runtimeDemoManifestDeclared = Boolean(String(artifacts.runtime_demo_manifest_uri || "").trim());
   const presentationDemoBlockers: string[] = [];
   if (!presentationWorldManifestUri) {
     presentationDemoBlockers.push("missing presentation package");
@@ -273,6 +277,8 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     conditioningBundleUri,
     presentationWorldManifestUri,
     runtimeDemoManifestUri,
+    presentationWorldManifestDeclared,
+    runtimeDemoManifestDeclared,
     presentationDemoBlockers,
     priceLabel: site.packages[1]?.priceLabel ?? null,
     qualificationState:

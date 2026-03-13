@@ -1,5 +1,6 @@
 import type { DeploymentReadinessSummary } from "../types/inbound-request";
 import type {
+  ArtifactExplorerSummary,
   RobotObservationCamera,
   RobotProfile,
   RuntimeManifestSummary,
@@ -85,7 +86,14 @@ export type SiteWorldCard = {
     blockers: string[];
     presentationWorldManifestUri?: string | null;
     runtimeDemoManifestUri?: string | null;
+    status?:
+      | "artifact_explorer_ready"
+      | "presentation_ui_unconfigured"
+      | "presentation_ui_live"
+      | "presentation_assets_missing";
+    uiBaseUrl?: string | null;
   };
+  artifactExplorer?: ArtifactExplorerSummary | null;
   runtimeReferenceImageUrl?: string | null;
   presentationReferenceImageUrl?: string | null;
   sceneMemoryManifestUri?: string | null;
@@ -213,6 +221,65 @@ function buildSampleRobotProfile(sampleRobot: string, runtime: string): RobotPro
   };
 }
 
+function buildStaticArtifactExplorer(site: RawSiteWorldCard): ArtifactExplorerSummary | null {
+  const presentationManifestUri = site.presentationDemoReadiness?.presentationWorldManifestUri || null;
+  const runtimeDemoManifestUri = site.presentationDemoReadiness?.runtimeDemoManifestUri || null;
+  const views = [
+    {
+      id: "presentation-overview",
+      title: "Presentation overview",
+      description: "Captured from the saved presentation-world walkthrough.",
+      imageUrl: site.presentationReferenceImageUrl || null,
+      sourceUri: presentationManifestUri,
+      badge: "Derived presentation",
+      available: Boolean(site.presentationReferenceImageUrl),
+    },
+    {
+      id: "runtime-head-rgb",
+      title: "Runtime head camera",
+      description: "Validated runtime reference frame from the hosted demo bundle.",
+      imageUrl: site.runtimeReferenceImageUrl || null,
+      sourceUri: runtimeDemoManifestUri,
+      badge: "Validated runtime frame",
+      cameraId: "head_rgb",
+      available: Boolean(site.runtimeReferenceImageUrl),
+    },
+  ].filter((item) => item.available);
+
+  const sources = [
+    { id: "canonical", label: "Canonical package", uri: site.siteWorldSpecUri || null, detail: "Grounded source of truth" },
+    { id: "scene-memory", label: "Scene-memory manifest", uri: site.sceneMemoryManifestUri || null, detail: "Conditioning support artifacts" },
+    { id: "conditioning", label: "Conditioning bundle", uri: site.conditioningBundleUri || null, detail: "Reconstruction and presentation inputs" },
+    { id: "presentation", label: "Presentation manifest", uri: presentationManifestUri, detail: "Derived presentation-world lane" },
+    { id: "runtime-demo", label: "Runtime demo manifest", uri: runtimeDemoManifestUri, detail: "Saved runtime demo configuration" },
+  ].filter((item) => Boolean(item.uri));
+
+  if (views.length === 0 && sources.length === 0) {
+    return null;
+  }
+
+  return {
+    status: views.length > 0 ? "ready" : "partial",
+    headline: "Explore the site-world through saved artifacts",
+    summary:
+      "This viewer is backed by saved site-world and presentation artifacts. It does not invent new geometry in the browser.",
+    derivationMode: null,
+    canonicalPackageVersion: null,
+    presentationStatus: site.presentationDemoReadiness?.status || null,
+    views,
+    sources,
+    operatorView: {
+      available: Boolean(site.presentationDemoReadiness?.uiBaseUrl),
+      live: Boolean(site.presentationDemoReadiness?.uiBaseUrl),
+      uiBaseUrl: site.presentationDemoReadiness?.uiBaseUrl || null,
+      label: site.presentationDemoReadiness?.uiBaseUrl ? "Private operator view available" : "Private operator view unavailable",
+      description: site.presentationDemoReadiness?.uiBaseUrl
+        ? "An internal NeoVerse UI is configured for this site."
+        : "Use artifact-backed exploration when no private operator bridge is configured.",
+    },
+  };
+}
+
 function withDerivedSessionDefaults(site: RawSiteWorldCard): SiteWorldCard {
   const sampleRobotProfile = buildSampleRobotProfile(site.sampleRobot, site.runtime);
   const taskCatalog: TaskCatalogEntry[] = [
@@ -254,6 +321,7 @@ function withDerivedSessionDefaults(site: RawSiteWorldCard): SiteWorldCard {
     startStateCatalog,
     robotProfiles,
     exportModes,
+    artifactExplorer: site.artifactExplorer || buildStaticArtifactExplorer(site),
   };
 }
 
@@ -864,9 +932,13 @@ siteWorldCards.push({
   },
   presentationDemoReadiness: {
     launchable: false,
-    blockers: ["Use the runtime-only workspace for this walkthrough demo."],
+    blockers: ["Private operator view is not configured for this walkthrough."],
+    status: "presentation_ui_unconfigured",
     presentationWorldManifestUri:
       "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/presentation_world/presentation_world_manifest.json",
+    runtimeDemoManifestUri:
+      "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/presentation_world/runtime_demo_manifest.json",
+    uiBaseUrl: null,
   },
   runtimeReferenceImageUrl: "/siteworld-f5fd54898cfb-runtime-reference.png",
   presentationReferenceImageUrl: "/siteworld-f5fd54898cfb-presentation-reference.png",

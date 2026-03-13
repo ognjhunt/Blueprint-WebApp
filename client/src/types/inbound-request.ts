@@ -180,6 +180,7 @@ export interface DeploymentReadinessSummary {
 }
 
 import type {
+  ArtifactExplorerSummary,
   RobotProfile,
   RuntimeManifestSummary,
   ScenarioCatalogEntry,
@@ -267,7 +268,15 @@ export interface PublicSiteWorldRecord {
     launchable: boolean;
     blockers: string[];
     presentationWorldManifestUri?: string | null;
+    runtimeDemoManifestUri?: string | null;
+    status?:
+      | "artifact_explorer_ready"
+      | "presentation_ui_unconfigured"
+      | "presentation_ui_live"
+      | "presentation_assets_missing";
+    uiBaseUrl?: string | null;
   };
+  artifactExplorer?: ArtifactExplorerSummary | null;
   sceneMemoryManifestUri?: string | null;
   conditioningBundleUri?: string | null;
   siteWorldSpecUri?: string | null;

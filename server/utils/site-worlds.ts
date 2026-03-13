@@ -12,6 +12,7 @@ import type {
 } from "../types/inbound-request";
 import { decryptInboundRequestForAdmin } from "./field-encryption";
 import { parseGsUri } from "./pipeline-dashboard";
+import { resolvePresentationDemoUiBaseUrl } from "./presentation-demo-runtime";
 
 const LIVE_QUALIFICATION_STATES = new Set<QualificationState>([
   "qualified_ready",
@@ -51,30 +52,179 @@ function resolveRuntimeDemoManifestUri(pipeline?: PipelineAttachment): string | 
   );
 }
 
-function buildPresentationDemoReadiness(pipeline?: PipelineAttachment, launchable = false): SiteWorldCard["presentationDemoReadiness"] {
+function buildPresentationDemoReadiness(params: {
+  pipeline?: PipelineAttachment;
+  launchable?: boolean;
+  presentationWorldManifest?: ArtifactJson;
+  runtimeDemoManifest?: ArtifactJson;
+  siteWorldId?: string;
+  sceneId?: string;
+  captureId?: string;
+}): SiteWorldCard["presentationDemoReadiness"] {
   const blockers: string[] = [];
-  const presentationWorldManifestUri = resolvePresentationWorldManifestUri(pipeline);
-  const runtimeDemoManifestUri = resolveRuntimeDemoManifestUri(pipeline);
-  if (!presentationWorldManifestUri) {
+  const presentationWorldManifestUri = resolvePresentationWorldManifestUri(params.pipeline);
+  const runtimeDemoManifestUri = resolveRuntimeDemoManifestUri(params.pipeline);
+  const presentationManifestRegistered =
+    Boolean(String(params.pipeline?.artifacts.presentation_world_manifest_uri || "").trim()) ||
+    Boolean(presentationWorldManifestUri && params.presentationWorldManifest);
+  const runtimeDemoManifestRegistered =
+    Boolean(String(params.pipeline?.artifacts.runtime_demo_manifest_uri || "").trim()) ||
+    Boolean(runtimeDemoManifestUri && params.runtimeDemoManifest);
+  const uiBaseUrl =
+    presentationManifestRegistered && runtimeDemoManifestRegistered
+      ? resolvePresentationDemoUiBaseUrl({
+          sessionId: "site-world-preview",
+          siteWorldId: String(params.siteWorldId || "").trim(),
+          sceneId: String(params.sceneId || "").trim(),
+          captureId: String(params.captureId || "").trim(),
+          manifest: (params.runtimeDemoManifest as Record<string, unknown>) || {},
+        }).url || null
+      : null;
+
+  if (!presentationManifestRegistered) {
     blockers.push("missing presentation package");
   }
-  if (!runtimeDemoManifestUri) {
+  if (!runtimeDemoManifestRegistered) {
     blockers.push("missing runtime demo manifest");
   }
-  if (!String(pipeline?.artifacts.site_world_spec_uri || pipeline?.pipeline_prefix || "").trim()) {
+  if (!String(params.pipeline?.artifacts.site_world_spec_uri || params.pipeline?.pipeline_prefix || "").trim()) {
     blockers.push("missing runtime site-world spec");
   }
-  if (!String(pipeline?.artifacts.site_world_registration_uri || pipeline?.pipeline_prefix || "").trim()) {
+  if (!String(params.pipeline?.artifacts.site_world_registration_uri || params.pipeline?.pipeline_prefix || "").trim()) {
     blockers.push("missing runtime registration");
   }
-  if (!launchable) {
+  if (!params.launchable) {
     blockers.push("site not launchable yet");
   }
+
+  const status = !presentationManifestRegistered || !runtimeDemoManifestRegistered
+    ? "presentation_assets_missing"
+    : uiBaseUrl
+      ? "presentation_ui_live"
+      : "presentation_ui_unconfigured";
+
   return {
-    launchable: blockers.length === 0,
+    launchable: status === "presentation_ui_live" && blockers.length === 0,
     blockers,
     presentationWorldManifestUri,
     runtimeDemoManifestUri,
+    status,
+    uiBaseUrl,
+  };
+}
+
+function buildArtifactExplorer(params: {
+  template?: SiteWorldCard;
+  siteWorldId: string;
+  sceneId: string;
+  captureId: string;
+  siteWorldSpecUri?: string | null;
+  sceneMemoryManifestUri?: string | null;
+  conditioningBundleUri?: string | null;
+  presentationWorldManifestUri?: string | null;
+  runtimeDemoManifestUri?: string | null;
+  presentationWorldManifest?: ArtifactJson;
+  runtimeDemoManifest?: ArtifactJson;
+}): SiteWorldCard["artifactExplorer"] {
+  const uiBaseUrl =
+    params.presentationWorldManifestUri && params.runtimeDemoManifestUri
+      ? resolvePresentationDemoUiBaseUrl({
+          sessionId: "site-world-preview",
+          siteWorldId: params.siteWorldId,
+          sceneId: params.sceneId,
+          captureId: params.captureId,
+          manifest: (params.runtimeDemoManifest as Record<string, unknown>) || {},
+        }).url || null
+      : null;
+  const template = params.template;
+  const derivationMode = String(
+    params.presentationWorldManifest?.derivation_mode || params.runtimeDemoManifest?.derivation_mode || "",
+  ).trim() || null;
+  const canonicalPackageVersion = String(
+    params.presentationWorldManifest?.canonical_package_version || params.runtimeDemoManifest?.canonical_package_version || "",
+  ).trim() || null;
+  const presentationStatus = String(
+    params.presentationWorldManifest?.status || params.runtimeDemoManifest?.status || "",
+  ).trim() || null;
+
+  const views = [
+    {
+      id: "presentation-overview",
+      title: "Presentation overview",
+      description: "Saved customer-facing view from the presentation-world lane.",
+      imageUrl: template?.presentationReferenceImageUrl || null,
+      sourceUri: params.presentationWorldManifestUri || null,
+      badge: "Derived presentation",
+      available: Boolean(template?.presentationReferenceImageUrl),
+    },
+    {
+      id: "runtime-head-rgb",
+      title: "Runtime head camera",
+      description: "Validated runtime observation frame from the saved demo session.",
+      imageUrl: template?.runtimeReferenceImageUrl || null,
+      sourceUri: params.runtimeDemoManifestUri || null,
+      badge: "Validated runtime frame",
+      cameraId: "head_rgb",
+      available: Boolean(template?.runtimeReferenceImageUrl),
+    },
+  ].filter((item) => item.available);
+
+  const sources = [
+    {
+      id: "canonical",
+      label: "Canonical package",
+      uri: params.siteWorldSpecUri || null,
+      detail: "Grounded site-world package",
+    },
+    {
+      id: "scene-memory",
+      label: "Scene-memory manifest",
+      uri: params.sceneMemoryManifestUri || null,
+      detail: "Conditioning support artifacts",
+    },
+    {
+      id: "conditioning",
+      label: "Conditioning bundle",
+      uri: params.conditioningBundleUri || null,
+      detail: "Reconstruction and presentation inputs",
+    },
+    {
+      id: "presentation",
+      label: "Presentation manifest",
+      uri: params.presentationWorldManifestUri || null,
+      detail: "Saved presentation-world output",
+    },
+    {
+      id: "runtime-demo",
+      label: "Runtime demo manifest",
+      uri: params.runtimeDemoManifestUri || null,
+      detail: "Saved demo runtime configuration",
+    },
+  ].filter((item) => Boolean(item.uri));
+
+  if (views.length === 0 && sources.length === 0) {
+    return null;
+  }
+
+  return {
+    status: views.length > 0 ? "ready" : "partial",
+    headline: "Explore the site-world through saved artifacts",
+    summary:
+      "This viewer uses already-produced site-world and presentation artifacts. It does not hallucinate new scene content in the browser.",
+    derivationMode,
+    canonicalPackageVersion,
+    presentationStatus,
+    views,
+    sources,
+    operatorView: {
+      available: Boolean(uiBaseUrl),
+      live: Boolean(uiBaseUrl),
+      uiBaseUrl,
+      label: uiBaseUrl ? "Private operator view available" : "Private operator view unavailable",
+      description: uiBaseUrl
+        ? "A private NeoVerse UI is configured for internal movement and debugging."
+        : "Use artifact-backed exploration when no private operator bridge is configured.",
+    },
   };
 }
 
@@ -533,6 +683,15 @@ function buildDeploymentReadiness({
 }
 
 function buildStaticRecord(template: SiteWorldCard): SiteWorldCard {
+  const presentationDemoReadiness =
+    template.presentationDemoReadiness || {
+      launchable: false,
+      blockers: ["missing presentation package", "site not launchable yet"],
+      presentationWorldManifestUri: null,
+      runtimeDemoManifestUri: null,
+      status: "presentation_assets_missing" as const,
+      uiBaseUrl: null,
+    };
   return {
     ...template,
     runtimeManifest: template.runtimeManifest || buildFallbackRuntimeManifest(template),
@@ -541,12 +700,20 @@ function buildStaticRecord(template: SiteWorldCard): SiteWorldCard {
     startStateCatalog: template.startStateCatalog || buildFallbackStartStateCatalog(template),
     robotProfiles: template.robotProfiles || [template.sampleRobotProfile],
     exportModes: template.exportModes || ["raw_bundle", "rlds_dataset"],
-    presentationDemoReadiness: template.presentationDemoReadiness || {
-      launchable: false,
-      blockers: ["missing presentation package", "site not launchable yet"],
-      presentationWorldManifestUri: null,
-      runtimeDemoManifestUri: null,
-    },
+    presentationDemoReadiness,
+    artifactExplorer:
+      template.artifactExplorer ||
+      buildArtifactExplorer({
+        template,
+        siteWorldId: template.id,
+        sceneId: template.sceneId,
+        captureId: template.captureId,
+        siteWorldSpecUri: template.siteWorldSpecUri ?? null,
+        sceneMemoryManifestUri: template.sceneMemoryManifestUri ?? null,
+        conditioningBundleUri: template.conditioningBundleUri ?? null,
+        presentationWorldManifestUri: presentationDemoReadiness.presentationWorldManifestUri ?? null,
+        runtimeDemoManifestUri: presentationDemoReadiness.runtimeDemoManifestUri ?? null,
+      }),
     sceneMemoryManifestUri: template.sceneMemoryManifestUri ?? null,
     conditioningBundleUri: template.conditioningBundleUri ?? null,
     siteWorldSpecUri: template.siteWorldSpecUri ?? null,
@@ -596,6 +763,8 @@ async function buildLiveRecord(
     siteWorldSpec,
     siteWorldRegistration,
     siteWorldHealth,
+    presentationWorldManifest,
+    runtimeDemoManifest,
   ] =
     await Promise.all([
       readArtifactJson(
@@ -654,6 +823,8 @@ async function buildLiveRecord(
           "evaluation_prep/site_world_health.json",
         ),
       ),
+      readArtifactJson(resolvePresentationWorldManifestUri(pipeline)),
+      readArtifactJson(resolveRuntimeDemoManifestUri(pipeline)),
     ]);
 
   const readiness = buildDeploymentReadiness({
@@ -723,10 +894,15 @@ async function buildLiveRecord(
         launchable: Boolean(siteWorldHealth?.launchable ?? true),
       }
     : template?.runtimeManifest || buildFallbackRuntimeManifest(template || buildStaticRecord(siteWorldCards[0]));
-  const presentationDemoReadiness = buildPresentationDemoReadiness(
+  const presentationDemoReadiness = buildPresentationDemoReadiness({
     pipeline,
-    Boolean(siteWorldHealth?.launchable ?? runtimeManifest.launchable),
-  );
+    launchable: Boolean(siteWorldHealth?.launchable ?? runtimeManifest.launchable),
+    presentationWorldManifest,
+    runtimeDemoManifest,
+    siteWorldId: generatedId,
+    sceneId,
+    captureId,
+  });
   const sceneMemoryManifestUri = pipelineArtifactUri(
     pipeline,
     pipeline?.artifacts.scene_memory_manifest_uri,
@@ -752,6 +928,19 @@ async function buildLiveRecord(
     pipeline?.artifacts.site_world_health_uri,
     "evaluation_prep/site_world_health.json",
   );
+  const artifactExplorer = buildArtifactExplorer({
+    template,
+    siteWorldId: generatedId,
+    sceneId,
+    captureId,
+    siteWorldSpecUri,
+    sceneMemoryManifestUri,
+    conditioningBundleUri,
+    presentationWorldManifestUri: presentationDemoReadiness?.presentationWorldManifestUri ?? null,
+    runtimeDemoManifestUri: presentationDemoReadiness?.runtimeDemoManifestUri ?? null,
+    presentationWorldManifest,
+    runtimeDemoManifest,
+  });
 
   return {
     ...(template || {
@@ -819,6 +1008,7 @@ async function buildLiveRecord(
     exportModes,
     packages,
     presentationDemoReadiness,
+    artifactExplorer,
     sceneMemoryManifestUri,
     conditioningBundleUri,
     siteWorldSpecUri,
