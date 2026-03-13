@@ -313,6 +313,21 @@ vi.mock("../utils/hosted-session-orchestrator", () => ({
       ],
       actionTrace: [],
     },
+    rawEpisode: {
+      episodeId: "episode-1",
+      taskId: "sw-chi-01-task-1",
+      task: "Walk to shelf staging and pick the blue tote",
+      scenarioId: "sw-chi-01-scenario-1",
+      scenario: "Normal lighting",
+      startStateId: "sw-chi-01-start-1",
+      startState: "Dock-side tote stack",
+      status: "ready",
+      stepIndex: 0,
+      done: false,
+      observation: {
+        frame_path: "/tmp/hosted/episode-1/head_rgb/frame_000.png",
+      },
+    },
   })),
   stepHostedSessionRun: vi.fn(async () => ({
     episode: {
@@ -334,6 +349,63 @@ vi.mock("../utils/hosted-session-orchestrator", () => ({
         { id: "head_rgb", role: "head", required: true, available: true },
       ],
       actionTrace: [[0.1, 0, 0, 0, 0, 0, 1]],
+    },
+    rawEpisode: {
+      episodeId: "episode-1",
+      taskId: "sw-chi-01-task-1",
+      task: "Walk to shelf staging and pick the blue tote",
+      scenarioId: "sw-chi-01-scenario-1",
+      scenario: "Normal lighting",
+      startStateId: "sw-chi-01-start-1",
+      startState: "Dock-side tote stack",
+      status: "running",
+      stepIndex: 1,
+      done: false,
+      reward: 0.5,
+      observation: {
+        frame_path: "/tmp/hosted/episode-1/head_rgb/frame_001.png",
+      },
+    },
+  })),
+  reconcileHostedEpisode: vi.fn(async (params: { expectedStepIndex?: number }) => ({
+    episodeId: "episode-1",
+    taskId: "sw-chi-01-task-1",
+    task: "Walk to shelf staging and pick the blue tote",
+    scenarioId: "sw-chi-01-scenario-1",
+    scenario: "Normal lighting",
+    startStateId: "sw-chi-01-start-1",
+    startState: "Dock-side tote stack",
+    status: params.expectedStepIndex && params.expectedStepIndex > 0 ? "running" : "ready",
+    stepIndex: params.expectedStepIndex || 0,
+    done: false,
+    reward: params.expectedStepIndex && params.expectedStepIndex > 0 ? 0.5 : 0,
+    observation: {
+      primaryCameraId: "head_rgb",
+      frame_path: "http://runtime.local/v1/sessions/session-1/render?camera_id=head_rgb",
+      remoteObservation: {
+        frame_path: "http://runtime.local/v1/sessions/session-1/render?camera_id=head_rgb",
+        primaryCameraId: "head_rgb",
+      },
+      runtimeMetadata: {
+        site_world_id: "siteworld-1",
+        build_id: "build-1",
+        step_index: params.expectedStepIndex || 0,
+      },
+      worldSnapshot: {
+        snapshotId: `snapshot-${params.expectedStepIndex || 0}`,
+        status: "running",
+        world_state: {
+          step_index: params.expectedStepIndex || 0,
+        },
+      },
+    },
+    observationCameras: [
+      { id: "head_rgb", role: "head", required: true, available: true },
+    ],
+    actionTrace:
+      params.expectedStepIndex && params.expectedStepIndex > 0 ? [[0.1, 0, 0, 0, 0, 0, 1]] : [],
+    qualityFlags: {
+      presentation_quality: "degraded",
     },
   })),
   runBatchHostedSessionRun: vi.fn(async () => ({
@@ -595,6 +667,12 @@ describe("site world session routes", () => {
       const resetPayload = (await reset.json()) as Record<string, unknown>;
       expect((resetPayload.episode as Record<string, unknown>).episodeId).toBe("episode-1");
       expect((resetPayload.episode as Record<string, unknown>).startState).toBe("Dock-side tote stack");
+      expect(
+        (((resetPayload.episode as Record<string, unknown>).observation as Record<string, unknown>).worldSnapshot as Record<
+          string,
+          unknown
+        >).snapshotId,
+      ).toBe("snapshot-0");
 
       const step = await fetch(`${baseUrl}/${created.sessionId}/step`, {
         method: "POST",
@@ -604,6 +682,19 @@ describe("site world session routes", () => {
       expect(step.status).toBe(200);
       const stepPayload = (await step.json()) as Record<string, unknown>;
       expect((stepPayload.episode as Record<string, unknown>).stepIndex).toBe(1);
+      expect(
+        ((((stepPayload.episode as Record<string, unknown>).observation as Record<string, unknown>).runtimeMetadata as Record<
+          string,
+          unknown
+        >).step_index),
+      ).toBe(1);
+      const stored = state.hostedSessions.get(created.sessionId) as Record<string, unknown>;
+      expect(
+        (((stored.latestEpisode as Record<string, unknown>).observation as Record<string, unknown>).worldSnapshot as Record<
+          string,
+          unknown
+        >).snapshotId,
+      ).toBe("snapshot-1");
     } finally {
       await stopServer(server);
     }

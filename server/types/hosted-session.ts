@@ -122,6 +122,10 @@ export interface SiteModelSummary {
   conditioningBundleUri?: string | null;
   presentationWorldManifestUri?: string | null;
   runtimeDemoManifestUri?: string | null;
+  resolvedArtifactCanonicalUri?: string | null;
+  registeredCanonicalPackageUri?: string | null;
+  registeredCanonicalPackageVersion?: string | null;
+  canonicalPackageSource?: "runtime_registered" | "resolved_artifact";
   artifactExplorer?: ArtifactExplorerSummary | null;
   availableScenarioVariants: string[];
   availableStartStates: string[];
@@ -180,6 +184,19 @@ export interface ArtifactExplorerView {
   available: boolean;
 }
 
+export interface ArtifactExplorerObject {
+  id: string;
+  label: string;
+  taskRole?: string | null;
+  taskCritical?: boolean;
+  groundingLevel?: string | null;
+  meshUrl?: string | null;
+  previewImageUrl?: string | null;
+  selectedViewUrls?: string[];
+  center: [number, number, number];
+  extents: [number, number, number];
+}
+
 export interface ArtifactExplorerSourceLink {
   id: string;
   label: string;
@@ -194,7 +211,11 @@ export interface ArtifactExplorerSummary {
   derivationMode?: string | null;
   canonicalPackageVersion?: string | null;
   presentationStatus?: string | null;
+  sceneKind?: "canonical_object_geometry" | "derived_presentation";
+  sceneModelUrl?: string | null;
+  sceneModelFormat?: "glb" | "ply" | "object_bundle" | null;
   views: ArtifactExplorerView[];
+  objects?: ArtifactExplorerObject[];
   sources: ArtifactExplorerSourceLink[];
   operatorView: {
     available: boolean;
@@ -278,6 +299,14 @@ export interface HostedEpisodeSummary {
   generatedOutputs?: GeneratedOutputsSummary | null;
   actionTrace?: number[][];
   observationCameras?: RobotObservationCamera[];
+  canonicalPackageVersion?: string | null;
+  presentationConfig?: Record<string, unknown> | null;
+  qualityFlags?: Record<string, unknown> | null;
+  protectedRegionViolations?: Record<string, unknown>[] | null;
+  debugArtifacts?: Record<string, unknown> | null;
+  runtimeEngineIdentity?: Record<string, unknown> | null;
+  runtimeModelIdentity?: Record<string, unknown> | null;
+  runtimeCheckpointIdentity?: Record<string, unknown> | null;
 }
 
 export interface HostedBatchSummary {
@@ -345,6 +374,9 @@ export interface HostedSessionRecord {
     site_world_spec_uri: string;
     site_world_registration_uri: string;
     site_world_health_uri: string;
+    resolvedArtifactCanonicalUri?: string | null;
+    registeredCanonicalPackageUri?: string | null;
+    registeredCanonicalPackageVersion?: string | null;
     runtime_base_url?: string | null;
     websocket_base_url?: string | null;
     conditioning_bundle_uri: string;

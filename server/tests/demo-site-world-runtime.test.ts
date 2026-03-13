@@ -30,7 +30,7 @@ describe("demo site-world runtime fallback", () => {
     expect(serverRecord?.sceneMemoryManifestUri).toContain("scene_memory_manifest.json");
     expect(serverRecord?.siteWorldRegistrationUri).toContain("site_world_registration.json");
     expect(serverRecord?.artifactExplorer?.status).toBe("ready");
-    expect((serverRecord?.artifactExplorer?.views || []).length).toBeGreaterThan(0);
+    expect((serverRecord?.artifactExplorer?.objects || []).length).toBeGreaterThan(0);
   });
 
   it("resolves hosted runtime with the demo launch override", async () => {

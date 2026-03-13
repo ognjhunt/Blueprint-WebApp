@@ -31,6 +31,7 @@ import {
   exportHostedSessionRun,
   HostedSessionOrchestratorError,
   loadHostedSessionRuntimeMetadata,
+  reconcileHostedEpisode,
   persistHostedSessionRuntimeMetadata,
   resetHostedSessionRun,
   runBatchHostedSessionRun,
@@ -467,6 +468,42 @@ function buildFailureDiagnostic(params: {
   };
 }
 
+function buildCanonicalPackageMismatchDetail(session: HostedSessionRecord | null | undefined) {
+  const registered = String(
+    session?.siteModel?.registeredCanonicalPackageUri
+      || session?.launchContext.registeredCanonicalPackageUri
+      || "",
+  ).trim();
+  const resolved = String(
+    session?.siteModel?.resolvedArtifactCanonicalUri
+      || session?.launchContext.resolvedArtifactCanonicalUri
+      || "",
+  ).trim();
+
+  if (!registered || !resolved || registered === resolved) {
+    return null;
+  }
+
+  return `Canonical package mismatch detected. runtime_registered=${registered} resolved_artifact=${resolved}`;
+}
+
+function appendCanonicalPackageMismatch(
+  diagnostic: HostedSessionFailureDiagnostic,
+  session: HostedSessionRecord | null | undefined,
+) {
+  const mismatchDetail = buildCanonicalPackageMismatchDetail(session);
+  if (!mismatchDetail) {
+    return diagnostic;
+  }
+
+  const detail = [diagnostic.detail, mismatchDetail].filter(Boolean).join("\n");
+  return {
+    ...diagnostic,
+    detail,
+    rawDetail: detail,
+  };
+}
+
 function buildPresentationLaunchState(params: {
   presentationRuntime?: HostedSessionRecord["presentationRuntime"];
   readiness?: ModeLaunchReadiness | null;
@@ -782,8 +819,11 @@ function normalizeRuntimeSessionConfig(
 
   return {
     canonical_package_uri:
-      normalizeOptional(runtimeSessionConfig.canonical_package_uri) || runtime.siteWorldSpecUri,
-    canonical_package_version: normalizeOptional(runtimeSessionConfig.canonical_package_version),
+      normalizeOptional(runtimeSessionConfig.canonical_package_uri)
+      || runtime.registeredCanonicalPackageUri
+      || runtime.resolvedArtifactCanonicalUri,
+    canonical_package_version:
+      normalizeOptional(runtimeSessionConfig.canonical_package_version) || runtime.registeredCanonicalPackageVersion,
     prompt: normalizeOptional(runtimeSessionConfig.prompt),
     trajectory: normalizeOptional(runtimeSessionConfig.trajectory),
     presentation_model: normalizeOptional(runtimeSessionConfig.presentation_model),
@@ -816,6 +856,10 @@ function buildSiteModelSummary(
     siteWorldSpecUri: runtime.siteWorldSpecUri,
     siteWorldRegistrationUri: runtime.siteWorldRegistrationUri,
     siteWorldHealthUri: runtime.siteWorldHealthUri,
+    resolvedArtifactCanonicalUri: runtime.resolvedArtifactCanonicalUri,
+    registeredCanonicalPackageUri: runtime.registeredCanonicalPackageUri ?? null,
+    registeredCanonicalPackageVersion: runtime.registeredCanonicalPackageVersion ?? null,
+    canonicalPackageSource: runtime.registeredCanonicalPackageUri ? "runtime_registered" : "resolved_artifact",
     runtimeBaseUrl: runtime.runtimeBaseUrl ?? null,
     websocketBaseUrl: runtime.websocketBaseUrl ?? null,
     sceneMemoryManifestUri: runtime.sceneMemoryManifestUri,
@@ -888,6 +932,34 @@ function normalizeEpisodeSummary(
     observationCameras: Array.isArray(episodePayload.observationCameras)
       ? (episodePayload.observationCameras as HostedEpisodeSummary["observationCameras"])
       : [],
+    canonicalPackageVersion: String(episodePayload.canonicalPackageVersion || "").trim() || null,
+    presentationConfig:
+      episodePayload.presentationConfig && typeof episodePayload.presentationConfig === "object"
+        ? (episodePayload.presentationConfig as Record<string, unknown>)
+        : null,
+    qualityFlags:
+      episodePayload.qualityFlags && typeof episodePayload.qualityFlags === "object"
+        ? (episodePayload.qualityFlags as Record<string, unknown>)
+        : null,
+    protectedRegionViolations: Array.isArray(episodePayload.protectedRegionViolations)
+      ? (episodePayload.protectedRegionViolations as Record<string, unknown>[])
+      : [],
+    debugArtifacts:
+      episodePayload.debugArtifacts && typeof episodePayload.debugArtifacts === "object"
+        ? (episodePayload.debugArtifacts as Record<string, unknown>)
+        : null,
+    runtimeEngineIdentity:
+      episodePayload.runtimeEngineIdentity && typeof episodePayload.runtimeEngineIdentity === "object"
+        ? (episodePayload.runtimeEngineIdentity as Record<string, unknown>)
+        : null,
+    runtimeModelIdentity:
+      episodePayload.runtimeModelIdentity && typeof episodePayload.runtimeModelIdentity === "object"
+        ? (episodePayload.runtimeModelIdentity as Record<string, unknown>)
+        : null,
+    runtimeCheckpointIdentity:
+      episodePayload.runtimeCheckpointIdentity && typeof episodePayload.runtimeCheckpointIdentity === "object"
+        ? (episodePayload.runtimeCheckpointIdentity as Record<string, unknown>)
+        : null,
     generatedOutputs: {
       observationFrames: {
         framePath: framePath || null,
@@ -1035,6 +1107,20 @@ async function ensureRuntimeMetadataForSession(session: HostedSessionRecord) {
       ).trim() || null,
     site_world_id: String(session.runtimeHandle?.site_world_id || session.site.siteWorldId || "").trim() || null,
     build_id: String(session.runtimeHandle?.build_id || "").trim() || null,
+    canonical_package_uri:
+      String(
+        session.siteModel?.registeredCanonicalPackageUri
+          || session.launchContext.registeredCanonicalPackageUri
+          || session.siteModel?.resolvedArtifactCanonicalUri
+          || session.launchContext.resolvedArtifactCanonicalUri
+          || "",
+      ).trim() || null,
+    canonical_package_version:
+      String(
+        session.siteModel?.registeredCanonicalPackageVersion
+          || session.launchContext.registeredCanonicalPackageVersion
+          || "",
+      ).trim() || null,
     vm_instance_id: String(session.runtimeHandle?.vm_instance_id || "").trim() || null,
     runtime_capabilities:
       session.runtimeHandle?.runtime_capabilities && typeof session.runtimeHandle.runtime_capabilities === "object"
@@ -1310,6 +1396,9 @@ function createSessionRecord(params: {
       site_world_spec_uri: params.runtime.siteWorldSpecUri,
       site_world_registration_uri: params.runtime.siteWorldRegistrationUri,
       site_world_health_uri: params.runtime.siteWorldHealthUri,
+      resolvedArtifactCanonicalUri: params.runtime.resolvedArtifactCanonicalUri,
+      registeredCanonicalPackageUri: params.runtime.registeredCanonicalPackageUri ?? null,
+      registeredCanonicalPackageVersion: params.runtime.registeredCanonicalPackageVersion ?? null,
       runtime_base_url: params.runtime.runtimeBaseUrl ?? null,
       websocket_base_url: params.runtime.websocketBaseUrl ?? null,
       conditioning_bundle_uri: params.runtime.conditioningBundleUri,
@@ -1652,9 +1741,15 @@ publicSiteWorldSessionsRouter.post("/:sessionId/reset", async (req, res, next) =
       startStateId: startState,
       seed,
     });
+    const reconciledEpisode = await reconcileHostedEpisode({
+      sessionId: session.sessionId,
+      workDir: sessionWorkDir(session.sessionId),
+      episode: payload.rawEpisode,
+      expectedStepIndex: 0,
+    });
     const latestEpisode = normalizeEpisodeSummary(
       session.sessionId,
-      payload.episode as Record<string, unknown>,
+      reconciledEpisode,
     );
     await updateSession(session.sessionId, {
       latestEpisode,
@@ -1670,13 +1765,13 @@ publicSiteWorldSessionsRouter.post("/:sessionId/reset", async (req, res, next) =
     });
     return res.json({ ...payload, episode: latestEpisode });
   } catch (error) {
-    const diagnostic = buildFailureDiagnostic({
+    const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
       source: "runtime",
       operation: "reset",
       error,
       fallbackCode: error instanceof HostedSessionOrchestratorError ? error.code : "reset_failed",
       fallbackSummary: "Reset failed.",
-    });
+    }), await loadHostedSession(String(req.params.sessionId || "")));
     const sessionId = String(req.params.sessionId || "");
     if (sessionId) {
       await updateSession(sessionId, { latestRuntimeFailure: diagnostic });
@@ -1706,20 +1801,30 @@ publicSiteWorldSessionsRouter.post("/:sessionId/step", async (req, res, next) =>
       action: Array.isArray(req.body?.action) ? req.body.action : undefined,
       autoPolicy: req.body?.autoPolicy !== false,
     });
-    const latestEpisode = normalizeEpisodeSummary(session.sessionId, payload.episode as Record<string, unknown>);
+    const expectedStepIndex = Math.max(
+      Number(session.latestEpisode?.stepIndex || 0) + 1,
+      Number(payload.episode?.stepIndex || 0),
+    );
+    const reconciledEpisode = await reconcileHostedEpisode({
+      sessionId: session.sessionId,
+      workDir: sessionWorkDir(session.sessionId),
+      episode: payload.rawEpisode,
+      expectedStepIndex,
+    });
+    const latestEpisode = normalizeEpisodeSummary(session.sessionId, reconciledEpisode);
     await updateSession(session.sessionId, {
       latestEpisode,
       latestRuntimeFailure: null,
     });
     return res.json({ ...payload, episode: latestEpisode });
   } catch (error) {
-    const diagnostic = buildFailureDiagnostic({
+    const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
       source: "runtime",
       operation: "step",
       error,
       fallbackCode: error instanceof HostedSessionOrchestratorError ? error.code : "step_failed",
       fallbackSummary: "Step failed.",
-    });
+    }), await loadHostedSession(String(req.params.sessionId || "")));
     const sessionId = String(req.params.sessionId || "");
     if (sessionId) {
       await updateSession(sessionId, { latestRuntimeFailure: diagnostic });
@@ -2071,7 +2176,13 @@ protectedRouter.post("/:sessionId/reset", async (req, res) => {
       startStateId: startState,
       seed,
     });
-    const latestEpisode = normalizeEpisodeSummary(session.sessionId, payload.episode as Record<string, unknown>);
+    const reconciledEpisode = await reconcileHostedEpisode({
+      sessionId: session.sessionId,
+      workDir: sessionWorkDir(session.sessionId),
+      episode: payload.rawEpisode,
+      expectedStepIndex: 0,
+    });
+    const latestEpisode = normalizeEpisodeSummary(session.sessionId, reconciledEpisode);
     await updateSession(session.sessionId, {
       latestEpisode,
       status: "running",
@@ -2086,13 +2197,13 @@ protectedRouter.post("/:sessionId/reset", async (req, res) => {
     });
     return res.json({ ...payload, episode: latestEpisode });
   } catch (error) {
-    const diagnostic = buildFailureDiagnostic({
+    const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
       source: "runtime",
       operation: "reset",
       error,
       fallbackCode: error instanceof HostedSessionOrchestratorError ? error.code : "reset_failed",
       fallbackSummary: "Reset failed.",
-    });
+    }), await loadHostedSession(String(req.params.sessionId || "")));
     const sessionId = String(req.params.sessionId || "");
     if (sessionId) {
       await updateSession(sessionId, { latestRuntimeFailure: diagnostic });
@@ -2123,20 +2234,30 @@ protectedRouter.post("/:sessionId/step", async (req, res) => {
       action: Array.isArray(req.body?.action) ? req.body.action : undefined,
       autoPolicy: req.body?.autoPolicy !== false,
     });
-    const latestEpisode = normalizeEpisodeSummary(session.sessionId, payload.episode as Record<string, unknown>);
+    const expectedStepIndex = Math.max(
+      Number(session.latestEpisode?.stepIndex || 0) + 1,
+      Number(payload.episode?.stepIndex || 0),
+    );
+    const reconciledEpisode = await reconcileHostedEpisode({
+      sessionId: session.sessionId,
+      workDir: sessionWorkDir(session.sessionId),
+      episode: payload.rawEpisode,
+      expectedStepIndex,
+    });
+    const latestEpisode = normalizeEpisodeSummary(session.sessionId, reconciledEpisode);
     await updateSession(session.sessionId, {
       latestEpisode,
       latestRuntimeFailure: null,
     });
     return res.json({ ...payload, episode: latestEpisode });
   } catch (error) {
-    const diagnostic = buildFailureDiagnostic({
+    const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
       source: "runtime",
       operation: "step",
       error,
       fallbackCode: error instanceof HostedSessionOrchestratorError ? error.code : "step_failed",
       fallbackSummary: "Step failed.",
-    });
+    }), await loadHostedSession(String(req.params.sessionId || "")));
     const sessionId = String(req.params.sessionId || "");
     if (sessionId) {
       await updateSession(sessionId, { latestRuntimeFailure: diagnostic });

@@ -8,10 +8,12 @@ import type { HostedRuntimeResolution } from "./hosted-session-runtime";
 
 export class HostedSessionOrchestratorError extends Error {
   code: string;
+  statusCode?: number | null;
 
-  constructor(code: string, message: string) {
+  constructor(code: string, message: string, options?: { statusCode?: number | null }) {
     super(message);
     this.code = code;
+    this.statusCode = options?.statusCode ?? null;
   }
 }
 
@@ -70,6 +72,7 @@ async function runtimeFetchJson(
     throw new HostedSessionOrchestratorError(
       "runtime_proxy_failed",
       String(payload.detail || payload.error || `Runtime request failed: ${response.status}`),
+      { statusCode: response.status },
     );
   }
   return payload;
@@ -116,6 +119,7 @@ function normalizeEpisode(payload: Record<string, unknown>) {
       ? (payload.episode as Record<string, unknown>)
       : payload;
   return {
+    ...episode,
     episodeId: String(episode.episodeId || episode.episode_id || ""),
     taskId: String(episode.taskId || episode.task_id || ""),
     task: String(episode.task || ""),
@@ -141,8 +145,237 @@ function normalizeEpisode(payload: Record<string, unknown>) {
       ? episode.observationCameras
       : [],
     actionTrace: Array.isArray(episode.actionTrace) ? episode.actionTrace : [],
-    artifactUris: {},
+    artifactUris:
+      episode.artifactUris && typeof episode.artifactUris === "object"
+        ? (episode.artifactUris as Record<string, unknown>)
+        : {},
   };
+}
+
+type NormalizedEpisodePayload = ReturnType<typeof normalizeEpisode>;
+type NormalizedStatePayload = ReturnType<typeof normalizeStatePayload>;
+
+function normalizeStatePayload(payload: Record<string, unknown>) {
+  const observation =
+    payload.observation && typeof payload.observation === "object"
+      ? ({ ...(payload.observation as Record<string, unknown>) })
+      : null;
+
+  return {
+    ...payload,
+    sessionId: String(payload.session_id || payload.sessionId || ""),
+    episodeId: String(payload.episode_id || payload.episodeId || payload.current_episode_id || ""),
+    status: String(payload.status || "ready"),
+    stepIndex: Number(payload.step_index || payload.stepIndex || 0),
+    done: Boolean(payload.done),
+    reward:
+      typeof payload.reward === "number" && Number.isFinite(payload.reward)
+        ? payload.reward
+        : null,
+    success:
+      typeof payload.success === "boolean" ? payload.success : null,
+    failureReason: String(payload.failure_reason || payload.failureReason || "").trim() || null,
+    observation: observation
+      ? {
+          ...observation,
+          remoteObservation:
+            observation.remoteObservation && typeof observation.remoteObservation === "object"
+              ? observation.remoteObservation
+              : { ...observation },
+        }
+      : null,
+    actionTrace: Array.isArray(payload.action_trace)
+      ? (payload.action_trace as number[][])
+      : Array.isArray(payload.actionTrace)
+        ? (payload.actionTrace as number[][])
+        : [],
+    canonicalPackageVersion:
+      String(payload.canonical_package_version || payload.canonicalPackageVersion || "").trim() || null,
+    presentationConfig:
+      payload.presentation_config && typeof payload.presentation_config === "object"
+        ? (payload.presentation_config as Record<string, unknown>)
+        : payload.presentationConfig && typeof payload.presentationConfig === "object"
+          ? (payload.presentationConfig as Record<string, unknown>)
+          : null,
+    qualityFlags:
+      payload.quality_flags && typeof payload.quality_flags === "object"
+        ? (payload.quality_flags as Record<string, unknown>)
+        : payload.qualityFlags && typeof payload.qualityFlags === "object"
+          ? (payload.qualityFlags as Record<string, unknown>)
+          : null,
+    protectedRegionViolations: Array.isArray(payload.protected_region_violations)
+      ? payload.protected_region_violations
+      : Array.isArray(payload.protectedRegionViolations)
+        ? payload.protectedRegionViolations
+        : [],
+    debugArtifacts:
+      payload.debug_artifacts && typeof payload.debug_artifacts === "object"
+        ? (payload.debug_artifacts as Record<string, unknown>)
+        : payload.debugArtifacts && typeof payload.debugArtifacts === "object"
+          ? (payload.debugArtifacts as Record<string, unknown>)
+          : null,
+    runtimeEngineIdentity:
+      payload.runtime_engine_identity && typeof payload.runtime_engine_identity === "object"
+        ? (payload.runtime_engine_identity as Record<string, unknown>)
+        : payload.runtimeEngineIdentity && typeof payload.runtimeEngineIdentity === "object"
+          ? (payload.runtimeEngineIdentity as Record<string, unknown>)
+          : null,
+    runtimeModelIdentity:
+      payload.runtime_model_identity && typeof payload.runtime_model_identity === "object"
+        ? (payload.runtime_model_identity as Record<string, unknown>)
+        : payload.runtimeModelIdentity && typeof payload.runtimeModelIdentity === "object"
+          ? (payload.runtimeModelIdentity as Record<string, unknown>)
+          : null,
+    runtimeCheckpointIdentity:
+      payload.runtime_checkpoint_identity && typeof payload.runtime_checkpoint_identity === "object"
+        ? (payload.runtime_checkpoint_identity as Record<string, unknown>)
+        : payload.runtimeCheckpointIdentity && typeof payload.runtimeCheckpointIdentity === "object"
+          ? (payload.runtimeCheckpointIdentity as Record<string, unknown>)
+          : null,
+  };
+}
+
+function mergeEpisodeWithState(
+  episodePayload: Record<string, unknown> | null,
+  statePayload: Record<string, unknown>,
+) {
+  const baseEpisode: Partial<NormalizedEpisodePayload> = episodePayload ? normalizeEpisode(episodePayload) : {};
+  const normalizedState: NormalizedStatePayload = normalizeStatePayload(statePayload);
+  const baseObservation =
+    baseEpisode.observation && typeof baseEpisode.observation === "object"
+      ? (baseEpisode.observation as Record<string, unknown>)
+      : {};
+  const stateObservation =
+    normalizedState.observation && typeof normalizedState.observation === "object"
+      ? (normalizedState.observation as Record<string, unknown>)
+      : {};
+  const mergedObservation =
+    Object.keys(baseObservation).length > 0 || Object.keys(stateObservation).length > 0
+      ? {
+          ...baseObservation,
+          ...stateObservation,
+          remoteObservation:
+            stateObservation.remoteObservation && typeof stateObservation.remoteObservation === "object"
+              ? stateObservation.remoteObservation
+              : baseObservation.remoteObservation && typeof baseObservation.remoteObservation === "object"
+                ? baseObservation.remoteObservation
+                : Object.keys(stateObservation).length > 0
+                  ? { ...stateObservation }
+                  : null,
+        }
+      : null;
+
+  return {
+    ...baseEpisode,
+    ...normalizedState,
+    episodeId: String(baseEpisode.episodeId || normalizedState.episodeId || ""),
+    taskId: String(baseEpisode.taskId || ""),
+    task: String(baseEpisode.task || ""),
+    scenarioId: String(baseEpisode.scenarioId || ""),
+    scenario: String(baseEpisode.scenario || ""),
+    startStateId: String(baseEpisode.startStateId || ""),
+    startState: String(baseEpisode.startState || ""),
+    observation: mergedObservation,
+    observationCameras:
+      Array.isArray(baseEpisode.observationCameras) && baseEpisode.observationCameras.length > 0
+        ? baseEpisode.observationCameras
+        : [],
+    artifactUris:
+      baseEpisode.artifactUris && typeof baseEpisode.artifactUris === "object"
+        ? baseEpisode.artifactUris
+        : {},
+    actionTrace:
+      Array.isArray(normalizedState.actionTrace) && normalizedState.actionTrace.length > 0
+        ? normalizedState.actionTrace
+        : Array.isArray(baseEpisode.actionTrace)
+          ? baseEpisode.actionTrace
+          : [],
+  };
+}
+
+function hasRenderableSnapshot(episode: Record<string, unknown>) {
+  const observation =
+    episode.observation && typeof episode.observation === "object"
+      ? (episode.observation as Record<string, unknown>)
+      : null;
+  const worldSnapshot =
+    observation?.worldSnapshot && typeof observation.worldSnapshot === "object"
+      ? (observation.worldSnapshot as Record<string, unknown>)
+      : null;
+  const snapshotId = String(worldSnapshot?.snapshotId || worldSnapshot?.snapshot_id || "").trim();
+  const primaryCameraId = String(observation?.primaryCameraId || observation?.primary_camera_id || "").trim();
+  return Boolean(snapshotId && primaryCameraId);
+}
+
+function runtimeStateTimeoutMs() {
+  return Math.max(1000, Number(process.env.BLUEPRINT_HOSTED_SESSION_STATE_TIMEOUT_MS || 90000));
+}
+
+function runtimeStatePollIntervalMs() {
+  return Math.max(50, Number(process.env.BLUEPRINT_HOSTED_SESSION_STATE_POLL_INTERVAL_MS || 1000));
+}
+
+async function waitFor(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function fetchHostedSessionState(params: {
+  sessionId: string;
+  workDir: string;
+}) {
+  const metadata = await readRuntimeMetadata(params.workDir);
+  const runtimeBaseUrl = String(metadata.runtime_base_url || "").trim();
+  if (!runtimeBaseUrl) {
+    throw new HostedSessionOrchestratorError("runtime_handle_missing", "Missing runtime base URL.");
+  }
+  return runtimeFetchJson(
+    runtimeBaseUrl,
+    `/v1/sessions/${encodeURIComponent(params.sessionId)}/state`,
+  );
+}
+
+export async function reconcileHostedEpisode(params: {
+  sessionId: string;
+  workDir: string;
+  episode?: Record<string, unknown> | null;
+  expectedStepIndex?: number;
+  timeoutMs?: number;
+  pollIntervalMs?: number;
+}) {
+  const timeoutMs = Math.max(1, Number(params.timeoutMs ?? runtimeStateTimeoutMs()));
+  const pollIntervalMs = Math.max(1, Number(params.pollIntervalMs ?? runtimeStatePollIntervalMs()));
+  const deadline = Date.now() + timeoutMs;
+  let lastMergedEpisode = params.episode ? normalizeEpisode(params.episode) : null;
+
+  while (Date.now() <= deadline) {
+    const statePayload = await fetchHostedSessionState({
+      sessionId: params.sessionId,
+      workDir: params.workDir,
+    });
+    lastMergedEpisode = mergeEpisodeWithState(params.episode || null, statePayload);
+    const stepIndex = Number(lastMergedEpisode.stepIndex || 0);
+    const snapshotReady = hasRenderableSnapshot(lastMergedEpisode);
+    const stepReady =
+      typeof params.expectedStepIndex === "number"
+        ? stepIndex >= params.expectedStepIndex
+        : true;
+    if (snapshotReady && stepReady) {
+      return lastMergedEpisode;
+    }
+    if (Date.now() + pollIntervalMs > deadline) {
+      break;
+    }
+    await waitFor(pollIntervalMs);
+  }
+
+  const actualStepIndex = Number(lastMergedEpisode?.stepIndex || 0);
+  const expectedStepSuffix =
+    typeof params.expectedStepIndex === "number" ? ` Expected step >= ${params.expectedStepIndex}; received ${actualStepIndex}.` : "";
+  throw new HostedSessionOrchestratorError(
+    "runtime_snapshot_not_ready",
+    `Runtime session did not materialize a renderable world snapshot in time.${expectedStepSuffix}`.trim(),
+    { statusCode: 504 },
+  );
 }
 
 export async function createHostedSessionRun(params: {
@@ -234,6 +467,19 @@ export async function createHostedSessionRun(params: {
     websocket_base_url: handle.websocketBaseUrl,
     site_world_id: handle.siteWorldId,
     build_id: payload.build_id || handle.registration.build_id || null,
+    canonical_package_uri:
+      String(
+        params.runtime.registeredCanonicalPackageUri
+          || runtimeSessionConfig?.canonical_package_uri
+          || params.runtime.resolvedArtifactCanonicalUri
+          || "",
+      ).trim() || null,
+    canonical_package_version:
+      String(
+        params.runtime.registeredCanonicalPackageVersion
+          || runtimeSessionConfig?.canonical_package_version
+          || "",
+      ).trim() || null,
     vm_instance_id: handle.registration.vm_instance_id || null,
     runtime_capabilities: payload.runtime_capabilities || handle.registration.runtime_capabilities || {},
     health_status: String(handle.health.status || "healthy"),
@@ -280,7 +526,14 @@ export async function resetHostedSessionRun(params: {
       }),
     },
   );
-  return { episode: normalizeEpisode(payload) };
+  const rawEpisode =
+    payload.episode && typeof payload.episode === "object"
+      ? (payload.episode as Record<string, unknown>)
+      : payload;
+  return {
+    episode: normalizeEpisode(rawEpisode),
+    rawEpisode,
+  };
 }
 
 export async function stepHostedSessionRun(params: {
@@ -306,7 +559,14 @@ export async function stepHostedSessionRun(params: {
       body: JSON.stringify({ action: Array.isArray(params.action) ? params.action : [0, 0, 0, 0, 0, 0, 0] }),
     },
   );
-  return { episode: normalizeEpisode(payload) };
+  const rawEpisode =
+    payload.episode && typeof payload.episode === "object"
+      ? (payload.episode as Record<string, unknown>)
+      : payload;
+  return {
+    episode: normalizeEpisode(rawEpisode),
+    rawEpisode,
+  };
 }
 
 export async function runBatchHostedSessionRun(params: {
@@ -427,6 +687,8 @@ export async function persistHostedSessionRuntimeMetadata(
     websocket_base_url?: string | null;
     site_world_id?: string | null;
     build_id?: string | null;
+    canonical_package_uri?: string | null;
+    canonical_package_version?: string | null;
     vm_instance_id?: string | null;
     runtime_capabilities?: Record<string, unknown> | null;
     health_status?: string | null;
@@ -438,6 +700,8 @@ export async function persistHostedSessionRuntimeMetadata(
     websocket_base_url: payload.websocket_base_url || null,
     site_world_id: payload.site_world_id || null,
     build_id: payload.build_id || null,
+    canonical_package_uri: payload.canonical_package_uri || null,
+    canonical_package_version: payload.canonical_package_version || null,
     vm_instance_id: payload.vm_instance_id || null,
     runtime_capabilities: payload.runtime_capabilities || {},
     health_status: payload.health_status || null,

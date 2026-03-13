@@ -13,6 +13,7 @@ import {
   Square,
 } from "lucide-react";
 import { SEO } from "@/components/SEO";
+import { SiteWorldCanonicalViewer } from "@/components/site/SiteWorldCanonicalViewer";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import {
   isRenderableObservationPath,
@@ -26,6 +27,7 @@ import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
 import { withCsrfHeader } from "@/lib/csrf";
 import { auth } from "@/lib/firebase";
 import type {
+  ArtifactExplorerObject,
   ArtifactExplorerView,
   HostedSessionMode,
   HostedSessionRecord,
@@ -313,6 +315,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const [activeMode, setActiveMode] = useState<WorkspaceViewMode>("live_runtime");
   const [userSelectedMode, setUserSelectedMode] = useState(false);
   const [selectedExplorerViewId, setSelectedExplorerViewId] = useState("");
+  const [selectedObjectId, setSelectedObjectId] = useState("");
   const [selectedCameraId, setSelectedCameraId] = useState("");
   const [runtimeBusyLabel, setRuntimeBusyLabel] = useState("");
   const [autoBootstrapState, setAutoBootstrapState] = useState<BootstrapState>("idle");
@@ -607,6 +610,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const presentationLaunchState = sessionRecord?.presentationLaunchState || null;
   const runtimeReferenceImageUrl = site?.runtimeReferenceImageUrl || null;
   const artifactExplorer = sessionRecord?.siteModel?.artifactExplorer || site?.artifactExplorer || null;
+  const canonicalObjects = (artifactExplorer?.objects || []) as ArtifactExplorerObject[];
   const artifactExplorerViews = (artifactExplorer?.views || []).filter((item) => item.available);
   const openDemoUrl = uiBootstrapUrl || "";
   const runtimeInteractive =
@@ -638,12 +642,26 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   useEffect(() => {
     if (artifactExplorerViews.length === 0) {
       setSelectedExplorerViewId("");
+    } else {
+      setSelectedExplorerViewId((current) =>
+        current && artifactExplorerViews.some((item) => item.id === current) ? current : artifactExplorerViews[0].id,
+      );
+    }
+  }, [artifactExplorerViews]);
+
+  useEffect(() => {
+    if (canonicalObjects.length === 0) {
+      setSelectedObjectId("");
       return;
     }
-    setSelectedExplorerViewId((current) =>
-      current && artifactExplorerViews.some((item) => item.id === current) ? current : artifactExplorerViews[0].id,
+    const preferred =
+      canonicalObjects.find((item) => item.taskCritical) ||
+      canonicalObjects.find((item) => item.taskRole === "context_object") ||
+      canonicalObjects[0];
+    setSelectedObjectId((current) =>
+      current && canonicalObjects.some((item) => item.id === current) ? current : preferred.id,
     );
-  }, [artifactExplorerViews]);
+  }, [canonicalObjects]);
 
   useEffect(() => {
     if (cameraOptions.length === 0) {
@@ -682,6 +700,11 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const artifactExplorerReady = artifactExplorer?.status === "ready" || artifactExplorer?.status === "partial";
   const selectedExplorerView =
     artifactExplorerViews.find((item) => item.id === selectedExplorerViewId) || artifactExplorerViews[0] || null;
+  const selectedObject =
+    canonicalObjects.find((item) => item.id === selectedObjectId) ||
+    canonicalObjects.find((item) => item.taskCritical) ||
+    canonicalObjects[0] ||
+    null;
   const presentationAvailabilityLabel = presentationInteractive
     ? "Private operator view live"
     : artifactExplorerReady
@@ -1548,7 +1571,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Explore Site-World</p>
-                      <h2 className="mt-2 text-2xl font-bold text-slate-900">Artifact-backed exploration workspace</h2>
+                      <h2 className="mt-2 text-2xl font-bold text-slate-900">Canonical site-world explorer</h2>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
                       <ModeStateBadge label={presentationModeState.label} tone={presentationModeState.tone} />
@@ -1564,21 +1587,21 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                         <div>
                           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Primary Explorer</p>
                           <p className="mt-2 text-sm text-slate-600">
-                            Switch between the saved exploration viewpoints. These are already-produced artifacts, not live inference in the browser.
+                            Orbit, pan, and zoom the canonical site-specific world model. This is the real scene geometry bundle, not a captured website UI.
                           </p>
                         </div>
-                        {selectedExplorerView?.badge ? (
+                        {artifactExplorer?.sceneKind ? (
                           <span className="rounded-full bg-slate-950 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white">
-                            {selectedExplorerView.badge}
+                            {artifactExplorer.sceneKind === "canonical_object_geometry" ? "Canonical object geometry" : "Derived presentation"}
                           </span>
                         ) : null}
                       </div>
                       <div className="mt-4 rounded-[24px] border border-slate-200 bg-white p-3">
-                        {selectedExplorerView?.imageUrl ? (
-                          <img
-                            src={selectedExplorerView.imageUrl}
-                            alt={selectedExplorerView.title}
-                            className="h-[440px] w-full rounded-[20px] object-cover"
+                        {canonicalObjects.length > 0 ? (
+                          <SiteWorldCanonicalViewer
+                            objects={canonicalObjects}
+                            selectedObjectId={selectedObjectId}
+                            className="border border-slate-200 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.48),rgba(230,225,214,0.66))]"
                           />
                         ) : (
                           <div className="rounded-[20px] border border-dashed border-slate-300 bg-slate-50 p-4">
@@ -1588,20 +1611,22 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                         <div className="mt-4 grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
                           <div>
                             <p className="text-lg font-semibold text-slate-950">
-                              {selectedExplorerView?.title || artifactExplorer?.headline || "Artifact explorer unavailable"}
+                              {selectedObject ? `${selectedObject.label} in canonical scene` : artifactExplorer?.headline || "Artifact explorer unavailable"}
                             </p>
                             <p className="mt-2 text-sm leading-6 text-slate-600">
-                              {selectedExplorerView?.description || artifactExplorer?.summary || "This site does not expose enough bundled exploration artifacts yet."}
+                              {selectedObject
+                                ? `Focused object: ${selectedObject.label}${selectedObject.taskRole ? ` · ${selectedObject.taskRole.replaceAll("_", " ")}` : ""}.`
+                                : artifactExplorer?.summary || "This site does not expose enough bundled exploration artifacts yet."}
                             </p>
                           </div>
                           <div className="grid gap-3 sm:grid-cols-2">
                             <DetailPill
                               label="Derivation mode"
-                              value={humanizeValue(artifactExplorer?.derivationMode, "artifact backed")}
+                              value={humanizeValue(artifactExplorer?.derivationMode, "canonical geometry")}
                             />
                             <DetailPill
-                              label="Presentation status"
-                              value={humanizeValue(artifactExplorer?.presentationStatus, "saved output")}
+                              label="Scene objects"
+                              value={String(canonicalObjects.length || 0)}
                             />
                           </div>
                         </div>
@@ -1612,21 +1637,61 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                       <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
                         <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                           <Compass className="h-4 w-4" />
-                          Exploration Waypoints
+                          Scene Focus
                         </p>
                         <div className="mt-4 grid gap-3">
-                          {artifactExplorerViews.length > 0 ? (
-                            artifactExplorerViews.map((view) => (
+                          {canonicalObjects.length > 0 ? (
+                            canonicalObjects
+                              .slice(0, 12)
+                              .map((object) => (
                               <ExplorerViewButton
-                                key={view.id}
-                                view={view}
-                                active={selectedExplorerView?.id === view.id}
-                                onClick={() => setSelectedExplorerViewId(view.id)}
+                                key={object.id}
+                                view={{
+                                  id: object.id,
+                                  title: object.label,
+                                  description:
+                                    `${object.taskRole ? object.taskRole.replaceAll("_", " ") : "context object"} · ${object.taskCritical ? "task critical" : "scene context"}`,
+                                  badge: object.groundingLevel ? humanizeValue(object.groundingLevel) : null,
+                                  available: true,
+                                }}
+                                active={selectedObject?.id === object.id}
+                                onClick={() => setSelectedObjectId(object.id)}
                               />
-                            ))
+                              ))
                           ) : (
                             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-600">
-                              No bundled exploration viewpoints are available for this site yet.
+                              No canonical scene objects are available for this site yet.
+                            </div>
+                          )}
+                        </div>
+                      </article>
+
+                      <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+                        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          <Layers3 className="h-4 w-4" />
+                          Secondary Derived Views
+                        </p>
+                        <div className="mt-4 grid gap-3">
+                          {selectedObject?.selectedViewUrls?.length ? (
+                            <div className="grid grid-cols-2 gap-3">
+                              {selectedObject.selectedViewUrls.slice(0, 4).map((imageUrl, index) => (
+                                <img
+                                  key={imageUrl}
+                                  src={imageUrl}
+                                  alt={`${selectedObject.label} synthetic view ${index + 1}`}
+                                  className="h-28 w-full rounded-2xl border border-slate-200 object-cover"
+                                />
+                              ))}
+                            </div>
+                          ) : selectedExplorerView?.imageUrl ? (
+                            <img
+                              src={selectedExplorerView.imageUrl}
+                              alt={selectedExplorerView.title}
+                              className="h-52 w-full rounded-2xl border border-slate-200 object-cover"
+                            />
+                          ) : (
+                            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-600">
+                              No secondary derived views are bundled for the current focus object.
                             </div>
                           )}
                         </div>
@@ -1645,9 +1710,9 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                             ? "Use this only for internal movement and debugging. It is a real proxied operator UI, not the public product surface."
                             : artifactExplorer?.operatorView.description || "The operator bridge only appears when a stable internal UI URL is configured."}
                         </p>
-                        {presentationLaunchState?.blockers?.[0] ? (
+                        {presentationInteractive ? null : presentationLaunchState?.mode === "presentation_ui_unconfigured" ? (
                           <p className="mt-3 text-sm leading-6 text-amber-300">
-                            Operator-view status: {presentationLaunchState.blockers[0]}
+                            Operator-view status: internal UI is not configured for this site yet.
                           </p>
                         ) : null}
                         <div className="mt-5 flex flex-wrap gap-3">

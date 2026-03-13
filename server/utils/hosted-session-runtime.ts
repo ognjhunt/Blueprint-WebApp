@@ -41,6 +41,10 @@ export interface HostedRuntimeResolution {
   siteWorldSpecUri: string;
   siteWorldRegistrationUri: string;
   siteWorldHealthUri: string;
+  resolvedArtifactCanonicalUri: string;
+  registeredCanonicalPackageUri?: string | null;
+  registeredCanonicalPackageVersion?: string | null;
+  runtimeSiteWorldRecord?: Record<string, unknown> | null;
   runtimeBaseUrl?: string | null;
   websocketBaseUrl?: string | null;
   allowBlockedSiteWorld?: boolean;
@@ -90,6 +94,26 @@ async function resolveInboundRequestBySiteSubmissionId(siteSubmissionId: string)
     id: matched.ref.id,
     data: matched.data() as Record<string, unknown>,
   };
+}
+
+async function readRuntimeSiteWorldRecord(siteWorldId: string, runtimeBaseUrl?: string | null) {
+  const normalizedBaseUrl = String(runtimeBaseUrl || "").trim();
+  if (!normalizedBaseUrl) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `${normalizedBaseUrl}/v1/site-worlds/${encodeURIComponent(siteWorldId)}`,
+    );
+    if (!response.ok) {
+      return null;
+    }
+    const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+    return payload && typeof payload === "object" ? payload : null;
+  } catch {
+    return null;
+  }
 }
 
 function artifactUri(
@@ -178,6 +202,7 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     artifacts.site_world_health_uri,
     "evaluation_prep/site_world_health.json",
   );
+  const resolvedArtifactCanonicalUri = siteWorldSpecUri;
   const sceneMemoryManifestUri = artifactUri(
     pipelinePrefix,
     artifacts.scene_memory_manifest_uri,
@@ -236,6 +261,22 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     );
   }
 
+  const runtimeBaseUrl = site.runtimeManifest?.runtimeBaseUrl ?? null;
+  const websocketBaseUrl = site.runtimeManifest?.websocketBaseUrl ?? null;
+  const runtimeSiteWorldRecord = await readRuntimeSiteWorldRecord(site.id, runtimeBaseUrl);
+  const registeredCanonicalPackageUri =
+    String(
+      runtimeSiteWorldRecord?.canonical_package_uri
+        || runtimeSiteWorldRecord?.canonicalPackageUri
+        || "",
+    ).trim() || null;
+  const registeredCanonicalPackageVersion =
+    String(
+      runtimeSiteWorldRecord?.canonical_package_version
+        || runtimeSiteWorldRecord?.canonicalPackageVersion
+        || "",
+    ).trim() || null;
+
   return {
     siteWorldId: site.id,
     siteName: site.siteName,
@@ -270,8 +311,12 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     siteWorldSpecUri,
     siteWorldRegistrationUri,
     siteWorldHealthUri,
-    runtimeBaseUrl: site.runtimeManifest?.runtimeBaseUrl ?? null,
-    websocketBaseUrl: site.runtimeManifest?.websocketBaseUrl ?? null,
+    resolvedArtifactCanonicalUri,
+    registeredCanonicalPackageUri,
+    registeredCanonicalPackageVersion,
+    runtimeSiteWorldRecord,
+    runtimeBaseUrl,
+    websocketBaseUrl,
     allowBlockedSiteWorld: hostedSessionOverride?.allowBlockedSiteWorld === true,
     sceneMemoryManifestUri,
     conditioningBundleUri,

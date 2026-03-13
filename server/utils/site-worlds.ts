@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { siteWorldCards, type SiteWorldCard, type SiteWorldPackage } from "../../client/src/data/siteWorlds";
 import type {
@@ -27,6 +29,30 @@ const LIVE_OPPORTUNITY_STATES = new Set<OpportunityState>([
 ]);
 
 type ArtifactJson = Record<string, unknown> | null;
+
+const DEMO_SITE_WORLD_ID = "siteworld-f5fd54898cfb";
+const DEMO_BUNDLE_PIPELINE_ROOT =
+  "/Users/nijelhunt_1/Downloads/neoverse_a100_20260313_133908_demo_bundle/remote/storage/capture/pipeline";
+
+function demoBundleAssetPath(relativePath: string) {
+  return path.join(DEMO_BUNDLE_PIPELINE_ROOT, relativePath);
+}
+
+function resolveDemoBundlePathFromRuntimePath(rawPath: string) {
+  const normalized = String(rawPath || "").trim();
+  const marker = "/pipeline/";
+  const index = normalized.indexOf(marker);
+  if (index === -1) {
+    return null;
+  }
+  const relative = normalized.slice(index + marker.length);
+  const local = demoBundleAssetPath(relative);
+  return fs.existsSync(local) ? local : null;
+}
+
+function buildExplorerAssetUrl(siteWorldId: string, relativePath: string) {
+  return `/api/site-worlds/${encodeURIComponent(siteWorldId)}/explorer-asset?path=${encodeURIComponent(relativePath)}`;
+}
 
 function resolvePresentationWorldManifestUri(pipeline?: PipelineAttachment): string | null {
   const explicit = String(pipeline?.artifacts.presentation_world_manifest_uri || "").trim();
@@ -136,6 +162,109 @@ function buildArtifactExplorer(params: {
           manifest: (params.runtimeDemoManifest as Record<string, unknown>) || {},
         }).url || null
       : null;
+
+  if (params.siteWorldId === DEMO_SITE_WORLD_ID) {
+    const manifestPath = demoBundleAssetPath("evaluation_prep/object_geometry_manifest.json");
+    if (fs.existsSync(manifestPath)) {
+      try {
+        const objectGeometryManifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8")) as Record<string, unknown>;
+        const rawObjects = Array.isArray(objectGeometryManifest.objects)
+          ? (objectGeometryManifest.objects as Array<Record<string, unknown>>)
+          : [];
+        const objects = rawObjects
+          .map((item) => {
+            const rawMeshPath = String(item.mesh_glb_path || "").trim();
+            const localMeshPath = resolveDemoBundlePathFromRuntimePath(rawMeshPath);
+            const placement = (item.placement_bbox as Record<string, unknown> | undefined) || {};
+            const center = Array.isArray(placement.center)
+              ? placement.center.slice(0, 3).map((value) => Number(value || 0))
+              : [0, 0, 0];
+            const extents = Array.isArray(placement.extents)
+              ? placement.extents.slice(0, 3).map((value) => Number(value || 0))
+              : [0.15, 0.15, 0.15];
+            const selectedViews = Array.isArray(item.selected_views)
+              ? (item.selected_views as Array<Record<string, unknown>>)
+              : [];
+            const firstImagePath = String(selectedViews[0]?.image_path || "").trim();
+            const localImagePath = resolveDemoBundlePathFromRuntimePath(firstImagePath);
+            const selectedViewUrls = selectedViews
+              .map((view) => resolveDemoBundlePathFromRuntimePath(String(view.image_path || "").trim()))
+              .filter((value): value is string => Boolean(value))
+              .map((value) => buildExplorerAssetUrl(params.siteWorldId, path.relative(DEMO_BUNDLE_PIPELINE_ROOT, value)));
+            return {
+              id: String(item.object_id || ""),
+              label: String(item.label || item.object_id || "object"),
+              taskRole: String(item.task_role || "").trim() || null,
+              taskCritical: Boolean(item.task_critical),
+              groundingLevel: String(item.grounding_level || item.source_mode || "").trim() || null,
+              meshUrl: localMeshPath
+                ? buildExplorerAssetUrl(params.siteWorldId, path.relative(DEMO_BUNDLE_PIPELINE_ROOT, localMeshPath))
+                : null,
+              previewImageUrl: localImagePath
+                ? buildExplorerAssetUrl(params.siteWorldId, path.relative(DEMO_BUNDLE_PIPELINE_ROOT, localImagePath))
+                : null,
+              selectedViewUrls,
+              center: center as [number, number, number],
+              extents: extents as [number, number, number],
+            };
+          })
+          .filter((item) => item.id);
+
+        return {
+          status: objects.length > 0 ? "ready" : "partial",
+          headline: "Canonical site-world object geometry",
+          summary:
+            "Explore the site-specific canonical world model through object geometry reconstructed from the capture pipeline.",
+          derivationMode: "grounded object geometry",
+          canonicalPackageVersion: params.template?.siteWorldSpecUri ? null : null,
+          presentationStatus: "secondary derived overlays available",
+          sceneKind: "canonical_object_geometry",
+          sceneModelUrl: null,
+          sceneModelFormat: "object_bundle",
+          views: [],
+          objects,
+          sources: [
+            {
+              id: "canonical",
+              label: "Canonical package",
+              uri: params.siteWorldSpecUri || null,
+              detail: "Grounded site-world package",
+            },
+            {
+              id: "object-geometry",
+              label: "Object geometry manifest",
+              uri: buildExplorerAssetUrl(params.siteWorldId, "evaluation_prep/object_geometry_manifest.json"),
+              detail: `${objects.length} reconstructed scene objects`,
+            },
+            {
+              id: "presentation",
+              label: "Presentation manifest",
+              uri: params.presentationWorldManifestUri || null,
+              detail: "Derived presentation output, secondary to the canonical scene",
+            },
+            {
+              id: "runtime-demo",
+              label: "Runtime demo manifest",
+              uri: params.runtimeDemoManifestUri || null,
+              detail: "Saved demo runtime configuration",
+            },
+          ].filter((item) => Boolean(item.uri)),
+          operatorView: {
+            available: Boolean(uiBaseUrl),
+            live: Boolean(uiBaseUrl),
+            uiBaseUrl,
+            label: uiBaseUrl ? "Private operator view available" : "Private operator view unavailable",
+            description: uiBaseUrl
+              ? "A private NeoVerse UI is configured for internal movement and debugging."
+              : "The canonical explorer is the primary path when no private operator bridge is configured.",
+          },
+        };
+      } catch {
+        // Fall through to the generic artifact explorer below.
+      }
+    }
+  }
+
   const template = params.template;
   const derivationMode = String(
     params.presentationWorldManifest?.derivation_mode || params.runtimeDemoManifest?.derivation_mode || "",
@@ -1059,4 +1188,20 @@ export async function getPublicSiteWorldById(id: string): Promise<SiteWorldCard 
         item.captureId === id,
     ) || null
   );
+}
+
+export async function resolvePublicSiteWorldExplorerAssetPath(siteWorldId: string, relativePath: string): Promise<string | null> {
+  if (siteWorldId !== DEMO_SITE_WORLD_ID) {
+    return null;
+  }
+  const normalized = path.normalize(String(relativePath || "").trim()).replace(/^(\.\.(\/|\\|$))+/, "");
+  if (!normalized || normalized.startsWith("..")) {
+    return null;
+  }
+  const resolved = path.resolve(DEMO_BUNDLE_PIPELINE_ROOT, normalized);
+  const allowedRoot = path.resolve(DEMO_BUNDLE_PIPELINE_ROOT);
+  if (!resolved.startsWith(`${allowedRoot}${path.sep}`) && resolved !== allowedRoot) {
+    return null;
+  }
+  return fs.existsSync(resolved) ? resolved : null;
 }

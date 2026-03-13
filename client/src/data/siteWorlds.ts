@@ -224,27 +224,7 @@ function buildSampleRobotProfile(sampleRobot: string, runtime: string): RobotPro
 function buildStaticArtifactExplorer(site: RawSiteWorldCard): ArtifactExplorerSummary | null {
   const presentationManifestUri = site.presentationDemoReadiness?.presentationWorldManifestUri || null;
   const runtimeDemoManifestUri = site.presentationDemoReadiness?.runtimeDemoManifestUri || null;
-  const views = [
-    {
-      id: "presentation-overview",
-      title: "Presentation overview",
-      description: "Captured from the saved presentation-world walkthrough.",
-      imageUrl: site.presentationReferenceImageUrl || null,
-      sourceUri: presentationManifestUri,
-      badge: "Derived presentation",
-      available: Boolean(site.presentationReferenceImageUrl),
-    },
-    {
-      id: "runtime-head-rgb",
-      title: "Runtime head camera",
-      description: "Validated runtime reference frame from the hosted demo bundle.",
-      imageUrl: site.runtimeReferenceImageUrl || null,
-      sourceUri: runtimeDemoManifestUri,
-      badge: "Validated runtime frame",
-      cameraId: "head_rgb",
-      available: Boolean(site.runtimeReferenceImageUrl),
-    },
-  ].filter((item) => item.available);
+  const views: ArtifactExplorerSummary["views"] = [];
 
   const sources = [
     { id: "canonical", label: "Canonical package", uri: site.siteWorldSpecUri || null, detail: "Grounded source of truth" },
@@ -254,19 +234,23 @@ function buildStaticArtifactExplorer(site: RawSiteWorldCard): ArtifactExplorerSu
     { id: "runtime-demo", label: "Runtime demo manifest", uri: runtimeDemoManifestUri, detail: "Saved runtime demo configuration" },
   ].filter((item) => Boolean(item.uri));
 
-  if (views.length === 0 && sources.length === 0) {
+  if (sources.length === 0) {
     return null;
   }
 
   return {
-    status: views.length > 0 ? "ready" : "partial",
-    headline: "Explore the site-world through saved artifacts",
+    status: "partial",
+    headline: "Canonical site-world data is available",
     summary:
-      "This viewer is backed by saved site-world and presentation artifacts. It does not invent new geometry in the browser.",
+      "The server can attach canonical scene geometry when available. This static fallback record does not use presentation screenshots as the primary explorer.",
     derivationMode: null,
     canonicalPackageVersion: null,
     presentationStatus: site.presentationDemoReadiness?.status || null,
+    sceneKind: "canonical_object_geometry",
+    sceneModelUrl: null,
+    sceneModelFormat: null,
     views,
+    objects: [],
     sources,
     operatorView: {
       available: Boolean(site.presentationDemoReadiness?.uiBaseUrl),

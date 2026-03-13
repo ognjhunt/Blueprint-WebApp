@@ -32,6 +32,12 @@ vi.mock("@/lib/firebase", () => ({
   },
 }));
 
+vi.mock("@/components/site/SiteWorldCanonicalViewer", () => ({
+  SiteWorldCanonicalViewer: ({ selectedObjectId }: { selectedObjectId?: string | null }) => (
+    <div data-testid="canonical-viewer">canonical-viewer:{selectedObjectId || "none"}</div>
+  ),
+}));
+
 function buildRuntimeSession(overrides: Record<string, unknown> = {}) {
   return {
     sessionId: "session-1",
@@ -72,6 +78,56 @@ function buildRuntimeSession(overrides: Record<string, unknown> = {}) {
         "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/presentation_world/presentation_world_manifest.json",
       runtimeDemoManifestUri:
         "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/presentation_world/runtime_demo_manifest.json",
+      artifactExplorer: {
+        status: "ready",
+        headline: "Canonical site-world object geometry",
+        summary: "Explore the site-specific canonical world model through object geometry reconstructed from the capture pipeline.",
+        derivationMode: "grounded object geometry",
+        canonicalPackageVersion: null,
+        presentationStatus: "secondary derived overlays available",
+        sceneKind: "canonical_object_geometry",
+        sceneModelUrl: null,
+        sceneModelFormat: "object_bundle",
+        views: [],
+        objects: [
+          {
+            id: "cabinet_0023",
+            label: "cabinet",
+            taskRole: "task_anchor",
+            taskCritical: true,
+            groundingLevel: "grounded",
+            meshUrl: "/api/site-worlds/siteworld-f5fd54898cfb/explorer-asset?path=object_geometry%2Fobj_cabinet_0023%2Fmesh.glb",
+            previewImageUrl: "/api/site-worlds/siteworld-f5fd54898cfb/explorer-asset?path=object_geometry%2Fobj_cabinet_0023%2Fviews%2Fsynthetic_view_05.png",
+            selectedViewUrls: [
+              "/api/site-worlds/siteworld-f5fd54898cfb/explorer-asset?path=object_geometry%2Fobj_cabinet_0023%2Fviews%2Fsynthetic_view_05.png",
+            ],
+            center: [0, 1.2, 0],
+            extents: [0.6, 0.9, 0.3],
+          },
+          {
+            id: "container_0002",
+            label: "basket",
+            taskRole: "context_object",
+            taskCritical: false,
+            groundingLevel: "synthetic_virtual",
+            meshUrl: "/api/site-worlds/siteworld-f5fd54898cfb/explorer-asset?path=object_geometry%2Fobj_container_0002%2Fmesh.glb",
+            previewImageUrl: "/api/site-worlds/siteworld-f5fd54898cfb/explorer-asset?path=object_geometry%2Fobj_container_0002%2Fviews%2Fsynthetic_view_05.png",
+            selectedViewUrls: [
+              "/api/site-worlds/siteworld-f5fd54898cfb/explorer-asset?path=object_geometry%2Fobj_container_0002%2Fviews%2Fsynthetic_view_05.png",
+            ],
+            center: [1.4, 0.8, 0.5],
+            extents: [0.25, 0.2, 0.18],
+          },
+        ],
+        sources: [],
+        operatorView: {
+          available: false,
+          live: false,
+          uiBaseUrl: null,
+          label: "Private operator view unavailable",
+          description: "The canonical explorer is the primary path when no private operator bridge is configured.",
+        },
+      },
       availableScenarioVariants: ["default", "counterfactual_lighting"],
       availableStartStates: ["default_start_state"],
       defaultRuntimeBackend: "neoverse",
@@ -332,8 +388,9 @@ describe("HostedSessionWorkspace", () => {
     render(<HostedSessionWorkspace params={{ slug: "siteworld-f5fd54898cfb" }} />);
 
     expect(
-      await screen.findByText(/Non-generative at runtime/i),
+      await screen.findByText(/Canonical site-world explorer/i),
     ).toBeInTheDocument();
+    expect(screen.getByTestId("canonical-viewer")).toHaveTextContent("cabinet_0023");
     expect(
       screen.getByText(/It does not create fresh geometry or hallucinate missing scene regions in the browser\./i),
     ).toBeInTheDocument();
