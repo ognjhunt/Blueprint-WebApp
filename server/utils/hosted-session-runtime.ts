@@ -103,6 +103,14 @@ function artifactUri(
   return `gs://${bucket}/${pipelinePrefix}/${fallbackRelative}`;
 }
 
+function preferredArtifactUri(
+  pipelinePrefix: string,
+  primaryValue: unknown,
+  fallbackRelative: string,
+) {
+  return artifactUri(pipelinePrefix, primaryValue, fallbackRelative);
+}
+
 function parseQualificationState(value: unknown): QualificationState | null {
   const normalized = String(value || "").trim() as QualificationState | "";
   return QUALIFICATION_STATES.includes(normalized as QualificationState) ? normalized as QualificationState : null;
@@ -178,12 +186,22 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     artifacts.conditioning_bundle_uri,
     "scene_memory/conditioning_bundle.json",
   );
-  const presentationWorldManifestUri = String(
-    artifacts.presentation_world_manifest_uri || artifacts.preview_simulation_manifest_uri || "",
-  ).trim() || null;
+  const presentationWorldManifestUri = preferredArtifactUri(
+    pipelinePrefix,
+    artifacts.presentation_world_manifest_uri,
+    "presentation_world/presentation_world_manifest.json",
+  );
+  const runtimeDemoManifestUri = preferredArtifactUri(
+    pipelinePrefix,
+    artifacts.runtime_demo_manifest_uri,
+    "presentation_world/runtime_demo_manifest.json",
+  );
   const presentationDemoBlockers: string[] = [];
   if (!presentationWorldManifestUri) {
     presentationDemoBlockers.push("missing presentation package");
+  }
+  if (!runtimeDemoManifestUri) {
+    presentationDemoBlockers.push("missing runtime demo manifest");
   }
   if (!(site.runtimeManifest?.launchable ?? true)) {
     presentationDemoBlockers.push("site not launchable yet");
@@ -254,7 +272,7 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     sceneMemoryManifestUri,
     conditioningBundleUri,
     presentationWorldManifestUri,
-    runtimeDemoManifestUri: presentationWorldManifestUri,
+    runtimeDemoManifestUri,
     presentationDemoBlockers,
     priceLabel: site.packages[1]?.priceLabel ?? null,
     qualificationState:

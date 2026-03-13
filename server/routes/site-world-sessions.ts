@@ -9,9 +9,13 @@ import type {
   CreateHostedSessionRequest,
   HostedBatchSummary,
   HostedEpisodeSummary,
+  HostedSessionFailureDiagnostic,
+  HostedSessionFailureOperation,
+  HostedSessionLaunchBlockerDetail,
   HostedSessionMode,
   HostedRuntimeSessionConfig,
   HostedSessionRecord,
+  PresentationLaunchState,
 } from "../types/hosted-session";
 import { createHostedSessionUiToken, getHostedSessionUiCookieName, parseCookies, verifyHostedSessionUiToken } from "../utils/hosted-session-ui-auth";
 import { HostedSessionRuntimeError, readHostedRuntimeArtifactJson, resolveHostedRuntime } from "../utils/hosted-session-runtime";
@@ -24,6 +28,7 @@ import {
 import {
   createHostedSessionRun,
   exportHostedSessionRun,
+  HostedSessionOrchestratorError,
   loadHostedSessionRuntimeMetadata,
   persistHostedSessionRuntimeMetadata,
   resetHostedSessionRun,
@@ -315,27 +320,21 @@ function buildSessionCreateResponse(record: HostedSessionRecord) {
         ? record.presentationRuntime?.status === "live"
         : Boolean(record.runtimeHandle?.runtime_base_url || record.status === "ready"),
     uiReady: record.presentationRuntime?.status === "live",
-    uiMode: record.sessionMode === "presentation_demo" ? "embedded" : "redirect",
+    uiMode: record.presentationRuntime?.status === "live" ? "embedded" : "redirect",
     workspaceUrl: buildWorkspaceUrl(record.site.siteWorldId, record.sessionId),
   };
-}
-
-type LaunchBlockerSource = "access" | "qualification" | "runtime" | "presentation_demo";
-
-interface LaunchBlockerDetail {
-  code: string;
-  message: string;
-  source: LaunchBlockerSource;
 }
 
 interface ModeLaunchReadiness {
   launchable: boolean;
   blockers: string[];
-  blocker_details: LaunchBlockerDetail[];
+  blocker_details: HostedSessionLaunchBlockerDetail[];
   presentationWorldManifestUri?: string | null;
+  runtimeDemoManifestUri?: string | null;
+  uiBaseUrl?: string | null;
 }
 
-function addBlocker(details: LaunchBlockerDetail[], blocker: LaunchBlockerDetail) {
+function addBlocker(details: HostedSessionLaunchBlockerDetail[], blocker: HostedSessionLaunchBlockerDetail) {
   if (!details.some((item) => item.code === blocker.code && item.message === blocker.message && item.source === blocker.source)) {
     details.push(blocker);
   }
@@ -383,10 +382,10 @@ function qualificationStateMessage(state: string) {
 
 function extractArtifactBlockers(
   payload: Record<string, unknown> | null,
-  source: LaunchBlockerSource,
+  source: HostedSessionLaunchBlockerDetail["source"],
   prefix: string,
 ) {
-  const details: LaunchBlockerDetail[] = [];
+  const details: HostedSessionLaunchBlockerDetail[] = [];
   if (!payload) {
     return details;
   }
@@ -421,8 +420,73 @@ function extractArtifactBlockers(
   return details;
 }
 
+function summarizeDiagnosticText(detail: string) {
+  const firstLine = detail
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find(Boolean);
+  return firstLine || detail.trim() || "Runtime request failed.";
+}
+
+function extractTraceback(detail?: string | null) {
+  const text = String(detail || "").trim();
+  const marker = text.indexOf("Traceback");
+  return marker >= 0 ? text.slice(marker).trim() : null;
+}
+
+function extractExitCode(detail?: string | null) {
+  const match = String(detail || "").match(/exit code\s+(\d+)/i);
+  return match ? Number(match[1]) : null;
+}
+
+function buildFailureDiagnostic(params: {
+  source: HostedSessionFailureDiagnostic["source"];
+  operation: HostedSessionFailureOperation;
+  error: unknown;
+  fallbackCode: string;
+  fallbackSummary: string;
+  statusCode?: number | null;
+}): HostedSessionFailureDiagnostic {
+  const knownError = params.error as
+    | (Error & { code?: string; detail?: string | null; statusCode?: number | null })
+    | undefined;
+  const detail = String(knownError?.detail || knownError?.message || params.fallbackSummary).trim();
+  return {
+    source: params.source,
+    operation: params.operation,
+    code: String(knownError?.code || params.fallbackCode),
+    summary: summarizeDiagnosticText(detail) || params.fallbackSummary,
+    detail,
+    traceback: extractTraceback(detail),
+    rawDetail: detail,
+    exitCode: extractExitCode(detail),
+    statusCode: knownError?.statusCode ?? params.statusCode ?? null,
+    occurredAt: nowIso(),
+  };
+}
+
+function buildPresentationLaunchState(params: {
+  presentationRuntime?: HostedSessionRecord["presentationRuntime"];
+  readiness?: ModeLaunchReadiness | null;
+  runtime?: Awaited<ReturnType<typeof resolveHostedRuntime>>;
+}): PresentationLaunchState {
+  const blockers = params.readiness?.blockers || [];
+  const blockerDetails = params.readiness?.blocker_details || [];
+  const liveViewer = params.presentationRuntime?.status === "live" && params.presentationRuntime?.uiBaseUrl;
+  return {
+    status: liveViewer ? "live_viewer" : blockerDetails.length > 0 ? "blocked" : "artifact_backed",
+    blockers,
+    blockerDetails,
+    presentationWorldManifestUri:
+      params.runtime?.presentationWorldManifestUri ?? params.readiness?.presentationWorldManifestUri ?? null,
+    runtimeDemoManifestUri:
+      params.runtime?.runtimeDemoManifestUri ?? params.readiness?.runtimeDemoManifestUri ?? null,
+    uiBaseUrl: liveViewer ? params.presentationRuntime?.uiBaseUrl || null : params.readiness?.uiBaseUrl || null,
+  };
+}
+
 async function buildQualificationBlockers(runtime: Awaited<ReturnType<typeof resolveHostedRuntime>>) {
-  const details: LaunchBlockerDetail[] = [];
+  const details: HostedSessionLaunchBlockerDetail[] = [];
   const qualificationState = String(runtime.qualificationState || "").trim();
   if (qualificationState && !["qualified_ready", "qualified_risky"].includes(qualificationState)) {
     addBlocker(details, {
@@ -468,10 +532,22 @@ async function buildPresentationDemoReadiness(params: {
     addBlocker(details, { code: `access_${index + 1}`, message, source: "access" }),
   );
 
-  if (!params.runtime.presentationWorldManifestUri) {
+  const [presentationWorldManifest, runtimeDemoManifest] = await Promise.all([
+    readHostedRuntimeArtifactJson(params.runtime.presentationWorldManifestUri),
+    readHostedRuntimeArtifactJson(params.runtime.runtimeDemoManifestUri),
+  ]);
+
+  if (!presentationWorldManifest) {
     addBlocker(details, {
       code: "missing_presentation_package",
       message: "This site is missing the presentation package required for embedded demos.",
+      source: "presentation_demo",
+    });
+  }
+  if (!runtimeDemoManifest) {
+    addBlocker(details, {
+      code: "missing_runtime_demo_manifest",
+      message: "This site is missing the runtime demo manifest required for live presentation launch.",
       source: "presentation_demo",
     });
   }
@@ -493,6 +569,8 @@ async function buildPresentationDemoReadiness(params: {
     blockers: details.map((item) => item.message),
     blocker_details: details,
     presentationWorldManifestUri: params.runtime.presentationWorldManifestUri ?? null,
+    runtimeDemoManifestUri: params.runtime.runtimeDemoManifestUri ?? null,
+    uiBaseUrl: config?.uiBaseUrl || null,
   };
 }
 
@@ -562,6 +640,7 @@ async function buildRuntimeOnlyReadiness(params: {
     blockers: details.map((item) => item.message),
     blocker_details: details,
     presentationWorldManifestUri: params.runtime.presentationWorldManifestUri ?? null,
+    runtimeDemoManifestUri: params.runtime.runtimeDemoManifestUri ?? null,
   };
 }
 
@@ -589,6 +668,7 @@ async function buildLaunchReadiness(params: {
     blockers: presentationDemo.blockers,
     blocker_details: presentationDemo.blocker_details,
     presentationWorldManifestUri: presentationDemo.presentationWorldManifestUri ?? null,
+    runtimeDemoManifestUri: presentationDemo.runtimeDemoManifestUri ?? null,
     presentation_demo: presentationDemo,
     runtime_only: runtimeOnly,
   };
@@ -661,13 +741,10 @@ function normalizeRuntimeSessionConfig(
 ): HostedRuntimeSessionConfig {
   const runtimeSessionConfig = body.runtimeSessionConfig || {};
   const normalizeOptional = (value: unknown) => String(value || "").trim() || null;
-  const demoSiteWorld = runtime.allowBlockedSiteWorld === true;
 
   return {
     canonical_package_uri:
-      demoSiteWorld
-        ? null
-        : normalizeOptional(runtimeSessionConfig.canonical_package_uri) || runtime.sceneMemoryManifestUri,
+      normalizeOptional(runtimeSessionConfig.canonical_package_uri) || runtime.siteWorldSpecUri,
     canonical_package_version: normalizeOptional(runtimeSessionConfig.canonical_package_version),
     prompt: normalizeOptional(runtimeSessionConfig.prompt),
     trajectory: normalizeOptional(runtimeSessionConfig.trajectory),
@@ -822,19 +899,63 @@ function normalizeBatchSummary(
   };
 }
 
+async function readRuntimeErrorDetail(response: globalThis.Response) {
+  const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+  if (contentType.includes("application/json")) {
+    const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+    const detail = String(payload?.detail || payload?.error || `Runtime request failed: ${response.status}`).trim();
+    return {
+      code: String(payload?.code || "runtime_render_failed"),
+      detail,
+    };
+  }
+  const text = await response.text().catch(() => "");
+  return {
+    code: "runtime_render_failed",
+    detail: text.trim() || `Runtime request failed: ${response.status}`,
+  };
+}
+
 async function proxyRuntimeRenderForSession(session: HostedSessionRecord, req: Request, res: Response) {
   const runtimeBaseUrl = String(session.runtimeHandle?.runtime_base_url || "").trim();
   if (!runtimeBaseUrl) {
-    return res.status(409).json({ error: "Runtime handle missing for hosted session" });
+    const diagnostic = buildFailureDiagnostic({
+      source: "runtime",
+      operation: "render",
+      error: new HostedSessionRuntimeError("runtime_handle_missing", "Runtime handle missing for hosted session"),
+      fallbackCode: "runtime_handle_missing",
+      fallbackSummary: "Runtime handle missing for hosted session.",
+      statusCode: 409,
+    });
+    await updateSession(session.sessionId, { latestRuntimeFailure: diagnostic });
+    return res.status(409).json({ error: diagnostic.summary, code: diagnostic.code, diagnostic });
   }
   const cameraId = String(req.query.cameraId || req.query.camera_id || "head_rgb").trim() || "head_rgb";
   const response = await fetch(
     `${runtimeBaseUrl}/v1/sessions/${encodeURIComponent(session.sessionId)}/render?camera_id=${encodeURIComponent(cameraId)}`,
   );
   if (!response.ok) {
-    return res.status(response.status).json({ error: "Failed to proxy runtime render" });
+    const runtimeError = await readRuntimeErrorDetail(response);
+    const diagnostic = buildFailureDiagnostic({
+      source: "runtime",
+      operation: "render",
+      error: {
+        code: runtimeError.code,
+        message: runtimeError.detail,
+        detail: runtimeError.detail,
+        statusCode: response.status,
+      },
+      fallbackCode: runtimeError.code,
+      fallbackSummary: "Failed to proxy runtime render.",
+      statusCode: response.status,
+    });
+    await updateSession(session.sessionId, { latestRuntimeFailure: diagnostic });
+    return res.status(response.status).json({ error: diagnostic.summary, code: diagnostic.code, diagnostic });
   }
   const arrayBuffer = await response.arrayBuffer();
+  if (session.latestRuntimeFailure?.operation === "render") {
+    await updateSession(session.sessionId, { latestRuntimeFailure: null });
+  }
   res.setHeader("Content-Type", response.headers.get("content-type") || "image/png");
   return res.send(Buffer.from(arrayBuffer));
 }
@@ -892,53 +1013,103 @@ async function createRuntimeOnlySession(params: {
   record: HostedSessionRecord;
 }) {
   const workDir = sessionWorkDir(params.record.sessionId);
-  const createPayload = await createHostedSessionRun({
-    sessionId: params.record.sessionId,
-    workDir,
-    runtime: params.runtime,
-    robotProfileId: params.body.robotProfileId,
-    robotProfileOverride: params.body.robotProfileOverride,
-    policy: params.record.policy,
-    taskId: params.body.taskId,
-    scenarioId: params.body.scenarioId,
-    startStateId: params.body.startStateId,
-    exportModes: params.record.requestedOutputs || ["raw_bundle", "rlds_dataset"],
-    notes: params.record.notes ?? undefined,
-    runtimeSessionConfig: params.record.runtimeSessionConfig,
-  });
-  const runtimeMetadata = await loadHostedSessionRuntimeMetadata(workDir);
+  try {
+    const createPayload = await createHostedSessionRun({
+      sessionId: params.record.sessionId,
+      workDir,
+      runtime: params.runtime,
+      robotProfileId: params.body.robotProfileId,
+      robotProfileOverride: params.body.robotProfileOverride,
+      policy: params.record.policy,
+      taskId: params.body.taskId,
+      scenarioId: params.body.scenarioId,
+      startStateId: params.body.startStateId,
+      exportModes: params.record.requestedOutputs || ["raw_bundle", "rlds_dataset"],
+      notes: params.record.notes ?? undefined,
+      runtimeSessionConfig: params.record.runtimeSessionConfig,
+    });
+    const runtimeMetadata = await loadHostedSessionRuntimeMetadata(workDir);
 
-  const runtimeBackend = String(createPayload.payload.runtime_backend_selected || "unknown");
-  const artifactUris =
-    (createPayload.payload.artifact_uris as Record<string, string> | undefined) ?? {};
-  const datasetArtifacts =
-    (createPayload.payload.dataset_artifacts as Record<string, unknown> | undefined) ?? {};
-  await updateSession(params.record.sessionId, {
-    runtime_backend_selected: runtimeBackend,
-    status: "ready",
-    startedAt: nowTimestamp(),
-    artifactUris,
-    datasetArtifacts,
-    runtimeHandle: {
-      site_world_id: String(runtimeMetadata.site_world_id || ""),
-      build_id: runtimeMetadata.build_id ? String(runtimeMetadata.build_id) : null,
-      runtime_base_url: runtimeMetadata.runtime_base_url ? String(runtimeMetadata.runtime_base_url) : null,
-      websocket_base_url: runtimeMetadata.websocket_base_url ? String(runtimeMetadata.websocket_base_url) : null,
-      vm_instance_id: runtimeMetadata.vm_instance_id ? String(runtimeMetadata.vm_instance_id) : null,
-      runtime_capabilities:
-        runtimeMetadata.runtime_capabilities && typeof runtimeMetadata.runtime_capabilities === "object"
-          ? (runtimeMetadata.runtime_capabilities as Record<string, unknown>)
-          : null,
-      health_status: runtimeMetadata.health_status ? String(runtimeMetadata.health_status) : null,
-      last_heartbeat_at: runtimeMetadata.last_heartbeat_at ? String(runtimeMetadata.last_heartbeat_at) : null,
-    },
-  });
+    const runtimeBackend = String(createPayload.payload.runtime_backend_selected || "unknown");
+    const artifactUris =
+      (createPayload.payload.artifact_uris as Record<string, string> | undefined) ?? {};
+    const datasetArtifacts =
+      (createPayload.payload.dataset_artifacts as Record<string, unknown> | undefined) ?? {};
+    await updateSession(params.record.sessionId, {
+      runtime_backend_selected: runtimeBackend,
+      status: "ready",
+      startedAt: nowTimestamp(),
+      artifactUris,
+      datasetArtifacts,
+      latestRuntimeFailure: null,
+      runtimeHandle: {
+        site_world_id: String(runtimeMetadata.site_world_id || ""),
+        build_id: runtimeMetadata.build_id ? String(runtimeMetadata.build_id) : null,
+        runtime_base_url: runtimeMetadata.runtime_base_url ? String(runtimeMetadata.runtime_base_url) : null,
+        websocket_base_url: runtimeMetadata.websocket_base_url ? String(runtimeMetadata.websocket_base_url) : null,
+        vm_instance_id: runtimeMetadata.vm_instance_id ? String(runtimeMetadata.vm_instance_id) : null,
+        runtime_capabilities:
+          runtimeMetadata.runtime_capabilities && typeof runtimeMetadata.runtime_capabilities === "object"
+            ? (runtimeMetadata.runtime_capabilities as Record<string, unknown>)
+            : null,
+        health_status: runtimeMetadata.health_status ? String(runtimeMetadata.health_status) : null,
+        last_heartbeat_at: runtimeMetadata.last_heartbeat_at ? String(runtimeMetadata.last_heartbeat_at) : null,
+      },
+    });
 
-  return (await loadHostedSession(params.record.sessionId)) || { ...params.record, status: "ready" as const, runtime_backend_selected: runtimeBackend };
+    return (await loadHostedSession(params.record.sessionId)) || { ...params.record, status: "ready" as const, runtime_backend_selected: runtimeBackend };
+  } catch (error) {
+    const diagnostic = buildFailureDiagnostic({
+      source: "runtime",
+      operation: "create",
+      error,
+      fallbackCode: error instanceof HostedSessionOrchestratorError ? error.code : "session_create_failed",
+      fallbackSummary: "Runtime session launch failed.",
+    });
+    await updateSession(params.record.sessionId, {
+      status: "failed",
+      latestRuntimeFailure: diagnostic,
+    });
+    throw error;
+  }
 }
 
-async function launchPresentationDemoSession(record: HostedSessionRecord, runtime: Awaited<ReturnType<typeof resolveHostedRuntime>>) {
+async function launchPresentationDemoSession(
+  record: HostedSessionRecord,
+  runtime: Awaited<ReturnType<typeof resolveHostedRuntime>>,
+  options: { failSessionOnError?: boolean } = {},
+) {
   const proxyPath = `/api/site-worlds/sessions/${encodeURIComponent(record.sessionId)}/ui/`;
+  const readiness = await buildPresentationDemoReadiness({
+    runtime,
+    accessBlockers: [],
+  });
+  if (!readiness.launchable) {
+    await updateSession(record.sessionId, {
+      status: options.failSessionOnError ? "failed" : record.status === "creating" ? "ready" : record.status,
+      presentationLaunchState: buildPresentationLaunchState({ readiness, runtime }),
+      presentationRuntime: record.presentationRuntime
+        ? {
+            ...record.presentationRuntime,
+            status: "failed",
+            proxyPath,
+            errorCode: readiness.blocker_details[0]?.code || "presentation_demo_blocked",
+            errorMessage: readiness.blockers[0] || "Presentation viewer is blocked.",
+          }
+        : {
+            provider: "vast",
+            status: "failed",
+            uiBaseUrl: null,
+            proxyPath,
+            instanceId: null,
+            startedAt: null,
+            expiresAt: null,
+            errorCode: readiness.blocker_details[0]?.code || "presentation_demo_blocked",
+            errorMessage: readiness.blockers[0] || "Presentation viewer is blocked.",
+          },
+    });
+    return;
+  }
   try {
     await updateSession(record.sessionId, {
       runtime_backend_selected: "neoverse",
@@ -949,6 +1120,17 @@ async function launchPresentationDemoSession(record: HostedSessionRecord, runtim
         errorCode: null,
         errorMessage: null,
       },
+      presentationLaunchState: buildPresentationLaunchState({
+        presentationRuntime: {
+          ...(record.presentationRuntime || { provider: "vast" as const }),
+          status: "starting",
+          proxyPath,
+          errorCode: null,
+          errorMessage: null,
+        },
+        readiness,
+        runtime,
+      }),
     });
     const presentationRuntime = await launchPresentationDemoRuntime({
       sessionId: record.sessionId,
@@ -957,9 +1139,15 @@ async function launchPresentationDemoSession(record: HostedSessionRecord, runtim
     });
     await updateSession(record.sessionId, {
       runtime_backend_selected: "neoverse",
-      status: "ready",
+      status: record.status === "creating" ? "ready" : record.status,
       startedAt: nowTimestamp(),
       presentationRuntime,
+      presentationLaunchState: buildPresentationLaunchState({
+        presentationRuntime,
+        readiness,
+        runtime,
+      }),
+      latestRuntimeFailure: null,
     });
   } catch (error) {
     const failure =
@@ -968,8 +1156,15 @@ async function launchPresentationDemoSession(record: HostedSessionRecord, runtim
         : error instanceof Error
           ? new PresentationDemoRuntimeError("presentation_demo_launch_failed", error.message)
           : new PresentationDemoRuntimeError("presentation_demo_launch_failed", "Failed to launch presentation demo.");
+    const diagnostic = buildFailureDiagnostic({
+      source: "presentation_demo",
+      operation: "presentation_launch",
+      error: failure,
+      fallbackCode: failure.code,
+      fallbackSummary: "Presentation viewer launch failed.",
+    });
     await updateSession(record.sessionId, {
-      status: "failed",
+      status: options.failSessionOnError ? "failed" : record.status === "creating" ? "ready" : record.status,
       presentationRuntime: {
         provider: "vast",
         status: "failed",
@@ -981,6 +1176,21 @@ async function launchPresentationDemoSession(record: HostedSessionRecord, runtim
         errorCode: failure.code,
         errorMessage: failure.message,
       },
+      presentationLaunchState: {
+        status: "blocked",
+        blockers: [failure.message],
+        blockerDetails: [
+          {
+            code: failure.code,
+            message: failure.message,
+            source: "presentation_demo",
+          },
+        ],
+        presentationWorldManifestUri: runtime.presentationWorldManifestUri ?? null,
+        runtimeDemoManifestUri: runtime.runtimeDemoManifestUri ?? null,
+        uiBaseUrl: null,
+      },
+      latestRuntimeFailure: diagnostic,
     });
   }
 }
@@ -988,6 +1198,7 @@ async function launchPresentationDemoSession(record: HostedSessionRecord, runtim
 function createSessionRecord(params: {
   body: CreateHostedSessionRequest;
   runtime: Awaited<ReturnType<typeof resolveHostedRuntime>>;
+  presentationLaunchState?: PresentationLaunchState | null;
   user: { uid: string; email?: string | null };
 }) {
   const taskSelection = normalizeTaskSelection(params.body, params.runtime);
@@ -1050,6 +1261,8 @@ function createSessionRecord(params: {
             errorMessage: null,
           }
         : null,
+    presentationLaunchState: params.presentationLaunchState || null,
+    latestRuntimeFailure: null,
     metering: {
       sessionSeconds: 0,
       billableHours: 0,
@@ -1092,7 +1305,7 @@ async function proxyPresentationUiRequest(req: Request, res: Response) {
     return res.status(404).json({ error: "Hosted session not found" });
   }
   const uiBaseUrl = String(session.presentationRuntime?.uiBaseUrl || "").trim();
-  if (!sessionUsesPresentationDemo(session) || session.presentationRuntime?.status !== "live" || !uiBaseUrl) {
+  if (session.presentationRuntime?.status !== "live" || !uiBaseUrl) {
     return res.status(409).json({ error: "Presentation demo UI is not available" });
   }
 
@@ -1186,7 +1399,7 @@ export async function handleHostedSessionUiUpgrade(req: IncomingMessage, socket:
   }
 
   const uiBaseUrl = String(session.presentationRuntime?.uiBaseUrl || "").trim();
-  if (!sessionUsesPresentationDemo(session) || session.presentationRuntime?.status !== "live" || !uiBaseUrl) {
+  if (session.presentationRuntime?.status !== "live" || !uiBaseUrl) {
     rawUpgradeResponse(socket, 502, "Presentation demo UI is not available");
     return;
   }
@@ -1246,7 +1459,7 @@ publicSiteWorldSessionsRouter.get("/:sessionId/ui/bootstrap", async (req, res) =
   if (!session) {
     return res.status(404).json({ error: "Hosted session not found" });
   }
-  if (!sessionUsesPresentationDemo(session) || session.presentationRuntime?.status !== "live") {
+  if (session.presentationRuntime?.status !== "live") {
     return res.status(409).json({ error: "Presentation demo UI is not available" });
   }
 
@@ -1327,17 +1540,26 @@ publicSiteWorldSessionsRouter.post("/", async (req, res, next) => {
     const record = createSessionRecord({
       body,
       runtime,
+      presentationLaunchState: buildPresentationLaunchState({
+        readiness: readiness.presentation_demo,
+        runtime,
+      }),
       user: { uid: "public-demo-user", email: null },
     });
     await writeSession(record);
 
     if (sessionMode === "presentation_demo") {
-      void launchPresentationDemoSession(record, runtime);
-      return res.status(201).json(buildSessionCreateResponse(record));
+      await launchPresentationDemoSession(record, runtime, { failSessionOnError: true });
+      return res
+        .status(201)
+        .json(buildSessionCreateResponse((await loadHostedSession(record.sessionId)) || record));
     }
 
     const finalizedRecord = await createRuntimeOnlySession({ body, runtime, record });
-    return res.status(201).json(buildSessionCreateResponse(finalizedRecord));
+    await launchPresentationDemoSession(finalizedRecord, runtime, { failSessionOnError: false });
+    return res
+      .status(201)
+      .json(buildSessionCreateResponse((await loadHostedSession(finalizedRecord.sessionId)) || finalizedRecord));
   } catch (error) {
     const hostedError =
       error instanceof HostedSessionRuntimeError
@@ -1399,6 +1621,7 @@ publicSiteWorldSessionsRouter.post("/:sessionId/reset", async (req, res, next) =
     await updateSession(session.sessionId, {
       latestEpisode,
       status: "running",
+      latestRuntimeFailure: null,
       runtimeConfig: {
         ...(session.runtimeConfig || {}),
         scenarioId: scenario,
@@ -1409,7 +1632,22 @@ publicSiteWorldSessionsRouter.post("/:sessionId/reset", async (req, res, next) =
     });
     return res.json({ ...payload, episode: latestEpisode });
   } catch (error) {
-    return res.status(500).json({ error: error instanceof Error ? error.message : "Reset failed" });
+    const diagnostic = buildFailureDiagnostic({
+      source: "runtime",
+      operation: "reset",
+      error,
+      fallbackCode: error instanceof HostedSessionOrchestratorError ? error.code : "reset_failed",
+      fallbackSummary: "Reset failed.",
+    });
+    const sessionId = String(req.params.sessionId || "");
+    if (sessionId) {
+      await updateSession(sessionId, { latestRuntimeFailure: diagnostic });
+    }
+    return res.status(diagnostic.statusCode || 500).json({
+      error: diagnostic.summary,
+      code: diagnostic.code,
+      diagnostic,
+    });
   }
 });
 
@@ -1433,10 +1671,26 @@ publicSiteWorldSessionsRouter.post("/:sessionId/step", async (req, res, next) =>
     const latestEpisode = normalizeEpisodeSummary(session.sessionId, payload.episode as Record<string, unknown>);
     await updateSession(session.sessionId, {
       latestEpisode,
+      latestRuntimeFailure: null,
     });
     return res.json({ ...payload, episode: latestEpisode });
   } catch (error) {
-    return res.status(500).json({ error: error instanceof Error ? error.message : "Step failed" });
+    const diagnostic = buildFailureDiagnostic({
+      source: "runtime",
+      operation: "step",
+      error,
+      fallbackCode: error instanceof HostedSessionOrchestratorError ? error.code : "step_failed",
+      fallbackSummary: "Step failed.",
+    });
+    const sessionId = String(req.params.sessionId || "");
+    if (sessionId) {
+      await updateSession(sessionId, { latestRuntimeFailure: diagnostic });
+    }
+    return res.status(diagnostic.statusCode || 500).json({
+      error: diagnostic.summary,
+      code: diagnostic.code,
+      diagnostic,
+    });
   }
 });
 
@@ -1499,27 +1753,11 @@ publicSiteWorldSessionsRouter.post("/:sessionId/stop", async (req, res, next) =>
       return next();
     }
 
-    if (sessionUsesPresentationDemo(session)) {
-      const payload = await stopPresentationDemoRuntime({
+    if (session.presentationRuntime?.status === "live" || sessionUsesPresentationDemo(session)) {
+      await stopPresentationDemoRuntime({
         sessionId: session.sessionId,
         presentationRuntime: session.presentationRuntime,
       });
-      await updateSession(session.sessionId, {
-        status: "stopped",
-        stoppedAt: nowTimestamp(),
-        presentationRuntime: {
-          provider: "vast",
-          status: "stopped",
-          uiBaseUrl: session.presentationRuntime?.uiBaseUrl || null,
-          proxyPath: session.presentationRuntime?.proxyPath || null,
-          instanceId: session.presentationRuntime?.instanceId || null,
-          startedAt: session.presentationRuntime?.startedAt || null,
-          expiresAt: session.presentationRuntime?.expiresAt || null,
-          errorCode: null,
-          errorMessage: null,
-        },
-      });
-      return res.json(payload);
     }
 
     const payload = await stopHostedSessionRun({
@@ -1529,6 +1767,19 @@ publicSiteWorldSessionsRouter.post("/:sessionId/stop", async (req, res, next) =>
     await updateSession(session.sessionId, {
       status: "stopped",
       stoppedAt: nowTimestamp(),
+      presentationRuntime: session.presentationRuntime
+        ? {
+            provider: "vast",
+            status: "stopped",
+            uiBaseUrl: session.presentationRuntime.uiBaseUrl || null,
+            proxyPath: session.presentationRuntime.proxyPath || null,
+            instanceId: session.presentationRuntime.instanceId || null,
+            startedAt: session.presentationRuntime.startedAt || null,
+            expiresAt: session.presentationRuntime.expiresAt || null,
+            errorCode: null,
+            errorMessage: null,
+          }
+        : session.presentationRuntime,
     });
     return res.json(payload);
   } catch (error) {
@@ -1668,19 +1919,32 @@ protectedRouter.post("/", async (req: Request, res: Response) => {
       });
     }
 
-    const record = createSessionRecord({ body, runtime, user });
+    const record = createSessionRecord({
+      body,
+      runtime,
+      presentationLaunchState: buildPresentationLaunchState({
+        readiness: readiness.presentation_demo,
+        runtime,
+      }),
+      user,
+    });
     if (sessionMode === "presentation_demo") {
       activePresentationSessionIndex.set(presentationSessionKey(user.uid, runtime.siteWorldId), record.sessionId);
     }
     await writeSession(record);
 
     if (sessionMode === "presentation_demo") {
-      void launchPresentationDemoSession(record, runtime);
-      return res.status(201).json(buildSessionCreateResponse(record));
+      await launchPresentationDemoSession(record, runtime, { failSessionOnError: true });
+      return res
+        .status(201)
+        .json(buildSessionCreateResponse((await loadHostedSession(record.sessionId)) || record));
     }
 
     const finalizedRecord = await createRuntimeOnlySession({ body, runtime, record });
-    return res.status(201).json(buildSessionCreateResponse(finalizedRecord));
+    await launchPresentationDemoSession(finalizedRecord, runtime, { failSessionOnError: false });
+    return res
+      .status(201)
+      .json(buildSessionCreateResponse((await loadHostedSession(finalizedRecord.sessionId)) || finalizedRecord));
   } catch (error) {
     const hostedError =
       error instanceof HostedSessionRuntimeError
@@ -1707,7 +1971,7 @@ protectedRouter.get("/:sessionId/ui-access", async (req, res) => {
     if (!session) {
       return res.status(404).json({ error: "Hosted session not found" });
     }
-    if (!sessionUsesPresentationDemo(session) || session.presentationRuntime?.status !== "live") {
+    if (session.presentationRuntime?.status !== "live") {
       return res.status(409).json({ error: "Presentation demo UI is not available" });
     }
 
@@ -1773,6 +2037,7 @@ protectedRouter.post("/:sessionId/reset", async (req, res) => {
     await updateSession(session.sessionId, {
       latestEpisode,
       status: "running",
+      latestRuntimeFailure: null,
       runtimeConfig: {
         ...(session.runtimeConfig || {}),
         scenarioId: scenario,
@@ -1783,7 +2048,22 @@ protectedRouter.post("/:sessionId/reset", async (req, res) => {
     });
     return res.json({ ...payload, episode: latestEpisode });
   } catch (error) {
-    return res.status(500).json({ error: error instanceof Error ? error.message : "Reset failed" });
+    const diagnostic = buildFailureDiagnostic({
+      source: "runtime",
+      operation: "reset",
+      error,
+      fallbackCode: error instanceof HostedSessionOrchestratorError ? error.code : "reset_failed",
+      fallbackSummary: "Reset failed.",
+    });
+    const sessionId = String(req.params.sessionId || "");
+    if (sessionId) {
+      await updateSession(sessionId, { latestRuntimeFailure: diagnostic });
+    }
+    return res.status(diagnostic.statusCode || 500).json({
+      error: diagnostic.summary,
+      code: diagnostic.code,
+      diagnostic,
+    });
   }
 });
 
@@ -1808,10 +2088,26 @@ protectedRouter.post("/:sessionId/step", async (req, res) => {
     const latestEpisode = normalizeEpisodeSummary(session.sessionId, payload.episode as Record<string, unknown>);
     await updateSession(session.sessionId, {
       latestEpisode,
+      latestRuntimeFailure: null,
     });
     return res.json({ ...payload, episode: latestEpisode });
   } catch (error) {
-    return res.status(500).json({ error: error instanceof Error ? error.message : "Step failed" });
+    const diagnostic = buildFailureDiagnostic({
+      source: "runtime",
+      operation: "step",
+      error,
+      fallbackCode: error instanceof HostedSessionOrchestratorError ? error.code : "step_failed",
+      fallbackSummary: "Step failed.",
+    });
+    const sessionId = String(req.params.sessionId || "");
+    if (sessionId) {
+      await updateSession(sessionId, { latestRuntimeFailure: diagnostic });
+    }
+    return res.status(diagnostic.statusCode || 500).json({
+      error: diagnostic.summary,
+      code: diagnostic.code,
+      diagnostic,
+    });
   }
 });
 
@@ -1876,37 +2172,33 @@ protectedRouter.post("/:sessionId/stop", async (req, res) => {
       return res.status(404).json({ error: "Hosted session not found" });
     }
 
-    let payload: Record<string, unknown>;
-    if (sessionUsesPresentationDemo(session)) {
-      payload = await stopPresentationDemoRuntime({
+    if (session.presentationRuntime?.status === "live" || sessionUsesPresentationDemo(session)) {
+      await stopPresentationDemoRuntime({
         sessionId: session.sessionId,
         presentationRuntime: session.presentationRuntime,
       });
-      await updateSession(session.sessionId, {
-        status: "stopped",
-        stoppedAt: nowTimestamp(),
-        presentationRuntime: {
-          provider: "vast",
-          status: "stopped",
-          uiBaseUrl: session.presentationRuntime?.uiBaseUrl || null,
-          proxyPath: session.presentationRuntime?.proxyPath || null,
-          instanceId: session.presentationRuntime?.instanceId || null,
-          startedAt: session.presentationRuntime?.startedAt || null,
-          expiresAt: session.presentationRuntime?.expiresAt || null,
-          errorCode: null,
-          errorMessage: null,
-        },
-      });
-      return res.json(payload);
     }
 
-    payload = await stopHostedSessionRun({
+    const payload = await stopHostedSessionRun({
       sessionId: session.sessionId,
       workDir: sessionWorkDir(session.sessionId),
     });
     await updateSession(session.sessionId, {
       status: "stopped",
       stoppedAt: nowTimestamp(),
+      presentationRuntime: session.presentationRuntime
+        ? {
+            provider: "vast",
+            status: "stopped",
+            uiBaseUrl: session.presentationRuntime.uiBaseUrl || null,
+            proxyPath: session.presentationRuntime.proxyPath || null,
+            instanceId: session.presentationRuntime.instanceId || null,
+            startedAt: session.presentationRuntime.startedAt || null,
+            expiresAt: session.presentationRuntime.expiresAt || null,
+            errorCode: null,
+            errorMessage: null,
+          }
+        : session.presentationRuntime,
     });
     return res.json(payload);
   } catch (error) {
@@ -1919,20 +2211,7 @@ protectedRouter.get("/:sessionId/render", async (req, res) => {
   if (!session) {
     return res.status(404).json({ error: "Hosted session not found" });
   }
-  const runtimeBaseUrl = String(session.runtimeHandle?.runtime_base_url || "").trim();
-  if (!runtimeBaseUrl) {
-    return res.status(409).json({ error: "Runtime handle missing for hosted session" });
-  }
-  const cameraId = String(req.query.cameraId || req.query.camera_id || "head_rgb").trim() || "head_rgb";
-  const response = await fetch(
-    `${runtimeBaseUrl}/v1/sessions/${encodeURIComponent(session.sessionId)}/render?camera_id=${encodeURIComponent(cameraId)}`,
-  );
-  if (!response.ok) {
-    return res.status(response.status).json({ error: "Failed to proxy runtime render" });
-  }
-  const arrayBuffer = await response.arrayBuffer();
-  res.setHeader("Content-Type", response.headers.get("content-type") || "image/png");
-  return res.send(Buffer.from(arrayBuffer));
+  return proxyRuntimeRenderForSession(session, req, res);
 });
 
 protectedRouter.post("/:sessionId/export", async (req, res) => {

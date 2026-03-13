@@ -1,9 +1,11 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import HostedSessionWorkspace from "@/pages/HostedSessionWorkspace";
 import { getSiteWorldById } from "@/data/siteWorlds";
 
 let mockSearch = "";
+const originalCreateObjectURL = globalThis.URL.createObjectURL;
+const originalRevokeObjectURL = globalThis.URL.revokeObjectURL;
 
 vi.mock("wouter", async () => {
   const actual = await vi.importActual<typeof import("wouter")>("wouter");
@@ -109,6 +111,30 @@ afterEach(() => {
   mockSearch = "";
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  Object.defineProperty(globalThis.URL, "createObjectURL", {
+    configurable: true,
+    writable: true,
+    value: originalCreateObjectURL,
+  });
+  Object.defineProperty(globalThis.URL, "revokeObjectURL", {
+    configurable: true,
+    writable: true,
+    value: originalRevokeObjectURL,
+  });
+});
+
+beforeEach(() => {
+  let objectUrlCounter = 0;
+  Object.defineProperty(globalThis.URL, "createObjectURL", {
+    configurable: true,
+    writable: true,
+    value: vi.fn(() => `blob:frame-${++objectUrlCounter}`),
+  });
+  Object.defineProperty(globalThis.URL, "revokeObjectURL", {
+    configurable: true,
+    writable: true,
+    value: vi.fn(),
+  });
 });
 
 describe("HostedSessionWorkspace", () => {
@@ -131,6 +157,9 @@ describe("HostedSessionWorkspace", () => {
   it("auto-resets the live runtime when the session loads without an episode", async () => {
     mockSearch = "sessionId=session-auto";
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("/api/site-worlds/sessions/session-auto/render?cameraId=head_rgb")) {
+        return new Response("frame", { status: 200, headers: { "Content-Type": "image/png" } });
+      }
       if (String(input).includes("/api/site-worlds/sessions/session-auto") && (!init?.method || init.method === "GET")) {
         return new Response(
           JSON.stringify(
@@ -188,14 +217,23 @@ describe("HostedSessionWorkspace", () => {
     });
 
     const image = await screen.findByRole("img", { name: /Latest robot observation frame/i });
-    expect(image.getAttribute("src")).toContain("/api/site-worlds/sessions/session-auto/render?cameraId=head_rgb");
+    expect(image.getAttribute("src")).toContain("cameraId=head_rgb");
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).includes("/api/site-worlds/sessions/session-auto/render?cameraId=head_rgb"),
+      ),
+    ).toBe(true);
   });
 
   it("switches the render camera in live runtime mode", async () => {
     mockSearch = "sessionId=session-camera";
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).includes("/api/site-worlds/sessions/session-camera/render?cameraId=head_rgb")) {
+          return new Response("head-frame", { status: 200, headers: { "Content-Type": "image/png" } });
+        }
+        if (String(input).includes("/api/site-worlds/sessions/session-camera/render?cameraId=wrist_rgb")) {
+          return new Response("wrist-frame", { status: 200, headers: { "Content-Type": "image/png" } });
+        }
         if (String(input).includes("/api/site-worlds/sessions/session-camera") && (!init?.method || init.method === "GET")) {
           return new Response(
             JSON.stringify(
@@ -230,8 +268,8 @@ describe("HostedSessionWorkspace", () => {
           );
         }
         return new Response(JSON.stringify({ error: "not found" }), { status: 404 });
-      }),
-    );
+      });
+    vi.stubGlobal("fetch", fetchMock);
 
     render(<HostedSessionWorkspace params={{ slug: "siteworld-f5fd54898cfb" }} />);
 
@@ -241,9 +279,11 @@ describe("HostedSessionWorkspace", () => {
     fireEvent.click(screen.getByRole("button", { name: /wrist/i }));
 
     await waitFor(() => {
-      expect(screen.getByRole("img", { name: /Latest robot observation frame/i }).getAttribute("src")).toContain(
-        "cameraId=wrist_rgb",
-      );
+      expect(
+        fetchMock.mock.calls.some(([input]) =>
+          String(input).includes("/api/site-worlds/sessions/session-camera/render?cameraId=wrist_rgb"),
+        ),
+      ).toBe(true);
     });
   });
 
@@ -252,6 +292,9 @@ describe("HostedSessionWorkspace", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).includes("/api/site-worlds/sessions/session-presentation/render?cameraId=head_rgb")) {
+          return new Response("head-frame", { status: 200, headers: { "Content-Type": "image/png" } });
+        }
         if (String(input).includes("/api/site-worlds/sessions/session-presentation") && (!init?.method || init.method === "GET")) {
           return new Response(
             JSON.stringify(

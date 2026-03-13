@@ -87,7 +87,13 @@ const state = vi.hoisted(() => {
       },
     ],
     [
-      "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/presentation/preview_simulation_manifest.json",
+      "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/presentation_world/presentation_world_manifest.json",
+      {
+        status: "available",
+      },
+    ],
+    [
+      "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/presentation_world/runtime_demo_manifest.json",
       {
         ui_base_url: "https://neoverse.example/demo",
       },
@@ -136,8 +142,10 @@ const state = vi.hoisted(() => {
           "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/scene_memory/scene_memory_manifest.json",
         conditioning_bundle_uri:
           "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/scene_memory/conditioning_bundle.json",
-        preview_simulation_manifest_uri:
-          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/presentation/preview_simulation_manifest.json",
+        presentation_world_manifest_uri:
+          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/presentation_world/presentation_world_manifest.json",
+        runtime_demo_manifest_uri:
+          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/presentation_world/runtime_demo_manifest.json",
       },
     },
   };
@@ -497,6 +505,18 @@ afterEach(async () => {
       required_actions: [],
     },
   );
+  state.artifactPayloads.set(
+    "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/presentation_world/presentation_world_manifest.json",
+    {
+      status: "available",
+    },
+  );
+  state.artifactPayloads.set(
+    "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/presentation_world/runtime_demo_manifest.json",
+    {
+      ui_base_url: "https://neoverse.example/demo",
+    },
+  );
   const { resetHostedSessionRouteState } = await import("../routes/site-world-sessions");
   resetHostedSessionRouteState();
 });
@@ -666,8 +686,8 @@ describe("site world session routes", () => {
       });
       const createPayload = (await create.json()) as Record<string, unknown>;
       expect(create.status).toBe(201);
-      expect(createPayload.status).toBe("creating");
-      expect(createPayload.uiReady).toBe(false);
+      expect(createPayload.status).toBe("ready");
+      expect(createPayload.uiReady).toBe(true);
       expect(createPayload.uiMode).toBe("embedded");
 
       const reuse = await fetch(`${baseUrl}/`, {
@@ -726,11 +746,23 @@ describe("site world session routes", () => {
 
   it("reports launch readiness blockers when the presentation package is missing", async () => {
     const originalArtifacts = state.inboundRequestData.pipeline.artifacts;
+    const originalPresentationWorld = state.artifactPayloads.get(
+      "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/presentation_world/presentation_world_manifest.json",
+    );
+    const originalRuntimeDemo = state.artifactPayloads.get(
+      "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/presentation_world/runtime_demo_manifest.json",
+    );
     state.inboundRequestData.pipeline.artifacts = {
       ...originalArtifacts,
-      preview_simulation_manifest_uri: null,
       presentation_world_manifest_uri: null,
+      runtime_demo_manifest_uri: null,
     };
+    state.artifactPayloads.delete(
+      "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/presentation_world/presentation_world_manifest.json",
+    );
+    state.artifactPayloads.delete(
+      "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/presentation_world/runtime_demo_manifest.json",
+    );
     const { server, baseUrl } = await startServer();
     try {
       const response = await fetch(`${baseUrl}/launch-readiness?siteWorldId=sw-chi-01`);
@@ -740,6 +772,18 @@ describe("site world session routes", () => {
       expect(payload.blockers).toContain("This site is missing the presentation package required for embedded demos.");
     } finally {
       state.inboundRequestData.pipeline.artifacts = originalArtifacts;
+      if (originalPresentationWorld) {
+        state.artifactPayloads.set(
+          "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/presentation_world/presentation_world_manifest.json",
+          originalPresentationWorld,
+        );
+      }
+      if (originalRuntimeDemo) {
+        state.artifactPayloads.set(
+          "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/presentation_world/runtime_demo_manifest.json",
+          originalRuntimeDemo,
+        );
+      }
       await stopServer(server);
     }
   });

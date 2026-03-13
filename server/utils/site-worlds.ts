@@ -32,15 +32,34 @@ function resolvePresentationWorldManifestUri(pipeline?: PipelineAttachment): str
   if (explicit) {
     return explicit;
   }
-  const previewFallback = String(pipeline?.artifacts.preview_simulation_manifest_uri || "").trim();
-  return previewFallback || null;
+  return pipelineArtifactUri(
+    pipeline,
+    null,
+    "presentation_world/presentation_world_manifest.json",
+  );
+}
+
+function resolveRuntimeDemoManifestUri(pipeline?: PipelineAttachment): string | null {
+  const explicit = String(pipeline?.artifacts.runtime_demo_manifest_uri || "").trim();
+  if (explicit) {
+    return explicit;
+  }
+  return pipelineArtifactUri(
+    pipeline,
+    null,
+    "presentation_world/runtime_demo_manifest.json",
+  );
 }
 
 function buildPresentationDemoReadiness(pipeline?: PipelineAttachment, launchable = false): SiteWorldCard["presentationDemoReadiness"] {
   const blockers: string[] = [];
   const presentationWorldManifestUri = resolvePresentationWorldManifestUri(pipeline);
+  const runtimeDemoManifestUri = resolveRuntimeDemoManifestUri(pipeline);
   if (!presentationWorldManifestUri) {
     blockers.push("missing presentation package");
+  }
+  if (!runtimeDemoManifestUri) {
+    blockers.push("missing runtime demo manifest");
   }
   if (!String(pipeline?.artifacts.site_world_spec_uri || pipeline?.pipeline_prefix || "").trim()) {
     blockers.push("missing runtime site-world spec");
@@ -55,6 +74,7 @@ function buildPresentationDemoReadiness(pipeline?: PipelineAttachment, launchabl
     launchable: blockers.length === 0,
     blockers,
     presentationWorldManifestUri,
+    runtimeDemoManifestUri,
   };
 }
 
@@ -525,6 +545,7 @@ function buildStaticRecord(template: SiteWorldCard): SiteWorldCard {
       launchable: false,
       blockers: ["missing presentation package", "site not launchable yet"],
       presentationWorldManifestUri: null,
+      runtimeDemoManifestUri: null,
     },
     sceneMemoryManifestUri: template.sceneMemoryManifestUri ?? null,
     conditioningBundleUri: template.conditioningBundleUri ?? null,

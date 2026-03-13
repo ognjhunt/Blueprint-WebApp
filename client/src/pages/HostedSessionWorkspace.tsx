@@ -106,7 +106,7 @@ function resolveWorkspaceStatus(record: HostedSessionRecord | null): "starting" 
   if (!record) {
     return "starting";
   }
-  if (record.status === "failed" || record.presentationRuntime?.status === "failed") {
+  if (record.status === "failed") {
     return "error";
   }
   if (record.status === "stopped" || record.presentationRuntime?.status === "stopped") {
@@ -173,6 +173,54 @@ function ModeToggleButton(props: {
   );
 }
 
+function ModeStateBadge(props: { label: string; tone: "emerald" | "amber" | "rose" | "slate" }) {
+  const toneClass =
+    props.tone === "emerald"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+      : props.tone === "amber"
+        ? "border-amber-200 bg-amber-50 text-amber-800"
+        : props.tone === "rose"
+          ? "border-rose-200 bg-rose-50 text-rose-700"
+          : "border-slate-200 bg-slate-100 text-slate-600";
+  return (
+    <div className={`rounded-full border px-4 py-2 text-sm font-semibold ${toneClass}`}>
+      {props.label}
+    </div>
+  );
+}
+
+function DiagnosticPanel(props: {
+  title: string;
+  diagnostic?: HostedSessionRecord["latestRuntimeFailure"] | null;
+}) {
+  if (!props.diagnostic) {
+    return null;
+  }
+
+  return (
+    <details className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-950">
+      <summary className="cursor-pointer list-none font-semibold">
+        {props.title}: {props.diagnostic.summary}
+      </summary>
+      <div className="mt-3 space-y-2">
+        <p>
+          Operation: {props.diagnostic.operation.replaceAll("_", " ")} · Code: {props.diagnostic.code}
+          {props.diagnostic.exitCode != null ? ` · Exit code: ${props.diagnostic.exitCode}` : ""}
+        </p>
+        {props.diagnostic.traceback ? (
+          <pre className="overflow-x-auto rounded-xl border border-rose-200 bg-white/70 p-3 text-xs leading-5 text-rose-950">
+            {props.diagnostic.traceback}
+          </pre>
+        ) : props.diagnostic.detail ? (
+          <pre className="overflow-x-auto rounded-xl border border-rose-200 bg-white/70 p-3 text-xs leading-5 text-rose-950">
+            {props.diagnostic.detail}
+          </pre>
+        ) : null}
+      </div>
+    </details>
+  );
+}
+
 function dedupeCameras(cameras: RobotObservationCamera[]) {
   const next: RobotObservationCamera[] = [];
   const seen = new Set<string>();
@@ -232,6 +280,11 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const [autoBootstrapState, setAutoBootstrapState] = useState<BootstrapState>("idle");
   const [observationRefreshKey, setObservationRefreshKey] = useState(0);
   const [observationLoadError, setObservationLoadError] = useState(false);
+  const [liveObservationSrc, setLiveObservationSrc] = useState("");
+  const [lastLiveRenderContext, setLastLiveRenderContext] = useState<{
+    cameraId: string;
+    stepIndex: number;
+  } | null>(null);
   const search = useSearch();
   const [, setLocation] = useLocation();
   const searchParams = useMemo(() => new URLSearchParams(search), [search]);
@@ -375,7 +428,12 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   }, [sessionRecord?.startedAt, sessionStatus]);
 
   useEffect(() => {
-    if (!sessionId || sessionRecord?.sessionMode !== "presentation_demo" || sessionStatus !== "live") {
+    if (
+      !sessionId ||
+      activeMode !== "presentation_world" ||
+      sessionRecord?.presentationRuntime?.status !== "live" ||
+      sessionStatus !== "live"
+    ) {
       return;
     }
     let cancelled = false;
@@ -403,24 +461,39 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     return () => {
       cancelled = true;
     };
-  }, [sessionId, sessionRecord?.sessionMode, sessionStatus]);
+  }, [activeMode, sessionId, sessionRecord?.presentationRuntime?.status, sessionStatus]);
 
   useEffect(() => {
-    if (!uiBootstrapUrl || iframeLoaded || showIframeFallback) {
+    if (!uiBootstrapUrl || iframeLoaded || showIframeFallback || activeMode !== "presentation_world") {
       return undefined;
     }
     const timeoutId = window.setTimeout(() => {
       setShowIframeFallback(true);
     }, 8000);
     return () => window.clearTimeout(timeoutId);
-  }, [iframeLoaded, showIframeFallback, uiBootstrapUrl]);
+  }, [activeMode, iframeLoaded, showIframeFallback, uiBootstrapUrl]);
 
   useEffect(() => {
     setAutoBootstrapState("idle");
     setObservationRefreshKey(0);
     setObservationLoadError(false);
+    setLiveObservationSrc((current) => {
+      if (current.startsWith("blob:")) {
+        URL.revokeObjectURL(current);
+      }
+      return "";
+    });
+    setLastLiveRenderContext(null);
     setControlError("");
   }, [sessionId]);
+
+  useEffect(() => {
+    return () => {
+      if (liveObservationSrc.startsWith("blob:")) {
+        URL.revokeObjectURL(liveObservationSrc);
+      }
+    };
+  }, [liveObservationSrc]);
 
   const sessionMode: HostedSessionMode = sessionRecord?.sessionMode || "runtime_only";
   const taskSelection = sessionRecord?.taskSelection || previewPayload?.taskSelection || site?.taskCatalog[0] || {
@@ -499,7 +572,11 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     sessionRecord?.siteModel?.presentationWorldManifestUri ||
     site?.presentationDemoReadiness?.presentationWorldManifestUri ||
     null;
-  const runtimeDemoManifestUri = sessionRecord?.siteModel?.runtimeDemoManifestUri || null;
+  const runtimeDemoManifestUri =
+    sessionRecord?.siteModel?.runtimeDemoManifestUri ||
+    site?.presentationDemoReadiness?.runtimeDemoManifestUri ||
+    null;
+  const presentationLaunchState = sessionRecord?.presentationLaunchState || null;
   const runtimeReferenceImageUrl = site?.runtimeReferenceImageUrl || null;
   const presentationReferenceImageUrl = site?.presentationReferenceImageUrl || null;
   const openDemoUrl =
@@ -514,7 +591,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     sessionStatus !== "stopped" &&
     sessionStatus !== "error";
   const presentationInteractive =
-    sessionMode === "presentation_demo" && sessionStatus === "live" && Boolean(openDemoUrl);
+    sessionStatus === "live" && sessionRecord?.presentationRuntime?.status === "live" && Boolean(openDemoUrl);
   const statusTone =
     sessionStatus === "live"
       ? "border-emerald-200 bg-emerald-50 text-emerald-700"
@@ -551,27 +628,44 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   }, [cameraOptions, primaryCameraId]);
 
   const selectedCameraRemoteFramePath = resolveRemoteCameraFramePath(remoteObservation, selectedCameraId || primaryCameraId);
-  const selectedCameraRenderableFallback = isRenderableObservationPath(selectedCameraRemoteFramePath)
+  const selectedCameraRenderableFallback = !runtimeInteractive && isRenderableObservationPath(selectedCameraRemoteFramePath)
     ? selectedCameraRemoteFramePath
-    : isRenderableObservationPath(observationFramePath)
+    : !runtimeInteractive && isRenderableObservationPath(observationFramePath)
       ? observationFramePath
-      : isRenderableObservationPath(remoteObservationFramePath)
+      : !runtimeInteractive && isRenderableObservationPath(remoteObservationFramePath)
         ? remoteObservationFramePath
         : "";
-  const selectedObservationSrc =
-    runtimeInteractive && latestEpisode?.episodeId && selectedCameraId
-      ? `/api/site-worlds/sessions/${encodeURIComponent(sessionId)}/render?cameraId=${encodeURIComponent(selectedCameraId)}&refresh=${observationRefreshKey}`
+  const renderRouteHref =
+    runtimeInteractive && sessionId && (selectedCameraId || primaryCameraId)
+      ? `/api/site-worlds/sessions/${encodeURIComponent(sessionId)}/render?cameraId=${encodeURIComponent(
+          selectedCameraId || primaryCameraId,
+        )}&refresh=${observationRefreshKey}`
       : selectedCameraRenderableFallback;
+  const selectedObservationSrc = liveObservationSrc || renderRouteHref || selectedCameraRenderableFallback;
   const hasVisibleObservation = Boolean(
-    selectedObservationSrc &&
-      isRenderableObservationPath(selectedObservationSrc) &&
-      !observationLoadError,
+    selectedObservationSrc && isRenderableObservationPath(selectedObservationSrc) && !observationLoadError,
   );
+  const runtimeDiagnostic = sessionRecord?.latestRuntimeFailure || null;
+  const runtimeDegraded = Boolean(runtimeDiagnostic && liveObservationSrc);
   const showRuntimeReferencePreview = !hasVisibleObservation && Boolean(runtimeReferenceImageUrl);
   const showPresentationReferencePreview = Boolean(presentationReferenceImageUrl);
   const presentationAvailabilityLabel = presentationInteractive
     ? "Embedded presentation viewer live"
-    : "Artifact-backed presentation fallback";
+    : presentationLaunchState?.status === "blocked"
+      ? "Presentation viewer blocked"
+      : "Artifact-backed presentation fallback";
+  const runtimeModeState = runtimeDegraded
+    ? { label: "Live Runtime: Degraded", tone: "amber" as const }
+    : hasVisibleObservation
+      ? { label: "Live Runtime: Live", tone: "emerald" as const }
+      : runtimeDiagnostic
+        ? { label: "Live Runtime: Failed", tone: "rose" as const }
+        : { label: "Live Runtime: Ready", tone: "slate" as const };
+  const presentationModeState = presentationInteractive
+    ? { label: "Presentation World: Live viewer", tone: "emerald" as const }
+    : presentationLaunchState?.status === "blocked"
+      ? { label: "Presentation World: Blocked", tone: "rose" as const }
+      : { label: "Presentation World: Artifact-backed", tone: "amber" as const };
   const generatedRows = [
     { label: "Task", value: taskSelection?.taskText || "Pending" },
     { label: "Scenario", value: scenario?.name || "Pending" },
@@ -590,6 +684,18 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     { label: "Requested outputs", value: requestedOutputs.map((item) => requestedOutputLabel(item)).join(", ") },
   ];
 
+  const applyRuntimeDiagnostic = (diagnostic?: HostedSessionRecord["latestRuntimeFailure"] | null, fallback?: string) => {
+    setSessionRecord((current) =>
+      current
+        ? {
+            ...current,
+            latestRuntimeFailure: diagnostic || current.latestRuntimeFailure || null,
+          }
+        : current,
+    );
+    setControlError(diagnostic?.summary || fallback || "Runtime request failed");
+  };
+
   const applyEpisodeUpdate = (episode: HostedSessionRecord["latestEpisode"]) => {
     setSessionRecord((current) =>
       current
@@ -597,6 +703,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
             ...current,
             latestEpisode: episode,
             status: "running",
+            latestRuntimeFailure: null,
           }
         : current,
     );
@@ -604,6 +711,87 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     setObservationRefreshKey((current) => current + 1);
     setObservationLoadError(false);
   };
+
+  useEffect(() => {
+    if (!runtimeInteractive || !sessionId || !latestEpisode?.episodeId || !(selectedCameraId || primaryCameraId)) {
+      return undefined;
+    }
+    const controller = new AbortController();
+    let cancelled = false;
+    const cameraId = selectedCameraId || primaryCameraId;
+
+    void (async () => {
+      try {
+        const response = await authorizedJsonFetch(
+          `/api/site-worlds/sessions/${sessionId}/render?cameraId=${encodeURIComponent(cameraId)}&refresh=${observationRefreshKey}`,
+          { signal: controller.signal },
+        );
+        const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+        if (!response.ok || contentType.includes("application/json")) {
+          const payload = (await response.json().catch(() => null)) as {
+            error?: string;
+            diagnostic?: HostedSessionRecord["latestRuntimeFailure"];
+          } | null;
+          throw payload || { error: "Render failed" };
+        }
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        if (cancelled) {
+          URL.revokeObjectURL(objectUrl);
+          return;
+        }
+        setLiveObservationSrc((current) => {
+          if (current.startsWith("blob:")) {
+            URL.revokeObjectURL(current);
+          }
+          return objectUrl;
+        });
+        setObservationLoadError(false);
+        setLastLiveRenderContext({
+          cameraId,
+          stepIndex: latestEpisode.stepIndex ?? 0,
+        });
+        setSessionRecord((current) =>
+          current
+            ? {
+                ...current,
+                latestRuntimeFailure:
+                  current.latestRuntimeFailure?.operation === "render" ? null : current.latestRuntimeFailure,
+              }
+            : current,
+        );
+      } catch (error) {
+        if (cancelled || (error instanceof DOMException && error.name === "AbortError")) {
+          return;
+        }
+        const payload = error as {
+          error?: string;
+          diagnostic?: HostedSessionRecord["latestRuntimeFailure"];
+        };
+        setSessionRecord((current) =>
+          current
+            ? {
+                ...current,
+                latestRuntimeFailure: payload?.diagnostic || current.latestRuntimeFailure || null,
+              }
+            : current,
+        );
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [
+    latestEpisode?.episodeId,
+    latestEpisode?.stepIndex,
+    observationRefreshKey,
+    primaryCameraId,
+    runtimeInteractive,
+    selectedCameraId,
+    sessionId,
+  ]);
 
   const handleReset = async (options?: { silent?: boolean }) => {
     if (!sessionId || !runtimeInteractive) return false;
@@ -621,9 +809,14 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
           startStateId: runtimeConfig.startStateId,
         }),
       });
-      const payload = (await response.json().catch(() => null)) as { episode?: HostedSessionRecord["latestEpisode"]; error?: string } | null;
+      const payload = (await response.json().catch(() => null)) as {
+        episode?: HostedSessionRecord["latestEpisode"];
+        error?: string;
+        diagnostic?: HostedSessionRecord["latestRuntimeFailure"];
+      } | null;
       if (!response.ok || !payload?.episode) {
-        throw new Error(payload?.error || "Reset failed");
+        applyRuntimeDiagnostic(payload?.diagnostic, payload?.error || "Reset failed");
+        return false;
       }
       applyEpisodeUpdate(payload.episode);
       return true;
@@ -654,9 +847,14 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
           autoPolicy: params.autoPolicy !== false,
         }),
       });
-      const payload = (await response.json().catch(() => null)) as { episode?: HostedSessionRecord["latestEpisode"]; error?: string } | null;
+      const payload = (await response.json().catch(() => null)) as {
+        episode?: HostedSessionRecord["latestEpisode"];
+        error?: string;
+        diagnostic?: HostedSessionRecord["latestRuntimeFailure"];
+      } | null;
       if (!response.ok || !payload?.episode) {
-        throw new Error(payload?.error || "Step failed");
+        applyRuntimeDiagnostic(payload?.diagnostic, payload?.error || "Step failed");
+        return false;
       }
       applyEpisodeUpdate(payload.episode);
       return true;
@@ -684,8 +882,13 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
             autoPolicy: false,
           }),
         });
-        const payload = (await response.json().catch(() => null)) as { episode?: HostedSessionRecord["latestEpisode"]; error?: string } | null;
+        const payload = (await response.json().catch(() => null)) as {
+          episode?: HostedSessionRecord["latestEpisode"];
+          error?: string;
+          diagnostic?: HostedSessionRecord["latestRuntimeFailure"];
+        } | null;
         if (!response.ok || !payload?.episode) {
+          applyRuntimeDiagnostic(payload?.diagnostic, payload?.error || `Scripted movement failed at ${step.label}`);
           throw new Error(payload?.error || `Scripted movement failed at ${step.label}`);
         }
         applyEpisodeUpdate(payload.episode);
@@ -894,6 +1097,11 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
             </div>
           ) : null}
 
+          <DiagnosticPanel
+            title={runtimeDiagnostic?.source === "presentation_demo" ? "Presentation diagnostics" : "Runtime diagnostics"}
+            diagnostic={runtimeDiagnostic}
+          />
+
           <section className="mt-6 rounded-[32px] border border-slate-200 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(238,242,255,0.92))] p-6 shadow-sm">
             <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
               <div>
@@ -1000,7 +1208,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                 <DetailPill label="Raw bundle" value={rawBundlePath ? "Available" : "Pending"} />
               </div>
               <div className="mt-4 flex flex-wrap gap-3">
-                <MetadataLink href={selectedObservationSrc || null} label="Open latest frame" />
+                <MetadataLink href={renderRouteHref || null} label="Open latest frame" />
                 <MetadataLink href={rolloutVideoPath || null} label="Open rollout video" />
                 <MetadataLink href={exportManifestPath || null} label="Open export manifest" />
                 <MetadataLink href={rawBundlePath || null} label="Open raw bundle" />
@@ -1017,8 +1225,11 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Live Runtime</p>
                       <h2 className="mt-2 text-2xl font-bold text-slate-900">Human-explorable robot viewport</h2>
                     </div>
-                    <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
-                      {runtimeBusyLabel || (autoBootstrapState === "running" ? "Resetting runtime and fetching the first frame" : "Ready")}
+                    <div className="flex flex-wrap items-center gap-3">
+                      <ModeStateBadge label={runtimeModeState.label} tone={runtimeModeState.tone} />
+                      <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
+                        {runtimeBusyLabel || (autoBootstrapState === "running" ? "Resetting runtime and fetching the first frame" : "Ready")}
+                      </div>
                     </div>
                   </div>
 
@@ -1095,7 +1306,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     )}
 
                     <div className="mt-4 flex flex-wrap gap-3">
-                      <MetadataLink href={selectedObservationSrc || null} label="Open latest frame" />
+                      <MetadataLink href={renderRouteHref || null} label="Open latest frame" />
                       <MetadataLink href={rolloutVideoPath || null} label="Open rollout video" />
                       <MetadataLink href={exportManifestPath || null} label="Open export manifest" />
                       <MetadataLink href={rawBundlePath || null} label="Open raw bundle" />
@@ -1120,6 +1331,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                               onClick={() => {
                                 setSelectedCameraId(camera.id);
                                 setObservationLoadError(false);
+                                setObservationRefreshKey((current) => current + 1);
                               }}
                               className={`rounded-full border px-3 py-2 text-sm font-semibold transition ${
                                 selectedCameraId === camera.id
@@ -1143,7 +1355,11 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                         <p className="mt-2 text-xs text-slate-500">
                           Protected-region violations: {protectedRegionViolations.length}
                         </p>
-                        {showRuntimeReferencePreview ? (
+                        {runtimeDegraded && lastLiveRenderContext ? (
+                          <p className="mt-3 text-xs text-amber-700">
+                            Showing the last good live frame from {lastLiveRenderContext.cameraId} at step {lastLiveRenderContext.stepIndex} while the current render path is degraded.
+                          </p>
+                        ) : showRuntimeReferencePreview ? (
                           <p className="mt-3 text-xs text-slate-500">
                             In-page preview is currently a validated reference frame, not a live stepped render.
                           </p>
@@ -1280,8 +1496,11 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Presentation World</p>
                       <h2 className="mt-2 text-2xl font-bold text-slate-900">Customer-facing site representation</h2>
                     </div>
-                    <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
-                      {presentationAvailabilityLabel}
+                    <div className="flex flex-wrap items-center gap-3">
+                      <ModeStateBadge label={presentationModeState.label} tone={presentationModeState.tone} />
+                      <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
+                        {presentationAvailabilityLabel}
+                      </div>
                     </div>
                   </div>
 
@@ -1312,6 +1531,11 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                             presentation artifacts unless a stable public viewer URL is live. This keeps the page truthful
                             instead of shipping a dead iframe.
                           </p>
+                          {presentationLaunchState?.blockers?.[0] ? (
+                            <p className="mt-3 text-sm leading-6 text-rose-700">
+                              Live viewer blocker: {presentationLaunchState.blockers[0]}
+                            </p>
+                          ) : null}
                           <p className="mt-3 text-sm leading-6 text-slate-600">
                             {showPresentationReferencePreview
                               ? "The image above is a captured reference view from the saved NeoVerse presentation session."

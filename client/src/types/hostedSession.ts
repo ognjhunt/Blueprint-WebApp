@@ -127,6 +127,49 @@ export interface SiteModelSummary {
   availableRuntimeBackends?: string[];
 }
 
+export type HostedSessionFailureSource = "runtime" | "presentation_demo";
+
+export type HostedSessionFailureOperation =
+  | "create"
+  | "reset"
+  | "step"
+  | "render"
+  | "presentation_launch";
+
+export interface HostedSessionFailureDiagnostic {
+  source: HostedSessionFailureSource;
+  operation: HostedSessionFailureOperation;
+  code: string;
+  summary: string;
+  detail?: string | null;
+  traceback?: string | null;
+  rawDetail?: string | null;
+  exitCode?: number | null;
+  statusCode?: number | null;
+  occurredAt: string;
+}
+
+export type HostedSessionLaunchBlockerSource =
+  | "access"
+  | "qualification"
+  | "runtime"
+  | "presentation_demo";
+
+export interface HostedSessionLaunchBlockerDetail {
+  code: string;
+  message: string;
+  source: HostedSessionLaunchBlockerSource;
+}
+
+export interface PresentationLaunchState {
+  status: "live_viewer" | "artifact_backed" | "blocked";
+  blockers: string[];
+  blockerDetails: HostedSessionLaunchBlockerDetail[];
+  presentationWorldManifestUri?: string | null;
+  runtimeDemoManifestUri?: string | null;
+  uiBaseUrl?: string | null;
+}
+
 export interface PresentationRuntimeState {
   provider: "vast";
   status: "provisioning" | "starting" | "live" | "stopped" | "failed";
@@ -240,6 +283,8 @@ export interface HostedSessionRecord {
     last_heartbeat_at?: string | null;
   } | null;
   presentationRuntime?: PresentationRuntimeState | null;
+  presentationLaunchState?: PresentationLaunchState | null;
+  latestRuntimeFailure?: HostedSessionFailureDiagnostic | null;
   metering: {
     sessionSeconds: number;
     billableHours: number;

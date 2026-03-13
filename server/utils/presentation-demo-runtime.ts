@@ -6,10 +6,14 @@ import type { HostedRuntimeResolution } from "./hosted-session-runtime";
 
 export class PresentationDemoRuntimeError extends Error {
   code: string;
+  detail?: string | null;
+  statusCode?: number | null;
 
-  constructor(code: string, message: string) {
+  constructor(code: string, message: string, options?: { detail?: string | null; statusCode?: number | null }) {
     super(message);
     this.code = code;
+    this.detail = options?.detail ?? null;
+    this.statusCode = options?.statusCode ?? null;
   }
 }
 
@@ -52,17 +56,16 @@ export async function resolvePresentationDemoLaunchConfig(params: {
   sessionId: string;
   runtime: HostedRuntimeResolution;
 }) {
-  const manifest = await readJsonFromUri(
-    params.runtime.runtimeDemoManifestUri || params.runtime.presentationWorldManifestUri,
-  );
-  const uiBaseUrl = resolveUiBaseUrl(params.sessionId, params.runtime, manifest);
+  const manifest = await readJsonFromUri(params.runtime.runtimeDemoManifestUri);
+  const uiResolution = resolveUiBaseUrl(params.sessionId, params.runtime, manifest);
   const instanceId =
     String(manifest.instance_id || manifest.instanceId || "").trim() ||
     `vast-${params.runtime.siteWorldId}-${params.sessionId.slice(0, 8)}`;
 
   return {
     manifest,
-    uiBaseUrl,
+    uiBaseUrl: uiResolution.url,
+    uiBaseUrlSource: uiResolution.source,
     instanceId,
     expiresAt: resolveExpiresAt(manifest),
   };
@@ -79,17 +82,17 @@ function resolveUiBaseUrl(sessionId: string, runtime: HostedRuntimeResolution, m
     manifest.ui_base_url || manifest.uiBaseUrl || manifest.public_ui_base_url || "",
   ).trim();
   if (manifestUrl) {
-    return manifestUrl;
+    return { url: manifestUrl, source: "manifest" as const };
   }
   const template = String(process.env.BLUEPRINT_PRESENTATION_DEMO_UI_BASE_URL_TEMPLATE || "").trim();
   if (template) {
-    return renderTemplate(template, templateValues);
+    return { url: renderTemplate(template, templateValues), source: "template" as const };
   }
   const directUrl = String(process.env.BLUEPRINT_PRESENTATION_DEMO_UI_BASE_URL || "").trim();
   if (directUrl) {
-    return directUrl;
+    return { url: directUrl, source: "direct_env" as const };
   }
-  return "";
+  return { url: "", source: null };
 }
 
 function resolveExpiresAt(manifest: Record<string, unknown>) {

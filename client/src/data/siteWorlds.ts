@@ -84,6 +84,7 @@ export type SiteWorldCard = {
     launchable: boolean;
     blockers: string[];
     presentationWorldManifestUri?: string | null;
+    runtimeDemoManifestUri?: string | null;
   };
   runtimeReferenceImageUrl?: string | null;
   presentationReferenceImageUrl?: string | null;
