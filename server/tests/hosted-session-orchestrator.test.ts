@@ -4,7 +4,11 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createHostedSessionRun, stepHostedSessionRun } from "../utils/hosted-session-orchestrator";
+import {
+  createHostedSessionRun,
+  reconcileHostedEpisode,
+  stepHostedSessionRun,
+} from "../utils/hosted-session-orchestrator";
 
 const originalFetch = global.fetch;
 
@@ -82,6 +86,10 @@ describe("createHostedSessionRun", () => {
         siteWorldSpecUri: path.join(tmpRoot, "site_world_spec.json"),
         siteWorldRegistrationUri: registrationPath,
         siteWorldHealthUri: healthPath,
+        resolvedArtifactCanonicalUri: "gs://bucket/site_world_spec.json",
+        registeredCanonicalPackageUri: "gs://runtime/registered-site-world-spec.json",
+        registeredCanonicalPackageVersion: "runtime-v1",
+        runtimeSiteWorldRecord: null,
         runtimeBaseUrl: "http://runtime.local",
         websocketBaseUrl: "ws://runtime.local",
         allowBlockedSiteWorld: true,
@@ -158,6 +166,104 @@ describe("stepHostedSessionRun", () => {
 
     expect(capturedBody).toMatchObject({
       action: [0, 0, 0, 0, 0, 0, 0],
+    });
+  });
+});
+
+describe("reconcileHostedEpisode", () => {
+  it("polls runtime state until a world snapshot is available", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "bp-hosted-session-reconcile-"));
+    const workDir = path.join(tmpRoot, "work");
+    await fs.mkdir(workDir, { recursive: true });
+    await fs.writeFile(
+      path.join(workDir, "runtime_metadata.json"),
+      JSON.stringify({ runtime_base_url: "http://runtime.local" }),
+      "utf-8",
+    );
+
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        session_id: "session-1",
+        status: "running",
+        step_index: 0,
+        observation: {
+          primaryCameraId: "",
+        },
+      }), { status: 200, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        session_id: "session-1",
+        status: "running",
+        step_index: 1,
+        observation: {
+          primaryCameraId: "head_rgb",
+          frame_path: "http://runtime.local/v1/sessions/session-1/render?camera_id=head_rgb",
+          worldSnapshot: {
+            snapshotId: "snapshot-1",
+            status: "running",
+          },
+          runtimeMetadata: {
+            step_index: 1,
+          },
+        },
+        action_trace: [[0, 0, 0, 0, 0, 0, 0]],
+      }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    global.fetch = fetchMock as typeof global.fetch;
+
+    const episode = await reconcileHostedEpisode({
+      sessionId: "session-1",
+      workDir,
+      episode: {
+        episodeId: "episode-1",
+        taskId: "task-1",
+        task: "Media room",
+        scenarioId: "scenario_default",
+        scenario: "default",
+        startStateId: "start_default",
+        startState: "default",
+      },
+      expectedStepIndex: 1,
+      timeoutMs: 25,
+      pollIntervalMs: 1,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(episode.stepIndex).toBe(1);
+    expect(
+      (((episode.observation as Record<string, unknown>).worldSnapshot as Record<string, unknown>).snapshotId),
+    ).toBe("snapshot-1");
+  });
+
+  it("returns runtime_snapshot_not_ready when state never materializes a snapshot", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "bp-hosted-session-timeout-"));
+    const workDir = path.join(tmpRoot, "work");
+    await fs.mkdir(workDir, { recursive: true });
+    await fs.writeFile(
+      path.join(workDir, "runtime_metadata.json"),
+      JSON.stringify({ runtime_base_url: "http://runtime.local" }),
+      "utf-8",
+    );
+
+    global.fetch = vi.fn(async () => new Response(JSON.stringify({
+      session_id: "session-1",
+      status: "running",
+      step_index: 0,
+      observation: {
+        primaryCameraId: "",
+      },
+    }), { status: 200, headers: { "Content-Type": "application/json" } })) as typeof global.fetch;
+
+    await expect(reconcileHostedEpisode({
+      sessionId: "session-1",
+      workDir,
+      episode: {
+        episodeId: "episode-1",
+      },
+      expectedStepIndex: 0,
+      timeoutMs: 5,
+      pollIntervalMs: 1,
+    })).rejects.toMatchObject({
+      code: "runtime_snapshot_not_ready",
+      statusCode: 504,
     });
   });
 });

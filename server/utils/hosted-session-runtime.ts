@@ -261,9 +261,14 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     );
   }
 
-  const runtimeBaseUrl = site.runtimeManifest?.runtimeBaseUrl ?? null;
-  const websocketBaseUrl = site.runtimeManifest?.websocketBaseUrl ?? null;
-  const runtimeSiteWorldRecord = await readRuntimeSiteWorldRecord(site.id, runtimeBaseUrl);
+  const registrationPayload = await readHostedRuntimeArtifactJson(siteWorldRegistrationUri);
+  const runtimeBaseUrl =
+    String(site.runtimeManifest?.runtimeBaseUrl || registrationPayload?.runtime_base_url || "").trim() || null;
+  const websocketBaseUrl =
+    String(site.runtimeManifest?.websocketBaseUrl || registrationPayload?.websocket_base_url || "").trim() || null;
+  const runtimeSiteWorldId =
+    String(registrationPayload?.site_world_id || site.id || "").trim() || site.id;
+  const runtimeSiteWorldRecord = await readRuntimeSiteWorldRecord(runtimeSiteWorldId, runtimeBaseUrl);
   const registeredCanonicalPackageUri =
     String(
       runtimeSiteWorldRecord?.canonical_package_uri

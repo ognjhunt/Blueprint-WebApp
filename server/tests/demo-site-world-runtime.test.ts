@@ -41,6 +41,9 @@ describe("demo site-world runtime fallback", () => {
     expect(runtime.allowBlockedSiteWorld).toBe(true);
     expect(runtime.qualificationState).toBe("qualified_ready");
     expect(runtime.deploymentReadiness?.qualification_state).toBe("qualified_ready");
+    expect(runtime.resolvedArtifactCanonicalUri).toContain("blueprint-8c1ca.appspot.com");
+    expect(runtime.registeredCanonicalPackageUri).toContain("gs://local-blueprint/");
+    expect(runtime.registeredCanonicalPackageVersion).toBeTruthy();
   });
 
   afterEach(() => {

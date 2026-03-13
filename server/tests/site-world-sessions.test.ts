@@ -1,8 +1,10 @@
 // @vitest-environment node
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import { createServer } from "http";
 import type { Server } from "node:http";
+
+const originalFetch = global.fetch;
 
 const state = vi.hoisted(() => {
   const hostedSessions = new Map<string, Record<string, unknown>>();
@@ -265,6 +267,16 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
 }));
 
 vi.mock("../utils/hosted-session-orchestrator", () => ({
+  HostedSessionOrchestratorError: class HostedSessionOrchestratorError extends Error {
+    code: string;
+    statusCode?: number | null;
+
+    constructor(code: string, message: string, options?: { statusCode?: number | null }) {
+      super(message);
+      this.code = code;
+      this.statusCode = options?.statusCode ?? null;
+    }
+  },
   createHostedSessionRun: vi.fn(async (params: { sessionId: string }) => {
     state.lastCreateHostedSessionRunParams = params as unknown as Record<string, unknown>;
     return {
@@ -519,7 +531,20 @@ async function stopServer(server: Server) {
   });
 }
 
+beforeEach(() => {
+  global.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input).startsWith("http://runtime.local/")) {
+      return new Response(JSON.stringify({ detail: "Not Found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return originalFetch(input, init);
+  }) as typeof global.fetch;
+});
+
 afterEach(async () => {
+  global.fetch = originalFetch;
   state.hostedSessions.clear();
   state.lastCreateHostedSessionRunParams = null;
   state.presentationLaunchConfig = {
@@ -1066,6 +1091,114 @@ describe("site world session routes", () => {
         unsafe_allow_blocked_site_world: true,
       });
     } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("defaults the runtime session canonical package URI to the runtime-registered URI", async () => {
+    const actualFetch = global.fetch;
+    global.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "http://runtime.local/v1/site-worlds/siteworld-1") {
+        return new Response(
+          JSON.stringify({
+            canonical_package_uri: "gs://runtime/registered/site_world_spec.json",
+            canonical_package_version: "runtime-v2",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return actualFetch(input, init);
+    }) as typeof global.fetch;
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteWorldId: "sw-chi-01",
+          sessionMode: "runtime_only",
+          robotProfileId: "other_sample",
+          taskId: "sw-chi-01-task-1",
+          scenarioId: "sw-chi-01-scenario-1",
+          startStateId: "sw-chi-01-start-1",
+        }),
+      });
+      const payload = (await response.json()) as Record<string, unknown>;
+      expect(response.status).toBe(201);
+      expect(payload.status).toBe("ready");
+      expect((state.lastCreateHostedSessionRunParams as Record<string, unknown>).runtimeSessionConfig).toEqual({
+        canonical_package_uri: "gs://runtime/registered/site_world_spec.json",
+        canonical_package_version: "runtime-v2",
+        prompt: null,
+        trajectory: null,
+        presentation_model: null,
+        debug_mode: false,
+        unsafe_allow_blocked_site_world: false,
+      });
+    } finally {
+      global.fetch = actualFetch;
+      await stopServer(server);
+    }
+  });
+
+  it("appends canonical package mismatch details when snapshot reconciliation fails", async () => {
+    const actualFetch = global.fetch;
+    global.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "http://runtime.local/v1/site-worlds/siteworld-1") {
+        return new Response(
+          JSON.stringify({
+            canonical_package_uri: "gs://runtime/registered/site_world_spec.json",
+            canonical_package_version: "runtime-v2",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return actualFetch(input, init);
+    }) as typeof global.fetch;
+
+    const orchestrator = await import("../utils/hosted-session-orchestrator");
+    const reconcileMock = vi.mocked(orchestrator.reconcileHostedEpisode);
+    reconcileMock.mockRejectedValueOnce(
+      new orchestrator.HostedSessionOrchestratorError(
+        "runtime_snapshot_not_ready",
+        "Runtime session did not materialize a renderable world snapshot in time.",
+        {
+          statusCode: 504,
+        },
+      ),
+    );
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const create = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteWorldId: "sw-chi-01",
+          robotProfileId: "other_sample",
+          taskId: "sw-chi-01-task-1",
+          scenarioId: "sw-chi-01-scenario-1",
+          startStateId: "sw-chi-01-start-1",
+        }),
+      });
+      const createPayload = (await create.json()) as { sessionId: string };
+
+      const reset = await fetch(`${baseUrl}/${createPayload.sessionId}/reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const resetPayload = (await reset.json()) as Record<string, unknown>;
+      expect(reset.status).toBe(504);
+      expect(((resetPayload.diagnostic as Record<string, unknown>).detail as string)).toContain(
+        "runtime_registered=gs://runtime/registered/site_world_spec.json",
+      );
+      expect(((resetPayload.diagnostic as Record<string, unknown>).detail as string)).toContain(
+        "resolved_artifact=gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_spec.json",
+      );
+    } finally {
+      global.fetch = actualFetch;
       await stopServer(server);
     }
   });
