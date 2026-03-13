@@ -256,7 +256,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
     <>
       <SEO
         title={`Start Hosted Session | ${site.siteName} | Blueprint`}
-        description={`Set up a NeoVerse-first hosted session for ${site.siteName}.`}
+        description={`Set up a streamed world-model session for ${site.siteName}.`}
         canonical={`/site-worlds/${site.id}/start`}
       />
 
@@ -283,18 +283,22 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                 <span>{site.siteAddress}</span>
               </div>
               <p className="mt-4 text-sm leading-6 text-slate-600">{site.taskLane}</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                This launches a streamed world-model session for one site, one robot, and one task
+                question.
+              </p>
 
               <div className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-3">
                 <SiteWorldGraphic site={site} />
               </div>
 
               <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-950 p-5 text-slate-100">
-                <p className="text-sm font-semibold">NeoVerse is the default hosted runtime.</p>
+                <p className="text-sm font-semibold">NeoVerse is the default runtime for this hosted world model.</p>
                 <ul className="mt-4 space-y-3 text-sm text-slate-300">
                   {[
-                    "The canonical package comes from the captured scene-memory bundle, not the robot profile.",
-                    "Robot, task, scenario, and start state are selected independently.",
-                    "Embedded demos and runtime sessions have separate launch requirements.",
+                    "The world model comes from the captured site package, not from the robot profile.",
+                    "Robot, task, scenario, and start state are selected separately.",
+                    "Embedded demos and runtime sessions have different launch requirements.",
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-3">
                       <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
@@ -355,7 +359,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                 <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
                   <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                     <ScanSearch className="h-4 w-4" />
-                    Site Model
+                    World Model
                   </div>
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
                     <div className="rounded-2xl border border-slate-200 bg-white p-4">

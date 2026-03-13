@@ -13,10 +13,13 @@ describe("SiteWorldDetail", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/1847 W Fulton St, Chicago, IL 60612/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Start with the site asset package\./i }),
+      screen.getByRole("heading", { name: /Practical uses for this site-specific world model\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Open the hosted eval room for this site\./i }),
+      screen.getByRole("heading", { name: /Start with the site-world package\./i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /Stream this world model in a hosted test room\./i }),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /How this works/i })).toBeInTheDocument();
     expect(screen.getByText(/Step 1/i)).toBeInTheDocument();
@@ -26,7 +29,9 @@ describe("SiteWorldDetail", () => {
     expect(screen.getByText(/Self-serve starting rate/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What goes in/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What comes back/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /What teams do with it/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /What teams do with this world model/i }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /Example run for Harborview Grocery Distribution Annex/i }),
     ).toBeInTheDocument();

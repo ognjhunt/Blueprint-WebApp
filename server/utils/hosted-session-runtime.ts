@@ -55,6 +55,18 @@ export interface HostedRuntimeResolution {
   humanActionsRequiredUri?: string | null;
 }
 
+const QUALIFICATION_STATES: QualificationState[] = [
+  "submitted",
+  "capture_requested",
+  "qa_passed",
+  "needs_more_evidence",
+  "in_review",
+  "qualified_ready",
+  "qualified_risky",
+  "needs_refresh",
+  "not_ready_yet",
+];
+
 async function resolveInboundRequestBySiteSubmissionId(siteSubmissionId: string) {
   if (!db) {
     return null;
@@ -88,6 +100,11 @@ function artifactUri(
   }
   const bucket = process.env.FIREBASE_STORAGE_BUCKET || "blueprint-8c1ca.appspot.com";
   return `gs://${bucket}/${pipelinePrefix}/${fallbackRelative}`;
+}
+
+function parseQualificationState(value: unknown): QualificationState | null {
+  const normalized = String(value || "").trim() as QualificationState | "";
+  return QUALIFICATION_STATES.includes(normalized as QualificationState) ? normalized as QualificationState : null;
 }
 
 export async function readHostedRuntimeArtifactJson(uri?: string | null): Promise<Record<string, unknown> | null> {
@@ -237,8 +254,9 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     runtimeDemoManifestUri: presentationWorldManifestUri,
     presentationDemoBlockers,
     priceLabel: site.packages[1]?.priceLabel ?? null,
-    qualificationState:
-      String(inbound?.data?.qualification_state || site.deploymentReadiness?.qualification_state || "").trim() || null,
+    qualificationState: parseQualificationState(
+      inbound?.data?.qualification_state || site.deploymentReadiness?.qualification_state,
+    ),
     deploymentReadiness:
       (inbound?.data?.deployment_readiness as DeploymentReadinessSummary | undefined) || site.deploymentReadiness || null,
     readinessDecisionUri: String(artifacts.readiness_decision_uri || "").trim() || null,

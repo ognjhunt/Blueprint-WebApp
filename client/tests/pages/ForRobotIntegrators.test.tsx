@@ -3,27 +3,23 @@ import { describe, expect, it } from "vitest";
 import ForRobotIntegrators from "@/pages/ForRobotIntegrators";
 
 describe("ForRobotIntegrators", () => {
-  it("renders the broader robot-team framing and research section", () => {
+  it("renders the robot-team use cases and simpler positioning", () => {
     render(<ForRobotIntegrators />);
 
     expect(screen.getByText(/^For Robot Teams$/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Evaluate on qualified sites, not cold leads\./i }),
+      screen.getByRole("heading", { name: /Use a site-specific world model before you commit field time\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /What changed recently/i })).toBeInTheDocument();
-    expect(screen.getByText(/^WoVR$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^DreamZero$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^VLA-RFT$/i)).toBeInTheDocument();
-    expect(
-      screen.getByText(/Passive site video can help with context, but it usually does not give a robot enough to train from scratch\./i),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Read WoVR/i })).toHaveAttribute(
+    expect(screen.getByRole("heading", { name: /What teams can do with it/i })).toBeInTheDocument();
+    expect(screen.getByText(/Test before travel/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Make site-specific data/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Share one hosted environment/i)).toBeInTheDocument();
+    expect(screen.getByText(/How to talk about it/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Simple positioning/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Clear boundaries/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Browse site worlds/i })).toHaveAttribute(
       "href",
-      "https://arxiv.org/abs/2602.13977",
-    );
-    expect(screen.getByRole("link", { name: /View qualified opportunities/i })).toHaveAttribute(
-      "href",
-      "/qualified-opportunities",
+      "/site-worlds",
     );
   });
 });

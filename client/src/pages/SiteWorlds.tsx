@@ -10,11 +10,11 @@ const layerCards = [
     title: "Scene Package",
     kicker: "First",
     description:
-      "Take the captured site package when your team needs the evidence, layout context, and constraints for one real workflow area.",
+      "Take the site-world package when your team wants the assets, evidence, and layout for one real workflow area.",
     bullets: [
-      "Walkthrough capture and camera poses",
-      "Geometry, depth, and context when available",
-      "Task-lane notes and license terms",
+      "Walkthrough video and camera poses",
+      "Geometry, depth, and site notes when available",
+      "License for internal review or integration",
     ],
     icon: <ScanLine className="h-5 w-5 text-slate-700" />,
   },
@@ -22,13 +22,36 @@ const layerCards = [
     title: "Hosted Sessions",
     kicker: "Second",
     description:
-      "Open a hosted eval session when you want to test policies on that site now without building the runtime yourself.",
+      "Open a hosted session when you want to stream the world model, run tests, and export results without building the runtime yourself.",
     bullets: [
-      "Self-serve session hours on that site",
-      "Scenario variants for edge-case checks",
-      "Rollout exports, metrics, and policy comparison",
+      "Reset and rerun the same site",
+      "Scenario changes for edge-case checks",
+      "Rollout exports, datasets, and policy comparison",
     ],
     icon: <Play className="h-5 w-5 text-slate-700" />,
+  },
+];
+
+const useCaseCards = [
+  {
+    title: "Test before travel",
+    description:
+      "See if your robot can localize, fit, see the task, and finish the job before anyone goes on site.",
+  },
+  {
+    title: "Make site-specific data",
+    description:
+      "Render views, vary scenarios, and export outputs for training, debugging, or internal review.",
+  },
+  {
+    title: "Compare releases",
+    description:
+      "Run the same site and task after each autonomy update so your team can spot regressions early.",
+  },
+  {
+    title: "Train and demo",
+    description:
+      "Show the exact customer site to operators, teleop teams, or buyers in a browser before the real visit.",
   },
 ];
 
@@ -63,7 +86,7 @@ export default function SiteWorlds() {
     <>
       <SEO
         title="Site Worlds | Blueprint"
-        description="Robot teams and integrators can review a real site package, then open hosted evaluation time on that exact workflow."
+        description="Browse site-specific world models that robot teams can stream for validation, site-specific data, and remote demos."
         canonical="/site-worlds"
       />
 
@@ -75,13 +98,12 @@ export default function SiteWorlds() {
                 Site Worlds For Robot Teams
               </p>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Test your robot on a real site before the field visit.
+                Site-specific world models for robot teams.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
-                Built for robot vendors and systems integrators. Pick a site, review the capture
-                package, then open a hosted evaluation session for that exact workflow. The point
-                is to cut time to first test, compare checkpoints on repeatable conditions, and see
-                what breaks before anyone travels.
+                Each Site World is a robot-ready model of one real site and one real workflow.
+                Use it to test before travel, make site-specific data, compare releases on the same
+                setup, and run demos or operator practice on the exact site.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -102,9 +124,9 @@ export default function SiteWorlds() {
             <div className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-5 sm:px-6">
               <p className="text-sm font-semibold text-slate-900">How to read this page</p>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                These are robot-team pages. The site has already been qualified. You can license
-                the site package, or open hosted eval time to check deployment fit, run
-                counterfactuals, and compare policies against the same task lane.
+                Each listing is one site-specific world model. Buy the package if you want the
+                assets. Start a hosted session if you want to stream it, run tests, and export
+                results.
               </p>
             </div>
           </header>
@@ -118,12 +140,12 @@ export default function SiteWorlds() {
                 Layer selector
               </p>
               <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                Two ways a robot team can use a site.
+                Two ways a robot team can use one world model.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Start with the site package if you need the raw capture context. Open Hosted
-                Sessions when you want a Blueprint-run test room for repeatable policy evaluation,
-                scenario changes, and exportable results.
+                Start with the package if you need the raw site inputs. Open Hosted Sessions when
+                you want Blueprint to run the world model for validation, repeatable tests, and
+                exportable results.
               </p>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -151,6 +173,32 @@ export default function SiteWorlds() {
             </div>
           </section>
 
+          <section className="mt-8 rounded-3xl border border-slate-200 bg-white px-5 py-6 sm:px-7 sm:py-7">
+            <div className="max-w-3xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                What teams use this for
+              </p>
+              <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
+                Four common reasons teams buy or stream a site world.
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                This is not just a model to look at. It is meant to answer practical robot-team
+                questions about one real place.
+              </p>
+            </div>
+            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {useCaseCards.map((item) => (
+                <article
+                  key={item.title}
+                  className="rounded-2xl border border-slate-200 bg-slate-50 p-5"
+                >
+                  <h3 className="text-base font-semibold text-slate-900">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.description}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
           <section id="catalog" className="mt-12">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-3xl">
@@ -161,9 +209,9 @@ export default function SiteWorlds() {
                   Sites your team could test against right now.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Each listing shows the site package first and the hosted eval meter second. Every
-                  site card has its own self-serve hourly rate. Open the detail page if you want
-                  the session workflow, the pricing context, and the direct launch path.
+                  Each listing shows the world-model package first and the hosted session option
+                  second. Every site card has its own self-serve rate. Open the detail page if you
+                  want the workflow, pricing context, and direct launch path.
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">

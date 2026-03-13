@@ -47,6 +47,29 @@ const hostedSessionSteps = [
   },
 ];
 
+const worldModelUseCases = [
+  {
+    title: "Check deployment fit",
+    detail:
+      "See if your robot can move through this site, see the task, and finish the job before a field visit.",
+  },
+  {
+    title: "Make site-specific data",
+    detail:
+      "Render runs from this exact site, vary scenarios, and export outputs for training or debugging.",
+  },
+  {
+    title: "Compare releases",
+    detail:
+      "Run the same task on the same site after each software update so regressions are easy to spot.",
+  },
+  {
+    title: "Train and demo",
+    detail:
+      "Use the exact site for customer demos, operator walkthroughs, and shared remote review.",
+  },
+];
+
 interface SupportBlock {
   title: string;
   items: string[];
@@ -124,12 +147,12 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
       ],
     },
     {
-      title: "What teams do with it",
+      title: "What teams do with this world model",
       items: [
-        "Benchmark checkpoints against each other",
-        "Test clutter, lighting, and placement changes",
-        "Export trajectories and summary results",
-        "Decide pass, fix, or escalate",
+        "Check deployment fit before travel",
+        "Generate site-specific data",
+        "Compare releases on the same setup",
+        "Train operators or run customer demos",
       ],
     },
   ];
@@ -138,7 +161,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
     <>
       <SEO
         title={`${site.siteName} | Site Worlds | Blueprint`}
-        description={`${site.siteName} shows the site package first and the hosted evaluation workflow second so robot teams can judge fit before a site visit.`}
+        description={`${site.siteName} is a site-specific world model that robot teams can review, stream, and use for validation or data generation before a site visit.`}
         canonical={`/site-worlds/${site.id}`}
       />
 
@@ -164,7 +187,10 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               <p className="mt-4 max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
                 {site.summary}
               </p>
-              <p className="mt-3 text-sm text-slate-500">{site.bestFor}</p>
+              <p className="mt-3 text-sm text-slate-600">
+                Think of it as a site-specific world model you can either license or stream.
+              </p>
+              <p className="mt-2 text-sm text-slate-500">{site.bestFor}</p>
               <div className="mt-5 flex flex-wrap gap-3">
                 <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
                   {site.taskLane}
@@ -176,7 +202,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             </div>
 
             <aside className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-5 sm:px-6">
-              <p className="text-sm font-semibold text-slate-900">What robot teams are reviewing</p>
+              <p className="text-sm font-semibold text-slate-900">What this world model offers</p>
               <div className="mt-4 space-y-2.5">
                 <a
                   href="#scene-package"
@@ -195,14 +221,40 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               </div>
               <p className="mt-4 text-sm leading-relaxed text-slate-600">
                 Qualification happens on the site side. This page is the robot-team view: confirm
-                the site, then decide whether you want the package or hosted eval time on that
-                exact location.
+                the site, then decide whether you want the package or hosted time on that exact
+                location.
               </p>
             </aside>
           </header>
 
           <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-5 sm:p-6">
             <SiteWorldGraphic site={site} />
+          </section>
+
+          <section className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 px-5 py-6 sm:px-7 sm:py-7">
+            <div className="max-w-3xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                What teams do with it
+              </p>
+              <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
+                Practical uses for this site-specific world model.
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                Robot teams usually buy this to answer a real deployment question, not just to look
+                at a model.
+              </p>
+            </div>
+            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {worldModelUseCases.map((item) => (
+                <article
+                  key={item.title}
+                  className="rounded-2xl border border-slate-200 bg-white p-5"
+                >
+                  <h3 className="text-base font-semibold text-slate-900">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.detail}</p>
+                </article>
+              ))}
+            </div>
           </section>
 
           {site.deploymentReadiness ? (
@@ -285,12 +337,12 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             <div className="mt-3 grid gap-6 lg:grid-cols-[1fr_0.9fr]">
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                  Start with the site asset package.
+                  Start with the site-world package.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  This gives your team the site-specific inputs for this workflow area. Use it when
-                  you want the capture package for internal review, integration work, or your own
-                  stack. It is the asset layer, not the hosted eval layer.
+                  This gives your team the site-specific world-model inputs for this workflow area.
+                  Use it when you want the package for internal review, integration work, or your
+                  own stack. It is the asset layer, not the hosted session layer.
                 </p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   {scenePackage.deliverables.map((item) => (
@@ -341,14 +393,14 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             <div className="mt-3 grid gap-6 lg:grid-cols-[1fr_0.9fr]">
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                  Open the hosted eval room for this site.
+                  Stream this world model in a hosted test room.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
                   Hosted Sessions are for the practical questions robot teams actually ask: can
-                  this robot handle this lane, what fails first, and how do checkpoints compare on
-                  the same setup? Use them for repeatable evaluation and edge-case variations
-                  without another site visit. They are not the raw scan, not a physics-certified
-                  simulator, and not final deployment proof.
+                  this robot handle this lane, what fails first, and how do releases compare on the
+                  same setup? Use them for repeatable validation, site-specific data generation,
+                  and remote demos without another site visit. They are not final deployment proof
+                  and not a full contact-accurate manipulation simulator.
                 </p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   {hostedSessions.deliverables.map((item) => (
@@ -403,7 +455,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 How this works
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Think of this as a temporary cloud test room for one real site and one real robot
+                Think of this as a streamed world model for one real site and one real robot
                 question.
               </p>
             </div>
@@ -454,8 +506,8 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               {site.samplePolicy} on the task to {site.sampleTask.toLowerCase()}. They run a few
               variations like {site.scenarioVariants.slice(0, 2).join(" and ").toLowerCase()} to
               see whether the lane is viable, what breaks first, and whether the checkpoint is
-              ready for a real visit. Then they review the rollout video, metrics, and failure
-              cases.
+              ready for a real visit. Then they review the rollout video, metrics, failure cases,
+              and exported data.
             </p>
           </section>
 

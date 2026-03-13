@@ -62,7 +62,10 @@ describe("HostedSessionSetup", () => {
     expect(await screen.findByRole("heading", { name: /Start Hosted Session/i })).toBeInTheDocument();
     expect(screen.getAllByText(/Harborview Grocery Distribution Annex/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/1847 W Fulton St, Chicago, IL 60612/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Site Model/i).length).toBeGreaterThan(0);
+    expect(
+      screen.getByText(/This launches a streamed world-model session for one site, one robot, and one task question\./i),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(/World Model/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Robot profile/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Session Runtime/i)).toBeInTheDocument();
     expect(screen.getByText(/Embedded demo readiness/i)).toBeInTheDocument();
