@@ -17,7 +17,9 @@ describe("ForRobotIntegrators", () => {
     expect(screen.getByText(/Share one environment/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What you get/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What to expect/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Use the term world model if you want\./i })).toBeInTheDocument();
+    expect(screen.getByText(/This is strong for validation, site-specific data generation/i)).toHaveClass(
+      "text-white",
+    );
     expect(screen.getByRole("link", { name: /Browse site worlds/i })).toHaveAttribute(
       "href",
       "/site-worlds",

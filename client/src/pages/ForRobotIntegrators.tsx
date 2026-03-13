@@ -140,21 +140,12 @@ export default function ForRobotIntegrators() {
 
             <article className="rounded-3xl border border-slate-200 bg-slate-900 p-6 text-white">
               <h2 className="text-2xl font-bold">What to expect</h2>
-              <p className="mt-4 text-sm leading-7 text-slate-200">
+              <p className="mt-4 text-sm leading-7 text-white">
                 This is strong for validation, site-specific data generation, operator rehearsal,
                 and remote demos. It is not the final signoff for deployment, and it is not a
                 contact-perfect manipulation simulator for every task.
               </p>
             </article>
-          </section>
-
-          <section className="mt-12 rounded-3xl border border-slate-200 bg-slate-50 p-6 sm:p-8">
-            <h2 className="text-2xl font-bold text-slate-900">Use the term world model if you want.</h2>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-              Robot teams know the term. The page just needs to explain the outcome in plain
-              English: this is a hosted model of the real site that helps you test, generate data,
-              and rehearse before the real visit.
-            </p>
           </section>
         </div>
       </div>
