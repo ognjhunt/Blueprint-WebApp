@@ -39,7 +39,7 @@ interface HostedSessionWorkspaceProps {
 type WorkspaceViewMode = "live_runtime" | "presentation_world";
 type BootstrapState = "idle" | "running" | "done";
 
-const DEFAULT_RUNTIME_ACTION = [0, 0, 0, 0, 0, 0, 1];
+const DEFAULT_RUNTIME_ACTION = [0, 0, 0, 0, 0, 0, 0];
 
 const RUNTIME_ACTION_PRESETS = [
   {
@@ -500,6 +500,8 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     site?.presentationDemoReadiness?.presentationWorldManifestUri ||
     null;
   const runtimeDemoManifestUri = sessionRecord?.siteModel?.runtimeDemoManifestUri || null;
+  const runtimeReferenceImageUrl = site?.runtimeReferenceImageUrl || null;
+  const presentationReferenceImageUrl = site?.presentationReferenceImageUrl || null;
   const openDemoUrl =
     uiBootstrapUrl ||
     (sessionRecord?.presentationRuntime?.status === "live"
@@ -565,6 +567,8 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       isRenderableObservationPath(selectedObservationSrc) &&
       !observationLoadError,
   );
+  const showRuntimeReferencePreview = !hasVisibleObservation && Boolean(runtimeReferenceImageUrl);
+  const showPresentationReferencePreview = Boolean(presentationReferenceImageUrl);
   const presentationAvailabilityLabel = presentationInteractive
     ? "Embedded presentation viewer live"
     : "Artifact-backed presentation fallback";
@@ -1028,6 +1032,18 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                         onError={() => setObservationLoadError(true)}
                         onLoad={() => setObservationLoadError(false)}
                       />
+                    ) : showRuntimeReferencePreview ? (
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                        <img
+                          src={runtimeReferenceImageUrl || ""}
+                          alt="Validated runtime reference frame"
+                          className="h-[360px] w-full rounded-2xl object-cover"
+                        />
+                        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                          Live stepping did not return a browser-visible frame. Showing the validated March 13 reference
+                          render in-page while the current runtime path is unavailable.
+                        </div>
+                      </div>
                     ) : (
                       <div className="flex h-[360px] items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center">
                         <div className="max-w-md">
@@ -1127,6 +1143,11 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                         <p className="mt-2 text-xs text-slate-500">
                           Protected-region violations: {protectedRegionViolations.length}
                         </p>
+                        {showRuntimeReferencePreview ? (
+                          <p className="mt-3 text-xs text-slate-500">
+                            In-page preview is currently a validated reference frame, not a live stepped render.
+                          </p>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -1273,8 +1294,15 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                         onLoad={() => setIframeLoaded(true)}
                       />
                     ) : (
-                      <div className="flex min-h-[420px] items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
-                        <div className="max-w-xl">
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6">
+                        {showPresentationReferencePreview ? (
+                          <img
+                            src={presentationReferenceImageUrl || ""}
+                            alt="Presentation world reference preview"
+                            className="h-[420px] w-full rounded-2xl object-cover"
+                          />
+                        ) : null}
+                        <div className="mx-auto mt-6 max-w-xl text-center">
                           <TriangleAlert className="mx-auto h-8 w-8 text-amber-600" />
                           <p className="mt-4 text-lg font-semibold text-slate-900">
                             Embedded public presentation viewer is not configured for this walkthrough.
@@ -1283,6 +1311,11 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                             The underlying presentation world exists, but this workspace falls back to manifest-backed
                             presentation artifacts unless a stable public viewer URL is live. This keeps the page truthful
                             instead of shipping a dead iframe.
+                          </p>
+                          <p className="mt-3 text-sm leading-6 text-slate-600">
+                            {showPresentationReferencePreview
+                              ? "The image above is a captured reference view from the saved NeoVerse presentation session."
+                              : "No in-page presentation capture is bundled for this site yet."}
                           </p>
                           <div className="mt-5 flex flex-wrap justify-center gap-3">
                             {openDemoUrl ? <MetadataLink href={openDemoUrl} label="Open live presentation viewer" /> : null}

@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createHostedSessionRun } from "../utils/hosted-session-orchestrator";
+import { createHostedSessionRun, stepHostedSessionRun } from "../utils/hosted-session-orchestrator";
 
 const originalFetch = global.fetch;
 
@@ -115,5 +115,49 @@ describe("createHostedSessionRun", () => {
       unsafe_allow_blocked_site_world: true,
     });
     expect(capturedBody).not.toHaveProperty("runtime_session_config");
+  });
+});
+
+describe("stepHostedSessionRun", () => {
+  it("uses a neutral zero action when no explicit action is supplied", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "bp-hosted-session-step-"));
+    const workDir = path.join(tmpRoot, "work");
+    await fs.mkdir(workDir, { recursive: true });
+    await fs.writeFile(
+      path.join(workDir, "runtime_metadata.json"),
+      JSON.stringify({ runtime_base_url: "http://runtime.local" }),
+      "utf-8",
+    );
+
+    let capturedBody: Record<string, unknown> | null = null;
+    global.fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      capturedBody = JSON.parse(String(init?.body || "{}")) as Record<string, unknown>;
+      return new Response(
+        JSON.stringify({
+          episodeId: "episode-1",
+          taskId: "task-1",
+          task: "Media room",
+          scenarioId: "scenario_default",
+          scenario: "default",
+          startStateId: "start_default",
+          startState: "default",
+          status: "running",
+          stepIndex: 1,
+          done: false,
+          reward: 0.05,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }) as typeof global.fetch;
+
+    await stepHostedSessionRun({
+      sessionId: "session-step-test",
+      workDir,
+      episodeId: "episode-1",
+    });
+
+    expect(capturedBody).toMatchObject({
+      action: [0, 0, 0, 0, 0, 0, 0],
+    });
   });
 });

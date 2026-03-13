@@ -85,6 +85,8 @@ export type SiteWorldCard = {
     blockers: string[];
     presentationWorldManifestUri?: string | null;
   };
+  runtimeReferenceImageUrl?: string | null;
+  presentationReferenceImageUrl?: string | null;
   sceneMemoryManifestUri?: string | null;
   conditioningBundleUri?: string | null;
   siteWorldSpecUri?: string | null;
@@ -865,6 +867,8 @@ siteWorldCards.push({
     presentationWorldManifestUri:
       "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/presentation_world/presentation_world_manifest.json",
   },
+  runtimeReferenceImageUrl: "/siteworld-f5fd54898cfb-runtime-reference.png",
+  presentationReferenceImageUrl: "/siteworld-f5fd54898cfb-presentation-reference.png",
   sceneMemoryManifestUri:
     "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/scene_memory/scene_memory_manifest.json",
   conditioningBundleUri:

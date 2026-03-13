@@ -303,7 +303,7 @@ export async function stepHostedSessionRun(params: {
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: Array.isArray(params.action) ? params.action : [0, 0, 0, 0, 0, 0, 1] }),
+      body: JSON.stringify({ action: Array.isArray(params.action) ? params.action : [0, 0, 0, 0, 0, 0, 0] }),
     },
   );
   return { episode: normalizeEpisode(payload) };
