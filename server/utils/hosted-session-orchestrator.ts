@@ -160,26 +160,57 @@ export async function createHostedSessionRun(params: {
   runtimeSessionConfig?: HostedRuntimeSessionConfig | null;
 }) {
   const handle = await resolveRuntimeHandle(params.runtime);
-  const payload = await runtimeFetchJson(
-    handle.runtimeBaseUrl,
-    `/v1/site-worlds/${encodeURIComponent(handle.siteWorldId)}/sessions`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        session_id: params.sessionId,
-        robot_profile_id: params.robotProfileId,
-        robot_profile_override: params.robotProfileOverride || null,
-        policy: params.policy || {},
-        task_id: params.taskId,
-        scenario_id: params.scenarioId,
-        start_state_id: params.startStateId,
-        export_modes: params.exportModes,
-        runtime_session_config: params.runtimeSessionConfig || null,
-        notes: params.notes || "",
-      }),
-    },
-  );
+  const runtimeSessionConfig = params.runtimeSessionConfig || null;
+  let payload: Record<string, unknown>;
+  try {
+    payload = await runtimeFetchJson(
+      handle.runtimeBaseUrl,
+      `/v1/site-worlds/${encodeURIComponent(handle.siteWorldId)}/sessions`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: params.sessionId,
+          robot_profile_id: params.robotProfileId,
+          robot_profile_override: params.robotProfileOverride || null,
+          policy: params.policy || {},
+          task_id: params.taskId,
+          scenario_id: params.scenarioId,
+          start_state_id: params.startStateId,
+          export_modes: params.exportModes,
+          notes: params.notes || "",
+          canonical_package_uri: runtimeSessionConfig?.canonical_package_uri || null,
+          canonical_package_version: runtimeSessionConfig?.canonical_package_version || null,
+          prompt: runtimeSessionConfig?.prompt || null,
+          trajectory: runtimeSessionConfig?.trajectory || null,
+          presentation_model: runtimeSessionConfig?.presentation_model || null,
+          debug_mode: runtimeSessionConfig?.debug_mode === true,
+          unsafe_allow_blocked_site_world: runtimeSessionConfig?.unsafe_allow_blocked_site_world === true,
+        }),
+      },
+    );
+  } catch (error) {
+    if (
+      error instanceof HostedSessionOrchestratorError &&
+      error.code === "runtime_proxy_failed" &&
+      /not launchable/i.test(error.message)
+    ) {
+      const health = await runtimeFetchJson(
+        handle.runtimeBaseUrl,
+        `/v1/site-worlds/${encodeURIComponent(handle.siteWorldId)}/health`,
+      ).catch(() => null);
+      const blockers = Array.isArray(health?.blockers)
+        ? health.blockers.map((item) => String(item)).filter(Boolean)
+        : [];
+      if (blockers.length > 0) {
+        throw new HostedSessionOrchestratorError(
+          "runtime_proxy_failed",
+          `site world ${handle.siteWorldId} is not launchable: ${blockers.join(", ")}`,
+        );
+      }
+    }
+    throw error;
+  }
   await writeRuntimeMetadata(params.workDir, {
     runtime_base_url: handle.runtimeBaseUrl,
     websocket_base_url: handle.websocketBaseUrl,
