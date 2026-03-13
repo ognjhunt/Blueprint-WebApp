@@ -129,6 +129,7 @@ describe("HostedSessionSetup", () => {
   });
 
   it("offers a runtime-only launch fallback when the embedded demo is blocked", async () => {
+    const demoSiteId = "siteworld-f5fd54898cfb";
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       if (typeof input === "string" && input.includes("/launch-readiness")) {
         return new Response(
@@ -167,7 +168,7 @@ describe("HostedSessionSetup", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<HostedSessionSetup params={{ slug: "sw-chi-01" }} />);
+    render(<HostedSessionSetup params={{ slug: demoSiteId }} />);
 
     expect(await screen.findByText(/Embedded demo is blocked, but the live runtime is ready\./i)).toBeInTheDocument();
     const runtimeButton = screen.getByRole("button", { name: /Launch runtime session/i });
@@ -183,5 +184,8 @@ describe("HostedSessionSetup", () => {
     const request = JSON.parse(String(createCall?.[1]?.body || "{}")) as Record<string, unknown>;
     expect(request.sessionMode).toBe("runtime_only");
     expect(request.runtimeUi).toBeNull();
+    expect((request.runtimeSessionConfig as Record<string, unknown>).canonical_package_uri).toBe(
+      getSiteWorldById(demoSiteId)?.siteWorldSpecUri || null,
+    );
   });
 });

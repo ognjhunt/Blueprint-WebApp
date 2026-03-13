@@ -202,7 +202,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
       requestedOutputs,
       exportModes: ["raw_bundle", "rlds_dataset"],
       runtimeSessionConfig: {
-        canonical_package_uri: site.sceneMemoryManifestUri || null,
+        canonical_package_uri: site.siteWorldSpecUri || null,
         canonical_package_version: null,
         prompt: null,
         trajectory: null,
