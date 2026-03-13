@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import HostedSessionWorkspace from "@/pages/HostedSessionWorkspace";
 import { getSiteWorldById } from "@/data/siteWorlds";
@@ -10,12 +10,16 @@ vi.mock("wouter", async () => {
   return {
     ...actual,
     useSearch: () => mockSearch,
-    useLocation: () => ["/site-worlds/sw-chi-01/workspace", vi.fn()],
+    useLocation: () => ["/site-worlds/siteworld-f5fd54898cfb/workspace", vi.fn()],
   };
 });
 
 vi.mock("@/lib/siteWorldsApi", () => ({
   fetchSiteWorldDetail: vi.fn(async (siteWorldId: string) => getSiteWorldById(siteWorldId)),
+}));
+
+vi.mock("@/lib/csrf", () => ({
+  withCsrfHeader: vi.fn(async (headers: Record<string, string>) => headers),
 }));
 
 vi.mock("@/lib/firebase", () => ({
@@ -26,6 +30,81 @@ vi.mock("@/lib/firebase", () => ({
   },
 }));
 
+function buildRuntimeSession(overrides: Record<string, unknown> = {}) {
+  return {
+    sessionId: "session-1",
+    sessionMode: "runtime_only",
+    runtime_backend_selected: "neoverse",
+    status: "ready",
+    site: {
+      siteWorldId: "siteworld-f5fd54898cfb",
+      siteName: "Media Room Demo Walkthrough",
+      siteAddress: "Blueprint hosted runtime demo",
+      scene_id: "9483414B-8776-4F68-AC80-D3B3BA774A90",
+      capture_id: "6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3",
+      site_submission_id: "9483414B-8776-4F68-AC80-D3B3BA774A90:6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3",
+      pipeline_prefix:
+        "scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline",
+    },
+    siteModel: {
+      siteWorldId: "siteworld-f5fd54898cfb",
+      siteName: "Media Room Demo Walkthrough",
+      siteAddress: "Blueprint hosted runtime demo",
+      sceneId: "9483414B-8776-4F68-AC80-D3B3BA774A90",
+      captureId: "6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3",
+      pipelinePrefix:
+        "scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline",
+      siteWorldSpecUri:
+        "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/evaluation_prep/site_world_spec.json",
+      siteWorldRegistrationUri:
+        "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/evaluation_prep/site_world_registration.json",
+      siteWorldHealthUri:
+        "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/evaluation_prep/site_world_health.json",
+      runtimeBaseUrl: "http://146.115.17.157:45457",
+      websocketBaseUrl: "ws://146.115.17.157:45457",
+      sceneMemoryManifestUri:
+        "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/scene_memory/scene_memory_manifest.json",
+      conditioningBundleUri:
+        "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/scene_memory/conditioning_bundle.json",
+      presentationWorldManifestUri:
+        "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/presentation_world/presentation_world_manifest.json",
+      runtimeDemoManifestUri:
+        "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/presentation_world/runtime_demo_manifest.json",
+      availableScenarioVariants: ["default", "counterfactual_lighting"],
+      availableStartStates: ["default_start_state"],
+      defaultRuntimeBackend: "neoverse",
+      availableRuntimeBackends: ["neoverse"],
+    },
+    policy: {},
+    requestedOutputs: ["observation_frames", "rollout_video", "export_bundle"],
+    artifactUris: {},
+    datasetArtifacts: {},
+    elapsedSeconds: 0,
+    metering: { sessionSeconds: 0, billableHours: 0 },
+    runtimeHandle: {
+      site_world_id: "siteworld-f5fd54898cfb",
+      runtime_base_url: "http://146.115.17.157:45457",
+      websocket_base_url: "ws://146.115.17.157:45457",
+      vm_instance_id: "32805118",
+      build_id: "build-demo",
+      health_status: "healthy",
+    },
+    launchContext: {
+      site_world_spec_uri:
+        "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/evaluation_prep/site_world_spec.json",
+      site_world_registration_uri:
+        "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/evaluation_prep/site_world_registration.json",
+      site_world_health_uri:
+        "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/evaluation_prep/site_world_health.json",
+      conditioning_bundle_uri:
+        "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/scene_memory/conditioning_bundle.json",
+      scene_memory_manifest_uri:
+        "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/scene_memory/scene_memory_manifest.json",
+    },
+    ...overrides,
+  };
+}
+
 afterEach(() => {
   mockSearch = "";
   vi.restoreAllMocks();
@@ -33,176 +112,195 @@ afterEach(() => {
 });
 
 describe("HostedSessionWorkspace", () => {
-  it("renders the hosted session workspace shell", async () => {
-    render(<HostedSessionWorkspace params={{ slug: "sw-chi-01" }} />);
+  it("renders the interactive site-world viewer shell with explicit mode and artifact lanes", async () => {
+    render(<HostedSessionWorkspace params={{ slug: "siteworld-f5fd54898cfb" }} />);
 
     expect(
-      await screen.findByRole("heading", { name: /Hosted Session Workspace/i }),
+      await screen.findByRole("heading", { name: /Interactive Site-World Viewer/i }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText(/Harborview Grocery Distribution Annex/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Built World Model Demo/i)).toBeInTheDocument();
-    expect(screen.getByText(/world model you already built/i)).toBeInTheDocument();
-    expect(screen.getByText(/Robot observation/i)).toBeInTheDocument();
-    expect(screen.getByText(/Run context/i)).toBeInTheDocument();
-    expect(screen.getByText(/Controls/i)).toBeInTheDocument();
-    expect(screen.getByText(/Generated outputs/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Stop session/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Restart world model/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Run scripted demo batch/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Export demo package/i })).toBeInTheDocument();
-    expect(screen.getAllByText(/Raw bundle/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/RLDS dataset/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /Live Runtime/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Presentation World Human-facing site-world view/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Canonical Site-World")).toBeInTheDocument();
+    expect(screen.getByText("Scene-Memory Conditioning Package")).toBeInTheDocument();
+    expect(screen.getByText("Runtime Session Outputs")).toBeInTheDocument();
+    expect(screen.getByText(/Hosted session ID is missing\./i)).toBeInTheDocument();
   });
 
-  it("shows presentation failure details and canonical package config from the session record", async () => {
-    mockSearch = "sessionId=session-1";
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (input: RequestInfo | URL) => {
-        if (String(input).includes("/api/site-worlds/sessions/session-1")) {
-          return new Response(
-            JSON.stringify({
-              sessionId: "session-1",
-              sessionMode: "presentation_demo",
-              runtime_backend_selected: "neoverse",
-              status: "failed",
-              site: {
-                siteWorldId: "sw-chi-01",
-                siteName: "Harborview Grocery Distribution Annex",
-                siteAddress: "1847 W Fulton St, Chicago, IL 60612",
-                scene_id: "scene-harborview-grocery-annex",
-                capture_id: "cap-harborview-grocery-annex-v1",
-                site_submission_id: "sw-chi-01",
-                pipeline_prefix: "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline",
-              },
-              policy: {},
-              requestedOutputs: [],
-              artifactUris: {},
-              datasetArtifacts: {},
-              elapsedSeconds: 0,
-              metering: { sessionSeconds: 0, billableHours: 0 },
-              launchContext: {
-                site_world_spec_uri: "gs://bucket/spec.json",
-                site_world_registration_uri: "gs://bucket/registration.json",
-                site_world_health_uri: "gs://bucket/health.json",
-                conditioning_bundle_uri: "gs://bucket/conditioning.json",
-                scene_memory_manifest_uri: "gs://bucket/scene-memory.json",
-              },
-              runtimeSessionConfig: {
-                canonical_package_uri: "gs://bucket/canonical-package.json",
-                canonical_package_version: "v2026.03.12",
-                presentation_model: "neoverse_v2",
-                debug_mode: true,
-              },
-              presentationRuntime: {
-                provider: "vast",
-                status: "failed",
-                errorMessage: "Presentation demo UI base URL is not configured.",
-              },
+  it("auto-resets the live runtime when the session loads without an episode", async () => {
+    mockSearch = "sessionId=session-auto";
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("/api/site-worlds/sessions/session-auto") && (!init?.method || init.method === "GET")) {
+        return new Response(
+          JSON.stringify(
+            buildRuntimeSession({
+              sessionId: "session-auto",
+              latestEpisode: null,
             }),
-            { status: 200, headers: { "Content-Type": "application/json" } },
-          );
-        }
-        return new Response(JSON.stringify({ error: "not found" }), { status: 404 });
-      }),
-    );
-
-    render(<HostedSessionWorkspace params={{ slug: "sw-chi-01" }} />);
-
-    expect(await screen.findByText(/The presentation demo failed to start/i)).toBeInTheDocument();
-    expect(screen.getByText(/Presentation demo UI base URL is not configured\./i)).toBeInTheDocument();
-    expect(screen.getAllByText(/v2026\.03\.12/i).length).toBeGreaterThan(0);
-    expect(await screen.findByRole("link", { name: /View canonical package/i })).toHaveAttribute(
-      "href",
-      "gs://bucket/canonical-package.json",
-    );
-  });
-
-  it("prefers the remote runtime frame when the local frame path is not browser-renderable", async () => {
-    mockSearch = "sessionId=session-remote-frame";
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (input: RequestInfo | URL) => {
-        if (String(input).includes("/api/site-worlds/sessions/session-remote-frame")) {
-          return new Response(
-            JSON.stringify({
-              sessionId: "session-remote-frame",
-              sessionMode: "runtime_only",
-              runtime_backend_selected: "neoverse",
+          ),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (String(input).includes("/api/site-worlds/sessions/session-auto/reset")) {
+        return new Response(
+          JSON.stringify({
+            episode: {
+              episodeId: "episode-1",
+              taskId: "9483414B-8776-4F68-AC80-D3B3BA774A90",
+              task: "Media room",
+              scenarioId: "scenario_default",
+              scenario: "default",
+              startStateId: "start_default_start_state",
+              startState: "default_start_state",
               status: "running",
-              site: {
-                siteWorldId: "sw-chi-01",
-                siteName: "Harborview Grocery Distribution Annex",
-                siteAddress: "1847 W Fulton St, Chicago, IL 60612",
-                scene_id: "scene-harborview-grocery-annex",
-                capture_id: "cap-harborview-grocery-annex-v1",
-                site_submission_id: "sw-chi-01",
-                pipeline_prefix: "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline",
+              stepIndex: 0,
+              done: false,
+              reward: 0,
+              observation: {
+                frame_path: "/api/site-worlds/sessions/session-auto/render?cameraId=head_rgb",
               },
-              policy: {},
-              requestedOutputs: [],
-              artifactUris: {
-                export_manifest: "/tmp/export_manifest.json",
-                raw_bundle: "/tmp/raw_bundle.json",
-              },
-              datasetArtifacts: {},
-              elapsedSeconds: 0,
-              metering: { sessionSeconds: 0, billableHours: 0 },
-              launchContext: {
-                site_world_spec_uri: "gs://bucket/spec.json",
-                site_world_registration_uri: "gs://bucket/registration.json",
-                site_world_health_uri: "gs://bucket/health.json",
-                conditioning_bundle_uri: "gs://bucket/conditioning.json",
-                scene_memory_manifest_uri: "gs://bucket/scene-memory.json",
-              },
-              latestEpisode: {
-                episodeId: "episode-1",
-                taskId: "task-1",
-                task: "Inspect media room",
-                scenarioId: "scenario-1",
-                scenario: "default",
-                startStateId: "start-1",
-                startState: "default",
-                status: "running",
-                stepIndex: 1,
-                done: false,
-                reward: 0.05,
-                actionTrace: [[0, 0, 0, 0, 0, 0, 0]],
-                observation: {
-                  frame_path: "/workspace/local/frame_001.png",
-                  remoteObservation: {
-                    frame_path: "http://runtime.example/frame_001.png",
-                    cameraFrames: [{ framePath: "http://runtime.example/frame_001.png" }],
-                  },
-                  runtimeMetadata: {
-                    quality_flags: {
-                      presentation_quality: "degraded",
-                      fallback_mode: "canonical_only",
-                    },
-                    protected_region_violations: [{ reason: "locked_region_modified" }],
-                  },
-                },
-                observationCameras: [{ id: "head_rgb", role: "head", required: true, defaultEnabled: true }],
-                artifactUris: {
-                  rollout_video: "http://runtime.example/rollout.mp4",
-                },
-              },
-            }),
-            { status: 200, headers: { "Content-Type": "application/json" } },
-          );
-        }
-        return new Response(JSON.stringify({ error: "not found" }), { status: 404 });
-      }),
-    );
+              observationCameras: [{ id: "head_rgb", role: "head", required: true, defaultEnabled: true }],
+              actionTrace: [],
+              artifactUris: {},
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(JSON.stringify({ error: "not found" }), { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
 
-    render(<HostedSessionWorkspace params={{ slug: "sw-chi-01" }} />);
+    render(<HostedSessionWorkspace params={{ slug: "siteworld-f5fd54898cfb" }} />);
+
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(
+          ([input, init]) =>
+            String(input).includes("/api/site-worlds/sessions/session-auto/reset") &&
+            init &&
+            typeof init === "object" &&
+            "method" in init &&
+            init.method === "POST",
+        ),
+      ).toBe(true);
+    });
 
     const image = await screen.findByRole("img", { name: /Latest robot observation frame/i });
-    expect(image).toHaveAttribute("src", "http://runtime.example/frame_001.png");
-    expect(screen.getByRole("link", { name: /Open rollout video/i })).toHaveAttribute(
-      "href",
-      "http://runtime.example/rollout.mp4",
+    expect(image.getAttribute("src")).toContain("/api/site-worlds/sessions/session-auto/render?cameraId=head_rgb");
+  });
+
+  it("switches the render camera in live runtime mode", async () => {
+    mockSearch = "sessionId=session-camera";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).includes("/api/site-worlds/sessions/session-camera") && (!init?.method || init.method === "GET")) {
+          return new Response(
+            JSON.stringify(
+              buildRuntimeSession({
+                sessionId: "session-camera",
+                latestEpisode: {
+                  episodeId: "episode-camera",
+                  taskId: "9483414B-8776-4F68-AC80-D3B3BA774A90",
+                  task: "Media room",
+                  scenarioId: "scenario_default",
+                  scenario: "default",
+                  startStateId: "start_default_start_state",
+                  startState: "default_start_state",
+                  status: "running",
+                  stepIndex: 1,
+                  done: false,
+                  reward: 0.1,
+                  observation: {
+                    frame_path: "/api/site-worlds/sessions/session-camera/render?cameraId=head_rgb",
+                    primaryCameraId: "head_rgb",
+                  },
+                  observationCameras: [
+                    { id: "head_rgb", role: "head", required: true, defaultEnabled: true },
+                    { id: "wrist_rgb", role: "wrist", required: false, defaultEnabled: true },
+                  ],
+                  actionTrace: [],
+                  artifactUris: {},
+                },
+              }),
+            ),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        return new Response(JSON.stringify({ error: "not found" }), { status: 404 });
+      }),
     );
-    expect(screen.getByText(/degraded/i)).toBeInTheDocument();
+
+    render(<HostedSessionWorkspace params={{ slug: "siteworld-f5fd54898cfb" }} />);
+
+    const image = await screen.findByRole("img", { name: /Latest robot observation frame/i });
+    expect(image.getAttribute("src")).toContain("cameraId=head_rgb");
+
+    fireEvent.click(screen.getByRole("button", { name: /wrist/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("img", { name: /Latest robot observation frame/i }).getAttribute("src")).toContain(
+        "cameraId=wrist_rgb",
+      );
+    });
+  });
+
+  it("shows a truthful presentation fallback when no embedded viewer is live", async () => {
+    mockSearch = "sessionId=session-presentation";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).includes("/api/site-worlds/sessions/session-presentation") && (!init?.method || init.method === "GET")) {
+          return new Response(
+            JSON.stringify(
+              buildRuntimeSession({
+                sessionId: "session-presentation",
+                latestEpisode: {
+                  episodeId: "episode-2",
+                  taskId: "9483414B-8776-4F68-AC80-D3B3BA774A90",
+                  task: "Media room",
+                  scenarioId: "scenario_default",
+                  scenario: "default",
+                  startStateId: "start_default_start_state",
+                  startState: "default_start_state",
+                  status: "running",
+                  stepIndex: 2,
+                  done: false,
+                  reward: 0.2,
+                  observation: {
+                    frame_path: "/api/site-worlds/sessions/session-presentation/render?cameraId=head_rgb",
+                  },
+                  observationCameras: [{ id: "head_rgb", role: "head", required: true, defaultEnabled: true }],
+                  actionTrace: [],
+                  artifactUris: {},
+                },
+              }),
+            ),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        return new Response(JSON.stringify({ error: "not found" }), { status: 404 });
+      }),
+    );
+
+    render(<HostedSessionWorkspace params={{ slug: "siteworld-f5fd54898cfb" }} />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Presentation World Human-facing site-world view/i }),
+    );
+
+    expect(
+      await screen.findByText(/Embedded public presentation viewer is not configured for this walkthrough\./i),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Open presentation manifest/i })[0]).toHaveAttribute(
+      "href",
+      expect.stringContaining("presentation_world_manifest.json"),
+    );
+    expect(screen.getAllByRole("link", { name: /Open runtime demo manifest/i })[0]).toHaveAttribute(
+      "href",
+      expect.stringContaining("runtime_demo_manifest.json"),
+    );
   });
 });

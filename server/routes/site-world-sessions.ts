@@ -1364,6 +1364,32 @@ publicSiteWorldSessionsRouter.post("/:sessionId/reset", async (req, res, next) =
   }
 });
 
+publicSiteWorldSessionsRouter.post("/:sessionId/step", async (req, res, next) => {
+  try {
+    const session = await loadHostedSession(String(req.params.sessionId || ""));
+    if (!session || !isPublicDemoSession(session)) {
+      return next();
+    }
+    if (sessionUsesPresentationDemo(session)) {
+      return sessionModeUnsupportedResponse(res);
+    }
+    const payload = await stepHostedSessionRun({
+      sessionId: session.sessionId,
+      workDir: sessionWorkDir(session.sessionId),
+      episodeId: String(req.body?.episodeId || ""),
+      action: Array.isArray(req.body?.action) ? req.body.action : undefined,
+      autoPolicy: req.body?.autoPolicy !== false,
+    });
+    const latestEpisode = normalizeEpisodeSummary(session.sessionId, payload.episode as Record<string, unknown>);
+    await updateSession(session.sessionId, {
+      latestEpisode,
+    });
+    return res.json({ ...payload, episode: latestEpisode });
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : "Step failed" });
+  }
+});
+
 publicSiteWorldSessionsRouter.post("/:sessionId/run-batch", async (req, res, next) => {
   try {
     const session = await loadHostedSession(String(req.params.sessionId || ""));
