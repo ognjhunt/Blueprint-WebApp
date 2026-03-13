@@ -89,7 +89,7 @@ async function resolveRuntimeHandle(runtime: HostedRuntimeResolution) {
       "The site-world registration does not include a reachable runtime handle.",
     );
   }
-  if (health.launchable === false) {
+  if (health.launchable === false && !runtime.allowBlockedSiteWorld) {
     throw new HostedSessionOrchestratorError(
       "runtime_unlaunchable",
       `The site-world runtime is not launchable: ${String((health.blockers as string[] | undefined)?.join(", ") || "blocked")}`,

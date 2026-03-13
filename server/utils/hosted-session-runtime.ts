@@ -43,6 +43,7 @@ export interface HostedRuntimeResolution {
   siteWorldHealthUri: string;
   runtimeBaseUrl?: string | null;
   websocketBaseUrl?: string | null;
+  allowBlockedSiteWorld?: boolean;
   sceneMemoryManifestUri: string;
   conditioningBundleUri: string;
   presentationWorldManifestUri?: string | null;
@@ -143,6 +144,7 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
   const pipeline = (inbound?.data?.pipeline as PipelineAttachment | undefined) ?? undefined;
   const artifacts = pipeline?.artifacts ?? {};
   const pipelinePrefix = String(pipeline?.pipeline_prefix || site.pipelinePrefix || "").trim();
+  const hostedSessionOverride = site.hostedSessionOverride || null;
 
   if (!pipelinePrefix) {
     throw new HostedSessionRuntimeError(
@@ -248,17 +250,20 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     siteWorldHealthUri,
     runtimeBaseUrl: site.runtimeManifest?.runtimeBaseUrl ?? null,
     websocketBaseUrl: site.runtimeManifest?.websocketBaseUrl ?? null,
+    allowBlockedSiteWorld: hostedSessionOverride?.allowBlockedSiteWorld === true,
     sceneMemoryManifestUri,
     conditioningBundleUri,
     presentationWorldManifestUri,
     runtimeDemoManifestUri: presentationWorldManifestUri,
     presentationDemoBlockers,
     priceLabel: site.packages[1]?.priceLabel ?? null,
-    qualificationState: parseQualificationState(
-      inbound?.data?.qualification_state || site.deploymentReadiness?.qualification_state,
-    ),
+    qualificationState:
+      hostedSessionOverride?.qualificationState
+      || parseQualificationState(inbound?.data?.qualification_state || site.deploymentReadiness?.qualification_state),
     deploymentReadiness:
-      (inbound?.data?.deployment_readiness as DeploymentReadinessSummary | undefined) || site.deploymentReadiness || null,
+      hostedSessionOverride
+        ? site.deploymentReadiness || null
+        : (inbound?.data?.deployment_readiness as DeploymentReadinessSummary | undefined) || site.deploymentReadiness || null,
     readinessDecisionUri: String(artifacts.readiness_decision_uri || "").trim() || null,
     humanActionsRequiredUri: String(artifacts.human_actions_required_uri || "").trim() || null,
   };

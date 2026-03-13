@@ -496,6 +496,7 @@ async function buildRuntimeOnlyReadiness(params: {
 
   if (
     siteWorldHealth?.launchable === false &&
+    params.runtime.allowBlockedSiteWorld !== true &&
     params.runtimeSessionConfig?.unsafe_allow_blocked_site_world !== true
   ) {
     addBlocker(details, {

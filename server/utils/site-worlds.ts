@@ -526,12 +526,12 @@ function buildStaticRecord(template: SiteWorldCard): SiteWorldCard {
       blockers: ["missing presentation package", "site not launchable yet"],
       presentationWorldManifestUri: null,
     },
-    sceneMemoryManifestUri: null,
-    conditioningBundleUri: null,
-    siteWorldSpecUri: null,
-    siteWorldRegistrationUri: null,
-    siteWorldHealthUri: null,
-    dataSource: "static",
+    sceneMemoryManifestUri: template.sceneMemoryManifestUri ?? null,
+    conditioningBundleUri: template.conditioningBundleUri ?? null,
+    siteWorldSpecUri: template.siteWorldSpecUri ?? null,
+    siteWorldRegistrationUri: template.siteWorldRegistrationUri ?? null,
+    siteWorldHealthUri: template.siteWorldHealthUri ?? null,
+    dataSource: template.dataSource || "static",
   };
 }
 

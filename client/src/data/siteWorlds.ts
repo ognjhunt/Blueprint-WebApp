@@ -90,6 +90,10 @@ export type SiteWorldCard = {
   siteWorldSpecUri?: string | null;
   siteWorldRegistrationUri?: string | null;
   siteWorldHealthUri?: string | null;
+  hostedSessionOverride?: {
+    allowBlockedSiteWorld?: boolean;
+    qualificationState?: "qualified_ready" | "qualified_risky" | "needs_refresh" | "not_ready_yet";
+  };
 };
 
 type RawSiteWorldCard = Omit<
@@ -720,6 +724,162 @@ const rawSiteWorldCards: RawSiteWorldCard[] = [
 ];
 
 export const siteWorldCards: SiteWorldCard[] = rawSiteWorldCards.map(withDerivedSessionDefaults);
+
+siteWorldCards.push({
+  id: "siteworld-f5fd54898cfb",
+  siteCode: "SW-DEMO-01",
+  siteName: "Media Room Demo Walkthrough",
+  siteAddress: "Blueprint hosted runtime demo",
+  sceneId: "9483414B-8776-4F68-AC80-D3B3BA774A90",
+  captureId: "6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3",
+  siteSubmissionId: "9483414B-8776-4F68-AC80-D3B3BA774A90:6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3",
+  pipelinePrefix:
+    "scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline",
+  category: "Service",
+  industry: "Demo walkthrough",
+  taskLane: "Media room walkthrough",
+  tone: "from-slate-100 via-white to-cyan-50",
+  accent: "#0f766e",
+  thumbnailKind: "electronics",
+  summary:
+    "A hard-wired demo of the already-built site-world and production NeoVerse runtime path for the March 13, 2026 walkthrough.",
+  bestFor: "Customer-facing runtime-only review of a proven world model.",
+  startStates: ["default_start_state"],
+  runtime: "NeoVerse production runtime",
+  defaultRuntimeBackend: "neoverse",
+  availableRuntimeBackends: ["neoverse"],
+  sampleRobot: "Mobile manipulator with head and wrist cameras",
+  sampleRobotProfile: {
+    id: "mobile_manipulator_rgb_v1",
+    displayName: "Mobile manipulator",
+    embodimentType: "mobile_manipulator",
+    observationCameras: [
+      { id: "head_rgb", role: "head", required: true, defaultEnabled: true },
+      { id: "wrist_rgb", role: "wrist", required: false, defaultEnabled: true },
+      { id: "site_context_rgb", role: "context", required: false, defaultEnabled: true },
+    ],
+    actionSpace: {
+      name: "ee_delta_pose_gripper",
+      dim: 7,
+      labels: ["base_x", "base_y", "base_yaw", "ee_x", "ee_y", "ee_z", "gripper"],
+    },
+    actionSpaceSummary: "Bounded robot action vector for hosted rollout execution.",
+    gripperSemantics: "Binary grasp / release state on the active manipulator.",
+    baseSemantics: "Planar base translation with heading control for site navigation.",
+    urdfRef: null,
+    usdRef: null,
+    allowedPolicyAdapters: ["openvla_oft", "pi05", "dreamzero"],
+    defaultPolicyAdapter: "openvla_oft",
+  },
+  sampleTask: "Media room",
+  samplePolicy: "Blueprint demo runtime",
+  scenarioVariants: ["default", "counterfactual_lighting", "counterfactual_clutter"],
+  exportArtifacts: ["Observation frames", "Rollout video", "Raw bundle", "RLDS dataset"],
+  runtimeManifest: {
+    defaultBackend: "neoverse",
+    runtimeBaseUrl: "http://146.115.17.157:45457",
+    websocketBaseUrl: "ws://146.115.17.157:45457",
+    supportedCameras: ["head_rgb", "wrist_rgb", "site_context_rgb"],
+    launchableBackends: ["neoverse"],
+    exportModes: ["raw_bundle", "rlds_dataset"],
+    supportsStepRollout: true,
+    supportsBatchRollout: true,
+    supportsCameraViews: true,
+    supportsStream: false,
+    healthStatus: "healthy",
+    launchable: true,
+  },
+  taskCatalog: [
+    {
+      id: "9483414B-8776-4F68-AC80-D3B3BA774A90",
+      taskId: "9483414B-8776-4F68-AC80-D3B3BA774A90",
+      taskText: "Media room",
+      taskCategory: "generic",
+    },
+  ],
+  scenarioCatalog: [
+    { id: "scenario_default", name: "default", source: "site_world_runtime" },
+    { id: "scenario_counterfactual_lighting", name: "counterfactual_lighting", source: "site_world_runtime" },
+    { id: "scenario_counterfactual_clutter", name: "counterfactual_clutter", source: "site_world_runtime" },
+  ],
+  startStateCatalog: [
+    {
+      id: "start_default_start_state",
+      name: "default_start_state",
+      taskId: "9483414B-8776-4F68-AC80-D3B3BA774A90",
+      source: "task_run_manifest",
+    },
+  ],
+  robotProfiles: [
+    {
+      id: "mobile_manipulator_rgb_v1",
+      displayName: "Mobile manipulator",
+      embodimentType: "mobile_manipulator",
+      observationCameras: [
+        { id: "head_rgb", role: "head", required: true, defaultEnabled: true },
+        { id: "wrist_rgb", role: "wrist", required: false, defaultEnabled: true },
+        { id: "site_context_rgb", role: "context", required: false, defaultEnabled: true },
+      ],
+      actionSpace: {
+        name: "ee_delta_pose_gripper",
+        dim: 7,
+        labels: ["base_x", "base_y", "base_yaw", "ee_x", "ee_y", "ee_z", "gripper"],
+      },
+      actionSpaceSummary: "Bounded robot action vector for hosted rollout execution.",
+      gripperSemantics: "Binary grasp / release state on the active manipulator.",
+      baseSemantics: "Planar base translation with heading control for site navigation.",
+      urdfRef: null,
+      usdRef: null,
+      allowedPolicyAdapters: ["openvla_oft", "pi05", "dreamzero"],
+      defaultPolicyAdapter: "openvla_oft",
+    },
+  ],
+  exportModes: ["raw_bundle", "rlds_dataset"],
+  packages: buildPackages({
+    siteId: "siteworld-f5fd54898cfb",
+    siteName: "Media Room Demo Walkthrough",
+    siteAddress: "Blueprint hosted runtime demo",
+    scenePrice: "$0",
+    hostedRate: "Demo runtime",
+    sampleTask: "Media room",
+    sampleRobot: "Mobile manipulator with head and wrist cameras",
+  }),
+  dataSource: "pipeline",
+  deploymentReadiness: {
+    qualification_state: "qualified_ready",
+    opportunity_state: "handoff_ready",
+    benchmark_coverage_status: "ready",
+    benchmark_task_count: 1,
+    export_readiness_status: "ready",
+    recapture_status: "unchanged",
+    recapture_required: false,
+    freshness_date: "2026-03-13T17:58:27.041656+00:00",
+    missing_evidence: [],
+    exports_available: ["raw_bundle", "rlds_dataset"],
+    task_categories: ["generic"],
+    runtime_label: "NeoVerse production runtime",
+  },
+  presentationDemoReadiness: {
+    launchable: false,
+    blockers: ["Use the runtime-only workspace for this walkthrough demo."],
+    presentationWorldManifestUri:
+      "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/presentation_world/presentation_world_manifest.json",
+  },
+  sceneMemoryManifestUri:
+    "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/scene_memory/scene_memory_manifest.json",
+  conditioningBundleUri:
+    "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/scene_memory/conditioning_bundle.json",
+  siteWorldSpecUri:
+    "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/evaluation_prep/site_world_spec.json",
+  siteWorldRegistrationUri:
+    "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/evaluation_prep/site_world_registration.json",
+  siteWorldHealthUri:
+    "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/evaluation_prep/site_world_health.json",
+  hostedSessionOverride: {
+    allowBlockedSiteWorld: true,
+    qualificationState: "qualified_ready",
+  },
+});
 
 export function getSiteWorldById(id: string) {
   return siteWorldCards.find((site) => site.id === id) ?? null;
