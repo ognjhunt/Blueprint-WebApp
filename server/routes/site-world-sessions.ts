@@ -660,11 +660,10 @@ function normalizeRuntimeSessionConfig(
 ): HostedRuntimeSessionConfig {
   const runtimeSessionConfig = body.runtimeSessionConfig || {};
   const normalizeOptional = (value: unknown) => String(value || "").trim() || null;
-  const demoSiteWorld = runtime.allowBlockedSiteWorld === true;
 
   return {
     canonical_package_uri:
-      normalizeOptional(runtimeSessionConfig.canonical_package_uri) || (demoSiteWorld ? null : runtime.sceneMemoryManifestUri),
+      normalizeOptional(runtimeSessionConfig.canonical_package_uri) || runtime.sceneMemoryManifestUri || null,
     canonical_package_version: normalizeOptional(runtimeSessionConfig.canonical_package_version),
     prompt: normalizeOptional(runtimeSessionConfig.prompt),
     trajectory: normalizeOptional(runtimeSessionConfig.trajectory),
