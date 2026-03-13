@@ -120,6 +120,8 @@ Required capture content:
 - handoff points and bottlenecks
 - obstacles, clutter, floor transitions, and reflective surfaces
 - human traffic and restricted zones
+- motion / IMU stream aligned to video
+- ARKit poses, intrinsics, frames, and depth when available
 
 This is evidence capture, not a promise that every site becomes a simulator artifact.
 
@@ -206,6 +208,7 @@ The MVP should standardize around JSON-first artifacts.
 
 - `mp4`
 - `jsonl`
+- `object_index.json` once a canonical object index has been built
 - thumbnails and preview stills
 - optional ARKit depth and mesh outputs
 

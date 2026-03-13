@@ -58,7 +58,9 @@ raw/
   intake_packet.json
   capture_context.json
   capture_upload_complete.json
+  motion.jsonl
   walkthrough.mov
+  optional object_index.json
   optional arkit/...
 ```
 
@@ -182,7 +184,14 @@ raw/
   intake_packet.json
   capture_context.json
   capture_upload_complete.json
+  motion.jsonl
   walkthrough.mov
+  optional object_index.json
+  optional arkit/frames.jsonl
+  optional arkit/poses.jsonl
+  optional arkit/intrinsics.json
+  optional arkit/depth/*
+  optional arkit/confidence/*
 pipeline/
   ...
 ```
