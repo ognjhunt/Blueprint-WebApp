@@ -11,6 +11,7 @@ import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
 import { withCsrfHeader } from "@/lib/csrf";
 import { auth } from "@/lib/firebase";
 import type { CreateHostedSessionRequest } from "@/types/hostedSession";
+import type { HostedSessionMode } from "@/types/hostedSession";
 
 interface LaunchBlockerDetail {
   code: string;
@@ -181,17 +182,16 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
     );
   };
 
-  const handleLaunch = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const launchSession = async (sessionMode: HostedSessionMode) => {
     setSubmitting(true);
     setErrorMessage("");
     setLaunchErrorDetails([]);
 
     const requestPayload: CreateHostedSessionRequest = {
       siteWorldId: site.id,
-      sessionMode: "presentation_demo",
-      runtimeUi: "neoverse_gradio",
-      autoStartDemo: true,
+      sessionMode,
+      runtimeUi: sessionMode === "presentation_demo" ? "neoverse_gradio" : null,
+      autoStartDemo: sessionMode === "presentation_demo",
       robotProfileId,
       taskId,
       scenarioId,
@@ -247,10 +247,17 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
     }
   };
 
+  const handleLaunch = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await launchSession("presentation_demo");
+  };
+
   const cameraSummary = selectedRobotProfile.observationCameras.map((item) => item.role).join(", ");
   const presentationReadiness = launchReadiness?.presentation_demo || null;
   const runtimeReadiness = launchReadiness?.runtime_only || null;
   const launchBlocked = checkingReadiness || !presentationReadiness?.launchable;
+  const runtimeLaunchBlocked = checkingReadiness || !runtimeReadiness?.launchable;
+  const suggestRuntimeFallback = !checkingReadiness && !presentationReadiness?.launchable && Boolean(runtimeReadiness?.launchable);
 
   return (
     <>
@@ -524,13 +531,32 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                   </div>
                 ) : null}
 
-                <button
-                  type="submit"
-                  disabled={submitting || launchBlocked}
-                  className="inline-flex items-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {submitting ? "Launching session..." : launchBlocked ? "Hosted demo not ready" : "Launch session"}
-                </button>
+                {suggestRuntimeFallback ? (
+                  <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+                    <p className="font-semibold">Embedded demo is blocked, but the live runtime is ready.</p>
+                    <p className="mt-1 text-sky-900">
+                      You can still launch the runtime-only workspace for this fresh site world while the demo UI handle is unavailable.
+                    </p>
+                  </div>
+                ) : null}
+
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="submit"
+                    disabled={submitting || launchBlocked}
+                    className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {submitting ? "Launching session..." : launchBlocked ? "Hosted demo not ready" : "Launch embedded demo"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={submitting || runtimeLaunchBlocked}
+                    onClick={() => void launchSession("runtime_only")}
+                    className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:border-slate-900 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {submitting ? "Launching session..." : runtimeLaunchBlocked ? "Runtime session not ready" : "Launch runtime session"}
+                  </button>
+                </div>
               </form>
             </section>
           </div>

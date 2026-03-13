@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import HostedSessionSetup from "@/pages/HostedSessionSetup";
 import { getSiteWorldById } from "@/data/siteWorlds";
@@ -15,6 +15,13 @@ vi.mock("wouter", async () => {
 
 vi.mock("@/lib/siteWorldsApi", () => ({
   fetchSiteWorldDetail: vi.fn(async (siteWorldId: string) => getSiteWorldById(siteWorldId)),
+}));
+
+vi.mock("@/lib/csrf", () => ({
+  withCsrfHeader: vi.fn(async (headers: Record<string, string> = {}) => ({
+    ...headers,
+    "X-CSRF-Token": "test-csrf-token",
+  })),
 }));
 
 vi.mock("@/lib/firebase", () => ({
@@ -119,5 +126,62 @@ describe("HostedSessionSetup", () => {
     expect(screen.getByText(/Presentation demo UI base URL is not configured\./i)).toBeInTheDocument();
     expect(screen.getByText(/Runtime session readiness/i)).toBeInTheDocument();
     expect(screen.getByText(/The site-world registration does not include a live runtime handle yet\./i)).toBeInTheDocument();
+  });
+
+  it("offers a runtime-only launch fallback when the embedded demo is blocked", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (typeof input === "string" && input.includes("/launch-readiness")) {
+        return new Response(
+          JSON.stringify({
+            launchable: false,
+            entitled: true,
+            blockers: ["Presentation demo UI base URL is not configured."],
+            presentation_demo: {
+              launchable: false,
+              blockers: ["Presentation demo UI base URL is not configured."],
+              blocker_details: [
+                {
+                  code: "presentation_ui_unconfigured",
+                  message: "Presentation demo UI base URL is not configured.",
+                  source: "presentation_demo",
+                },
+              ],
+              presentationWorldManifestUri: "gs://bucket/presentation.json",
+            },
+            runtime_only: {
+              launchable: true,
+              blockers: [],
+              blocker_details: [],
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          workspaceUrl: "/site-worlds/sessions/runtime-only-1",
+        }),
+        { status: 201, headers: { "Content-Type": "application/json" } },
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<HostedSessionSetup params={{ slug: "sw-chi-01" }} />);
+
+    expect(await screen.findByText(/Embedded demo is blocked, but the live runtime is ready\./i)).toBeInTheDocument();
+    const runtimeButton = screen.getByRole("button", { name: /Launch runtime session/i });
+    expect(runtimeButton).toBeEnabled();
+
+    fireEvent.click(runtimeButton);
+
+    await waitFor(() => {
+      expect(setLocationMock).toHaveBeenCalledWith("/site-worlds/sessions/runtime-only-1");
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const [, createCall] = fetchMock.mock.calls;
+    const request = JSON.parse(String(createCall?.[1]?.body || "{}")) as Record<string, unknown>;
+    expect(request.sessionMode).toBe("runtime_only");
+    expect(request.runtimeUi).toBeNull();
   });
 });
