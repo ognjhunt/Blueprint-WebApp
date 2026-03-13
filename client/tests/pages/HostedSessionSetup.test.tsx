@@ -113,7 +113,9 @@ describe("HostedSessionSetup", () => {
     render(<HostedSessionSetup params={{ slug: "sw-chi-01" }} />);
 
     expect(await screen.findByText(/Embedded demo readiness/i)).toBeInTheDocument();
-    expect(screen.getByText(/Presentation package: gs:\/\/bucket\/presentation.json/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Presentation package: gs:\/\/bucket\/presentation.json/i),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Presentation demo UI base URL is not configured\./i)).toBeInTheDocument();
     expect(screen.getByText(/Runtime session readiness/i)).toBeInTheDocument();
     expect(screen.getByText(/The site-world registration does not include a live runtime handle yet\./i)).toBeInTheDocument();

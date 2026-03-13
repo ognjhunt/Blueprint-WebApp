@@ -4,6 +4,10 @@ import { HTTP_STATUS } from "../constants/http-status";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import {
+  MissingEnvironmentVariableError,
+  requireConfiguredEnvValue,
+} from "../config/env";
+import {
   cacheKey,
   getCachedAnswer,
   putCachedAnswer,
@@ -72,6 +76,11 @@ type CachedPayload = {
   sources?: SourceReference[];
   model?: string | null;
   fromCache?: boolean;
+};
+
+type StudioChatErrorResponse = {
+  error: string;
+  code: "gemini_api_key_missing" | "studio_chat_failed";
 };
 
 type ToolHint = {
@@ -389,6 +398,13 @@ function buildRetrievalContext(sources: SourceReference[]) {
     .join("\n\n");
 }
 
+function resolveStudioGeminiApiKey(): string {
+  return requireConfiguredEnvValue(
+    ["GEMINI_API_KEY", "GOOGLE_API_KEY"],
+    "AI Studio Gemini integration",
+  );
+}
+
 router.post("/chat", async (req, res) => {
   const payload = req.body as StudioChatRequest;
   const blueprintId =
@@ -537,10 +553,7 @@ router.post("/chat", async (req, res) => {
       content: userPromptSections.join("\n\n"),
     });
 
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "AIzaSyD_placeholder_key_do_not_use_in_production";
-    if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
-      console.warn("Warning: GEMINI_API_KEY is not configured. Using placeholder key.");
-    }
+    const apiKey = resolveStudioGeminiApiKey();
 
     const systemInstructionContent = trimmedInstruction
       ? { role: "system", parts: [{ text: trimmedInstruction }] }
@@ -645,14 +658,29 @@ router.post("/chat", async (req, res) => {
 
     return res.status(HTTP_STATUS.OK).json(payloadToCache);
   } catch (error) {
+    if (error instanceof MissingEnvironmentVariableError) {
+      logger.error(
+        { blueprintId, missingEnvKeys: error.keys },
+        "AI Studio request blocked because Gemini credentials are missing",
+      );
+      const payload: StudioChatErrorResponse = {
+        error:
+          "AI Studio is unavailable because GEMINI_API_KEY or GOOGLE_API_KEY is not configured on the server.",
+        code: "gemini_api_key_missing",
+      };
+      return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json(payload);
+    }
+
     logger.error(
       { blueprintId, err: error },
       "Failed to process AI Studio chat",
     );
-    return res.status(500).json({
+    const payload: StudioChatErrorResponse = {
       error:
         error instanceof Error ? error.message : "Failed to generate response",
-    });
+      code: "studio_chat_failed",
+    };
+    return res.status(500).json(payload);
   }
 });
 

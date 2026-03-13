@@ -108,9 +108,11 @@ export default function ContactForm() {
   useEffect(() => {
     const apiKey = getGoogleMapsApiKey();
     if (!apiKey) {
-      logger.warn(
-        "Google Maps API key not configured. Places autocomplete will be disabled.",
-      );
+      if (import.meta.env.MODE !== "test") {
+        logger.warn(
+          "Google Maps API key not configured. Places autocomplete will be disabled.",
+        );
+      }
       return;
     }
 

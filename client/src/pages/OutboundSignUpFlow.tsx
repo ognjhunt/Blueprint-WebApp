@@ -209,7 +209,9 @@ export default function OutboundSignUpFlow() {
   // Ensure Google Places API key is configured
   useEffect(() => {
     if (!googleApiKey) {
-      console.error("Google Maps API key is not available");
+      if (import.meta.env.MODE !== "test") {
+        console.error("Google Maps API key is not available");
+      }
       setErrorMessage("Google Maps API key is not configured.");
       return;
     }
@@ -235,7 +237,7 @@ export default function OutboundSignUpFlow() {
       options?: { includedPrimaryTypes?: string[] },
     ): Promise<PlacesAutocompleteSuggestion[]> => {
       if (!googleApiKey) {
-        throw new Error("Google Maps API key is not configured.");
+        return [];
       }
 
       const sessionToken = ensureSessionToken(sessionTokenRef);

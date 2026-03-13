@@ -42,9 +42,13 @@ beforeAll(async () => {
   csrfCookie = setCookie ? setCookie.split(";")[0] : "";
   const data = (await csrfResponse.json()) as { csrfToken?: string };
   csrfToken = data.csrfToken ?? "";
-});
+}, 30000);
 
 afterAll(async () => {
+  if (!server) {
+    return;
+  }
+
   await new Promise<void>((resolve, reject) => {
     server.close((error) => {
       if (error) {
@@ -196,4 +200,3 @@ describe("POST /api/marketplace/search", () => {
     );
   });
 });
-

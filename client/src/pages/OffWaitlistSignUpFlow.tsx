@@ -216,7 +216,9 @@ type WaitlistValidationResponse = {
 
   useEffect(() => {
     if (!googleApiKey) {
-      console.error("Google Maps API key is not available");
+      if (import.meta.env.MODE !== "test") {
+        console.error("Google Maps API key is not available");
+      }
       setErrorMessage("Google Maps API key is not configured.");
     }
   }, [googleApiKey]);
@@ -241,7 +243,7 @@ type WaitlistValidationResponse = {
       options?: { includedPrimaryTypes?: string[] },
     ): Promise<PlacesAutocompleteSuggestion[]> => {
       if (!googleApiKey) {
-        throw new Error("Google Maps API key is not configured.");
+        return [];
       }
 
       const sessionToken = ensureSessionToken(sessionTokenRef);

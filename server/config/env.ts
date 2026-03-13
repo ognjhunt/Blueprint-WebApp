@@ -30,6 +30,46 @@ const envSchema = z
 
 export type Env = z.infer<typeof envSchema>;
 
+export class MissingEnvironmentVariableError extends Error {
+  readonly keys: string[];
+
+  constructor(keys: string[], context?: string) {
+    const joinedKeys = keys.join(" or ");
+    super(
+      context
+        ? `${context} requires ${joinedKeys} to be configured.`
+        : `${joinedKeys} must be configured.`,
+    );
+    this.name = "MissingEnvironmentVariableError";
+    this.keys = keys;
+  }
+}
+
+export function getConfiguredEnvValue(...keys: string[]): string | null {
+  for (const key of keys) {
+    const rawValue = process.env[key];
+    const value = typeof rawValue === "string" ? rawValue.trim() : "";
+    if (!value || isPlaceholderValue(value)) {
+      continue;
+    }
+    return value;
+  }
+
+  return null;
+}
+
+export function requireConfiguredEnvValue(
+  keys: string[],
+  context?: string,
+): string {
+  const value = getConfiguredEnvValue(...keys);
+  if (value) {
+    return value;
+  }
+
+  throw new MissingEnvironmentVariableError(keys, context);
+}
+
 export function validateEnv(): Env {
   const result = envSchema.safeParse(process.env);
   if (result.success) {

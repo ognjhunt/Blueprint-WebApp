@@ -1,15 +1,23 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import SiteWorldDetail from "@/pages/SiteWorldDetail";
+import { getSiteWorldById } from "@/data/siteWorlds";
+
+vi.mock("@/lib/siteWorldsApi", () => ({
+  fetchSiteWorldDetail: vi.fn(async (siteWorldId: string) => getSiteWorldById(siteWorldId)),
+}));
 
 describe("SiteWorldDetail", () => {
-  it("keeps the explainer secondary and uses direct hosted-session start CTAs", () => {
+  it("keeps the explainer secondary and uses direct hosted-session start CTAs", async () => {
     window.history.replaceState({}, "", "/site-worlds/sw-chi-01");
 
     render(<SiteWorldDetail params={{ slug: "sw-chi-01" }} />);
 
     expect(
-      screen.getByRole("heading", { level: 1, name: /Harborview Grocery Distribution Annex/i }),
+      await screen.findByRole("heading", {
+        level: 1,
+        name: /Harborview Grocery Distribution Annex/i,
+      }),
     ).toBeInTheDocument();
     expect(screen.getByText(/1847 W Fulton St, Chicago, IL 60612/i)).toBeInTheDocument();
     expect(

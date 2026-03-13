@@ -6,6 +6,7 @@ import {
   getGoogleApiKey,
   getGoogleClientId,
   getGoogleAppId,
+  MissingClientEnvError,
 } from "@/lib/client-env";
 
 declare global {
@@ -64,9 +65,26 @@ const CloudUpload: React.FC<CloudUploadProps> = ({
     })[mime] ?? "";
 
   const handleGoogleDrive = () => {
-    const apiKey = getGoogleApiKey();
-    const clientId = getGoogleClientId();
-    const appId = getGoogleAppId();
+    let apiKey: string;
+    let clientId: string;
+    let appId: string;
+
+    try {
+      apiKey = getGoogleApiKey();
+      clientId = getGoogleClientId();
+      appId = getGoogleAppId();
+    } catch (error) {
+      const description =
+        error instanceof MissingClientEnvError
+          ? error.message
+          : "Google Drive credentials are missing.";
+      toast({
+        title: "Google Drive unavailable",
+        description,
+        variant: "destructive",
+      });
+      return;
+    }
 
     if (!gapiLoaded || !gisLoaded || !apiKey || !clientId || !appId) {
       toast({

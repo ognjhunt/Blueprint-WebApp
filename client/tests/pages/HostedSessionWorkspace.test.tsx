@@ -33,10 +33,12 @@ afterEach(() => {
 });
 
 describe("HostedSessionWorkspace", () => {
-  it("renders the hosted session workspace shell", () => {
+  it("renders the hosted session workspace shell", async () => {
     render(<HostedSessionWorkspace params={{ slug: "sw-chi-01" }} />);
 
-    expect(screen.getByRole("heading", { name: /Hosted Session Workspace/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: /Hosted Session Workspace/i }),
+    ).toBeInTheDocument();
     expect(screen.getAllByText(/Harborview Grocery Distribution Annex/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Robot observation/i)).toBeInTheDocument();
     expect(screen.getByText(/Run context/i)).toBeInTheDocument();
@@ -108,7 +110,7 @@ describe("HostedSessionWorkspace", () => {
     expect(await screen.findByText(/The presentation demo failed to start/i)).toBeInTheDocument();
     expect(screen.getByText(/Presentation demo UI base URL is not configured\./i)).toBeInTheDocument();
     expect(screen.getAllByText(/v2026\.03\.12/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole("link", { name: /View canonical package/i })).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: /View canonical package/i })).toHaveAttribute(
       "href",
       "gs://bucket/canonical-package.json",
     );
