@@ -22,7 +22,7 @@ describe("demo site-world runtime fallback", () => {
   it("exposes the hardcoded site-world in client and server catalogs", async () => {
     const clientRecord = getSiteWorldById("siteworld-f5fd54898cfb");
     expect(clientRecord).not.toBeNull();
-    expect(clientRecord?.runtimeManifest.runtimeBaseUrl).toBe("https://ascii-needs-recommends-erp.trycloudflare.com");
+    expect(clientRecord?.runtimeManifest.runtimeBaseUrl).toBe("https://tom-interventions-geographical-filtering.trycloudflare.com");
     expect(clientRecord?.hostedSessionOverride?.allowBlockedSiteWorld).toBe(true);
 
     const serverRecord = await getPublicSiteWorldById("siteworld-f5fd54898cfb");
@@ -36,8 +36,8 @@ describe("demo site-world runtime fallback", () => {
   it("resolves hosted runtime with the demo launch override", async () => {
     const runtime = await resolveHostedRuntime("siteworld-f5fd54898cfb");
 
-    expect(runtime.runtimeBaseUrl).toBe("https://ascii-needs-recommends-erp.trycloudflare.com");
-    expect(runtime.websocketBaseUrl).toBe("wss://ascii-needs-recommends-erp.trycloudflare.com");
+    expect(runtime.runtimeBaseUrl).toBe("https://tom-interventions-geographical-filtering.trycloudflare.com");
+    expect(runtime.websocketBaseUrl).toBe("wss://tom-interventions-geographical-filtering.trycloudflare.com");
     expect(runtime.allowBlockedSiteWorld).toBe(true);
     expect(runtime.qualificationState).toBe("qualified_ready");
     expect(runtime.deploymentReadiness?.qualification_state).toBe("qualified_ready");

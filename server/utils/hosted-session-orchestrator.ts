@@ -196,6 +196,19 @@ async function runtimeRequestViaCurl(
   };
 }
 
+function parseRuntimeJsonBody(body: Buffer) {
+  const text = body.toString("utf-8").trim();
+  if (!text) {
+    return {} as Record<string, unknown>;
+  }
+  try {
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+    return parsed && typeof parsed === "object" ? parsed : { value: parsed };
+  } catch {
+    return { error: text, detail: text };
+  }
+}
+
 async function runtimeFetchJson(
   baseUrl: string,
   relativePath: string,
@@ -216,13 +229,13 @@ async function runtimeFetchJson(
       ? await runtimeRequestViaCurl(url, init).then((response) => ({
           ok: response.statusCode >= 200 && response.statusCode < 300,
           status: response.statusCode,
-          payload: JSON.parse(response.body.toString("utf-8") || "{}") as Record<string, unknown>,
+          payload: parseRuntimeJsonBody(response.body),
         }))
       : shouldUseNodeRuntimeHttp()
         ? await runtimeRequestViaNode(url, init).then((response) => ({
           ok: response.statusCode >= 200 && response.statusCode < 300,
           status: response.statusCode,
-          payload: JSON.parse(response.body.toString("utf-8") || "{}") as Record<string, unknown>,
+          payload: parseRuntimeJsonBody(response.body),
         }))
         : await fetch(url, {
             ...init,
