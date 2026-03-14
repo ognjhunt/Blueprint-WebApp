@@ -32,8 +32,10 @@ import {
 import {
   createHostedSessionRun,
   exportHostedSessionRun,
+  fetchHostedSessionState,
   HostedSessionOrchestratorError,
   loadHostedSessionRuntimeMetadata,
+  mergeHostedEpisodeWithState,
   reconcileHostedEpisode,
   persistHostedSessionRuntimeMetadata,
   resetHostedSessionRun,
@@ -61,6 +63,10 @@ function nowTimestamp() {
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function liveSessionReadTimeoutMs() {
+  return Math.max(250, Number(process.env.BLUEPRINT_HOSTED_SESSION_LIVE_READ_TIMEOUT_MS || 1500));
 }
 
 function toIsoString(value: unknown) {
@@ -240,6 +246,61 @@ async function updateSession(
   }
 
   await db.collection("hostedSessions").doc(sessionId).update(update);
+}
+
+function shouldRefreshSessionFromRuntime(session: HostedSessionRecord | null | undefined) {
+  if (!session || sessionUsesPresentationDemo(session)) {
+    return false;
+  }
+  return ["ready", "running"].includes(String(session.status || "").trim());
+}
+
+async function readFreshHostedSession(sessionId: string): Promise<HostedSessionRecord | null> {
+  const session = await loadHostedSession(sessionId);
+  if (!shouldRefreshSessionFromRuntime(session)) {
+    return session;
+  }
+  try {
+    await ensureRuntimeMetadataForSession(session);
+    const statePayload = await fetchHostedSessionState({
+      sessionId: session.sessionId,
+      workDir: sessionWorkDir(session.sessionId),
+      timeoutMs: liveSessionReadTimeoutMs(),
+    });
+    const mergedEpisode = mergeHostedEpisodeWithState(
+      session.latestEpisode && typeof session.latestEpisode === "object"
+        ? (session.latestEpisode as unknown as Record<string, unknown>)
+        : null,
+      statePayload,
+    );
+    const latestEpisode = normalizeEpisodeSummary(session.sessionId, mergedEpisode);
+    const refreshed: HostedSessionRecord = {
+      ...session,
+      latestEpisode,
+      status:
+        latestEpisode.status === "completed"
+          ? "completed"
+          : latestEpisode.status === "failed"
+            ? "failed"
+            : "running",
+      latestRuntimeFailure: null,
+    };
+    inMemorySessions.set(session.sessionId, refreshed);
+    syncPresentationSessionIndex(refreshed);
+    void updateSession(
+      session.sessionId,
+      {
+        latestEpisode,
+        status: refreshed.status,
+        latestRuntimeFailure: null,
+      },
+      { awaitPersist: false },
+    );
+    return refreshed;
+  } catch (error) {
+    logger.warn({ sessionId, error }, "Hosted session live read fallback to cached session");
+    return session;
+  }
 }
 
 export async function loadHostedSession(sessionId: string): Promise<HostedSessionRecord | null> {
@@ -1929,7 +1990,7 @@ publicSiteWorldSessionsRouter.post("/", async (req, res, next) => {
 });
 
 publicSiteWorldSessionsRouter.get("/:sessionId", async (req, res, next) => {
-  const session = await loadHostedSession(String(req.params.sessionId || ""));
+  const session = await readFreshHostedSession(String(req.params.sessionId || ""));
   if (!session || !isPublicDemoSession(session)) {
     return next();
   }
@@ -2380,7 +2441,7 @@ protectedRouter.get("/:sessionId/ui-access", async (req, res) => {
 protectedRouter.get("/:sessionId", async (req, res) => {
   try {
     await ensureLaunchAccess(req, res);
-    const session = await loadHostedSession(String(req.params.sessionId || ""));
+    const session = await readFreshHostedSession(String(req.params.sessionId || ""));
     if (!session) {
       return res.status(404).json({ error: "Hosted session not found" });
     }

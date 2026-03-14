@@ -297,7 +297,7 @@ export interface HostedEpisodeSummary {
   score?: Record<string, unknown> | null;
   artifactUris?: Record<string, string>;
   generatedOutputs?: GeneratedOutputsSummary | null;
-  actionTrace?: number[][];
+  actionTrace?: Array<number[] | Record<string, number>>;
   observationCameras?: RobotObservationCamera[];
   canonicalPackageVersion?: string | null;
   presentationConfig?: Record<string, unknown> | null;

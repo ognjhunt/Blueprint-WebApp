@@ -325,6 +325,41 @@ vi.mock("../utils/hosted-session-orchestrator", () => ({
     health_status: "healthy",
     last_heartbeat_at: "2026-03-12T00:00:00Z",
   })),
+  fetchHostedSessionState: vi.fn(async () => ({
+    session_id: "session-1",
+    status: "running",
+    step_index: 0,
+    reward: 0,
+    done: false,
+    observation: {
+      primaryCameraId: "head_rgb",
+      worldSnapshot: {
+        snapshotId: "snapshot-0",
+        status: "running",
+        world_state: { step_index: 0 },
+      },
+    },
+  })),
+  mergeHostedEpisodeWithState: vi.fn((episode, state) => ({
+    ...(episode || {}),
+    ...(state || {}),
+    episodeId: String((episode as Record<string, unknown> | null)?.episodeId || "episode-1"),
+    taskId: String((episode as Record<string, unknown> | null)?.taskId || "sw-chi-01-task-1"),
+    task: String((episode as Record<string, unknown> | null)?.task || "Walk to shelf staging and pick the blue tote"),
+    scenarioId: String((episode as Record<string, unknown> | null)?.scenarioId || "sw-chi-01-scenario-1"),
+    scenario: String((episode as Record<string, unknown> | null)?.scenario || "Normal lighting"),
+    startStateId: String((episode as Record<string, unknown> | null)?.startStateId || "sw-chi-01-start-1"),
+    startState: String((episode as Record<string, unknown> | null)?.startState || "Dock-side tote stack"),
+    stepIndex: Number((state as Record<string, unknown>)?.step_index || 0),
+    reward: Number((state as Record<string, unknown>)?.reward || 0),
+    observation: {
+      ...(((episode as Record<string, unknown> | null)?.observation as Record<string, unknown> | undefined) || {}),
+      ...(((state as Record<string, unknown>)?.observation as Record<string, unknown> | undefined) || {}),
+    },
+    actionTrace: Array.isArray((state as Record<string, unknown>)?.action_trace)
+      ? ((state as Record<string, unknown>).action_trace as unknown[])
+      : [],
+  })),
   persistHostedSessionRuntimeMetadata: vi.fn(async () => undefined),
   resetHostedSessionRun: vi.fn(async () => ({
     episode: {
@@ -861,6 +896,76 @@ describe("site world session routes", () => {
 
       state.releaseHostedSessionUpdates();
     } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("serves live session reads from runtime state even when Firestore mirroring is blocked", async () => {
+    const orchestrator = await import("../utils/hosted-session-orchestrator");
+    const fetchStateSpy = vi.spyOn(orchestrator, "fetchHostedSessionState").mockResolvedValue({
+      session_id: "session-1",
+      status: "running",
+      step_index: 3,
+      reward: 0.75,
+      done: false,
+      action_trace: [{ index: 0, action_0: 0.1 }],
+      observation: {
+        primaryCameraId: "head_rgb",
+        worldSnapshot: {
+          snapshotId: "snapshot-3",
+          status: "running",
+          world_state: { step_index: 3 },
+        },
+      },
+    });
+    const { server, baseUrl } = await startServer();
+    try {
+      const create = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteWorldId: "sw-chi-01",
+          robotProfileId: "other_sample",
+          taskId: "sw-chi-01-task-1",
+          scenarioId: "sw-chi-01-scenario-1",
+          startStateId: "sw-chi-01-start-1",
+          requestedOutputs: ["observation_frames"],
+          exportModes: ["raw_bundle"],
+        }),
+      });
+      const createPayload = (await create.json()) as Record<string, unknown>;
+      if (create.status !== 201) {
+        throw new Error(JSON.stringify(createPayload));
+      }
+      const created = createPayload as { sessionId: string };
+
+      const reset = await fetch(`${baseUrl}/${created.sessionId}/reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      expect(reset.status).toBe(200);
+
+      state.blockHostedSessionUpdates();
+
+      const cachedBefore = state.hostedSessions.get(created.sessionId) as Record<string, unknown>;
+      expect(((cachedBefore.latestEpisode as Record<string, unknown>).stepIndex)).toBe(0);
+
+      const liveRead = await fetch(`${baseUrl}/${created.sessionId}`);
+      expect(liveRead.status).toBe(200);
+      const livePayload = (await liveRead.json()) as Record<string, unknown>;
+      expect(((livePayload.latestEpisode as Record<string, unknown>).stepIndex)).toBe(3);
+
+      const cachedWhileBlocked = state.hostedSessions.get(created.sessionId) as Record<string, unknown>;
+      expect(((cachedWhileBlocked.latestEpisode as Record<string, unknown>).stepIndex)).toBe(0);
+
+      state.releaseHostedSessionUpdates();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const mirrored = state.hostedSessions.get(created.sessionId) as Record<string, unknown>;
+      expect(((mirrored.latestEpisode as Record<string, unknown>).stepIndex)).toBe(3);
+    } finally {
+      fetchStateSpy.mockRestore();
       await stopServer(server);
     }
   });

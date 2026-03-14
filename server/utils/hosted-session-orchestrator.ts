@@ -187,9 +187,13 @@ async function runtimeFetchJson(
   baseUrl: string,
   relativePath: string,
   init?: RequestInit,
+  options?: { timeoutMs?: number },
 ): Promise<Record<string, unknown>> {
   const url = `${baseUrl}${relativePath}`;
-  const timeoutMs = Math.max(1000, Number(process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_TIMEOUT_MS || 45000));
+  const timeoutMs = Math.max(
+    1000,
+    Number(options?.timeoutMs ?? process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_TIMEOUT_MS || 45000),
+  );
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const startedAt = Date.now();
@@ -524,6 +528,7 @@ async function waitFor(ms: number) {
 export async function fetchHostedSessionState(params: {
   sessionId: string;
   workDir: string;
+  timeoutMs?: number;
 }) {
   const metadata = await readRuntimeMetadata(params.workDir);
   const runtimeBaseUrl = String(metadata.runtime_base_url || "").trim();
@@ -533,7 +538,16 @@ export async function fetchHostedSessionState(params: {
   return runtimeFetchJson(
     runtimeBaseUrl,
     `/v1/sessions/${encodeURIComponent(params.sessionId)}/state`,
+    undefined,
+    { timeoutMs: params.timeoutMs },
   );
+}
+
+export function mergeHostedEpisodeWithState(
+  episodePayload: Record<string, unknown> | null,
+  statePayload: Record<string, unknown>,
+) {
+  return mergeEpisodeWithState(episodePayload, statePayload);
 }
 
 export async function reconcileHostedEpisode(params: {
