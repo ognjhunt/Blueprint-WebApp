@@ -46,6 +46,16 @@ Provide one:
 - `STRIPE_CONNECT_ACCOUNT_ID`
 - Optional: `STRIPE_PUBLIC_BASE_URL`, `STRIPE_ONBOARDING_REFRESH_URL`, `STRIPE_ONBOARDING_RETURN_URL`
 
+### Redis (server, recommended for live hosted sessions)
+- Optional but recommended: `REDIS_URL`
+- Optional: `RATE_LIMIT_REDIS_URL` if you want rate limiting isolated from session live-state storage
+
+For Upstash, use the TLS Redis URL from the Connect panel, for example:
+
+```bash
+REDIS_URL=rediss://default:<token>@active-phoenix-39183.upstash.io:6379
+```
+
 ### Error Tracking
 - Optional: `VITE_SENTRY_DSN`
 - Optional: `VITE_ENABLE_ERROR_TRACKING_SMOKE_TEST=true`
@@ -53,5 +63,6 @@ Provide one:
 ## Notes
 
 - Firestore is the active datastore.
+- Live hosted-session state now prefers Redis when `REDIS_URL` is configured, then falls back to in-process memory, with Firestore acting as async mirroring/trail storage.
 - Legacy manual deployment scripts were removed; deployment should always run through project scripts.
 - `client/public/robots.txt` must exist at build time and be served in production.
