@@ -47,6 +47,7 @@ const protectedRouter = Router();
 export const publicSiteWorldSessionsRouter = Router();
 const inMemorySessions = new Map<string, HostedSessionRecord>();
 const activePresentationSessionIndex = new Map<string, string>();
+const pendingSessionMirrors = new Map<string, Promise<void>>();
 const execFile = promisify(execFileCallback);
 
 export function resetHostedSessionRouteState() {
@@ -197,7 +198,32 @@ async function writeSession(record: HostedSessionRecord) {
   await db.collection("hostedSessions").doc(record.sessionId).set(record);
 }
 
-async function updateSession(sessionId: string, update: Partial<HostedSessionRecord>) {
+function queueSessionMirror(sessionId: string, update: Partial<HostedSessionRecord>) {
+  if (!db) {
+    return;
+  }
+  const previous = pendingSessionMirrors.get(sessionId) || Promise.resolve();
+  const next = previous
+    .catch(() => undefined)
+    .then(async () => {
+      await db.collection("hostedSessions").doc(sessionId).update(update);
+    })
+    .catch((error) => {
+      logger.warn({ sessionId, error, fields: Object.keys(update) }, "Hosted session Firestore mirror failed");
+    })
+    .finally(() => {
+      if (pendingSessionMirrors.get(sessionId) === next) {
+        pendingSessionMirrors.delete(sessionId);
+      }
+    });
+  pendingSessionMirrors.set(sessionId, next);
+}
+
+async function updateSession(
+  sessionId: string,
+  update: Partial<HostedSessionRecord>,
+  options?: { awaitPersist?: boolean },
+) {
   const current = inMemorySessions.get(sessionId);
   if (current) {
     const merged = { ...current, ...update };
@@ -205,6 +231,11 @@ async function updateSession(sessionId: string, update: Partial<HostedSessionRec
     syncPresentationSessionIndex(merged);
   }
   if (!db) {
+    return;
+  }
+
+  if (options?.awaitPersist === false) {
+    queueSessionMirror(sessionId, update);
     return;
   }
 
@@ -1958,7 +1989,7 @@ publicSiteWorldSessionsRouter.post("/:sessionId/reset", async (req, res, next) =
       session.sessionId,
       reconciledEpisode,
     );
-    await updateSession(session.sessionId, {
+    void updateSession(session.sessionId, {
       latestEpisode,
       status: "running",
       latestRuntimeFailure: null,
@@ -1969,7 +2000,7 @@ publicSiteWorldSessionsRouter.post("/:sessionId/reset", async (req, res, next) =
         seed: seed ?? null,
         requestedBackend: session.runtime_backend_selected,
       },
-    });
+    }, { awaitPersist: false });
     logger.info(
       attachRequestMeta({
         ...logContext,
@@ -2027,10 +2058,10 @@ publicSiteWorldSessionsRouter.post("/:sessionId/step", async (req, res, next) =>
       expectedStepIndex,
     });
     const latestEpisode = normalizeEpisodeSummary(session.sessionId, reconciledEpisode);
-    await updateSession(session.sessionId, {
+    void updateSession(session.sessionId, {
       latestEpisode,
       latestRuntimeFailure: null,
-    });
+    }, { awaitPersist: false });
     return res.json({ ...payload, episode: latestEpisode });
   } catch (error) {
     const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
@@ -2410,7 +2441,7 @@ protectedRouter.post("/:sessionId/reset", async (req, res) => {
     });
     logger.info(logContext, "Hosted session reset snapshot reconciled");
     const latestEpisode = normalizeEpisodeSummary(session.sessionId, reconciledEpisode);
-    await updateSession(session.sessionId, {
+    void updateSession(session.sessionId, {
       latestEpisode,
       status: "running",
       latestRuntimeFailure: null,
@@ -2421,7 +2452,7 @@ protectedRouter.post("/:sessionId/reset", async (req, res) => {
         seed: seed ?? null,
         requestedBackend: session.runtime_backend_selected,
       },
-    });
+    }, { awaitPersist: false });
     logger.info(
       attachRequestMeta({
         ...logContext,
@@ -2480,10 +2511,10 @@ protectedRouter.post("/:sessionId/step", async (req, res) => {
       expectedStepIndex,
     });
     const latestEpisode = normalizeEpisodeSummary(session.sessionId, reconciledEpisode);
-    await updateSession(session.sessionId, {
+    void updateSession(session.sessionId, {
       latestEpisode,
       latestRuntimeFailure: null,
-    });
+    }, { awaitPersist: false });
     return res.json({ ...payload, episode: latestEpisode });
   } catch (error) {
     const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({

@@ -120,6 +120,8 @@ const state = vi.hoisted(() => {
     instanceId: "vast-config",
     expiresAt: "2026-03-12T02:00:00Z",
   };
+  let hostedSessionUpdateGate: Promise<void> | null = null;
+  let releaseHostedSessionUpdateGate: (() => void) | null = null;
   const inboundRequestData = {
     qualification_state: "qualified_ready",
     deployment_readiness: {
@@ -158,6 +160,23 @@ const state = vi.hoisted(() => {
     artifactPayloads,
     lastCreateHostedSessionRunParams,
     presentationLaunchConfig,
+    blockHostedSessionUpdates() {
+      if (!hostedSessionUpdateGate) {
+        hostedSessionUpdateGate = new Promise<void>((resolve) => {
+          releaseHostedSessionUpdateGate = () => {
+            hostedSessionUpdateGate = null;
+            releaseHostedSessionUpdateGate = null;
+            resolve();
+          };
+        });
+      }
+    },
+    releaseHostedSessionUpdates() {
+      releaseHostedSessionUpdateGate?.();
+    },
+    get hostedSessionUpdateGate() {
+      return hostedSessionUpdateGate;
+    },
   };
 });
 
@@ -234,6 +253,9 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
               state.hostedSessions.set(id, payload);
             },
             update: async (payload: Record<string, unknown>) => {
+              if (state.hostedSessionUpdateGate) {
+                await state.hostedSessionUpdateGate;
+              }
               state.hostedSessions.set(id, {
                 ...(state.hostedSessions.get(id) || {}),
                 ...payload,
@@ -545,6 +567,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   global.fetch = originalFetch;
+  state.releaseHostedSessionUpdates();
   state.hostedSessions.clear();
   state.lastCreateHostedSessionRunParams = null;
   state.presentationLaunchConfig = {
@@ -783,6 +806,61 @@ describe("site world session routes", () => {
     } finally {
       loadMetadataMock.mockReset();
       persistMetadataMock.mockReset();
+      await stopServer(server);
+    }
+  });
+
+  it("returns step responses before Firestore mirroring completes", async () => {
+    const { server, baseUrl } = await startServer();
+    try {
+      const create = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteWorldId: "sw-chi-01",
+          robotProfileId: "other_sample",
+          taskId: "sw-chi-01-task-1",
+          scenarioId: "sw-chi-01-scenario-1",
+          startStateId: "sw-chi-01-start-1",
+          requestedOutputs: ["observation_frames"],
+          exportModes: ["raw_bundle"],
+        }),
+      });
+      const createPayload = (await create.json()) as Record<string, unknown>;
+      if (create.status !== 201) {
+        throw new Error(JSON.stringify(createPayload));
+      }
+      const created = createPayload as { sessionId: string };
+
+      const reset = await fetch(`${baseUrl}/${created.sessionId}/reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      expect(reset.status).toBe(200);
+
+      state.blockHostedSessionUpdates();
+      const stepResult = await Promise.race([
+        fetch(`${baseUrl}/${created.sessionId}/step`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ episodeId: "episode-1" }),
+        }).then(async (response) => ({
+          kind: "response" as const,
+          status: response.status,
+          payload: (await response.json()) as Record<string, unknown>,
+        })),
+        new Promise<{ kind: "timeout" }>((resolve) => setTimeout(() => resolve({ kind: "timeout" }), 150)),
+      ]);
+
+      expect(stepResult.kind).toBe("response");
+      if (stepResult.kind === "response") {
+        expect(stepResult.status).toBe(200);
+        expect((stepResult.payload.episode as Record<string, unknown>).stepIndex).toBe(1);
+      }
+
+      state.releaseHostedSessionUpdates();
+    } finally {
       await stopServer(server);
     }
   });

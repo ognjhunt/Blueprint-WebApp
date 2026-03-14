@@ -282,6 +282,18 @@ describe("HostedSessionWorkspace", () => {
         ),
       ).toBe(true);
     });
+    const resetCallIndex = fetchMock.mock.calls.findIndex(([input, init]) =>
+      String(input).includes("/api/site-worlds/sessions/session-auto/reset") &&
+      init &&
+      typeof init === "object" &&
+      "method" in init &&
+      init.method === "POST",
+    );
+    const renderCallIndex = fetchMock.mock.calls.findIndex(([input]) =>
+      String(input).includes("/api/site-worlds/sessions/session-auto/render?cameraId=head_rgb"),
+    );
+    expect(resetCallIndex).toBeGreaterThanOrEqual(0);
+    expect(renderCallIndex).toBeGreaterThan(resetCallIndex);
     await findModeLabel("Live Runtime");
   });
 

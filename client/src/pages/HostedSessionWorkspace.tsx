@@ -684,8 +684,11 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       : !runtimeInteractive && isRenderableObservationPath(remoteObservationFramePath)
         ? remoteObservationFramePath
         : "";
+  const canRequestLiveRender = Boolean(
+    runtimeInteractive && sessionId && latestEpisode?.episodeId && (selectedCameraId || primaryCameraId),
+  );
   const renderRouteHref =
-    runtimeInteractive && sessionId && (selectedCameraId || primaryCameraId)
+    canRequestLiveRender
       ? `/api/site-worlds/sessions/${encodeURIComponent(sessionId)}/render?cameraId=${encodeURIComponent(
           selectedCameraId || primaryCameraId,
         )}&refresh=${observationRefreshKey}`
