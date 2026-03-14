@@ -832,8 +832,8 @@ siteWorldCards.push({
   exportArtifacts: ["Observation frames", "Rollout video", "Raw bundle", "RLDS dataset"],
   runtimeManifest: {
     defaultBackend: "neoverse",
-    runtimeBaseUrl: "http://146.115.17.164:54884",
-    websocketBaseUrl: "ws://146.115.17.164:54884",
+    runtimeBaseUrl: "https://ascii-needs-recommends-erp.trycloudflare.com",
+    websocketBaseUrl: "wss://ascii-needs-recommends-erp.trycloudflare.com",
     supportedCameras: ["head_rgb", "wrist_rgb", "site_context_rgb"],
     launchableBackends: ["neoverse"],
     exportModes: ["raw_bundle", "rlds_dataset"],

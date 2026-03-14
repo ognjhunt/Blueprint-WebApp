@@ -68,8 +68,8 @@ function buildRuntimeSession(overrides: Record<string, unknown> = {}) {
         "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/evaluation_prep/site_world_registration.json",
       siteWorldHealthUri:
         "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/evaluation_prep/site_world_health.json",
-      runtimeBaseUrl: "http://146.115.17.164:54884",
-      websocketBaseUrl: "ws://146.115.17.164:54884",
+      runtimeBaseUrl: "https://ascii-needs-recommends-erp.trycloudflare.com",
+      websocketBaseUrl: "wss://ascii-needs-recommends-erp.trycloudflare.com",
       sceneMemoryManifestUri:
         "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/scene_memory/scene_memory_manifest.json",
       conditioningBundleUri:
@@ -141,8 +141,8 @@ function buildRuntimeSession(overrides: Record<string, unknown> = {}) {
     metering: { sessionSeconds: 0, billableHours: 0 },
     runtimeHandle: {
       site_world_id: "siteworld-f5fd54898cfb",
-      runtime_base_url: "http://146.115.17.164:54884",
-      websocket_base_url: "ws://146.115.17.164:54884",
+      runtime_base_url: "https://ascii-needs-recommends-erp.trycloudflare.com",
+      websocket_base_url: "wss://ascii-needs-recommends-erp.trycloudflare.com",
       vm_instance_id: "32805118",
       build_id: "build-demo",
       health_status: "healthy",
