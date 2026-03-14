@@ -1010,6 +1010,56 @@ function normalizeBatchSummary(
   };
 }
 
+function shouldUseNodeRuntimeHttp() {
+  return process.env.BLUEPRINT_HOSTED_SESSION_USE_NODE_HTTP === "1" || process.env.NODE_ENV === "production";
+}
+
+async function runtimeBinaryRequest(url: string, timeoutMs: number) {
+  if (!shouldUseNodeRuntimeHttp()) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      return {
+        statusCode: response.status,
+        headers: Object.fromEntries(response.headers.entries()) as Record<string, string>,
+        body: Buffer.from(await response.arrayBuffer()),
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  const target = new URL(url);
+  const requestFn = target.protocol === "https:" ? https.request : http.request;
+  return await new Promise<{ statusCode: number; headers: http.IncomingHttpHeaders; body: Buffer }>((resolve, reject) => {
+    const request = requestFn(
+      target,
+      {
+        method: "GET",
+        headers: { connection: "close" },
+        timeout: timeoutMs,
+      },
+      (response) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+        response.on("end", () => {
+          resolve({
+            statusCode: response.statusCode || 500,
+            headers: response.headers,
+            body: Buffer.concat(chunks),
+          });
+        });
+      },
+    );
+    request.on("timeout", () => {
+      request.destroy(new Error(`Timed out after ${timeoutMs}ms waiting for runtime render.`));
+    });
+    request.on("error", reject);
+    request.end();
+  });
+}
+
 async function readRuntimeErrorDetail(response: globalThis.Response) {
   const contentType = String(response.headers.get("content-type") || "").toLowerCase();
   if (contentType.includes("application/json")) {
@@ -1048,16 +1098,13 @@ async function proxyRuntimeRenderForSession(session: HostedSessionRecord, req: R
     1000,
     Number(process.env.BLUEPRINT_HOSTED_SESSION_RENDER_TIMEOUT_MS || process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_TIMEOUT_MS || 45000),
   );
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const startedAt = Date.now();
-  let response: globalThis.Response;
+  let response: { statusCode: number; headers: http.IncomingHttpHeaders | Record<string, string>; body: Buffer };
   try {
-    response = await fetch(renderUrl, { signal: controller.signal });
+    response = await runtimeBinaryRequest(renderUrl, timeoutMs);
   } catch (error) {
-    clearTimeout(timeout);
     const runtimeError =
-      error instanceof Error && error.name === "AbortError"
+      error instanceof Error && (error.name === "AbortError" || /Timed out after \d+ms/.test(error.message))
         ? {
             code: "runtime_render_timeout",
             detail: `Timed out after ${timeoutMs}ms waiting for runtime render.`,
@@ -1091,9 +1138,25 @@ async function proxyRuntimeRenderForSession(session: HostedSessionRecord, req: R
     await updateSession(session.sessionId, { latestRuntimeFailure: diagnostic });
     return res.status(runtimeError.statusCode).json({ error: diagnostic.summary, code: diagnostic.code, diagnostic });
   }
-  clearTimeout(timeout);
-  if (!response.ok) {
-    const runtimeError = await readRuntimeErrorDetail(response);
+  const contentType =
+    typeof response.headers?.["content-type"] === "string"
+      ? response.headers["content-type"]
+      : Array.isArray(response.headers?.["content-type"])
+        ? response.headers["content-type"][0]
+        : "";
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    const runtimeError = contentType.toLowerCase().includes("application/json")
+      ? (() => {
+          const payload = JSON.parse(response.body.toString("utf-8") || "{}") as Record<string, unknown>;
+          return {
+            code: String(payload?.code || "runtime_render_failed"),
+            detail: String(payload?.detail || payload?.error || `Runtime request failed: ${response.statusCode}`),
+          };
+        })()
+      : {
+          code: "runtime_render_failed",
+          detail: response.body.toString("utf-8").trim() || `Runtime request failed: ${response.statusCode}`,
+        };
     const diagnostic = buildFailureDiagnostic({
       source: "runtime",
       operation: "render",
@@ -1101,16 +1164,15 @@ async function proxyRuntimeRenderForSession(session: HostedSessionRecord, req: R
         code: runtimeError.code,
         message: runtimeError.detail,
         detail: runtimeError.detail,
-        statusCode: response.status,
+        statusCode: response.statusCode,
       },
       fallbackCode: runtimeError.code,
       fallbackSummary: "Failed to proxy runtime render.",
-      statusCode: response.status,
+      statusCode: response.statusCode,
     });
     await updateSession(session.sessionId, { latestRuntimeFailure: diagnostic });
-    return res.status(response.status).json({ error: diagnostic.summary, code: diagnostic.code, diagnostic });
+    return res.status(response.statusCode).json({ error: diagnostic.summary, code: diagnostic.code, diagnostic });
   }
-  const arrayBuffer = await response.arrayBuffer();
   logger.info(
     attachRequestMeta({
       requestId: res.locals?.requestId,
@@ -1124,8 +1186,8 @@ async function proxyRuntimeRenderForSession(session: HostedSessionRecord, req: R
   if (session.latestRuntimeFailure?.operation === "render") {
     await updateSession(session.sessionId, { latestRuntimeFailure: null });
   }
-  res.setHeader("Content-Type", response.headers.get("content-type") || "image/png");
-  return res.send(Buffer.from(arrayBuffer));
+  res.setHeader("Content-Type", contentType || "image/png");
+  return res.send(response.body);
 }
 
 async function ensureRuntimeMetadataForSession(session: HostedSessionRecord) {

@@ -1,3 +1,5 @@
+import http from "node:http";
+import https from "node:https";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -62,6 +64,64 @@ async function readRuntimeMetadata(workDir: string) {
   return payload && typeof payload === "object" ? payload : {};
 }
 
+function shouldUseNodeRuntimeHttp() {
+  return process.env.BLUEPRINT_HOSTED_SESSION_USE_NODE_HTTP === "1" || process.env.NODE_ENV === "production";
+}
+
+async function runtimeRequestViaNode(
+  url: string,
+  init?: RequestInit,
+): Promise<{ statusCode: number; headers: http.IncomingHttpHeaders; body: Buffer }> {
+  const timeoutMs = Math.max(1000, Number(process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_TIMEOUT_MS || 45000));
+  const target = new URL(url);
+  const requestFn = target.protocol === "https:" ? https.request : http.request;
+  const body =
+    typeof init?.body === "string"
+      ? Buffer.from(init.body)
+      : init?.body instanceof URLSearchParams
+        ? Buffer.from(init.body.toString())
+        : Buffer.isBuffer(init?.body)
+          ? init.body
+          : init?.body
+            ? Buffer.from(String(init.body))
+            : undefined;
+  const headers = new Headers(init?.headers || {});
+  if (body && !headers.has("content-length")) {
+    headers.set("content-length", String(body.byteLength));
+  }
+  headers.set("connection", "close");
+
+  return await new Promise((resolve, reject) => {
+    const req = requestFn(
+      target,
+      {
+        method: init?.method || "GET",
+        headers: Object.fromEntries(headers.entries()),
+        timeout: timeoutMs,
+      },
+      (response) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+        response.on("end", () => {
+          resolve({
+            statusCode: response.statusCode || 500,
+            headers: response.headers,
+            body: Buffer.concat(chunks),
+          });
+        });
+      },
+    );
+    req.on("timeout", () => {
+      req.destroy(new Error(`Timed out after ${timeoutMs}ms waiting for runtime request ${target.pathname}.`));
+    });
+    req.on("error", reject);
+    if (body) {
+      req.write(body);
+    }
+    req.end();
+  });
+}
+
 async function runtimeFetchJson(
   baseUrl: string,
   relativePath: string,
@@ -74,16 +134,25 @@ async function runtimeFetchJson(
   const startedAt = Date.now();
 
   try {
-    const response = await fetch(url, {
-      ...init,
-      signal: controller.signal,
-    });
-    const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-    if (!response.ok) {
+    const payload = shouldUseNodeRuntimeHttp()
+      ? await runtimeRequestViaNode(url, init).then((response) => ({
+          ok: response.statusCode >= 200 && response.statusCode < 300,
+          status: response.statusCode,
+          payload: JSON.parse(response.body.toString("utf-8") || "{}") as Record<string, unknown>,
+        }))
+      : await fetch(url, {
+          ...init,
+          signal: controller.signal,
+        }).then(async (response) => ({
+          ok: response.ok,
+          status: response.status,
+          payload: (await response.json().catch(() => ({}))) as Record<string, unknown>,
+        }));
+    if (!payload.ok) {
       throw new HostedSessionOrchestratorError(
         "runtime_proxy_failed",
-        String(payload.detail || payload.error || `Runtime request failed: ${response.status}`),
-        { statusCode: response.status },
+        String(payload.payload.detail || payload.payload.error || `Runtime request failed: ${payload.status}`),
+        { statusCode: payload.status },
       );
     }
     logger.info(
@@ -94,7 +163,7 @@ async function runtimeFetchJson(
       }),
       "Hosted runtime request completed",
     );
-    return payload;
+    return payload.payload;
   } catch (error) {
     if (error instanceof HostedSessionOrchestratorError) {
       logger.warn(
@@ -109,7 +178,7 @@ async function runtimeFetchJson(
       );
       throw error;
     }
-    if (error instanceof Error && error.name === "AbortError") {
+    if (error instanceof Error && (error.name === "AbortError" || /Timed out after \d+ms/.test(error.message))) {
       logger.warn(
         attachRequestMeta({
           runtimeUrl: url,
