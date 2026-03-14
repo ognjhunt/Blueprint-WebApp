@@ -997,7 +997,7 @@ function buildSiteModelSummary(
     availableStartStates: runtime.availableStartStates,
     defaultRuntimeBackend: runtime.defaultRuntimeBackend,
     availableRuntimeBackends: runtime.availableRuntimeBackends,
-    backendVariants: runtime.runtimeManifest.backendVariants,
+    backendVariants: runtime.runtimeManifest.backendVariants || {},
   };
 }
 

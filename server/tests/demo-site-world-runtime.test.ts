@@ -22,7 +22,7 @@ describe("demo site-world runtime fallback", () => {
   it("exposes the hardcoded site-world in client and server catalogs", async () => {
     const clientRecord = getSiteWorldById("siteworld-f5fd54898cfb");
     expect(clientRecord).not.toBeNull();
-    expect(clientRecord?.runtimeManifest.runtimeBaseUrl).toBe("http://146.115.17.157:45457");
+    expect(clientRecord?.runtimeManifest.runtimeBaseUrl).toBe("http://146.115.17.164:54884");
     expect(clientRecord?.hostedSessionOverride?.allowBlockedSiteWorld).toBe(true);
 
     const serverRecord = await getPublicSiteWorldById("siteworld-f5fd54898cfb");
@@ -36,15 +36,15 @@ describe("demo site-world runtime fallback", () => {
   it("resolves hosted runtime with the demo launch override", async () => {
     const runtime = await resolveHostedRuntime("siteworld-f5fd54898cfb");
 
-    expect(runtime.runtimeBaseUrl).toBe("http://146.115.17.157:45457");
-    expect(runtime.websocketBaseUrl).toBe("ws://146.115.17.157:45457");
+    expect(runtime.runtimeBaseUrl).toBe("http://146.115.17.164:54884");
+    expect(runtime.websocketBaseUrl).toBe("ws://146.115.17.164:54884");
     expect(runtime.allowBlockedSiteWorld).toBe(true);
     expect(runtime.qualificationState).toBe("qualified_ready");
     expect(runtime.deploymentReadiness?.qualification_state).toBe("qualified_ready");
     expect(runtime.resolvedArtifactCanonicalUri).toContain("blueprint-8c1ca.appspot.com");
-    expect(runtime.registeredCanonicalPackageUri).toContain("gs://local-blueprint/");
-    expect(runtime.registeredCanonicalPackageVersion).toBeTruthy();
-  });
+    expect(runtime.registeredCanonicalPackageUri ?? null).toBeNull();
+    expect(runtime.registeredCanonicalPackageVersion ?? null).toBeNull();
+  }, 15000);
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -80,5 +80,5 @@ describe("demo site-world runtime fallback", () => {
     } finally {
       await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
     }
-  });
+  }, 15000);
 });

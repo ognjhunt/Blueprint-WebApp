@@ -708,6 +708,7 @@ describe("site world session routes", () => {
       expect(state.hostedSessions.size).toBe(1);
       const stored = state.hostedSessions.get(String(payload.sessionId)) as Record<string, unknown>;
       expect((stored.siteModel as Record<string, unknown>).sceneId).toBe("scene-harborview-grocery-annex");
+      expect((stored.siteModel as Record<string, unknown>).backendVariants).toEqual({});
       expect((stored.robotProfile as Record<string, unknown>).displayName).toBe(
         "Unitree G1 with head cam and wrist cam",
       );
